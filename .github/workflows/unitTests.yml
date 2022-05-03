@@ -1,0 +1,16 @@
+name: Unit Tests
+on: [push]
+jobs:
+  Run-All:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo Code Checkout
+        uses: actions/checkout@v3
+
+      - name: Golang Setup
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - run: echo "Running {{ github.repository }} deployment unit tests."
+      - run: go test ./...
