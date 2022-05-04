@@ -3,6 +3,9 @@ on: [push]
 jobs:
   Run-All:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
     steps:
       - name: Repo Code Checkout
         uses: actions/checkout@v3
