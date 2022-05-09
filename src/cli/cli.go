@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/cli/repo"
 )
 
 // The root-level command.
@@ -34,6 +36,9 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) {
 // Handle builds and executes the cli processor.
 func Handle() {
 	corsoCmd.Flags().BoolP("version", "v", version, "current version info")
+
+	repo.AddCommands(corsoCmd)
+
 	if err := corsoCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
