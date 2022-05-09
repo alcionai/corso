@@ -1,5 +1,10 @@
-name: Unit Tests
-on: [push]
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
 jobs:
   Run-All:
     runs-on: ubuntu-latest
@@ -14,6 +19,9 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
+
+      - name: Run gofmt
+        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
 
       - run: echo "Running {{ github.repository }} deployment unit tests."
       - run: go test ./...
