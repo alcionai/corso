@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"github.com/alcionai/corso/cli"
+)
 
 func main() {
-	fmt.Println("Hello, Corso")
+	cli.Handle()
 }
