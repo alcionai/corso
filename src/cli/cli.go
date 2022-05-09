@@ -14,27 +14,25 @@ import (
 // `corso <command> [<subcommand>] [<service>] [<flag>...]`
 var corsoCmd = &cobra.Command{
 	Use:   "corso",
-	Short: "Back up your m365 data.",
-	Long: `TODO: wordsmithing something awesome about running Corso
-and backing up all that data.`,
-	Run: handleCorsoCmd,
+	Short: "Protect your Microsoft 365 data.",
+	Long:  `Reliable, secure, and efficient data protection for Microsoft 365.`,
+	Run:   handleCorsoCmd,
 }
 
-// variables populated by flags
+// the root-level flags
 var (
 	version bool
-)
 
-// root-level and global flags
-var corsoFlags = []flags.CliFlag{
-	{
-		Name:        "version",
-		Short:       "v",
-		Description: "current version info",
-		VarType:     flags.BoolType,
-		Var:         &version,
-	},
-}
+	corsoFlags = []flags.CliFlag{
+		{
+			Name:        "version",
+			Short:       "v",
+			Description: "current version info",
+			VarType:     flags.BoolType,
+			Var:         &version,
+		},
+	}
+)
 
 // Handler for flat calls to `corso`.
 // Produces the same output as `corso --help`.
@@ -48,8 +46,8 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
-	repo.InitCommands(corsoCmd)
-	flags.AddAllTo(corsoFlags, corsoCmd)
+	repo.AddCommands(corsoCmd)
+	flags.AddAll(corsoFlags, corsoCmd)
 
 	// process the command
 	if err := corsoCmd.Execute(); err != nil {

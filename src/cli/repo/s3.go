@@ -16,42 +16,27 @@ var providerS3Cmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 }
 
-// populated by flags
 var (
 	bucket    string
 	accessKey string
-)
 
-var providerS3Flags = []flags.CliFlag{
-	{
-		Name:        "bucket",
-		Description: "Name of the S3 bucket.",
-		Required:    true,
-		VarType:     flags.StringType,
-		Var:         &bucket,
-	},
-	{
-		Name:        "access-key",
-		Description: "Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).",
-		Required:    true,
-		VarType:     flags.StringType,
-		Var:         &accessKey,
-	},
-}
-
-// generates a s3 repo command with the same flags to the provided parent command.
-func initRepoProviderS3(cmd *cobra.Command) {
-	c := &cobra.Command{}
-	*c = *providerS3Cmd
-	switch cmd.Use {
-	case initCommand:
-		c.Run = initS3Cmd
-	case connectCommand:
-		c.Run = connectS3Cmd
+	providerS3Flags = []flags.CliFlag{
+		{
+			Name:        "bucket",
+			Description: "Name of the S3 bucket (required).",
+			Required:    true,
+			VarType:     flags.StringType,
+			Var:         &bucket,
+		},
+		{
+			Name:        "access-key",
+			Description: "Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).",
+			Required:    false,
+			VarType:     flags.StringType,
+			Var:         &accessKey,
+		},
 	}
-	cmd.AddCommand(c)
-	flags.AddAllTo(providerS3Flags, c)
-}
+)
 
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) {

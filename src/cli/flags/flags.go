@@ -25,16 +25,15 @@ type CliFlag struct {
 	Required    bool     // In case the flag must be populated for the command to run.
 }
 
-// adds all flags to the provided command.
-func AddAllTo(flags []CliFlag, cmd *cobra.Command) {
+// AddAll flags in the slice to the provided command.
+func AddAll(flags []CliFlag, cmd *cobra.Command) {
 	for _, f := range flags {
-		AddTo(f, cmd)
+		Add(f, cmd)
 	}
 }
 
-// adds a flag to the provided command.
-func AddTo(flag CliFlag, cmd *cobra.Command) {
-
+// Add a single flag to the provided command.
+func Add(flag CliFlag, cmd *cobra.Command) {
 	flags := cmd.Flags()
 	require := cmd.MarkFlagRequired
 	if flag.Global {
