@@ -8,7 +8,7 @@ ARG gid=1000
 # with the same UID and GID as the current user so that the mounted directory
 # doesn't end up with files with strange permissions.
 
-RUN groupadd -g "${gid}" build && \
+RUN if [ ! $(getent group ${gid}) ]; then groupadd -g "${gid}" build; fi && \
     useradd -m -u "${uid}" -g "${gid}" build
 
-USER build:build
+USER build:${gid}
