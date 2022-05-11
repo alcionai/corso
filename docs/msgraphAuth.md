@@ -28,6 +28,8 @@ credentials via the UI.
 Passes username/password over the wire to the AuthServer. No interaction
 required; however, this authentication cannot be used when 2FA enabled.
 
+Below is an example of the error received on a 2FA enabled account
+
 ```go
 "error": "invalid_grant",
   "error_description": "AADSTS50076: Due to a configuration change made by your administrator, or because you moved to a new location, you must use multi-factor authentication to access '00000003-0000-0000-c000-000000000000'.\r\nTrace ID: 5e178ca4-7a77-491a-a607-1f0a8187d500\r\nCorrelation ID: a3dce328-f8d3-4932-bf95-d2a89693f7e5\r\nTimestamp: 2022-04-11 15:39:35Z",
