@@ -19,6 +19,7 @@ instructions on how to navigate those changes.
 For more detailed specifics on how Corso uses msgraph components as it fetches
 data from Microsoft 365:
 - [Authorization](msgraphAuth.md)
+- [Data Encapsulation](msgraphObjects.md)
 - [Data Transport](msgraphTransport.md)
 - [Restore](msgraphRestore.md)
 
