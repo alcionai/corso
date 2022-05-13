@@ -1,4 +1,4 @@
-.PHONY: buildimage
+.PHONY: buildimage build dev shell
 
 buildimage:
 	docker build -t "alcion/docs:latest" .
