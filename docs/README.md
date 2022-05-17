@@ -1,41 +1,34 @@
-# Website
+# Corso Documentation
 
-This website is built using [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
+Corso documentation is built using [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
 
 ### Installation
 
 ```
-$ yarn
+$ make buildimage
 ```
 
-### Local Development
+### Live Docs
 
 ```
-$ yarn start
+$ make dev
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+This command starts a local development server within the Docker container and will expose docs at http://localhost:3000.
 
-### Build
+### Build Docs
 
 ```
-$ yarn build
+$ make build
 ```
 
 This command generates static content into the `build` directory and can be served using any static contents hosting service.
 
-### Deployment
+### Documentation Platform Development
 
-Using SSH:
-
-```
-$ USE_SSH=true yarn deploy
-```
-
-Not using SSH:
 
 ```
-$ GIT_USER=<Your GitHub username> yarn deploy
+$ make shell
 ```
 
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+This command is when you want to interactively (and temporarily!) change the contents or configuration of the live documentation container image.
