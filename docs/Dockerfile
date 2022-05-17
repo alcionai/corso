@@ -10,6 +10,8 @@ RUN apt-get -y update && apt-get -y install gpg emacs curl \
   && apt-get -y install nodejs \
   && apt-get autoclean \
   && node --version \
-  && npm --version
+  && npm --version \
+  && cd /tmp && curl -O -L https://github.com/errata-ai/vale/releases/download/v2.15.4/vale_2.15.4_Linux_64-bit.tar.gz \
+  && tar -xvzf vale_2.15.4_Linux_64-bit.tar.gz -C /usr/bin vale
 
 CMD ["npm", "start", "--", "--host", "0.0.0.0"]
