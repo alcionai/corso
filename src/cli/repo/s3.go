@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/alcionai/corso/repository"
 	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/repository"
 )
 
 // s3 bucket info from flags
@@ -57,7 +58,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 
 	r := repository.NewS3(bucket, accessKey, asak, m365Tenant, m365ClientID, m365ClientSecret)
 
-	if err := r.Initialize(); err != nil {
+	if err := initializeRepo(r); err != nil {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
 		os.Exit(1)
 	}
@@ -88,7 +89,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 	// TODO: this should retrieve an existing repo, not generate a new one
 	r := repository.NewS3(bucket, accessKey, asak, m365Tenant, m365ClientID, m365ClientSecret)
 
-	if err := r.Connect(); err != nil {
+	if err := connectRepo(r); err != nil {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)
 		os.Exit(1)
 	}

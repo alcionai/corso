@@ -90,3 +90,16 @@ var connectCmd = &cobra.Command{
 func handleConnectCmd(cmd *cobra.Command, args []string) {
 	cmd.Help()
 }
+
+type repoConnector interface {
+	Initialize() error
+	Connect() error
+}
+
+func initializeRepo(rc repoConnector) error {
+	return rc.Initialize()
+}
+
+func connectRepo(rc repoConnector) error {
+	return rc.Connect()
+}
