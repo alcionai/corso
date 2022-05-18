@@ -92,7 +92,7 @@ const config = {
               },
               {
                 label: 'Twitter',
-                href: 'https://twitter.com/dlcionhq',
+                href: 'https://twitter.com/alcionhq',
               },
             ],
           },
