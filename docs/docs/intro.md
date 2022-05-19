@@ -2,17 +2,17 @@
 sidebar_position: 1
 ---
 
-# Corso Introduction
+# Corso introduction
 
-Let's discover **Corso in less than 5 minutes**.
+Discover **Corso in less than 5 minutes**.
 
-## Getting Started
+## Getting started
 
 ### What you'll need
 
 - Docker
 - A M365 account with the following permissions:
-  - ...
+  - _
 
 ## Running Corso
 
@@ -22,12 +22,12 @@ Corso with automatically run with the command:
 docker run ...
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+You can type this command into Command Prompt, PowerShell, Terminal, or any other integrated terminal of your code editor.
 
-## Your First M365 Backup
+## Your first M365 backup
 
-To **only** backup your data, run:
+To backup just your own personal data, run:
 
 ```bash
-docker run
+docker run ...
 ```
