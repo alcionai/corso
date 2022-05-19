@@ -8,9 +8,11 @@ dev:
 		-p 3000:3000 \
 		-v ${PWD}:/usr/src/docs alcion/docs
 
-vale:
+check:
 	docker run --rm \
 		-v ${PWD}:/usr/src/docs alcion/docs vale --glob='*.md' .
+	docker run --rm \
+		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md'
 
 shell:
 	docker run --rm -it \
