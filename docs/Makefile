@@ -10,9 +10,9 @@ dev:
 
 check:
 	docker run --rm \
-		-v ${PWD}:/usr/src/docs alcion/docs vale --glob='docs/**/*.md' .
+		-v ${PWD}:/usr/src/docs alcion/docs vale --glob='!**/development/*' docs
 	docker run --rm \
-		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/
+		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore docs/development
 
 shell:
 	docker run --rm -it \
