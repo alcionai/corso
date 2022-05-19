@@ -1,4 +1,8 @@
-# CLI Commands
+---
+title: CLI
+---
+
+# CLI
 ## Status
 
 Revision: v0.0.1
@@ -23,7 +27,7 @@ This is a proposal for Corso cli commands extrapolated from the Functional Requi
 ## Commands
 
 Standard format:  
-`corso <command> [<subcommand>] [<service|repository>] [<flag>...]` 
+`corso {command} [{subcommand}] [{service|repository}] [{flag}...]` 
 
 | Cmd |  |  | Flags | Notes |
 | --- | --- | --- | --- | --- |
@@ -32,30 +36,33 @@ Standard format:
 | help |  |  |  | Same as `corso —-help` |
 | * | * | help |  | Same as `{command} -—help` |
 | * | * |  | —help | Same as `{command} help` |
-|  |  |  |  |  |
-|  |  |  |  |  |
+
+| Cmd |  |  | Flags | Notes |
+| --- | --- | --- | --- | --- |
 | repo | * |  |  | Same as `repo [*] --help`. |
-| repo | init | \<repository> |  | Initialize a Corso repository. |
-| repo | init | \<repository> | —tenant {tenant_id} | Provides the account’s tenant ID. |
-| repo | init | \<repository> | —client {client_id} | Provides the account’s client ID. |
-| repo | connect | \<repository> |  | Connects to the specified repo. |
-| repo | configure | \<repository> |  | Sets mutable config properties to the provided values. |
+| repo | init | {repository} |  | Initialize a Corso repository. |
+| repo | init | {repository} | —tenant {tenant_id} | Provides the account’s tenant ID. |
+| repo | init | {repository} | —client {client_id} | Provides the account’s client ID. |
+| repo | connect | {repository} |  | Connects to the specified repo. |
+| repo | configure | {repository} |  | Sets mutable config properties to the provided values. |
 | repo | * | * | —config {cfg_file_path} | Specify a repo configuration file.  Values may also be provided via individual flags and env vars. |
 | repo | * | * | —{config-prop} | Blanket commitment to support config via flags. |
 | repo | * | * | —credentials {creds_file_path} | Specify a file containing credentials or secrets.  Values may also be provided via env vars. |
-|  |  |  |  |  |
-|  |  |  |  |  |
+
+| Cmd |  |  | Flags | Notes |
+| --- | --- | --- | --- | --- |
 | backup | * |  |  | Same as backup [*] -—help |
-| backup | list | \<service> |  | List all backups in the repository for the specified service. |
-| backup | create | \<service> |  | Backup the specified service. |
-| backup | * | \<service> | —token {token} | Provides a security key for permission to perform backup. |
-| backup | * | \<service> | —\<entity> {<entity_id>}... | Only involve the target entity(s).  Entities are things like users, groups, sites, etc.  Entity flag support is service-specific. |
-|  |  |  |  |  |
-|  |  |  |  |  |
+| backup | list | {service} |  | List all backups in the repository for the specified service. |
+| backup | create | {service} |  | Backup the specified service. |
+| backup | * | {service} | —token {token} | Provides a security key for permission to perform backup. |
+| backup | * | {service} | —{entity} {entity_id}... | Only involve the target entity(s).  Entities are things like users, groups, sites, etc.  Entity flag support is service-specific. |
+
+| Cmd |  |  | Flags | Notes |
+| --- | --- | --- | --- | --- |
 | restore |  |  |  | Same as `restore -—help` |
-| restore | \<service> |  |  | Complete service restoration using the latest versioned backup. |
-| restore | \<service> |  | —backup {backup_id} | Restore data from only the targeted backup(s). |
-| restore | \<service> |  | —\<entity> {<entity_id>}... | Only involve the target entity(s).  Entities are things like users, groups, sites, etc.  Entity flag support is service-specific. |
+| restore | {service} |  |  | Complete service restoration using the latest versioned backup. |
+| restore | {service} |  | —backup {backup_id} | Restore data from only the targeted backup(s). |
+| restore | {service} |  | —{entity} {entity_id}... | Only involve the target entity(s).  Entities are things like users, groups, sites, etc.  Entity flag support is service-specific. |
 ---
 
 
@@ -87,7 +94,7 @@ $ corso backup list express
 
 Base command: `corso`
 
-Standard format: `corso <command> [<subcommand>] [<service>] [<flag>...]`
+Standard format: `corso {command} [{subcommand}] [{service}] [{flag}...]`
 
 Examples:
 
@@ -104,13 +111,13 @@ M365 accounts are paired with repo initialization, resulting in a single-tenancy
 
 **Init**
 
-`corso repo init <repository> --config {cfg} --credentials {creds}`
+`corso repo init {repository} --config {cfg} --credentials {creds}`
 
 Initializes a repository, bootstrapping resources as necessary and storing configuration details within Corso.  Repo is the name of the repository provider, eg: ‘s3’.  Cfg and creds, in this example, point to json (or alternatively yaml?) files containing the details required to establish the connection.  Configuration options, when known, will get support for flag-based declaration.  Similarly, env vars will be supported as needed.
 
 **Connection**
 
-`corso repo connect <repository> --credentials {creds}` 
+`corso repo connect {repository} --credentials {creds}` 
 
 [https://docs.flexera.com/flexera/EN/SaaSManager/M365CCIntegration.htm#integrations_3059193938_1840275](https://docs.flexera.com/flexera/EN/SaaSManager/M365CCIntegration.htm#integrations_3059193938_1840275)
 
@@ -120,7 +127,7 @@ Corso is expected to gracefully handle transient disconnections during backup/re
 
 **Deletion**
 
-`corso repo delete <repository>`
+`corso repo delete {repository}`
 
 (Included here for discussion, but not being added to the CLI command set at this time.)
 
@@ -147,11 +154,11 @@ Configure allows mutation of config properties that can be safely and transientl
 
 **Full Service Backup**
 
-- `corso backup create <service>`
+- `corso backup create {service}`
 
 **Selective Backup**
 
-- `corso backup create <service> --<entity> {entity_id}...`
+- `corso backup create {service} --{entity} {entity_id}...`
 
 Entities are service-applicable objects that match up to m365 objects.  Users, groups, sites, mailboxes, etc.  Entity flags are available on a per-service basis.  For example, —site is available for the sharepoint service, and —mailbox for express, but not the reverse.  A full list of system-entity mappings is coming in the future.
 
@@ -169,11 +176,11 @@ Entities are service-applicable objects that match up to m365 objects.  Users, g
 
 ## UC5 - Backup Ops
 
-`corso backup list <service>` 
+`corso backup list {service}` 
 
 Produces a list of the backups which currently exist in the repository.
 
-`corso backup list <service> --<entity> {entity_id}...`
+`corso backup list {service} --{entity} {entity_id}...`
 
 The list can be filtered to contain backups relevant to the specified entities.  A possible user flow for restoration is for the user to use this to discover which backups match their needs, and then apply those backups in a restore operation.
 
@@ -189,13 +196,13 @@ Similar to backup, `corso restore` is reserved as a non-actionable command to se
 
 **Full Service Restore**
 
-- `corso restore <service> [--backup {backup_id}...]`
+- `corso restore {service} [--backup {backup_id}...]`
 
 If no backups are specified, this defaults to the most recent backup of the specified service.
 
 **Selective Restore**
 
-- `corso restore <service> [--backup {backup_id}...] [--<entity> {entity_id}...]`
+- `corso restore {service} [--backup {backup_id}...] [--{entity} {entity_id}...]`
 
 Entities are service-applicable objects that match up to m365 objects.  Users, groups, sites, mailboxes, etc.  Entity flags are available on a per-service basis.  For example, —site is available for the sharepoint service, and —mailbox for express, but not the reverse.  A full list of system-entity mappings is coming in the future.
 
