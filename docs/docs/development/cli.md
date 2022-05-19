@@ -1,8 +1,8 @@
 ---
-title: CLI
+title: CLI Proposal
 ---
 
-# Abstract
+# Corso CLI Proposal
 
 This is a proposal for Corso cli commands extrapolated from the Functional Requirements product documentation.  Open questions are listed in the `Details & Discussion` section.  The command set includes some p1/p2 actions for completeness.  This proposal only intends to describe the available commands themselves and does not evaluate functionality or feature design beyond that goal.
 

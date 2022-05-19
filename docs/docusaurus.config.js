@@ -60,12 +60,6 @@ const config = {
         items: [
           {
             type: 'doc',
-            docId: 'cli',
-            position: 'left',
-            label: 'CLI',
-          },
-          {
-            type: 'doc',
             docId: 'intro',
             position: 'left',
             label: 'Tutorial',
