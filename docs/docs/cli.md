@@ -2,12 +2,6 @@
 title: CLI
 ---
 
-# CLI
-## Status
-
-Revision: v0.0.1
-
------
 # Abstract
 
 This is a proposal for Corso cli commands extrapolated from the Functional Requirements product documentation.  Open questions are listed in the `Details & Discussion` section.  The command set includes some p1/p2 actions for completeness.  This proposal only intends to describe the available commands themselves and does not evaluate functionality or feature design beyond that goal.
@@ -216,8 +210,3 @@ Entities are service-applicable objects that match up to m365 objects.  Users, g
 ## UC6.2 - disaster recovery
 
 Multi-service backup/restoration is still under review.
-
------
-## Change Log
-### v0.0.1
-Initial release.
