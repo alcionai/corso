@@ -10,19 +10,11 @@ import (
 
 type repoProvider int
 
+//go:generate stringer -type=repoProvider
 const (
-	UnknownProvider repoProvider = iota
-	S3Provider
+	ProviderUnknown repoProvider = iota // Unknown Provider
+	ProviderS3                          // S3
 )
-
-func (rp repoProvider) Name() string {
-	switch rp {
-	case S3Provider:
-		return "S3"
-	default:
-		return "Default Provider"
-	}
-}
 
 // Repository contains storage provider information.
 type Repository struct {
@@ -46,17 +38,6 @@ type Config interface {
 	KopiaStorage(ctx context.Context, create bool) (blob.Storage, error)
 }
 
-func newRepo(provider repoProvider, acct Account, cfg Config) Repository {
-	return Repository{
-		ID:        uuid.New(),
-		CreatedAt: time.Now().UTC(),
-		Version:   "v1",
-		Provider:  provider,
-		Account:   acct,
-		Config:    cfg,
-	}
-}
-
 // Initialize will:
 //  * validate the m365 account & secrets
 //  * connect to the m365 account to ensure communication capability
@@ -64,14 +45,40 @@ func newRepo(provider repoProvider, acct Account, cfg Config) Repository {
 //  * initialize the kopia repo with the provider
 //  * store the configuration details
 //  * connect to the provider
-func (r Repository) Initialize(ctx context.Context) error {
-	return nil
+//  * return the connected repository
+func Initialize(
+	ctx context.Context,
+	provider repoProvider,
+	acct Account,
+	cfg Config,
+) (Repository, error) {
+	r := Repository{
+		ID:       uuid.New(),
+		Version:  "v1",
+		Provider: provider,
+		Account:  acct,
+		Config:   cfg,
+	}
+	return r, nil
 }
 
 // Connect will:
 //  * validate the m365 account details
 //  * connect to the m365 account to ensure communication capability
 //  * connect to the provider storage
-func (r Repository) Connect(ctx context.Context) error {
-	return nil
+//  * return the connected repository
+func Connect(
+	ctx context.Context,
+	provider repoProvider,
+	acct Account,
+	cfg Config,
+) (Repository, error) {
+	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
+	r := Repository{
+		Version:  "v1",
+		Provider: provider,
+		Account:  acct,
+		Config:   cfg,
+	}
+	return r, nil
 }
