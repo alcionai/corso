@@ -30,7 +30,7 @@ This command generates static content into the `build` directory and can be serv
 $ make check
 ```
 
-This command will lint all Markdown files and check them for style issues
+This command will lint all Markdown files and check them for style issues.
 
 ### Documentation Platform Development
 
