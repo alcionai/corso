@@ -14,7 +14,10 @@ RUN apt-get -y update && apt-get -y install gpg emacs curl \
 
 WORKDIR /usr/src
 COPY package.json package-lock.json* ./
-RUN npm ci && npm cache clean --force && rm -f package.json package-lock.json*
+RUN npm ci \
+  && npm install -g markdownlint-cli \
+  && npm cache clean --force \
+  && rm -f package.json package-lock.json*
 ENV PATH /usr/src/node_modules/.bin:$PATH
 
 WORKDIR /usr/src/docs

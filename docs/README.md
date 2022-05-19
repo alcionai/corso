@@ -24,6 +24,14 @@ $ make build
 
 This command generates static content into the `build` directory and can be served using any static contents hosting service.
 
+### Check Docs
+
+```
+$ make check
+```
+
+This command will lint all Markdown files and check them for style issues
+
 ### Documentation Platform Development
 
 
