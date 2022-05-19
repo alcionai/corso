@@ -2,6 +2,6 @@
 sidebar_position: 1
 ---
 
-# Repositories and Configuration
+# Repositories and configuration
 
-How to configure Corso...
+How to configure Corso:
