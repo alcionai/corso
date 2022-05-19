@@ -8,7 +8,6 @@ Let's discover **Corso in less than 5 minutes**.
 
 ## Getting Started
 
-
 ### What you'll need
 
 - Docker
