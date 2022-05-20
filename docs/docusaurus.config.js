@@ -87,8 +87,8 @@ const config = {
             title: 'Community',
             items: [
               {
-                label: 'Discord',
-                href: 'https://discordapp.com/invite/docusaurus',
+                label: 'Discussions',
+                href: 'https://github.com/alcionai/corso/discussions',
               },
               {
                 label: 'Twitter',
