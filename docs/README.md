@@ -2,6 +2,13 @@
 
 Corso documentation is built using [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
 
+## Requirements
+
+To develop Documentation for Corso, the following tools are required on your local machine:
+
+- `make`
+- Docker
+
 ## Installation
 
 ```bash
