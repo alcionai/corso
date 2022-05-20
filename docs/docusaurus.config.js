@@ -54,8 +54,9 @@ const config = {
       navbar: {
         title: 'Corso',
         logo: {
-          alt: 'My Site Logo',
+          alt: 'Corso Logo',
           src: 'img/corso.svg',
+          srcDark: 'img/corso_white.svg',
         },
         items: [
           {
@@ -107,6 +108,11 @@ const config = {
           },
         ],
         copyright: `Copyright © ${new Date().getFullYear()}`,
+      },
+      colorMode: {
+        defaultMode: 'dark',
+        disableSwitch: true,
+        respectPrefersColorScheme: true,
       },
       prism: {
         theme: lightCodeTheme,
