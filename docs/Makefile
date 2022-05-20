@@ -12,7 +12,7 @@ check:
 	docker run --rm \
 		-v ${PWD}:/usr/src/docs alcion/docs vale docs README.md
 	docker run --rm \
-		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/
+		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
 shell:
 	docker run --rm -it \
