@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/alcionai/corso/internal/kopia"
 	"github.com/google/uuid"
-	"github.com/kopia/kopia/repo/blob"
+	"github.com/pkg/errors"
 )
 
 type repoProvider int
@@ -16,7 +17,7 @@ const (
 	ProviderS3                          // S3
 )
 
-// Repository contains storage provider information.
+// Repository represents backup storage for a specific M365 Account.
 type Repository struct {
 	ID        uuid.UUID
 	CreatedAt time.Time
@@ -24,19 +25,30 @@ type Repository struct {
 
 	Provider repoProvider // must be repository.S3Provider
 	Account  Account      // the user's m365 account connection details
-	Config   Config       // provider-based configuration details
+	Config   Configurer   // provider-based configuration details
 }
 
-// Account holds the user's m365 account details.
+// Account holds the user's M365 account details.
 type Account struct {
 	TenantID     string
 	ClientID     string
 	ClientSecret string
 }
 
-type Config interface {
-	KopiaStorage(ctx context.Context, create bool) (blob.Storage, error)
-}
+type (
+	Configurer interface {
+		kopia.StorageMaker
+	}
+
+	connector interface {
+		Connect(ctx context.Context) error
+	}
+
+	initConnector interface {
+		connector
+		Initialize(ctx context.Context) error
+	}
+)
 
 // Initialize will:
 //  * validate the m365 account & secrets
@@ -50,7 +62,7 @@ func Initialize(
 	ctx context.Context,
 	provider repoProvider,
 	acct Account,
-	cfg Config,
+	cfg Configurer,
 ) (Repository, error) {
 	r := Repository{
 		ID:       uuid.New(),
@@ -59,7 +71,15 @@ func Initialize(
 		Account:  acct,
 		Config:   cfg,
 	}
-	return r, nil
+	kInit, err := kopia.NewInitializer(ctx, cfg, nil, nil)
+	if err != nil {
+		return r, errors.Wrap(err, "preparing repository initialization")
+	}
+	return r, initializeWith(ctx, kInit)
+}
+
+func initializeWith(ctx context.Context, ic initConnector) error {
+	return ic.Initialize(ctx)
 }
 
 // Connect will:
@@ -71,7 +91,7 @@ func Connect(
 	ctx context.Context,
 	provider repoProvider,
 	acct Account,
-	cfg Config,
+	cfg Configurer,
 ) (Repository, error) {
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	r := Repository{
@@ -80,5 +100,13 @@ func Connect(
 		Account:  acct,
 		Config:   cfg,
 	}
-	return r, nil
+	kConn, err := kopia.NewConnector(ctx, cfg, nil)
+	if err != nil {
+		return r, errors.Wrap(err, "preparing repository connection")
+	}
+	return r, connectWith(ctx, kConn)
+}
+
+func connectWith(ctx context.Context, ic initConnector) error {
+	return ic.Connect(ctx)
 }

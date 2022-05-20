@@ -1,38 +1,57 @@
-package repository_test
+package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
-
-	"github.com/kopia/kopia/repo/blob"
-
-	"github.com/alcionai/corso/pkg/repository"
 )
 
-type testConfig struct{}
-
-func (tc testConfig) KopiaStorage(ctx context.Context, create bool) (blob.Storage, error) {
-	return nil, nil
+type testInitConn struct {
+	err error
 }
 
-func TestInitialize(t *testing.T) {
-	_, err := repository.Initialize(
-		context.Background(),
-		repository.ProviderUnknown,
-		repository.Account{},
-		testConfig{})
-	if err != nil {
-		t.Fatalf("didn't expect initialize to error, got [%v]", err)
+func (tic testInitConn) Initialize(ctx context.Context) error {
+	return tic.err
+}
+
+func (tic testInitConn) Connect(ctx context.Context) error {
+	return tic.err
+}
+
+func TestInitializeWith(t *testing.T) {
+	table := []struct {
+		name      string
+		ic        testInitConn
+		expectErr bool
+	}{
+		{"no errors", testInitConn{}, false},
+		{"errors", testInitConn{errors.New("an error")}, true},
+	}
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			err := initializeWith(context.Background(), test.ic)
+			if (err != nil) != test.expectErr {
+				t.Fatalf("unexpected error - wanted err [%v] - got [%v]", test.expectErr, err)
+			}
+		})
 	}
 }
 
-func TestConnect(t *testing.T) {
-	_, err := repository.Connect(
-		context.Background(),
-		repository.ProviderUnknown,
-		repository.Account{},
-		testConfig{})
-	if err != nil {
-		t.Fatalf("didn't expect connect to error, got [%v]", err)
+func TestConnectWith(t *testing.T) {
+	table := []struct {
+		name      string
+		ic        testInitConn
+		expectErr bool
+	}{
+		{"no errors", testInitConn{}, false},
+		{"errors", testInitConn{errors.New("an error")}, true},
+	}
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			err := connectWith(context.Background(), test.ic)
+			if (err != nil) != test.expectErr {
+				t.Fatalf("unexpected error - wanted err [%v] - got [%v]", test.expectErr, err)
+			}
+		})
 	}
 }

@@ -24,8 +24,8 @@ func NewConfig(bucket, accessKey, secretKey string) Config {
 	}
 }
 
-// KopiaStorage produces a kopia/blob Storage handle for connecting to s3.
-func (c Config) KopiaStorage(ctx context.Context, create bool) (blob.Storage, error) {
+// BlobStorage produces a kopia/blob.Storage handle for connecting to s3.
+func (c Config) BlobStorage(ctx context.Context, create bool) (blob.Storage, error) {
 	opts := kopiaS3.Options{
 		BucketName:      c.Bucket,
 		AccessKeyID:     c.AccessKey,
