@@ -1,9 +1,11 @@
-package repository
+package repository_test
 
 import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/alcionai/corso/pkg/repository"
 )
 
 type testInitConn struct {
@@ -18,7 +20,7 @@ func (tic testInitConn) Connect(ctx context.Context) error {
 	return tic.err
 }
 
-func TestInitializeWith(t *testing.T) {
+func TestInitialize(t *testing.T) {
 	table := []struct {
 		name      string
 		ic        testInitConn
@@ -29,7 +31,11 @@ func TestInitializeWith(t *testing.T) {
 	}
 	for _, test := range table {
 		t.Run(test.name, func(t *testing.T) {
-			err := initializeWith(context.Background(), test.ic)
+			_, err := repository.Initialize(
+				context.Background(),
+				repository.ProviderUnknown,
+				repository.Account{},
+				test.ic)
 			if (err != nil) != test.expectErr {
 				t.Fatalf("unexpected error - wanted err [%v] - got [%v]", test.expectErr, err)
 			}
@@ -37,7 +43,7 @@ func TestInitializeWith(t *testing.T) {
 	}
 }
 
-func TestConnectWith(t *testing.T) {
+func TestConnect(t *testing.T) {
 	table := []struct {
 		name      string
 		ic        testInitConn
@@ -48,7 +54,11 @@ func TestConnectWith(t *testing.T) {
 	}
 	for _, test := range table {
 		t.Run(test.name, func(t *testing.T) {
-			err := connectWith(context.Background(), test.ic)
+			_, err := repository.Connect(
+				context.Background(),
+				repository.ProviderUnknown,
+				repository.Account{},
+				test.ic)
 			if (err != nil) != test.expectErr {
 				t.Fatalf("unexpected error - wanted err [%v] - got [%v]", test.expectErr, err)
 			}

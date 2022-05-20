@@ -54,7 +54,13 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 		len(mv.clientSecret) > 0,
 		len(av.accessSecret) > 0)
 
-	_, err := repository.Initialize(
+	init, err := s3.NewInitializer(cmd.Context(), av.bucket, av.accessKey, av.accessSecret)
+	if err != nil {
+		fmt.Printf("Failed to configure the S3 repository initialization: %v", err)
+		os.Exit(1)
+	}
+
+	_, err = repository.Initialize(
 		cmd.Context(),
 		repository.ProviderS3,
 		repository.Account{
@@ -62,8 +68,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 			ClientID:     mv.clientID,
 			ClientSecret: mv.clientSecret,
 		},
-		s3.NewConfig(av.bucket, av.accessKey, av.accessSecret),
-	)
+		init)
 	if err != nil {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
 		os.Exit(1)
@@ -91,7 +96,13 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 		len(mv.clientSecret) > 0,
 		len(av.accessSecret) > 0)
 
-	_, err := repository.Connect(
+	conn, err := s3.NewConnector(cmd.Context(), av.bucket, av.accessKey, av.accessSecret)
+	if err != nil {
+		fmt.Printf("Failed to configure the S3 repository connection: %v", err)
+		os.Exit(1)
+	}
+
+	_, err = repository.Connect(
 		cmd.Context(),
 		repository.ProviderS3,
 		repository.Account{
@@ -99,8 +110,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 			ClientID:     mv.clientID,
 			ClientSecret: mv.clientSecret,
 		},
-		s3.NewConfig(av.bucket, av.accessKey, av.accessSecret),
-	)
+		conn)
 	if err != nil {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)
 		os.Exit(1)

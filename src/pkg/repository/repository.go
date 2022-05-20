@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/alcionai/corso/internal/kopia"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
@@ -25,7 +24,6 @@ type Repository struct {
 
 	Provider repoProvider // must be repository.S3Provider
 	Account  Account      // the user's m365 account connection details
-	Config   Configurer   // provider-based configuration details
 }
 
 // Account holds the user's M365 account details.
@@ -36,16 +34,12 @@ type Account struct {
 }
 
 type (
-	Configurer interface {
-		kopia.StorageMaker
-	}
-
-	connector interface {
+	Connector interface {
 		Connect(ctx context.Context) error
 	}
 
-	initConnector interface {
-		connector
+	InitConnector interface {
+		Connector
 		Initialize(ctx context.Context) error
 	}
 )
@@ -62,23 +56,21 @@ func Initialize(
 	ctx context.Context,
 	provider repoProvider,
 	acct Account,
-	cfg Configurer,
+	cfg InitConnector,
 ) (Repository, error) {
-	r := Repository{
+	// todo: validate m365 creds
+	if err := cfg.Initialize(ctx); err != nil {
+		return Repository{}, errors.Wrapf(err, "initialializing %s repository", provider)
+	}
+	return Repository{
 		ID:       uuid.New(),
 		Version:  "v1",
 		Provider: provider,
 		Account:  acct,
-		Config:   cfg,
-	}
-	kInit, err := kopia.NewInitializer(ctx, cfg, nil, nil)
-	if err != nil {
-		return r, errors.Wrap(err, "preparing repository initialization")
-	}
-	return r, initializeWith(ctx, kInit)
+	}, nil
 }
 
-func initializeWith(ctx context.Context, ic initConnector) error {
+func initializeWith(ctx context.Context, ic InitConnector) error {
 	return ic.Initialize(ctx)
 }
 
@@ -91,22 +83,16 @@ func Connect(
 	ctx context.Context,
 	provider repoProvider,
 	acct Account,
-	cfg Configurer,
+	cfg Connector,
 ) (Repository, error) {
+	// todo: validate m365 creds
+	if err := cfg.Connect(ctx); err != nil {
+		return Repository{}, errors.Wrapf(err, "connecting %s repository", provider)
+	}
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
-	r := Repository{
+	return Repository{
 		Version:  "v1",
 		Provider: provider,
 		Account:  acct,
-		Config:   cfg,
-	}
-	kConn, err := kopia.NewConnector(ctx, cfg, nil)
-	if err != nil {
-		return r, errors.Wrap(err, "preparing repository connection")
-	}
-	return r, connectWith(ctx, kConn)
-}
-
-func connectWith(ctx context.Context, ic initConnector) error {
-	return ic.Connect(ctx)
+	}, nil
 }

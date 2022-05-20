@@ -3,33 +3,43 @@ package s3
 import (
 	"context"
 
-	"github.com/kopia/kopia/repo/blob"
-	kopiaS3 "github.com/kopia/kopia/repo/blob/s3"
+	"github.com/alcionai/corso/internal/kopia/s3"
+	"github.com/alcionai/corso/pkg/repository"
+	"github.com/pkg/errors"
 )
 
 // Config defines communication with a s3 repository provider.
 type Config struct {
-	Bucket          string // the S3 storage bucket name
-	AccessKey       string // access key to the S3 bucket
-	SecretAccessKey string // s3 access key secret
+	repository.InitConnector
+	Bucket          string
+	AccessKey       string
+	SecretAccessKey string
 }
 
-// NewConfig generates a S3 configuration struct to use for interfacing with a s3 storage
-// bucket using a repository.Repository.
-func NewConfig(bucket, accessKey, secretKey string) Config {
+// NewInitializer generates a S3 configuration that lets a Repository initailize and connect to s3.
+func NewInitializer(ctx context.Context, bucket, accessKey, secretKey string) (Config, error) {
+	init, err := s3.Initializer(ctx, bucket, accessKey, secretKey)
+	if err != nil {
+		return Config{}, errors.Wrap(err, "configuring s3 initialization")
+	}
 	return Config{
+		InitConnector:   init,
 		Bucket:          bucket,
 		AccessKey:       accessKey,
 		SecretAccessKey: secretKey,
-	}
+	}, nil
 }
 
-// BlobStorage produces a kopia/blob.Storage handle for connecting to s3.
-func (c Config) BlobStorage(ctx context.Context, create bool) (blob.Storage, error) {
-	opts := kopiaS3.Options{
-		BucketName:      c.Bucket,
-		AccessKeyID:     c.AccessKey,
-		SecretAccessKey: c.SecretAccessKey,
+// NewConnector generates a S3 configuration that lets a Repository connect to s3.
+func NewConnector(ctx context.Context, bucket, accessKey, secretKey string) (Config, error) {
+	conn, err := s3.Connector(ctx, bucket, accessKey, secretKey)
+	if err != nil {
+		return Config{}, errors.Wrap(err, "configuring s3 connection")
 	}
-	return kopiaS3.New(ctx, &opts)
+	return Config{
+		InitConnector:   conn,
+		Bucket:          bucket,
+		AccessKey:       accessKey,
+		SecretAccessKey: secretKey,
+	}, nil
 }
