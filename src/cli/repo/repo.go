@@ -1,14 +1,25 @@
 package repo
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 )
+
+var repoCommands = []func(parent *cobra.Command) *cobra.Command{
+	addS3Commands,
+}
 
 // AddCommands attaches all `corso repo * *` commands to the parent.
 func AddCommands(parent *cobra.Command) {
 	parent.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
+
+	for _, addRepoTo := range repoCommands {
+		addRepoTo(initCmd)
+		addRepoTo(connectCmd)
+	}
 }
 
 // The repo category of commands.
@@ -57,4 +68,20 @@ var connectCmd = &cobra.Command{
 // Handler for calls to `corso repo connect`.
 func handleConnectCmd(cmd *cobra.Command, args []string) {
 	cmd.Help()
+}
+
+// aggregates m365 details from flag and env_var values.
+type m365Vars struct {
+	clientID     string
+	clientSecret string
+	tenantID     string
+}
+
+// helper for aggregating m365 connection details.
+func getM365Vars() m365Vars {
+	return m365Vars{
+		clientID:     os.Getenv("O365_CLIENT_ID"),
+		clientSecret: os.Getenv("O356_SECRET"),
+		tenantID:     "todo:tenantID",
+	}
 }
