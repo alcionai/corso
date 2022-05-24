@@ -11,7 +11,7 @@ const config = {
   url: 'https://corsobackup.io',
   baseUrl: '/',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  onBrokenMarkdownLinks: 'throw',
   favicon: 'img/corso.svg',
 
   // GitHub pages deployment config.
