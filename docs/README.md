@@ -1,6 +1,7 @@
 # Corso documentation
 
 Corso documentation uses [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
+[Mermaid](https://mermaid-js.github.io/mermaid/) provides support for native diagrams in Markdown.
 
 ## Requirements
 
