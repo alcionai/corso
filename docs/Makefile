@@ -8,11 +8,15 @@ dev:
 		-p 3000:3000 \
 		-v ${PWD}:/usr/src/docs alcion/docs
 
-check:
+dockercheck:
 	docker run --rm \
 		-v ${PWD}:/usr/src/docs alcion/docs vale docs README.md
 	docker run --rm \
 		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
+
+check:
+	vale docs README.md
+	markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
 shell:
 	docker run --rm -it \

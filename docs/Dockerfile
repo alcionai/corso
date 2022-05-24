@@ -3,7 +3,7 @@ LABEL MAINTAINER="Niraj Tolia"
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get -y update && apt-get -y install gpg emacs curl git \
+RUN apt-get -y update && apt-get -y install gpg emacs curl git make \
   && curl -fsSL https://deb.nodesource.com/setup_current.x | bash - \
   && apt-get -y install nodejs \
   && apt-get autoclean \
