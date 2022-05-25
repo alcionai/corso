@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/pkg/storage"
 	"github.com/google/uuid"
-	"github.com/kopia/kopia/repo/blob"
 )
 
 type repoProvider int
@@ -22,9 +23,8 @@ type Repository struct {
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
-	Provider repoProvider // must be repository.S3Provider
-	Account  Account      // the user's m365 account connection details
-	Config   Config       // provider-based configuration details
+	Account Account         // the user's m365 account connection details
+	Storage storage.Storage // the storage provider details and configuration
 }
 
 // Account holds the user's m365 account details.
@@ -32,10 +32,6 @@ type Account struct {
 	TenantID     string
 	ClientID     string
 	ClientSecret string
-}
-
-type Config interface {
-	KopiaStorage(ctx context.Context, create bool) (blob.Storage, error)
 }
 
 // Initialize will:
@@ -48,16 +44,18 @@ type Config interface {
 //  * return the connected repository
 func Initialize(
 	ctx context.Context,
-	provider repoProvider,
 	acct Account,
-	cfg Config,
+	storage storage.Storage,
 ) (Repository, error) {
+	k := kopia.New(storage)
+	if err := k.Initialize(ctx); err != nil {
+		return Repository{}, err
+	}
 	r := Repository{
-		ID:       uuid.New(),
-		Version:  "v1",
-		Provider: provider,
-		Account:  acct,
-		Config:   cfg,
+		ID:      uuid.New(),
+		Version: "v1",
+		Account: acct,
+		Storage: storage,
 	}
 	return r, nil
 }
@@ -69,16 +67,18 @@ func Initialize(
 //  * return the connected repository
 func Connect(
 	ctx context.Context,
-	provider repoProvider,
 	acct Account,
-	cfg Config,
+	storage storage.Storage,
 ) (Repository, error) {
+	k := kopia.New(storage)
+	if err := k.Connect(ctx); err != nil {
+		return Repository{}, err
+	}
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	r := Repository{
-		Version:  "v1",
-		Provider: provider,
-		Account:  acct,
-		Config:   cfg,
+		Version: "v1",
+		Account: acct,
+		Storage: storage,
 	}
 	return r, nil
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/pkg/repository"
-	"github.com/alcionai/corso/pkg/repository/s3"
+	"github.com/alcionai/corso/pkg/storage"
 )
 
 // s3 bucket info from flags
@@ -48,23 +48,26 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 	av := getAwsVars()
 	fmt.Printf(
 		"Called -\n`corso repo init s3`\nbucket:\t%s\nkey:\t%s\n356Client:\t%s\nfound 356Secret:\t%v\nfound awsSecret:\t%v\n",
-		bucket,
+		av.bucket,
 		av.accessKey,
 		mv.clientID,
 		len(mv.clientSecret) > 0,
 		len(av.accessSecret) > 0)
 
-	_, err := repository.Initialize(
-		cmd.Context(),
-		repository.ProviderS3,
-		repository.Account{
-			TenantID:     mv.tenantID,
-			ClientID:     mv.clientID,
-			ClientSecret: mv.clientSecret,
-		},
-		s3.NewConfig(av.bucket, av.accessKey, av.accessSecret),
-	)
-	if err != nil {
+	a := repository.Account{
+		TenantID:     mv.tenantID,
+		ClientID:     mv.clientID,
+		ClientSecret: mv.clientSecret,
+	}
+	s := storage.NewStorage(
+		storage.ProviderS3,
+		storage.S3Config{
+			Bucket:    av.bucket,
+			AccessKey: av.accessKey,
+			SecretKey: av.accessSecret,
+		})
+
+	if _, err := repository.Initialize(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
 		os.Exit(1)
 	}
@@ -91,17 +94,20 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 		len(mv.clientSecret) > 0,
 		len(av.accessSecret) > 0)
 
-	_, err := repository.Connect(
-		cmd.Context(),
-		repository.ProviderS3,
-		repository.Account{
-			TenantID:     mv.tenantID,
-			ClientID:     mv.clientID,
-			ClientSecret: mv.clientSecret,
-		},
-		s3.NewConfig(av.bucket, av.accessKey, av.accessSecret),
-	)
-	if err != nil {
+	a := repository.Account{
+		TenantID:     mv.tenantID,
+		ClientID:     mv.clientID,
+		ClientSecret: mv.clientSecret,
+	}
+	s := storage.NewStorage(
+		storage.ProviderS3,
+		storage.S3Config{
+			Bucket:    av.bucket,
+			AccessKey: av.accessKey,
+			SecretKey: av.accessSecret,
+		})
+
+	if _, err := repository.Initialize(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)
 		os.Exit(1)
 	}
