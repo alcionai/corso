@@ -61,7 +61,7 @@ var connectCmd = &cobra.Command{
 	Use:   connectCommand,
 	Short: "Connect to a repository.",
 	Long:  `Connect to an existing repository.`,
-	Run:   handleInitCmd,
+	Run:   handleConnectCmd,
 	Args:  cobra.NoArgs,
 }
 

@@ -45,27 +45,21 @@ var s3InitCmd = &cobra.Command{
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) {
 	mv := getM365Vars()
-	av := getAwsVars()
+	s3Cfg := makeS3Config()
 	fmt.Printf(
 		"Called -\n`corso repo init s3`\nbucket:\t%s\nkey:\t%s\n356Client:\t%s\nfound 356Secret:\t%v\nfound awsSecret:\t%v\n",
-		av.bucket,
-		av.accessKey,
+		s3Cfg.Bucket,
+		s3Cfg.AccessKey,
 		mv.clientID,
 		len(mv.clientSecret) > 0,
-		len(av.accessSecret) > 0)
+		len(s3Cfg.SecretKey) > 0)
 
 	a := repository.Account{
 		TenantID:     mv.tenantID,
 		ClientID:     mv.clientID,
 		ClientSecret: mv.clientSecret,
 	}
-	s := storage.NewStorage(
-		storage.ProviderS3,
-		storage.S3Config{
-			Bucket:    av.bucket,
-			AccessKey: av.accessKey,
-			SecretKey: av.accessSecret,
-		})
+	s := storage.NewStorage(storage.ProviderS3, s3Cfg)
 
 	if _, err := repository.Initialize(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
@@ -85,50 +79,37 @@ var s3ConnectCmd = &cobra.Command{
 // connects to an existing s3 repo.
 func connectS3Cmd(cmd *cobra.Command, args []string) {
 	mv := getM365Vars()
-	av := getAwsVars()
+	s3Cfg := makeS3Config()
 	fmt.Printf(
 		"Called -\n`corso repo connect s3`\nbucket:\t%s\nkey:\t%s\n356Client:\t%s\nfound 356Secret:\t%v\nfound awsSecret:\t%v\n",
-		bucket,
-		accessKey,
+		s3Cfg.Bucket,
+		s3Cfg.AccessKey,
 		mv.clientID,
 		len(mv.clientSecret) > 0,
-		len(av.accessSecret) > 0)
+		len(s3Cfg.SecretKey) > 0)
 
 	a := repository.Account{
 		TenantID:     mv.tenantID,
 		ClientID:     mv.clientID,
 		ClientSecret: mv.clientSecret,
 	}
-	s := storage.NewStorage(
-		storage.ProviderS3,
-		storage.S3Config{
-			Bucket:    av.bucket,
-			AccessKey: av.accessKey,
-			SecretKey: av.accessSecret,
-		})
+	s := storage.NewStorage(storage.ProviderS3, s3Cfg)
 
-	if _, err := repository.Initialize(cmd.Context(), a, s); err != nil {
+	if _, err := repository.Connect(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)
 		os.Exit(1)
 	}
 }
 
-// aggregates aws details from flag and env_var values.
-type awsVars struct {
-	accessKey    string
-	accessSecret string
-	bucket       string
-}
-
 // helper for aggregating aws connection details.
-func getAwsVars() awsVars {
+func makeS3Config() storage.S3Config {
 	ak := os.Getenv("AWS_ACCESS_KEY_ID")
 	if len(accessKey) > 0 {
 		ak = accessKey
 	}
-	return awsVars{
-		accessKey:    ak,
-		accessSecret: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		bucket:       bucket,
+	return storage.S3Config{
+		AccessKey: ak,
+		SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		Bucket:    bucket,
 	}
 }
