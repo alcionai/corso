@@ -6,11 +6,17 @@ type S3Config struct {
 	SecretKey string
 }
 
+const (
+	keyS3Bucket    = "s3_bucket"
+	keyS3AccessKey = "s3_accessKey"
+	keyS3SecretKey = "s3_secretKey"
+)
+
 func (c S3Config) Config() config {
 	return config{
-		"s3_bucket":    c.Bucket,
-		"s3_accessKey": c.AccessKey,
-		"s3_secretKey": c.SecretKey,
+		keyS3Bucket:    c.Bucket,
+		keyS3AccessKey: c.AccessKey,
+		keyS3SecretKey: c.SecretKey,
 	}
 }
 
@@ -18,9 +24,9 @@ func (c S3Config) Config() config {
 func (s Storage) S3Config() S3Config {
 	c := S3Config{}
 	if len(s.Config) > 0 {
-		c.Bucket = s.Config["s3_bucket"].(string)
-		c.AccessKey = s.Config["s3_accessKey"].(string)
-		c.SecretKey = s.Config["s3_secretKey"].(string)
+		c.Bucket = s.Config[keyS3Bucket].(string)
+		c.AccessKey = s.Config[keyS3AccessKey].(string)
+		c.SecretKey = s.Config[keyS3SecretKey].(string)
 	}
 	return c
 }
