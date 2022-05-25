@@ -7,7 +7,7 @@ import (
 )
 
 func TestS3Config_Config(t *testing.T) {
-	s3 := storage.S3Config{"bkt", "ak", "sk"}
+	s3 := storage.S3Config{"bkt", "ak", "sk", "tkn"}
 	c := s3.Config()
 	table := []struct {
 		key    string
@@ -16,6 +16,7 @@ func TestS3Config_Config(t *testing.T) {
 		{"s3_bucket", s3.Bucket},
 		{"s3_accessKey", s3.AccessKey},
 		{"s3_secretKey", s3.SecretKey},
+		{"s3_sessionToken", s3.SessionToken},
 	}
 	for _, test := range table {
 		key := test.key
@@ -27,7 +28,7 @@ func TestS3Config_Config(t *testing.T) {
 }
 
 func TestStorage_S3Config(t *testing.T) {
-	in := storage.S3Config{"bkt", "ak", "sk"}
+	in := storage.S3Config{"bkt", "ak", "sk", "tkn"}
 	s := storage.NewStorage(storage.ProviderS3, in)
 	out := s.S3Config()
 	if in.Bucket != out.Bucket {
@@ -38,5 +39,8 @@ func TestStorage_S3Config(t *testing.T) {
 	}
 	if in.SecretKey != out.SecretKey {
 		t.Errorf("expected S3Config.SecretKey to be [%s], got [%s]", in.SecretKey, out.SecretKey)
+	}
+	if in.SessionToken != out.SessionToken {
+		t.Errorf("expected S3Config.SessionToken to be [%s], got [%s]", in.SessionToken, out.SessionToken)
 	}
 }

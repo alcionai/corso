@@ -47,7 +47,8 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 	mv := getM365Vars()
 	s3Cfg := makeS3Config()
 	fmt.Printf(
-		"Called -\n`corso repo init s3`\nbucket:\t%s\nkey:\t%s\n356Client:\t%s\nfound 356Secret:\t%v\nfound awsSecret:\t%v\n",
+		"Called - %s\n\tbucket:\t%s\n\tkey:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n\tfound awsSecret:\t%v\n",
+		cmd.CommandPath(),
 		s3Cfg.Bucket,
 		s3Cfg.AccessKey,
 		mv.clientID,
@@ -65,6 +66,8 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
 		os.Exit(1)
 	}
+
+	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
 }
 
 // `corso repo connect s3 [<flag>...]`
@@ -81,7 +84,8 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 	mv := getM365Vars()
 	s3Cfg := makeS3Config()
 	fmt.Printf(
-		"Called -\n`corso repo connect s3`\nbucket:\t%s\nkey:\t%s\n356Client:\t%s\nfound 356Secret:\t%v\nfound awsSecret:\t%v\n",
+		"Called - %s\n\tbucket:\t%s\n\tkey:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n\tfound awsSecret:\t%v\n",
+		cmd.CommandPath(),
 		s3Cfg.Bucket,
 		s3Cfg.AccessKey,
 		mv.clientID,
@@ -99,6 +103,8 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)
 		os.Exit(1)
 	}
+
+	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
 }
 
 // helper for aggregating aws connection details.
@@ -108,8 +114,9 @@ func makeS3Config() storage.S3Config {
 		ak = accessKey
 	}
 	return storage.S3Config{
-		AccessKey: ak,
-		SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		Bucket:    bucket,
+		AccessKey:    ak,
+		Bucket:       bucket,
+		SecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		SessionToken: os.Getenv("AWS_SESSION_TOKEN"),
 	}
 }
