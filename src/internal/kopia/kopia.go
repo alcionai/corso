@@ -33,6 +33,7 @@ func (kw kopiaWrapper) Initialize(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, errInit.Error())
 	}
+	defer bst.Close(ctx)
 
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
 	if err = repo.Initialize(ctx, bst, nil, defaultKopiaConfigPasswd); err != nil {
@@ -58,6 +59,7 @@ func (kw kopiaWrapper) Connect(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, errInit.Error())
 	}
+	defer bst.Close(ctx)
 
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
