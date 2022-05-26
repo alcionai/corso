@@ -14,10 +14,14 @@ const (
 )
 
 func s3BlobStorage(ctx context.Context, cfg storage.S3Config) (blob.Storage, error) {
+	endpoint := defaultS3Endpoint
+	if len(cfg.Endpoint) > 0 {
+		endpoint = cfg.Endpoint
+	}
 	opts := s3.Options{
 		AccessKeyID:     cfg.AccessKey,
 		BucketName:      cfg.Bucket,
-		Endpoint:        defaultS3Endpoint,
+		Endpoint:        endpoint,
 		SecretAccessKey: cfg.SecretKey,
 		SessionToken:    cfg.SessionToken,
 	}
