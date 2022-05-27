@@ -12,8 +12,9 @@ import (
 
 // s3 bucket info from flags
 var (
-	bucket    string
 	accessKey string
+	bucket    string
+	endpoint  string
 )
 
 // called by repo.go to map parent subcommands to provider-specific handling.
@@ -27,9 +28,10 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	}
 	parent.AddCommand(c)
 	fs := c.Flags()
+	fs.StringVar(&accessKey, "access-key", "", "Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).")
 	fs.StringVar(&bucket, "bucket", "", "Name of the S3 bucket (required).")
 	c.MarkFlagRequired("bucket")
-	fs.StringVar(&accessKey, "access-key", "", "Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).")
+	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "Server endpoint for S3 communication.")
 	return c
 }
 
@@ -116,6 +118,7 @@ func makeS3Config() storage.S3Config {
 	return storage.S3Config{
 		AccessKey:    ak,
 		Bucket:       bucket,
+		Endpoint:     endpoint,
 		SecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		SessionToken: os.Getenv("AWS_SESSION_TOKEN"),
 	}
