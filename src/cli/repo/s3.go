@@ -121,6 +121,7 @@ func makeS3Config() storage.S3Config {
 		AccessKey:    ak,
 		Bucket:       bucket,
 		Endpoint:     endpoint,
+		Prefix:       prefix,
 		SecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		SessionToken: os.Getenv("AWS_SESSION_TOKEN"),
 	}
