@@ -2,55 +2,65 @@ package repository_test
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
-func TestInitialize(t *testing.T) {
+type RepositorySuite struct {
+	suite.Suite
+}
+
+func TestRepositorySuite(t *testing.T) {
+	suite.Run(t, new(RepositorySuite))
+}
+
+func (suite *RepositorySuite) TestInitialize() {
 	table := []struct {
-		storage     storage.Storage
-		account     repository.Account
-		expectedErr string
+		name     string
+		storage  storage.Storage
+		account  repository.Account
+		errCheck assert.ErrorAssertionFunc
 	}{
 		{
+			storage.ProviderUnknown.String(),
 			storage.NewStorage(storage.ProviderUnknown),
 			repository.Account{},
-			"provider details are required",
+			assert.Error,
 		},
 	}
 	for _, test := range table {
-		t.Run(test.expectedErr, func(t *testing.T) {
+		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := repository.Initialize(context.Background(), test.account, test.storage)
-			if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
-				t.Fatalf("expected error with [%s], got [%v]", test.expectedErr, err)
-			}
+			test.errCheck(suite.T(), err, "")
 		})
 	}
 }
 
 // repository.Connect involves end-to-end communication with kopia, therefore this only
 // tests expected error cases from
-func TestConnect(t *testing.T) {
+func (suite *RepositorySuite) TestConnect() {
 	table := []struct {
-		storage     storage.Storage
-		account     repository.Account
-		expectedErr string
+		name     string
+		storage  storage.Storage
+		account  repository.Account
+		errCheck assert.ErrorAssertionFunc
 	}{
 		{
+			storage.ProviderUnknown.String(),
 			storage.NewStorage(storage.ProviderUnknown),
 			repository.Account{},
-			"provider details are required",
+			assert.Error,
 		},
 	}
 	for _, test := range table {
-		t.Run(test.expectedErr, func(t *testing.T) {
+		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := repository.Connect(context.Background(), test.account, test.storage)
-			if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
-				t.Fatalf("expected error with [%s], got [%v]", test.expectedErr, err)
-			}
+			test.errCheck(suite.T(), err)
 		})
 	}
 }
