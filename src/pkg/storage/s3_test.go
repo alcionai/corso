@@ -7,7 +7,7 @@ import (
 )
 
 func TestS3Config_Config(t *testing.T) {
-	s3 := storage.S3Config{"ak", "bkt", "end", "sk", "tkn"}
+	s3 := storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
 	c := s3.Config()
 	table := []struct {
 		key    string
@@ -16,6 +16,7 @@ func TestS3Config_Config(t *testing.T) {
 		{"s3_bucket", s3.Bucket},
 		{"s3_accessKey", s3.AccessKey},
 		{"s3_endpoint", s3.Endpoint},
+		{"s3_prefix", s3.Prefix},
 		{"s3_secretKey", s3.SecretKey},
 		{"s3_sessionToken", s3.SessionToken},
 	}
@@ -29,7 +30,7 @@ func TestS3Config_Config(t *testing.T) {
 }
 
 func TestStorage_S3Config(t *testing.T) {
-	in := storage.S3Config{"ak", "bkt", "end", "sk", "tkn"}
+	in := storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
 	s := storage.NewStorage(storage.ProviderS3, in)
 	out := s.S3Config()
 	if in.Bucket != out.Bucket {
@@ -40,6 +41,9 @@ func TestStorage_S3Config(t *testing.T) {
 	}
 	if in.Endpoint != out.Endpoint {
 		t.Errorf("expected S3Config.Endpoint to be [%s], got [%s]", in.Endpoint, out.Endpoint)
+	}
+	if in.Prefix != out.Prefix {
+		t.Errorf("expected S3Config.Prefix to be [%s], got [%s]", in.Prefix, out.Prefix)
 	}
 	if in.SecretKey != out.SecretKey {
 		t.Errorf("expected S3Config.SecretKey to be [%s], got [%s]", in.SecretKey, out.SecretKey)
