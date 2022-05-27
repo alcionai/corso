@@ -15,6 +15,7 @@ var (
 	accessKey string
 	bucket    string
 	endpoint  string
+	prefix    string
 )
 
 // called by repo.go to map parent subcommands to provider-specific handling.
@@ -32,6 +33,7 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	fs.StringVar(&bucket, "bucket", "", "Name of the S3 bucket (required).")
 	c.MarkFlagRequired("bucket")
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "Server endpoint for S3 communication.")
+	fs.StringVar(&prefix, "prefix", "", "Prefix applied to objects in the bucket.")
 	return c
 }
 

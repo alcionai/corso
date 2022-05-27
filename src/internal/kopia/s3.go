@@ -22,6 +22,7 @@ func s3BlobStorage(ctx context.Context, cfg storage.S3Config) (blob.Storage, err
 		AccessKeyID:     cfg.AccessKey,
 		BucketName:      cfg.Bucket,
 		Endpoint:        endpoint,
+		Prefix:          cfg.Prefix,
 		SecretAccessKey: cfg.SecretKey,
 		SessionToken:    cfg.SessionToken,
 	}
