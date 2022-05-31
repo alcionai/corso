@@ -3,21 +3,32 @@ package kopia
 import (
 	"context"
 
+	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/snapshot"
+	"github.com/kopia/kopia/snapshot/policy"
+	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
 const (
 	defaultKopiaConfigFilePath = "/tmp/repository.config"
+
+	// TODO(ashmrtnz): These should be some values from upper layer corso,
+	// possibly corresponding to who is making the backup.
+	kTestHost = "a-test-machine"
+	kTestUser = "testUser"
 )
 
 var (
-	errInit    = errors.New("initializing repo")
-	errConnect = errors.New("connecting repo")
+	errInit         = errors.New("initializing repo")
+	errConnect      = errors.New("connecting repo")
+	errNotConnected = errors.New("not connected to repo")
 )
 
 type BackupStats struct {
@@ -147,4 +158,69 @@ func (kw *KopiaWrapper) open(ctx context.Context, password string) error {
 
 	kw.rep = rep
 	return nil
+}
+
+func inflateDirTree(ctx context.Context, streams []connector.DataCollection) (fs.Directory, error) {
+	// TODO(ashmrtnz): Implement when virtualfs.StreamingDirectory is available.
+	return virtualfs.NewStaticDirectory("sample-dir", []fs.Entry{}), nil
+}
+
+func (kw KopiaWrapper) BackupCollections(
+	ctx context.Context,
+	streams []connector.DataCollection,
+) (*BackupStats, error) {
+	if kw.rep == nil {
+		return nil, errNotConnected
+	}
+
+	dirTree, err := inflateDirTree(ctx, streams)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to build kopia directory hierarchy")
+	}
+
+	stats, err := kw.makeSnapshotWithRoot(ctx, dirTree)
+	if err != nil {
+		return nil, err
+	}
+
+	return stats, nil
+}
+
+func (kw KopiaWrapper) makeSnapshotWithRoot(
+	ctx context.Context,
+	root fs.Directory,
+) (*BackupStats, error) {
+	si := snapshot.SourceInfo{
+		Host:     kTestHost,
+		UserName: kTestUser,
+		// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
+		Path: root.Name(),
+	}
+	ctx, rw, err := kw.rep.NewWriter(ctx, repo.WriteSessionOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get repo writer")
+	}
+
+	policyTree, err := policy.TreeForSource(ctx, kw.rep, si)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get policy tree")
+	}
+
+	u := snapshotfs.NewUploader(rw)
+
+	man, err := u.Upload(ctx, root, policyTree, si)
+	if err != nil {
+		return nil, errors.Wrap(err, "error uploading data")
+	}
+
+	if _, err := snapshot.SaveSnapshot(ctx, rw, man); err != nil {
+		return nil, errors.Wrap(err, "unable to save snapshot")
+	}
+
+	if err := rw.Flush(ctx); err != nil {
+		return nil, errors.Wrap(err, "unable to flush writer")
+	}
+
+	res := manifestToStats(man)
+	return &res, nil
 }
