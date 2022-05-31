@@ -12,12 +12,12 @@ import (
 
 const (
 	defaultKopiaConfigFilePath = "/tmp/repository.config"
-	defaultKopiaConfigPasswd   = "todo:passwd"
 )
 
 var (
-	errInit    = errors.New("initializing repo")
-	errConnect = errors.New("connecting repo")
+	errInit             = errors.New("initializing repo")
+	errConnect          = errors.New("connecting repo")
+	errRequriesPassword = errors.New("encryption password required")
 )
 
 type kopiaWrapper struct {
@@ -35,8 +35,13 @@ func (kw kopiaWrapper) Initialize(ctx context.Context) error {
 	}
 	defer bst.Close(ctx)
 
+	cfg := kw.storage.CommonConfig()
+	if len(cfg.CorsoPassword) == 0 {
+		return errRequriesPassword
+	}
+
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
-	if err = repo.Initialize(ctx, bst, nil, defaultKopiaConfigPasswd); err != nil {
+	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassword); err != nil {
 		return errors.Wrap(err, errInit.Error())
 	}
 
@@ -45,7 +50,7 @@ func (kw kopiaWrapper) Initialize(ctx context.Context) error {
 		ctx,
 		defaultKopiaConfigFilePath,
 		bst,
-		defaultKopiaConfigPasswd,
+		cfg.CorsoPassword,
 		nil,
 	); err != nil {
 		return errors.Wrap(err, errConnect.Error())
@@ -61,12 +66,17 @@ func (kw kopiaWrapper) Connect(ctx context.Context) error {
 	}
 	defer bst.Close(ctx)
 
+	cfg := kw.storage.CommonConfig()
+	if len(cfg.CorsoPassword) == 0 {
+		return errRequriesPassword
+	}
+
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
 		ctx,
 		defaultKopiaConfigFilePath,
 		bst,
-		defaultKopiaConfigPasswd,
+		cfg.CorsoPassword,
 		nil,
 	); err != nil {
 		return errors.Wrap(err, errConnect.Error())

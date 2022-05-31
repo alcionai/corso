@@ -3,10 +3,21 @@ package storage_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+	"github.com/zeebo/assert"
+
 	"github.com/alcionai/corso/pkg/storage"
 )
 
-func TestS3Config_Config(t *testing.T) {
+type S3CfgSuite struct {
+	suite.Suite
+}
+
+func TestS3CfgSuite(t *testing.T) {
+	suite.Run(t, new(S3CfgSuite))
+}
+
+func (suite *S3CfgSuite) TestS3Config_Config() {
 	s3 := storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
 	c := s3.Config()
 	table := []struct {
@@ -21,34 +32,18 @@ func TestS3Config_Config(t *testing.T) {
 		{"s3_sessionToken", s3.SessionToken},
 	}
 	for _, test := range table {
-		key := test.key
-		expect := test.expect
-		if c[key] != expect {
-			t.Errorf("expected config key [%s] to hold value [%s], got [%s]", key, expect, c[key])
-		}
+		assert.Equal(suite.T(), c[test.key], test.expect)
 	}
 }
 
-func TestStorage_S3Config(t *testing.T) {
+func (suite *S3CfgSuite) TestStorage_S3Config() {
 	in := storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
-	s := storage.NewStorage(storage.ProviderS3, in)
-	out := s.S3Config()
-	if in.Bucket != out.Bucket {
-		t.Errorf("expected S3Config.Bucket to be [%s], got [%s]", in.Bucket, out.Bucket)
-	}
-	if in.AccessKey != out.AccessKey {
-		t.Errorf("expected S3Config.AccessKey to be [%s], got [%s]", in.AccessKey, out.AccessKey)
-	}
-	if in.Endpoint != out.Endpoint {
-		t.Errorf("expected S3Config.Endpoint to be [%s], got [%s]", in.Endpoint, out.Endpoint)
-	}
-	if in.Prefix != out.Prefix {
-		t.Errorf("expected S3Config.Prefix to be [%s], got [%s]", in.Prefix, out.Prefix)
-	}
-	if in.SecretKey != out.SecretKey {
-		t.Errorf("expected S3Config.SecretKey to be [%s], got [%s]", in.SecretKey, out.SecretKey)
-	}
-	if in.SessionToken != out.SessionToken {
-		t.Errorf("expected S3Config.SessionToken to be [%s], got [%s]", in.SessionToken, out.SessionToken)
-	}
+	out := storage.NewStorage(storage.ProviderS3, in).S3Config()
+	t := suite.T()
+	assert.Equal(t, in.Bucket, out.Bucket)
+	assert.Equal(t, in.AccessKey, out.AccessKey)
+	assert.Equal(t, in.Endpoint, out.Endpoint)
+	assert.Equal(t, in.Prefix, out.Prefix)
+	assert.Equal(t, in.SecretKey, out.SecretKey)
+	assert.Equal(t, in.SessionToken, out.SessionToken)
 }

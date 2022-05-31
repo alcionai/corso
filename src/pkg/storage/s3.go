@@ -41,12 +41,12 @@ func (c S3Config) Config() config {
 func (s Storage) S3Config() S3Config {
 	c := S3Config{}
 	if len(s.Config) > 0 {
-		c.AccessKey = s.Config[keyS3AccessKey].(string)
-		c.Bucket = s.Config[keyS3Bucket].(string)
-		c.Endpoint = s.Config[keyS3Endpoint].(string)
-		c.Prefix = s.Config[keyS3Prefix].(string)
-		c.SecretKey = s.Config[keyS3SecretKey].(string)
-		c.SessionToken = s.Config[keyS3SessionToken].(string)
+		c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
+		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
+		c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
+		c.Prefix = orEmptyString(s.Config[keyS3Prefix])
+		c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
+		c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
 	}
 	return c
 }

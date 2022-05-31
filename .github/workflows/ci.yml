@@ -49,4 +49,5 @@ jobs:
       - name: Deployment Tests
         env:
           INTEGRATION_TESTING: true 
+          CORSO_PASSWORD: "corso-integration-testing"
         run: go test ./...
