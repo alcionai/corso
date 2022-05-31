@@ -113,7 +113,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 
 // helper for aggregating aws connection details.
 func makeS3Config() storage.S3Config {
-	ak := os.Getenv("AWS_ACCESS_KEY_ID")
+	ak := os.Getenv(storage.AWS_ACCESS_KEY_ID)
 	if len(accessKey) > 0 {
 		ak = accessKey
 	}
@@ -122,7 +122,7 @@ func makeS3Config() storage.S3Config {
 		Bucket:       bucket,
 		Endpoint:     endpoint,
 		Prefix:       prefix,
-		SecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		SessionToken: os.Getenv("AWS_SESSION_TOKEN"),
+		SecretKey:    os.Getenv(storage.AWS_SECRET_ACCESS_KEY),
+		SessionToken: os.Getenv(storage.AWS_SESSION_TOKEN),
 	}
 }
