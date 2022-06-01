@@ -122,6 +122,9 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 					SecretKey:    os.Getenv(storage.AWS_SECRET_ACCESS_KEY),
 					SessionToken: os.Getenv(storage.AWS_SESSION_TOKEN),
 				},
+				storage.CommonConfig{
+					CorsoPassword: os.Getenv(storage.CORSO_PASSWORD),
+				},
 			),
 			errCheck: assert.NoError,
 		},

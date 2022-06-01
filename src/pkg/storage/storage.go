@@ -1,5 +1,7 @@
 package storage
 
+import "fmt"
+
 type storageProvider int
 
 //go:generate stringer -type=storageProvider -linecomment
@@ -38,4 +40,19 @@ func unionConfigs(cfgs ...configurer) config {
 		}
 	}
 	return c
+}
+
+// Helper for parsing the values in a config object.
+// If the value is nil or not a string, returns an empty string.
+func orEmptyString(v any) string {
+	defer func() {
+		r := recover()
+		if r != nil {
+			fmt.Printf("panic recovery casting %v to string\n", v)
+		}
+	}()
+	if v == nil {
+		return ""
+	}
+	return v.(string)
 }

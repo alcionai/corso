@@ -49,7 +49,12 @@ var s3InitCmd = &cobra.Command{
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) {
 	mv := getM365Vars()
-	s3Cfg := makeS3Config()
+	s3Cfg, commonCfg, err := makeS3Config()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	fmt.Printf(
 		"Called - %s\n\tbucket:\t%s\n\tkey:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n\tfound awsSecret:\t%v\n",
 		cmd.CommandPath(),
@@ -64,7 +69,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 		ClientID:     mv.clientID,
 		ClientSecret: mv.clientSecret,
 	}
-	s := storage.NewStorage(storage.ProviderS3, s3Cfg)
+	s := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 
 	if _, err := repository.Initialize(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
@@ -86,7 +91,12 @@ var s3ConnectCmd = &cobra.Command{
 // connects to an existing s3 repo.
 func connectS3Cmd(cmd *cobra.Command, args []string) {
 	mv := getM365Vars()
-	s3Cfg := makeS3Config()
+	s3Cfg, commonCfg, err := makeS3Config()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	fmt.Printf(
 		"Called - %s\n\tbucket:\t%s\n\tkey:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n\tfound awsSecret:\t%v\n",
 		cmd.CommandPath(),
@@ -101,7 +111,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 		ClientID:     mv.clientID,
 		ClientSecret: mv.clientSecret,
 	}
-	s := storage.NewStorage(storage.ProviderS3, s3Cfg)
+	s := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 
 	if _, err := repository.Connect(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)
@@ -112,17 +122,31 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 }
 
 // helper for aggregating aws connection details.
-func makeS3Config() storage.S3Config {
+func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
 	ak := os.Getenv(storage.AWS_ACCESS_KEY_ID)
 	if len(accessKey) > 0 {
 		ak = accessKey
 	}
+	secretKey := os.Getenv(storage.AWS_SECRET_ACCESS_KEY)
+	sessToken := os.Getenv(storage.AWS_SESSION_TOKEN)
+	corsoPasswd := os.Getenv(storage.CORSO_PASSWORD)
+
 	return storage.S3Config{
-		AccessKey:    ak,
-		Bucket:       bucket,
-		Endpoint:     endpoint,
-		Prefix:       prefix,
-		SecretKey:    os.Getenv(storage.AWS_SECRET_ACCESS_KEY),
-		SessionToken: os.Getenv(storage.AWS_SESSION_TOKEN),
-	}
+			AccessKey:    ak,
+			Bucket:       bucket,
+			Endpoint:     endpoint,
+			Prefix:       prefix,
+			SecretKey:    secretKey,
+			SessionToken: sessToken,
+		},
+		storage.CommonConfig{
+			CorsoPassword: corsoPasswd,
+		},
+		requireProps(map[string]string{
+			storage.AWS_ACCESS_KEY_ID:     ak,
+			"bucket":                      bucket,
+			storage.AWS_SECRET_ACCESS_KEY: secretKey,
+			storage.AWS_SESSION_TOKEN:     sessToken,
+			storage.CORSO_PASSWORD:        corsoPasswd,
+		})
 }
