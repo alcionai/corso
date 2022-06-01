@@ -17,7 +17,7 @@ const (
 var (
 	errInit             = errors.New("initializing repo")
 	errConnect          = errors.New("connecting repo")
-	errRequriesPassword = errors.New("encryption password required")
+	errRequriesPassword = errors.New("corso password required")
 )
 
 type kopiaWrapper struct {
