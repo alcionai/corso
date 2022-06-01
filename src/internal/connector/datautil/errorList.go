@@ -1,3 +1,5 @@
+// datautil package provides a series of helper functions to be better
+// interpret, respond, or manipulate data that interacts with the M365 objects.
 package datautil
 
 import (
@@ -6,6 +8,8 @@ import (
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 )
 
+// ErrorList a struct for holding errors experienced in sequence or in a
+// scenario where the errors are later required for deeper analysis.
 type ErrorList struct {
 	errorList []error
 }
@@ -25,7 +29,7 @@ func (el *ErrorList) AddError(err *error) {
 func (el *ErrorList) GetLength() int {
 	return len(el.errorList)
 }
-
+// GetErrors returns the string value of all errors experienced.
 func (el ErrorList) GetErrors() string {
 	aString := ""
 	if len(el.errorList) != 0 {
@@ -36,6 +40,9 @@ func (el ErrorList) GetErrors() string {
 	return aString
 }
 
+// GetDetailedErrors is a helper method for returning a the string
+// representation of failures  out of the layers of msgraph-sdk-go using
+// GetPostErrorsString.
 func (el ErrorList) GetDetailedErrors() string {
 	aString := ""
 	for idx, err := range el.errorList {
@@ -47,7 +54,9 @@ func (el ErrorList) GetDetailedErrors() string {
 	}
 	return aString
 }
-
+// GetPostErrorsString is a helper method for burrowing into the oDataError
+// created by M365. These errors  may have several cascading failures
+// associated with them. The method returns a string.
 func GetPostErrorsString(e error) string {
 	eMessage := ""
 	if oDataError, ok := e.(msgraph_errors.ODataErrorable); ok {

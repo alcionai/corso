@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/alcionai/corso/internal/m365/datautil"
+	"github.com/alcionai/corso/internal/connector/datautil"
 )
 
 func TestCreateErrorList(t *testing.T) {
