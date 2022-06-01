@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	graph "github.com/alcionai/corso/internal/m365"
+	graph "github.com/alcionai/corso/internal/connector"
 	"github.com/stretchr/testify/assert"
 )
 

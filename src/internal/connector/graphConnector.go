@@ -13,7 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 
-	"github.com/alcionai/corso/internal/m365/datautil"
+	"github.com/alcionai/corso/internal/connector/datautil"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -23,7 +23,7 @@ type GraphConnector struct {
 	tenant  string
 	adapter msgraphsdk.GraphRequestAdapter
 	client  msgraphsdk.GraphServiceClient
-	users   map[string]string //key<email> value<id>
+	Users   map[string]string //key<email> value<id>
 	errors  datautil.ErrorList
 	Streams string //Not implemented for ease of code check-in
 }
@@ -48,14 +48,14 @@ func NewGraphConnector(tenantId string, clientId string, secret string) GraphCon
 
 	gc.SetAdapter(adapter)
 	gc.SetClient(msgraphsdk.NewGraphServiceClient(adapter))
-	gc.GetUsersInTenant()
+	gc.SetTenantUsers()
 	return gc
 }
 
-// GetUsersInTenant queries the M365 to identify the users in the
+// SetTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated from this return.
-func (gc *GraphConnector) GetUsersInTenant() {
-	selecting := []string{" id, mail"}
+func (gc *GraphConnector) SetTenantUsers() {
+	selecting := []string{"id, mail"}
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -94,10 +94,11 @@ func (gc *GraphConnector) DisplayErrorLogs() {
 	fmt.Println(errorLog)
 }
 
-// GetAdapterWithPermissions is a utility method for creating an GraphRequestAdapter.
-// The input is an Azure credential and permission string that the application
-// is inline with the Azure application. The return is an GraphRequestAdapter and
-// an error encountered during the authentication process.
+// GetAdapterWithPermissions is a utility method for creating an
+// GraphRequestAdapter. The input is an Azure credential and a string defining
+// the scope of application access. This is inline with the Azure application.
+// The return is an GraphRequestAdapter and an error encountered during the
+// authentication process.
 func GetAdapterWithPermissions(cred azcore.TokenCredential, permission []string) (*msgraphsdk.GraphRequestAdapter, error) {
 	auth, _ := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, permission)
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
