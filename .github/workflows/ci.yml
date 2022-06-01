@@ -49,5 +49,5 @@ jobs:
       - name: Deployment Tests
         env:
           INTEGRATION_TESTING: true 
-          CORSO_PASSWORD: corso-integration-testing
+          CORSO_PASSWORD: ${{ secrets.INTEGRATION_TEST_CORSO_PASSWORDs }}
         run: go test ./...
