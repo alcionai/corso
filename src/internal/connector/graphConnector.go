@@ -1,9 +1,11 @@
+// Package connector uploads and retrieves data from M365 through
+// the msgraph-go-sdk.
 package connector
 
 import (
 	"fmt"
 
-	azcore "github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -14,6 +16,9 @@ import (
 	"github.com/alcionai/corso/internal/m365/datautil"
 )
 
+// GraphConnector is a struct used to wrap the GraphServiceClient and
+// GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
+// bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	tenant  string
 	adapter msgraphsdk.GraphRequestAdapter
@@ -47,6 +52,8 @@ func NewGraphConnector(tenantId string, clientId string, secret string) GraphCon
 	return gc
 }
 
+// GetUsersInTenant queries the M365 to identify the users in the
+// workspace. The users field is updated from this return.
 func (gc *GraphConnector) GetUsersInTenant() {
 	selecting := []string{" id, mail"}
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
@@ -81,11 +88,16 @@ func (gc *GraphConnector) GetUsersInTenant() {
 	hasFailed = userIterator.Iterate(callbackFunc)
 }
 
+// DisplayErrorLogs prints the errors experienced during the session.
 func (gc *GraphConnector) DisplayErrorLogs() {
 	errorLog := gc.errors.GetDetailedErrors()
 	fmt.Println(errorLog)
 }
 
+// GetAdapterWithPermissions is a utility method for creating an GraphRequestAdapter.
+// The input is an Azure credential and permission string that the application
+// is inline with the Azure application. The return is an GraphRequestAdapter and
+// an error encountered during the authentication process.
 func GetAdapterWithPermissions(cred azcore.TokenCredential, permission []string) (*msgraphsdk.GraphRequestAdapter, error) {
 	auth, _ := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, permission)
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
@@ -93,7 +105,9 @@ func GetAdapterWithPermissions(cred azcore.TokenCredential, permission []string)
 
 }
 
-// Application Permissions MUST be set for the application not delegated
+// GetClientCredential is a credentialing method through Azure. Inputs are
+// strings associated with application created in Azure Portal. It returns
+// an Azure Credential and any validation error experienced.
 func GetClientCredential(tenant string, clientId string, secret string) (*az.ClientSecretCredential, error) {
 	cred, err := az.NewClientSecretCredential(
 		tenant,
@@ -105,6 +119,7 @@ func GetClientCredential(tenant string, clientId string, secret string) (*az.Cli
 	return cred, err
 }
 
+// GetUsers returns the email address of users within tenant.
 func (gc *GraphConnector) GetUsers() []string {
 	keys := make([]string, len(gc.users))
 	for k := range gc.users {
@@ -121,6 +136,7 @@ func (gc *GraphConnector) GetUsersIds() []string {
 	return values
 }
 
+// HasConnectionErrors is a helper method that returns true iff an error was encountered.
 func (gc *GraphConnector) HasConnectorErrors() bool {
 	if gc.errors.GetLength() != 0 {
 		return true
