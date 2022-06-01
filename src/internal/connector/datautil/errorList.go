@@ -29,6 +29,7 @@ func (el *ErrorList) AddError(err *error) {
 func (el *ErrorList) GetLength() int {
 	return len(el.errorList)
 }
+
 // GetErrors returns the string value of all errors experienced.
 func (el ErrorList) GetErrors() string {
 	aString := ""
@@ -54,6 +55,7 @@ func (el ErrorList) GetDetailedErrors() string {
 	}
 	return aString
 }
+
 // GetPostErrorsString is a helper method for burrowing into the oDataError
 // created by M365. These errors  may have several cascading failures
 // associated with them. The method returns a string.

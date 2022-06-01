@@ -31,7 +31,7 @@ type GraphConnector struct {
 func NewGraphConnector(tenantId string, clientId string, secret string) GraphConnector {
 	gc := GraphConnector{
 		tenant: tenantId,
-		users:  make(map[string]string, 0),
+		Users:  make(map[string]string, 0),
 		errors: datautil.NewErrorList(),
 	}
 	// Client Provider: Uses Secret for access to tenant-level data
@@ -82,7 +82,7 @@ func (gc *GraphConnector) SetTenantUsers() {
 			return true
 		}
 		user := userItem.(models.Userable)
-		gc.users[*user.GetMail()] = *user.GetId()
+		gc.Users[*user.GetMail()] = *user.GetId()
 		return true
 	}
 	hasFailed = userIterator.Iterate(callbackFunc)
@@ -100,7 +100,10 @@ func (gc *GraphConnector) DisplayErrorLogs() {
 // The return is an GraphRequestAdapter and an error encountered during the
 // authentication process.
 func GetAdapterWithPermissions(cred azcore.TokenCredential, permission []string) (*msgraphsdk.GraphRequestAdapter, error) {
-	auth, _ := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, permission)
+	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, permission)
+	if err != nil {
+		return nil, err
+	}
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
 	return adapter, err
 
@@ -122,16 +125,16 @@ func GetClientCredential(tenant string, clientId string, secret string) (*az.Cli
 
 // GetUsers returns the email address of users within tenant.
 func (gc *GraphConnector) GetUsers() []string {
-	keys := make([]string, len(gc.users))
-	for k := range gc.users {
+	keys := make([]string, len(gc.Users))
+	for k := range gc.Users {
 		keys = append(keys, k)
 	}
 	return keys
 }
 
 func (gc *GraphConnector) GetUsersIds() []string {
-	values := make([]string, len(gc.users))
-	for _, v := range gc.users {
+	values := make([]string, len(gc.Users))
+	for _, v := range gc.Users {
 		values = append(values, v)
 	}
 	return values
