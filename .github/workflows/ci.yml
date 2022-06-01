@@ -1,9 +1,15 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  # required to retrieve repository
+  contents: read
 
 jobs:
   Run-All:
@@ -32,5 +38,15 @@ jobs:
       - name: Run gofmt
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
 
-      - run: echo "Running {{ github.repository }} deployment unit tests."
-      - run: go test ./...
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::951767375776:role/corso-testing-role
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      - run: echo "Running ${{ github.repository }} deployment unit tests at ${{ env.TIME_OF_TEST }}."
+      - name: Deployment Tests
+        env:
+          INTEGRATION_TESTING: true 
+        run: go test ./...

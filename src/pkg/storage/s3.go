@@ -9,6 +9,14 @@ type S3Config struct {
 	SessionToken string
 }
 
+// envvar consts
+const (
+	AWS_ACCESS_KEY_ID     = "AWS_ACCESS_KEY_ID"
+	AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
+	AWS_SESSION_TOKEN     = "AWS_SESSION_TOKEN"
+)
+
+// config key consts
 const (
 	keyS3AccessKey    = "s3_accessKey"
 	keyS3Bucket       = "s3_bucket"
