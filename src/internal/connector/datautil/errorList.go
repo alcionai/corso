@@ -8,8 +8,8 @@ import (
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 )
 
-// ErrorList a struct for holding errors experienced in sequence or in a
-// scenario where the errors are later required for deeper analysis.
+// ErrorList is a struct for holding errors experienced in sequence or in
+// a scenario where the errors are later required for deeper analysis.
 type ErrorList struct {
 	errorList []error
 }
