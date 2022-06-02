@@ -37,7 +37,7 @@ func (suite *GraphConnectorTestSuite) TestBadConnection() {
 }
 
 func (suite *GraphConnectorTestSuite) TestGraphConnector() {
-	if os.Getenv("CI") != "" {
+	if os.Getenv("INTEGRATION_TESTING") != "" {
 		suite.T().Skip("Environmental Variables not set")
 	}
 
