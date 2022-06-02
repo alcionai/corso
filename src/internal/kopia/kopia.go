@@ -104,6 +104,7 @@ func (kw kopiaWrapper) Close(ctx context.Context) error {
 		return errors.Wrap(err, errClose.Error())
 	}
 
+	kw.rep = nil
 	return nil
 }
 
