@@ -74,7 +74,7 @@ func (gc *GraphConnector) SetTenantUsers() bool {
 	var hasFailed error
 	callbackFunc := func(userItem interface{}) bool {
 		if hasFailed != nil {
-			fmt.Printf("Experienced err: %v\nOperation terminated", hasFailed)
+			fmt.Printf("Iteration err: %v\n", hasFailed)
 			gc.errors = append(gc.errors, hasFailed)
 			return true
 		}
@@ -97,7 +97,7 @@ func (gc *GraphConnector) DisplayErrorLogs() string {
 
 // GetUsers returns the email address of users within tenant.
 func (gc *GraphConnector) GetUsers() []string {
-	keys := make([]string, len(gc.Users))
+	keys := make([]string, 0)
 	for k := range gc.Users {
 		keys = append(keys, k)
 	}
@@ -105,7 +105,7 @@ func (gc *GraphConnector) GetUsers() []string {
 }
 
 func (gc *GraphConnector) GetUsersIds() []string {
-	values := make([]string, len(gc.Users))
+	values := make([]string, 0)
 	for _, v := range gc.Users {
 		values = append(values, v)
 	}
