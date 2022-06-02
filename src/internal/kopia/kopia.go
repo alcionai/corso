@@ -17,14 +17,17 @@ const (
 var (
 	errInit    = errors.New("initializing repo")
 	errConnect = errors.New("connecting repo")
+	errOpen    = errors.New("open repo")
+	errClose   = errors.New("close repo")
 )
 
 type kopiaWrapper struct {
 	storage storage.Storage
+	rep     repo.Repository
 }
 
 func New(s storage.Storage) kopiaWrapper {
-	return kopiaWrapper{s}
+	return kopiaWrapper{storage: s}
 }
 
 func (kw kopiaWrapper) Initialize(ctx context.Context) error {
@@ -90,4 +93,32 @@ func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, 
 	default:
 		return nil, errors.New("storage provider details are required")
 	}
+}
+
+func (kw kopiaWrapper) Close(ctx context.Context) error {
+	if kw.rep == nil {
+		return nil
+	}
+
+	if err := kw.rep.Close(ctx); err != nil {
+		return errors.Wrap(err, errClose.Error())
+	}
+
+	return nil
+}
+
+func (kw kopiaWrapper) open(ctx context.Context) error {
+	cfg := kw.storage.CommonConfig()
+	if len(cfg.CorsoPassword) == 0 {
+		return errRequriesPassword
+	}
+
+	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
+	rep, err := repo.Open(ctx, defaultKopiaConfigFilePath, cfg.CorsoPassword, nil)
+	if err != nil {
+		return errors.Wrap(err, errOpen.Error())
+	}
+
+	kw.rep = rep
+	return nil
 }
