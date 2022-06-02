@@ -99,9 +99,11 @@ func (kw kopiaWrapper) Close(ctx context.Context) error {
 	if kw.rep == nil {
 		return nil
 	}
+
+	err := kw.rep.Close(ctx)
 	kw.rep = nil
 
-	if err := kw.rep.Close(ctx); err != nil {
+	if err != nil {
 		return errors.Wrap(err, errClose.Error())
 	}
 
