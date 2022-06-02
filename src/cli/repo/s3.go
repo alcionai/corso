@@ -69,7 +69,11 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 		ClientID:     mv.clientID,
 		ClientSecret: mv.clientSecret,
 	}
-	s := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
+	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
+	if err != nil {
+		fmt.Printf("Failed to configure storage provider: %v", err)
+		os.Exit(1)
+	}
 
 	if _, err := repository.Initialize(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
@@ -111,7 +115,11 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 		ClientID:     mv.clientID,
 		ClientSecret: mv.clientSecret,
 	}
-	s := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
+	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
+	if err != nil {
+		fmt.Printf("Failed to configure storage provider: %v", err)
+		os.Exit(1)
+	}
 
 	if _, err := repository.Connect(cmd.Context(), a, s); err != nil {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)

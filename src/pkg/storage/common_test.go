@@ -19,7 +19,9 @@ func TestCommonCfgSuite(t *testing.T) {
 
 func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 	cfg := storage.CommonConfig{"passwd"}
-	c := cfg.Config()
+	c, err := cfg.Config()
+	assert.NoError(suite.T(), err)
+
 	table := []struct {
 		key    string
 		expect string
@@ -28,14 +30,19 @@ func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.key, func(t *testing.T) {
-			assert.Equal(t, c[test.key], test.expect)
+			assert.Equal(t, test.expect, c[test.key])
 		})
 	}
 }
 
 func (suite *CommonCfgSuite) TestStorage_CommonConfig() {
-	in := storage.CommonConfig{"passwd"}
-	out := storage.NewStorage(storage.ProviderUnknown, in).CommonConfig()
 	t := suite.T()
+
+	in := storage.CommonConfig{"passwd"}
+	s, err := storage.NewStorage(storage.ProviderUnknown, in)
+	assert.NoError(t, err)
+	out, err := s.CommonConfig()
+	assert.NoError(t, err)
+
 	assert.Equal(t, in.CorsoPassword, out.CorsoPassword)
 }

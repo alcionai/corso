@@ -29,21 +29,25 @@ func TestRepositorySuite(t *testing.T) {
 func (suite *RepositorySuite) TestInitialize() {
 	table := []struct {
 		name     string
-		storage  storage.Storage
+		storage  func() (storage.Storage, error)
 		account  repository.Account
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
 			storage.ProviderUnknown.String(),
-			storage.NewStorage(storage.ProviderUnknown),
+			func() (storage.Storage, error) {
+				return storage.NewStorage(storage.ProviderUnknown)
+			},
 			repository.Account{},
 			assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := repository.Initialize(context.Background(), test.account, test.storage)
-			test.errCheck(suite.T(), err, "")
+			st, err := test.storage()
+			assert.NoError(t, err)
+			_, err = repository.Initialize(context.Background(), test.account, st)
+			test.errCheck(t, err, "")
 		})
 	}
 }
@@ -53,21 +57,25 @@ func (suite *RepositorySuite) TestInitialize() {
 func (suite *RepositorySuite) TestConnect() {
 	table := []struct {
 		name     string
-		storage  storage.Storage
+		storage  func() (storage.Storage, error)
 		account  repository.Account
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
 			storage.ProviderUnknown.String(),
-			storage.NewStorage(storage.ProviderUnknown),
+			func() (storage.Storage, error) {
+				return storage.NewStorage(storage.ProviderUnknown)
+			},
 			repository.Account{},
 			assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := repository.Connect(context.Background(), test.account, test.storage)
-			test.errCheck(suite.T(), err)
+			st, err := test.storage()
+			assert.NoError(t, err)
+			_, err = repository.Connect(context.Background(), test.account, st)
+			test.errCheck(t, err)
 		})
 	}
 }
@@ -108,31 +116,35 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	table := []struct {
 		prefix   string
 		account  repository.Account
-		storage  storage.Storage
+		storage  func() (storage.Storage, error)
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
 			prefix: "init-s3-" + timeOfTest,
-			storage: storage.NewStorage(
-				storage.ProviderS3,
-				storage.S3Config{
-					AccessKey:    os.Getenv(storage.AWS_ACCESS_KEY_ID),
-					Bucket:       "test-corso-repo-init",
-					Prefix:       "init-s3-" + timeOfTest,
-					SecretKey:    os.Getenv(storage.AWS_SECRET_ACCESS_KEY),
-					SessionToken: os.Getenv(storage.AWS_SESSION_TOKEN),
-				},
-				storage.CommonConfig{
-					CorsoPassword: os.Getenv(storage.CORSO_PASSWORD),
-				},
-			),
+			storage: func() (storage.Storage, error) {
+				return storage.NewStorage(
+					storage.ProviderS3,
+					storage.S3Config{
+						AccessKey:    os.Getenv(storage.AWS_ACCESS_KEY_ID),
+						Bucket:       "test-corso-repo-init",
+						Prefix:       "init-s3-" + timeOfTest,
+						SecretKey:    os.Getenv(storage.AWS_SECRET_ACCESS_KEY),
+						SessionToken: os.Getenv(storage.AWS_SESSION_TOKEN),
+					},
+					storage.CommonConfig{
+						CorsoPassword: os.Getenv(storage.CORSO_PASSWORD),
+					},
+				)
+			},
 			errCheck: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.prefix, func(t *testing.T) {
-			_, err := repository.Initialize(ctx, test.account, test.storage)
-			test.errCheck(suite.T(), err)
+			st, err := test.storage()
+			assert.NoError(t, err)
+			_, err = repository.Initialize(ctx, test.account, st)
+			test.errCheck(t, err)
 		})
 	}
 }

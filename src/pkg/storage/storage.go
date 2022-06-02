@@ -1,6 +1,9 @@
 package storage
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type storageProvider int
 
@@ -10,10 +13,15 @@ const (
 	ProviderS3                             // S3
 )
 
+// storage parsing errors
+var (
+	errMissingRequired = errors.New("missing required storage configuration")
+)
+
 type (
 	config     map[string]any
 	configurer interface {
-		Config() config
+		Config() (config, error)
 	}
 )
 
@@ -25,21 +33,26 @@ type Storage struct {
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
-func NewStorage(p storageProvider, cfgs ...configurer) Storage {
+func NewStorage(p storageProvider, cfgs ...configurer) (Storage, error) {
+	cs, err := unionConfigs(cfgs...)
 	return Storage{
 		Provider: p,
-		Config:   unionConfigs(cfgs...),
-	}
+		Config:   cs,
+	}, err
 }
 
-func unionConfigs(cfgs ...configurer) config {
-	c := config{}
+func unionConfigs(cfgs ...configurer) (config, error) {
+	union := config{}
 	for _, cfg := range cfgs {
-		for k, v := range cfg.Config() {
-			c[k] = v
+		c, err := cfg.Config()
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range c {
+			union[k] = v
 		}
 	}
-	return c
+	return union, nil
 }
 
 // Helper for parsing the values in a config object.

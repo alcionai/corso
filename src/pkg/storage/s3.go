@@ -1,12 +1,14 @@
 package storage
 
+import "github.com/pkg/errors"
+
 type S3Config struct {
-	AccessKey    string
-	Bucket       string
+	AccessKey    string // required
+	Bucket       string // required
 	Endpoint     string
 	Prefix       string
-	SecretKey    string
-	SessionToken string
+	SecretKey    string // required
+	SessionToken string // required
 }
 
 // envvar consts
@@ -26,8 +28,8 @@ const (
 	keyS3SessionToken = "s3_sessionToken"
 )
 
-func (c S3Config) Config() config {
-	return config{
+func (c S3Config) Config() (config, error) {
+	cfg := config{
 		keyS3AccessKey:    c.AccessKey,
 		keyS3Bucket:       c.Bucket,
 		keyS3Endpoint:     c.Endpoint,
@@ -35,10 +37,11 @@ func (c S3Config) Config() config {
 		keyS3SecretKey:    c.SecretKey,
 		keyS3SessionToken: c.SessionToken,
 	}
+	return cfg, c.validate()
 }
 
 // S3Config retrieves the S3Config details from the Storage config.
-func (s Storage) S3Config() S3Config {
+func (s Storage) S3Config() (S3Config, error) {
 	c := S3Config{}
 	if len(s.Config) > 0 {
 		c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
@@ -48,5 +51,20 @@ func (s Storage) S3Config() S3Config {
 		c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
 		c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
 	}
-	return c
+	return c, c.validate()
+}
+
+func (c S3Config) validate() error {
+	check := map[string]string{
+		AWS_ACCESS_KEY_ID:     c.AccessKey,
+		AWS_SECRET_ACCESS_KEY: c.SecretKey,
+		AWS_SESSION_TOKEN:     c.SessionToken,
+		"bucket":              c.Bucket,
+	}
+	for k, v := range check {
+		if len(v) == 0 {
+			return errors.Wrap(errMissingRequired, k)
+		}
+	}
+	return nil
 }

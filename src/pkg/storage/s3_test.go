@@ -19,7 +19,9 @@ func TestS3CfgSuite(t *testing.T) {
 
 func (suite *S3CfgSuite) TestS3Config_Config() {
 	s3 := storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
-	c := s3.Config()
+	c, err := s3.Config()
+	assert.NoError(suite.T(), err)
+
 	table := []struct {
 		key    string
 		expect string
@@ -32,14 +34,19 @@ func (suite *S3CfgSuite) TestS3Config_Config() {
 		{"s3_sessionToken", s3.SessionToken},
 	}
 	for _, test := range table {
-		assert.Equal(suite.T(), c[test.key], test.expect)
+		assert.Equal(suite.T(), test.expect, c[test.key])
 	}
 }
 
 func (suite *S3CfgSuite) TestStorage_S3Config() {
-	in := storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
-	out := storage.NewStorage(storage.ProviderS3, in).S3Config()
 	t := suite.T()
+
+	in := storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
+	s, err := storage.NewStorage(storage.ProviderS3, in)
+	assert.NoError(t, err)
+	out, err := s.S3Config()
+	assert.NoError(t, err)
+
 	assert.Equal(t, in.Bucket, out.Bucket)
 	assert.Equal(t, in.AccessKey, out.AccessKey)
 	assert.Equal(t, in.Endpoint, out.Endpoint)

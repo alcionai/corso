@@ -13,7 +13,11 @@ const (
 	defaultS3Endpoint = "s3.amazonaws.com" // matches kopia's default value
 )
 
-func s3BlobStorage(ctx context.Context, cfg storage.S3Config) (blob.Storage, error) {
+func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error) {
+	cfg, err := s.S3Config()
+	if err != nil {
+		return nil, err
+	}
 	endpoint := defaultS3Endpoint
 	if len(cfg.Endpoint) > 0 {
 		endpoint = cfg.Endpoint
