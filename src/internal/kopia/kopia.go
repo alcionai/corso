@@ -15,9 +15,8 @@ const (
 )
 
 var (
-	errInit             = errors.New("initializing repo")
-	errConnect          = errors.New("connecting repo")
-	errRequriesPassword = errors.New("corso password required")
+	errInit    = errors.New("initializing repo")
+	errConnect = errors.New("connecting repo")
 )
 
 type kopiaWrapper struct {
@@ -35,9 +34,9 @@ func (kw kopiaWrapper) Initialize(ctx context.Context) error {
 	}
 	defer bst.Close(ctx)
 
-	cfg := kw.storage.CommonConfig()
-	if len(cfg.CorsoPassword) == 0 {
-		return errRequriesPassword
+	cfg, err := kw.storage.CommonConfig()
+	if err != nil {
+		return err
 	}
 
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
@@ -66,9 +65,9 @@ func (kw kopiaWrapper) Connect(ctx context.Context) error {
 	}
 	defer bst.Close(ctx)
 
-	cfg := kw.storage.CommonConfig()
-	if len(cfg.CorsoPassword) == 0 {
-		return errRequriesPassword
+	cfg, err := kw.storage.CommonConfig()
+	if err != nil {
+		return err
 	}
 
 	// todo - issue #75: nil here should be storage.ConnectOptions()
@@ -87,7 +86,7 @@ func (kw kopiaWrapper) Connect(ctx context.Context) error {
 func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
 	switch s.Provider {
 	case storage.ProviderS3:
-		return s3BlobStorage(ctx, s.S3Config())
+		return s3BlobStorage(ctx, s)
 	default:
 		return nil, errors.New("storage provider details are required")
 	}
