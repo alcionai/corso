@@ -5,15 +5,12 @@ package connector
 import (
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
-
-	"github.com/alcionai/corso/internal/connector/datautil"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -24,37 +21,39 @@ type GraphConnector struct {
 	adapter msgraphsdk.GraphRequestAdapter
 	client  msgraphsdk.GraphServiceClient
 	Users   map[string]string //key<email> value<id>
-	errors  datautil.ErrorList
+	errors  []error
 	Streams string //Not implemented for ease of code check-in
 }
 
-func NewGraphConnector(tenantId string, clientId string, secret string) GraphConnector {
-	gc := GraphConnector{
-		tenant: tenantId,
-		Users:  make(map[string]string, 0),
-		errors: datautil.NewErrorList(),
-	}
+func NewGraphConnector(tenantId string, clientId string, secret string) (*GraphConnector, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
-	cred, err := GetClientCredential(tenantId, clientId, secret)
+	cred, err := az.NewClientSecretCredential(tenantId, clientId, secret, nil)
 	if err != nil {
-		gc.errors.AddError(&err)
+		return nil, err
 	}
-
-	permissions := []string{"https://graph.microsoft.com/.default"}
-	adapter, err := GetAdapterWithPermissions(cred, permissions)
+	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, []string{"https://graph.microsoft.com/.default"})
 	if err != nil {
-		gc.errors.AddError(&err)
+		return nil, err
 	}
-
-	gc.SetAdapter(adapter)
-	gc.SetClient(msgraphsdk.NewGraphServiceClient(adapter))
+	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
+	if err != nil {
+		return nil, err
+	}
+	gc := GraphConnector{
+		tenant:  tenantId,
+		adapter: *adapter,
+		client:  *msgraphsdk.NewGraphServiceClient(adapter),
+		Users:   make(map[string]string, 0),
+		errors:  make([]error, 0),
+	}
 	gc.SetTenantUsers()
-	return gc
+	return &gc, nil
 }
 
 // SetTenantUsers queries the M365 to identify the users in the
-// workspace. The users field is updated from this return.
-func (gc *GraphConnector) SetTenantUsers() {
+// workspace. The users field is updated during this method
+// iff the return value is true
+func (gc *GraphConnector) SetTenantUsers() bool {
 	selecting := []string{"id, mail"}
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
 		Select: selecting,
@@ -63,22 +62,20 @@ func (gc *GraphConnector) SetTenantUsers() {
 		QueryParameters: requestParams,
 	}
 	response, err := gc.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
-	userIterator, err2 := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
-	if err != nil || err2 != nil {
-		if err != nil {
-			gc.errors.AddError(&err)
-		}
-		if err2 != nil {
-			gc.errors.AddError(&err2)
-		}
-		fmt.Printf("Users not Updated\n%s\n", gc.errors.GetDetailedErrors())
-		return
+	if err != nil {
+		gc.errors = append(gc.errors, err)
+		return false
+	}
+	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		gc.errors = append(gc.errors, err)
+		return false
 	}
 	var hasFailed error
 	callbackFunc := func(userItem interface{}) bool {
 		if hasFailed != nil {
 			fmt.Printf("Experienced err: %v\nOperation terminated", hasFailed)
-			gc.errors.AddError(&hasFailed)
+			gc.errors = append(gc.errors, hasFailed)
 			return true
 		}
 		user := userItem.(models.Userable)
@@ -86,41 +83,16 @@ func (gc *GraphConnector) SetTenantUsers() {
 		return true
 	}
 	hasFailed = userIterator.Iterate(callbackFunc)
+	return true
 }
 
 // DisplayErrorLogs prints the errors experienced during the session.
-func (gc *GraphConnector) DisplayErrorLogs() {
-	errorLog := gc.errors.GetDetailedErrors()
-	fmt.Println(errorLog)
-}
-
-// GetAdapterWithPermissions is a utility method for creating an
-// GraphRequestAdapter. The input is an Azure credential and a string defining
-// the scope of application access. This is inline with the Azure application.
-// The return is an GraphRequestAdapter and an error encountered during the
-// authentication process.
-func GetAdapterWithPermissions(cred azcore.TokenCredential, permission []string) (*msgraphsdk.GraphRequestAdapter, error) {
-	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, permission)
-	if err != nil {
-		return nil, err
+func (gc *GraphConnector) DisplayErrorLogs() string {
+	errorLog := ""
+	for idx, err := range gc.errors {
+		errorLog = errorLog + fmt.Sprintf("Error# %d\t%v\n", idx, err)
 	}
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
-	return adapter, err
-
-}
-
-// GetClientCredential is a credentialing method through Azure. Inputs are
-// strings associated with application created in Azure Portal. It returns
-// an Azure Credential and any validation error experienced.
-func GetClientCredential(tenant string, clientId string, secret string) (*az.ClientSecretCredential, error) {
-	cred, err := az.NewClientSecretCredential(
-		tenant,
-		clientId,
-		secret,
-		nil,
-	)
-
-	return cred, err
+	return errorLog
 }
 
 // GetUsers returns the email address of users within tenant.
@@ -142,17 +114,5 @@ func (gc *GraphConnector) GetUsersIds() []string {
 
 // HasConnectionErrors is a helper method that returns true iff an error was encountered.
 func (gc *GraphConnector) HasConnectorErrors() bool {
-	if gc.errors.GetLength() != 0 {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (gc *GraphConnector) SetAdapter(adapt *msgraphsdk.GraphRequestAdapter) {
-	gc.adapter = *adapt
-}
-
-func (gc *GraphConnector) SetClient(client *msgraphsdk.GraphServiceClient) {
-	gc.client = *client
+	return len(gc.errors) > 0
 }

@@ -6,26 +6,41 @@ import (
 
 	graph "github.com/alcionai/corso/internal/connector"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestBadConnection(t *testing.T) {
-	gc := graph.NewGraphConnector("Test", "without", "data")
-	assert.True(t, gc.HasConnectorErrors())
-	assert.Equal(t, len(gc.GetUsers()), 0)
-
+type GraphConnectorTestSuite struct {
+	suite.Suite
+	connector *graph.GraphConnector
+	err       error
 }
 
-func TestConnectWithEnvVariables(t *testing.T) {
+func (suite *GraphConnectorTestSuite) SetupSuite() {
 	tenant := os.Getenv("TENANT_ID")
 	client := os.Getenv("CLIENT_ID")
 	secret := os.Getenv("CLIENT_SECRET")
-
-	if tenant == "" || client == "" || secret == "" {
-		t.Logf("Connection Test Skipped\n")
-	} else {
-		gc := graph.NewGraphConnector(tenant, client, secret)
-		assert.False(t, gc.HasConnectorErrors())
-		t.Logf("Users: %v\n", gc.GetUsers())
-		assert.True(t, len(gc.GetUsers()) > 0)
+	if os.Getenv("CI") == "" {
+		suite.connector, suite.err = graph.NewGraphConnector(tenant, client, secret)
 	}
+}
+
+func TestGraphConnectorSuite(t *testing.T) {
+	suite.Run(t, new(GraphConnectorTestSuite))
+}
+
+func (suite *GraphConnectorTestSuite) TestBadConnection() {
+	gc, err := graph.NewGraphConnector("Test", "without", "data") //NOTE:[[o
+	assert.NotNil(suite.T(), gc)
+	assert.Nil(suite.T(), err)
+	suite.Equal(len(gc.GetUsers()), 0)
+
+}
+
+func (suite *GraphConnectorTestSuite) TestGraphConnector() {
+	if os.Getenv("CI") != "" {
+		suite.T().Skip("Environmental Variables not set")
+	}
+
+	suite.False(suite.connector.HasConnectorErrors())
+	suite.True(len(suite.connector.Users) > 0)
 }
