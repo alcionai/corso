@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -98,14 +99,7 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 
 // ensure all required env values are populated
 func (suite *RepositoryIntegrationSuite) SetupSuite() {
-	s3Envs := []string{
-		storage.AWS_ACCESS_KEY_ID,
-		storage.AWS_SECRET_ACCESS_KEY,
-		storage.AWS_SESSION_TOKEN,
-	}
-	for _, env := range s3Envs {
-		require.NotZerof(suite.T(), os.Getenv(env), "env var [%s] must be populated for integration testing", env)
-	}
+	require.NoError(suite.T(), ctesting.CheckS3EnvVars())
 }
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
@@ -122,19 +116,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 		{
 			prefix: "init-s3-" + timeOfTest,
 			storage: func() (storage.Storage, error) {
-				return storage.NewStorage(
-					storage.ProviderS3,
-					storage.S3Config{
-						AccessKey:    os.Getenv(storage.AWS_ACCESS_KEY_ID),
-						Bucket:       "test-corso-repo-init",
-						Prefix:       "init-s3-" + timeOfTest,
-						SecretKey:    os.Getenv(storage.AWS_SECRET_ACCESS_KEY),
-						SessionToken: os.Getenv(storage.AWS_SESSION_TOKEN),
-					},
-					storage.CommonConfig{
-						CorsoPassword: os.Getenv(storage.CORSO_PASSWORD),
-					},
-				)
+				return ctesting.NewS3Storage("init-s3-" + timeOfTest)
 			},
 			errCheck: assert.NoError,
 		},
