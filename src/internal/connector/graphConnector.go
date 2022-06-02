@@ -25,7 +25,7 @@ type GraphConnector struct {
 	Streams string //Not implemented for ease of code check-in
 }
 
-func NewGraphConnector(tenantId string, clientId string, secret string) (*GraphConnector, error) {
+func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := az.NewClientSecretCredential(tenantId, clientId, secret, nil)
 	if err != nil {
