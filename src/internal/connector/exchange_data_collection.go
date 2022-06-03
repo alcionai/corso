@@ -11,10 +11,9 @@ type DataCollection interface {
 }
 
 // DataStream represents a single item within a DataCollection
-// that can be consumed as a stream
+// that can be consumed as a stream (it embeds io.Reader)
 type DataStream interface {
-	// ToReader returns a reader for the data stream
-	ToReader() io.Reader
+	io.Reader
 	// Provides a unique identifier for this data
 	UUID() string
 }
