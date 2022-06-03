@@ -28,7 +28,7 @@ func TestGraphConnectorSuite(t *testing.T) {
 
 func (suite *GraphConnectorTestSuite) SetupSuite() {
 	if os.Getenv("CI") == "" {
-		evs, err := ctesting.RequireEnvVars("TENANT_ID", "CLIENT_ID", "CLIENT_SECRET")
+		evs, err := ctesting.GetRequiredEnvVars("TENANT_ID", "CLIENT_ID", "CLIENT_SECRET")
 		if err != nil {
 			suite.T().Fatal(err)
 		}
