@@ -19,15 +19,16 @@ var (
 	errConnect = errors.New("connecting repo")
 )
 
-type kopiaWrapper struct {
+type KopiaWrapper struct {
 	storage storage.Storage
+	rep     repo.Repository
 }
 
-func New(s storage.Storage) kopiaWrapper {
-	return kopiaWrapper{s}
+func New(s storage.Storage) KopiaWrapper {
+	return KopiaWrapper{storage: s}
 }
 
-func (kw kopiaWrapper) Initialize(ctx context.Context) error {
+func (kw KopiaWrapper) Initialize(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, kw.storage)
 	if err != nil {
 		return errors.Wrap(err, errInit.Error())
@@ -55,10 +56,14 @@ func (kw kopiaWrapper) Initialize(ctx context.Context) error {
 		return errors.Wrap(err, errConnect.Error())
 	}
 
+	if err := kw.open(ctx, cfg.CorsoPassword); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (kw kopiaWrapper) Connect(ctx context.Context) error {
+func (kw KopiaWrapper) Connect(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, kw.storage)
 	if err != nil {
 		return errors.Wrap(err, errInit.Error())
@@ -80,6 +85,11 @@ func (kw kopiaWrapper) Connect(ctx context.Context) error {
 	); err != nil {
 		return errors.Wrap(err, errConnect.Error())
 	}
+
+	if err := kw.open(ctx, cfg.CorsoPassword); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -90,4 +100,30 @@ func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, 
 	default:
 		return nil, errors.New("storage provider details are required")
 	}
+}
+
+func (kw KopiaWrapper) Close(ctx context.Context) error {
+	if kw.rep == nil {
+		return nil
+	}
+
+	err := kw.rep.Close(ctx)
+	kw.rep = nil
+
+	if err != nil {
+		return errors.Wrap(err, "closing repository connection")
+	}
+
+	return nil
+}
+
+func (kw KopiaWrapper) open(ctx context.Context, password string) error {
+	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
+	rep, err := repo.Open(ctx, defaultKopiaConfigFilePath, password, nil)
+	if err != nil {
+		return errors.Wrap(err, "opening repository connection")
+	}
+
+	kw.rep = rep
+	return nil
 }

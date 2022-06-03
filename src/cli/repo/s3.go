@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -75,10 +76,12 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	if _, err := repository.Initialize(cmd.Context(), a, s); err != nil {
+	r, err := repository.Connect(cmd.Context(), a, s)
+	if err != nil {
 		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
 		os.Exit(1)
 	}
+	defer closeRepo(cmd.Context(), r)
 
 	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
 }
@@ -121,10 +124,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	if _, err := repository.Connect(cmd.Context(), a, s); err != nil {
+	r, err := repository.Connect(cmd.Context(), a, s)
+	if err != nil {
 		fmt.Printf("Failed to connect to the S3 repository: %v", err)
 		os.Exit(1)
 	}
+	defer closeRepo(cmd.Context(), r)
 
 	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
 }
@@ -157,4 +162,10 @@ func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
 			storage.AWS_SESSION_TOKEN:     sessToken,
 			storage.CORSO_PASSWORD:        corsoPasswd,
 		})
+}
+
+func closeRepo(ctx context.Context, r repository.Repository) {
+	if err := r.Close(ctx); err != nil {
+		fmt.Printf("Error closing repository: %v\n", err)
+	}
 }
