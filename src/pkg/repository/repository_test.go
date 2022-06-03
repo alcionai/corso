@@ -128,8 +128,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 			r, err := repository.Initialize(ctx, test.account, st)
 			if err == nil {
 				defer func() {
-					err2 := r.Close(ctx)
-					assert.NoError(suite.T(), err2)
+					assert.NoError(t, r.Close(ctx))
 				}()
 			}
 
