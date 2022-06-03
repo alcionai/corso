@@ -11,7 +11,7 @@ type DataCollection interface {
 }
 
 // DataStream represents a single item within a DataCollection
-// that can be consumed as a steam
+// that can be consumed as a stream
 type DataStream interface {
 	// ToReader returns a reader for the data stream
 	ToReader() io.Reader
