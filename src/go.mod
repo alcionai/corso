@@ -3,7 +3,6 @@ module github.com/alcionai/corso
 go 1.18
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.0.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/kopia/kopia v0.10.7
@@ -17,6 +16,7 @@ require (
 )
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.0.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
