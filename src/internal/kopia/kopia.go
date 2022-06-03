@@ -17,8 +17,6 @@ const (
 var (
 	errInit    = errors.New("initializing repo")
 	errConnect = errors.New("connecting repo")
-	errOpen    = errors.New("open repo")
-	errClose   = errors.New("close repo")
 )
 
 type kopiaWrapper struct {
@@ -58,6 +56,10 @@ func (kw kopiaWrapper) Initialize(ctx context.Context) error {
 		return errors.Wrap(err, errConnect.Error())
 	}
 
+	if err := kw.open(ctx, cfg.CorsoPassword); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -83,6 +85,11 @@ func (kw kopiaWrapper) Connect(ctx context.Context) error {
 	); err != nil {
 		return errors.Wrap(err, errConnect.Error())
 	}
+
+	if err := kw.open(ctx, cfg.CorsoPassword); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -104,22 +111,17 @@ func (kw kopiaWrapper) Close(ctx context.Context) error {
 	kw.rep = nil
 
 	if err != nil {
-		return errors.Wrap(err, errClose.Error())
+		return errors.Wrap(err, "closing repository connection")
 	}
 
 	return nil
 }
 
-func (kw kopiaWrapper) open(ctx context.Context) error {
-	cfg := kw.storage.CommonConfig()
-	if len(cfg.CorsoPassword) == 0 {
-		return errRequriesPassword
-	}
-
+func (kw kopiaWrapper) open(ctx context.Context, password string) error {
 	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
-	rep, err := repo.Open(ctx, defaultKopiaConfigFilePath, cfg.CorsoPassword, nil)
+	rep, err := repo.Open(ctx, defaultKopiaConfigFilePath, password, nil)
 	if err != nil {
-		return errors.Wrap(err, errOpen.Error())
+		return errors.Wrap(err, "opening repository connection")
 	}
 
 	kw.rep = rep
