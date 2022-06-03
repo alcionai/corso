@@ -8,6 +8,7 @@ type (
 // opProgress allows downstream writers to communicate async progress and
 // errors to the operation.  Per-process wrappers of operation are required
 // to implement receivers for each channel.
+// Operations should not write to opProgress themselves.
 type opProgress struct {
 	progressChan
 	errorChan
@@ -21,6 +22,7 @@ func newOpProgress() *opProgress {
 }
 
 // Report transmits a progress report to the operation.
+// Cannot be called concurrently with Close()
 func (rch progressChan) Report(rpt string) {
 	if rch != nil {
 		rch <- rpt
@@ -28,6 +30,7 @@ func (rch progressChan) Report(rpt string) {
 }
 
 // Error transmits an error report to the operation.
+// Cannot be called concurrently with Close()
 func (ech errorChan) Error(err error) {
 	if ech != nil {
 		ech <- err
@@ -35,6 +38,7 @@ func (ech errorChan) Error(err error) {
 }
 
 // Close closes all communication channels used by opProgress.
+// Should only be called by whichever component writes to opProgress.
 func (op *opProgress) Close() {
 	if op.progressChan != nil {
 		close(op.progressChan)

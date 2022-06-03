@@ -29,8 +29,12 @@ func (suite *OpProgressSuite) TestNewOpProgress() {
 
 func (suite *OpProgressSuite) TestOpProgress_Report() {
 	t := suite.T()
-
 	op := newOpProgress()
+	go func() {
+		for range op.progressChan {
+		}
+	}()
+
 	assert.NotPanics(t,
 		func() {
 			op.Report("test")
@@ -46,7 +50,7 @@ func (suite *OpProgressSuite) TestOpProgress_Report() {
 	op.progressChan = ch
 	op.Close()
 
-	assert.Panics(t,
+	assert.NotPanics(t,
 		func() {
 			op.Report("test")
 		})
@@ -54,24 +58,28 @@ func (suite *OpProgressSuite) TestOpProgress_Report() {
 
 func (suite *OpProgressSuite) TestOpProgress_Error() {
 	t := suite.T()
-
 	op := newOpProgress()
+	go func() {
+		for range op.errorChan {
+		}
+	}()
+
 	assert.NotPanics(t,
 		func() {
 			op.Error(assert.AnError)
 		})
 
-	ch := op.progressChan
-	op.progressChan = nil
+	ch := op.errorChan
+	op.errorChan = nil
 	assert.NotPanics(t,
 		func() {
 			op.Error(assert.AnError)
 		})
 
-	op.progressChan = ch
+	op.errorChan = ch
 	op.Close()
 
-	assert.Panics(t,
+	assert.NotPanics(t,
 		func() {
 			op.Error(assert.AnError)
 		})
