@@ -125,7 +125,14 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 		suite.T().Run(test.prefix, func(t *testing.T) {
 			st, err := test.storage()
 			assert.NoError(t, err)
-			_, err = repository.Initialize(ctx, test.account, st)
+			r, err := repository.Initialize(ctx, test.account, st)
+			if err == nil {
+				defer func() {
+					err2 := r.Close(ctx)
+					assert.NoError(suite.T(), err2)
+				}()
+			}
+
 			test.errCheck(t, err)
 		})
 	}

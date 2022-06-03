@@ -4,9 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/storage"
-	"github.com/google/uuid"
 )
 
 type repoProvider int
@@ -23,8 +25,9 @@ type Repository struct {
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
-	Account Account         // the user's m365 account connection details
-	Storage storage.Storage // the storage provider details and configuration
+	Account   Account         // the user's m365 account connection details
+	Storage   storage.Storage // the storage provider details and configuration
+	dataLayer *kopia.KopiaWrapper
 }
 
 // Account holds the user's m365 account details.
@@ -52,10 +55,11 @@ func Initialize(
 		return Repository{}, err
 	}
 	r := Repository{
-		ID:      uuid.New(),
-		Version: "v1",
-		Account: acct,
-		Storage: storage,
+		ID:        uuid.New(),
+		Version:   "v1",
+		Account:   acct,
+		Storage:   storage,
+		dataLayer: &k,
 	}
 	return r, nil
 }
@@ -76,9 +80,25 @@ func Connect(
 	}
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	r := Repository{
-		Version: "v1",
-		Account: acct,
-		Storage: storage,
+		Version:   "v1",
+		Account:   acct,
+		Storage:   storage,
+		dataLayer: &k,
 	}
 	return r, nil
+}
+
+func (r Repository) Close(ctx context.Context) error {
+	if r.dataLayer == nil {
+		return nil
+	}
+
+	err := r.dataLayer.Close(ctx)
+	r.dataLayer = nil
+
+	if err != nil {
+		return errors.Wrap(err, "closing corso Repository")
+	}
+
+	return nil
 }
