@@ -3,8 +3,8 @@ package storage_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/zeebo/assert"
 
 	"github.com/alcionai/corso/pkg/storage"
 )
