@@ -164,7 +164,7 @@ func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
 		})
 }
 
-func closeRepo(ctx context.Context, r repository.Repository) {
+func closeRepo(ctx context.Context, r *repository.Repository) {
 	if err := r.Close(ctx); err != nil {
 		fmt.Printf("Error closing repository: %v\n", err)
 	}

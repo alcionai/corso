@@ -24,8 +24,8 @@ type KopiaWrapper struct {
 	rep     repo.Repository
 }
 
-func New(s storage.Storage) KopiaWrapper {
-	return KopiaWrapper{storage: s}
+func New(s storage.Storage) *KopiaWrapper {
+	return &KopiaWrapper{storage: s}
 }
 
 func (kw *KopiaWrapper) Initialize(ctx context.Context) error {

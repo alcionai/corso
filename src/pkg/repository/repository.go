@@ -49,19 +49,19 @@ func Initialize(
 	ctx context.Context,
 	acct Account,
 	storage storage.Storage,
-) (Repository, error) {
+) (*Repository, error) {
 	k := kopia.New(storage)
 	if err := k.Initialize(ctx); err != nil {
-		return Repository{}, err
+		return nil, err
 	}
 	r := Repository{
 		ID:        uuid.New(),
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		dataLayer: &k,
+		dataLayer: k,
 	}
-	return r, nil
+	return &r, nil
 }
 
 // Connect will:
@@ -73,19 +73,19 @@ func Connect(
 	ctx context.Context,
 	acct Account,
 	storage storage.Storage,
-) (Repository, error) {
+) (*Repository, error) {
 	k := kopia.New(storage)
 	if err := k.Connect(ctx); err != nil {
-		return Repository{}, err
+		return nil, err
 	}
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	r := Repository{
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		dataLayer: &k,
+		dataLayer: k,
 	}
-	return r, nil
+	return &r, nil
 }
 
 func (r *Repository) Close(ctx context.Context) error {

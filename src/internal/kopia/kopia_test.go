@@ -24,7 +24,7 @@ func openKopiaRepo(ctx context.Context, prefix string) (*KopiaWrapper, error) {
 		return nil, err
 	}
 
-	return &k, nil
+	return k, nil
 }
 
 // ---------------
