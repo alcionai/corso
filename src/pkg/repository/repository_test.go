@@ -3,7 +3,6 @@ package repository_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,8 +104,7 @@ func (suite *RepositoryIntegrationSuite) SetupSuite() {
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	ctx := context.Background()
-	timeOfTest := time.Now().UTC().Format("2016-01-02T15:04:05")
-	suite.T().Logf("TestInitialize() run at: %s", timeOfTest)
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
 
 	table := []struct {
 		prefix   string

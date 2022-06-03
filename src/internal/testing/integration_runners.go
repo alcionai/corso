@@ -3,7 +3,10 @@ package testing
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
+	"testing"
+	"time"
 )
 
 const (
@@ -27,4 +30,17 @@ func RunOnAny(tests ...string) error {
 			strings.Join(tests, ", "))
 	}
 	return nil
+}
+
+// LogTimeOfTest logs the test name and the time that it was run.
+func LogTimeOfTest(t *testing.T) string {
+	now := time.Now().UTC().Format("2016-01-02T15:04:05")
+	pc, _, _, ok := runtime.Caller(1)
+	details := runtime.FuncForPC(pc)
+	if !ok || details != nil {
+		t.Logf("Test run at %s.", now)
+		return now
+	}
+	t.Logf("%s() run at %s", details.Name(), now)
+	return now
 }
