@@ -24,6 +24,9 @@ type DataStream interface {
 // It implements the DataCollection interface
 type ExchangeDataCollection struct {
 	user string
+	// TODO: We would want to replace this with a channel so that we
+	// don't need to wait for all data to be retrieved before reading it out
+	data []ExchangeData
 }
 
 // NextItem returns either the next item in the collection or an error if one occurred.
@@ -32,4 +35,28 @@ func (*ExchangeDataCollection) NextItem() (DataStream, error) {
 	// TODO: Return the next "to be read" item in the collection as a
 	// DataStream
 	return nil, nil
+}
+
+// Internal Helper that is invoked when the data collection is created to populate it
+func (ed *ExchangeDataCollection) populateCollection() error {
+	// TODO: Read data for `ed.user` and add to collection
+	return nil
+}
+
+// ExchangeData represents a single item retrieved from exchange
+type ExchangeData struct {
+	id string
+	// TODO: We may need this to be a "oneOf" of `message`, `contact`, etc.
+	// going forward. Using []byte for now but I assume we'll have
+	// some structured type in here (serialization to []byte can be done in `Read`)
+	message []byte
+}
+
+func (ed *ExchangeData) UUID() string {
+	return ed.id
+}
+
+func (ed *ExchangeData) Read(bytes []byte) (int, error) {
+	// TODO: Copy ed.message into []bytes. Will need to take care of partial reads
+	return 0, nil
 }
