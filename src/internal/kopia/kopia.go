@@ -28,7 +28,7 @@ func New(s storage.Storage) KopiaWrapper {
 	return KopiaWrapper{storage: s}
 }
 
-func (kw KopiaWrapper) Initialize(ctx context.Context) error {
+func (kw *KopiaWrapper) Initialize(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, kw.storage)
 	if err != nil {
 		return errors.Wrap(err, errInit.Error())
@@ -63,7 +63,7 @@ func (kw KopiaWrapper) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (kw KopiaWrapper) Connect(ctx context.Context) error {
+func (kw *KopiaWrapper) Connect(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, kw.storage)
 	if err != nil {
 		return errors.Wrap(err, errInit.Error())
@@ -102,7 +102,7 @@ func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, 
 	}
 }
 
-func (kw KopiaWrapper) Close(ctx context.Context) error {
+func (kw *KopiaWrapper) Close(ctx context.Context) error {
 	if kw.rep == nil {
 		return nil
 	}
@@ -117,7 +117,7 @@ func (kw KopiaWrapper) Close(ctx context.Context) error {
 	return nil
 }
 
-func (kw KopiaWrapper) open(ctx context.Context, password string) error {
+func (kw *KopiaWrapper) open(ctx context.Context, password string) error {
 	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
 	rep, err := repo.Open(ctx, defaultKopiaConfigFilePath, password, nil)
 	if err != nil {

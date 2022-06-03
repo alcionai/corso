@@ -88,7 +88,7 @@ func Connect(
 	return r, nil
 }
 
-func (r Repository) Close(ctx context.Context) error {
+func (r *Repository) Close(ctx context.Context) error {
 	if r.dataLayer == nil {
 		return nil
 	}
