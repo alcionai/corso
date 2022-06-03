@@ -4,15 +4,19 @@ import (
 	"os"
 	"testing"
 
-	graph "github.com/alcionai/corso/internal/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	graph "github.com/alcionai/corso/internal/connector"
 )
 
 type GraphConnectorTestSuite struct {
 	suite.Suite
 	connector *graph.GraphConnector
-	err       error
+}
+
+type DiconnectedGraphConnectorTestSuite struct {
+	suite.Suite
 }
 
 func (suite *GraphConnectorTestSuite) SetupSuite() {
@@ -20,7 +24,9 @@ func (suite *GraphConnectorTestSuite) SetupSuite() {
 	client := os.Getenv("CLIENT_ID")
 	secret := os.Getenv("CLIENT_SECRET")
 	if os.Getenv("CI") == "" {
-		suite.connector, suite.err = graph.NewGraphConnector(tenant, client, secret)
+		var err error
+		suite.connector, err = graph.NewGraphConnector(tenant, client, secret)
+		assert.Nil(suite.T(), err)
 	}
 }
 
@@ -28,7 +34,11 @@ func TestGraphConnectorSuite(t *testing.T) {
 	suite.Run(t, new(GraphConnectorTestSuite))
 }
 
-func (suite *GraphConnectorTestSuite) TestBadConnection() {
+func TestDisconnectedGraphSuite(t *testing.T) {
+	suite.Run(t, new(DiconnectedGraphConnectorTestSuite))
+}
+
+func (suite *DiconnectedGraphConnectorTestSuite) TestBadConnection() {
 	table := []struct {
 		name   string
 		params []string

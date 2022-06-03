@@ -45,18 +45,18 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 		client:  *msgraphsdk.NewGraphServiceClient(adapter),
 		Users:   make(map[string]string, 0),
 	}
-
-	err = gc.SetTenantUsers()
+	// TODO: Revisit Query all users.
+	err = gc.setTenantUsers()
 	if err != nil {
 		return nil, err
 	}
 	return &gc, nil
 }
 
-// SetTenantUsers queries the M365 to identify the users in the
+// setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the return value is true
-func (gc *GraphConnector) SetTenantUsers() error {
+func (gc *GraphConnector) setTenantUsers() error {
 	selecting := []string{"id, mail"}
 	errorList := make([]error, 0)
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
@@ -78,12 +78,11 @@ func (gc *GraphConnector) SetTenantUsers() error {
 	}
 	var hasFailed error
 	callbackFunc := func(userItem interface{}) bool {
-		if hasFailed != nil {
-			fmt.Printf("Iteration err: %v\n", hasFailed)
-			errorList = append(errorList, hasFailed)
+		user, ok := userItem.(models.Userable)
+		if !ok {
+			errorList = append(errorList, errors.New("Unable to iterable to user"))
 			return true
 		}
-		user := userItem.(models.Userable)
 		gc.Users[*user.GetMail()] = *user.GetId()
 		return true
 	}
@@ -91,7 +90,7 @@ func (gc *GraphConnector) SetTenantUsers() error {
 	if len(errorList) > 0 {
 		return errors.New(ConvertErrorList(errorList))
 	}
-	return nil
+	return hasFailed
 }
 
 // ConvertsErrorList takes a list of errors and converts returns
