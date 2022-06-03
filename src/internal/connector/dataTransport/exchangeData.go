@@ -1,15 +1,20 @@
 package dataTransport
 
+import (
+	"bytes"
+	"io"
+)
+
 type ExchangeData struct {
-	// Provides file data to kopia.
-	uuid string
-	Data []byte
+	GraphData
+	uuid    string
+	message []byte
 }
 
 func NewExchangeData(name string) ExchangeData {
 	exchange := ExchangeData{
-		uuid: name,
-		Data: make([]byte, 0),
+		uuid:    name,
+		message: make([]byte, 0),
 	}
 	return exchange
 }
@@ -22,12 +27,20 @@ func NewExchangeDataFilled(name string, bytes []byte) ExchangeData {
 		bArray = make([]byte, 0)
 	}
 	exchange := ExchangeData{
-		uuid: name,
-		Data: bArray,
+		uuid:    name,
+		message: bArray,
 	}
 	return exchange
 }
 
 func (exchange *ExchangeData) UUID() string {
 	return exchange.uuid
+}
+
+func (exchange *ExchangeData) ToReader() *io.Reader {
+	return exchange
+}
+
+func (exchange *ExchangeData) Read(bytes []byte) (int, error) {
+	return 0, nil
 }
