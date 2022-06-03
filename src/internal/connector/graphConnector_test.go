@@ -4,7 +4,6 @@ import (
 	"os"
 	"testing"
 
-	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	graph "github.com/alcionai/corso/internal/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -30,26 +29,29 @@ func TestGraphConnectorSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorTestSuite) TestBadConnection() {
-	gc, err := graph.NewGraphConnector("Test", "without", "data") //NOTE:[[o
-	assert.NotNil(suite.T(), gc)
-	assert.Nil(suite.T(), err)
-	suite.Equal(len(gc.GetUsers()), 0)
-
+	table := []struct {
+		name   string
+		params []string
+	}{
+		{
+			name:   "Invalid Credentials",
+			params: []string{"Test", "without", "data"},
+		},
+		{
+			name:   "Empty Credentials",
+			params: []string{"", "", ""},
+		},
+	}
+	for _, test := range table {
+		gc, err := graph.NewGraphConnector(test.params[0], test.params[1], test.params[2])
+		assert.Nil(suite.T(), gc, test.name+" failed")
+		assert.NotNil(suite.T(), err, test.name+"failed")
+	}
 }
 
 func (suite *GraphConnectorTestSuite) TestGraphConnector() {
 	if os.Getenv("INTEGRATION_TESTING") != "" {
 		suite.T().Skip("Environmental Variables not set")
 	}
-
-	suite.False(suite.connector.HasConnectorErrors())
-	suite.True(len(suite.connector.Users) > 0)
-}
-
-func TestCredentials(t *testing.T) {
-	cred, err := az.NewClientSecretCredential("", "", "", nil)
-	if err != nil {
-		t.Errorf("This failed: %v\n", err)
-	}
-	t.Logf("Credential: %T\n", cred)
+	suite.True(suite.connector != nil)
 }
