@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	graph "github.com/alcionai/corso/internal/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -43,4 +44,12 @@ func (suite *GraphConnectorTestSuite) TestGraphConnector() {
 
 	suite.False(suite.connector.HasConnectorErrors())
 	suite.True(len(suite.connector.Users) > 0)
+}
+
+func TestCredentials(t *testing.T) {
+	cred, err := az.NewClientSecretCredential("", "", "", nil)
+	if err != nil {
+		t.Errorf("This failed: %v\n", err)
+	}
+	t.Logf("Credential: %T\n", cred)
 }

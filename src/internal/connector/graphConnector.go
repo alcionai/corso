@@ -3,6 +3,7 @@
 package connector
 
 import (
+	"errors"
 	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -21,12 +22,16 @@ type GraphConnector struct {
 	adapter msgraphsdk.GraphRequestAdapter
 	client  msgraphsdk.GraphServiceClient
 	Users   map[string]string //key<email> value<id>
-	errors  []error
-	Streams string //Not implemented for ease of code check-in
+	Streams string            //Not implemented for ease of code check-in
 }
 
 func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
+	var err error
+	defer func() {
+		msg := recover()
+		err = errors.New(fmt.Sprintf("Panic: %v", msg))
+	}()
 	cred, err := az.NewClientSecretCredential(tenantId, clientId, secret, nil)
 	if err != nil {
 		return nil, err
@@ -44,17 +49,20 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 		adapter: *adapter,
 		client:  *msgraphsdk.NewGraphServiceClient(adapter),
 		Users:   make(map[string]string, 0),
-		errors:  make([]error, 0),
 	}
-	gc.SetTenantUsers()
+	err = gc.SetTenantUsers()
+	if err != nil {
+		return nil, err
+	}
 	return &gc, nil
 }
 
 // SetTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the return value is true
-func (gc *GraphConnector) SetTenantUsers() bool {
+func (gc *GraphConnector) SetTenantUsers() error {
 	selecting := []string{"id, mail"}
+	errorList := make([]error, 0)
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -63,19 +71,17 @@ func (gc *GraphConnector) SetTenantUsers() bool {
 	}
 	response, err := gc.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
-		gc.errors = append(gc.errors, err)
-		return false
+		return err
 	}
 	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		gc.errors = append(gc.errors, err)
-		return false
+		return err
 	}
 	var hasFailed error
 	callbackFunc := func(userItem interface{}) bool {
 		if hasFailed != nil {
 			fmt.Printf("Iteration err: %v\n", hasFailed)
-			gc.errors = append(gc.errors, hasFailed)
+			errorList = append(errorList, hasFailed)
 			return true
 		}
 		user := userItem.(models.Userable)
@@ -83,13 +89,17 @@ func (gc *GraphConnector) SetTenantUsers() bool {
 		return true
 	}
 	hasFailed = userIterator.Iterate(callbackFunc)
-	return true
+	if len(errorList) > 0 {
+		return errors.New(ConvertErrorList(errorList))
+	}
+	return nil
 }
 
-// DisplayErrorLogs prints the errors experienced during the session.
-func (gc *GraphConnector) DisplayErrorLogs() string {
+// ConvertsErrorList takes a list of errors and converts returns
+// a string
+func ConvertErrorList(errorList []error) string {
 	errorLog := ""
-	for idx, err := range gc.errors {
+	for idx, err := range errorList {
 		errorLog = errorLog + fmt.Sprintf("Error# %d\t%v\n", idx, err)
 	}
 	return errorLog
@@ -110,9 +120,4 @@ func (gc *GraphConnector) GetUsersIds() []string {
 		values = append(values, v)
 	}
 	return values
-}
-
-// HasConnectionErrors is a helper method that returns true iff an error was encountered.
-func (gc *GraphConnector) HasConnectorErrors() bool {
-	return len(gc.errors) > 0
 }
