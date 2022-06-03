@@ -27,11 +27,6 @@ type GraphConnector struct {
 
 func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
-	var err error
-	defer func() {
-		msg := recover()
-		err = errors.New(fmt.Sprintf("Panic: %v", msg))
-	}()
 	cred, err := az.NewClientSecretCredential(tenantId, clientId, secret, nil)
 	if err != nil {
 		return nil, err
@@ -50,6 +45,7 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 		client:  *msgraphsdk.NewGraphServiceClient(adapter),
 		Users:   make(map[string]string, 0),
 	}
+
 	err = gc.SetTenantUsers()
 	if err != nil {
 		return nil, err
@@ -72,6 +68,9 @@ func (gc *GraphConnector) SetTenantUsers() error {
 	response, err := gc.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return err
+	}
+	if response == nil {
+		return errors.New("connector unable to complete queries. Verify credentials")
 	}
 	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
