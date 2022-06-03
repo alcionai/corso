@@ -120,8 +120,8 @@ func (gc *GraphConnector) GetUsersIds() []string {
 	return values
 }
 
-// ExchangeDataStream returns a DataStream that the caller can
-// use to stream mailbox data out for the specified user
-func (gc *GraphConnector) ExchangeDataStream(user string) DataStream {
+// ExchangeDataStream returns a DataCollection that the caller can
+// use to read mailbox data out for the specified user
+func (gc *GraphConnector) ExchangeDataStream(user string) DataCollection {
 	return &ExchangeDataCollection{user: user}
 }
