@@ -19,6 +19,10 @@ func TestGraphConnectorSuite(t *testing.T) {
 	if err := ctesting.RunOnAny(
 		ctesting.CORSO_CI_TESTS,
 		ctesting.CORSO_GRAPH_CONNECTOR_TESTS,
+	); err != nil {
+		t.Skip(err)
+	}
+	if err := ctesting.RunOnAny(
 		"this-is-fake-it-forces-a-skip-until-we-fix-ci-details-here(rkeepers)",
 	); err != nil {
 		t.Skip(err)
