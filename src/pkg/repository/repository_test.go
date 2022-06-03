@@ -2,7 +2,6 @@ package repository_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -90,9 +89,11 @@ type RepositoryIntegrationSuite struct {
 }
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
-	runIntegrationTests := os.Getenv("INTEGRATION_TESTING")
-	if runIntegrationTests != "true" {
-		t.Skip()
+	if err := ctesting.RunOnAny(
+		ctesting.CORSO_CI_TESTS,
+		ctesting.CORSO_REPOSITORY_TESTS,
+	); err != nil {
+		t.Skip(err)
 	}
 	suite.Run(t, new(RepositoryIntegrationSuite))
 }
