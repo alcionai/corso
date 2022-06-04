@@ -65,3 +65,6 @@ func (suite *GraphConnectorTestSuite) TestGraphConnector() {
 	}
 	suite.True(suite.connector != nil)
 }
+func (suite *GraphConnectorTestSuite) TestMailCount() {
+	suite.connector.ExchangeDataCollection("vkarma@8qzvrj.onmicrosoft.com")
+}

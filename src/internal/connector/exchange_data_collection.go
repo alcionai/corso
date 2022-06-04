@@ -26,7 +26,27 @@ type ExchangeDataCollection struct {
 	user string
 	// TODO: We would want to replace this with a channel so that we
 	// don't need to wait for all data to be retrieved before reading it out
-	data []ExchangeData
+	//
+	data          []ExchangeData
+	ExpectedItems int
+	FullPath      []string // tenant
+}
+
+func NewExchangeDataCollection(aString string, aNum int, path []string) ExchangeDataCollection {
+	collection := ExchangeDataCollection{
+		user:          aString,
+		data:          make([]ExchangeData, 0),
+		ExpectedItems: aNum,
+		FullPath:      path,
+	}
+	return collection
+}
+
+func (ec *ExchangeDataCollection) PopulateCollection(newData ExchangeData) {
+	ec.data = append(ec.data, newData)
+}
+func (ec *ExchangeDataCollection) GetLength() int {
+	return len(ec.data)
 }
 
 // NextItem returns either the next item in the collection or an error if one occurred.
@@ -35,12 +55,6 @@ func (*ExchangeDataCollection) NextItem() (DataStream, error) {
 	// TODO: Return the next "to be read" item in the collection as a
 	// DataStream
 	return nil, nil
-}
-
-// Internal Helper that is invoked when the data collection is created to populate it
-func (ed *ExchangeDataCollection) populateCollection() error {
-	// TODO: Read data for `ed.user` and add to collection
-	return nil
 }
 
 // ExchangeData represents a single item retrieved from exchange
