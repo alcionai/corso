@@ -2,9 +2,7 @@ package repository_test
 
 import (
 	"context"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -90,9 +88,11 @@ type RepositoryIntegrationSuite struct {
 }
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
-	runIntegrationTests := os.Getenv("INTEGRATION_TESTING")
-	if runIntegrationTests != "true" {
-		t.Skip()
+	if err := ctesting.RunOnAny(
+		ctesting.CORSO_CI_TESTS,
+		ctesting.CORSO_REPOSITORY_TESTS,
+	); err != nil {
+		t.Skip(err)
 	}
 	suite.Run(t, new(RepositoryIntegrationSuite))
 }
@@ -104,8 +104,7 @@ func (suite *RepositoryIntegrationSuite) SetupSuite() {
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	ctx := context.Background()
-	timeOfTest := time.Now().UTC().Format("2016-01-02T15:04:05")
-	suite.T().Logf("TestInitialize() run at: %s", timeOfTest)
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
 
 	table := []struct {
 		prefix   string
