@@ -39,7 +39,7 @@ func handleBackupCmd(cmd *cobra.Command, args []string) {
 var createCommand = "create"
 var createCmd = &cobra.Command{
 	Use:   createCommand,
-	Short: "Backup a M365 Service",
+	Short: "Backup an M365 Service",
 	Run:   handleCreateCmd,
 	Args:  cobra.NoArgs,
 }

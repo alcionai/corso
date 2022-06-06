@@ -118,12 +118,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	}
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 	if err != nil {
-		errors.Wrap(err, "Failed to configure storage provider")
+		return errors.Wrap(err, "Failed to configure storage provider")
 	}
 
 	r, err := repository.Connect(cmd.Context(), a, s)
 	if err != nil {
-		errors.Wrap(err, "Failed to connect to the S3 repository")
+		return errors.Wrap(err, "Failed to connect to the S3 repository")
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 

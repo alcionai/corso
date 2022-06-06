@@ -55,22 +55,22 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	// todo (rkeepers) - retrieve storage details from corso config
 	s, err := storage.NewStorage(storage.ProviderUnknown)
 	if err != nil {
-		errors.Wrap(err, "Failed to configure storage provider")
+		return errors.Wrap(err, "Failed to configure storage provider")
 	}
 
 	r, err := repository.Connect(cmd.Context(), a, s)
 	if err != nil {
-		errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	bo, err := r.NewBackup(cmd.Context(), []string{user})
 	if err != nil {
-		errors.Wrap(err, "Failed to initialize Exchange backup")
+		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
 
 	if err := bo.Run(cmd.Context()); err != nil {
-		errors.Wrap(err, "Failed to run Exchange backup")
+		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
 	fmt.Printf("Backed up Exchange in %s for user %s.\n", s.Provider, user)
