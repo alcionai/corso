@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -50,7 +49,7 @@ var s3InitCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) {
-	mv := getM365Vars()
+	mv := utils.GetM365Vars()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
 		fmt.Println(err)
@@ -62,27 +61,25 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 		cmd.CommandPath(),
 		s3Cfg.Bucket,
 		s3Cfg.AccessKey,
-		mv.clientID,
-		len(mv.clientSecret) > 0,
+		mv.ClientID,
+		len(mv.ClientSecret) > 0,
 		len(s3Cfg.SecretKey) > 0)
 
 	a := repository.Account{
-		TenantID:     mv.tenantID,
-		ClientID:     mv.clientID,
-		ClientSecret: mv.clientSecret,
+		TenantID:     mv.TenantID,
+		ClientID:     mv.ClientID,
+		ClientSecret: mv.ClientSecret,
 	}
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 	if err != nil {
-		fmt.Printf("Failed to configure storage provider: %v", err)
-		os.Exit(1)
+		utils.Fatalf("Failed to configure storage provider: %v", err)
 	}
 
-	r, err := repository.Connect(cmd.Context(), a, s)
+	r, err := repository.Initialize(cmd.Context(), a, s)
 	if err != nil {
-		fmt.Printf("Failed to initialize a new S3 repository: %v", err)
-		os.Exit(1)
+		utils.Fatalf("Failed to initialize a new S3 repository: %v", err)
 	}
-	defer closeRepo(cmd.Context(), r)
+	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
 }
@@ -98,7 +95,7 @@ var s3ConnectCmd = &cobra.Command{
 
 // connects to an existing s3 repo.
 func connectS3Cmd(cmd *cobra.Command, args []string) {
-	mv := getM365Vars()
+	mv := utils.GetM365Vars()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
 		fmt.Println(err)
@@ -110,27 +107,25 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 		cmd.CommandPath(),
 		s3Cfg.Bucket,
 		s3Cfg.AccessKey,
-		mv.clientID,
-		len(mv.clientSecret) > 0,
+		mv.ClientID,
+		len(mv.ClientSecret) > 0,
 		len(s3Cfg.SecretKey) > 0)
 
 	a := repository.Account{
-		TenantID:     mv.tenantID,
-		ClientID:     mv.clientID,
-		ClientSecret: mv.clientSecret,
+		TenantID:     mv.TenantID,
+		ClientID:     mv.ClientID,
+		ClientSecret: mv.ClientSecret,
 	}
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 	if err != nil {
-		fmt.Printf("Failed to configure storage provider: %v", err)
-		os.Exit(1)
+		utils.Fatalf("Failed to configure storage provider: %v", err)
 	}
 
 	r, err := repository.Connect(cmd.Context(), a, s)
 	if err != nil {
-		fmt.Printf("Failed to connect to the S3 repository: %v", err)
-		os.Exit(1)
+		utils.Fatalf("Failed to connect to the S3 repository: %v", err)
 	}
-	defer closeRepo(cmd.Context(), r)
+	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
 }
@@ -163,10 +158,4 @@ func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
 			storage.AWS_SESSION_TOKEN:     sessToken,
 			storage.CORSO_PASSWORD:        corsoPasswd,
 		})
-}
-
-func closeRepo(ctx context.Context, r *repository.Repository) {
-	if err := r.Close(ctx); err != nil {
-		fmt.Printf("Error closing repository: %v\n", err)
-	}
 }
