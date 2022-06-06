@@ -5,6 +5,7 @@ import (
 
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/pkg/storage"
@@ -18,6 +19,26 @@ var (
 	errInit    = errors.New("initializing repo")
 	errConnect = errors.New("connecting repo")
 )
+
+type BackupStats struct {
+	TotalFileCount      int
+	TotalDirectoryCount int
+	IgnoredErrorCount   int
+	ErrorCount          int
+	Incomplete          bool
+	IncompleteReason    string
+}
+
+func manifestToStats(man *snapshot.Manifest) BackupStats {
+	return BackupStats{
+		TotalFileCount:      int(man.Stats.TotalFileCount),
+		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
+		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
+		ErrorCount:          int(man.Stats.ErrorCount),
+		Incomplete:          man.IncompleteReason == "",
+		IncompleteReason:    man.IncompleteReason,
+	}
+}
 
 type KopiaWrapper struct {
 	storage storage.Storage
