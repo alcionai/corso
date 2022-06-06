@@ -152,7 +152,7 @@ func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, e
 // @params user in tenant: Microsoft Id or email address
 // @returns number of messages, and error
 func (gc *GraphConnector) getCountForMail(user string) (int, error) {
-	options := optionsForMailFolders("totalItemCount, displayName")
+	options := optionsForMailFolders([]string{"totalItemCount, displayName"})
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return 0, err
@@ -173,8 +173,8 @@ func (gc *GraphConnector) getCountForMail(user string) (int, error) {
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
 // var moreOps is a comma separated string of options(e.g. "displayName, isHidden")
 // return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForMailFolders(moreOps string) *msfolder.MailFoldersRequestBuilderGetRequestConfiguration {
-	selecting := []string{fmt.Sprintf("id, %s", moreOps)}
+func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilderGetRequestConfiguration {
+	selecting := append(moreOps, "id")
 	requestParameters := &msfolder.MailFoldersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -187,7 +187,7 @@ func optionsForMailFolders(moreOps string) *msfolder.MailFoldersRequestBuilderGe
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
 func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollection) (DataCollection, error) {
-	options := optionsForMailFolders("")
+	options := optionsForMailFolders([]string{})
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return nil, err
