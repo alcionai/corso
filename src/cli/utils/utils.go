@@ -1,6 +1,13 @@
 package utils
 
-import "errors"
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/alcionai/corso/pkg/repository"
+)
 
 // RequireProps validates the existence of the properties
 //  in the map.  Expects the format map[propName]propVal.
@@ -11,4 +18,35 @@ func RequireProps(props map[string]string) error {
 		}
 	}
 	return nil
+}
+
+// aggregates m365 details from flag and env_var values.
+type m365Vars struct {
+	ClientID     string
+	ClientSecret string
+	TenantID     string
+}
+
+// GetM365Vars is a helper for aggregating m365 connection details.
+func GetM365Vars() m365Vars {
+	// todo (rkeeprs): read from either corso config file or env vars.
+	// https://github.com/alcionai/corso/issues/120
+	return m365Vars{
+		ClientID:     os.Getenv("O365_CLIENT_ID"),
+		ClientSecret: os.Getenv("O356_SECRET"),
+		TenantID:     "todo:tenantID",
+	}
+}
+
+// CloseRepo handles closing a repo.
+func CloseRepo(ctx context.Context, r *repository.Repository) {
+	if err := r.Close(ctx); err != nil {
+		fmt.Print("Error closing repository:", err)
+	}
+}
+
+// Fatalf prints the message and then exits with os code 1.
+func Fatalf(format string, a ...any) {
+	fmt.Printf(format, a...)
+	os.Exit(1)
 }
