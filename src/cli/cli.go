@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/cli/backup"
 	"github.com/alcionai/corso/cli/repo"
 )
 
@@ -38,6 +39,7 @@ func Handle() {
 	corsoCmd.Flags().BoolP("version", "v", version, "current version info")
 
 	repo.AddCommands(corsoCmd)
+	backup.AddCommands(corsoCmd)
 
 	if err := corsoCmd.Execute(); err != nil {
 		fmt.Println(err)
