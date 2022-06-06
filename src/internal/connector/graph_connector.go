@@ -134,7 +134,7 @@ func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, e
 		return nil, err
 	}
 	// TODO replace with completion of Issue 124:
-	//return &ExchangeDataCollection{user: user, ExpectedItems: total}, nil
+	// return &ExchangeDataCollection{user: user, ExpectedItems: total}, nil
 	collection := NewExchangeDataCollection(user, total, []string{gc.tenant, user})
 	//Would be able to do this with a channel and return prior.
 	return gc.serializeMessages(user, collection)
