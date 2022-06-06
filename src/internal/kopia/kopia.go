@@ -175,7 +175,7 @@ func (kw KopiaWrapper) BackupCollections(
 
 	dirTree, err := inflateDirTree(ctx, streams)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to build kopia directory hierarchy")
+		return nil, errors.Wrap(err, "building kopia directories")
 	}
 
 	stats, err := kw.makeSnapshotWithRoot(ctx, dirTree)
