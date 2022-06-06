@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -101,4 +102,13 @@ func (r *Repository) Close(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// NewBackup generates a backupOperation runner.
+func (r Repository) NewBackup(ctx context.Context, targets []string) (operations.BackupOperation, error) {
+	return operations.NewBackupOperation(
+		ctx,
+		operations.OperationOpts{},
+		r.dataLayer,
+		targets)
 }
