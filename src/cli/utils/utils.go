@@ -32,9 +32,9 @@ func GetM365Vars() m365Vars {
 	// todo (rkeeprs): read from either corso config file or env vars.
 	// https://github.com/alcionai/corso/issues/120
 	return m365Vars{
-		ClientID:     os.Getenv("O365_CLIENT_ID"),
-		ClientSecret: os.Getenv("O356_SECRET"),
-		TenantID:     "todo:tenantID",
+		ClientID:     os.Getenv("CLIENT_ID"),
+		ClientSecret: os.Getenv("CLIENT_SECRET"),
+		TenantID:     os.Getenv("TENANT_ID"),
 	}
 }
 
