@@ -135,8 +135,10 @@ func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, e
 	}
 	// TODO replace with completion of Issue 124:
 	//return &ExchangeDataCollection{user: user, ExpectedItems: total}, nil
-	collection, err := gc.serializeMessages(user, total)
-	return collection, err
+	collection := NewExchangeDataCollection(user, total, []string{gc.tenant, user})
+	//Would be able to do this with a channel and return prior.
+	return gc.serializeMessages(user, collection)
+
 }
 
 // Internal Helper that is invoked when the data collection is created to populate it
@@ -183,7 +185,7 @@ func optionsForMailFolders(moreOps string) *msfolder.MailFoldersRequestBuilderGe
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(user string, aInt int) (DataCollection, error) {
+func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollection) (DataCollection, error) {
 	options := optionsForMailFolders("")
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
@@ -200,7 +202,6 @@ func (gc *GraphConnector) serializeMessages(user string, aInt int) (DataCollecti
 	}
 	fmt.Printf("Folder List: %v\n", folderList)
 	// Time to create Exchange data Holder
-	collection := NewExchangeDataCollection(user, aInt, []string{gc.tenant, user})
 	var byteArray []byte
 	var iterateError error
 	for _, aFolder := range folderList {
@@ -253,7 +254,7 @@ func (gc *GraphConnector) serializeMessages(user string, aInt int) (DataCollecti
 				return true
 			}
 			if byteArray != nil {
-				collection.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
+				dc.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
 			}
 			return true
 		}
@@ -263,10 +264,10 @@ func (gc *GraphConnector) serializeMessages(user string, aInt int) (DataCollecti
 			errorList = append(errorList, err)
 		}
 	}
-	fmt.Printf("Returning ExchangeDataColection with %d items\n", collection.GetLength())
+	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.GetLength())
 	fmt.Printf("Errors: %s\n", ConvertErrorList(errorList))
 	if len(errorList) > 0 {
-		return &collection, errors.New(ConvertErrorList(errorList))
+		return &dc, errors.New(ConvertErrorList(errorList))
 	}
-	return &collection, nil
+	return &dc, nil
 }
