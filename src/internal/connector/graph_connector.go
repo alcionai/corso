@@ -212,7 +212,6 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		}
 		if result == nil {
 			fmt.Println("Cannot Get result")
-
 		}
 
 		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
