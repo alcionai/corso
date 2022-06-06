@@ -122,50 +122,54 @@ func (gc *GraphConnector) GetUsersIds() []string {
 	return values
 }
 
-// ExchangeDataStream returns a DataCollection that the caller can
+// ExchangeDataStream returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
-// Assumption: The user asked for exists
+// Assumption: User exists
 // TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
 func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, error) {
-	// Call M365. Find out how many emails the individual has Step I
-	// Step 2: get the number..
-	// Step 3: Query again get the
+	//Get Count: Number of items
 	total, err := gc.getCountForMail(user)
 	if err != nil {
 		return nil, err
 	}
-
 	// TODO replace with completion of Issue 124:
 	//return &ExchangeDataCollection{user: user, ExpectedItems: total}, nil
-	return gc.SerializeMessages(user, total)
-
+	collection, err := gc.serializeMessages(user, total)
+	return collection, err
 }
 
 // Internal Helper that is invoked when the data collection is created to populate it
 // TODO: https://github.com/alcionai/corso/issues/124
-func populateCollection(ExchangeDataCollection) error {
-	// TODO: Read data for `ed.user` and add to collection
-	return nil
-}
+//func populateCollection(ExchangeDataCollection) error {
+// TODO: Read data for `ed.user` and add to collection
+//	return nil
+//}
 
+// getCountForMail HelperFunction for DataCollection.
+// @params user in tenant: Microsoft Id or email address
+// @returns number of messages, and error
 func (gc *GraphConnector) getCountForMail(user string) (int, error) {
-	options := optionsForMailFolders("totalItemCount")
-
+	options := optionsForMailFolders("totalItemCount, displayName")
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
-	if err != nil || response == nil {
+	if err != nil {
 		return 0, err
+	}
+	if response == nil {
+		return 0, fmt.Errorf("response for %s's messages is <nil>", user)
 	}
 	values := response.GetValue()
 	sum := 0
 	for _, folderable := range values {
+		fmt.Printf("Folder: %s-> %d\n", *folderable.GetDisplayName(), *folderable.GetTotalItemCount())
 		sum += int(*folderable.GetTotalItemCount())
 	}
 	fmt.Printf("Total messages is %d\n", sum)
 	return sum, nil
-
 }
 
+// optionsForMailFolders creates query for MailFolders. String input correlates
+// with the amount of fields returned with query.
 func optionsForMailFolders(moreOps string) *msfolder.MailFoldersRequestBuilderGetRequestConfiguration {
 	selecting := []string{fmt.Sprintf("id, %s", moreOps)}
 	requestParameters := &msfolder.MailFoldersRequestBuilderGetQueryParameters{
@@ -177,7 +181,9 @@ func optionsForMailFolders(moreOps string) *msfolder.MailFoldersRequestBuilderGe
 	return options
 }
 
-func (gc *GraphConnector) SerializeMessages(user string, aInt int) (DataCollection, error) {
+// serializeMessages: Temp Function as place Holder until Collections have been added
+// to the GraphConnector struct.
+func (gc *GraphConnector) serializeMessages(user string, aInt int) (DataCollection, error) {
 	options := optionsForMailFolders("")
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
@@ -196,12 +202,18 @@ func (gc *GraphConnector) SerializeMessages(user string, aInt int) (DataCollecti
 	// Time to create Exchange data Holder
 	collection := NewExchangeDataCollection(user, aInt, []string{gc.tenant, user})
 	var byteArray []byte
-	for idx, aFolder := range folderList {
+	var iterateError error
+	for _, aFolder := range folderList {
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
 		if err != nil {
 			errorList = append(errorList, err)
 		}
-		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageFromDiscriminatorValue)
+		if result == nil {
+			fmt.Println("Cannot Get result")
+
+		}
+
+		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 		if err != nil {
 			errorList = append(errorList, err)
 		}
@@ -219,34 +231,40 @@ func (gc *GraphConnector) SerializeMessages(user string, aInt int) (DataCollecti
 			if *message.GetHasAttachments() {
 				attached, err := gc.client.UsersById(user).MessagesById(*message.GetId()).Attachments().Get()
 				if err == nil && attached != nil {
-					//message.SetAttachments(attached.GetValue())
-					fmt.Println("Attachment fails some how")
+					message.SetAttachments(attached.GetValue())
+					fmt.Println("Attached")
+				}
+				if err != nil {
+					err = fmt.Errorf("Attachment Error: " + err.Error())
+					errorList = append(errorList, err)
 				}
 
 			}
+
 			err = objectWriter.WriteObjectValue("", message)
 			if err != nil {
 				errorList = append(errorList, err)
 				return true
 			}
 			byteArray, err = objectWriter.GetSerializedContent()
+			objectWriter.Close()
 			if err != nil {
 				errorList = append(errorList, err)
 				return true
 			}
-			fmt.Printf("Fail on round: %d\n", idx)
-			collection.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
+			if byteArray != nil {
+				collection.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
+			}
 			return true
 		}
-		iterateError := pageIterator.Iterate(callbackFunc)
-		if err != nil {
-			errorList = append(errorList, err)
-		}
+		iterateError = pageIterator.Iterate(callbackFunc)
+
 		if iterateError != nil {
 			errorList = append(errorList, err)
 		}
 	}
 	fmt.Printf("Returning ExchangeDataColection with %d items\n", collection.GetLength())
+	fmt.Printf("Errors: %s\n", ConvertErrorList(errorList))
 	if len(errorList) > 0 {
 		return &collection, errors.New(ConvertErrorList(errorList))
 	}

@@ -65,6 +65,20 @@ func (suite *GraphConnectorTestSuite) TestGraphConnector() {
 	}
 	suite.True(suite.connector != nil)
 }
+
+//
 func (suite *GraphConnectorTestSuite) TestMailCount() {
-	suite.connector.ExchangeDataCollection("vkarma@8qzvrj.onmicrosoft.com")
+	if os.Getenv("INTEGRATION_TESTING") != "" {
+		suite.T().Skip("Environmental Variables not set")
+	}
+	exchangeData, err := suite.connector.ExchangeDataCollection("dustina@8qzvrj.onmicrosoft.com")
+	assert.NotNil(suite.T(), exchangeData)
+	suite.T().Logf("Missing Data: %s\n", err.Error())
+}
+
+func (suite *DiconnectedGraphConnectorTestSuite) TestInterfaceAlignment() {
+	var dc graph.DataCollection
+	concrete := graph.NewExchangeDataCollection("Check", 1, []string{"interface", "works"})
+	dc = &concrete
+	assert.NotNil(suite.T(), dc)
 }
