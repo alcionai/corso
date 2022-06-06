@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"sync"
 
 	"github.com/alcionai/corso/internal/kopia"
 )
@@ -50,49 +49,9 @@ func (bo BackupOperation) Run(ctx context.Context) error {
 	// todo - use the graphConnector to create datastreams
 	// dStreams, err := bo.gc.BackupOp(bo.Targets)
 
-	prog := newOpProgress()
-	go recordProgress(ctx, bo, prog)
-
-	var wg sync.WaitGroup
 	// todo - send backup write request to BackupWriter
-	// wg.Add(1)
 	// err = kopia.BackupWriter(ctx, bo.gc.TenantID, wg, prog, dStreams...)
-	wg.Wait()
 
 	bo.Status = Successful
 	return nil
-}
-
-// updates the BackupOperation.Work and BackupOperation.Errors with the
-// stream of ongoing progress from the backupWriter
-func recordProgress(ctx context.Context, bo BackupOperation, op *opProgress) {
-	errs := op.errorChan
-	prog := op.progressChan
-	for {
-		select {
-
-		case err, ok := <-errs:
-			if !ok {
-				errs = nil
-				break
-			}
-			bo.Errors = append(bo.Errors, err)
-
-		case work, ok := <-prog:
-			if !ok {
-				prog = nil
-				break
-			}
-			bo.Work = append(bo.Work, work)
-
-		// exit if the context is canceled or terminated.
-		case <-ctx.Done():
-			return
-		}
-
-		// exit when both channels are closed
-		if errs == nil && prog == nil {
-			return
-		}
-	}
 }
