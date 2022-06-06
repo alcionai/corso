@@ -22,7 +22,8 @@ func AddCommands(parent *cobra.Command) {
 // `corso backup [<subcommand>] [<flag>...]`
 var backupCmd = &cobra.Command{
 	Use:   "backup",
-	Short: "Backup a M365 service",
+	Short: "Backup your service data",
+	Long:  `Backup the data stored in one of your M365 services.`,
 	Run:   handleBackupCmd,
 	Args:  cobra.NoArgs,
 }
@@ -38,7 +39,7 @@ func handleBackupCmd(cmd *cobra.Command, args []string) {
 var createCommand = "create"
 var createCmd = &cobra.Command{
 	Use:   createCommand,
-	Short: "Backup M365 Exchange",
+	Short: "Backup a M365 Service",
 	Run:   handleCreateCmd,
 	Args:  cobra.NoArgs,
 }

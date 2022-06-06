@@ -44,9 +44,3 @@ func CloseRepo(ctx context.Context, r *repository.Repository) {
 		fmt.Print("Error closing repository:", err)
 	}
 }
-
-// Fatalf prints the message and then exits with os code 1.
-func Fatalf(format string, a ...any) {
-	fmt.Printf(format, a...)
-	os.Exit(1)
-}
