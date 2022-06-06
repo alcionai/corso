@@ -13,7 +13,6 @@ var CORSO_USER string = "corso"
 var CORSO_PATH string = "./corso_sample"
 var CORSO_SAMPLE_DATA_FILE string = "./sample.data"
 var MAX_FILE_ID int = 10
-var MAX_FILE_SIZE int = 4096
 
 // A DataCollection represents a collection of data of the
 // same type (e.g. mail)
