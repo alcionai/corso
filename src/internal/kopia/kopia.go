@@ -46,7 +46,7 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),
-		Incomplete:          man.IncompleteReason == "",
+		Incomplete:          man.IncompleteReason != "",
 		IncompleteReason:    man.IncompleteReason,
 	}
 }
