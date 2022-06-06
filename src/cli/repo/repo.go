@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -85,15 +84,4 @@ func getM365Vars() m365Vars {
 		clientSecret: os.Getenv("O356_SECRET"),
 		tenantID:     "todo:tenantID",
 	}
-}
-
-// validates the existence of the properties in the map.
-// expects a map[propName]propVal.
-func requireProps(props map[string]string) error {
-	for name, val := range props {
-		if len(val) == 0 {
-			return errors.New(name + " is required to perform this command")
-		}
-	}
-	return nil
 }

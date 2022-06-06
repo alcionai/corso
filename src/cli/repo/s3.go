@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -155,7 +156,7 @@ func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
 		storage.CommonConfig{
 			CorsoPassword: corsoPasswd,
 		},
-		requireProps(map[string]string{
+		utils.RequireProps(map[string]string{
 			storage.AWS_ACCESS_KEY_ID:     ak,
 			"bucket":                      bucket,
 			storage.AWS_SECRET_ACCESS_KEY: secretKey,
