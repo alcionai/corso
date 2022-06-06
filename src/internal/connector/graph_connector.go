@@ -170,8 +170,9 @@ func (gc *GraphConnector) getCountForMail(user string) (int, error) {
 	return sum, nil
 }
 
-// optionsForMailFolders creates query for MailFolders. String input correlates
-// with the amount of fields returned with query.
+// optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
+// var moreOps is a comma separated string of options(e.g. "displayName, isHidden")
+// return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFolders(moreOps string) *msfolder.MailFoldersRequestBuilderGetRequestConfiguration {
 	selecting := []string{fmt.Sprintf("id, %s", moreOps)}
 	requestParameters := &msfolder.MailFoldersRequestBuilderGetQueryParameters{

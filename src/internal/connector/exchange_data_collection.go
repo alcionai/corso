@@ -23,21 +23,24 @@ type DataStream interface {
 //
 // It implements the DataCollection interface
 type ExchangeDataCollection struct {
+	// M365 user
 	user string
 	// TODO: We would want to replace this with a channel so that we
 	// don't need to wait for all data to be retrieved before reading it out
-	//
 	data          []ExchangeData
 	ExpectedItems int
-	FullPath      []string // tenant
+	// FullPath is the slice representation of the action context passed down through the hierarchy.
+	//The original request can be gleamed from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	FullPath []string
 }
 
-func NewExchangeDataCollection(aString string, aNum int, path []string) ExchangeDataCollection {
+// NewExchangeDataCollection creates an ExchangeDataCollection with the expected capcity list for data
+func NewExchangeDataCollection(aUser string, numOfObjects int, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
-		user:          aString,
+		user:          aUser,
 		data:          make([]ExchangeData, 0),
-		ExpectedItems: aNum,
-		FullPath:      path,
+		ExpectedItems: numOfObjects,
+		FullPath:      pathRepresentation,
 	}
 	return collection
 }
