@@ -160,20 +160,20 @@ func (kw *KopiaWrapper) open(ctx context.Context, password string) error {
 	return nil
 }
 
-func inflateDirTree(ctx context.Context, streams []connector.DataCollection) (fs.Directory, error) {
+func inflateDirTree(ctx context.Context, collections []connector.DataCollection) (fs.Directory, error) {
 	// TODO(ashmrtnz): Implement when virtualfs.StreamingDirectory is available.
 	return virtualfs.NewStaticDirectory("sample-dir", []fs.Entry{}), nil
 }
 
 func (kw KopiaWrapper) BackupCollections(
 	ctx context.Context,
-	streams []connector.DataCollection,
+	collections []connector.DataCollection,
 ) (*BackupStats, error) {
 	if kw.rep == nil {
 		return nil, errNotConnected
 	}
 
-	dirTree, err := inflateDirTree(ctx, streams)
+	dirTree, err := inflateDirTree(ctx, collections)
 	if err != nil {
 		return nil, errors.Wrap(err, "building kopia directories")
 	}
@@ -198,27 +198,27 @@ func (kw KopiaWrapper) makeSnapshotWithRoot(
 	}
 	ctx, rw, err := kw.rep.NewWriter(ctx, repo.WriteSessionOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to get repo writer")
+		return nil, errors.Wrap(err, "get repo writer")
 	}
 
 	policyTree, err := policy.TreeForSource(ctx, kw.rep, si)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to get policy tree")
+		return nil, errors.Wrap(err, "get policy tree")
 	}
 
 	u := snapshotfs.NewUploader(rw)
 
 	man, err := u.Upload(ctx, root, policyTree, si)
 	if err != nil {
-		return nil, errors.Wrap(err, "error uploading data")
+		return nil, errors.Wrap(err, "uploading data")
 	}
 
 	if _, err := snapshot.SaveSnapshot(ctx, rw, man); err != nil {
-		return nil, errors.Wrap(err, "unable to save snapshot")
+		return nil, errors.Wrap(err, "saving snapshot")
 	}
 
 	if err := rw.Flush(ctx); err != nil {
-		return nil, errors.Wrap(err, "unable to flush writer")
+		return nil, errors.Wrap(err, "flushing writer")
 	}
 
 	res := manifestToStats(man)
