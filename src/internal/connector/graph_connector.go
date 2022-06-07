@@ -141,13 +141,6 @@ func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, e
 
 }
 
-// Internal Helper that is invoked when the data collection is created to populate it
-// TODO: https://github.com/alcionai/corso/issues/124
-//func populateCollection(ExchangeDataCollection) error {
-// TODO: Read data for `ed.user` and add to collection
-//	return nil
-//}
-
 // getCountForMail HelperFunction for DataCollection.
 // @params user in tenant: Microsoft Id or email address
 // @returns number of messages, and error
