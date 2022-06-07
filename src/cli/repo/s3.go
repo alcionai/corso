@@ -2,12 +2,12 @@ package repo
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -50,7 +50,7 @@ var s3InitCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) error {
-	mv := utils.GetM365Vars()
+	m365 := credentials.GetM365()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
 		return err
@@ -61,14 +61,14 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cmd.CommandPath(),
 		s3Cfg.Bucket,
 		s3Cfg.AccessKey,
-		mv.ClientID,
-		len(mv.ClientSecret) > 0,
+		m365.ClientID,
+		len(m365.ClientSecret) > 0,
 		len(s3Cfg.SecretKey) > 0)
 
 	a := repository.Account{
-		TenantID:     mv.TenantID,
-		ClientID:     mv.ClientID,
-		ClientSecret: mv.ClientSecret,
+		TenantID:     m365.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
 	}
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 	if err != nil {
@@ -96,7 +96,7 @@ var s3ConnectCmd = &cobra.Command{
 
 // connects to an existing s3 repo.
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
-	mv := utils.GetM365Vars()
+	m365 := credentials.GetM365()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
 		return err
@@ -107,14 +107,14 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		cmd.CommandPath(),
 		s3Cfg.Bucket,
 		s3Cfg.AccessKey,
-		mv.ClientID,
-		len(mv.ClientSecret) > 0,
+		m365.ClientID,
+		len(m365.ClientSecret) > 0,
 		len(s3Cfg.SecretKey) > 0)
 
 	a := repository.Account{
-		TenantID:     mv.TenantID,
-		ClientID:     mv.ClientID,
-		ClientSecret: mv.ClientSecret,
+		TenantID:     m365.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
 	}
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 	if err != nil {
@@ -133,30 +133,22 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 // helper for aggregating aws connection details.
 func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
-	ak := os.Getenv(storage.AWS_ACCESS_KEY_ID)
-	if len(accessKey) > 0 {
-		ak = accessKey
-	}
-	secretKey := os.Getenv(storage.AWS_SECRET_ACCESS_KEY)
-	sessToken := os.Getenv(storage.AWS_SESSION_TOKEN)
-	corsoPasswd := os.Getenv(storage.CORSO_PASSWORD)
-
+	aws := credentials.GetAWS(map[string]string{credentials.AWS_ACCESS_KEY_ID: accessKey})
+	corso := credentials.GetCorso()
 	return storage.S3Config{
-			AccessKey:    ak,
-			Bucket:       bucket,
-			Endpoint:     endpoint,
-			Prefix:       prefix,
-			SecretKey:    secretKey,
-			SessionToken: sessToken,
+			AWS:      aws,
+			Bucket:   bucket,
+			Endpoint: endpoint,
+			Prefix:   prefix,
 		},
 		storage.CommonConfig{
-			CorsoPassword: corsoPasswd,
+			Corso: corso,
 		},
 		utils.RequireProps(map[string]string{
-			storage.AWS_ACCESS_KEY_ID:     ak,
-			"bucket":                      bucket,
-			storage.AWS_SECRET_ACCESS_KEY: secretKey,
-			storage.AWS_SESSION_TOKEN:     sessToken,
-			storage.CORSO_PASSWORD:        corsoPasswd,
+			credentials.AWS_ACCESS_KEY_ID:     aws.AccessKey,
+			"bucket":                          bucket,
+			credentials.AWS_SECRET_ACCESS_KEY: aws.SecretKey,
+			credentials.AWS_SESSION_TOKEN:     aws.SessionToken,
+			credentials.CORSO_PASSWORD:        corso.CorsoPassword,
 		})
 }

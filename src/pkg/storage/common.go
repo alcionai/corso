@@ -1,15 +1,14 @@
 package storage
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/pkg/credentials"
+)
 
 type CommonConfig struct {
-	CorsoPassword string // required
+	credentials.Corso // requires: CorsoPassword
 }
-
-// envvar consts
-const (
-	CORSO_PASSWORD = "CORSO_PASSWORD"
-)
 
 // config key consts
 const (
@@ -35,7 +34,7 @@ func (s Storage) CommonConfig() (CommonConfig, error) {
 // ensures all required properties are present
 func (c CommonConfig) validate() error {
 	if len(c.CorsoPassword) == 0 {
-		return errors.Wrap(errMissingRequired, CORSO_PASSWORD)
+		return errors.Wrap(errMissingRequired, credentials.CORSO_PASSWORD)
 	}
 	return nil
 }

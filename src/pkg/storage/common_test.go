@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -17,7 +18,11 @@ func TestCommonCfgSuite(t *testing.T) {
 	suite.Run(t, new(CommonCfgSuite))
 }
 
-var goodCommonConfig = storage.CommonConfig{"passwd"}
+var goodCommonConfig = storage.CommonConfig{
+	Corso: credentials.Corso{
+		CorsoPassword: "passwd",
+	},
+}
 
 func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 	cfg := goodCommonConfig
