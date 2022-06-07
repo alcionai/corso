@@ -2,46 +2,27 @@ package connector
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 
+	multierror "github.com/hashicorp/go-multierror"
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 )
 
-// ErrorList is a typical list of errors. The additional functionality comes
-// from helper functions that are specific to Microsoft Graph API
-type ErrorList []error
-
-func NewErrorList() ErrorList {
-	errors := make([]error, 0)
-	return errors
+// WrapErrorAndAppend helper function used to attach identifying information to an error
+// and return it as a mulitierror
+func WrapAndAppend(identifier string, e error, previous error) error {
+	return multierror.Append(previous, errors.Wrap(e, identifier))
 }
 
-// Returns generic list of error strings
-func (el ErrorList) GetErrors() string {
+// ListErrors is a helper method used to return the string of errors when
+// the multiError library is used.
+// depends on ConnectorStackErrorTrace
+func ListErrors(multi multierror.Error) string {
 	aString := ""
-	if len(el) != 0 {
-		for idx, err := range el {
-			aString = aString + fmt.Sprintf("\n\tErr: %d %v", idx+1, err)
-		}
-	}
-	return aString
-}
-
-// WrapErrorAndAppend helper function used to attach identifying information to the error
-// and append to the list
-func WrapErrorAndAppend(eventId string, e error, eList ErrorList) ErrorList {
-	newError := errors.Wrap(e, eventId)
-	eList = append(eList, newError)
-	return eList
-}
-
-// GetDetailedErrors returns a message, a compilation of errors stored within the list.
-// Extends "Post Errors" by default using the GetPostErrorString method
-func (el *ErrorList) GetDetailedErrors() string {
-	aString := ""
-	for idx, err := range *el {
-		detail := GetPostErrorsString(err)
+	for idx, err := range multi.Errors {
+		detail := ConnectorStackErrorTrace(err)
 		if detail == "" {
 			detail = fmt.Sprintf("%v", err)
 		}
@@ -50,9 +31,20 @@ func (el *ErrorList) GetDetailedErrors() string {
 	return aString
 }
 
-// GetPostErrorString returns string identifying the chain of errors that
-// occurred while retrieving data from the M365 back store.
-func GetPostErrorsString(e error) string {
+// concatenateStringFromPointers is a helper funtion that adds
+// strings to the originalMessage iff the pointer is not nil
+func concatenateStringFromPointers(orig string, pointers []*string) string {
+	for _, pointer := range pointers {
+		if pointer != nil {
+			orig = strings.Join([]string{orig, *pointer}, " ")
+		}
+	}
+	return orig
+}
+
+// ConnectorStackErrorTrace is a helper function that wraps the
+// stack trace for oDataError types from querying the M365 back store.
+func ConnectorStackErrorTrace(e error) string {
 	eMessage := ""
 	if oDataError, ok := e.(msgraph_errors.ODataErrorable); ok {
 		// Get MainError
@@ -62,21 +54,13 @@ func GetPostErrorsString(e error) string {
 		// code *string
 		// details ErrorDetailsable
 		// Ignoring Additonal Detail
-		space := " "
 		code := mainErr.GetCode()
 		subject := mainErr.GetMessage()
 		target := mainErr.GetTarget()
 		details := mainErr.GetDetails()
 		inners := mainErr.GetInnererror()
-		if code != nil {
-			eMessage = eMessage + *code + space
-		}
-		if subject != nil {
-			eMessage = eMessage + *subject + space
-		}
-		if target != nil {
-			eMessage = eMessage + *target
-		}
+		eMessage = concatenateStringFromPointers(eMessage,
+			[]*string{code, subject, target})
 		// Get Error Details
 		// code, message, target
 		if details != nil {
@@ -86,15 +70,8 @@ func GetPostErrorsString(e error) string {
 				c := detail.GetCode()
 				m := detail.GetMessage()
 				t := detail.GetTarget()
-				if c != nil {
-					dMessage = dMessage + space + *c + space
-				}
-				if m != nil {
-					dMessage = dMessage + *m + space
-				}
-				if t != nil {
-					dMessage = dMessage + *t + space
-				}
+				dMessage = concatenateStringFromPointers(dMessage,
+					[]*string{c, m, t})
 				eMessage = eMessage + dMessage
 			}
 		}
@@ -103,12 +80,8 @@ func GetPostErrorsString(e error) string {
 			eMessage = eMessage + "\nConnector Section:"
 			client := inners.GetClientRequestId()
 			rId := inners.GetRequestId()
-			if client != nil {
-				eMessage = eMessage + space + *client + space
-			}
-			if rId != nil {
-				eMessage = eMessage + *rId + space
-			}
+			eMessage = concatenateStringFromPointers(eMessage,
+				[]*string{client, rId})
 		}
 	}
 	return eMessage

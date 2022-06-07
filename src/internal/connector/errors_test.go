@@ -1,12 +1,13 @@
-package connector_test
+package connector
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/suite"
-
-	connect "github.com/alcionai/corso/internal/connector"
 )
 
 type GraphConnectorErrorSuite struct {
@@ -17,31 +18,27 @@ func TestGraphConnectorErrorSuite(t *testing.T) {
 	suite.Run(t, new(GraphConnectorErrorSuite))
 }
 
-func (suite *GraphConnectorErrorSuite) TestCreateErrorList() {
-	var list connect.ErrorList
-	list = make([]error, 0)
-	suite.Equal(len(list), 0)
-	list = append(list, errors.New("This one"))
-	suite.Equal(len(list), 1)
+func (suite *GraphConnectorErrorSuite) TestWrapAndAppend() {
+	anErr := fmt.Errorf("New Error")
 	err2 := errors.New("I have two")
-	list = append(list, err2)
-	suite.Equal(len(list), 2)
+	returnErr := WrapAndAppend("arc376", err2, anErr)
+	suite.T().Log(returnErr.Error())
+	suite.True(strings.Contains(returnErr.Error(), "arc376"))
 
+	suite.Error(returnErr)
+	multi := &multierror.Error{Errors: []error{anErr, err2}}
+	suite.True(strings.Contains(ListErrors(*multi), "two")) // Does not contain the wrapped information
+	suite.T().Log(ListErrors(*multi))
 }
 
-func (suite *GraphConnectorErrorSuite) TestErrorListFormatCheck() {
-	listing := connect.NewErrorList()
-	emptyReturn := listing.GetErrors()
-	suite.Equal(len(emptyReturn), 0)
-	err1 := errors.New("cauliflower")
-	listing = append(listing, err1)
-	suite.Equal(len(listing.GetErrors()), 20)
-}
-
-func (suite *GraphConnectorErrorSuite) TestErrorWrapAndAppend() {
-	listing := connect.NewErrorList()
-	err := errors.New("Network failure")
-	listing = connect.WrapErrorAndAppend("arch789", err, listing)
-	suite.Equal(len(listing), 1)
-	suite.T().Logf("%s", listing.GetErrors())
+func (suite *GraphConnectorErrorSuite) TestConcatenateStringFromPointers() {
+	var s1, s2, s3 *string
+	var outString string
+	v1 := "Corso"
+	v3 := "remains"
+	s1 = &v1
+	s3 = &v3
+	outString = concatenateStringFromPointers(outString, []*string{s1, s2, s3})
+	suite.True(strings.Contains(outString, v1))
+	suite.True(strings.Contains(outString, v3))
 }
