@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
@@ -82,6 +83,10 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
+
+	if err = config.WriteRepoConfig(s3Cfg, a); err != nil {
+		return errors.Wrap(err, "Failed to write repository configuration")
+	}
 	return nil
 }
 
@@ -101,6 +106,8 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO: Merge/Validate any local configuration here to make sure there are no conflicts
 
 	fmt.Printf(
 		"Called - %s\n\tbucket:\t%s\n\tkey:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n\tfound awsSecret:\t%v\n",
@@ -128,6 +135,10 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
+
+	if err = config.WriteRepoConfig(s3Cfg, a); err != nil {
+		return errors.Wrap(err, "Failed to write repository configuration")
+	}
 	return nil
 }
 
