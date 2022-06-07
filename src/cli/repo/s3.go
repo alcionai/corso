@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/cli/utils"
@@ -43,17 +44,16 @@ var s3InitCmd = &cobra.Command{
 	Use:   "s3",
 	Short: "Initialize a S3 repository",
 	Long:  `Bootstraps a new S3 repository and connects it to your m356 account.`,
-	Run:   initS3Cmd,
+	RunE:  initS3Cmd,
 	Args:  cobra.NoArgs,
 }
 
 // initializes a s3 repo.
-func initS3Cmd(cmd *cobra.Command, args []string) {
+func initS3Cmd(cmd *cobra.Command, args []string) error {
 	mv := utils.GetM365Vars()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	fmt.Printf(
@@ -72,16 +72,17 @@ func initS3Cmd(cmd *cobra.Command, args []string) {
 	}
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 	if err != nil {
-		utils.Fatalf("Failed to configure storage provider: %v", err)
+		return errors.Wrap(err, "Failed to configure storage provider")
 	}
 
 	r, err := repository.Initialize(cmd.Context(), a, s)
 	if err != nil {
-		utils.Fatalf("Failed to initialize a new S3 repository: %v", err)
+		return errors.Wrap(err, "Failed to initialize a new S3 repository")
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
+	return nil
 }
 
 // `corso repo connect s3 [<flag>...]`
@@ -89,17 +90,16 @@ var s3ConnectCmd = &cobra.Command{
 	Use:   "s3",
 	Short: "Connect to a S3 repository",
 	Long:  `Ensures a connection to an existing S3 repository.`,
-	Run:   connectS3Cmd,
+	RunE:  connectS3Cmd,
 	Args:  cobra.NoArgs,
 }
 
 // connects to an existing s3 repo.
-func connectS3Cmd(cmd *cobra.Command, args []string) {
+func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	mv := utils.GetM365Vars()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	fmt.Printf(
@@ -118,16 +118,17 @@ func connectS3Cmd(cmd *cobra.Command, args []string) {
 	}
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
 	if err != nil {
-		utils.Fatalf("Failed to configure storage provider: %v", err)
+		return errors.Wrap(err, "Failed to configure storage provider")
 	}
 
 	r, err := repository.Connect(cmd.Context(), a, s)
 	if err != nil {
-		utils.Fatalf("Failed to connect to the S3 repository: %v", err)
+		return errors.Wrap(err, "Failed to connect to the S3 repository")
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
+	return nil
 }
 
 // helper for aggregating aws connection details.

@@ -3,6 +3,7 @@ package backup
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/cli/utils"
@@ -31,14 +32,13 @@ func addExchangeApp(parent *cobra.Command) *cobra.Command {
 // `corso backup create exchange [<flag>...]`
 var exchangeCreateCmd = &cobra.Command{
 	Use:   "exchange",
-	Short: "Start backing up Exchange data",
-	Long:  `Creates a new backup of your microsoft Exchange data.`,
-	Run:   createExchangeCmd,
+	Short: "Backup M365 Exchange",
+	RunE:  createExchangeCmd,
 	Args:  cobra.NoArgs,
 }
 
 // initializes a s3 repo.
-func createExchangeCmd(cmd *cobra.Command, args []string) {
+func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	mv := utils.GetM365Vars()
 	fmt.Printf(
 		"Called - %s\n\t365TenantID:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n",
@@ -55,23 +55,24 @@ func createExchangeCmd(cmd *cobra.Command, args []string) {
 	// todo (rkeepers) - retrieve storage details from corso config
 	s, err := storage.NewStorage(storage.ProviderUnknown)
 	if err != nil {
-		utils.Fatalf("Failed to configure storage provider: %v", err)
+		return errors.Wrap(err, "Failed to configure storage provider")
 	}
 
 	r, err := repository.Connect(cmd.Context(), a, s)
 	if err != nil {
-		utils.Fatalf("Failed to connect to the %s repository: %v", s.Provider, err)
+		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	bo, err := r.NewBackup(cmd.Context(), []string{user})
 	if err != nil {
-		utils.Fatalf("Failed to initialize Exchange backup: %v", err)
+		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
 
 	if err := bo.Run(cmd.Context()); err != nil {
-		utils.Fatalf("Failed to run Exchange backup: %v", err)
+		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
 	fmt.Printf("Backed up Exchange in %s for user %s.\n", s.Provider, user)
+	return nil
 }
