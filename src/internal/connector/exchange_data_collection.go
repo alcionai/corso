@@ -27,7 +27,7 @@ type ExchangeDataCollection struct {
 	user string
 	// TODO: We would want to replace this with a channel so that we
 	// don't need to wait for all data to be retrieved before reading it out
-	data          []ExchangeData
+	data []ExchangeData
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleamed from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	FullPath []string
@@ -37,9 +37,9 @@ type ExchangeDataCollection struct {
 // the FullPath is confgured
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
-		user:          aUser,
-		data:          make([]ExchangeData, 0),
-		FullPath:      pathRepresentation,
+		user:     aUser,
+		data:     make([]ExchangeData, 0),
+		FullPath: pathRepresentation,
 	}
 	return collection
 }
