@@ -51,8 +51,8 @@ type KopiaIntegrationSuite struct {
 
 func TestKopiaIntegrationSuite(t *testing.T) {
 	if err := ctesting.RunOnAny(
-		ctesting.CORSO_CI_TESTS,
-		ctesting.CORSO_KOPIA_WRAPPER_TESTS,
+		ctesting.CorsoCITests,
+		ctesting.CorsoKopiaWrapperTests,
 	); err != nil {
 		t.Skip()
 	}

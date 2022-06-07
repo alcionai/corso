@@ -4,7 +4,7 @@ import "os"
 
 // envvar consts
 const (
-	CORSO_PASSWORD = "CORSO_PASSWORD"
+	CorsoPassword = "CORSO_PASSWORD"
 )
 
 // Corso aggregates corso credentials from flag and env_var values.
@@ -16,7 +16,7 @@ type Corso struct {
 func GetCorso() Corso {
 	// todo (rkeeprs): read from either corso config file or env vars.
 	// https://github.com/alcionai/corso/issues/120
-	corsoPasswd := os.Getenv(CORSO_PASSWORD)
+	corsoPasswd := os.Getenv(CorsoPassword)
 	return Corso{
 		CorsoPassword: corsoPasswd,
 	}
