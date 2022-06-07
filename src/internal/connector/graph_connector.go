@@ -190,8 +190,7 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 	}
 	folderList := make([]string, 0)
 	errorList := make([]error, 0)
-	values := response.GetValue()
-	for _, folderable := range values {
+	for _, folderable := range response.GetValue() {
 		folderList = append(folderList, *folderable.GetId())
 	}
 	fmt.Printf("Folder List: %v\n", folderList)
