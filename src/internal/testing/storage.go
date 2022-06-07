@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -13,9 +14,9 @@ import (
 // variables with S3.
 func CheckS3EnvVars() error {
 	s3Envs := []string{
-		storage.AWS_ACCESS_KEY_ID,
-		storage.AWS_SECRET_ACCESS_KEY,
-		storage.AWS_SESSION_TOKEN,
+		credentials.AWSAccessKeyID,
+		credentials.AWSSecretAccessKey,
+		credentials.AWSSessionToken,
 	}
 	for _, env := range s3Envs {
 		if os.Getenv(env) == "" {
@@ -32,14 +33,12 @@ func NewS3Storage(prefix string) (storage.Storage, error) {
 	return storage.NewStorage(
 		storage.ProviderS3,
 		storage.S3Config{
-			AccessKey:    os.Getenv(storage.AWS_ACCESS_KEY_ID),
-			Bucket:       "test-corso-repo-init",
-			Prefix:       prefix,
-			SecretKey:    os.Getenv(storage.AWS_SECRET_ACCESS_KEY),
-			SessionToken: os.Getenv(storage.AWS_SESSION_TOKEN),
+			AWS:    credentials.GetAWS(nil),
+			Bucket: "test-corso-repo-init",
+			Prefix: prefix,
 		},
 		storage.CommonConfig{
-			CorsoPassword: os.Getenv(storage.CORSO_PASSWORD),
+			Corso: credentials.GetCorso(),
 		},
 	)
 }

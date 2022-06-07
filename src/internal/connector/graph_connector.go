@@ -228,7 +228,7 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 			errorList = append(errorList, err)
 		}
 	}
-	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.GetLength())
+	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.Length())
 	fmt.Printf("Errors: \n%s\n", ConvertErrorList(errorList))
 	var errs error
 	if len(errorList) > 0 {

@@ -2,7 +2,6 @@ package operations_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
+	ctesting "github.com/alcionai/corso/internal/testing"
 )
 
 type BackupOpIntegrationSuite struct {
@@ -17,8 +17,8 @@ type BackupOpIntegrationSuite struct {
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	if len(os.Getenv("CORSO_INTEGRATION_TESTS")) == 0 {
-		t.Skip()
+	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+		t.Skip(err)
 	}
 	suite.Run(t, new(BackupOpIntegrationSuite))
 }

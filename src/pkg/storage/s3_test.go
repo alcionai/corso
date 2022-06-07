@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -17,7 +18,16 @@ func TestS3CfgSuite(t *testing.T) {
 	suite.Run(t, new(S3CfgSuite))
 }
 
-var goodS3Config = storage.S3Config{"ak", "bkt", "end", "pre", "sk", "tkn"}
+var goodS3Config = storage.S3Config{
+	AWS: credentials.AWS{
+		AccessKey:    "ak",
+		SecretKey:    "sk",
+		SessionToken: "tkn",
+	},
+	Bucket:   "bkt",
+	Endpoint: "end",
+	Prefix:   "pre",
+}
 
 func (suite *S3CfgSuite) TestS3Config_Config() {
 	s3 := goodS3Config
@@ -57,16 +67,29 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	assert.Equal(t, in.SessionToken, out.SessionToken)
 }
 
+func makeTestS3Cfg(ak, bkt, end, pre, sk, tkn string) storage.S3Config {
+	return storage.S3Config{
+		AWS: credentials.AWS{
+			AccessKey:    ak,
+			SecretKey:    sk,
+			SessionToken: tkn,
+		},
+		Bucket:   bkt,
+		Endpoint: end,
+		Prefix:   pre,
+	}
+}
+
 func (suite *S3CfgSuite) TestStorage_S3Config_InvalidCases() {
 	// missing required properties
 	table := []struct {
 		name string
 		cfg  storage.S3Config
 	}{
-		{"missing access key", storage.S3Config{"", "bkt", "end", "pre", "sk", "tkn"}},
-		{"missing bucket", storage.S3Config{"ak", "", "end", "pre", "sk", "tkn"}},
-		{"missing secret key", storage.S3Config{"ak", "bkt", "end", "pre", "", "tkn"}},
-		{"missing session token", storage.S3Config{"ak", "bkt", "end", "pre", "sk", ""}},
+		{"missing access key", makeTestS3Cfg("", "bkt", "end", "pre", "sk", "tkn")},
+		{"missing bucket", makeTestS3Cfg("ak", "", "end", "pre", "sk", "tkn")},
+		{"missing secret key", makeTestS3Cfg("ak", "bkt", "end", "pre", "", "tkn")},
+		{"missing session token", makeTestS3Cfg("ak", "bkt", "end", "pre", "sk", "")},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	CORSO_CI_TESTS              = "CORSO_CI_TESTS"
-	CORSO_GRAPH_CONNECTOR_TESTS = "CORSO_GRAPH_CONNECTOR_TESTS"
-	CORSO_REPOSITORY_TESTS      = "CORSO_REPOSITORY_TESTS"
-	CORSO_KOPIA_WRAPPER_TESTS   = "CORSO_KOPIA_WRAPPER_TESTS"
+	CorsoCITests             = "CORSO_CI_TESTS"
+	CorsoGraphConnectorTests = "CORSO_GRAPH_CONNECTOR_TESTS"
+	CorsoRepositoryTests     = "CORSO_REPOSITORY_TESTS"
+	CorsoKopiaWrapperTests   = "CORSO_KOPIA_WRAPPER_TESTS"
 )
 
 // RunOnAny takes in a list of env variable names and returns

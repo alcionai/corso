@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/pkg/credentials"
 )
 
 type GraphConnectorIntegrationSuite struct {
@@ -17,8 +18,8 @@ type GraphConnectorIntegrationSuite struct {
 
 func TestGraphConnectorSuite(t *testing.T) {
 	if err := ctesting.RunOnAny(
-		ctesting.CORSO_CI_TESTS,
-		ctesting.CORSO_GRAPH_CONNECTOR_TESTS,
+		ctesting.CorsoCITests,
+		ctesting.CorsoGraphConnectorTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -31,14 +32,14 @@ func TestGraphConnectorSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	evs, err := ctesting.GetRequiredEnvVars("TENANT_ID", "CLIENT_ID", "CLIENT_SECRET")
+	evs, err := ctesting.GetRequiredEnvVars(credentials.TenantID, credentials.ClientID, credentials.ClientSecret)
 	if err != nil {
 		suite.T().Fatal(err)
 	}
 	suite.connector, err = NewGraphConnector(
-		evs["TENANT_ID"],
-		evs["CLIENT_ID"],
-		evs["CLIENT_SECRET"])
+		evs[credentials.TenantID],
+		evs[credentials.ClientID],
+		evs[credentials.ClientSecret])
 	suite.NoError(err)
 }
 
