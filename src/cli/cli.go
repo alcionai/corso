@@ -41,6 +41,7 @@ func initConfig() {
 
 		// Search config in home directory with name ".corso" (without extension).
 		viper.AddConfigPath(home)
+		viper.SetConfigType("toml")
 		viper.SetConfigName(".corso")
 	}
 

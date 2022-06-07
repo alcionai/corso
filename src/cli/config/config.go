@@ -23,12 +23,19 @@ const (
 func WriteRepoConfig(s3Config storage.S3Config, account repository.Account) error {
 	// Rudimentary support for persisting repo config
 	// TODO: Handle conflicts, support other config types
-	viper.Set(ProviderTypeKey, storage.ProviderS3)
+	viper.Set(ProviderTypeKey, storage.ProviderS3.String())
 	viper.Set(BucketNameKey, s3Config.Bucket)
 	viper.Set(EndpointKey, s3Config.Endpoint)
 	viper.Set(PrefixKey, s3Config.Prefix)
 	viper.Set(TenantIDKey, account.TenantID)
-	return viper.GetViper().WriteConfig()
+
+	if err := viper.SafeWriteConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
+			return viper.GetViper().WriteConfig()
+		}
+		return err
+	}
+	return nil
 }
 
 func ReadRepoConfig() (s3Config storage.S3Config, account repository.Account, err error) {
