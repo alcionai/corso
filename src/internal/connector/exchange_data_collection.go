@@ -28,18 +28,17 @@ type ExchangeDataCollection struct {
 	// TODO: We would want to replace this with a channel so that we
 	// don't need to wait for all data to be retrieved before reading it out
 	data          []ExchangeData
-	ExpectedItems int
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleamed from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	FullPath []string
 }
 
-// NewExchangeDataCollection creates an ExchangeDataCollection with the expected capcity list for data
-func NewExchangeDataCollection(aUser string, numOfObjects int, pathRepresentation []string) ExchangeDataCollection {
+// NewExchangeDataCollection creates an ExchangeDataCollection where
+// the FullPath is confgured
+func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:          aUser,
 		data:          make([]ExchangeData, 0),
-		ExpectedItems: numOfObjects,
 		FullPath:      pathRepresentation,
 	}
 	return collection
