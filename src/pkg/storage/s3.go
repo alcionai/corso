@@ -1,22 +1,18 @@
 package storage
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/pkg/credentials"
+)
 
 type S3Config struct {
-	AccessKey    string // required
-	Bucket       string // required
-	Endpoint     string
-	Prefix       string
-	SecretKey    string // required
-	SessionToken string // required
-}
+	credentials.AWS // requires: AccessKey, SecretKey, SessionToken
 
-// envvar consts
-const (
-	AWS_ACCESS_KEY_ID     = "AWS_ACCESS_KEY_ID"
-	AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
-	AWS_SESSION_TOKEN     = "AWS_SESSION_TOKEN"
-)
+	Bucket   string // required
+	Endpoint string
+	Prefix   string
+}
 
 // config key consts
 const (
@@ -56,10 +52,10 @@ func (s Storage) S3Config() (S3Config, error) {
 
 func (c S3Config) validate() error {
 	check := map[string]string{
-		AWS_ACCESS_KEY_ID:     c.AccessKey,
-		AWS_SECRET_ACCESS_KEY: c.SecretKey,
-		AWS_SESSION_TOKEN:     c.SessionToken,
-		"bucket":              c.Bucket,
+		credentials.AWS_ACCESS_KEY_ID:     c.AccessKey,
+		credentials.AWS_SECRET_ACCESS_KEY: c.SecretKey,
+		credentials.AWS_SESSION_TOKEN:     c.SessionToken,
+		"bucket":                          c.Bucket,
 	}
 	for k, v := range check {
 		if len(v) == 0 {

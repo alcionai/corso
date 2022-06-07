@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -39,18 +40,18 @@ var exchangeCreateCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func createExchangeCmd(cmd *cobra.Command, args []string) error {
-	mv := utils.GetM365Vars()
+	m365 := credentials.GetM365()
 	fmt.Printf(
 		"Called - %s\n\t365TenantID:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n",
 		cmd.CommandPath(),
-		mv.TenantID,
-		mv.ClientID,
-		len(mv.ClientSecret) > 0)
+		m365.TenantID,
+		m365.ClientID,
+		len(m365.ClientSecret) > 0)
 
 	a := repository.Account{
-		TenantID:     mv.TenantID,
-		ClientID:     mv.ClientID,
-		ClientSecret: mv.ClientSecret,
+		TenantID:     m365.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
 	}
 	// todo (rkeepers) - retrieve storage details from corso config
 	s, err := storage.NewStorage(storage.ProviderUnknown)
