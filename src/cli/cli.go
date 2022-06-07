@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/cli/backup"
 	"github.com/alcionai/corso/cli/repo"
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 // The root-level command.
@@ -67,7 +69,10 @@ func Handle() {
 	repo.AddCommands(corsoCmd)
 	backup.AddCommands(corsoCmd)
 
-	if err := corsoCmd.Execute(); err != nil {
+	ctx, log := logger.Seed(context.Background())
+	defer log.Sync() // flush all logs in the buffer
+
+	if err := corsoCmd.ExecuteContext(ctx); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
