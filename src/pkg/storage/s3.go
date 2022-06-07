@@ -52,10 +52,10 @@ func (s Storage) S3Config() (S3Config, error) {
 
 func (c S3Config) validate() error {
 	check := map[string]string{
-		credentials.AWS_ACCESS_KEY_ID:     c.AccessKey,
-		credentials.AWS_SECRET_ACCESS_KEY: c.SecretKey,
-		credentials.AWS_SESSION_TOKEN:     c.SessionToken,
-		"bucket":                          c.Bucket,
+		credentials.AWSAccessKeyID:     c.AccessKey,
+		credentials.AWSSecretAccessKey: c.SecretKey,
+		credentials.AWSSessionToken:    c.SessionToken,
+		"bucket":                       c.Bucket,
 	}
 	for k, v := range check {
 		if len(v) == 0 {

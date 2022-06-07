@@ -14,9 +14,9 @@ import (
 // variables with S3.
 func CheckS3EnvVars() error {
 	s3Envs := []string{
-		credentials.AWS_ACCESS_KEY_ID,
-		credentials.AWS_SECRET_ACCESS_KEY,
-		credentials.AWS_SESSION_TOKEN,
+		credentials.AWSAccessKeyID,
+		credentials.AWSSecretAccessKey,
+		credentials.AWSSessionToken,
 	}
 	for _, env := range s3Envs {
 		if os.Getenv(env) == "" {

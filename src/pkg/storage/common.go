@@ -34,7 +34,7 @@ func (s Storage) CommonConfig() (CommonConfig, error) {
 // ensures all required properties are present
 func (c CommonConfig) validate() error {
 	if len(c.CorsoPassword) == 0 {
-		return errors.Wrap(errMissingRequired, credentials.CORSO_PASSWORD)
+		return errors.Wrap(errMissingRequired, credentials.CorsoPassword)
 	}
 	return nil
 }

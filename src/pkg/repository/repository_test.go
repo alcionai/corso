@@ -89,8 +89,8 @@ type RepositoryIntegrationSuite struct {
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
 	if err := ctesting.RunOnAny(
-		ctesting.CORSO_CI_TESTS,
-		ctesting.CORSO_REPOSITORY_TESTS,
+		ctesting.CorsoCITests,
+		ctesting.CorsoRepositoryTests,
 	); err != nil {
 		t.Skip(err)
 	}

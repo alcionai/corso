@@ -6,9 +6,9 @@ import (
 
 // envvar consts
 const (
-	AWS_ACCESS_KEY_ID     = "AWS_ACCESS_KEY_ID"
-	AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
-	AWS_SESSION_TOKEN     = "AWS_SESSION_TOKEN"
+	AWSAccessKeyID     = "AWS_ACCESS_KEY_ID"
+	AWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
+	AWSSessionToken    = "AWS_SESSION_TOKEN"
 )
 
 // AWS aggregates aws credentials from flag and env_var values.
@@ -20,12 +20,12 @@ type AWS struct {
 
 // GetAWS is a helper for aggregating aws secrets and credentials.
 func GetAWS(override map[string]string) AWS {
-	accessKey := os.Getenv(AWS_ACCESS_KEY_ID)
-	if ovr, ok := override[AWS_ACCESS_KEY_ID]; ok {
+	accessKey := os.Getenv(AWSAccessKeyID)
+	if ovr, ok := override[AWSAccessKeyID]; ok {
 		accessKey = ovr
 	}
-	secretKey := os.Getenv(AWS_SECRET_ACCESS_KEY)
-	sessToken := os.Getenv(AWS_SESSION_TOKEN)
+	secretKey := os.Getenv(AWSSecretAccessKey)
+	sessToken := os.Getenv(AWSSessionToken)
 
 	// todo (rkeeprs): read from either corso config file or env vars.
 	// https://github.com/alcionai/corso/issues/120

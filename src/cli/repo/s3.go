@@ -133,7 +133,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 // helper for aggregating aws connection details.
 func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
-	aws := credentials.GetAWS(map[string]string{credentials.AWS_ACCESS_KEY_ID: accessKey})
+	aws := credentials.GetAWS(map[string]string{credentials.AWSAccessKeyID: accessKey})
 	corso := credentials.GetCorso()
 	return storage.S3Config{
 			AWS:      aws,
@@ -145,10 +145,10 @@ func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
 			Corso: corso,
 		},
 		utils.RequireProps(map[string]string{
-			credentials.AWS_ACCESS_KEY_ID:     aws.AccessKey,
-			"bucket":                          bucket,
-			credentials.AWS_SECRET_ACCESS_KEY: aws.SecretKey,
-			credentials.AWS_SESSION_TOKEN:     aws.SessionToken,
-			credentials.CORSO_PASSWORD:        corso.CorsoPassword,
+			credentials.AWSAccessKeyID:     aws.AccessKey,
+			"bucket":                       bucket,
+			credentials.AWSSecretAccessKey: aws.SecretKey,
+			credentials.AWSSessionToken:    aws.SessionToken,
+			credentials.CorsoPassword:      corso.CorsoPassword,
 		})
 }
