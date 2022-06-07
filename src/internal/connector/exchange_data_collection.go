@@ -47,7 +47,7 @@ func NewExchangeDataCollection(aUser string, pathRepresentation []string) Exchan
 func (ec *ExchangeDataCollection) PopulateCollection(newData ExchangeData) {
 	ec.data = append(ec.data, newData)
 }
-func (ec *ExchangeDataCollection) GetLength() int {
+func (ec *ExchangeDataCollection) Length() int {
 	return len(ec.data)
 }
 
