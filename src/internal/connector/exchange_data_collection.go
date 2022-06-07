@@ -29,7 +29,7 @@ type ExchangeDataCollection struct {
 	// don't need to wait for all data to be retrieved before reading it out
 	data []ExchangeData
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
-	//The original request can be gleamed from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	FullPath []string
 }
 

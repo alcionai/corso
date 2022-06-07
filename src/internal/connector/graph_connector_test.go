@@ -1,13 +1,13 @@
 package connector
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	ctesting "github.com/alcionai/corso/internal/testing"
-
 )
 
 type GraphConnectorIntegrationSuite struct {
@@ -30,13 +30,12 @@ func TestGraphConnectorSuite(t *testing.T) {
 	suite.Run(t, new(GraphConnectorIntegrationSuite))
 }
 
-
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	evs, err := ctesting.GetRequiredEnvVars("TENANT_ID", "CLIENT_ID", "CLIENT_SECRET")
 	if err != nil {
 		suite.T().Fatal(err)
 	}
-	suite.connector, err = graph.NewGraphConnector(
+	suite.connector, err = NewGraphConnector(
 		evs["TENANT_ID"],
 		evs["CLIENT_ID"],
 		evs["CLIENT_SECRET"])
@@ -46,7 +45,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	ctesting.LogTimeOfTest(suite.T())
 	suite.NotNil(suite.connector)
-  
+
 }
 
 // --------------------
@@ -59,15 +58,8 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 	suite.Run(t, new(DiconnectedGraphConnectorSuite))
 }
 
-func (suite *GraphConnectorTestSuite) TestGraphConnector() {
-	if os.Getenv("INTEGRATION_TESTING") != "" {
-		suite.T().Skip("Environmental Variables not set")
-	}
-	suite.True(suite.connector != nil)
-}
-
 // TestExchangeDataCollection is a call to the M365 backstore to very
-func (suite *GraphConnectorTestSuite) TestExchangeDataCollection() {
+func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	if os.Getenv("INTEGRATION_TESTING") != "" {
 		suite.T().Skip("Environmental Variables not set")
 	}
@@ -77,7 +69,7 @@ func (suite *GraphConnectorTestSuite) TestExchangeDataCollection() {
 	suite.T().Logf("Missing Data: %s\n", err.Error())
 }
 
-func (suite *DiconnectedGraphConnectorTestSuite) TestBadConnection() {
+func (suite *DiconnectedGraphConnectorSuite) TestBadConnection() {
 
 	table := []struct {
 		name   string
@@ -93,13 +85,14 @@ func (suite *DiconnectedGraphConnectorTestSuite) TestBadConnection() {
 		},
 	}
 	for _, test := range table {
-    suite.T().Run(test.name, func(t *testing.T) {
-			gc, err := graph.NewGraphConnector(test.params[0], test.params[1], test.params[2])
+		suite.T().Run(test.name, func(t *testing.T) {
+			gc, err := NewGraphConnector(test.params[0], test.params[1], test.params[2])
 			assert.Nil(t, gc, test.name+" failed")
 			assert.NotNil(t, err, test.name+"failed")
 		})
 	}
 }
+
 // Contains is a helper method for verifying if element
 // is contained within the slice
 func Contains(elems []string, value string) bool {
@@ -111,7 +104,7 @@ func Contains(elems []string, value string) bool {
 	return false
 }
 
-func (suite *DiconnectedGraphConnectorTestSuite) TestBuild() {
+func (suite *DiconnectedGraphConnectorSuite) TestBuild() {
 	names := make(map[string]string)
 	names["Al"] = "Bundy"
 	names["Ellen"] = "Ripley"
@@ -127,11 +120,10 @@ func (suite *DiconnectedGraphConnectorTestSuite) TestBuild() {
 
 }
 
-func (suite *DiconnectedGraphConnectorTestSuite) TestInterfaceAlignment() {
+func (suite *DiconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	var dc DataCollection
 	concrete := NewExchangeDataCollection("Check", []string{"interface", "works"})
 	dc = &concrete
 	assert.NotNil(suite.T(), dc)
-		
-	}
+
 }
