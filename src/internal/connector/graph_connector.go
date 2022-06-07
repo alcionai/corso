@@ -97,6 +97,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 
 // ConvertsErrorList takes a list of errors and converts returns
 // a string
+// TODO: Place in error package after merged
 func ConvertErrorList(errorList []error) string {
 	errorLog := ""
 	for idx, err := range errorList {
@@ -107,19 +108,24 @@ func ConvertErrorList(errorList []error) string {
 
 // GetUsers returns the email address of users within tenant.
 func (gc *GraphConnector) GetUsers() []string {
-	keys := make([]string, 0)
-	for k := range gc.Users {
-		keys = append(keys, k)
-	}
-	return keys
+	return buildFromMap(true, gc.Users)
 }
 
 func (gc *GraphConnector) GetUsersIds() []string {
-	values := make([]string, 0)
-	for _, v := range gc.Users {
-		values = append(values, v)
+	return buildFromMap(false, gc.Users)
+}
+func buildFromMap(isKey bool, mapping map[string]string) []string {
+	returnString := make([]string, 0)
+	if isKey {
+		for k := range mapping {
+			returnString = append(returnString, k)
+		}
+	} else {
+		for _, v := range mapping {
+			returnString = append(returnString, v)
+		}
 	}
-	return values
+	return returnString
 }
 
 // ExchangeDataStream returns a DataCollection which the caller can
@@ -128,39 +134,10 @@ func (gc *GraphConnector) GetUsersIds() []string {
 // TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
 func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, error) {
-	//Get Count: Number of items
-	total, err := gc.getCountForMail(user)
-	if err != nil {
-		return nil, err
-	}
 	// TODO replace with completion of Issue 124:
-	// return &ExchangeDataCollection{user: user, ExpectedItems: total}, nil
-	collection := NewExchangeDataCollection(user, total, []string{gc.tenant, user})
-	//Would be able to do this with a channel and return prior.
+	collection := NewExchangeDataCollection(user, []string{gc.tenant, user})
 	return gc.serializeMessages(user, collection)
 
-}
-
-// getCountForMail HelperFunction for DataCollection.
-// @params user in tenant: Microsoft Id or email address
-// @returns number of messages, and error
-func (gc *GraphConnector) getCountForMail(user string) (int, error) {
-	options := optionsForMailFolders([]string{"totalItemCount, displayName"})
-	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
-	if err != nil {
-		return 0, err
-	}
-	if response == nil {
-		return 0, fmt.Errorf("response for %s's messages is <nil>", user)
-	}
-	values := response.GetValue()
-	sum := 0
-	for _, folderable := range values {
-		fmt.Printf("Folder: %s-> %d\n", *folderable.GetDisplayName(), *folderable.GetTotalItemCount())
-		sum += int(*folderable.GetTotalItemCount())
-	}
-	fmt.Printf("Total messages is %d\n", sum)
-	return sum, nil
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
@@ -213,25 +190,20 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		objectWriter := kw.NewJsonSerializationWriter()
 
 		callbackFunc := func(messageItem interface{}) bool {
-			if messageItem == nil {
-				return true
-			}
 			message, ok := messageItem.(models.Messageable)
-			if !ok || message == nil {
-				errorList = append(errorList, fmt.Errorf("unable to iterable to user"))
+			if !ok {
+				errorList = append(errorList, fmt.Errorf("unable to iterate on message for user: %s", user))
 				return true
 			}
 			if *message.GetHasAttachments() {
 				attached, err := gc.client.UsersById(user).MessagesById(*message.GetId()).Attachments().Get()
 				if err == nil && attached != nil {
 					message.SetAttachments(attached.GetValue())
-					fmt.Println("Attached")
 				}
 				if err != nil {
 					err = fmt.Errorf("Attachment Error: " + err.Error())
 					errorList = append(errorList, err)
 				}
-
 			}
 
 			err = objectWriter.WriteObjectValue("", message)
@@ -257,9 +229,10 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		}
 	}
 	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.GetLength())
-	fmt.Printf("Errors: %s\n", ConvertErrorList(errorList))
+	fmt.Printf("Errors: \n%s\n", ConvertErrorList(errorList))
+	var errs error
 	if len(errorList) > 0 {
-		return &dc, errors.New(ConvertErrorList(errorList))
+		errs = errors.New(ConvertErrorList(errorList))
 	}
-	return &dc, nil
+	return &dc, errs
 }
