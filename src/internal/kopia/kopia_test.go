@@ -2,9 +2,7 @@ package kopia
 
 import (
 	"context"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,8 +34,7 @@ type KopiaUnitSuite struct {
 
 func (suite *KopiaUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
 	ctx := context.Background()
-	timeOfTest := time.Now().UTC().Format("2016-01-02T15:04:05")
-	suite.T().Logf("TestCloseWithoutOpenDoesNotCrash() run at %s", timeOfTest)
+	ctesting.LogTimeOfTest(suite.T())
 
 	k := KopiaWrapper{}
 	assert.NotPanics(suite.T(), func() {
@@ -53,8 +50,10 @@ type KopiaIntegrationSuite struct {
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
-	runIntegrationTests := os.Getenv("INTEGRATION_TESTING")
-	if runIntegrationTests != "true" {
+	if err := ctesting.RunOnAny(
+		ctesting.CORSO_CI_TESTS,
+		ctesting.CORSO_KOPIA_WRAPPER_TESTS,
+	); err != nil {
 		t.Skip()
 	}
 
@@ -67,12 +66,30 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 func (suite *KopiaIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 	ctx := context.Background()
-	timeOfTest := time.Now().UTC().Format("2016-01-02T15:04:05")
-	suite.T().Logf("TestCloseTwiceDoesNotCrash() run at %s", timeOfTest)
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
 
 	k, err := openKopiaRepo(ctx, "init-s3-"+timeOfTest)
 	assert.NoError(suite.T(), err)
 	assert.NoError(suite.T(), k.Close(ctx))
 	assert.Nil(suite.T(), k.rep)
 	assert.NoError(suite.T(), k.Close(ctx))
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupCollections() {
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+
+	k, err := openKopiaRepo(ctx, "init-s3-"+timeOfTest)
+	assert.NoError(suite.T(), err)
+	defer func() {
+		assert.NoError(suite.T(), k.Close(ctx))
+	}()
+
+	stats, err := k.BackupCollections(ctx, nil)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), stats.TotalFileCount, 0)
+	assert.Equal(suite.T(), stats.TotalDirectoryCount, 1)
+	assert.Equal(suite.T(), stats.IgnoredErrorCount, 0)
+	assert.Equal(suite.T(), stats.ErrorCount, 0)
+	assert.False(suite.T(), stats.Incomplete)
 }

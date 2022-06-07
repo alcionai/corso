@@ -1,9 +1,6 @@
 package repo
 
 import (
-	"errors"
-	"os"
-
 	"github.com/spf13/cobra"
 )
 
@@ -69,31 +66,4 @@ var connectCmd = &cobra.Command{
 // Handler for calls to `corso repo connect`.
 func handleConnectCmd(cmd *cobra.Command, args []string) {
 	cmd.Help()
-}
-
-// aggregates m365 details from flag and env_var values.
-type m365Vars struct {
-	clientID     string
-	clientSecret string
-	tenantID     string
-}
-
-// helper for aggregating m365 connection details.
-func getM365Vars() m365Vars {
-	return m365Vars{
-		clientID:     os.Getenv("O365_CLIENT_ID"),
-		clientSecret: os.Getenv("O356_SECRET"),
-		tenantID:     "todo:tenantID",
-	}
-}
-
-// validates the existence of the properties in the map.
-// expects a map[propName]propVal.
-func requireProps(props map[string]string) error {
-	for name, val := range props {
-		if len(val) == 0 {
-			return errors.New(name + " is required to perform this command")
-		}
-	}
-	return nil
 }

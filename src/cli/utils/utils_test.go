@@ -1,21 +1,23 @@
-package repo
+package utils_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/cli/utils"
 )
 
-type CliRepoSuite struct {
+type CliUtilsSuite struct {
 	suite.Suite
 }
 
-func TestCliRepoSuite(t *testing.T) {
-	suite.Run(t, new(CliRepoSuite))
+func TestCliUtilsSuite(t *testing.T) {
+	suite.Run(t, new(CliUtilsSuite))
 }
 
-func (suite *CliRepoSuite) TestRequireProps() {
+func (suite *CliUtilsSuite) TestRequireProps() {
 	table := []struct {
 		name     string
 		props    map[string]string
@@ -31,6 +33,6 @@ func (suite *CliRepoSuite) TestRequireProps() {
 		},
 	}
 	for _, test := range table {
-		test.errCheck(suite.T(), requireProps(test.props))
+		test.errCheck(suite.T(), utils.RequireProps(test.props))
 	}
 }
