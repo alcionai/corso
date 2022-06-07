@@ -23,10 +23,32 @@ type DataStream interface {
 //
 // It implements the DataCollection interface
 type ExchangeDataCollection struct {
+	// M365 user
 	user string
 	// TODO: We would want to replace this with a channel so that we
 	// don't need to wait for all data to be retrieved before reading it out
 	data []ExchangeData
+	// FullPath is the slice representation of the action context passed down through the hierarchy.
+	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	FullPath []string
+}
+
+// NewExchangeDataCollection creates an ExchangeDataCollection where
+// the FullPath is confgured
+func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
+	collection := ExchangeDataCollection{
+		user:     aUser,
+		data:     make([]ExchangeData, 0),
+		FullPath: pathRepresentation,
+	}
+	return collection
+}
+
+func (ec *ExchangeDataCollection) PopulateCollection(newData ExchangeData) {
+	ec.data = append(ec.data, newData)
+}
+func (ec *ExchangeDataCollection) Length() int {
+	return len(ec.data)
 }
 
 // NextItem returns either the next item in the collection or an error if one occurred.
@@ -35,12 +57,6 @@ func (*ExchangeDataCollection) NextItem() (DataStream, error) {
 	// TODO: Return the next "to be read" item in the collection as a
 	// DataStream
 	return nil, nil
-}
-
-// Internal Helper that is invoked when the data collection is created to populate it
-func (ed *ExchangeDataCollection) populateCollection() error {
-	// TODO: Read data for `ed.user` and add to collection
-	return nil
 }
 
 // ExchangeData represents a single item retrieved from exchange

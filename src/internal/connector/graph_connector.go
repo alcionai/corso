@@ -8,10 +8,12 @@ import (
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
+	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
+	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -80,7 +82,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			errorList = append(errorList, errors.New("Unable to iterable to user"))
+			errorList = append(errorList, errors.New("unable to iterable to user"))
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
@@ -95,6 +97,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 
 // ConvertsErrorList takes a list of errors and converts returns
 // a string
+// TODO: Place in error package after merged
 func ConvertErrorList(errorList []error) string {
 	errorLog := ""
 	for idx, err := range errorList {
@@ -105,23 +108,131 @@ func ConvertErrorList(errorList []error) string {
 
 // GetUsers returns the email address of users within tenant.
 func (gc *GraphConnector) GetUsers() []string {
-	keys := make([]string, 0)
-	for k := range gc.Users {
-		keys = append(keys, k)
-	}
-	return keys
+	return buildFromMap(true, gc.Users)
 }
 
 func (gc *GraphConnector) GetUsersIds() []string {
-	values := make([]string, 0)
-	for _, v := range gc.Users {
-		values = append(values, v)
+	return buildFromMap(false, gc.Users)
+}
+func buildFromMap(isKey bool, mapping map[string]string) []string {
+	returnString := make([]string, 0)
+	if isKey {
+		for k := range mapping {
+			returnString = append(returnString, k)
+		}
+	} else {
+		for _, v := range mapping {
+			returnString = append(returnString, v)
+		}
 	}
-	return values
+	return returnString
 }
 
-// ExchangeDataStream returns a DataCollection that the caller can
+// ExchangeDataStream returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
-func (gc *GraphConnector) ExchangeDataCollection(user string) DataCollection {
-	return &ExchangeDataCollection{user: user}
+// Assumption: User exists
+// TODO: https://github.com/alcionai/corso/issues/135
+//  Add iota to this call -> mail, contacts, calendar,  etc.
+func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, error) {
+	// TODO replace with completion of Issue 124:
+	collection := NewExchangeDataCollection(user, []string{gc.tenant, user})
+	return gc.serializeMessages(user, collection)
+
+}
+
+// optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
+// var moreOps is a comma separated string of options(e.g. "displayName, isHidden")
+// return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
+func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilderGetRequestConfiguration {
+	selecting := append(moreOps, "id")
+	requestParameters := &msfolder.MailFoldersRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msfolder.MailFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	return options
+}
+
+// serializeMessages: Temp Function as place Holder until Collections have been added
+// to the GraphConnector struct.
+func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollection) (DataCollection, error) {
+	options := optionsForMailFolders([]string{})
+	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		return nil, fmt.Errorf("unable to access folders for %s", user)
+	}
+	folderList := make([]string, 0)
+	errorList := make([]error, 0)
+	for _, folderable := range response.GetValue() {
+		folderList = append(folderList, *folderable.GetId())
+	}
+	fmt.Printf("Folder List: %v\n", folderList)
+	// Time to create Exchange data Holder
+	var byteArray []byte
+	var iterateError error
+	for _, aFolder := range folderList {
+		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
+		if err != nil {
+			errorList = append(errorList, err)
+		}
+		if result == nil {
+			fmt.Println("Cannot Get result")
+		}
+
+		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
+		if err != nil {
+			errorList = append(errorList, err)
+		}
+		objectWriter := kw.NewJsonSerializationWriter()
+
+		callbackFunc := func(messageItem interface{}) bool {
+			message, ok := messageItem.(models.Messageable)
+			if !ok {
+				errorList = append(errorList, fmt.Errorf("unable to iterate on message for user: %s", user))
+				return true
+			}
+			if *message.GetHasAttachments() {
+				attached, err := gc.client.UsersById(user).MessagesById(*message.GetId()).Attachments().Get()
+				if err == nil && attached != nil {
+					message.SetAttachments(attached.GetValue())
+				}
+				if err != nil {
+					err = fmt.Errorf("Attachment Error: " + err.Error())
+					errorList = append(errorList, err)
+				}
+			}
+
+			err = objectWriter.WriteObjectValue("", message)
+			if err != nil {
+				errorList = append(errorList, err)
+				return true
+			}
+			byteArray, err = objectWriter.GetSerializedContent()
+			objectWriter.Close()
+			if err != nil {
+				errorList = append(errorList, err)
+				return true
+			}
+			if byteArray != nil {
+				dc.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
+			}
+			return true
+		}
+		iterateError = pageIterator.Iterate(callbackFunc)
+
+		if iterateError != nil {
+			errorList = append(errorList, err)
+		}
+	}
+	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.Length())
+	fmt.Printf("Errors: \n%s\n", ConvertErrorList(errorList))
+	var errs error
+	if len(errorList) > 0 {
+		errs = errors.New(ConvertErrorList(errorList))
+	}
+	return &dc, errs
 }
