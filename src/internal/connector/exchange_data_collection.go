@@ -1,6 +1,9 @@
 package connector
 
-import "io"
+import (
+	"bytes"
+	"io"
+)
 
 // A DataCollection represents a collection of data of the
 // same type (e.g. mail)
@@ -13,7 +16,8 @@ type DataCollection interface {
 // DataStream represents a single item within a DataCollection
 // that can be consumed as a stream (it embeds io.Reader)
 type DataStream interface {
-	io.Reader
+	// Returns an io.Reader for the DataStream
+	ToReader() io.Reader
 	// Provides a unique identifier for this data
 	UUID() string
 }
@@ -72,7 +76,6 @@ func (ed *ExchangeData) UUID() string {
 	return ed.id
 }
 
-func (ed *ExchangeData) Read(bytes []byte) (int, error) {
-	// TODO: Copy ed.message into []bytes. Will need to take care of partial reads
-	return 0, nil
+func (ed *ExchangeData) ToReader() io.Reader {
+	return bytes.NewReader(ed.message)
 }
