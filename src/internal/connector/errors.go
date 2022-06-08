@@ -16,6 +16,11 @@ func WrapAndAppend(identifier string, e error, previous error) error {
 	return multierror.Append(previous, errors.Wrap(e, identifier))
 }
 
+// WrapErrorAndAppendf format version of WrapErrorAndAppend
+func WrapAndAppendf(identifier interface{}, e error, previous error) error {
+	return multierror.Append(previous, errors.Wrapf(e, "%v", identifier))
+}
+
 // ListErrors is a helper method used to return the string of errors when
 // the multiError library is used.
 // depends on ConnectorStackErrorTrace
