@@ -5,6 +5,12 @@ import (
 	"io"
 )
 
+const (
+	// TODO: Reduce this when https://github.com/alcionai/corso/issues/124 is closed
+	// and we make channel population async (decouple from collection initialization)
+	collectionChannelBufferSize = 1000
+)
+
 // A DataCollection represents a collection of data of the
 // same type (e.g. mail)
 type DataCollection interface {
@@ -42,7 +48,7 @@ type ExchangeDataCollection struct {
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:     aUser,
-		data:     make(chan ExchangeData),
+		data:     make(chan ExchangeData, collectionChannelBufferSize),
 		FullPath: pathRepresentation,
 	}
 	return collection
