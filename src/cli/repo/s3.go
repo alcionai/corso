@@ -120,10 +120,9 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	// TODO: Merge/Validate any local configuration here to make sure there are no conflicts
 	// For now - just reading/logging the local config here (a successful repo connect will overwrite)
 	localS3Cfg, localAccount, err := config.ReadRepoConfig()
-	if err != nil {
-		return err
+	if err == nil {
+		fmt.Printf("ConfigFile - %s\n\tbucket:\t%s\n\ttenantID:\t%s\n", viper.ConfigFileUsed(), localS3Cfg.Bucket, localAccount.TenantID)
 	}
-	fmt.Printf("ConfigFile - %s\n\tbucket:\t%s\n\ttenantID:\t%s\n", viper.ConfigFileUsed(), localS3Cfg.Bucket, localAccount.TenantID)
 
 	a := repository.Account{
 		TenantID:     m365.TenantID,
