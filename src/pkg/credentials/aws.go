@@ -2,6 +2,8 @@ package credentials
 
 import (
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 // envvar consts
@@ -34,4 +36,18 @@ func GetAWS(override map[string]string) AWS {
 		SecretKey:    secretKey,
 		SessionToken: sessToken,
 	}
+}
+
+func (c AWS) Validate() error {
+	check := map[string]string{
+		AWSAccessKeyID:     c.AccessKey,
+		AWSSecretAccessKey: c.SecretKey,
+		AWSSessionToken:    c.SessionToken,
+	}
+	for k, v := range check {
+		if len(v) == 0 {
+			return errors.Wrap(errMissingRequired, k)
+		}
+	}
+	return nil
 }

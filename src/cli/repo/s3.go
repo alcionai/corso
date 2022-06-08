@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
@@ -55,10 +54,29 @@ var s3InitCmd = &cobra.Command{
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	log := logger.Ctx(cmd.Context())
 
-	m365 := credentials.GetM365()
-	s3Cfg, commonCfg, err := makeS3Config()
+	overrides := map[string]string{
+		credentials.AWSAccessKeyID: accessKey,
+		storage.Bucket:             bucket,
+		storage.Endpoint:           endpoint,
+		storage.Prefix:             prefix,
+	}
+	s, cfgTenantID, err := config.MakeS3Config(false, overrides)
 	if err != nil {
 		return err
+	}
+	s3Cfg, err := s.S3Config()
+	if err != nil {
+		return errors.Wrap(err, "Retrieving s3 configuration")
+	}
+
+	m365 := credentials.GetM365()
+	a := repository.Account{
+		TenantID:     m365.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+	}
+	if len(cfgTenantID) > 0 {
+		a.TenantID = cfgTenantID
 	}
 
 	log.Debugw(
@@ -68,16 +86,6 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		"hasClientSecret", len(m365.ClientSecret) > 0,
 		"accessKey", s3Cfg.AccessKey,
 		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
-
-	a := repository.Account{
-		TenantID:     m365.TenantID,
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-	}
-	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
-	if err != nil {
-		return errors.Wrap(err, "Failed to configure storage provider")
-	}
 
 	r, err := repository.Initialize(cmd.Context(), a, s)
 	if err != nil {
@@ -106,10 +114,29 @@ var s3ConnectCmd = &cobra.Command{
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	log := logger.Ctx(cmd.Context())
 
-	m365 := credentials.GetM365()
-	s3Cfg, commonCfg, err := makeS3Config()
+	overrides := map[string]string{
+		credentials.AWSAccessKeyID: accessKey,
+		storage.Bucket:             bucket,
+		storage.Endpoint:           endpoint,
+		storage.Prefix:             prefix,
+	}
+	s, cfgTenantID, err := config.MakeS3Config(true, overrides)
 	if err != nil {
 		return err
+	}
+	s3Cfg, err := s.S3Config()
+	if err != nil {
+		return errors.Wrap(err, "Retrieving s3 configuration")
+	}
+
+	m365 := credentials.GetM365()
+	a := repository.Account{
+		TenantID:     m365.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+	}
+	if len(cfgTenantID) > 0 {
+		a.TenantID = cfgTenantID
 	}
 
 	log.Debugw(
@@ -119,23 +146,6 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		"hasClientSecret", len(m365.ClientSecret) > 0,
 		"accessKey", s3Cfg.AccessKey,
 		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
-
-	// TODO: Merge/Validate any local configuration here to make sure there are no conflicts
-	// For now - just reading/logging the local config here (a successful repo connect will overwrite)
-	localS3Cfg, localAccount, err := config.ReadRepoConfig()
-	if err == nil {
-		fmt.Printf("ConfigFile - %s\n\tbucket:\t%s\n\ttenantID:\t%s\n", viper.ConfigFileUsed(), localS3Cfg.Bucket, localAccount.TenantID)
-	}
-
-	a := repository.Account{
-		TenantID:     m365.TenantID,
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-	}
-	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, commonCfg)
-	if err != nil {
-		return errors.Wrap(err, "Failed to configure storage provider")
-	}
 
 	r, err := repository.Connect(cmd.Context(), a, s)
 	if err != nil {
@@ -149,26 +159,4 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to write repository configuration")
 	}
 	return nil
-}
-
-// helper for aggregating aws connection details.
-func makeS3Config() (storage.S3Config, storage.CommonConfig, error) {
-	aws := credentials.GetAWS(map[string]string{credentials.AWSAccessKeyID: accessKey})
-	corso := credentials.GetCorso()
-	return storage.S3Config{
-			AWS:      aws,
-			Bucket:   bucket,
-			Endpoint: endpoint,
-			Prefix:   prefix,
-		},
-		storage.CommonConfig{
-			Corso: corso,
-		},
-		utils.RequireProps(map[string]string{
-			credentials.AWSAccessKeyID:     aws.AccessKey,
-			"bucket":                       bucket,
-			credentials.AWSSecretAccessKey: aws.SecretKey,
-			credentials.AWSSessionToken:    aws.SessionToken,
-			credentials.CorsoPassword:      corso.CorsoPassword,
-		})
 }

@@ -24,6 +24,13 @@ const (
 	keyS3SessionToken = "s3_sessionToken"
 )
 
+// config exported name consts
+const (
+	Bucket   = "bucket"
+	Endpoint = "endpoint"
+	Prefix   = "prefix"
+)
+
 func (c S3Config) Config() (config, error) {
 	cfg := config{
 		keyS3AccessKey:    c.AccessKey,
@@ -55,7 +62,7 @@ func (c S3Config) validate() error {
 		credentials.AWSAccessKeyID:     c.AccessKey,
 		credentials.AWSSecretAccessKey: c.SecretKey,
 		credentials.AWSSessionToken:    c.SessionToken,
-		"bucket":                       c.Bucket,
+		Bucket:                         c.Bucket,
 	}
 	for k, v := range check {
 		if len(v) == 0 {
