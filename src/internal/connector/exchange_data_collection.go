@@ -31,7 +31,7 @@ type ExchangeDataCollection struct {
 	user string
 	// TODO: We would want to replace this with a channel so that we
 	// don't need to wait for all data to be retrieved before reading it out
-	data []ExchangeData
+	data chan ExchangeData
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	FullPath []string
@@ -42,25 +42,34 @@ type ExchangeDataCollection struct {
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:     aUser,
-		data:     make([]ExchangeData, 0),
+		data:     make(chan ExchangeData),
 		FullPath: pathRepresentation,
 	}
 	return collection
 }
 
-func (ec *ExchangeDataCollection) PopulateCollection(newData ExchangeData) {
-	ec.data = append(ec.data, newData)
+func (edc *ExchangeDataCollection) PopulateCollection(newData ExchangeData) {
+	edc.data <- newData
 }
-func (ec *ExchangeDataCollection) Length() int {
-	return len(ec.data)
+
+// FinishPopulation is used to indicate data population of the collection is complete
+// TODO: This should be an internal method once we move the message retrieval logic into `ExchangeDataCollection`
+func (edc *ExchangeDataCollection) FinishPopulation() {
+	close(edc.data)
+}
+
+func (edc *ExchangeDataCollection) Length() int {
+	return len(edc.data)
 }
 
 // NextItem returns either the next item in the collection or an error if one occurred.
 // If not more items are available in the collection, returns (nil, nil).
-func (*ExchangeDataCollection) NextItem() (DataStream, error) {
-	// TODO: Return the next "to be read" item in the collection as a
-	// DataStream
-	return nil, nil
+func (edc *ExchangeDataCollection) NextItem() (DataStream, error) {
+	item, ok := <-edc.data
+	if !ok {
+		return nil, io.EOF
+	}
+	return &item, nil
 }
 
 // ExchangeData represents a single item retrieved from exchange
