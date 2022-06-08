@@ -5,16 +5,21 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/mock"
+
+	"github.com/alcionai/corso/internal/connector"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox
 type MockExchangeDataCollection struct {
-	mock.Mock
 	fullPath     []string
 	messageCount int
 	messagesRead int
 }
+
+var (
+	_ connector.DataCollection = &MockExchangeDataCollection{}
+	_ connector.DataStream     = &MockExchangeData{}
+)
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
 // mock messages when iterated
@@ -27,11 +32,13 @@ func NewMockExchangeDataCollection(pathRepresentation []string, numMessagesToRet
 	return collection
 }
 
+func (medc *MockExchangeDataCollection) FullPath() []string {
+	return append([]string{}, medc.fullPath...)
+}
+
 // NextItem returns either the next item in the collection or an error if one occurred.
 // If not more items are available in the collection, returns (nil, nil).
-func (medc *MockExchangeDataCollection) NextItem() (*MockExchangeData, error) {
-	// TODO: Record the call here in the mock framework
-
+func (medc *MockExchangeDataCollection) NextItem() (connector.DataStream, error) {
 	if medc.messagesRead < medc.messageCount {
 		medc.messagesRead++
 		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
