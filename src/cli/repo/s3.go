@@ -5,7 +5,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
+	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
@@ -82,6 +84,10 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
+
+	if err = config.WriteRepoConfig(s3Cfg, a); err != nil {
+		return errors.Wrap(err, "Failed to write repository configuration")
+	}
 	return nil
 }
 
@@ -111,6 +117,14 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		len(m365.ClientSecret) > 0,
 		len(s3Cfg.SecretKey) > 0)
 
+	// TODO: Merge/Validate any local configuration here to make sure there are no conflicts
+	// For now - just reading/logging the local config here (a successful repo connect will overwrite)
+	localS3Cfg, localAccount, err := config.ReadRepoConfig()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("ConfigFile - %s\n\tbucket:\t%s\n\ttenantID:\t%s\n", viper.ConfigFileUsed(), localS3Cfg.Bucket, localAccount.TenantID)
+
 	a := repository.Account{
 		TenantID:     m365.TenantID,
 		ClientID:     m365.ClientID,
@@ -128,6 +142,10 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(cmd.Context(), r)
 
 	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
+
+	if err = config.WriteRepoConfig(s3Cfg, a); err != nil {
+		return errors.Wrap(err, "Failed to write repository configuration")
+	}
 	return nil
 }
 
