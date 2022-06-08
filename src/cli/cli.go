@@ -69,8 +69,7 @@ func Handle() {
 	repo.AddCommands(corsoCmd)
 	backup.AddCommands(corsoCmd)
 
-	ctx, log := logger.Seed(context.Background())
-	defer log.Sync() // flush all logs in the buffer
+	ctx := logger.Seed(context.Background())
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
 		fmt.Println(err)

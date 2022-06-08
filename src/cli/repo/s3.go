@@ -59,13 +59,13 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	log.Debugw(
-		"Called - "+cmd.CommandPath(),
-		"bucket", s3Cfg.Bucket,
-		"clientID", m365.ClientID,
-		"hasClientSecret", len(m365.ClientSecret) > 0,
-		"accessKey", s3Cfg.AccessKey,
-		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
+	log.Debug().
+		Str("bucket", s3Cfg.Bucket).
+		Str("clientID", m365.ClientID).
+		Bool("hasClientSecret", len(m365.ClientSecret) > 0).
+		Str("accessKey", s3Cfg.AccessKey).
+		Bool("hasSecretKey", len(s3Cfg.SecretKey) > 0).
+		Msg("Called - " + cmd.CommandPath())
 
 	a := repository.Account{
 		TenantID:     m365.TenantID,
@@ -106,13 +106,13 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	log.Debugw(
-		"Called - "+cmd.CommandPath(),
-		"bucket", s3Cfg.Bucket,
-		"clientID", m365.ClientID,
-		"hasClientSecret", len(m365.ClientSecret) > 0,
-		"accessKey", s3Cfg.AccessKey,
-		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
+	log.Debug().
+		Str("bucket", s3Cfg.Bucket).
+		Str("clientID", m365.ClientID).
+		Bool("hasClientSecret", len(m365.ClientSecret) > 0).
+		Str("accessKey", s3Cfg.AccessKey).
+		Bool("hasSecretKey", len(s3Cfg.SecretKey) > 0).
+		Msg("Called - " + cmd.CommandPath())
 
 	a := repository.Account{
 		TenantID:     m365.TenantID,
