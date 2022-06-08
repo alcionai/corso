@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/cli/backup"
+	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/repo"
 )
 
@@ -31,19 +32,8 @@ func init() {
 }
 
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-
-		// Search config in home directory with name ".corso" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigType("toml")
-		viper.SetConfigName(".corso")
-	}
+	err := config.InitConfig(cfgFile)
+	cobra.CheckErr(err)
 
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())

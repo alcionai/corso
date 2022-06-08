@@ -1,6 +1,10 @@
 package config
 
 import (
+	"os"
+	"path"
+	"strings"
+
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 	"github.com/pkg/errors"
@@ -17,6 +21,40 @@ const (
 	// M365 config
 	TenantIDKey = "tenantid"
 )
+
+func InitConfig(configFilePath string) error {
+	// Configure default config file location
+	if configFilePath == "" {
+		// Find home directory.
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+
+		// Search config in home directory with name ".corso" (without extension).
+		viper.AddConfigPath(home)
+		viper.SetConfigType("toml")
+		viper.SetConfigName(".corso")
+		return nil
+	}
+	// Use a custom file location
+
+	viper.SetConfigFile(configFilePath)
+	// We also configure the path, type and filename
+	// because `viper.SafeWriteConfig` needs these set to
+	// work correctly (it does not use the configured file)
+	viper.AddConfigPath(path.Dir(configFilePath))
+
+	fileName := path.Base(configFilePath)
+	ext := path.Ext(configFilePath)
+	if len(ext) == 0 {
+		return errors.New("config file requires an extension e.g. `toml`")
+	}
+	fileName = strings.TrimSuffix(fileName, ext)
+	viper.SetConfigType(ext[1:])
+	viper.SetConfigName(fileName)
+	return nil
+}
 
 // WriteRepoConfig currently just persists corso config to the config file
 // It does not check for conflicts or existing data.
