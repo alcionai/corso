@@ -11,6 +11,11 @@ type DataCollection interface {
 	// Returns either the next item in the collection or an error if one occurred.
 	// If not more items are available in the collection, returns (nil, nil).
 	NextItem() (DataStream, error)
+	// FullPath returns a slice of strings that act as metadata tags for this
+	// DataCollection. Returned items should be ordered from most generic to least
+	// generic. For example, a DataCollection for emails from a specific user
+	// would be {"<tenant id>", "<user ID>", "emails"}.
+	FullPath() []string
 }
 
 // DataStream represents a single item within a DataCollection
@@ -32,9 +37,9 @@ type ExchangeDataCollection struct {
 	// TODO: We would want to replace this with a channel so that we
 	// don't need to wait for all data to be retrieved before reading it out
 	data []ExchangeData
-	// FullPath is the slice representation of the action context passed down through the hierarchy.
+	// fullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
-	FullPath []string
+	fullPath []string
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection where
@@ -43,7 +48,7 @@ func NewExchangeDataCollection(aUser string, pathRepresentation []string) Exchan
 	collection := ExchangeDataCollection{
 		user:     aUser,
 		data:     make([]ExchangeData, 0),
-		FullPath: pathRepresentation,
+		fullPath: pathRepresentation,
 	}
 	return collection
 }
@@ -61,6 +66,10 @@ func (*ExchangeDataCollection) NextItem() (DataStream, error) {
 	// TODO: Return the next "to be read" item in the collection as a
 	// DataStream
 	return nil, nil
+}
+
+func (ec *ExchangeDataCollection) FullPath() []string {
+	return append([]string{}, ec.fullPath...)
 }
 
 // ExchangeData represents a single item retrieved from exchange
