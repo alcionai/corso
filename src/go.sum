@@ -46,8 +46,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go v0.4.0 h1:WVsrXCnHlDD
 github.com/AzureAD/microsoft-authentication-library-for-go v0.4.0/go.mod h1:Vt9sXTKwMyGcOxSmLDMnGPgqsUg7m8pe215qMLrDXw4=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/alcionai/kopia v0.10.8-0.20220607234106-0f8c05920609 h1:0dgo24vmvgmVmQVOHE6AEk92VfTXShA0Dp8rlL3lj48=
-github.com/alcionai/kopia v0.10.8-0.20220607234106-0f8c05920609/go.mod h1:YIPrX6aoIf7IoCgMNgSOBcLmhIaLdYZaCfsrHbd0+A8=
+github.com/alcionai/kopia v0.10.8-0.20220608160435-3f67752c8352 h1:a3Zs5dr8Cf8VpsbzuLkj9/ey3/d8RLAmvz9S2fneJWE=
+github.com/alcionai/kopia v0.10.8-0.20220608160435-3f67752c8352/go.mod h1:YIPrX6aoIf7IoCgMNgSOBcLmhIaLdYZaCfsrHbd0+A8=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
