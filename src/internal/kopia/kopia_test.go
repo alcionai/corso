@@ -69,7 +69,7 @@ func (suite *KopiaIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 	timeOfTest := ctesting.LogTimeOfTest(suite.T())
 
 	k, err := openKopiaRepo(ctx, "init-s3-"+timeOfTest)
-	assert.NoError(suite.T(), err)
+	require.NoError(suite.T(), err)
 	assert.NoError(suite.T(), k.Close(ctx))
 	assert.Nil(suite.T(), k.rep)
 	assert.NoError(suite.T(), k.Close(ctx))
@@ -80,7 +80,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	timeOfTest := ctesting.LogTimeOfTest(suite.T())
 
 	k, err := openKopiaRepo(ctx, "init-s3-"+timeOfTest)
-	assert.NoError(suite.T(), err)
+	require.NoError(suite.T(), err)
 	defer func() {
 		assert.NoError(suite.T(), k.Close(ctx))
 	}()
