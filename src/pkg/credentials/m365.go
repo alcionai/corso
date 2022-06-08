@@ -1,6 +1,10 @@
 package credentials
 
-import "os"
+import (
+	"os"
+
+	"github.com/pkg/errors"
+)
 
 // envvar consts
 const (
@@ -25,4 +29,18 @@ func GetM365() M365 {
 		ClientSecret: os.Getenv(ClientSecret),
 		TenantID:     os.Getenv(TenantID),
 	}
+}
+
+func (c M365) Validate() error {
+	check := map[string]string{
+		ClientID:     c.ClientID,
+		ClientSecret: c.ClientSecret,
+		TenantID:     c.TenantID,
+	}
+	for k, v := range check {
+		if len(v) == 0 {
+			return errors.Wrap(errMissingRequired, k)
+		}
+	}
+	return nil
 }

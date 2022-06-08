@@ -2,11 +2,12 @@ package operations
 
 import (
 	"context"
-	"errors"
 	"time"
 
-	"github.com/alcionai/corso/internal/kopia"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/internal/kopia"
 )
 
 type opStatus int
@@ -28,9 +29,6 @@ type operation struct {
 	options OperationOpts
 	kopia   *kopia.KopiaWrapper
 
-	// TODO(rkeepers) deal with circular dependencies here
-	// graphConn    GraphConnector  // m365 details
-
 	Status opStatus
 	Errors []error
 }
@@ -47,7 +45,10 @@ type OperationOpts struct {
 	Logger logger
 }
 
-func newOperation(opts OperationOpts, kw *kopia.KopiaWrapper) operation {
+func newOperation(
+	opts OperationOpts,
+	kw *kopia.KopiaWrapper,
+) operation {
 	return operation{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),

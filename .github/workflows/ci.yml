@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   Run-All:
+    environment: Testing
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,4 +51,7 @@ jobs:
         env:
           CORSO_CI_TESTS: true 
           CORSO_PASSWORD: ${{ secrets.INTEGRATION_TEST_CORSO_PASSWORD }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          TENANT_ID: ${{ secrets.TENANT_ID }}
         run: go test ./...

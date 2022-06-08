@@ -3,9 +3,10 @@ package operations
 import (
 	"testing"
 
-	"github.com/alcionai/corso/internal/kopia"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/kopia"
 )
 
 type OperationSuite struct {
@@ -24,12 +25,13 @@ func (suite *OperationSuite) TestNewOperation() {
 }
 
 func (suite *OperationSuite) TestOperation_Validate() {
+	kwStub := &kopia.KopiaWrapper{}
 	table := []struct {
 		name     string
 		kw       *kopia.KopiaWrapper
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", new(kopia.KopiaWrapper), assert.NoError},
+		{"good", kwStub, assert.NoError},
 		{"missing kopia", nil, assert.Error},
 	}
 	for _, test := range table {
