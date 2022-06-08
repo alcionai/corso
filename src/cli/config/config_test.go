@@ -58,31 +58,13 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	err := config.InitConfig(testConfigFilePath)
 	assert.NoError(suite.T(), err)
 
-	table := []struct {
-		name          string
-		s3Cfg         storage.S3Config
-		account       repository.Account
-		writeErrCheck assert.ErrorAssertionFunc
-		readErrCheck  assert.ErrorAssertionFunc
-	}{
-		{
-			name:          "good",
-			s3Cfg:         storage.S3Config{Bucket: "bucket"},
-			account:       repository.Account{TenantID: "6f34ac30-8196-469b-bf8f-d83deadbbbbd"},
-			writeErrCheck: assert.NoError,
-			readErrCheck:  assert.NoError,
-		},
-	}
-	for _, test := range table {
-		err := config.WriteRepoConfig(test.s3Cfg, test.account)
-		test.writeErrCheck(suite.T(), err)
+	s3Cfg := storage.S3Config{Bucket: "bucket"}
+	account := repository.Account{TenantID: "6f34ac30-8196-469b-bf8f-d83deadbbbbd"}
+	err = config.WriteRepoConfig(s3Cfg, account)
+	assert.NoError(suite.T(), err)
 
-		if err != nil {
-			break
-		}
-		readS3Cfg, readAccount, err := config.ReadRepoConfig()
-		test.readErrCheck(suite.T(), err)
-		assert.Equal(suite.T(), test.s3Cfg, readS3Cfg)
-		assert.Equal(suite.T(), test.account, readAccount)
-	}
+	readS3Cfg, readAccount, err := config.ReadRepoConfig()
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), s3Cfg, readS3Cfg)
+	assert.Equal(suite.T(), account, readAccount)
 }
