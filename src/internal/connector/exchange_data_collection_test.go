@@ -25,3 +25,11 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader() {
 	buf.ReadFrom(ed.ToReader())
 	assert.Equal(suite.T(), buf.Bytes(), m)
 }
+
+func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
+	user := "a-user"
+	fullPath := []string{"a-tenant", user, "emails"}
+	edc := NewExchangeDataCollection(user, fullPath)
+
+	assert.Equal(suite.T(), edc.FullPath(), fullPath)
+}
