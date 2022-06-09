@@ -55,16 +55,21 @@ func (bo BackupOperation) validate() error {
 
 // Run begins a synchronous backup operation.
 func (bo BackupOperation) Run(ctx context.Context) error {
-	_, err := connector.NewGraphConnector(bo.creds.TenantID, bo.creds.ClientID, bo.creds.ClientSecret)
+	gc, err := connector.NewGraphConnector(bo.creds.TenantID, bo.creds.ClientID, bo.creds.ClientSecret)
 	if err != nil {
 		return errors.Wrap(err, "connecting to graph api")
 	}
 
-	// todo - use the graphConnector to create datastreams
-	// dStreams, err := bo.gc.BackupOp(bo.Targets)
+	c, err := gc.ExchangeDataCollection(bo.Targets[0])
+	if err != nil {
+		return errors.Wrap(err, "retrieving application data")
+	}
 
-	// todo - send backup write request to BackupWriter
-	// err = kopia.BackupWriter(ctx, bo.gc.TenantID, wg, prog, dStreams...)
+	// todo: utilize stats
+	_, err = bo.kopia.BackupCollections(ctx, []connector.DataCollection{c})
+	if err != nil {
+		return errors.Wrap(err, "backing up application data")
+	}
 
 	bo.Status = Successful
 	return nil
