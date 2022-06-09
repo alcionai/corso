@@ -233,7 +233,7 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 	dc.FinishPopulation()
 	var errs error
 	if len(errorList) > 0 {
-		errs = errors.New(ConvertErrorList(errorList))
+		// errs = errors.New(ConvertErrorList(errorList))
 	}
 	return &dc, errs
 }
