@@ -29,7 +29,7 @@ func (suite *SourceSuite) TestSource_AddUsers() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			s := source.NewSource(source.AppUnknown)
+			s := source.NewSource(source.ServiceUnknown)
 			err := s.AddUsers(test.uids...)
 			test.errCheck(t, err)
 		})
@@ -39,7 +39,7 @@ func (suite *SourceSuite) TestSource_AddUsers() {
 func (suite *SourceSuite) TestSource_Users() {
 	t := suite.T()
 
-	s := source.NewSource(source.AppExchange)
+	s := source.NewSource(source.ServiceExchange)
 	assert.NoError(t, s.AddUsers())
 	us := s.Users()
 	assert.Zero(t, len(us))

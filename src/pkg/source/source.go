@@ -1,22 +1,22 @@
 package source
 
-type applicationType int
+type service int
 
-//go:generate stringer -type=storageProvider -linecomment
+//go:generate stringer -type=service -linecomment
 const (
-	AppUnknown  applicationType = iota // Unknown Application
-	AppExchange                        // Exchange
+	ServiceUnknown  service = iota // Unknown Service
+	ServiceExchange                // Exchange
 )
 
 type Source struct {
-	App     applicationType
+	Service service
 	userIDs []string
 }
 
 // Creates a new source for the given application.
-func NewSource(app applicationType) *Source {
+func NewSource(s service) *Source {
 	return &Source{
-		App: app,
+		Service: s,
 	}
 }
 
@@ -24,7 +24,7 @@ func NewSource(app applicationType) *Source {
 // Data retrieval will be scoped to include the unioned
 // set of specified users.
 func (s *Source) AddUsers(uids ...string) error {
-	// future todo: not all applications support users.
+	// future todo: not all services identify users.
 	// this should error when users are added in that context.
 	if s.userIDs == nil {
 		s.userIDs = []string{}

@@ -69,7 +69,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
-	src := source.NewSource(source.AppExchange)
+	src := source.NewSource(source.ServiceExchange)
 	err = src.AddUsers(user)
 	if err != nil {
 		return errors.Wrap(err, "Failed to configure backup data source")
