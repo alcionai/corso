@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
+	"github.com/pkg/errors"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -59,7 +60,6 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers() error {
 	selecting := []string{"id, mail"}
-	var consolidated error
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -71,28 +71,28 @@ func (gc *GraphConnector) setTenantUsers() error {
 		return err
 	}
 	if response == nil {
-		consolidated = WrapAndAppend("general access", fmt.Errorf("connector failed: No access"), consolidated)
-		return consolidated
+		err = WrapAndAppend("general access", errors.New("connector failed: No access"), err)
+		return err
 	}
 	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return err
 	}
-	var hasFailed error
+	var iterateError error
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			consolidated = WrapAndAppend(gc.adapter.GetBaseUrl(), fmt.Errorf("user iteration failure"), consolidated)
+			err = WrapAndAppend(gc.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
 		return true
 	}
-	hasFailed = userIterator.Iterate(callbackFunc)
-	if hasFailed != nil {
-		consolidated = WrapAndAppend(gc.adapter.GetBaseUrl(), hasFailed, consolidated)
+	iterateError = userIterator.Iterate(callbackFunc)
+	if iterateError != nil {
+		err = WrapAndAppend(gc.adapter.GetBaseUrl(), iterateError, err)
 	}
-	return consolidated
+	return err
 }
 
 // GetUsers returns the email address of users within tenant.
@@ -155,33 +155,32 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		return nil, fmt.Errorf("unable to access folders for %s", user)
 	}
 	folderList := make([]string, 0)
-	var consolidatedError error
 	for _, folderable := range response.GetValue() {
 		folderList = append(folderList, *folderable.GetId())
 	}
 	// Time to create Exchange data Holder
 	var byteArray []byte
-	var iterateError error
 	for _, aFolder := range folderList {
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
 		if err != nil {
-			consolidatedError = WrapAndAppend(user, err, consolidatedError)
+			err = WrapAndAppend(user, err, err)
 		}
 		if result == nil {
-			consolidatedError = WrapAndAppend(user, fmt.Errorf("nil response on message query, folder: %s", aFolder), consolidatedError)
+			err = WrapAndAppend(user, fmt.Errorf("nil response on message query, folder: %s", aFolder), err)
 			continue
 		}
 
 		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 		if err != nil {
-			consolidatedError = WrapAndAppend(user, fmt.Errorf("iterator failed initialization: %v", err), consolidatedError)
+			err = WrapAndAppend(user, fmt.Errorf("iterator failed initialization: %v", err), err)
+			continue
 		}
 		objectWriter := kw.NewJsonSerializationWriter()
 
 		callbackFunc := func(messageItem interface{}) bool {
 			message, ok := messageItem.(models.Messageable)
 			if !ok {
-				consolidatedError = WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), consolidatedError)
+				err = WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), err)
 				return true
 			}
 			if *message.GetHasAttachments() {
@@ -190,19 +189,18 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 					message.SetAttachments(attached.GetValue())
 				}
 				if err != nil {
-					consolidatedError = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), consolidatedError)
+					err = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), err)
 				}
 			}
-
 			err = objectWriter.WriteObjectValue("", message)
 			if err != nil {
-				consolidatedError = WrapAndAppend(*message.GetId(), err, consolidatedError)
+				err = WrapAndAppend(*message.GetId(), err, err)
 				return true
 			}
 			byteArray, err = objectWriter.GetSerializedContent()
 			objectWriter.Close()
 			if err != nil {
-				consolidatedError = WrapAndAppend(*message.GetId(), err, consolidatedError)
+				err = WrapAndAppend(*message.GetId(), err, err)
 				return true
 			}
 			if byteArray != nil {
@@ -210,14 +208,14 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 			}
 			return true
 		}
-		iterateError = pageIterator.Iterate(callbackFunc)
+		iterateError := pageIterator.Iterate(callbackFunc)
 
 		if iterateError != nil {
-			consolidatedError = WrapAndAppend(user, err, consolidatedError)
+			err = WrapAndAppend(user, err, err)
 		}
 	}
 	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.Length())
-	fmt.Printf("Errors: \n%s\n", consolidatedError.Error())
+	fmt.Printf("Errors: \n%s\n", err.Error())
 	dc.FinishPopulation()
-	return &dc, consolidatedError
+	return &dc, err
 }
