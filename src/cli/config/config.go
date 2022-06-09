@@ -98,10 +98,6 @@ func ReadRepoConfig() (s3Config storage.S3Config, account repository.Account, er
 // MakeS3Config creates a storage instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) in the config.
 func MakeS3Config(readFromFile bool, overrides map[string]string) (storage.Storage, string, error) {
-	if overrides == nil {
-		overrides = map[string]string{}
-	}
-
 	var (
 		s3Cfg   storage.S3Config
 		account repository.Account
