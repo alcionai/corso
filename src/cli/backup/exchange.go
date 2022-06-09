@@ -6,10 +6,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
-	"github.com/alcionai/corso/pkg/storage"
 )
 
 // exchange bucket info from flags
@@ -40,24 +40,27 @@ var exchangeCreateCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func createExchangeCmd(cmd *cobra.Command, args []string) error {
+	s, cfgTenantID, err := config.MakeS3Config(true, nil)
+	if err != nil {
+		return err
+	}
+
 	m365 := credentials.GetM365()
+	a := repository.Account{
+		TenantID:     m365.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+	}
+	if len(cfgTenantID) > 0 {
+		a.TenantID = cfgTenantID
+	}
+
 	fmt.Printf(
 		"Called - %s\n\t365TenantID:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n",
 		cmd.CommandPath(),
 		m365.TenantID,
 		m365.ClientID,
 		len(m365.ClientSecret) > 0)
-
-	a := repository.Account{
-		TenantID:     m365.TenantID,
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-	}
-	// todo (rkeepers) - retrieve storage details from corso config
-	s, err := storage.NewStorage(storage.ProviderUnknown)
-	if err != nil {
-		return errors.Wrap(err, "Failed to configure storage provider")
-	}
 
 	r, err := repository.Connect(cmd.Context(), a, s)
 	if err != nil {

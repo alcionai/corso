@@ -6,12 +6,13 @@ import (
 	"path"
 	"testing"
 
-	"github.com/alcionai/corso/cli/config"
-	"github.com/alcionai/corso/pkg/repository"
-	"github.com/alcionai/corso/pkg/storage"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/pkg/storage"
 )
 
 const (
@@ -34,7 +35,7 @@ func TestConfigSuite(t *testing.T) {
 
 func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	// Generate test config file
-	b := "test-bucket"
+	b := "read-repo-config-basic-bucket"
 	tID := "6f34ac30-8196-469b-bf8f-d83deadbbbba"
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID)
 	testConfigFilePath := path.Join(suite.T().TempDir(), "corso.toml")
@@ -58,7 +59,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	err := config.InitConfig(testConfigFilePath)
 	assert.NoError(suite.T(), err)
 
-	s3Cfg := storage.S3Config{Bucket: "bucket"}
+	s3Cfg := storage.S3Config{Bucket: "write-read-config-bucket"}
 	account := repository.Account{TenantID: "6f34ac30-8196-469b-bf8f-d83deadbbbbd"}
 	err = config.WriteRepoConfig(s3Cfg, account)
 	assert.NoError(suite.T(), err)

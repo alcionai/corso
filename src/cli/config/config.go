@@ -5,6 +5,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 	"github.com/pkg/errors"
@@ -91,4 +93,71 @@ func ReadRepoConfig() (s3Config storage.S3Config, account repository.Account, er
 	account.TenantID = viper.GetString(TenantIDKey)
 
 	return s3Config, account, nil
+}
+
+// MakeS3Config creates a storage instance by mediating all the possible
+// data sources (config file, env vars, flag overrides) in the config.
+func MakeS3Config(readFromFile bool, overrides map[string]string) (storage.Storage, string, error) {
+	var (
+		s3Cfg   storage.S3Config
+		account repository.Account
+		err     error
+	)
+
+	// possibly read the prior config from a .corso file
+	if readFromFile {
+		s3Cfg, account, err = ReadRepoConfig()
+		if err != nil {
+			return storage.Storage{}, "", errors.Wrap(err, "reading corso config file")
+		}
+	}
+
+	// compose the s3 storage config and credentials
+	aws := credentials.GetAWS(overrides)
+	if err := aws.Validate(); err != nil {
+		return storage.Storage{}, "", errors.Wrap(err, "validating aws credentials")
+	}
+	s3Cfg = storage.S3Config{
+		AWS:      aws,
+		Bucket:   first(overrides[storage.Bucket], s3Cfg.Bucket),
+		Endpoint: first(overrides[storage.Endpoint], s3Cfg.Endpoint),
+		Prefix:   first(overrides[storage.Prefix], s3Cfg.Prefix),
+	}
+
+	// compose the common config and credentials
+	corso := credentials.GetCorso()
+	if err := corso.Validate(); err != nil {
+		return storage.Storage{}, "", errors.Wrap(err, "validating corso credentials")
+	}
+	cCfg := storage.CommonConfig{
+		Corso: corso,
+	}
+
+	// ensure requried properties are present
+	if err := utils.RequireProps(map[string]string{
+		credentials.AWSAccessKeyID:     aws.AccessKey,
+		storage.Bucket:                 s3Cfg.Bucket,
+		credentials.AWSSecretAccessKey: aws.SecretKey,
+		credentials.AWSSessionToken:    aws.SessionToken,
+		credentials.CorsoPassword:      corso.CorsoPassword,
+	}); err != nil {
+		return storage.Storage{}, "", err
+	}
+
+	// return a complete storage
+	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, cCfg)
+	if err != nil {
+		return storage.Storage{}, "", errors.Wrap(err, "configuring repository storage")
+	}
+	return s, account.TenantID, nil
+}
+
+// returns the first non-zero valued string
+func first(vs ...string) string {
+	for _, v := range vs {
+		if len(v) > 0 {
+			return v
+		}
+	}
+	return ""
 }
