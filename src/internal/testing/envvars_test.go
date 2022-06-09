@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -21,23 +22,23 @@ func (suite EnvvarsTestSuite) TestRunOnAny() {
 	table := []struct {
 		name     string
 		param    string
-		expected bool
+		function assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "Valid Environment",
 			param:    "Foo",
-			expected: true,
+			function: assert.NoError,
 		},
 		{
 			name:     "Invalid Environment",
 			param:    "bar",
-			expected: false,
+			function: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			result := RunOnAny(test.param)
-			suite.Equal((result == nil), test.expected)
+			test.function(suite.T(), result)
 		})
 	}
 }
