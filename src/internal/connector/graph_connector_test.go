@@ -18,9 +18,8 @@ type GraphConnectorIntegrationSuite struct {
 
 func TestGraphConnectorSuite(t *testing.T) {
 	if err := ctesting.RunOnAny(
-		"TENANT_ID",
-		"CLIENT_ID",
-		"CLIENT_SECRET",
+		ctesting.CorsoCITests,
+		ctesting.CorsoGraphConnectorTests,
 	); err != nil {
 		t.Skip(err)
 	}
