@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"io"
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
@@ -26,9 +27,10 @@ const (
 )
 
 var (
-	errInit         = errors.New("initializing repo")
-	errConnect      = errors.New("connecting repo")
-	errNotConnected = errors.New("not connected to repo")
+	errInit           = errors.New("initializing repo")
+	errConnect        = errors.New("connecting repo")
+	errNotConnected   = errors.New("not connected to repo")
+	errUnsupportedDir = errors.New("unsupported static children in streaming directory")
 )
 
 type BackupStats struct {
@@ -160,9 +162,145 @@ func (kw *KopiaWrapper) open(ctx context.Context, password string) error {
 	return nil
 }
 
+// getStreamItemFunc returns a function that can be used by kopia's
+// virtualfs.StreamingDirectory to iterate through directory entries and call
+// kopia callbacks on directory entries. It binds the directory to the given
+// DataCollection.
+func getStreamItemFunc(
+	collection connector.DataCollection,
+) func(context.Context, func(context.Context, fs.Entry) error) error {
+	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
+		for {
+			e, err := collection.NextItem()
+			if err != nil {
+				if err == io.EOF {
+					return nil
+				}
+
+				return errors.Wrap(err, "materializing directory entry")
+			}
+
+			entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
+			if err = cb(ctx, entry); err != nil {
+				return errors.Wrap(err, "executing callback")
+			}
+		}
+	}
+}
+
+// buildKopiaDirs recursively builds a directory hierarchy from the roots up.
+// Returned directories are either virtualfs.StreamingDirectory or
+// virtualfs.staticDirectory.
+func buildKopiaDirs(dirName string, dir *treeMap) (fs.Directory, error) {
+	// Don't support directories that have both a DataCollection and a set of
+	// static child directories.
+	if dir.collection != nil && len(dir.childDirs) > 0 {
+		return nil, errors.New(errUnsupportedDir.Error())
+	}
+
+	if dir.collection != nil {
+		return virtualfs.NewStreamingDirectory(dirName, getStreamItemFunc(dir.collection)), nil
+	}
+
+	// Need to build the directory tree from the leaves up because intermediate
+	// directories need to have all their entries at creation time.
+	childDirs := []fs.Entry{}
+
+	for childName, childDir := range dir.childDirs {
+		child, err := buildKopiaDirs(childName, childDir)
+		if err != nil {
+			return nil, err
+		}
+
+		childDirs = append(childDirs, child)
+	}
+
+	return virtualfs.NewStaticDirectory(dirName, childDirs), nil
+}
+
+type treeMap struct {
+	childDirs  map[string]*treeMap
+	collection connector.DataCollection
+}
+
+func newTreeMap() *treeMap {
+	return &treeMap{
+		childDirs: map[string]*treeMap{},
+	}
+}
+
+// inflateDirTree returns an fs.Directory tree rooted at the oldest common
+// ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
+// in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
+// DataCollections.
 func inflateDirTree(ctx context.Context, collections []connector.DataCollection) (fs.Directory, error) {
-	// TODO(ashmrtnz): Implement when virtualfs.StreamingDirectory is available.
-	return virtualfs.NewStaticDirectory("sample-dir", []fs.Entry{}), nil
+	roots := make(map[string]*treeMap)
+
+	for _, s := range collections {
+		path := s.FullPath()
+
+		if len(path) == 0 {
+			return nil, errors.New("no identifier for collection")
+		}
+
+		dir, ok := roots[path[0]]
+		if !ok {
+			dir = newTreeMap()
+			roots[path[0]] = dir
+		}
+
+		// Single DataCollection with no ancestors.
+		if len(path) == 1 {
+			dir.collection = s
+			continue
+		}
+
+		for _, p := range path[1 : len(path)-1] {
+			newDir, ok := dir.childDirs[p]
+			if !ok {
+				newDir = newTreeMap()
+
+				if dir.childDirs == nil {
+					dir.childDirs = map[string]*treeMap{}
+				}
+
+				dir.childDirs[p] = newDir
+			}
+
+			dir = newDir
+		}
+
+		// At this point we have all the ancestor directories of this DataCollection
+		// as treeMap objects and `dir` is the parent directory of this
+		// DataCollection.
+
+		end := len(path) - 1
+
+		// Make sure this entry doesn't already exist.
+		if _, ok := dir.childDirs[path[end]]; ok {
+			return nil, errors.New(errUnsupportedDir.Error())
+		}
+
+		sd := newTreeMap()
+		sd.collection = s
+		dir.childDirs[path[end]] = sd
+	}
+
+	if len(roots) > 1 {
+		return nil, errors.New("multiple root directories")
+	}
+
+	var res fs.Directory
+	for dirName, dir := range roots {
+		tmp, err := buildKopiaDirs(dirName, dir)
+		if err != nil {
+			return nil, err
+		}
+
+		res = tmp
+	}
+
+	return res, nil
 }
 
 func (kw KopiaWrapper) BackupCollections(
