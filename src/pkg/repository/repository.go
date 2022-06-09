@@ -13,14 +13,6 @@ import (
 	"github.com/alcionai/corso/pkg/storage"
 )
 
-type repoProvider int
-
-//go:generate stringer -type=repoProvider
-const (
-	ProviderUnknown repoProvider = iota // Unknown Provider
-	ProviderS3                          // S3
-)
-
 // Repository contains storage provider information.
 type Repository struct {
 	ID        uuid.UUID

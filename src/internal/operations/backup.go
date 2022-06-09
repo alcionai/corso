@@ -19,9 +19,6 @@ type BackupOperation struct {
 
 	Targets []string // something for targets/filter/source/app&users/etc
 	Work    []string // something to reference the artifacts created, or at least their count
-
-	// todo - graphConnector data streams
-	// dataStreams  []*DataStream
 }
 
 // NewBackupOperation constructs and validates a backup operation.
