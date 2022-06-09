@@ -149,12 +149,10 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 	table := []struct {
 		name   string
-		err    error
 		layout []connector.DataCollection
 	}{
 		{
 			"MultipleRoots",
-			errDirRoots,
 			// Directory structure would look like:
 			// - user1
 			//   - emails
@@ -175,7 +173,6 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		},
 		{
 			"NoCollectionPath",
-			errStreamID,
 			[]connector.DataCollection{
 				mockconnector.NewMockExchangeDataCollection(
 					nil,
@@ -185,7 +182,6 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		},
 		{
 			"MixedDirectory",
-			errMixedDir,
 			// Directory structure would look like (but should return error):
 			// - a-tenant
 			//   - user1
@@ -210,7 +206,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := inflateDirTree(ctx, test.layout)
-			assert.ErrorIs(t, err, test.err)
+			assert.Error(t, err)
 		})
 	}
 }

@@ -27,12 +27,10 @@ const (
 )
 
 var (
-	errInit         = errors.New("initializing repo")
-	errConnect      = errors.New("connecting repo")
-	errNotConnected = errors.New("not connected to repo")
-	errStreamID     = errors.New("no identifier for collection")
-	errDirRoots     = errors.New("multiple root directories")
-	errMixedDir     = errors.New("unsupported static children in streaming directory")
+	errInit           = errors.New("initializing repo")
+	errConnect        = errors.New("connecting repo")
+	errNotConnected   = errors.New("not connected to repo")
+	errUnsupportedDir = errors.New("unsupported static children in streaming directory")
 )
 
 type BackupStats struct {
@@ -184,7 +182,7 @@ func getStreamItemFunc(
 
 			entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
 			if err = cb(ctx, entry); err != nil {
-				return err
+				return errors.Wrap(err, "executing callback")
 			}
 		}
 	}
@@ -197,7 +195,7 @@ func buildKopiaDirs(dirName string, dir *treeMap) (fs.Directory, error) {
 	// Don't support directories that have both a DataCollection and a set of
 	// static child directories.
 	if dir.collection != nil && len(dir.childDirs) > 0 {
-		return nil, errMixedDir
+		return nil, errors.New(errUnsupportedDir.Error())
 	}
 
 	if dir.collection != nil {
@@ -242,7 +240,7 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 		path := s.FullPath()
 
 		if len(path) == 0 {
-			return nil, errStreamID
+			return nil, errors.New("no identifier for collection")
 		}
 
 		dir, ok := roots[path[0]]
@@ -280,7 +278,7 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 
 		// Make sure this entry doesn't already exist.
 		if _, ok := dir.childDirs[path[end]]; ok {
-			return nil, errMixedDir
+			return nil, errors.New(errUnsupportedDir.Error())
 		}
 
 		sd := newTreeMap()
@@ -289,7 +287,7 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 	}
 
 	if len(roots) > 1 {
-		return nil, errDirRoots
+		return nil, errors.New("multiple root directories")
 	}
 
 	var res fs.Directory
