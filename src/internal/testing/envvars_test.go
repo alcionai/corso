@@ -13,12 +13,12 @@ type EnvvarsTestSuite struct {
 }
 
 func TestEnvvarsSuite(t *testing.T) {
-	os.Setenv("Foo", "1")
 	suite.Run(t, new(EnvvarsTestSuite))
 }
 
 func (suite EnvvarsTestSuite) TestRunOnAny() {
-
+	env_variable := "TEST_ENVVARS_SUITE"
+	os.Setenv(env_variable, "1")
 	table := []struct {
 		name     string
 		param    string
@@ -26,7 +26,7 @@ func (suite EnvvarsTestSuite) TestRunOnAny() {
 	}{
 		{
 			name:     "Valid Environment",
-			param:    "Foo",
+			param:    env_variable,
 			function: assert.NoError,
 		},
 		{
@@ -41,4 +41,5 @@ func (suite EnvvarsTestSuite) TestRunOnAny() {
 			test.function(suite.T(), result)
 		})
 	}
+	os.Unsetenv(env_variable)
 }
