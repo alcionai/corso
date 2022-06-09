@@ -3,7 +3,6 @@
 package connector
 
 import (
-	"errors"
 	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -60,7 +59,7 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers() error {
 	selecting := []string{"id, mail"}
-	errorList := make([]error, 0)
+	var consolidated error
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -72,7 +71,8 @@ func (gc *GraphConnector) setTenantUsers() error {
 		return err
 	}
 	if response == nil {
-		return errors.New("connector unable to complete queries. Verify credentials")
+		consolidated = WrapAndAppend("general access", fmt.Errorf("connector failed: No access"), consolidated)
+		return consolidated
 	}
 	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
@@ -82,28 +82,17 @@ func (gc *GraphConnector) setTenantUsers() error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			errorList = append(errorList, errors.New("unable to iterable to user"))
+			consolidated = WrapAndAppend(gc.adapter.GetBaseUrl(), fmt.Errorf("user iteration failure"), consolidated)
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
 		return true
 	}
 	hasFailed = userIterator.Iterate(callbackFunc)
-	if len(errorList) > 0 {
-		return errors.New(ConvertErrorList(errorList))
+	if hasFailed != nil {
+		consolidated = WrapAndAppend(gc.adapter.GetBaseUrl(), hasFailed, consolidated)
 	}
-	return hasFailed
-}
-
-// ConvertsErrorList takes a list of errors and converts returns
-// a string
-// TODO: Place in error package after merged
-func ConvertErrorList(errorList []error) string {
-	errorLog := ""
-	for idx, err := range errorList {
-		errorLog = errorLog + fmt.Sprintf("Error# %d\t%v\n", idx, err)
-	}
-	return errorLog
+	return consolidated
 }
 
 // GetUsers returns the email address of users within tenant.
