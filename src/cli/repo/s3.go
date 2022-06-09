@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -52,20 +53,21 @@ var s3InitCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) error {
+	log := logger.Ctx(cmd.Context())
+
 	m365 := credentials.GetM365()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf(
-		"Called - %s\n\tbucket:\t%s\n\tkey:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n\tfound awsSecret:\t%v\n",
-		cmd.CommandPath(),
-		s3Cfg.Bucket,
-		s3Cfg.AccessKey,
-		m365.ClientID,
-		len(m365.ClientSecret) > 0,
-		len(s3Cfg.SecretKey) > 0)
+	log.Debugw(
+		"Called - "+cmd.CommandPath(),
+		"bucket", s3Cfg.Bucket,
+		"clientID", m365.ClientID,
+		"hasClientSecret", len(m365.ClientSecret) > 0,
+		"accessKey", s3Cfg.AccessKey,
+		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
 
 	a := repository.Account{
 		TenantID:     m365.TenantID,
@@ -102,20 +104,21 @@ var s3ConnectCmd = &cobra.Command{
 
 // connects to an existing s3 repo.
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
+	log := logger.Ctx(cmd.Context())
+
 	m365 := credentials.GetM365()
 	s3Cfg, commonCfg, err := makeS3Config()
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf(
-		"Called - %s\n\tbucket:\t%s\n\tkey:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n\tfound awsSecret:\t%v\n",
-		cmd.CommandPath(),
-		s3Cfg.Bucket,
-		s3Cfg.AccessKey,
-		m365.ClientID,
-		len(m365.ClientSecret) > 0,
-		len(s3Cfg.SecretKey) > 0)
+	log.Debugw(
+		"Called - "+cmd.CommandPath(),
+		"bucket", s3Cfg.Bucket,
+		"clientID", m365.ClientID,
+		"hasClientSecret", len(m365.ClientSecret) > 0,
+		"accessKey", s3Cfg.AccessKey,
+		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
 
 	// TODO: Merge/Validate any local configuration here to make sure there are no conflicts
 	// For now - just reading/logging the local config here (a successful repo connect will overwrite)
