@@ -29,7 +29,11 @@ func (s *Source) AddUsers(uids ...string) error {
 	if s.userIDs == nil {
 		s.userIDs = []string{}
 	}
-	s.userIDs = append(s.userIDs, uids...)
+	for _, uid := range uids {
+		if len(uid) > 0 {
+			s.userIDs = append(s.userIDs, uid)
+		}
+	}
 	return nil
 }
 

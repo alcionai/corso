@@ -24,6 +24,7 @@ func (suite *SourceSuite) TestSource_AddUsers() {
 	}{
 		{"nil", nil, assert.NoError},
 		{"zero val", []string{}, assert.NoError},
+		{"empty", []string{""}, assert.NoError},
 		{"single", []string{"fnord"}, assert.NoError},
 		{"multi", []string{"fnord", "snarf"}, assert.NoError},
 	}
@@ -53,7 +54,12 @@ func (suite *SourceSuite) TestSource_Users() {
 	us = s.Users()
 	assert.Equal(t, len(us), 3)
 
-	assert.Equal(t, us[0], "a")
-	assert.Equal(t, us[1], "b")
-	assert.Equal(t, us[2], "c")
+	assert.NoError(t, s.AddUsers(""))
+	us = s.Users()
+	assert.Equal(t, len(us), 3)
+
+	assert.Contains(t, us, "a")
+	assert.Contains(t, us, "b")
+	assert.Contains(t, us, "c")
+	assert.NotContains(t, us, "")
 }
