@@ -125,6 +125,7 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, error) {
 	// TODO replace with completion of Issue 124:
 	collection := NewExchangeDataCollection(user, []string{gc.tenant, user})
+	//TODO: Retry handler to convert return: (DataCollection, error)
 	return gc.serializeMessages(user, collection)
 
 }
@@ -160,19 +161,20 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 	}
 	// Time to create Exchange data Holder
 	var byteArray []byte
+	var errs error
 	for _, aFolder := range folderList {
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
 		if err != nil {
-			err = WrapAndAppend(user, err, err)
+			errs = WrapAndAppend(user, err, errs)
 		}
 		if result == nil {
-			err = WrapAndAppend(user, fmt.Errorf("nil response on message query, folder: %s", aFolder), err)
+			errs = WrapAndAppend(user, fmt.Errorf("nil response on message query, folder: %s", aFolder), errs)
 			continue
 		}
 
 		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 		if err != nil {
-			err = WrapAndAppend(user, fmt.Errorf("iterator failed initialization: %v", err), err)
+			errs = WrapAndAppend(user, fmt.Errorf("iterator failed initialization: %v", err), errs)
 			continue
 		}
 		objectWriter := kw.NewJsonSerializationWriter()
@@ -180,7 +182,7 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		callbackFunc := func(messageItem interface{}) bool {
 			message, ok := messageItem.(models.Messageable)
 			if !ok {
-				err = WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), err)
+				errs = WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), errs)
 				return true
 			}
 			if *message.GetHasAttachments() {
@@ -189,18 +191,18 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 					message.SetAttachments(attached.GetValue())
 				}
 				if err != nil {
-					err = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), err)
+					errs = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), errs)
 				}
 			}
 			err = objectWriter.WriteObjectValue("", message)
 			if err != nil {
-				err = WrapAndAppend(*message.GetId(), err, err)
+				errs = WrapAndAppend(*message.GetId(), err, errs)
 				return true
 			}
 			byteArray, err = objectWriter.GetSerializedContent()
 			objectWriter.Close()
 			if err != nil {
-				err = WrapAndAppend(*message.GetId(), err, err)
+				errs = WrapAndAppend(*message.GetId(), err, errs)
 				return true
 			}
 			if byteArray != nil {
@@ -208,14 +210,14 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 			}
 			return true
 		}
-		iterateError := pageIterator.Iterate(callbackFunc)
+		err = pageIterator.Iterate(callbackFunc)
 
-		if iterateError != nil {
-			err = WrapAndAppend(user, err, err)
+		if err != nil {
+			errs = WrapAndAppend(user, err, errs)
 		}
 	}
 	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.Length())
-	fmt.Printf("Errors: \n%s\n", err.Error())
+	fmt.Printf("Errors: \n%s\n", errs.Error())
 	dc.FinishPopulation()
-	return &dc, err
+	return &dc, errs
 }
