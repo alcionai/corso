@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/internal/operations"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/source"
 )
 
 type BackupOpIntegrationSuite struct {
@@ -42,7 +43,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		opts     operations.OperationOpts
 		kw       *kopia.KopiaWrapper
 		creds    credentials.M365
-		targets  []string
+		source   *source.Source
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{"good", operations.OperationOpts{}, kw, creds, nil, assert.NoError},

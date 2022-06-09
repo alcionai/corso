@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/source"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -98,7 +99,7 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a backupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, targets []string) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(ctx context.Context, source *source.Source) (operations.BackupOperation, error) {
 	creds := credentials.M365{
 		ClientID:     r.Account.ClientID,
 		ClientSecret: r.Account.ClientSecret,
@@ -109,5 +110,5 @@ func (r Repository) NewBackup(ctx context.Context, targets []string) (operations
 		operations.OperationOpts{},
 		r.dataLayer,
 		creds,
-		targets)
+		source)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/source"
 )
 
 // BackupOperation wraps an operation with backup-specific props.
@@ -17,8 +18,8 @@ type BackupOperation struct {
 
 	creds credentials.M365
 
-	Targets []string // something for targets/filter/source/app&users/etc
-	Work    []string // something to reference the artifacts created, or at least their count
+	Source *source.Source
+	Work   []string // something to reference the artifacts created, or at least their count
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -27,13 +28,13 @@ func NewBackupOperation(
 	opts OperationOpts,
 	kw *kopia.KopiaWrapper,
 	creds credentials.M365,
-	targets []string,
+	source *source.Source,
 ) (BackupOperation, error) {
 	bo := BackupOperation{
 		operation: newOperation(opts, kw),
 		Version:   "v0",
 		creds:     creds,
-		Targets:   targets,
+		Source:    source,
 		Work:      []string{},
 	}
 	if err := bo.validate(); err != nil {
@@ -57,7 +58,7 @@ func (bo BackupOperation) Run(ctx context.Context) error {
 		return errors.Wrap(err, "connecting to graph api")
 	}
 
-	c, err := gc.ExchangeDataCollection(bo.Targets[0])
+	c, err := gc.ExchangeDataCollection(bo.Source.Users()[0])
 	if err != nil {
 		return errors.Wrap(err, "retrieving application data")
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/pkg/source"
 )
 
 // exchange bucket info from flags
@@ -68,7 +69,12 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
-	bo, err := r.NewBackup(cmd.Context(), []string{user})
+	src := source.NewSource(source.AppExchange)
+	err = src.AddUsers(user)
+	if err != nil {
+		return errors.Wrap(err, "Failed to configure backup data source")
+	}
+	bo, err := r.NewBackup(cmd.Context(), src)
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
