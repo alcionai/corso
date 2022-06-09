@@ -159,7 +159,6 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 	for _, folderable := range response.GetValue() {
 		folderList = append(folderList, *folderable.GetId())
 	}
-	fmt.Printf("Folder List: %v\n", folderList)
 	// Time to create Exchange data Holder
 	var byteArray []byte
 	var iterateError error
