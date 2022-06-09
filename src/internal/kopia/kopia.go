@@ -164,6 +164,10 @@ func (kw *KopiaWrapper) open(ctx context.Context, password string) error {
 	return nil
 }
 
+// getStreamItemFunc returns a function that can be used by kopia's
+// virtualfs.StreamingDirectory to iterate through directory entries and call
+// kopia callbacks on directory entries. It binds the directory to the given
+// DataCollection.
 func getStreamItemFunc(
 	collection connector.DataCollection,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
@@ -186,6 +190,9 @@ func getStreamItemFunc(
 	}
 }
 
+// buildKopiaDirs recursively builds a directory hierarchy from the roots up.
+// Returned directories are either virtualfs.StreamingDirectory or
+// virtualfs.staticDirectory.
 func buildKopiaDirs(dirName string, dir *treeMap) (fs.Directory, error) {
 	// Don't support directories that have both a DataCollection and a set of
 	// static child directories.
@@ -250,10 +257,8 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 			continue
 		}
 
-		end := len(path) - 1
-
-		for i := 1; i < end; i++ {
-			newDir, ok := dir.childDirs[path[i]]
+		for _, p := range path[1 : len(path)-1] {
+			newDir, ok := dir.childDirs[p]
 			if !ok {
 				newDir = newTreeMap()
 
@@ -261,20 +266,23 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 					dir.childDirs = map[string]*treeMap{}
 				}
 
-				dir.childDirs[path[i]] = newDir
+				dir.childDirs[p] = newDir
 			}
 
 			dir = newDir
 		}
+
+		// At this point we have all the ancestor directories of this DataCollection
+		// as treeMap objects and `dir` is the parent directory of this
+		// DataCollection.
+
+		end := len(path) - 1
 
 		// Make sure this entry doesn't already exist.
 		if _, ok := dir.childDirs[path[end]]; ok {
 			return nil, errMixedDir
 		}
 
-		// At this point we have all the ancestor directories of this DataCollection
-		// as treeMap objects and `dir` is the parent directory of this
-		// DataCollection.
 		sd := newTreeMap()
 		sd.collection = s
 		dir.childDirs[path[end]] = sd
