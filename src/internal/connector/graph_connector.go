@@ -3,7 +3,6 @@
 package connector
 
 import (
-	"errors"
 	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -14,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
+	"github.com/pkg/errors"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -60,7 +60,6 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers() error {
 	selecting := []string{"id, mail"}
-	errorList := make([]error, 0)
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -72,38 +71,28 @@ func (gc *GraphConnector) setTenantUsers() error {
 		return err
 	}
 	if response == nil {
-		return errors.New("connector unable to complete queries. Verify credentials")
+		err = WrapAndAppend("general access", errors.New("connector failed: No access"), err)
+		return err
 	}
 	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return err
 	}
-	var hasFailed error
+	var iterateError error
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			errorList = append(errorList, errors.New("unable to iterable to user"))
+			err = WrapAndAppend(gc.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
 		return true
 	}
-	hasFailed = userIterator.Iterate(callbackFunc)
-	if len(errorList) > 0 {
-		return errors.New(ConvertErrorList(errorList))
+	iterateError = userIterator.Iterate(callbackFunc)
+	if iterateError != nil {
+		err = WrapAndAppend(gc.adapter.GetBaseUrl(), iterateError, err)
 	}
-	return hasFailed
-}
-
-// ConvertsErrorList takes a list of errors and converts returns
-// a string
-// TODO: Place in error package after merged
-func ConvertErrorList(errorList []error) string {
-	errorLog := ""
-	for idx, err := range errorList {
-		errorLog = errorLog + fmt.Sprintf("Error# %d\t%v\n", idx, err)
-	}
-	return errorLog
+	return err
 }
 
 // GetUsers returns the email address of users within tenant.
@@ -136,6 +125,7 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, error) {
 	// TODO replace with completion of Issue 124:
 	collection := NewExchangeDataCollection(user, []string{gc.tenant, user})
+	//TODO: Retry handler to convert return: (DataCollection, error)
 	return gc.serializeMessages(user, collection)
 
 }
@@ -166,33 +156,33 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		return nil, fmt.Errorf("unable to access folders for %s", user)
 	}
 	folderList := make([]string, 0)
-	errorList := make([]error, 0)
 	for _, folderable := range response.GetValue() {
 		folderList = append(folderList, *folderable.GetId())
 	}
-	fmt.Printf("Folder List: %v\n", folderList)
 	// Time to create Exchange data Holder
 	var byteArray []byte
-	var iterateError error
+	var errs error
 	for _, aFolder := range folderList {
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
 		if err != nil {
-			errorList = append(errorList, err)
+			errs = WrapAndAppend(user, err, errs)
 		}
 		if result == nil {
-			fmt.Println("Cannot Get result")
+			errs = WrapAndAppend(user, fmt.Errorf("nil response on message query, folder: %s", aFolder), errs)
+			continue
 		}
 
 		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 		if err != nil {
-			errorList = append(errorList, err)
+			errs = WrapAndAppend(user, fmt.Errorf("iterator failed initialization: %v", err), errs)
+			continue
 		}
 		objectWriter := kw.NewJsonSerializationWriter()
 
 		callbackFunc := func(messageItem interface{}) bool {
 			message, ok := messageItem.(models.Messageable)
 			if !ok {
-				errorList = append(errorList, fmt.Errorf("unable to iterate on message for user: %s", user))
+				errs = WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), errs)
 				return true
 			}
 			if *message.GetHasAttachments() {
@@ -201,20 +191,18 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 					message.SetAttachments(attached.GetValue())
 				}
 				if err != nil {
-					err = fmt.Errorf("Attachment Error: " + err.Error())
-					errorList = append(errorList, err)
+					errs = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), errs)
 				}
 			}
-
 			err = objectWriter.WriteObjectValue("", message)
 			if err != nil {
-				errorList = append(errorList, err)
+				errs = WrapAndAppend(*message.GetId(), err, errs)
 				return true
 			}
 			byteArray, err = objectWriter.GetSerializedContent()
 			objectWriter.Close()
 			if err != nil {
-				errorList = append(errorList, err)
+				errs = WrapAndAppend(*message.GetId(), err, errs)
 				return true
 			}
 			if byteArray != nil {
@@ -222,18 +210,14 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 			}
 			return true
 		}
-		iterateError = pageIterator.Iterate(callbackFunc)
+		err = pageIterator.Iterate(callbackFunc)
 
-		if iterateError != nil {
-			errorList = append(errorList, err)
+		if err != nil {
+			errs = WrapAndAppend(user, err, errs)
 		}
 	}
 	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.Length())
-	fmt.Printf("Errors: \n%s\n", ConvertErrorList(errorList))
+	fmt.Printf("Errors: \n%s\n", errs.Error())
 	dc.FinishPopulation()
-	var errs error
-	if len(errorList) > 0 {
-		errs = errors.New(ConvertErrorList(errorList))
-	}
 	return &dc, errs
 }

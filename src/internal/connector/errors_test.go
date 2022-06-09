@@ -30,6 +30,13 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppend() {
 	suite.T().Log(ListErrors(*multi))
 }
 
+func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_OnVar() {
+	var err1 error
+	id := "xi2058"
+	received := WrapAndAppend(id, errors.New("network error"), err1)
+	suite.True(strings.Contains(received.Error(), id))
+}
+
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_Add3() {
 	errOneTwo := WrapAndAppend("user1", assert.AnError, assert.AnError)
 	combined := WrapAndAppend("unix36", assert.AnError, errOneTwo)
