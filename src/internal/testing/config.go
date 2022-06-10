@@ -20,9 +20,12 @@ const (
 )
 
 func newTestViper() (*viper.Viper, error) {
-	configFilePath := os.Getenv("CORSO_TEST_CONFIG_FILE")
-
 	vpr := viper.New()
+
+	configFilePath := os.Getenv("CORSO_TEST_CONFIG_FILE")
+	if len(configFilePath) == 0 {
+		return vpr, nil
+	}
 
 	// Or use a custom file location
 	fileName := path.Base(configFilePath)
