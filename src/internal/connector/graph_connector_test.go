@@ -55,8 +55,8 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers() {
-	result := suite.connector.setTenantUsers()
-	assert.Nil(suite.T(), result)
+	err := suite.connector.setTenantUsers()
+	assert.NoError(suite.T(), err)
 	suite.Greater(len(suite.connector.Users), 0)
 }
 
