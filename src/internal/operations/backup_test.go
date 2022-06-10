@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/internal/operations"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/repository"
 )
 
 type BackupOpIntegrationSuite struct {
@@ -62,4 +63,42 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	}
 }
 
-// todo (rkeepers) - TestBackup_Run()
+func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
+	t := suite.T()
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(t)
+	prefix := "backup-op-run-" + timeOfTest
+
+	// m365User := "lidiah@8qzvrj.onmicrosoft.com"
+	// not the user we want to use, but all the others are
+	// suffering from JsonParseNode syndrome
+	m365User := "george.martinez@8qzvrj.onmicrosoft.com"
+	m365 := credentials.GetM365()
+	acct := repository.Account{
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+		TenantID:     m365.TenantID,
+	}
+
+	// need to initialize the repository before we can test connecting to it.
+	st, err := ctesting.NewS3Storage(prefix)
+	require.NoError(t, err)
+
+	r, err := repository.Initialize(ctx, acct, st)
+	require.NoError(t, err)
+
+	bo, err := operations.NewBackupOperation(
+		ctx,
+		operations.OperationOpts{},
+		r.DataLayer,
+		m365,
+		[]string{m365User})
+	require.NoError(t, err)
+
+	stats, err := bo.Run(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+	assert.Equal(t, bo.Status, operations.Successful)
+	assert.Greater(t, stats.TotalFileCount, 0)
+	assert.Zero(t, stats.ErrorCount)
+}
