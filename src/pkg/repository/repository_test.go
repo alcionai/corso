@@ -136,3 +136,21 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 		})
 	}
 }
+
+func (suite *RepositoryIntegrationSuite) TestConnect() {
+	t := suite.T()
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(t)
+	prefix := "conn-s3-" + timeOfTest
+
+	// need to initialize the repository before we can test connecting to it.
+	st, err := ctesting.NewS3Storage(prefix)
+	require.NoError(t, err)
+
+	_, err = repository.Initialize(ctx, repository.Account{}, st)
+	require.NoError(t, err)
+
+	// now re-connect
+	_, err = repository.Connect(ctx, repository.Account{}, st)
+	assert.NoError(t, err)
+}
