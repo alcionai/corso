@@ -24,20 +24,6 @@ func newTestViper() (*viper.Viper, error) {
 
 	vpr := viper.New()
 
-	// Read from the default location
-	if configFilePath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, err
-		}
-
-		// Search config in home directory with name ".corso" (without extension).
-		vpr.AddConfigPath(home)
-		vpr.SetConfigType("toml")
-		vpr.SetConfigName(".corso_test")
-		return vpr, nil
-	}
-
 	// Or use a custom file location
 	fileName := path.Base(configFilePath)
 	ext := path.Ext(configFilePath)

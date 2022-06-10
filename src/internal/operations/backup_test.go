@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/kopia"
@@ -25,13 +26,12 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	if _, err := ctesting.GetRequiredEnvVars(
+	_, err := ctesting.GetRequiredEnvVars(
 		credentials.TenantID,
 		credentials.ClientID,
 		credentials.ClientSecret,
-	); err != nil {
-		suite.T().Fatal(err)
-	}
+	)
+	require.NoError(suite.T(), err)
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
