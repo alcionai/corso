@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	ctesting "github.com/alcionai/corso/internal/testing"
@@ -28,9 +29,8 @@ func TestGraphConnectorSuite(t *testing.T) {
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	evs, err := ctesting.GetRequiredEnvVars(credentials.TenantID, credentials.ClientID, credentials.ClientSecret)
-	if err != nil {
-		suite.T().Fatal(err)
-	}
+	require.NoError(suite.T(), err)
+
 	suite.connector, err = NewGraphConnector(
 		evs[credentials.TenantID],
 		evs[credentials.ClientID],

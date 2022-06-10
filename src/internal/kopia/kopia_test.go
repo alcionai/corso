@@ -230,7 +230,8 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
-	require.NoError(suite.T(), ctesting.CheckS3EnvVars())
+	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSCredentialEnvs...)
+	require.NoError(suite.T(), err)
 }
 
 func (suite *KopiaIntegrationSuite) TestCloseTwiceDoesNotCrash() {

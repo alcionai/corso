@@ -99,7 +99,8 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 
 // ensure all required env values are populated
 func (suite *RepositoryIntegrationSuite) SetupSuite() {
-	require.NoError(suite.T(), ctesting.CheckS3EnvVars())
+	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSCredentialEnvs...)
+	require.NoError(suite.T(), err)
 }
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
