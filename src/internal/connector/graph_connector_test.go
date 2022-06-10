@@ -1,7 +1,6 @@
 package connector
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,8 +60,8 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
-	if os.Getenv("INTEGRATION_TESTING") != "" {
-		suite.T().Skip("Environmental Variables not set")
+	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+		suite.T().Skip(err)
 	}
 	exchangeData, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
 	assert.NotNil(suite.T(), exchangeData)
