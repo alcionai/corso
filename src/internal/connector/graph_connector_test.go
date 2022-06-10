@@ -54,12 +54,17 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 	suite.Run(t, new(DiconnectedGraphConnectorSuite))
 }
 
-// TestExchangeDataCollection is a call to the M365 backstore to very
-func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers() {
+	err := suite.connector.setTenantUsers()
+	assert.NoError(suite.T(), err)
+	suite.Greater(len(suite.connector.Users), 0)
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
 	if os.Getenv("INTEGRATION_TESTING") != "" {
 		suite.T().Skip("Environmental Variables not set")
 	}
-	exchangeData, err := suite.connector.ExchangeDataCollection("dustina@8qzvrj.onmicrosoft.com")
+	exchangeData, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
 	assert.NotNil(suite.T(), exchangeData)
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
 	suite.T().Logf("Missing Data: %s\n", err.Error())
