@@ -35,7 +35,7 @@ func RunOnAny(tests ...string) error {
 
 // LogTimeOfTest logs the test name and the time that it was run.
 func LogTimeOfTest(t *testing.T) string {
-	now := time.Now().UTC().Format("2016-01-02T15:04:05")
+	now := time.Now().UTC().Format("2016-01-02T15:04:05.0000")
 	pc, _, _, ok := runtime.Caller(1)
 	details := runtime.FuncForPC(pc)
 	if !ok || details != nil {
