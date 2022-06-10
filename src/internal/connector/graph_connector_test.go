@@ -59,6 +59,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 	assert.Nil(suite.T(), result)
 	suite.Greater(len(suite.connector.Users), 0)
 }
+
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
 	if os.Getenv("INTEGRATION_TESTING") != "" {
 		suite.T().Skip("Environmental Variables not set")
