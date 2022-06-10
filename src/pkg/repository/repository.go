@@ -21,7 +21,7 @@ type Repository struct {
 
 	Account   Account         // the user's m365 account connection details
 	Storage   storage.Storage // the storage provider details and configuration
-	DataLayer *kopia.KopiaWrapper
+	dataLayer *kopia.KopiaWrapper
 }
 
 // Account holds the user's m365 account details.
@@ -53,7 +53,7 @@ func Initialize(
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		DataLayer: k,
+		dataLayer: k,
 	}
 	return &r, nil
 }
@@ -77,18 +77,18 @@ func Connect(
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		DataLayer: k,
+		dataLayer: k,
 	}
 	return &r, nil
 }
 
 func (r *Repository) Close(ctx context.Context) error {
-	if r.DataLayer == nil {
+	if r.dataLayer == nil {
 		return nil
 	}
 
-	err := r.DataLayer.Close(ctx)
-	r.DataLayer = nil
+	err := r.dataLayer.Close(ctx)
+	r.dataLayer = nil
 
 	if err != nil {
 		return errors.Wrap(err, "closing corso Repository")
@@ -107,7 +107,7 @@ func (r Repository) NewBackup(ctx context.Context, targets []string) (operations
 	return operations.NewBackupOperation(
 		ctx,
 		operations.OperationOpts{},
-		r.DataLayer,
+		r.dataLayer,
 		creds,
 		targets)
 }

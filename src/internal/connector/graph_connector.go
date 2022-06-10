@@ -127,6 +127,7 @@ func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, e
 	collection := NewExchangeDataCollection(user, []string{gc.tenant, user})
 	//TODO: Retry handler to convert return: (DataCollection, error)
 	return gc.serializeMessages(user, collection)
+
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
@@ -216,9 +217,7 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		}
 	}
 	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.Length())
-	if errs != nil {
-		fmt.Printf("Errors: \n%s\n", errs.Error())
-	}
+	fmt.Printf("Errors: \n%s\n", errs.Error())
 	dc.FinishPopulation()
 	return &dc, errs
 }

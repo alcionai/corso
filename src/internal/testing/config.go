@@ -5,7 +5,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -65,7 +64,7 @@ func readTestConfig() (map[string]string, error) {
 	fallbackTo(testEnv, testCfgBucket, vpr.GetString(testCfgBucket), "test-corso-repo-init")
 	fallbackTo(testEnv, testCfgEndpoint, vpr.GetString(testCfgEndpoint), "s3.amazonaws.com")
 	fallbackTo(testEnv, testCfgPrefix, vpr.GetString(testCfgPrefix))
-	fallbackTo(testEnv, testCfgTenantID, os.Getenv(credentials.TenantID), vpr.GetString(testCfgTenantID))
+	fallbackTo(testEnv, testCfgTenantID, vpr.GetString(testCfgTenantID))
 
 	return testEnv, nil
 }

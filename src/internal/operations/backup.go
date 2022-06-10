@@ -51,23 +51,23 @@ func (bo BackupOperation) validate() error {
 }
 
 // Run begins a synchronous backup operation.
-func (bo *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) {
+func (bo BackupOperation) Run(ctx context.Context) error {
 	gc, err := connector.NewGraphConnector(bo.creds.TenantID, bo.creds.ClientID, bo.creds.ClientSecret)
 	if err != nil {
-		return nil, errors.Wrap(err, "connecting to graph api")
+		return errors.Wrap(err, "connecting to graph api")
 	}
 
 	c, err := gc.ExchangeDataCollection(bo.Targets[0])
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving application data")
+		return errors.Wrap(err, "retrieving application data")
 	}
 
 	// todo: utilize stats
-	stats, err := bo.kopia.BackupCollections(ctx, []connector.DataCollection{c})
+	_, err = bo.kopia.BackupCollections(ctx, []connector.DataCollection{c})
 	if err != nil {
-		return nil, errors.Wrap(err, "backing up application data")
+		return errors.Wrap(err, "backing up application data")
 	}
 
 	bo.Status = Successful
-	return stats, nil
+	return nil
 }

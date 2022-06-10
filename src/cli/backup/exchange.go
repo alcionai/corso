@@ -73,7 +73,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
 
-	if _, err := bo.Run(cmd.Context()); err != nil {
+	if err := bo.Run(cmd.Context()); err != nil {
 		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
