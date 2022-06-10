@@ -31,7 +31,7 @@ func (suite EnvvarsTestSuite) TestRunOnAny() {
 		},
 		{
 			name:     "Invalid Environment",
-			param:    "bar",
+			param:    "TEST_ENVVARS_SUITE_INVALID",
 			function: assert.Error,
 		},
 	}
