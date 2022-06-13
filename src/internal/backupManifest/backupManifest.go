@@ -1,7 +1,7 @@
 package backupManifest
 
 import (
-	_ "modernc.org/sqlite"
+	sqlite "modernc.org/sqlite"
 )
 
 type BackEntityMetadata interface {
