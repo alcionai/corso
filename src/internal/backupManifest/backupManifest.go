@@ -29,7 +29,7 @@ type BackManifestHandler interface {
 	Insert(bem BackEntityMetadata) error
 	Search(callbck func(bem BackEntityMetadata, err error) error, filters ...string) error
 	Close() error
-	Delete() error
+	Destroy() error
 }
 
 //implements BackManifestHandler
