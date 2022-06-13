@@ -87,12 +87,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	r, err := repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)
 
-	bo, err := operations.NewBackupOperation(
-		ctx,
-		operations.OperationOpts{},
-		r.DataLayer,
-		m365,
-		[]string{m365User})
+	bo, err := r.NewBackup(ctx, []string{m365User})
 	require.NoError(t, err)
 
 	stats, err := bo.Run(ctx)
