@@ -3,9 +3,12 @@
 package connector
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/alcionai/corso/internal/connector/support"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -142,6 +145,62 @@ func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilder
 		QueryParameters: requestParameters,
 	}
 	return options
+}
+
+// restoreMessages: Utility function to connect to M365 backstore
+// and upload messages from DataCollection.
+func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
+	var errs error
+	// must be the userId, user.GetId() @address no longer works
+	user := dc.FullPath()[0]
+	fmt.Println(user)
+	for {
+		data, err := dc.NextItem()
+		if err == io.EOF {
+			break
+		}
+
+		buf := &bytes.Buffer{}
+		numBytes, err := buf.ReadFrom(data.ToReader())
+		if err != nil {
+			errs = WrapAndAppend(data.UUID(), err, errs)
+		}
+		if numBytes == 0 {
+			continue
+		}
+		message, err := support.CreateMessageFromBytes(buf.Bytes())
+		if err != nil {
+			errs = WrapAndAppend(data.UUID(), err, errs)
+		}
+		clone := support.SwapMessage(message)
+		address := "Inbox"
+		valueId := "Integer 0x0E07"
+		enableValue := "4"
+		sv := models.NewSingleValueLegacyExtendedProperty()
+		sv.SetId(&valueId)
+		sv.SetValue(&enableValue)
+		svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
+		clone.SetSingleValueExtendedProperties(svlep)
+		draft := false
+		clone.SetIsDraft(&draft)
+		sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
+		//draftMessage, err := gc.client.UsersById(user).Messages().Post(clone)
+		if err != nil {
+			details := ConnectorStackErrorTrace(err)
+			errs = WrapAndAppend(data.UUID()+": "+details, err, errs)
+			continue
+		}
+		fmt.Printf("Message: %v\n", sentMessage)
+		if errs != nil {
+			fmt.Printf("Errors: %v\n", errs)
+		}
+		/* TODO
+		Restored Mail Currently Populates in the Draft Folder
+		*/
+
+	}
+	return errs
+
 }
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
