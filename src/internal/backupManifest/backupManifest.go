@@ -7,17 +7,17 @@ import (
 type BackEntityMetadata interface {
 }
 
-//implements BackEntityMeta
+//implements BackEntityMetadata
 type MessageMetadata struct {
 	attachment []AttachmentMetadata
 }
 
-//implements BackEntityMeta
+//implements BackEntityMetadata
 type EventsMetadata struct {
 	attachment []AttachmentMetadata
 }
 
-//implements BackEntityMeta
+//implements BackEntityMetadata
 type ContactMetadata struct {
 }
 
