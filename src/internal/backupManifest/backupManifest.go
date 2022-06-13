@@ -9,18 +9,19 @@ type BackEntityMetadata interface {
 
 //implements BackEntityMeta
 type MessageMetadata struct {
-}
-
-//implements BackEntityMeta
-type AttachmentMetadata struct {
+	attachment []AttachmentMetadata
 }
 
 //implements BackEntityMeta
 type EventsMetadata struct {
+	attachment []AttachmentMetadata
 }
 
 //implements BackEntityMeta
 type ContactMetadata struct {
+}
+
+type AttachmentMetadata struct {
 }
 
 type BackManifestHandler interface {
