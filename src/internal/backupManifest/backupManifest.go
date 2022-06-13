@@ -4,23 +4,23 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type BackEntityMeta interface {
+type BackEntityMetadata interface {
 }
 
 //implements BackEntityMeta
-type MessageMeta struct {
+type MessageMetadata struct {
 }
 
 //implements BackEntityMeta
-type AttachmentMeta struct {
+type AttachmentMetadata struct {
 }
 
 //implements BackEntityMeta
-type EventsMeta struct {
+type EventsMetadata struct {
 }
 
 //implements BackEntityMeta
-type ContactMeta struct {
+type ContactMetadata struct {
 }
 
 type BackManifestHandler interface {
