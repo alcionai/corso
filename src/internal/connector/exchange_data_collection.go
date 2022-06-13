@@ -67,7 +67,9 @@ func (edc *ExchangeDataCollection) PopulateCollection(newData ExchangeData) {
 // FinishPopulation is used to indicate data population of the collection is complete
 // TODO: This should be an internal method once we move the message retrieval logic into `ExchangeDataCollection`
 func (edc *ExchangeDataCollection) FinishPopulation() {
-	close(edc.data)
+	if edc != nil && edc.data != nil {
+		close(edc.data)
+	}
 }
 
 func (edc *ExchangeDataCollection) Length() int {
