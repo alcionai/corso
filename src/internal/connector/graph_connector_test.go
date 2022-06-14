@@ -66,7 +66,29 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	exchangeData, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
 	assert.NotNil(suite.T(), exchangeData)
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
-	suite.T().Logf("Missing Data: %s\n", err.Error())
+	if err != nil {
+		suite.T().Logf("Missing Data: %s\n", err.Error())
+	}
+	suite.T().Logf("Full PathData: %s\n", exchangeData.FullPath())
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
+	user := "TEST_GRAPH_USER" // user.GetId()
+	file := "TEST_GRAPH_FILE" // Test file should be sent or received by the user
+	evs, err := ctesting.GetRequiredEnvVars(user, file)
+	if err != nil {
+		suite.T().Skipf("Environment not configured: %v\n", err)
+	}
+	bytes, err := ctesting.LoadAFile(evs[file]) // TEST_GRAPH_FILE should have a single Message && not present in target inbox
+	if err != nil {
+		suite.T().Skipf("Support file not accessible: %v\n", err)
+	}
+	ds := ExchangeData{id: "test", message: bytes}
+	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], "Inbox"})
+	edc.PopulateCollection(ds)
+	edc.FinishPopulation()
+	err = suite.connector.restoreMessages(&edc)
+	assert.NoError(suite.T(), err)
 }
 
 func (suite *DiconnectedGraphConnectorSuite) TestBadConnection() {

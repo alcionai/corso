@@ -3,9 +3,12 @@
 package connector
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/alcionai/corso/internal/connector/support"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -141,6 +144,59 @@ func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilder
 		QueryParameters: requestParameters,
 	}
 	return options
+}
+
+// restoreMessages: Utility function to connect to M365 backstore
+// and upload messages from DataCollection.
+// FullPath: tenantId, userId, FolderId
+func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
+	var errs error
+	// must be user.GetId(), PrimaryName no longer works 6-15-2022
+	user := dc.FullPath()[1]
+	for {
+		data, err := dc.NextItem()
+		if err == io.EOF {
+			break
+		}
+
+		buf := &bytes.Buffer{}
+		_, err = buf.ReadFrom(data.ToReader())
+		if err != nil {
+			errs = WrapAndAppend(data.UUID(), err, errs)
+			continue
+		}
+		message, err := support.CreateMessageFromBytes(buf.Bytes())
+		if err != nil {
+			errs = WrapAndAppend(data.UUID(), err, errs)
+			continue
+		}
+		clone := support.ToMessage(message)
+		address := dc.FullPath()[2]
+		valueId := "Integer 0x0E07"
+		enableValue := "4"
+		sv := models.NewSingleValueLegacyExtendedProperty()
+		sv.SetId(&valueId)
+		sv.SetValue(&enableValue)
+		svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
+		clone.SetSingleValueExtendedProperties(svlep)
+		draft := false
+		clone.SetIsDraft(&draft)
+		sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
+		if err != nil {
+			details := ConnectorStackErrorTrace(err)
+			errs = WrapAndAppend(data.UUID()+": "+details, err, errs)
+			continue
+			// TODO: Add to retry Handler for the for failure
+		}
+
+		if sentMessage == nil && err == nil {
+			errs = WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+
+		}
+		// This completes the restore loop for a message..
+	}
+	return errs
+
 }
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
