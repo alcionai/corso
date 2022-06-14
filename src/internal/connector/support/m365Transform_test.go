@@ -34,7 +34,7 @@ func TestSupportTestSuite(t *testing.T) {
 // CreateMessageFromBytes
 // Swap Message
 
-func (suite *SupportTestSuite) TestSwapMessage() {
+func (suite *SupportTestSuite) TestToMessage() {
 	bytes, err := LoadAFile(os.Getenv(SUPPORT_FILE))
 	if err != nil {
 		suite.T().Errorf("Failed with %v\n", err)

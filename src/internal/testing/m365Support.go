@@ -1,4 +1,4 @@
-package support
+package testing
 
 import (
 	"bufio"
@@ -40,10 +40,10 @@ func LoadAFile(aFile string) ([]byte, error) {
 	bytes, err := os.ReadFile(aFile)
 	if err != nil {
 		f, err := os.Open(aFile)
-		defer f.Close()
 		if err != nil {
 			return nil, err
 		}
+		defer f.Close()
 		buffer := make([]byte, 0)
 		reader := bufio.NewScanner(f)
 		for reader.Scan() {
