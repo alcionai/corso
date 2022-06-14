@@ -1,4 +1,4 @@
-name: First Cron Job
+name: Weekly S3 Test Bucket Cleanup
 on:
   schedule:
     # every saturday at 23:59 (11:59pm)
