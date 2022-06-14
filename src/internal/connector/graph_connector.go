@@ -19,6 +19,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const mailCategory = "mail"
+
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
@@ -235,7 +237,7 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 			continue
 		}
 		objectWriter := kw.NewJsonSerializationWriter()
-		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, aFolder})
+		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
 
 		callbackFunc := func(messageItem interface{}) bool {
 			message, ok := messageItem.(models.Messageable)
