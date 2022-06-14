@@ -1,7 +1,7 @@
 package backupManifest
 
 import (
-	sqlite "modernc.org/sqlite"
+	"database/sql"
 )
 
 type BackEntityMetadata interface {
@@ -21,16 +21,28 @@ type EventsMetadata struct {
 type ContactMetadata struct {
 }
 
+/* For Future reference
+//implements BackEntityMetadata
+type FileMetadata struct {
+}
+
+//implements BackEntityMetadata
+type ObjectMetadata struct {
+}
+*/
+
 type AttachmentMetadata struct {
 }
 
+type searchCallBack func(bem BackEntityMetadata, err error)
+
 type BackManifestHandler interface {
 	//Open the database
-	Open(path string) error
+	Open(name string) error
 	//Insert into the database
 	Insert(bem BackEntityMetadata) error
 	//Search in the database with filters
-	Search(callbck func(bem BackEntityMetadata, err error) error, filters ...string) error
+	Search(callbck searchCallBack, filters ...string) error
 	//Close the database
 	Close() error
 	//Destory the database
@@ -38,5 +50,13 @@ type BackManifestHandler interface {
 }
 
 //implements BackManifestHandler
-type ExchangeBackManifestHandler struct {
+type ExchangeBackupManifestHandler struct {
+	db sql.DB
+}
+
+func NewExchangeBackupManifestHandler(
+	path string,
+	callbck searchCallBack) (ExchangeBackupManifestHandler, error) {
+
+	return ExchangeBackupManifestHandler{}, nil
 }
