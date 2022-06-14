@@ -44,7 +44,7 @@ func (s Source) Service() service {
 	return s.service
 }
 
-func BadCastErr(cast, is service) error {
+func badCastErr(cast, is service) error {
 	return errors.Wrapf(ErrorBadSourceCast, "%s service is not %s", cast, is)
 }
 
@@ -64,10 +64,12 @@ func (g scopeGranularity) String() string {
 }
 
 func granularityOf(source map[string]string) scopeGranularity {
-	return scopeGranularity(valAtoI(source, scopeKeyGranularity))
+	return scopeGranularity(getIota(source, scopeKeyGranularity))
 }
 
-func valAtoI(m map[string]string, key string) int {
+// retrieves the iota, stored as a string, and transforms it to
+// an int.  Any errors will return a 0 by default.
+func getIota(m map[string]string, key string) int {
 	v, ok := m[key]
 	if !ok {
 		return 0

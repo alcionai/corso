@@ -38,7 +38,7 @@ func (suite *SourceSuite) TestSource_Service() {
 	}
 }
 
-func (suite *SourceSuite) TestValAtoI() {
+func (suite *SourceSuite) TestGetIota() {
 	table := []struct {
 		name   string
 		val    string
@@ -53,13 +53,13 @@ func (suite *SourceSuite) TestValAtoI() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			m := map[string]string{"test": test.val}
-			result := valAtoI(m, "test")
+			result := getIota(m, "test")
 			assert.Equal(t, result, test.expect)
 		})
 	}
 }
 
 func (suite *SourceSuite) TestBadCastErr() {
-	err := BadCastErr(ServiceUnknown, ServiceExchange)
+	err := badCastErr(ServiceUnknown, ServiceExchange)
 	assert.Error(suite.T(), err)
 }

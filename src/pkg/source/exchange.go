@@ -10,14 +10,17 @@ type ExchangeSource struct {
 	Source
 }
 
+// ToExchange transforms the generic source into an ExchangeSource.
+// Errors if the service defined by the source is not ServiceExchange.
 func (s Source) ToExchange() (*ExchangeSource, error) {
 	if s.service != ServiceExchange {
-		return nil, BadCastErr(ServiceExchange, s.service)
+		return nil, badCastErr(ServiceExchange, s.service)
 	}
 	src := ExchangeSource{s}
 	return &src, nil
 }
 
+// NewExchange produces a new Source with the service set to ServiceExchange.
 func NewExchange(tenantID string) *ExchangeSource {
 	src := ExchangeSource{
 		newSource(tenantID, ServiceExchange),
@@ -25,6 +28,7 @@ func NewExchange(tenantID string) *ExchangeSource {
 	return &src
 }
 
+// Scopes retrieves the list of exchangeScopes in the source.
 func (s *ExchangeSource) Scopes() []exchangeScope {
 	scopes := []exchangeScope{}
 	for _, v := range s.scopes {
@@ -111,7 +115,7 @@ var (
 
 // Category describes the type of the data in scope.
 func (s exchangeScope) Category() exchangeCategory {
-	return exchangeCategory(valAtoI(s, scopeKeyCategory))
+	return exchangeCategory(getIota(s, scopeKeyCategory))
 }
 
 // Granularity describes the breadth of data in scope.
