@@ -154,7 +154,6 @@ func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
 	var errs error
 	// must be user.GetId(), PrimaryName no longer works 6-15-2022
 	user := dc.FullPath()[1]
-	fmt.Println(user)
 	for {
 		data, err := dc.NextItem()
 		if err == io.EOF {
