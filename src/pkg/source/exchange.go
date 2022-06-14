@@ -83,49 +83,40 @@ func (s *ExchangeSource) UsersMessages(u, f string, ms ...string) {
 // when interfacing with the Exchange service.
 type exchangeScope map[string]string
 
-type exchangeGranularity int
+type exchangeCategory int
 
-// exchangeGranularity specifies the granularity (ie, whether the data involves
-// a wildcard, and at what depth of nested items) of the data in the scope.
-//
-//	Examples:
-// 	AllUserData is the same as a FullPath like /tenantID/userID/*
-//	MailFolder is equivalent to /tenantID/userID/mail/folderID/*
-//  SingleMailMesssage is equivalent to /tenantID/userID/mail/folderID/messageID
+// exchangeCategory describes the type of data in scope.
 const (
-	UnknownEG exchangeGranularity = iota
-	AllUserDataEG
-	AllContactsEG
-	SingleContactEG
-	AllEventsEG
-	SingleEventEG
-	AllMailEG
-	MailFolderEG
-	SingleMailMessageEG
+	ExchangeCategoryUnknown exchangeCategory = iota
+	ExchangeContact
+	ExchangeEvent
+	ExchangeFolder
+	ExchangeMail
+	ExchangeUser
 )
 
-const (
-	exchangeScopeKeyUserID    = "u"
-	exchangeScopeKeyContactID = "c"
-	exchangeScopeKeyEventID   = "e"
-	exchangeScopeKeyFolderID  = "f"
-	exchangeScopeKeyMessageID = "m"
-)
-
-// String complies with the stringer interface, so that exchangeGranularities
+// String complies with the stringer interface, so that exchangeCategories
 // can be added into the scope map.
-func (eg exchangeGranularity) String() string {
-	return strconv.Itoa(int(eg))
+func (ec exchangeCategory) String() string {
+	return strconv.Itoa(int(ec))
 }
 
-// Granularity describes the granularity of the data scope.
-func (s exchangeScope) Granularity() exchangeGranularity {
-	g := s[scopeKeyGranularity]
-	v, err := strconv.Atoi(g)
-	if err != nil {
-		return UnknownEG
-	}
-	return exchangeGranularity(v)
+var (
+	exchangeScopeKeyContactID = ExchangeContact.String()
+	exchangeScopeKeyEventID   = ExchangeEvent.String()
+	exchangeScopeKeyFolderID  = ExchangeFolder.String()
+	exchangeScopeKeyMessageID = ExchangeMail.String()
+	exchangeScopeKeyUserID    = ExchangeUser.String()
+)
+
+// Category describes the type of the data in scope.
+func (s exchangeScope) Category() exchangeCategory {
+	return exchangeCategory(valAtoI(s, scopeKeyCategory))
+}
+
+// Granularity describes the breadth of data in scope.
+func (s exchangeScope) Granularity() scopeGranularity {
+	return granularityOf(s)
 }
 
 // FullPath returns the full path of data (as much as is known to the scope).

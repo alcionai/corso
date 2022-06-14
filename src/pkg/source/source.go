@@ -1,6 +1,10 @@
 package source
 
-import "github.com/pkg/errors"
+import (
+	"strconv"
+
+	"github.com/pkg/errors"
+)
 
 type service int
 
@@ -15,6 +19,7 @@ var ErrorBadSourceCast = errors.New("wrong source service type")
 const (
 	scopeKeyGranularity = "granularity"
 	scopeKeyFullPath    = "fullPath"
+	scopeKeyCategory    = "category"
 )
 
 // The core source.  Has no api for setting or retrieving data.
@@ -22,7 +27,7 @@ const (
 type Source struct {
 	TenantID string              // The tenant making the request.
 	service  service             // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
-	scopes   []map[string]string // A slice of scopes, held as 'any' in the source.
+	scopes   []map[string]string // A slice of scopes.  Expected to get cast to fooScope within each service handler.
 }
 
 // helper for specific source instance constructors.
@@ -41,4 +46,35 @@ func (s Source) Service() service {
 
 func BadCastErr(cast, is service) error {
 	return errors.Wrapf(ErrorBadSourceCast, "%s service is not %s", cast, is)
+}
+
+type scopeGranularity int
+
+// granularity expresses the breadth of the request
+const (
+	GranularityUnknown scopeGranularity = iota
+	SingleItem
+	AllIn
+)
+
+// String complies with the stringer interface, so that granularities
+// can be added into the scope map.
+func (g scopeGranularity) String() string {
+	return strconv.Itoa(int(g))
+}
+
+func granularityOf(source map[string]string) scopeGranularity {
+	return scopeGranularity(valAtoI(source, scopeKeyGranularity))
+}
+
+func valAtoI(m map[string]string, key string) int {
+	v, ok := m[key]
+	if !ok {
+		return 0
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		return 0
+	}
+	return i
 }

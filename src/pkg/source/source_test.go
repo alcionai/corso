@@ -38,6 +38,27 @@ func (suite *SourceSuite) TestSource_Service() {
 	}
 }
 
+func (suite *SourceSuite) TestValAtoI() {
+	table := []struct {
+		name   string
+		val    string
+		expect int
+	}{
+		{"zero", "0", 0},
+		{"positive", "1", 1},
+		{"negative", "-1", -1},
+		{"empty", "", 0},
+		{"NaN", "fnords", 0},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			m := map[string]string{"test": test.val}
+			result := valAtoI(m, "test")
+			assert.Equal(t, result, test.expect)
+		})
+	}
+}
+
 func (suite *SourceSuite) TestBadCastErr() {
 	err := BadCastErr(ServiceUnknown, ServiceExchange)
 	assert.Error(suite.T(), err)
