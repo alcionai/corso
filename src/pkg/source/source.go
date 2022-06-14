@@ -20,9 +20,9 @@ const (
 // The core source.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific source instances.
 type Source struct {
-	TenantID string  // The tenant making the request.
-	service  service // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
-	scopes   []any   // A slice of scopes, held as 'any' in the source.
+	TenantID string              // The tenant making the request.
+	service  service             // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
+	scopes   []map[string]string // A slice of scopes, held as 'any' in the source.
 }
 
 // helper for specific source instance constructors.
@@ -30,7 +30,7 @@ func newSource(tenantID string, s service) Source {
 	return Source{
 		TenantID: tenantID,
 		service:  s,
-		scopes:   []any{},
+		scopes:   []map[string]string{},
 	}
 }
 

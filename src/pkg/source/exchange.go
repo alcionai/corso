@@ -28,10 +28,7 @@ func NewExchange(tenantID string) *ExchangeSource {
 func (s *ExchangeSource) Scopes() []exchangeScope {
 	scopes := []exchangeScope{}
 	for _, v := range s.scopes {
-		cast, ok := v.(exchangeScope)
-		if ok {
-			scopes = append(scopes, cast)
-		}
+		scopes = append(scopes, exchangeScope(v))
 	}
 	return scopes
 }
