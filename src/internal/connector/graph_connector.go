@@ -125,11 +125,11 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // Assumption: User exists
 // TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(user string) (DataCollection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(user string) ([]DataCollection, error) {
 	// TODO replace with completion of Issue 124:
-	collection := NewExchangeDataCollection(user, []string{gc.tenant, user})
+
 	//TODO: Retry handler to convert return: (DataCollection, error)
-	return gc.serializeMessages(user, collection)
+	return gc.serializeMessages(user)
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
@@ -201,7 +201,7 @@ func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollection) (DataCollection, error) {
+func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, error) {
 	options := optionsForMailFolders([]string{})
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
@@ -216,8 +216,10 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 	}
 	// Time to create Exchange data Holder
 	var byteArray []byte
+	collections := make([]DataCollection, 0)
 	var errs error
 	for _, aFolder := range folderList {
+
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
 		if err != nil {
 			errs = WrapAndAppend(user, err, errs)
@@ -233,6 +235,7 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 			continue
 		}
 		objectWriter := kw.NewJsonSerializationWriter()
+		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, aFolder})
 
 		callbackFunc := func(messageItem interface{}) bool {
 			message, ok := messageItem.(models.Messageable)
@@ -261,7 +264,7 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 				return true
 			}
 			if byteArray != nil {
-				dc.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
+				edc.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
 			}
 			return true
 		}
@@ -270,11 +273,11 @@ func (gc *GraphConnector) serializeMessages(user string, dc ExchangeDataCollecti
 		if err != nil {
 			errs = WrapAndAppend(user, err, errs)
 		}
+
+		// Todo Retry Handler to be implemented
+		edc.FinishPopulation()
+		//fmt.Printf("Storing ExchangeDataColection with %d items\n", edc.Length())
+		collections = append(collections, &edc)
 	}
-	fmt.Printf("Returning ExchangeDataColection with %d items\n", dc.Length())
-	if errs != nil {
-		fmt.Printf("Errors: \n%s\n", errs.Error())
-	}
-	dc.FinishPopulation()
-	return &dc, errs
+	return collections, errs
 }

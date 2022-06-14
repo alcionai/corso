@@ -63,12 +63,13 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
-	exchangeData, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
-	assert.NotNil(suite.T(), exchangeData)
+	collectionList, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
+	assert.NotNil(suite.T(), collectionList)
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
 	if err != nil {
 		suite.T().Logf("Missing Data: %s\n", err.Error())
 	}
+	exchangeData := collectionList[0]
 	suite.T().Logf("Full PathData: %s\n", exchangeData.FullPath())
 }
 
