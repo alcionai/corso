@@ -38,7 +38,7 @@ func (suite *SupportTestSuite) TestToMessage() {
 		suite.T().Errorf("Failed with %v\n", err)
 	}
 	require.NoError(suite.T(), err)
-	message, err := ctesting.CreateMessageFromBytes(bytes)
+	message, err := CreateMessageFromBytes(bytes)
 	require.NoError(suite.T(), err)
 	clone := ToMessage(message)
 	suite.Equal(message.GetBccRecipients(), clone.GetBccRecipients())
