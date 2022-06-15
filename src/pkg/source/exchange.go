@@ -45,39 +45,24 @@ func (s *ExchangeSource) Users(us ...string) {
 	// todo
 }
 
-// AllContactsForUser selects all contacts data for the user.
-func (s *ExchangeSource) AllContactsForUser(u string) {
+// Contacts selects the specified contacts owned by the user.
+func (s *ExchangeSource) Contacts(u string, vs ...string) {
 	// todo
 }
 
-// UsersContacts selects the specified contacts owned by the user.
-func (s *ExchangeSource) UsersContacts(u string, cs ...string) {
+// Events selects the specified events owned by the user.
+func (s *ExchangeSource) Events(u string, vs ...string) {
 	// todo
 }
 
-// AllEventsForUser selects all events for the user.
-func (s *ExchangeSource) AllEventsForUser(u string) {
+// MailFolders selects the specified mail folders owned by the user.
+func (s *ExchangeSource) MailFolders(u string, vs ...string) {
 	// todo
 }
 
-// UsersEvents selects the specified events owned by the user.
-func (s *ExchangeSource) UsersEvents(u string, cs ...string) {
-	// todo
-}
-
-// AllMailForUser selects all mail folders and messages owned by the user.
-func (s *ExchangeSource) AllMailForUser(u string) {
-	// todo
-}
-
-// UsersMailFolders selects the specified mail folders owned by the user.
-func (s *ExchangeSource) UsersMailFolders(u string, fs ...string) {
-	// todo
-}
-
-// UsersMessages selects the specified mail messages within the given folder,
+// MailMessages selects the specified mail messages within the given folder,
 // owned by the user.
-func (s *ExchangeSource) UsersMessages(u, f string, ms ...string) {
+func (s *ExchangeSource) MailMessages(u, f string, vs ...string) {
 	// todo
 }
 

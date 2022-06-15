@@ -22,6 +22,12 @@ const (
 	scopeKeyCategory    = "category"
 )
 
+const (
+	// All is the wildcard value used to express "all data of <type>"
+	// Ex: Events(u1, All) => all events for user u1.
+	All = "*"
+)
+
 // The core source.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific source instances.
 type Source struct {
