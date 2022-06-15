@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/cli/backup"
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/repo"
+	"github.com/alcionai/corso/cli/restore"
 	"github.com/alcionai/corso/pkg/logger"
 )
 
@@ -57,8 +58,11 @@ func Handle() {
 	corsoCmd.Flags().BoolP("version", "v", version, "current version info")
 	corsoCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "config file (default is $HOME/.corso)")
 
+	corsoCmd.CompletionOptions.DisableDefaultCmd = true
+
 	repo.AddCommands(corsoCmd)
 	backup.AddCommands(corsoCmd)
+	restore.AddCommands(corsoCmd)
 
 	ctx, log := logger.Seed(context.Background())
 	defer log.Sync() // flush all logs in the buffer
