@@ -18,7 +18,6 @@ var ErrorBadSourceCast = errors.New("wrong source service type")
 
 const (
 	scopeKeyGranularity = "granularity"
-	scopeKeyFullPath    = "fullPath"
 	scopeKeyCategory    = "category"
 )
 

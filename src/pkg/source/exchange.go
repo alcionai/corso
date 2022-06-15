@@ -108,11 +108,6 @@ func (s exchangeScope) Granularity() scopeGranularity {
 	return granularityOf(s)
 }
 
-// FullPath returns the full path of data (as much as is known to the scope).
-func (s exchangeScope) FullPath() string {
-	return s[scopeKeyFullPath]
-}
-
 func (s exchangeScope) UserID() string {
 	return s[exchangeScopeKeyUserID]
 }
