@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,14 +64,15 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
-	collectionList, err := suite.connector.ExchangeDataCollection("dustina@8qzvrj.onmicrosoft.com")
+	collectionList, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
 	assert.NotNil(suite.T(), collectionList)
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
 	if err != nil {
 		suite.T().Logf("Missing Data: %s\n", err.Error())
 	}
+	suite.False(strings.Contains(err.Error(), "attachment failed")) // TODO Create Retry Exceeded Error
 	exchangeData := collectionList[0]
-	suite.T().Logf("Full PathData: %s\n", exchangeData.FullPath())
+	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
