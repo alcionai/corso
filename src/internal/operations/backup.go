@@ -18,7 +18,6 @@ type BackupOperation struct {
 	creds credentials.M365
 
 	Targets []string // something for targets/filter/source/app&users/etc
-	Work    []string // something to reference the artifacts created, or at least their count
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -29,45 +28,44 @@ func NewBackupOperation(
 	creds credentials.M365,
 	targets []string,
 ) (BackupOperation, error) {
-	bo := BackupOperation{
+	op := BackupOperation{
 		operation: newOperation(opts, kw),
 		Version:   "v0",
 		creds:     creds,
 		Targets:   targets,
-		Work:      []string{},
 	}
-	if err := bo.validate(); err != nil {
+	if err := op.validate(); err != nil {
 		return BackupOperation{}, err
 	}
 
-	return bo, nil
+	return op, nil
 }
 
-func (bo BackupOperation) validate() error {
-	if err := bo.creds.Validate(); err != nil {
+func (op BackupOperation) validate() error {
+	if err := op.creds.Validate(); err != nil {
 		return errors.Wrap(err, "invalid credentials")
 	}
-	return bo.operation.validate()
+	return op.operation.validate()
 }
 
 // Run begins a synchronous backup operation.
-func (bo *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) {
-	gc, err := connector.NewGraphConnector(bo.creds.TenantID, bo.creds.ClientID, bo.creds.ClientSecret)
+func (op *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) {
+	gc, err := connector.NewGraphConnector(op.creds.TenantID, op.creds.ClientID, op.creds.ClientSecret)
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to graph api")
 	}
 
-	cs, err := gc.ExchangeDataCollection(bo.Targets[0])
+	cs, err := gc.ExchangeDataCollection(op.Targets[0])
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving application data")
 	}
 
 	// todo: utilize stats
-	stats, err := bo.kopia.BackupCollections(ctx, cs)
+	stats, err := op.kopia.BackupCollections(ctx, cs)
 	if err != nil {
 		return nil, errors.Wrap(err, "backing up application data")
 	}
 
-	bo.Status = Successful
+	op.Status = Successful
 	return stats, nil
 }
