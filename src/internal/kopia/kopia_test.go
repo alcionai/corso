@@ -1,10 +1,18 @@
 package kopia
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/snapshot"
+	"github.com/kopia/kopia/snapshot/snapshotfs"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -273,4 +281,216 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	assert.Equal(suite.T(), stats.IgnoredErrorCount, 0)
 	assert.Equal(suite.T(), stats.ErrorCount, 0)
 	assert.False(suite.T(), stats.Incomplete)
+}
+
+// TODO(ashmrtn): Update this once we have a helper for getting the snapshot
+// root.
+func getSnapshotRoot(
+	t *testing.T,
+	ctx context.Context,
+	rep repo.Repository,
+	rootName string,
+) fs.Entry {
+	si := snapshot.SourceInfo{
+		Host:     kTestHost,
+		UserName: kTestUser,
+		Path:     rootName,
+	}
+
+	manifests, err := snapshot.ListSnapshots(ctx, rep, si)
+	require.NoError(t, err)
+	require.Len(t, manifests, 1)
+
+	rootDirEntry, err := snapshotfs.SnapshotRoot(rep, manifests[0])
+	require.NoError(t, err)
+
+	rootDir, ok := rootDirEntry.(fs.Directory)
+	require.True(t, ok)
+
+	return rootDir
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	k, err := openKopiaRepo(ctx, "backup-restore-single-item-"+timeOfTest)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	path := []string{"a-tenant", "user1", "emails"}
+	fileUUID := "a-file"
+	data := []byte("abcdefghijklmnopqrstuvwxyz")
+	collections := []connector.DataCollection{
+		&singleItemCollection{
+			path: path,
+			stream: &kopiaDataStream{
+				uuid:   fileUUID,
+				reader: io.NopCloser(bytes.NewReader(data)),
+			},
+		},
+	}
+
+	stats, err := k.BackupCollections(ctx, collections)
+	require.NoError(t, err)
+	require.Equal(t, stats.TotalFileCount, 1)
+	require.Equal(t, stats.TotalDirectoryCount, 3)
+	require.Equal(t, stats.IgnoredErrorCount, 0)
+	require.Equal(t, stats.ErrorCount, 0)
+	require.False(t, stats.Incomplete)
+
+	rootDir := getSnapshotRoot(t, ctx, k.rep, "a-tenant")
+
+	c, err := k.restoreSingleItem(ctx, rootDir, append(path[1:], fileUUID))
+	require.NoError(t, err)
+
+	assert.Equal(t, c.FullPath(), path)
+
+	resultStream, err := c.NextItem()
+	require.NoError(t, err)
+
+	_, err = c.NextItem()
+	assert.ErrorIs(t, err, io.EOF)
+
+	buf, err := ioutil.ReadAll(resultStream.ToReader())
+	require.NoError(t, err)
+	assert.Equal(t, buf, data)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_FileAsRoot() {
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	k, err := openKopiaRepo(ctx, "restore-single-file-as-root-"+timeOfTest)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	path := []string{"a-tenant", "user1", "emails"}
+	fileUUID := "a-file"
+	data := []byte("abcdefghijklmnopqrstuvwxyz")
+
+	_, err = k.restoreSingleItem(
+		ctx,
+		virtualfs.StreamingFileFromReader("a-file", bytes.NewReader(data)),
+		append(path[1:], fileUUID),
+	)
+	require.Error(t, err)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_NoRootDir() {
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	k, err := openKopiaRepo(ctx, "restore-single-no-root-"+timeOfTest)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	path := []string{"a-tenant", "user1", "emails"}
+	fileUUID := "a-file"
+	data := []byte("abcdefghijklmnopqrstuvwxyz")
+	collections := []connector.DataCollection{
+		&singleItemCollection{
+			path: path,
+			stream: &kopiaDataStream{
+				uuid:   fileUUID,
+				reader: io.NopCloser(bytes.NewReader(data)),
+			},
+		},
+	}
+
+	stats, err := k.BackupCollections(ctx, collections)
+	require.NoError(t, err)
+	require.Equal(t, stats.TotalFileCount, 1)
+	require.Equal(t, stats.TotalDirectoryCount, 3)
+	require.Equal(t, stats.IgnoredErrorCount, 0)
+	require.Equal(t, stats.ErrorCount, 0)
+	require.False(t, stats.Incomplete)
+
+	_, err = k.restoreSingleItem(ctx, nil, append(path[1:], fileUUID))
+	require.Error(t, err)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_TargetNotAFile() {
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	k, err := openKopiaRepo(ctx, "restore-single-not-a-file-"+timeOfTest)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	path := []string{"a-tenant", "user1", "emails"}
+	fileUUID := "a-file"
+	data := []byte("abcdefghijklmnopqrstuvwxyz")
+	collections := []connector.DataCollection{
+		&singleItemCollection{
+			path: path,
+			stream: &kopiaDataStream{
+				uuid:   fileUUID,
+				reader: io.NopCloser(bytes.NewReader(data)),
+			},
+		},
+	}
+
+	stats, err := k.BackupCollections(ctx, collections)
+	require.NoError(t, err)
+	require.Equal(t, stats.TotalFileCount, 1)
+	require.Equal(t, stats.TotalDirectoryCount, 3)
+	require.Equal(t, stats.IgnoredErrorCount, 0)
+	require.Equal(t, stats.ErrorCount, 0)
+	require.False(t, stats.Incomplete)
+
+	rootDir := getSnapshotRoot(t, ctx, k.rep, "a-tenant")
+
+	_, err = k.restoreSingleItem(ctx, rootDir, []string{path[1]})
+	require.Error(t, err)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_NonExistentFile() {
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	k, err := openKopiaRepo(ctx, "restore-single-does-not-exist-"+timeOfTest)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	path := []string{"a-tenant", "user1", "emails"}
+	fileUUID := "a-file"
+	data := []byte("abcdefghijklmnopqrstuvwxyz")
+	collections := []connector.DataCollection{
+		&singleItemCollection{
+			path: path,
+			stream: &kopiaDataStream{
+				uuid:   fileUUID,
+				reader: io.NopCloser(bytes.NewReader(data)),
+			},
+		},
+	}
+
+	stats, err := k.BackupCollections(ctx, collections)
+	require.NoError(t, err)
+	require.Equal(t, stats.TotalFileCount, 1)
+	require.Equal(t, stats.TotalDirectoryCount, 3)
+	require.Equal(t, stats.IgnoredErrorCount, 0)
+	require.Equal(t, stats.ErrorCount, 0)
+	require.False(t, stats.Incomplete)
+
+	rootDir := getSnapshotRoot(t, ctx, k.rep, "a-tenant")
+
+	_, err = k.restoreSingleItem(ctx, rootDir, append(path[1:], "foo"))
+	require.Error(t, err)
 }
