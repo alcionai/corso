@@ -5,12 +5,13 @@ import (
 	"path"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 const (

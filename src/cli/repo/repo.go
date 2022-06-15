@@ -24,7 +24,7 @@ func AddCommands(parent *cobra.Command) {
 // `corso repo [<subcommand>] [<flag>...]`
 var repoCmd = &cobra.Command{
 	Use:   "repo",
-	Short: "Manage your repositories.",
+	Short: "Manage your repositories",
 	Long:  `Initialize, configure, and connect to your account backup repositories.`,
 	Run:   handleRepoCmd,
 	Args:  cobra.NoArgs,
