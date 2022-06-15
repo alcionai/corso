@@ -19,6 +19,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const number_of_retries = 3
+
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
@@ -244,11 +246,21 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 				return true
 			}
 			if *message.GetHasAttachments() {
-				attached, err := gc.client.UsersById(user).MessagesById(*message.GetId()).Attachments().Get()
-				if err == nil && attached != nil {
-					message.SetAttachments(attached.GetValue())
+				// For err
+				count := 0
+				for {
+					attached, err := gc.client.UsersById(user).MessagesById(*message.GetId()).Attachments().Get()
+					if err == nil && attached != nil {
+						message.SetAttachments(attached.GetValue())
+						break
+					}
+					if count > number_of_retries {
+						break
+					} // Retries exceeded
+					count++
 				}
 				if err != nil {
+					fmt.Println("Retries exceeded")
 					errs = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), errs)
 				}
 			}

@@ -63,7 +63,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
-	collectionList, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
+	collectionList, err := suite.connector.ExchangeDataCollection("dustina@8qzvrj.onmicrosoft.com")
 	assert.NotNil(suite.T(), collectionList)
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
 	if err != nil {
