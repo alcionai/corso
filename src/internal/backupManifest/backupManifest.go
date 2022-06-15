@@ -11,7 +11,7 @@ type BackEntityMetadata interface {
 
 //implements BackEntityMetadata
 type MessageMetadata struct {
-	//Message specific fields
+	//Message specific fields 
 	attachment []AttachmentMetadata
 }
 
