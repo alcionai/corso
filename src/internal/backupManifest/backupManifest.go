@@ -5,6 +5,8 @@ import (
 )
 
 type BackEntityMetadata interface {
+	GetID() string
+	//Will fill out other common getter functions here.
 }
 
 //implements BackEntityMetadata
@@ -42,7 +44,7 @@ type BackManifestHandler interface {
 	//Insert into the database
 	Insert(bem BackEntityMetadata) error
 	//Search in the database with filters
-	Search(callbck searchCallBack, filters ...string) error
+	Search(callback searchCallBack, filters ...string) error
 	//Close the database
 	Close() error
 	//Destory the database
