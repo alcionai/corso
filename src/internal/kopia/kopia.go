@@ -362,3 +362,42 @@ func (kw KopiaWrapper) makeSnapshotWithRoot(
 	res := manifestToStats(man)
 	return &res, nil
 }
+
+// restoreSingleItem looks up the item at the given path starting from rootDir
+// where rootDir is the root of a snapshot. If the item is a file in kopia then
+// it returns a DataCollection with the item as its sole element and
+// DataCollection.FullPath() set to split(dirname(itemPath), "/"). If the item
+// does not exist in kopia or is not a file an error is returned. The UUID of
+// the returned DataStreams will be the name of the kopia file the data is
+// sourced from.
+func (kw KopiaWrapper) restoreSingleItem(
+	ctx context.Context,
+	rootDir fs.Entry,
+	itemPath []string,
+) (connector.DataCollection, error) {
+	e, err := snapshotfs.GetNestedEntry(ctx, rootDir, itemPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting object handle")
+	}
+
+	f, ok := e.(fs.File)
+	if !ok {
+		return nil, errors.New("not a file")
+	}
+
+	r, err := f.Open(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "opening file")
+	}
+
+	pathWithRoot := []string{rootDir.Name()}
+	pathWithRoot = append(pathWithRoot, itemPath[:len(itemPath)-1]...)
+
+	return &singleItemCollection{
+		stream: kopiaDataStream{
+			uuid:   itemPath[len(itemPath)-1],
+			reader: r,
+		},
+		path: pathWithRoot,
+	}, nil
+}
