@@ -28,7 +28,7 @@ type DataCollection interface {
 // that can be consumed as a stream (it embeds io.Reader)
 type DataStream interface {
 	// Returns an io.Reader for the DataStream
-	ToReader() io.Reader
+	ToReader() io.ReadCloser
 	// Provides a unique identifier for this data
 	UUID() string
 }
@@ -103,6 +103,6 @@ func (ed *ExchangeData) UUID() string {
 	return ed.id
 }
 
-func (ed *ExchangeData) ToReader() io.Reader {
-	return bytes.NewReader(ed.message)
+func (ed *ExchangeData) ToReader() io.ReadCloser {
+	return io.NopCloser(bytes.NewReader(ed.message))
 }
