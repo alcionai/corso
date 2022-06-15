@@ -19,6 +19,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const mailCategory = "mail"
+
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
@@ -148,7 +150,7 @@ func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilder
 
 // restoreMessages: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
-// FullPath: tenantId, userId, FolderId
+// FullPath: tenantId, userId, <mailCategory>, FolderId
 func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
 	var errs error
 	// must be user.GetId(), PrimaryName no longer works 6-15-2022
@@ -171,7 +173,7 @@ func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
 			continue
 		}
 		clone := support.ToMessage(message)
-		address := dc.FullPath()[2]
+		address := dc.FullPath()[3]
 		valueId := "Integer 0x0E07"
 		enableValue := "4"
 		sv := models.NewSingleValueLegacyExtendedProperty()
@@ -235,7 +237,7 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 			continue
 		}
 		objectWriter := kw.NewJsonSerializationWriter()
-		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, aFolder})
+		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
 
 		callbackFunc := func(messageItem interface{}) bool {
 			message, ok := messageItem.(models.Messageable)
