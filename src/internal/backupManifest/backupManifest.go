@@ -11,25 +11,30 @@ type BackEntityMetadata interface {
 
 //implements BackEntityMetadata
 type MessageMetadata struct {
+	//Message specific fields
 	attachment []AttachmentMetadata
 }
 
 //implements BackEntityMetadata
 type EventsMetadata struct {
+	//Event specific fields
 	attachment []AttachmentMetadata
 }
 
 //implements BackEntityMetadata
 type ContactMetadata struct {
+	//Contact specific fields
 }
 
 /* For Future reference
 //implements BackEntityMetadata
 type FileMetadata struct {
+	//File specific fields
 }
 
 //implements BackEntityMetadata
 type ObjectMetadata struct {
+	//Object specific fields
 }
 */
 
