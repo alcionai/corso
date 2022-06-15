@@ -43,7 +43,7 @@ func (medc *MockExchangeDataCollection) NextItem() (connector.DataStream, error)
 		medc.messagesRead++
 		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
 		m := []byte("test message")
-		return &MockExchangeData{uuid.NewString(), bytes.NewReader(m)}, nil
+		return &MockExchangeData{uuid.NewString(), io.NopCloser(bytes.NewReader(m))}, nil
 	}
 	return nil, io.EOF
 }
@@ -51,13 +51,13 @@ func (medc *MockExchangeDataCollection) NextItem() (connector.DataStream, error)
 // ExchangeData represents a single item retrieved from exchange
 type MockExchangeData struct {
 	id     string
-	reader io.Reader
+	reader io.ReadCloser
 }
 
 func (med *MockExchangeData) UUID() string {
 	return med.id
 }
 
-func (med *MockExchangeData) ToReader() io.Reader {
+func (med *MockExchangeData) ToReader() io.ReadCloser {
 	return med.reader
 }
