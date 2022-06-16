@@ -86,7 +86,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 		suite.T().Skipf("Support file not accessible: %v\n", err)
 	}
 	ds := ExchangeData{id: "test", message: bytes}
-	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], "Inbox"})
+	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(ds)
 	edc.FinishPopulation()
 	err = suite.connector.restoreMessages(&edc)

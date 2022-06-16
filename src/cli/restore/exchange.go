@@ -1,4 +1,4 @@
-package backup
+package restore
 
 import (
 	"fmt"
@@ -17,23 +17,19 @@ var (
 	user string
 )
 
-// called by backup.go to map parent subcommands to provider-specific handling.
+// called by restore.go to map parent subcommands to provider-specific handling.
 func addExchangeApp(parent *cobra.Command) *cobra.Command {
-	var c *cobra.Command
-	switch parent.Use {
-	case createCommand:
-		c = exchangeCreateCmd
-	}
-	parent.AddCommand(c)
-	fs := c.Flags()
-	fs.StringVar(&user, "user", "", "ID of the user whose Exchange data is to be backed up.")
-	return c
+	parent.AddCommand(exchangeCreateCmd)
+
+	// todo (keepers): add flags.
+
+	return exchangeCreateCmd
 }
 
-// `corso backup create exchange [<flag>...]`
+// `corso restore create exchange [<flag>...]`
 var exchangeCreateCmd = &cobra.Command{
 	Use:   "exchange",
-	Short: "Backup M365 Exchange service data",
+	Short: "Restore M365 Exchange service data",
 	RunE:  createExchangeCmd,
 	Args:  cobra.NoArgs,
 }
@@ -68,15 +64,8 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
-	bo, err := r.NewBackup(cmd.Context(), []string{user})
-	if err != nil {
-		return errors.Wrap(err, "Failed to initialize Exchange backup")
-	}
+	// todo (keepers): actually restore things
 
-	if _, err := bo.Run(cmd.Context()); err != nil {
-		return errors.Wrap(err, "Failed to run Exchange backup")
-	}
-
-	fmt.Printf("Backed up Exchange in %s for user %s.\n", s.Provider, user)
+	fmt.Printf("Restored Exchange in %s for user %s.\n", s.Provider, user)
 	return nil
 }
