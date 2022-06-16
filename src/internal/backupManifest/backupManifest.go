@@ -6,9 +6,15 @@ import (
 
 type BackEntityMetadata interface {
 	GetID() string
-	Insert(db *sql.DB)
-	readCallBack(callback searchCallBack) // call the user call back internally
+	Insert(db *sql.DB) error
+	readCallBack(callback searchCallBack, row sql.Row) error // call the user call back internally
 }
+
+/*******************************************************************
+
+							MessageMetadata
+
+********************************************************************/
 
 //implements BackEntityMetadata
 type MessageMetadata struct {
@@ -16,15 +22,73 @@ type MessageMetadata struct {
 	attachment []AttachmentMetadata
 }
 
+func (mm *MessageMetadata) GetID() string {
+	//TODO
+	return ""
+}
+
+func (mm *MessageMetadata) Insert(db *sql.DB) error {
+	//TODO
+	return nil
+}
+
+func (mm *MessageMetadata) readCallBack(callback searchCallBack, row sql.Row) error {
+	//TODO
+	return nil
+}
+
+/*******************************************************************
+
+							EventsMetadata
+
+********************************************************************/
+
 //implements BackEntityMetadata
 type EventsMetadata struct {
 	//Event specific fields
 	attachment []AttachmentMetadata
 }
 
+func (em *EventsMetadata) GetID() string {
+	//TODO
+	return ""
+}
+
+func (em *EventsMetadata) Insert(db *sql.DB) error {
+	//TODO
+	return nil
+}
+
+func (em *EventsMetadata) readCallBack(callback searchCallBack, row sql.Row) error {
+	//TODO
+	return nil
+}
+
+/*******************************************************************
+
+							ContactMetadata
+
+********************************************************************/
+
 //implements BackEntityMetadata
 type ContactMetadata struct {
-	//Contact specific fields
+	//Event specific fields
+	attachment []AttachmentMetadata
+}
+
+func (em *ContactMetadata) GetID() string {
+	//TODO
+	return ""
+}
+
+func (em *ContactMetadata) Insert(db *sql.DB) error {
+	//TODO
+	return nil
+}
+
+func (em *ContactMetadata) readCallBack(callback searchCallBack, row sql.Row) error {
+	//TODO
+	return nil
 }
 
 /* For Future reference
@@ -43,6 +107,12 @@ type AttachmentMetadata struct {
 }
 
 type searchCallBack func(bem BackEntityMetadata, err error)
+
+/*******************************************************************
+
+						BackManifestHandler
+
+********************************************************************/
 
 type BackManifestHandler interface {
 	//Validate Search Query Index And Filters
@@ -85,10 +155,10 @@ type BackManifestHandler interface {
 				for row in rows {
 					switch (sqIndex) {
 						case type1:
-							XXXMetadataType1 := convertRowToXXXMetadata(row)
-							XXXMetadataType1.readCBK(callback) // This call the users callback function for each resultant row
+							XXXMetadataType1 := NewXXXMetadataType1()
+							XXXMetadataType1.readCBK(callback, row) // This call the users callback function for each resultant row
 						case type2:
-							XXXMetadataType1 := convertRowToXXXMetadata(row, callback)
+							XXXMetadataType1 := NewXXXMetadataType2(row, callback)
 							XXXMetadataType1.readCBK(callback) // This call the users callback function for each resultant row
 						case type3:
 							....
@@ -105,6 +175,12 @@ type BackManifestHandler interface {
 	//Destory the database
 	Destroy() error
 }
+
+/*******************************************************************
+
+						ExchangeBackupManifestHandler
+
+********************************************************************/
 
 //implements BackManifestHandler
 type ExchangeBackupManifestHandler struct {
