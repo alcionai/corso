@@ -6,12 +6,13 @@ import (
 
 type BackEntityMetadata interface {
 	GetID() string
-	//Will fill out other common getter functions here.
+	Insert(db *sql.DB)
+	readCallBack(callback searchCallBack) // call the user call back internally
 }
 
 //implements BackEntityMetadata
 type MessageMetadata struct {
-	//Message specific fields 
+	//Message specific fields
 	attachment []AttachmentMetadata
 }
 
@@ -44,12 +45,61 @@ type AttachmentMetadata struct {
 type searchCallBack func(bem BackEntityMetadata, err error)
 
 type BackManifestHandler interface {
+	//Validate Search Query Index And Filters
+	validateSearchQueryIndexAndFilters(searchQueryPrefixIndex []int, XXXfilters []string) error
+	//Get Search Query Prefix using index
+	getSearchQueryPrefixString(searchQueryPrefixIndex int) string
 	//Open the database
 	Open(name string) error
 	//Insert into the database
 	Insert(bem BackEntityMetadata) error
 	//Search in the database with filters
-	Search(callback searchCallBack, filters ...string) error
+	/*
+
+		THIS COMMENT IS ONLY FOR DESIGN UNDERSTANDING!
+
+
+		The user calls Search() with a call back function.
+		//Pseudo code for a XXXBackupManifestHandler which handles metadata of
+		// XXXMetadataType1, XXXMetadataType2, XXXMetadataType3 etc
+		func (XBMH *XXXBackupManifestHandler) Search (callback searchCallBack, searchQueryPrefixIndex []int, XXXfilters []string) error {
+
+			//Validation of searchQueryPrefixIndex and XXXfilters for the appropriate XXXBackupManifestHandler
+			err := validateXXXSearchQueryIndexAndFilters (searchQueryPrefixIndex, XXXfilters)
+			if err != nil {
+				return err
+			}
+
+			for sqIndex in searchQueryPrefixIndex {
+				var actualSearchQuery []string
+				actualSearchQuery = getSearchQueryPrefixString(sqIndex)
+				append(actualSearchQuery, " where ")
+				for filter in XXXfilters {
+					//Only append filter of appropriate to the search query/XXXMetadata type
+					if (isFilterOfType(filter, sqIndex)) {
+						append(actualSearchQuery, filter)
+					}
+				}
+
+				rows = db.Query (actualSearchQuery)
+				for row in rows {
+					switch (sqIndex) {
+						case type1:
+							XXXMetadataType1 := convertRowToXXXMetadata(row)
+							XXXMetadataType1.readCBK(callback) // This call the users callback function for each resultant row
+						case type2:
+							XXXMetadataType1 := convertRowToXXXMetadata(row, callback)
+							XXXMetadataType1.readCBK(callback) // This call the users callback function for each resultant row
+						case type3:
+							....
+					}
+				}
+			}
+
+		}
+
+	*/
+	Search(callback searchCallBack, searchQueryIndex []int, filters []string) error
 	//Close the database
 	Close() error
 	//Destory the database
@@ -58,12 +108,27 @@ type BackManifestHandler interface {
 
 //implements BackManifestHandler
 type ExchangeBackupManifestHandler struct {
-	db sql.DB
+	exchangeSearchQueryMap map[int]string
+	db                     sql.DB
 }
+
+// Exchange Search query constant for exchange
+const exchangeSearchQueryAllMessagesPrefixIndex int = 1 // Messages type
+const exchangeSearchQueryAllEventsPrefixIndex int = 2   // Event type
+const exchangeSearchQueryAllContactPrefixIndex = 3      //Contact type
+
+const exchangeSearchQueryAllMessagesPrefixString string = "SELECT * FROM message MESSAGE"
+const exchangeSearchQueryStringAllEventsPrefixString string = "SELECT * FROM event EVENTS"
+const exchangeSearchQueryStringAllContactsPrefixString string = "SELECT * FROM contact CONTACTS"
+
+// Exchange Search query filter constants examples:
+const exchangeSearchQueryFilterMessageSender string = "message.sender"
+const exchangeSearchQueryFilterEventSender string = "event.sender"
+
+//Etc..more to be added according to List/Restore requirement
 
 func NewExchangeBackupManifestHandler(
 	path string,
 	callbck searchCallBack) (ExchangeBackupManifestHandler, error) {
-
 	return ExchangeBackupManifestHandler{}, nil
 }
