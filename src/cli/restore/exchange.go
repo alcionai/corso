@@ -78,7 +78,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(cmd.Context(), r)
 
-	// todo (keepers): actually restore things
+	ro, err := r.NewRestore(cmd.Context(), []string{user, folder, mail})
+	if err != nil {
+		return errors.Wrap(err, "Failed to initialize Exchange restore")
+	}
+
+	if _, err := ro.Run(cmd.Context()); err != nil {
+		return errors.Wrap(err, "Failed to run Exchange restore")
+	}
 
 	fmt.Printf("Restored Exchange in %s for user %s.\n", s.Provider, user)
 	return nil
