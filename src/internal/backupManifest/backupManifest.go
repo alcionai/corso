@@ -135,14 +135,14 @@ type BackManifestHandler interface {
 		func (XBMH *XXXBackupManifestHandler) Search (callback searchCallBack, searchQueryPrefixIndex []int, XXXfilters []string) error {
 
 			//Validation of searchQueryPrefixIndex and XXXfilters for the appropriate XXXBackupManifestHandler
-			err := validateXXXSearchQueryIndexAndFilters (searchQueryPrefixIndex, XXXfilters)
+			err := XBMH.validateXXXSearchQueryIndexAndFilters (searchQueryPrefixIndex, XXXfilters)
 			if err != nil {
 				return err
 			}
 
 			for sqIndex in searchQueryPrefixIndex {
 				var actualSearchQuery []string
-				actualSearchQuery = getSearchQueryPrefixString(sqIndex)
+				actualSearchQuery = XBMH.getSearchQueryPrefixString(sqIndex)
 				append(actualSearchQuery, " where ")
 				for filter in XXXfilters {
 					//Only append filter of appropriate to the search query/XXXMetadata type
