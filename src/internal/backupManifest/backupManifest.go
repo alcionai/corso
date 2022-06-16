@@ -128,6 +128,15 @@ type BackManifestHandler interface {
 
 		THIS COMMENT IS ONLY FOR DESIGN UNDERSTANDING!
 
+		const XXXSearchQueryAllXXXMetadataType1PrefixIndex int = 1 // XXXMetadataType1 type
+		const exchangeSearchQueryAllXXXMetadataType2PrefixIndex int = 2   // XXXMetadataType2 type
+		const exchangeSearchQueryAllXXXMetadataType3PrefixIndex = 3      //XXXMetadataType3 type
+
+		const exchangeSearchQueryAllXXXMetadataType1PrefixString string = "SELECT * FROM type1 TYPE1"
+		const exchangeSearchQueryAllXXXMetadataType2PrefixString string = "SELECT * FROM type2 TYPE2"
+		const exchangeSearchQueryAllXXXMetadataType3PrefixString string = "SELECT * FROM type3 TYPE3"
+
+
 
 		The user calls Search() with a call back function.
 		//Pseudo code for a XXXBackupManifestHandler which handles metadata of
@@ -143,13 +152,17 @@ type BackManifestHandler interface {
 			for sqIndex in searchQueryPrefixIndex {
 				var actualSearchQuery []string
 				actualSearchQuery = XBMH.getSearchQueryPrefixString(sqIndex)
-				append(actualSearchQuery, " where ")
-				for filter in XXXfilters {
-					//Only append filter of appropriate to the search query/XXXMetadata type
-					if (isFilterOfType(filter, sqIndex)) {
-						append(actualSearchQuery, filter)
+				//If there are filters
+				if !isEmpty(XXXfilters) {
+					append(actualSearchQuery, " where ")
+					for filter in XXXfilters {
+						//Only append filter of appropriate to the search query/XXXMetadata type
+						if (isFilterOfType(filter, sqIndex)) {
+							append(actualSearchQuery, filter)
+						}
 					}
 				}
+
 
 				rows = db.Query (actualSearchQuery)
 				for row in rows {
@@ -194,8 +207,8 @@ const exchangeSearchQueryAllEventsPrefixIndex int = 2   // Event type
 const exchangeSearchQueryAllContactPrefixIndex = 3      //Contact type
 
 const exchangeSearchQueryAllMessagesPrefixString string = "SELECT * FROM message MESSAGE"
-const exchangeSearchQueryStringAllEventsPrefixString string = "SELECT * FROM event EVENTS"
-const exchangeSearchQueryStringAllContactsPrefixString string = "SELECT * FROM contact CONTACTS"
+const exchangeSearchQueryAllEventsPrefixString string = "SELECT * FROM event EVENTS"
+const exchangeSearchQueryAllContactsPrefixString string = "SELECT * FROM contact CONTACTS"
 
 // Exchange Search query filter constants examples:
 const exchangeSearchQueryFilterMessageSender string = "message.sender"
