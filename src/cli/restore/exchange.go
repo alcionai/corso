@@ -14,20 +14,25 @@ import (
 
 // exchange bucket info from flags
 var (
-	user string
+	folder string
+	mail   string
+	user   string
 )
 
 // called by restore.go to map parent subcommands to provider-specific handling.
 func addExchangeApp(parent *cobra.Command) *cobra.Command {
-	parent.AddCommand(exchangeCreateCmd)
+	parent.AddCommand(exchangeCmd)
 
-	// todo (keepers): add flags.
+	fs := exchangeCmd.Flags()
+	fs.StringVar(&user, "user", "", "ID of the user whose echange data will get restored.")
+	fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored.")
+	fs.StringVar(&mail, "mail", "", "ID of the mail message being restored.")
 
-	return exchangeCreateCmd
+	return exchangeCmd
 }
 
 // `corso restore create exchange [<flag>...]`
-var exchangeCreateCmd = &cobra.Command{
+var exchangeCmd = &cobra.Command{
 	Use:   "exchange",
 	Short: "Restore M365 Exchange service data",
 	RunE:  createExchangeCmd,
@@ -36,6 +41,15 @@ var exchangeCreateCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func createExchangeCmd(cmd *cobra.Command, args []string) error {
+	if cmd.Flags().NFlag() == 0 {
+		cmd.Help()
+		return nil
+	}
+
+	if err := validateRestoreFlags(user, folder, mail); err != nil {
+		return errors.Wrap(err, "Missing required flags")
+	}
+
 	s, cfgTenantID, err := config.MakeS3Config(true, nil)
 	if err != nil {
 		return err
@@ -67,5 +81,16 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	// todo (keepers): actually restore things
 
 	fmt.Printf("Restored Exchange in %s for user %s.\n", s.Provider, user)
+	return nil
+}
+
+func validateRestoreFlags(u, f, m string) error {
+	lu, lf, lm := len(u), len(f), len(m)
+	if (lu == 0 || u == "*") && (lf+lm > 0) {
+		return errors.New("a specific --user must be provided if --folder or --mail is specified")
+	}
+	if (lf == 0 || f == "*") && lm > 0 {
+		return errors.New("a specific --folder must be provided if a --mail is specified")
+	}
 	return nil
 }
