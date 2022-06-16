@@ -164,15 +164,15 @@ type BackManifestHandler interface {
 				}
 
 
-				rows = db.Query (actualSearchQuery)
+				rows = XBMH.db.Query (actualSearchQuery)
 				for row in rows {
 					switch (sqIndex) {
 						case type1:
 							XXXMetadataType1 := NewXXXMetadataType1()
-							XXXMetadataType1.readCBK(callback, row) // This call the users callback function for each resultant row
+							XXXMetadataType1.readCallBack(callback, row) // This call the users callback function for each resultant row
 						case type2:
 							XXXMetadataType1 := NewXXXMetadataType2()
-							XXXMetadataType1.readCBK(callback, row) // This call the users callback function for each resultant row
+							XXXMetadataType1.readCallBack(callback, row) // This call the users callback function for each resultant row
 						case type3:
 							....
 					}
