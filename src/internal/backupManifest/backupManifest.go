@@ -158,8 +158,8 @@ type BackManifestHandler interface {
 							XXXMetadataType1 := NewXXXMetadataType1()
 							XXXMetadataType1.readCBK(callback, row) // This call the users callback function for each resultant row
 						case type2:
-							XXXMetadataType1 := NewXXXMetadataType2(row, callback)
-							XXXMetadataType1.readCBK(callback) // This call the users callback function for each resultant row
+							XXXMetadataType1 := NewXXXMetadataType2()
+							XXXMetadataType1.readCBK(callback, row) // This call the users callback function for each resultant row
 						case type3:
 							....
 					}
