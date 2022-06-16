@@ -21,10 +21,12 @@ func (suite *RestoreSuite) TestValidateRestoreFlags() {
 		u, f, m  string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", "u", "f", "m", assert.NoError},
+		{"all populated", "u", "f", "m", assert.NoError},
 		{"folder missing user", "", "f", "m", assert.Error},
+		{"folder with wildcard user", "*", "f", "m", assert.Error},
 		{"mail missing user", "", "", "m", assert.Error},
 		{"mail missing folder", "u", "", "m", assert.Error},
+		{"mail with wildcard folder", "u", "*", "m", assert.Error},
 		{"all missing", "", "", "", assert.NoError},
 	}
 	for _, test := range table {

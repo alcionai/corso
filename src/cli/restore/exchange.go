@@ -86,11 +86,11 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 func validateRestoreFlags(u, f, m string) error {
 	lu, lf, lm := len(u), len(f), len(m)
-	if lu == 0 && (lf+lm > 0) {
-		return errors.New("a --user must be provided if --folder or --mail is specified")
+	if (lu == 0 || u == "*") && (lf+lm > 0) {
+		return errors.New("a specific --user must be provided if --folder or --mail is specified")
 	}
-	if lf == 0 && lm > 0 {
-		return errors.New("a --folder must be provided if a --mail is specified")
+	if (lf == 0 || f == "*") && lm > 0 {
+		return errors.New("a specific --folder must be provided if a --mail is specified")
 	}
 	return nil
 }
