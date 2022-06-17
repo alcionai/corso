@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 )
 
@@ -41,8 +42,9 @@ var exchangeCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func createExchangeCmd(cmd *cobra.Command, args []string) error {
-	if cmd.Flags().NFlag() == 0 {
-		cmd.Help()
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
@@ -65,25 +67,24 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		a.TenantID = cfgTenantID
 	}
 
-	fmt.Printf(
-		"Called - %s\n\t365TenantID:\t%s\n\t356Client:\t%s\n\tfound 356Secret:\t%v\n",
-		cmd.CommandPath(),
-		m365.TenantID,
-		m365.ClientID,
-		len(m365.ClientSecret) > 0)
+	logger.Ctx(ctx).Debugw(
+		"Called - "+cmd.CommandPath(),
+		"tenantID", m365.TenantID,
+		"clientID", m365.ClientID,
+		"hasClientSecret", len(m365.ClientSecret) > 0)
 
-	r, err := repository.Connect(cmd.Context(), a, s)
+	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
 	}
-	defer utils.CloseRepo(cmd.Context(), r)
+	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(cmd.Context(), []string{user, folder, mail})
+	ro, err := r.NewRestore(ctx, []string{user, folder, mail})
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
 
-	if _, err := ro.Run(cmd.Context()); err != nil {
+	if _, err := ro.Run(ctx); err != nil {
 		return errors.Wrap(err, "Failed to run Exchange restore")
 	}
 
