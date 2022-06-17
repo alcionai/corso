@@ -4,6 +4,7 @@ package connector
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -17,6 +18,8 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 const (
@@ -130,11 +133,11 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // Assumption: User exists
 // TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(user string) ([]DataCollection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, user string) ([]DataCollection, error) {
 	// TODO replace with completion of Issue 124:
 
 	//TODO: Retry handler to convert return: (DataCollection, error)
-	return gc.serializeMessages(user)
+	return gc.serializeMessages(ctx, user)
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
@@ -154,7 +157,7 @@ func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilder
 // restoreMessages: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
+func (gc *GraphConnector) restoreMessages(ctx context.Context, dc DataCollection) error {
 	var errs error
 	// must be user.GetId(), PrimaryName no longer works 6-15-2022
 	user := dc.FullPath()[1]
@@ -188,7 +191,7 @@ func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
 		clone.SetIsDraft(&draft)
 		sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
 		if err != nil {
-			details := ConnectorStackErrorTrace(err)
+			details := ConnectorStackErrorTrace(ctx, err)
 			errs = WrapAndAppend(data.UUID()+": "+details, err, errs)
 			continue
 			// TODO: Add to retry Handler for the for failure
@@ -206,7 +209,7 @@ func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, error) {
+func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([]DataCollection, error) {
 	options := optionsForMailFolders([]string{})
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
@@ -258,7 +261,7 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 					}
 				}
 				if err != nil {
-					fmt.Println("Retries exceeded")
+					logger.Ctx(ctx).Debug("exceeded maximum retries")
 					errs = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), errs)
 				}
 			}
@@ -286,7 +289,7 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 
 		// Todo Retry Handler to be implemented
 		edc.FinishPopulation()
-		//fmt.Printf("Storing ExchangeDataColection with %d items\n", edc.Length())
+		logger.Ctx(ctx).Debugw("finished storing ExchangeDataColection", "itemCount", edc.Length())
 		collections = append(collections, &edc)
 	}
 	return collections, errs

@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -26,8 +27,8 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppend() {
 	suite.True(strings.Contains(returnErr.Error(), "arc376"))
 	suite.Error(returnErr)
 	multi := &multierror.Error{Errors: []error{err1, err2}}
-	suite.True(strings.Contains(ListErrors(*multi), "two")) // Does not contain the wrapped information
-	suite.T().Log(ListErrors(*multi))
+	suite.True(strings.Contains(ListErrors(context.Background(), *multi), "two")) // Does not contain the wrapped information
+	suite.T().Log(ListErrors(context.Background(), *multi))
 }
 
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_OnVar() {

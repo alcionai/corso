@@ -1,13 +1,15 @@
 package connector
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	multierror "github.com/hashicorp/go-multierror"
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error
@@ -24,10 +26,10 @@ func WrapAndAppendf(identifier interface{}, e error, previous error) error {
 // ListErrors is a helper method used to return the string of errors when
 // the multiError library is used.
 // depends on ConnectorStackErrorTrace
-func ListErrors(multi multierror.Error) string {
+func ListErrors(ctx context.Context, multi multierror.Error) string {
 	aString := ""
 	for idx, err := range multi.Errors {
-		detail := ConnectorStackErrorTrace(err)
+		detail := ConnectorStackErrorTrace(ctx, err)
 		if detail == "" {
 			detail = fmt.Sprintf("%v", err)
 		}
@@ -49,7 +51,7 @@ func concatenateStringFromPointers(orig string, pointers []*string) string {
 
 // ConnectorStackErrorTrace is a helper function that wraps the
 // stack trace for oDataError types from querying the M365 back store.
-func ConnectorStackErrorTrace(e error) string {
+func ConnectorStackErrorTrace(ctx context.Context, e error) string {
 	eMessage := ""
 	if oDataError, ok := e.(msgraph_errors.ODataErrorable); ok {
 		// Get MainError
@@ -81,7 +83,7 @@ func ConnectorStackErrorTrace(e error) string {
 			}
 		}
 		if inners != nil {
-			fmt.Println("Inners not nil")
+			logger.Ctx(ctx).Debug("error contains inner errors")
 			eMessage = eMessage + "\nConnector Section:"
 			client := inners.GetClientRequestId()
 			rId := inners.GetRequestId()

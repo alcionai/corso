@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/corso/pkg/repository"
+	"github.com/spf13/cobra"
 )
 
 // RequireProps validates the existence of the properties
@@ -24,4 +25,17 @@ func CloseRepo(ctx context.Context, r *repository.Repository) {
 	if err := r.Close(ctx); err != nil {
 		fmt.Print("Error closing repository:", err)
 	}
+}
+
+// HasNoFlagsAndShownHelp shows the Help output if no flags
+// were provided to the command.  Returns true if the help
+// was shown.
+// Use for when the non-flagged usage of a command
+// (ex: corso backup restore exchange) is expected to no-op.
+func HasNoFlagsAndShownHelp(cmd *cobra.Command) bool {
+	if cmd.Flags().NFlag() == 0 {
+		cmd.Help()
+		return true
+	}
+	return false
 }
