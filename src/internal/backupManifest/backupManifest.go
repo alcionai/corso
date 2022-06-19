@@ -12,7 +12,7 @@ type BackupEntityMetadata interface {
 
 /*******************************************************************
 
-							MessageMetadata
+					MessageMetadata
 
 ********************************************************************/
 
@@ -35,7 +35,7 @@ func (mm *MessageMetadata) Insert(bemh BackupManifestHandler) error {
 
 /*******************************************************************
 
-							EventsMetadata
+					EventsMetadata
 
 ********************************************************************/
 
@@ -58,7 +58,7 @@ func (em *EventMetadata) Insert(bemh BackupManifestHandler) error {
 
 /*******************************************************************
 
-							ContactMetadata
+					ContactMetadata
 
 ********************************************************************/
 
@@ -79,6 +79,12 @@ func (cm *ContactMetadata) Insert(bemh BackupManifestHandler) error {
 	return ebmh.InsertContactMetadata(cm)
 }
 
+/*******************************************************************
+
+					Future Metadata
+
+********************************************************************/
+
 /* For Future reference
 //implements BackEntityMetadata
 type FileMetadata struct {
@@ -90,6 +96,12 @@ type ObjectMetadata struct {
 	//Object specific fields
 }
 */
+
+/*******************************************************************
+
+					AttachmentMetadata
+
+********************************************************************/
 
 type AttachmentMetadata struct {
 }
