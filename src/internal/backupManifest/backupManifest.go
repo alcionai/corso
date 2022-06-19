@@ -230,7 +230,7 @@ func (csi *ContactSearchIterator) NextContact() (ContactMetadata, error) {
 /*
 Pseudo Code for List Messages
 
-	//ExchangeBackupManifestJSONHandler not get defined above, just can example
+	//ExchangeBackupManifestJSONHandler not yet defined above, just can example
 
 	ebmjh ExchangeBackupManifestJSONHandler := NewExchangeBackupManifestJSONHandler ("list_snapshotID.json")
 	ebmh ExchangeBackupManifestHandler := NewExchangeBackupManifestHandler ("snapshotID.db")
@@ -264,7 +264,7 @@ Pseudo Code for List Messages
 		mm,err := msi.NextMessage()
 		if err != nil {
 			if err == io.EOF {
-				return
+				break
 			} else {
 				//go crazy
 			}
