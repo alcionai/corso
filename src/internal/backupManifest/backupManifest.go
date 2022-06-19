@@ -4,8 +4,9 @@ import (
 	"database/sql"
 )
 
-type BackEntityMetadata interface {
+type BackupEntityMetadata interface {
 	GetID() string
+	Insert(bemh *BackupManifestHandler) error
 }
 
 /*******************************************************************
@@ -23,6 +24,12 @@ type MessageMetadata struct {
 func (mm *MessageMetadata) GetID() string {
 	//TODO
 	return ""
+}
+
+func (mm *MessageMetadata) Insert(bemh *BackupManifestHandler) error {
+	var ebmh *ExchangeBackupManifestHandler
+	ebmh = bemh
+	return
 }
 
 /*******************************************************************
@@ -83,16 +90,14 @@ type AttachmentMetadata struct {
 type FilterMap map[string]string
 
 type BackupManifestHandler interface {
-	//Validate Search Query Index And Filters
-	validateSearchQueryIndexAndFilters(searchQueryPrefixIndex []int, XXXfilters []string) error
-	//Get Search Query Prefix using index
-	getSearchQueryPrefixString(searchQueryPrefixIndex int) string
 	//Open the database
 	Open(name string) error
 	//Close the database
 	Close() error
 	//Destory the database
 	Destroy() error
+	//Abstarct Insert
+	Insert(bem *BackupEntityMetadata) error
 }
 
 /*******************************************************************
@@ -107,15 +112,32 @@ type ExchangeBackupManifestHandler struct {
 	db                     sql.DB
 }
 
-//Insert into the database
+type ExchangeSearchIterator struct {
+	rows *sql.Rows
+}
+
+//Insert MessageMetadata into the database
 func (ebmh *ExchangeBackupManifestHandler) InsertMessageMetadata(mm MessageMetadata) error {
 	return nil
 }
 
+//Insert EventMetadata into the database
+func (ebmh *ExchangeBackupManifestHandler) InsertEventMetadata(mm EventMetadata) error {
+	return nil
+}
+
+//Insert EventMetadata into the database
+func (ebmh *ExchangeBackupManifestHandler) InsertContactMetadata(mm ContactMetadata) error {
+	return nil
+}
+
+//Search
+func (ebmh *ExchangeBackupManifestHandler) SearchMessageMetadata() error {
+
+}
+
 //Etc..more to be added according to List/Restore requirement
 
-func NewExchangeBackupManifestHandler(
-	path string,
-	callbck searchCallBack) (ExchangeBackupManifestHandler, error) {
+func NewExchangeBackupManifestHandler(path string) (ExchangeBackupManifestHandler, error) {
 	return ExchangeBackupManifestHandler{}, nil
 }
