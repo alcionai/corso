@@ -96,7 +96,7 @@ type AttachmentMetadata struct {
 
 /*******************************************************************
 
-						BackManifestHandler
+				BackManifestHandler
 
 ********************************************************************/
 
@@ -115,7 +115,7 @@ type BackupManifestHandler interface {
 
 /*******************************************************************
 
-						ExchangeBackupManifestHandler
+                ExchangeBackupManifestHandler
 
 ********************************************************************/
 
@@ -123,34 +123,6 @@ type BackupManifestHandler interface {
 type ExchangeBackupManifestHandler struct {
 	dbPath string
 	db     sql.DB
-}
-
-type ExchangeSearchIterator struct {
-	rows *sql.Rows
-}
-
-type MessageSearchIterator struct {
-	ExchangeSearchIterator
-}
-
-type EventSearchIterator struct {
-	ExchangeSearchIterator
-}
-
-type ContactSearchIterator struct {
-	ExchangeSearchIterator
-}
-
-func (msi *MessageSearchIterator) NextMessage() (MessageMetadata, error) {
-	return MessageMetadata{}, nil
-}
-
-func (esi *EventSearchIterator) NextEvent() (EventMetadata, error) {
-	return EventMetadata{}, nil
-}
-
-func (csi *ContactSearchIterator) NextContact() (ContactMetadata, error) {
-	return ContactMetadata{}, nil
 }
 
 //Abstarct Insert
@@ -207,6 +179,40 @@ func (ebmh *ExchangeBackupManifestHandler) SearchContactMetadata(filterMap Filte
 
 func NewExchangeBackupManifestHandler(path string) (ExchangeBackupManifestHandler, error) {
 	return ExchangeBackupManifestHandler{}, nil
+}
+
+/*******************************************************************
+
+                ExchangeSearchIterators
+
+********************************************************************/
+
+type ExchangeSearchIterator struct {
+	rows *sql.Rows
+}
+
+type MessageSearchIterator struct {
+	ExchangeSearchIterator
+}
+
+type EventSearchIterator struct {
+	ExchangeSearchIterator
+}
+
+type ContactSearchIterator struct {
+	ExchangeSearchIterator
+}
+
+func (msi *MessageSearchIterator) NextMessage() (MessageMetadata, error) {
+	return MessageMetadata{}, nil
+}
+
+func (esi *EventSearchIterator) NextEvent() (EventMetadata, error) {
+	return EventMetadata{}, nil
+}
+
+func (csi *ContactSearchIterator) NextContact() (ContactMetadata, error) {
+	return ContactMetadata{}, nil
 }
 
 /*
