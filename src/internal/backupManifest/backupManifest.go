@@ -6,7 +6,8 @@ import (
 
 type BackupEntityMetadata interface {
 	GetID() string
-	Insert(bemh *BackupManifestHandler) error
+	//Abstract Insert
+	Insert(bemh BackupManifestHandler) error
 }
 
 /*******************************************************************
@@ -26,10 +27,10 @@ func (mm *MessageMetadata) GetID() string {
 	return ""
 }
 
-func (mm *MessageMetadata) Insert(bemh *BackupManifestHandler) error {
+func (mm *MessageMetadata) Insert(bemh BackupManifestHandler) error {
 	var ebmh *ExchangeBackupManifestHandler
-	ebmh = bemh
-	return
+	ebmh = bemh.(*ExchangeBackupManifestHandler)
+	return ebmh.InsertMessageMetadata(mm)
 }
 
 /*******************************************************************
@@ -39,12 +40,12 @@ func (mm *MessageMetadata) Insert(bemh *BackupManifestHandler) error {
 ********************************************************************/
 
 //implements BackEntityMetadata
-type EventsMetadata struct {
+type EventMetadata struct {
 	//Event specific fields
 	attachment []AttachmentMetadata
 }
 
-func (em *EventsMetadata) GetID() string {
+func (em *EventMetadata) GetID() string {
 	//TODO
 	return ""
 }
@@ -91,7 +92,7 @@ type FilterMap map[string]string
 
 type BackupManifestHandler interface {
 	//Open the database
-	Open(name string) error
+	Open() error
 	//Close the database
 	Close() error
 	//Destory the database
@@ -108,36 +109,145 @@ type BackupManifestHandler interface {
 
 //implements BackManifestHandler
 type ExchangeBackupManifestHandler struct {
-	exchangeSearchQueryMap map[int]string
-	db                     sql.DB
+	dbPath string
+	db     sql.DB
 }
 
 type ExchangeSearchIterator struct {
 	rows *sql.Rows
 }
 
+type MessageSearchIterator struct {
+	ExchangeSearchIterator
+}
+
+type EventSearchIterator struct {
+	ExchangeSearchIterator
+}
+
+type ContactSearchIterator struct {
+	ExchangeSearchIterator
+}
+
+func (msi *MessageSearchIterator) NextMessage() (MessageMetadata, error) {
+	return MessageMetadata{}, nil
+}
+
+func (esi *EventSearchIterator) NextEvent() (EventMetadata, error) {
+	return EventMetadata{}, nil
+}
+
+func (csi *ContactSearchIterator) NextContact() (ContactMetadata, error) {
+	return ContactMetadata{}, nil
+}
+
+//Abstarct Insert
+func (ebmh *ExchangeBackupManifestHandler) Insert(bem *BackupEntityMetadata) error {
+	var _bem BackupEntityMetadata
+	_bem = *bem
+	return _bem.Insert(ebmh)
+}
+
+//Open the database
+func (ebmh *ExchangeBackupManifestHandler) Open() error {
+	return nil
+}
+
+//Close the database
+func (ebmh *ExchangeBackupManifestHandler) Close() error {
+	return nil
+}
+
+//Destory the database
+func (ebmh *ExchangeBackupManifestHandler) Destroy() error {
+	return nil
+}
+
 //Insert MessageMetadata into the database
-func (ebmh *ExchangeBackupManifestHandler) InsertMessageMetadata(mm MessageMetadata) error {
+func (ebmh *ExchangeBackupManifestHandler) InsertMessageMetadata(mm *MessageMetadata) error {
 	return nil
 }
 
 //Insert EventMetadata into the database
-func (ebmh *ExchangeBackupManifestHandler) InsertEventMetadata(mm EventMetadata) error {
+func (ebmh *ExchangeBackupManifestHandler) InsertEventMetadata(em *EventMetadata) error {
 	return nil
 }
 
 //Insert EventMetadata into the database
-func (ebmh *ExchangeBackupManifestHandler) InsertContactMetadata(mm ContactMetadata) error {
+func (ebmh *ExchangeBackupManifestHandler) InsertContactMetadata(cm *ContactMetadata) error {
 	return nil
 }
 
-//Search
-func (ebmh *ExchangeBackupManifestHandler) SearchMessageMetadata() error {
-
+//Search Message Metadata
+func (ebmh *ExchangeBackupManifestHandler) SearchMessageMetadata(filterMap FilterMap) (MessageSearchIterator, error) {
+	return MessageSearchIterator{}, nil
 }
 
-//Etc..more to be added according to List/Restore requirement
+//Search Event Metadata
+func (ebmh *ExchangeBackupManifestHandler) SearchEventMetadata(filterMap FilterMap) (EventSearchIterator, error) {
+	return EventSearchIterator{}, nil
+}
+
+//Search Contact Metadata
+func (ebmh *ExchangeBackupManifestHandler) SearchContactMetadata(filterMap FilterMap) (ContactSearchIterator, error) {
+	return ContactSearchIterator{}, nil
+}
 
 func NewExchangeBackupManifestHandler(path string) (ExchangeBackupManifestHandler, error) {
 	return ExchangeBackupManifestHandler{}, nil
 }
+
+/*
+Pseudo Code for List Messages
+
+	//ExchangeBackupManifestJSONHandler not get defined above, just can example
+
+	ebmjh ExchangeBackupManifestJSONHandler := NewExchangeBackupManifestJSONHandler ("list_snapshotID.json")
+	ebmh ExchangeBackupManifestHandler := NewExchangeBackupManifestHandler ("snapshotID.db")
+
+	err := ebmh.Open()
+	defer ebmh.Close()
+	if err != nil {
+		//go crazy
+	}
+
+
+	err := ebmjh.Open()
+	defer ebmjh.Close()
+	if err != nil {
+		//go crazy
+	}
+
+
+	filterMap FilterMap
+	filterMap["ReceiveTimeStart"] = "XXX:XXX:XXXX:XXX"
+	filterMap["ReceiveTimeEnd"] = "XXX:XXXX:XXXX:XXXX"
+	filterMap["From"] = "mogambo@dongrila.com"
+
+
+	msi, err = ebmh.SearchMessageMetadata (filterMap)
+	if err != nil {
+		//go crazy
+	}
+
+	for {
+		mm,err := msi.NextMessage()
+		if err != nil {
+			if err == io.EOF {
+				return
+			} else {
+				//go crazy
+			}
+		}
+
+		//Add to JSON file
+		err := ebmjh.AppendMessageMetadata (mm)
+		if err != nil {
+			//go crazy
+		}
+
+	}
+
+	return nil
+
+*/
