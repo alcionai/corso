@@ -50,6 +50,12 @@ func (em *EventMetadata) GetID() string {
 	return ""
 }
 
+func (em *EventMetadata) Insert(bemh BackupManifestHandler) error {
+	var ebmh *ExchangeBackupManifestHandler
+	ebmh = bemh.(*ExchangeBackupManifestHandler)
+	return ebmh.InsertEventMetadata(em)
+}
+
 /*******************************************************************
 
 							ContactMetadata
@@ -65,6 +71,12 @@ type ContactMetadata struct {
 func (em *ContactMetadata) GetID() string {
 	//TODO
 	return ""
+}
+
+func (cm *ContactMetadata) Insert(bemh BackupManifestHandler) error {
+	var ebmh *ExchangeBackupManifestHandler
+	ebmh = bemh.(*ExchangeBackupManifestHandler)
+	return ebmh.InsertContactMetadata(cm)
 }
 
 /* For Future reference
