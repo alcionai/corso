@@ -76,7 +76,7 @@ func (suite *GraphConnectorErrorSuite) TestGetNumberOfErrors() {
 		{
 			name:     "Not an ErrorList",
 			errs:     errors.New("network error"),
-			expected: 0,
+			expected: 1,
 		},
 		{
 			name:     "Three Errors",

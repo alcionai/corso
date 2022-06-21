@@ -29,7 +29,7 @@ func GetNumberOfErrors(err error) int {
 	words := strings.Split(err.Error(), " ")
 	aNum, err := strconv.Atoi(words[0])
 	if err != nil {
-		return 0
+		return 1 // Base case
 	}
 	return aNum
 }
