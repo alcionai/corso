@@ -68,6 +68,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	if err != nil {
 		suite.T().Logf("Missing Data: %s\n", err.Error())
 	}
+	assert.NotNil(suite.T(), suite.connector.status)
 	suite.NotContains(err.Error(), "attachment failed") // TODO Create Retry Exceeded Error
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)

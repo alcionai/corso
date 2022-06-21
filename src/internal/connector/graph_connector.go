@@ -224,6 +224,7 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 	var byteArray []byte
 	collections := make([]DataCollection, 0)
 	var errs error
+	var totalItems, success int = 0, 0
 	for _, aFolder := range folderList {
 
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
@@ -244,6 +245,7 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
 
 		callbackFunc := func(messageItem interface{}) bool {
+			totalItems++
 			message, ok := messageItem.(models.Messageable)
 			if !ok {
 				errs = WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), errs)
@@ -288,7 +290,14 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 		// Todo Retry Handler to be implemented
 		edc.FinishPopulation()
 		//fmt.Printf("Storing ExchangeDataColection with %d items\n", edc.Length())
+		success += edc.Length()
 		collections = append(collections, &edc)
+	}
+	fmt.Printf("Total: %d, Successful: %d, Folders: %d\nErrors: %d\n%s",
+		totalItems, success, len(folderList), GetNumberOfErrors(errs), errs.Error())
+	status, err := support.CreateStatus(0, totalItems, success, len(folderList), GetNumberOfErrors(errs), errs.Error())
+	if err == nil {
+		gc.UpdateStatus(*status)
 	}
 	return collections, errs
 }
