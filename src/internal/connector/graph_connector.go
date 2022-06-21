@@ -31,8 +31,9 @@ type GraphConnector struct {
 	tenant  string
 	adapter msgraphsdk.GraphRequestAdapter
 	client  msgraphsdk.GraphServiceClient
-	Users   map[string]string //key<email> value<id>
-	Streams string            //Not implemented for ease of code check-in
+	Users   map[string]string                 //key<email> value<id>
+	Streams string                            //Not implemented for ease of code check-in
+	status  *support.ConnectorOperationStatus // contains the status of the last run status
 }
 
 func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, error) {
@@ -54,6 +55,7 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 		adapter: *adapter,
 		client:  *msgraphsdk.NewGraphServiceClient(adapter),
 		Users:   make(map[string]string, 0),
+		status:  nil,
 	}
 	// TODO: Revisit Query all users.
 	err = gc.setTenantUsers()
@@ -201,7 +203,6 @@ func (gc *GraphConnector) restoreMessages(dc DataCollection) error {
 		// This completes the restore loop for a message..
 	}
 	return errs
-
 }
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
@@ -290,4 +291,16 @@ func (gc *GraphConnector) serializeMessages(user string) ([]DataCollection, erro
 		collections = append(collections, &edc)
 	}
 	return collections, errs
+}
+
+// UpdateStatus helper function to status that has e
+func (gc *GraphConnector) UpdateStatus(cos support.ConnectorOperationStatus) {
+	gc.status = &cos
+}
+
+func (gc *GraphConnector) Status() string {
+	if gc.status == nil {
+		return ""
+	}
+	return gc.status.ToString()
 }

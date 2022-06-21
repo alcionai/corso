@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/support"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/credentials"
 )
@@ -42,8 +43,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	suite.NotNil(suite.connector)
 
 }
-
-// --------------------
 
 type DiconnectedGraphConnectorSuite struct {
 	suite.Suite
@@ -150,4 +149,13 @@ func (suite *DiconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	dc = &concrete
 	assert.NotNil(suite.T(), dc)
 
+}
+
+func (suite *DiconnectedGraphConnectorSuite) TestGraphConnector_Status() {
+	gc := GraphConnector{}
+	suite.Equal(len(gc.Status()), 0)
+	status, err := support.CreateStatus(1, 12, 9, 8, 3, "Unable to convert Integer, network error, unexpected interruption")
+	assert.NoError(suite.T(), err)
+	gc.UpdateStatus(*status)
+	suite.Greater(len(gc.Status()), 0)
 }
