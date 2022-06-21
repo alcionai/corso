@@ -133,7 +133,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_InvalidCases() {
 			st, err := storage.NewStorage(storage.ProviderUnknown, goodS3Config)
 			assert.NoError(t, err)
 			test.amend(st)
-			_, err = st.CommonConfig()
+			_, err = st.S3Config()
 			assert.Error(t, err)
 		})
 	}
