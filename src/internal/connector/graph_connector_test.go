@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,7 +63,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
-	collectionList, err := suite.connector.ExchangeDataCollection("lidiah@8qzvrj.onmicrosoft.com")
+	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), "lidiah@8qzvrj.onmicrosoft.com")
 	assert.NotNil(suite.T(), collectionList)
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
 	if err != nil {
@@ -89,7 +90,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(ds)
 	edc.FinishPopulation()
-	err = suite.connector.restoreMessages(&edc)
+	err = suite.connector.restoreMessages(context.Background(), &edc)
 	assert.NoError(suite.T(), err)
 }
 

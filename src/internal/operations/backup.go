@@ -55,7 +55,7 @@ func (op *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) 
 		return nil, errors.Wrap(err, "connecting to graph api")
 	}
 
-	cs, err := gc.ExchangeDataCollection(op.Targets[0])
+	cs, err := gc.ExchangeDataCollection(ctx, op.Targets[0])
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving application data")
 	}

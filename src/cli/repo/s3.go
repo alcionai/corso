@@ -52,7 +52,12 @@ var s3InitCmd = &cobra.Command{
 
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) error {
-	log := logger.Ctx(cmd.Context())
+	ctx := cmd.Context()
+	log := logger.Ctx(ctx)
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
 
 	overrides := map[string]string{
 		credentials.AWSAccessKeyID: accessKey,
@@ -87,11 +92,11 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		"accessKey", s3Cfg.AccessKey,
 		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
 
-	r, err := repository.Initialize(cmd.Context(), a, s)
+	r, err := repository.Initialize(ctx, a, s)
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize a new S3 repository")
 	}
-	defer utils.CloseRepo(cmd.Context(), r)
+	defer utils.CloseRepo(ctx, r)
 
 	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
 
@@ -112,7 +117,12 @@ var s3ConnectCmd = &cobra.Command{
 
 // connects to an existing s3 repo.
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
-	log := logger.Ctx(cmd.Context())
+	ctx := cmd.Context()
+	log := logger.Ctx(ctx)
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
 
 	overrides := map[string]string{
 		credentials.AWSAccessKeyID: accessKey,
@@ -147,11 +157,11 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		"accessKey", s3Cfg.AccessKey,
 		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
 
-	r, err := repository.Connect(cmd.Context(), a, s)
+	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect to the S3 repository")
 	}
-	defer utils.CloseRepo(cmd.Context(), r)
+	defer utils.CloseRepo(ctx, r)
 
 	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
 

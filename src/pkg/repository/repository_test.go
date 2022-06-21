@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -114,9 +115,9 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
-			prefix: "init-s3-" + timeOfTest,
+			prefix: "repository-init-s3-" + timeOfTest,
 			storage: func() (storage.Storage, error) {
-				return ctesting.NewS3Storage("init-s3-" + timeOfTest)
+				return ctesting.NewS3Storage("repository-init-s3-" + timeOfTest)
 			},
 			errCheck: assert.NoError,
 		},
@@ -141,7 +142,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	t := suite.T()
 	ctx := context.Background()
 	timeOfTest := ctesting.LogTimeOfTest(t)
-	prefix := "conn-s3-" + timeOfTest
+	prefix := "repository-conn-s3-" + timeOfTest
 
 	// need to initialize the repository before we can test connecting to it.
 	st, err := ctesting.NewS3Storage(prefix)
@@ -153,4 +154,54 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	// now re-connect
 	_, err = repository.Connect(ctx, repository.Account{}, st)
 	assert.NoError(t, err)
+}
+
+func (suite *RepositoryIntegrationSuite) TestNewBackup() {
+	t := suite.T()
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(t)
+	prefix := "repository-new-backup-" + timeOfTest
+
+	m365 := credentials.GetM365()
+	acct := repository.Account{
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+		TenantID:     m365.TenantID,
+	}
+
+	// need to initialize the repository before we can test connecting to it.
+	st, err := ctesting.NewS3Storage(prefix)
+	require.NoError(t, err)
+
+	r, err := repository.Initialize(ctx, acct, st)
+	require.NoError(t, err)
+
+	bo, err := r.NewBackup(ctx, []string{})
+	require.NoError(t, err)
+	require.NotNil(t, bo)
+}
+
+func (suite *RepositoryIntegrationSuite) TestNewRestore() {
+	t := suite.T()
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(t)
+	prefix := "repository-new-restore-" + timeOfTest
+
+	m365 := credentials.GetM365()
+	acct := repository.Account{
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+		TenantID:     m365.TenantID,
+	}
+
+	// need to initialize the repository before we can test connecting to it.
+	st, err := ctesting.NewS3Storage(prefix)
+	require.NoError(t, err)
+
+	r, err := repository.Initialize(ctx, acct, st)
+	require.NoError(t, err)
+
+	ro, err := r.NewRestore(ctx, []string{})
+	require.NoError(t, err)
+	require.NotNil(t, ro)
 }
