@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/pkg/account"
@@ -29,7 +30,7 @@ var goodM365Config = account.M365Config{
 func (suite *M365CfgSuite) TestM365Config_Config() {
 	m365 := goodM365Config
 	c, err := m365.Config()
-	assert.NoError(suite.T(), err)
+	require.NoError(suite.T(), err)
 
 	table := []struct {
 		key    string
@@ -49,9 +50,9 @@ func (suite *M365CfgSuite) TestAccount_M365Config() {
 
 	in := goodM365Config
 	a, err := account.NewAccount(account.ProviderM365, in)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	out, err := a.M365Config()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, in.ClientID, out.ClientID)
 	assert.Equal(t, in.ClientSecret, out.ClientSecret)
@@ -74,7 +75,7 @@ func (suite *M365CfgSuite) TestAccount_M365Config_InvalidCases() {
 		name string
 		cfg  account.M365Config
 	}{
-		{"missing client ID", makeTestM365Cfg("cid", "", "tid")},
+		{"missing client ID", makeTestM365Cfg("", "cs", "tid")},
 		{"missing client secret", makeTestM365Cfg("cid", "", "tid")},
 		{"missing tenant ID", makeTestM365Cfg("cid", "cs", "")},
 	}
