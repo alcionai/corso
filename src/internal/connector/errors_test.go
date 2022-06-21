@@ -65,3 +65,28 @@ func (suite *GraphConnectorErrorSuite) TestConcatenateStringFromPointers() {
 	suite.True(strings.Contains(outString, v1))
 	suite.True(strings.Contains(outString, v3))
 }
+
+func (suite *GraphConnectorErrorSuite) TestGetNumberOfErrors() {
+	table := []struct {
+		name     string
+		errs     error
+		expected int
+	}{
+		{
+			name:     "Not an ErrorList",
+			errs:     errors.New("network error"),
+			expected: 0,
+		},
+		{
+			name:     "Three Errors",
+			errs:     WrapAndAppend("tres", errors.New("three"), WrapAndAppend("arc376", errors.New("one"), errors.New("two"))),
+			expected: 3,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := GetNumberOfErrors(test.errs)
+			suite.Equal(result, test.expected)
+		})
+	}
+}

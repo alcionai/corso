@@ -2,6 +2,7 @@ package connector
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -19,6 +20,16 @@ func WrapAndAppend(identifier string, e error, previous error) error {
 // WrapErrorAndAppendf format version of WrapErrorAndAppend
 func WrapAndAppendf(identifier interface{}, e error, previous error) error {
 	return multierror.Append(previous, errors.Wrapf(e, "%v", identifier))
+}
+
+// GetErrors Helper method to return the integer amount of errors in multi error
+func GetNumberOfErrors(err error) int {
+	words := strings.Split(err.Error(), " ")
+	aNum, err := strconv.Atoi(words[0])
+	if err != nil {
+		return 0
+	}
+	return aNum
 }
 
 // ListErrors is a helper method used to return the string of errors when
