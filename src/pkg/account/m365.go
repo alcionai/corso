@@ -3,6 +3,7 @@ package account
 import (
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/credentials"
 )
 
@@ -24,8 +25,8 @@ const (
 // (todo) TenantID     = "TENANT_ID"
 )
 
-func (c M365Config) Config() (config, error) {
-	cfg := config{
+func (c M365Config) Config() (common.Config[string], error) {
+	cfg := common.Config[string]{
 		keyM365ClientID:     c.ClientID,
 		keyM365ClientSecret: c.ClientSecret,
 		keyM365TenantID:     c.TenantID,
