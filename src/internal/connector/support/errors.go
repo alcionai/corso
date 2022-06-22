@@ -32,10 +32,9 @@ func GetNumberOfErrors(err error) int {
 	result, _, wasFound := strings.Cut(err.Error(), " ")
 	if wasFound {
 		aNum, err := strconv.Atoi(result)
-		if err != nil {
-			return 1 // Base case
+		if err == nil {
+			return aNum
 		}
-		return aNum
 	}
 	return 1
 }
