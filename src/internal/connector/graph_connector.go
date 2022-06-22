@@ -299,14 +299,14 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 
 	status, err := support.CreateStatus(support.Backup, totalItems, success, len(folderList), errs)
 	if err == nil {
-		gc.UpdateStatus(*status)
+		gc.SetStatus(*status)
 		logger.Ctx(ctx).Debugw(gc.Status())
 	}
 	return collections, errs
 }
 
-// UpdateStatus helper function to status that has e
-func (gc *GraphConnector) UpdateStatus(cos support.ConnectorOperationStatus) {
+// SetStatus helper function
+func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 	gc.status = &cos
 }
 
