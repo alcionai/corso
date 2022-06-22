@@ -3,7 +3,6 @@ package storage
 import (
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/credentials"
 )
 
@@ -33,7 +32,7 @@ const (
 )
 
 func (c S3Config) StringConfig() (map[string]string, error) {
-	cfg := common.Config[any]{
+	cfg := map[string]string{
 		keyS3AccessKey:    c.AccessKey,
 		keyS3Bucket:       c.Bucket,
 		keyS3Endpoint:     c.Endpoint,

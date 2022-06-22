@@ -3,7 +3,6 @@ package storage
 import (
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/credentials"
 )
 
@@ -17,7 +16,7 @@ const (
 )
 
 func (c CommonConfig) StringConfig() (map[string]string, error) {
-	cfg := common.Config[any]{
+	cfg := map[string]string{
 		keyCommonCorsoPassword: c.CorsoPassword,
 	}
 	return cfg, c.validate()

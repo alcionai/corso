@@ -4,10 +4,6 @@ type StringConfigurer interface {
 	StringConfig() (map[string]string, error)
 }
 
-type (
-	Config[T any] map[string]string
-)
-
 // UnionStringConfigs unions all provided configurers into a single
 // map[string]string matching type.
 func UnionStringConfigs(cfgs ...StringConfigurer) (map[string]string, error) {

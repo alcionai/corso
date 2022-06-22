@@ -3,7 +3,6 @@ package storage
 import (
 	"testing"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -14,7 +13,7 @@ type testConfig struct {
 }
 
 func (c testConfig) StringConfig() (map[string]string, error) {
-	return common.Config[any]{"expect": c.expect}, c.err
+	return map[string]string{"expect": c.expect}, c.err
 }
 
 type StorageSuite struct {

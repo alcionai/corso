@@ -3,7 +3,6 @@ package account
 import (
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/credentials"
 )
 
@@ -26,7 +25,7 @@ const (
 )
 
 func (c M365Config) StringConfig() (map[string]string, error) {
-	cfg := common.Config[string]{
+	cfg := map[string]string{
 		keyM365ClientID:     c.ClientID,
 		keyM365ClientSecret: c.ClientSecret,
 		keyM365TenantID:     c.TenantID,
