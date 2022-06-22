@@ -56,6 +56,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				operations.OperationOpts{},
 				test.kw,
 				test.creds,
+				"restore-point-id",
 				nil)
 			test.errCheck(t, err)
 		})

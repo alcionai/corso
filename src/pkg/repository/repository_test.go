@@ -201,7 +201,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	r, err := repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)
 
-	ro, err := r.NewRestore(ctx, []string{})
+	ro, err := r.NewRestore(ctx, "restore-point-id", []string{})
 	require.NoError(t, err)
 	require.NotNil(t, ro)
 }

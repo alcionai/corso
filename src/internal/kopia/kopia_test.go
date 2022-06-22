@@ -131,7 +131,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		require.Len(suite.T(), subEntries, 1)
 		assert.Contains(suite.T(), subEntries[0].Name(), emails)
 
-		subDir, ok := subEntries[0].(fs.Directory)
+		subDir := subEntries[0].(fs.Directory)
 		emailFiles, err := fs.GetAllEntries(ctx, subDir)
 		require.NoError(suite.T(), err)
 		assert.Len(suite.T(), emailFiles, expectedFileCount[entry.Name()])

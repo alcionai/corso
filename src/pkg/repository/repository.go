@@ -113,7 +113,7 @@ func (r Repository) NewBackup(ctx context.Context, targets []string) (operations
 }
 
 // NewRestore generates a restoreOperation runner.
-func (r Repository) NewRestore(ctx context.Context, targets []string) (operations.RestoreOperation, error) {
+func (r Repository) NewRestore(ctx context.Context, restorePointID string, targets []string) (operations.RestoreOperation, error) {
 	creds := credentials.M365{
 		ClientID:     r.Account.ClientID,
 		ClientSecret: r.Account.ClientSecret,
@@ -124,5 +124,6 @@ func (r Repository) NewRestore(ctx context.Context, targets []string) (operation
 		operations.OperationOpts{},
 		r.dataLayer,
 		creds,
+		restorePointID,
 		targets)
 }

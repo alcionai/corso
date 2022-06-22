@@ -154,10 +154,10 @@ func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilder
 	return options
 }
 
-// restoreMessages: Utility function to connect to M365 backstore
+// RestoreMessages: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) restoreMessages(ctx context.Context, dc DataCollection) error {
+func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection) error {
 	var errs error
 	// must be user.GetId(), PrimaryName no longer works 6-15-2022
 	user := dc.FullPath()[1]
