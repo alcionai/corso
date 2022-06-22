@@ -44,9 +44,9 @@ type BackupStats struct {
 	IncompleteReason    string
 }
 
-func manifestToStats(snapID string, man *snapshot.Manifest) BackupStats {
+func manifestToStats(man *snapshot.Manifest) BackupStats {
 	return BackupStats{
-		SnapshotID:          snapID,
+		SnapshotID:          string(man.ID),
 		TotalFileCount:      int(man.Stats.TotalFileCount),
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
@@ -362,7 +362,7 @@ func (kw KopiaWrapper) makeSnapshotWithRoot(
 		return nil, errors.Wrap(err, "flushing writer")
 	}
 
-	res := manifestToStats(root.Name(), man)
+	res := manifestToStats(man)
 	return &res, nil
 }
 

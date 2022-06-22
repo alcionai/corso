@@ -84,6 +84,6 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
-	fmt.Printf("Backed up resore point %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
+	fmt.Printf("Backed up restore point %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
 	return nil
 }

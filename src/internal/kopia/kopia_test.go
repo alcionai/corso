@@ -9,9 +9,7 @@ import (
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
-	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
-	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -294,25 +292,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	assert.False(suite.T(), stats.Incomplete)
 }
 
-func getSnapshotID(
-	t *testing.T,
-	ctx context.Context,
-	rep repo.Repository,
-	rootName string,
-) manifest.ID {
-	si := snapshot.SourceInfo{
-		Host:     kTestHost,
-		UserName: kTestUser,
-		Path:     rootName,
-	}
-
-	manifests, err := snapshot.ListSnapshots(ctx, rep, si)
-	require.NoError(t, err)
-	require.Len(t, manifests, 1)
-
-	return manifests[0].ID
-}
-
 func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) manifest.ID {
 	collections := []connector.DataCollection{
 		&singleItemCollection{
@@ -332,7 +311,7 @@ func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) manifes
 	require.Equal(t, stats.ErrorCount, 0)
 	require.False(t, stats.Incomplete)
 
-	return getSnapshotID(t, ctx, k.rep, testPath[0])
+	return manifest.ID(stats.SnapshotID)
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
