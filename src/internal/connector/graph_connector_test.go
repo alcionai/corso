@@ -4,10 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/support"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/credentials"
 )
@@ -44,8 +46,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 
 }
 
-// --------------------
-
 type DiconnectedGraphConnectorSuite struct {
 	suite.Suite
 }
@@ -67,9 +67,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), "lidiah@8qzvrj.onmicrosoft.com")
 	assert.NotNil(suite.T(), collectionList)
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
-	if err != nil {
-		suite.T().Logf("Missing Data: %s\n", err.Error())
-	}
+	assert.NotNil(suite.T(), suite.connector.status)
 	suite.NotContains(err.Error(), "attachment failed") // TODO Create Retry Exceeded Error
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
@@ -151,4 +149,14 @@ func (suite *DiconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	dc = &concrete
 	assert.NotNil(suite.T(), dc)
 
+}
+
+func (suite *DiconnectedGraphConnectorSuite) TestGraphConnector_Status() {
+	gc := GraphConnector{}
+	suite.Equal(len(gc.Status()), 0)
+	status, err := support.CreateStatus(support.Restore, 12, 9, 8,
+		support.WrapAndAppend("tres", errors.New("three"), support.WrapAndAppend("arc376", errors.New("one"), errors.New("two"))))
+	assert.NoError(suite.T(), err)
+	gc.SetStatus(*status)
+	suite.Greater(len(gc.Status()), 0)
 }

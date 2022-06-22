@@ -1,8 +1,9 @@
-package connector
+package support
 
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -21,6 +22,21 @@ func WrapAndAppend(identifier string, e error, previous error) error {
 // WrapErrorAndAppendf format version of WrapErrorAndAppend
 func WrapAndAppendf(identifier interface{}, e error, previous error) error {
 	return multierror.Append(previous, errors.Wrapf(e, "%v", identifier))
+}
+
+// GetErrors Helper method to return the integer amount of errors in multi error
+func GetNumberOfErrors(err error) int {
+	if err == nil {
+		return 0
+	}
+	result, _, wasFound := strings.Cut(err.Error(), " ")
+	if wasFound {
+		aNum, err := strconv.Atoi(result)
+		if err == nil {
+			return aNum
+		}
+	}
+	return 1
 }
 
 // ListErrors is a helper method used to return the string of errors when
