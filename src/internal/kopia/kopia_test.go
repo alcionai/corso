@@ -22,6 +22,18 @@ import (
 	ctesting "github.com/alcionai/corso/internal/testing"
 )
 
+const (
+	testTenant   = "a-tenant"
+	testUser     = "user1"
+	testEmailDir = "mail"
+	testFileUUID = "a-file"
+)
+
+var (
+	testPath     = []string{testTenant, testUser, testEmailDir}
+	testFileData = []byte("abcdefghijklmnopqrstuvwxyz")
+)
+
 func openKopiaRepo(ctx context.Context, prefix string) (*KopiaWrapper, error) {
 	storage, err := ctesting.NewS3Storage(prefix)
 	if err != nil {
@@ -310,6 +322,26 @@ func getSnapshotRoot(
 	return rootDir
 }
 
+func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) {
+	collections := []connector.DataCollection{
+		&singleItemCollection{
+			path: testPath,
+			stream: &kopiaDataStream{
+				uuid:   testFileUUID,
+				reader: io.NopCloser(bytes.NewReader(testFileData)),
+			},
+		},
+	}
+
+	stats, err := k.BackupCollections(ctx, collections)
+	require.NoError(t, err)
+	require.Equal(t, stats.TotalFileCount, 1)
+	require.Equal(t, stats.TotalDirectoryCount, 3)
+	require.Equal(t, stats.IgnoredErrorCount, 0)
+	require.Equal(t, stats.ErrorCount, 0)
+	require.False(t, stats.Incomplete)
+}
+
 func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	ctx := context.Background()
 	timeOfTest := ctesting.LogTimeOfTest(suite.T())
@@ -321,33 +353,14 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
 		assert.NoError(t, k.Close(ctx))
 	}()
 
-	path := []string{"a-tenant", "user1", "emails"}
-	fileUUID := "a-file"
-	data := []byte("abcdefghijklmnopqrstuvwxyz")
-	collections := []connector.DataCollection{
-		&singleItemCollection{
-			path: path,
-			stream: &kopiaDataStream{
-				uuid:   fileUUID,
-				reader: io.NopCloser(bytes.NewReader(data)),
-			},
-		},
-	}
+	setupSimpleRepo(t, ctx, k)
 
-	stats, err := k.BackupCollections(ctx, collections)
-	require.NoError(t, err)
-	require.Equal(t, stats.TotalFileCount, 1)
-	require.Equal(t, stats.TotalDirectoryCount, 3)
-	require.Equal(t, stats.IgnoredErrorCount, 0)
-	require.Equal(t, stats.ErrorCount, 0)
-	require.False(t, stats.Incomplete)
+	rootDir := getSnapshotRoot(t, ctx, k.rep, testTenant)
 
-	rootDir := getSnapshotRoot(t, ctx, k.rep, "a-tenant")
-
-	c, err := k.restoreSingleItem(ctx, rootDir, append(path[1:], fileUUID))
+	c, err := k.restoreSingleItem(ctx, rootDir, append(testPath[1:], testFileUUID))
 	require.NoError(t, err)
 
-	assert.Equal(t, c.FullPath(), path)
+	assert.Equal(t, c.FullPath(), testPath)
 
 	resultStream, err := c.NextItem()
 	require.NoError(t, err)
@@ -357,140 +370,64 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
 
 	buf, err := ioutil.ReadAll(resultStream.ToReader())
 	require.NoError(t, err)
-	assert.Equal(t, buf, data)
+	assert.Equal(t, buf, testFileData)
 }
 
-func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_FileAsRoot() {
-	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
-	t := suite.T()
-
-	k, err := openKopiaRepo(ctx, "restore-single-file-as-root-"+timeOfTest)
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
-
-	path := []string{"a-tenant", "user1", "emails"}
-	fileUUID := "a-file"
-	data := []byte("abcdefghijklmnopqrstuvwxyz")
-
-	_, err = k.restoreSingleItem(
-		ctx,
-		virtualfs.StreamingFileFromReader("a-file", bytes.NewReader(data)),
-		append(path[1:], fileUUID),
-	)
-	require.Error(t, err)
-}
-
-func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_NoRootDir() {
-	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
-	t := suite.T()
-
-	k, err := openKopiaRepo(ctx, "restore-single-no-root-"+timeOfTest)
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
-
-	path := []string{"a-tenant", "user1", "emails"}
-	fileUUID := "a-file"
-	data := []byte("abcdefghijklmnopqrstuvwxyz")
-	collections := []connector.DataCollection{
-		&singleItemCollection{
-			path: path,
-			stream: &kopiaDataStream{
-				uuid:   fileUUID,
-				reader: io.NopCloser(bytes.NewReader(data)),
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
+	table := []struct {
+		name        string
+		rootDirFunc func(*testing.T, context.Context, *KopiaWrapper) fs.Entry
+		path        []string
+	}{
+		{
+			"FileAsRoot",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return virtualfs.StreamingFileFromReader(testFileUUID, bytes.NewReader(testFileData))
 			},
+			append(testPath[1:], testFileUUID),
+		},
+		{
+			"NoRootDir",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return nil
+			},
+			append(testPath[1:], testFileUUID),
+		},
+		{
+			"TargetNotAFile",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return getSnapshotRoot(t, ctx, k.rep, testPath[0])
+			},
+			[]string{testPath[1]},
+		},
+		{
+			"NonExistentFile",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return getSnapshotRoot(t, ctx, k.rep, testPath[0])
+			},
+			append(testPath[1:], "foo"),
 		},
 	}
 
-	stats, err := k.BackupCollections(ctx, collections)
-	require.NoError(t, err)
-	require.Equal(t, stats.TotalFileCount, 1)
-	require.Equal(t, stats.TotalDirectoryCount, 3)
-	require.Equal(t, stats.IgnoredErrorCount, 0)
-	require.Equal(t, stats.ErrorCount, 0)
-	require.False(t, stats.Incomplete)
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			timeOfTest := ctesting.LogTimeOfTest(t)
 
-	_, err = k.restoreSingleItem(ctx, nil, append(path[1:], fileUUID))
-	require.Error(t, err)
-}
+			k, err := openKopiaRepo(ctx, "backup-restore-single-item-error-"+test.name+"-"+timeOfTest)
+			require.NoError(t, err)
+			defer func() {
+				assert.NoError(t, k.Close(ctx))
+			}()
 
-func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_TargetNotAFile() {
-	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
-	t := suite.T()
+			setupSimpleRepo(t, ctx, k)
 
-	k, err := openKopiaRepo(ctx, "restore-single-not-a-file-"+timeOfTest)
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
-
-	path := []string{"a-tenant", "user1", "emails"}
-	fileUUID := "a-file"
-	data := []byte("abcdefghijklmnopqrstuvwxyz")
-	collections := []connector.DataCollection{
-		&singleItemCollection{
-			path: path,
-			stream: &kopiaDataStream{
-				uuid:   fileUUID,
-				reader: io.NopCloser(bytes.NewReader(data)),
-			},
-		},
+			_, err = k.restoreSingleItem(
+				ctx,
+				test.rootDirFunc(t, ctx, k),
+				test.path,
+			)
+			require.Error(t, err)
+		})
 	}
-
-	stats, err := k.BackupCollections(ctx, collections)
-	require.NoError(t, err)
-	require.Equal(t, stats.TotalFileCount, 1)
-	require.Equal(t, stats.TotalDirectoryCount, 3)
-	require.Equal(t, stats.IgnoredErrorCount, 0)
-	require.Equal(t, stats.ErrorCount, 0)
-	require.False(t, stats.Incomplete)
-
-	rootDir := getSnapshotRoot(t, ctx, k.rep, "a-tenant")
-
-	_, err = k.restoreSingleItem(ctx, rootDir, []string{path[1]})
-	require.Error(t, err)
-}
-
-func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_NonExistentFile() {
-	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
-	t := suite.T()
-
-	k, err := openKopiaRepo(ctx, "restore-single-does-not-exist-"+timeOfTest)
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
-
-	path := []string{"a-tenant", "user1", "emails"}
-	fileUUID := "a-file"
-	data := []byte("abcdefghijklmnopqrstuvwxyz")
-	collections := []connector.DataCollection{
-		&singleItemCollection{
-			path: path,
-			stream: &kopiaDataStream{
-				uuid:   fileUUID,
-				reader: io.NopCloser(bytes.NewReader(data)),
-			},
-		},
-	}
-
-	stats, err := k.BackupCollections(ctx, collections)
-	require.NoError(t, err)
-	require.Equal(t, stats.TotalFileCount, 1)
-	require.Equal(t, stats.TotalDirectoryCount, 3)
-	require.Equal(t, stats.IgnoredErrorCount, 0)
-	require.Equal(t, stats.ErrorCount, 0)
-	require.False(t, stats.Incomplete)
-
-	rootDir := getSnapshotRoot(t, ctx, k.rep, "a-tenant")
-
-	_, err = k.restoreSingleItem(ctx, rootDir, append(path[1:], "foo"))
-	require.Error(t, err)
 }
