@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -153,7 +154,8 @@ func (suite *DiconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 func (suite *DiconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	gc := GraphConnector{}
 	suite.Equal(len(gc.Status()), 0)
-	status, err := support.CreateStatus(1, 12, 9, 8, 3, "Unable to convert Integer, network error, unexpected interruption")
+	status, err := support.CreateStatus(support.Restore, 12, 9, 8,
+		support.WrapAndAppend("tres", errors.New("three"), support.WrapAndAppend("arc376", errors.New("one"), errors.New("two"))))
 	assert.NoError(suite.T(), err)
 	gc.UpdateStatus(*status)
 	suite.Greater(len(gc.Status()), 0)

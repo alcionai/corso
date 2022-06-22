@@ -84,7 +84,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		return err
 	}
 	if response == nil {
-		err = WrapAndAppend("general access", errors.New("connector failed: No access"), err)
+		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
 		return err
 	}
 	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
@@ -95,7 +95,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			err = WrapAndAppend(gc.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
+			err = support.WrapAndAppend(gc.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
@@ -103,7 +103,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	}
 	iterateError = userIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = WrapAndAppend(gc.adapter.GetBaseUrl(), iterateError, err)
+		err = support.WrapAndAppend(gc.adapter.GetBaseUrl(), iterateError, err)
 	}
 	return err
 }
@@ -172,12 +172,12 @@ func (gc *GraphConnector) restoreMessages(ctx context.Context, dc DataCollection
 		buf := &bytes.Buffer{}
 		_, err = buf.ReadFrom(data.ToReader())
 		if err != nil {
-			errs = WrapAndAppend(data.UUID(), err, errs)
+			errs = support.WrapAndAppend(data.UUID(), err, errs)
 			continue
 		}
 		message, err := support.CreateMessageFromBytes(buf.Bytes())
 		if err != nil {
-			errs = WrapAndAppend(data.UUID(), err, errs)
+			errs = support.WrapAndAppend(data.UUID(), err, errs)
 			continue
 		}
 		clone := support.ToMessage(message)
@@ -193,14 +193,14 @@ func (gc *GraphConnector) restoreMessages(ctx context.Context, dc DataCollection
 		clone.SetIsDraft(&draft)
 		sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
 		if err != nil {
-			details := ConnectorStackErrorTrace(ctx, err)
-			errs = WrapAndAppend(data.UUID()+": "+details, err, errs)
+			errs = support.WrapAndAppend(data.UUID()+": "+
+				support.ConnectorStackErrorTrace(ctx, err), err, errs)
 			continue
 			// TODO: Add to retry Handler for the for failure
 		}
 
 		if sentMessage == nil && err == nil {
-			errs = WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+			errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
 
 		}
 		// This completes the restore loop for a message..
@@ -227,21 +227,21 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	var byteArray []byte
 	collections := make([]DataCollection, 0)
 	var errs error
-	var totalItems, success int = 0, 0
+	var totalItems, success int
 	for _, aFolder := range folderList {
 
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
 		if err != nil {
-			errs = WrapAndAppend(user, err, errs)
+			errs = support.WrapAndAppend(user, err, errs)
 		}
 		if result == nil {
-			errs = WrapAndAppend(user, fmt.Errorf("nil response on message query, folder: %s", aFolder), errs)
+			errs = support.WrapAndAppend(user, fmt.Errorf("nil response on message query, folder: %s", aFolder), errs)
 			continue
 		}
 
 		pageIterator, err := msgraphgocore.NewPageIterator(result, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 		if err != nil {
-			errs = WrapAndAppend(user, fmt.Errorf("iterator failed initialization: %v", err), errs)
+			errs = support.WrapAndAppend(user, fmt.Errorf("iterator failed initialization: %v", err), errs)
 			continue
 		}
 		objectWriter := kw.NewJsonSerializationWriter()
@@ -251,7 +251,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 			totalItems++
 			message, ok := messageItem.(models.Messageable)
 			if !ok {
-				errs = WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), errs)
+				errs = support.WrapAndAppend(user, fmt.Errorf("non-message return for user: %s", user), errs)
 				return true
 			}
 			if *message.GetHasAttachments() {
@@ -265,18 +265,18 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 				}
 				if err != nil {
 					logger.Ctx(ctx).Debug("exceeded maximum retries")
-					errs = WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), errs)
+					errs = support.WrapAndAppend(*message.GetId(), fmt.Errorf("attachment failed: %v ", err), errs)
 				}
 			}
 			err = objectWriter.WriteObjectValue("", message)
 			if err != nil {
-				errs = WrapAndAppend(*message.GetId(), err, errs)
+				errs = support.WrapAndAppend(*message.GetId(), err, errs)
 				return true
 			}
 			byteArray, err = objectWriter.GetSerializedContent()
 			objectWriter.Close()
 			if err != nil {
-				errs = WrapAndAppend(*message.GetId(), err, errs)
+				errs = support.WrapAndAppend(*message.GetId(), err, errs)
 				return true
 			}
 			if byteArray != nil {
@@ -287,7 +287,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		err = pageIterator.Iterate(callbackFunc)
 
 		if err != nil {
-			errs = WrapAndAppend(user, err, errs)
+			errs = support.WrapAndAppend(user, err, errs)
 		}
 
 		// Todo Retry Handler to be implemented
@@ -297,7 +297,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		collections = append(collections, &edc)
 	}
 
-	status, err := support.CreateStatus(0, totalItems, success, len(folderList), GetNumberOfErrors(errs), errs.Error())
+	status, err := support.CreateStatus(support.Backup, totalItems, success, len(folderList), errs)
 	if err == nil {
 		gc.UpdateStatus(*status)
 		logger.Ctx(ctx).Debugw(gc.Status())
@@ -314,5 +314,5 @@ func (gc *GraphConnector) Status() string {
 	if gc.status == nil {
 		return ""
 	}
-	return gc.status.ToString()
+	return gc.status.String()
 }

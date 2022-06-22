@@ -6,7 +6,7 @@ import (
 )
 
 type ConnectorOperationStatus struct {
-	lastOperation    operation
+	lastOperation    Operation
 	objectCount      int
 	folderCount      int
 	successful       int
@@ -15,30 +15,29 @@ type ConnectorOperationStatus struct {
 	incompleteReason string
 }
 
-type operation int
+type Operation int
 
+//go:generate stringer -type=Operation
 const (
-	backup operation = iota
-	restore
+	Backup Operation = iota
+	Restore
 )
 
 // Constructor for ConnectorOperationStatus. If the counts do not agree, an error is returned.
-func CreateStatus(operationType, objects, success, folders, errCount int, errStatus string) (*ConnectorOperationStatus, error) {
-	var op operation
-	hasErrors := errCount > 0
-	if operationType == 0 {
-		op = backup
-	} else {
-		op = restore
+func CreateStatus(op Operation, objects, success, folders int, err error) (*ConnectorOperationStatus, error) {
+	hasErrors := err != nil
+	var reason string
+	if err != nil {
+		reason = err.Error()
 	}
 	status := ConnectorOperationStatus{
 		lastOperation:    op,
 		objectCount:      objects,
 		folderCount:      folders,
 		successful:       success,
-		errorCount:       errCount,
+		errorCount:       GetNumberOfErrors(err),
 		incomplete:       hasErrors,
-		incompleteReason: errStatus,
+		incompleteReason: reason,
 	}
 	if status.objectCount != status.errorCount+status.successful {
 		return nil, errors.New("incorrect total on initialization")
@@ -46,19 +45,8 @@ func CreateStatus(operationType, objects, success, folders, errCount int, errSta
 	return &status, nil
 }
 
-//  GetOperation helper function to standardize the instantiation of LastOperation
-func GetOperation(selection operation) string {
-
-	switch selection {
-	case backup:
-		return "Backup"
-	default:
-		return "Restore"
-	}
-}
-
-func (cos *ConnectorOperationStatus) ToString() string {
-	message := fmt.Sprintf("Action: %s performed on %d of %d for %d directories.", GetOperation(cos.lastOperation),
+func (cos *ConnectorOperationStatus) String() string {
+	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
 		cos.successful, cos.objectCount, cos.folderCount)
 	if cos.incomplete {
 		message = message + fmt.Sprintf(" %s", cos.incompleteReason)
