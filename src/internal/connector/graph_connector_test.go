@@ -157,6 +157,6 @@ func (suite *DiconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	status, err := support.CreateStatus(support.Restore, 12, 9, 8,
 		support.WrapAndAppend("tres", errors.New("three"), support.WrapAndAppend("arc376", errors.New("one"), errors.New("two"))))
 	assert.NoError(suite.T(), err)
-	gc.UpdateStatus(*status)
+	gc.SetStatus(*status)
 	suite.Greater(len(gc.Status()), 0)
 }
