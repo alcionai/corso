@@ -19,7 +19,8 @@ type Operation int
 
 //go:generate stringer -type=Operation
 const (
-	Backup Operation = iota
+	OpUnknown Operation = iota
+	Backup
 	Restore
 )
 
