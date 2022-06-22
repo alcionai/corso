@@ -33,8 +33,8 @@ var (
 	testFileData = []byte("abcdefghijklmnopqrstuvwxyz")
 )
 
-func openKopiaRepo(ctx context.Context, prefix string) (*KopiaWrapper, error) {
-	storage, err := ctesting.NewS3Storage(prefix)
+func openKopiaRepo(t *testing.T, ctx context.Context) (*KopiaWrapper, error) {
+	storage, err := ctesting.NewS3Storage(t)
 	if err != nil {
 		return nil, err
 	}
@@ -255,23 +255,23 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 func (suite *KopiaIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
 
-	k, err := openKopiaRepo(ctx, "init-s3-"+timeOfTest)
-	require.NoError(suite.T(), err)
-	assert.NoError(suite.T(), k.Close(ctx))
-	assert.Nil(suite.T(), k.rep)
-	assert.NoError(suite.T(), k.Close(ctx))
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+	assert.NoError(t, k.Close(ctx))
+	assert.Nil(t, k.rep)
+	assert.NoError(t, k.Close(ctx))
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
 
-	k, err := openKopiaRepo(ctx, "init-s3-"+timeOfTest)
-	require.NoError(suite.T(), err)
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
 	defer func() {
-		assert.NoError(suite.T(), k.Close(ctx))
+		assert.NoError(t, k.Close(ctx))
 	}()
 
 	collections := []connector.DataCollection{
@@ -286,12 +286,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	}
 
 	stats, err := k.BackupCollections(ctx, collections)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), stats.TotalFileCount, 47)
-	assert.Equal(suite.T(), stats.TotalDirectoryCount, 5)
-	assert.Equal(suite.T(), stats.IgnoredErrorCount, 0)
-	assert.Equal(suite.T(), stats.ErrorCount, 0)
-	assert.False(suite.T(), stats.Incomplete)
+	assert.NoError(t, err)
+	assert.Equal(t, stats.TotalFileCount, 47)
+	assert.Equal(t, stats.TotalDirectoryCount, 5)
+	assert.Equal(t, stats.IgnoredErrorCount, 0)
+	assert.Equal(t, stats.ErrorCount, 0)
+	assert.False(t, stats.Incomplete)
 }
 
 func getSnapshotID(
@@ -337,10 +337,9 @@ func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) manifes
 
 func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
 	t := suite.T()
 
-	k, err := openKopiaRepo(ctx, "backup-restore-single-item-"+timeOfTest)
+	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 	defer func() {
 		assert.NoError(t, k.Close(ctx))
@@ -402,9 +401,9 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
-			timeOfTest := ctesting.LogTimeOfTest(t)
+			ctesting.LogTimeOfTest(t)
 
-			k, err := openKopiaRepo(ctx, "backup-restore-single-item-error-"+test.name+"-"+timeOfTest)
+			k, err := openKopiaRepo(t, ctx)
 			require.NoError(t, err)
 			defer func() {
 				assert.NoError(t, k.Close(ctx))
@@ -450,9 +449,8 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors2() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
-			timeOfTest := ctesting.LogTimeOfTest(t)
 
-			k, err := openKopiaRepo(ctx, "backup-restore-single-item-error2-"+test.name+"-"+timeOfTest)
+			k, err := openKopiaRepo(t, ctx)
 			require.NoError(t, err)
 			defer func() {
 				assert.NoError(t, k.Close(ctx))

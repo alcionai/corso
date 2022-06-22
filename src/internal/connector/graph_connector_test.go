@@ -43,7 +43,6 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	ctesting.LogTimeOfTest(suite.T())
 	suite.NotNil(suite.connector)
-
 }
 
 type DiconnectedGraphConnectorSuite struct {
