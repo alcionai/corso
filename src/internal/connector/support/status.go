@@ -50,7 +50,7 @@ func (cos *ConnectorOperationStatus) String() string {
 	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
 		cos.successful, cos.objectCount, cos.folderCount)
 	if cos.incomplete {
-		message = message + fmt.Sprintf(" %s", cos.incompleteReason)
+		message += " " + cos.incompleteReason
 	}
 	message = message + "\n"
 	return message
