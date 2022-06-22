@@ -8,6 +8,7 @@ import (
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
@@ -361,6 +362,32 @@ func (kw KopiaWrapper) makeSnapshotWithRoot(
 
 	res := manifestToStats(man)
 	return &res, nil
+}
+
+// RestoreSingleItem looks up the item at the given path in the snapshot with id
+// snapshotID. The path should be the full path of the item from the root.
+// If the item is a file in kopia then it returns a DataCollection with the item
+// as its sole element and DataCollection.FullPath() set to
+// split(dirname(itemPath), "/"). If the item does not exist in kopia or is not
+// a file an error is returned. The UUID of the returned DataStreams will be the
+// name of the kopia file the data is sourced from.
+func (kw KopiaWrapper) RestoreSingleItem(
+	ctx context.Context,
+	snapshotID string,
+	itemPath []string,
+) (connector.DataCollection, error) {
+	manifest, err := snapshot.LoadSnapshot(ctx, kw.rep, manifest.ID(snapshotID))
+	if err != nil {
+		return nil, errors.Wrap(err, "getting snapshot handle")
+	}
+
+	rootDirEntry, err := snapshotfs.SnapshotRoot(kw.rep, manifest)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting root directory")
+	}
+
+	// Fine if rootDirEntry is nil, will be checked in called function.
+	return kw.restoreSingleItem(ctx, rootDirEntry, itemPath[1:])
 }
 
 // restoreSingleItem looks up the item at the given path starting from rootDir
