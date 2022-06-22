@@ -24,12 +24,12 @@ var (
 // requried to set up or communicate with that provider.
 type Storage struct {
 	Provider storageProvider
-	Config   common.Config[any]
+	Config   map[string]string
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
-func NewStorage(p storageProvider, cfgs ...common.Configurer[any, common.Config[any]]) (Storage, error) {
-	cs, err := common.UnionConfigs(cfgs...)
+func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, error) {
+	cs, err := common.UnionStringConfigs(cfgs...)
 	return Storage{
 		Provider: p,
 		Config:   cs,

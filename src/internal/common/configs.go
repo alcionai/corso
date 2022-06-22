@@ -1,28 +1,19 @@
 package common
 
-type StringMapper[T any] interface {
-	~map[string]T
-}
-
-type Configurer[V any, T StringMapper[V]] interface {
-	Config() (T, error)
+type StringConfigurer interface {
+	StringConfig() (map[string]string, error)
 }
 
 type (
-	Config[T any] map[string]T
+	Config[T any] map[string]string
 )
 
-// UnionConfigs unions all provided configurers into a single
+// UnionStringConfigs unions all provided configurers into a single
 // map[string]string matching type.
-func UnionConfigs[
-	V any,
-	T StringMapper[V],
-](
-	cfgs ...Configurer[V, T],
-) (T, error) {
-	union := T{}
+func UnionStringConfigs(cfgs ...StringConfigurer) (map[string]string, error) {
+	union := map[string]string{}
 	for _, cfg := range cfgs {
-		c, err := cfg.Config()
+		c, err := cfg.StringConfig()
 		if err != nil {
 			return nil, err
 		}

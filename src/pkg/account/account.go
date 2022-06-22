@@ -23,12 +23,12 @@ var (
 // and identifiers requried to set up or communicate with that provider.
 type Account struct {
 	Provider accountProvider
-	Config   common.Config[string]
+	Config   map[string]string
 }
 
 // NewAccount aggregates all the supplied configurations into a single configuration
-func NewAccount(p accountProvider, cfgs ...common.Configurer[string, common.Config[string]]) (Account, error) {
-	cs, err := common.UnionConfigs(cfgs...)
+func NewAccount(p accountProvider, cfgs ...common.StringConfigurer) (Account, error) {
+	cs, err := common.UnionStringConfigs(cfgs...)
 	return Account{
 		Provider: p,
 		Config:   cs,

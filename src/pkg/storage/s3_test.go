@@ -31,7 +31,7 @@ var goodS3Config = storage.S3Config{
 
 func (suite *S3CfgSuite) TestS3Config_Config() {
 	s3 := goodS3Config
-	c, err := s3.Config()
+	c, err := s3.StringConfig()
 	assert.NoError(suite.T(), err)
 
 	table := []struct {

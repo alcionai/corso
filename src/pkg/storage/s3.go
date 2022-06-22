@@ -32,7 +32,7 @@ const (
 	Prefix   = "prefix"
 )
 
-func (c S3Config) Config() (common.Config[any], error) {
+func (c S3Config) StringConfig() (map[string]string, error) {
 	cfg := common.Config[any]{
 		keyS3AccessKey:    c.AccessKey,
 		keyS3Bucket:       c.Bucket,

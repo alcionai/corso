@@ -29,7 +29,7 @@ var goodM365Config = account.M365Config{
 
 func (suite *M365CfgSuite) TestM365Config_Config() {
 	m365 := goodM365Config
-	c, err := m365.Config()
+	c, err := m365.StringConfig()
 	require.NoError(suite.T(), err)
 
 	table := []struct {

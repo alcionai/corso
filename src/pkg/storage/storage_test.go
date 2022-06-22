@@ -13,7 +13,7 @@ type testConfig struct {
 	err    error
 }
 
-func (c testConfig) Config() (common.Config[any], error) {
+func (c testConfig) StringConfig() (map[string]string, error) {
 	return common.Config[any]{"expect": c.expect}, c.err
 }
 

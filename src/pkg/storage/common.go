@@ -16,7 +16,7 @@ const (
 	keyCommonCorsoPassword = "common_corsoPassword"
 )
 
-func (c CommonConfig) Config() (common.Config[any], error) {
+func (c CommonConfig) StringConfig() (map[string]string, error) {
 	cfg := common.Config[any]{
 		keyCommonCorsoPassword: c.CorsoPassword,
 	}
