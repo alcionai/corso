@@ -30,7 +30,7 @@ func addExchangeApp(parent *cobra.Command) *cobra.Command {
 	fs.StringVar(&mail, "mail", "", "ID of the mail message being restored")
 	fs.StringVar(&restorePointID, "restore-point", "", "ID of the backup restore point")
 	exchangeCmd.MarkFlagRequired("restore-point")
-	fs.StringVar(&user, "user", "", "ID of the user whose echange data will get restored")
+	fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
 
 	return exchangeCmd
 }
