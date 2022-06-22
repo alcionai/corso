@@ -1,10 +1,18 @@
 package kopia
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/snapshot"
+	"github.com/kopia/kopia/snapshot/snapshotfs"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -12,6 +20,18 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	ctesting "github.com/alcionai/corso/internal/testing"
+)
+
+const (
+	testTenant   = "a-tenant"
+	testUser     = "user1"
+	testEmailDir = "mail"
+	testFileUUID = "a-file"
+)
+
+var (
+	testPath     = []string{testTenant, testUser, testEmailDir}
+	testFileData = []byte("abcdefghijklmnopqrstuvwxyz")
 )
 
 func openKopiaRepo(ctx context.Context, prefix string) (*KopiaWrapper, error) {
@@ -273,4 +293,141 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	assert.Equal(suite.T(), stats.IgnoredErrorCount, 0)
 	assert.Equal(suite.T(), stats.ErrorCount, 0)
 	assert.False(suite.T(), stats.Incomplete)
+}
+
+// TODO(ashmrtn): Update this once we have a helper for getting the snapshot
+// root.
+func getSnapshotRoot(
+	t *testing.T,
+	ctx context.Context,
+	rep repo.Repository,
+	rootName string,
+) fs.Entry {
+	si := snapshot.SourceInfo{
+		Host:     kTestHost,
+		UserName: kTestUser,
+		Path:     rootName,
+	}
+
+	manifests, err := snapshot.ListSnapshots(ctx, rep, si)
+	require.NoError(t, err)
+	require.Len(t, manifests, 1)
+
+	rootDirEntry, err := snapshotfs.SnapshotRoot(rep, manifests[0])
+	require.NoError(t, err)
+
+	rootDir, ok := rootDirEntry.(fs.Directory)
+	require.True(t, ok)
+
+	return rootDir
+}
+
+func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) {
+	collections := []connector.DataCollection{
+		&singleItemCollection{
+			path: testPath,
+			stream: &kopiaDataStream{
+				uuid:   testFileUUID,
+				reader: io.NopCloser(bytes.NewReader(testFileData)),
+			},
+		},
+	}
+
+	stats, err := k.BackupCollections(ctx, collections)
+	require.NoError(t, err)
+	require.Equal(t, stats.TotalFileCount, 1)
+	require.Equal(t, stats.TotalDirectoryCount, 3)
+	require.Equal(t, stats.IgnoredErrorCount, 0)
+	require.Equal(t, stats.ErrorCount, 0)
+	require.False(t, stats.Incomplete)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
+	ctx := context.Background()
+	timeOfTest := ctesting.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	k, err := openKopiaRepo(ctx, "backup-restore-single-item-"+timeOfTest)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	setupSimpleRepo(t, ctx, k)
+
+	rootDir := getSnapshotRoot(t, ctx, k.rep, testTenant)
+
+	c, err := k.restoreSingleItem(ctx, rootDir, append(testPath[1:], testFileUUID))
+	require.NoError(t, err)
+
+	assert.Equal(t, c.FullPath(), testPath)
+
+	resultStream, err := c.NextItem()
+	require.NoError(t, err)
+
+	_, err = c.NextItem()
+	assert.ErrorIs(t, err, io.EOF)
+
+	buf, err := ioutil.ReadAll(resultStream.ToReader())
+	require.NoError(t, err)
+	assert.Equal(t, buf, testFileData)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
+	table := []struct {
+		name        string
+		rootDirFunc func(*testing.T, context.Context, *KopiaWrapper) fs.Entry
+		path        []string
+	}{
+		{
+			"FileAsRoot",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return virtualfs.StreamingFileFromReader(testFileUUID, bytes.NewReader(testFileData))
+			},
+			append(testPath[1:], testFileUUID),
+		},
+		{
+			"NoRootDir",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return nil
+			},
+			append(testPath[1:], testFileUUID),
+		},
+		{
+			"TargetNotAFile",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return getSnapshotRoot(t, ctx, k.rep, testPath[0])
+			},
+			[]string{testPath[1]},
+		},
+		{
+			"NonExistentFile",
+			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+				return getSnapshotRoot(t, ctx, k.rep, testPath[0])
+			},
+			append(testPath[1:], "foo"),
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			timeOfTest := ctesting.LogTimeOfTest(t)
+
+			k, err := openKopiaRepo(ctx, "backup-restore-single-item-error-"+test.name+"-"+timeOfTest)
+			require.NoError(t, err)
+			defer func() {
+				assert.NoError(t, k.Close(ctx))
+			}()
+
+			setupSimpleRepo(t, ctx, k)
+
+			_, err = k.restoreSingleItem(
+				ctx,
+				test.rootDirFunc(t, ctx, k),
+				test.path,
+			)
+			require.Error(t, err)
+		})
+	}
 }
