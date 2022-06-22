@@ -31,10 +31,11 @@ func NewRestoreOperation(
 	targets []string,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, kw),
-		Version:   "v0",
-		creds:     creds,
-		Targets:   targets,
+		operation:      newOperation(opts, kw),
+		Version:        "v0",
+		creds:          creds,
+		restorePointID: restorePointID,
+		Targets:        targets,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err

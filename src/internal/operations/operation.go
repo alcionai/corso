@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,16 +32,8 @@ type operation struct {
 	Errors []error
 }
 
-type logger interface {
-	Debug(context.Context, string)
-	Info(context.Context, string)
-	Warn(context.Context, string)
-	Error(context.Context, string)
-}
-
 // OperationOpts configure some parameters of the operation
 type OperationOpts struct {
-	Logger logger
 }
 
 func newOperation(
