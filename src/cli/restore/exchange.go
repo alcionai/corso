@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 )
@@ -55,19 +54,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Missing required flags")
 	}
 
-	s, cfgTenantID, err := config.MakeS3Config(true, nil)
+	s, a, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
 		return err
 	}
 
-	m365 := credentials.GetM365()
-	a := repository.Account{
-		TenantID:     m365.TenantID,
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-	}
-	if len(cfgTenantID) > 0 {
-		a.TenantID = cfgTenantID
+	m365, err := a.M365Config()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse m365 account config")
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -83,7 +77,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, restorePointID, []string{cfgTenantID, user, "mail", folder, mail})
+	ro, err := r.NewRestore(ctx, restorePointID, []string{m365.TenantID, user, "mail", folder, mail})
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}

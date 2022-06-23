@@ -71,12 +71,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	// not the user we want to use, but all the others are
 	// suffering from JsonParseNode syndrome
 	m365User := "george.martinez@8qzvrj.onmicrosoft.com"
-	m365 := credentials.GetM365()
-	acct := repository.Account{
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-		TenantID:     m365.TenantID,
-	}
+	acct, err := ctesting.NewM365Account()
+	require.NoError(t, err)
 
 	// need to initialize the repository before we can test connecting to it.
 	st, err := ctesting.NewPrefixedS3Storage(t)

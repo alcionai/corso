@@ -8,10 +8,11 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/cli/config"
-	"github.com/alcionai/corso/pkg/repository"
+	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -49,7 +50,10 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	s3Cfg, account, err := config.ReadRepoConfig()
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), b, s3Cfg.Bucket)
-	assert.Equal(suite.T(), tID, account.TenantID)
+
+	m365, err := account.M365Config()
+	require.NoError(suite.T(), err)
+	assert.Equal(suite.T(), tID, m365.TenantID)
 }
 
 func (suite *ConfigSuite) TestWriteReadConfig() {
@@ -60,12 +64,16 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	assert.NoError(suite.T(), err)
 
 	s3Cfg := storage.S3Config{Bucket: "write-read-config-bucket"}
-	account := repository.Account{TenantID: "6f34ac30-8196-469b-bf8f-d83deadbbbbd"}
-	err = config.WriteRepoConfig(s3Cfg, account)
+	acct, err := ctesting.NewM365Account()
+	require.NoError(suite.T(), err)
+	m365, err := acct.M365Config()
+	require.NoError(suite.T(), err)
+
+	err = config.WriteRepoConfig(s3Cfg, m365)
 	assert.NoError(suite.T(), err)
 
 	readS3Cfg, readAccount, err := config.ReadRepoConfig()
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), s3Cfg, readS3Cfg)
-	assert.Equal(suite.T(), account, readAccount)
+	assert.Equal(suite.T(), acct, readAccount)
 }

@@ -65,7 +65,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		storage.Endpoint:           endpoint,
 		storage.Prefix:             prefix,
 	}
-	s, cfgTenantID, err := config.MakeS3Config(false, overrides)
+	s, a, err := config.GetStorageAndAccount(false, overrides)
 	if err != nil {
 		return err
 	}
@@ -74,14 +74,9 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Retrieving s3 configuration")
 	}
 
-	m365 := credentials.GetM365()
-	a := repository.Account{
-		TenantID:     m365.TenantID,
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-	}
-	if len(cfgTenantID) > 0 {
-		a.TenantID = cfgTenantID
+	m365, err := a.M365Config()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse m365 account config")
 	}
 
 	log.Debugw(
@@ -100,7 +95,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(s3Cfg, a); err != nil {
+	if err = config.WriteRepoConfig(s3Cfg, m365); err != nil {
 		return errors.Wrap(err, "Failed to write repository configuration")
 	}
 	return nil
@@ -130,7 +125,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		storage.Endpoint:           endpoint,
 		storage.Prefix:             prefix,
 	}
-	s, cfgTenantID, err := config.MakeS3Config(true, overrides)
+	s, a, err := config.GetStorageAndAccount(true, overrides)
 	if err != nil {
 		return err
 	}
@@ -138,15 +133,9 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "Retrieving s3 configuration")
 	}
-
-	m365 := credentials.GetM365()
-	a := repository.Account{
-		TenantID:     m365.TenantID,
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-	}
-	if len(cfgTenantID) > 0 {
-		a.TenantID = cfgTenantID
+	m365, err := a.M365Config()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse m365 account config")
 	}
 
 	log.Debugw(
@@ -165,7 +154,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(s3Cfg, a); err != nil {
+	if err = config.WriteRepoConfig(s3Cfg, m365); err != nil {
 		return errors.Wrap(err, "Failed to write repository configuration")
 	}
 	return nil
