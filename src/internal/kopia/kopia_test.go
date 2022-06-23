@@ -34,7 +34,7 @@ var (
 )
 
 func openKopiaRepo(t *testing.T, ctx context.Context) (*KopiaWrapper, error) {
-	storage, err := ctesting.NewS3Storage(t)
+	storage, err := ctesting.NewPrefixedS3Storage(t)
 	if err != nil {
 		return nil, err
 	}

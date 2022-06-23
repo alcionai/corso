@@ -115,7 +115,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	}{
 		{
 			name:     "success",
-			storage:  ctesting.NewS3Storage,
+			storage:  ctesting.NewPrefixedS3Storage,
 			errCheck: assert.NoError,
 		},
 	}
@@ -140,7 +140,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	ctx := context.Background()
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewS3Storage(t)
+	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	_, err = repository.Initialize(ctx, repository.Account{}, st)
@@ -163,7 +163,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	}
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewS3Storage(t)
+	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	r, err := repository.Initialize(ctx, acct, st)
@@ -186,7 +186,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	}
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewS3Storage(t)
+	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	r, err := repository.Initialize(ctx, acct, st)
