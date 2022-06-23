@@ -106,25 +106,22 @@ func (suite *RepositoryIntegrationSuite) SetupSuite() {
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(suite.T())
 
 	table := []struct {
-		prefix   string
+		name     string
 		account  repository.Account
-		storage  func() (storage.Storage, error)
+		storage  func(*testing.T) (storage.Storage, error)
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
-			prefix: "repository-init-s3-" + timeOfTest,
-			storage: func() (storage.Storage, error) {
-				return ctesting.NewS3Storage("repository-init-s3-" + timeOfTest)
-			},
+			name:     "success",
+			storage:  ctesting.NewPrefixedS3Storage,
 			errCheck: assert.NoError,
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.prefix, func(t *testing.T) {
-			st, err := test.storage()
+		suite.T().Run(test.name, func(t *testing.T) {
+			st, err := test.storage(t)
 			assert.NoError(t, err)
 			r, err := repository.Initialize(ctx, test.account, st)
 			if err == nil {
@@ -141,11 +138,9 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 func (suite *RepositoryIntegrationSuite) TestConnect() {
 	t := suite.T()
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(t)
-	prefix := "repository-conn-s3-" + timeOfTest
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewS3Storage(prefix)
+	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	_, err = repository.Initialize(ctx, repository.Account{}, st)
@@ -159,8 +154,6 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	t := suite.T()
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(t)
-	prefix := "repository-new-backup-" + timeOfTest
 
 	m365 := credentials.GetM365()
 	acct := repository.Account{
@@ -170,7 +163,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	}
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewS3Storage(prefix)
+	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	r, err := repository.Initialize(ctx, acct, st)
@@ -184,8 +177,6 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	t := suite.T()
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(t)
-	prefix := "repository-new-restore-" + timeOfTest
 
 	m365 := credentials.GetM365()
 	acct := repository.Account{
@@ -195,7 +186,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	}
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewS3Storage(prefix)
+	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	r, err := repository.Initialize(ctx, acct, st)

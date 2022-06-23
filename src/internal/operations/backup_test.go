@@ -66,8 +66,6 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	t := suite.T()
 	ctx := context.Background()
-	timeOfTest := ctesting.LogTimeOfTest(t)
-	prefix := "backup-op-run-" + timeOfTest
 
 	// m365User := "lidiah@8qzvrj.onmicrosoft.com"
 	// not the user we want to use, but all the others are
@@ -81,7 +79,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	}
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewS3Storage(prefix)
+	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	r, err := repository.Initialize(ctx, acct, st)
