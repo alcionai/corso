@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	ctesting "github.com/alcionai/corso/internal/testing"
-	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -30,7 +30,7 @@ func (suite *RepositorySuite) TestInitialize() {
 	table := []struct {
 		name     string
 		storage  func() (storage.Storage, error)
-		account  repository.Account
+		account  account.Account
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
@@ -38,7 +38,7 @@ func (suite *RepositorySuite) TestInitialize() {
 			func() (storage.Storage, error) {
 				return storage.NewStorage(storage.ProviderUnknown)
 			},
-			repository.Account{},
+			account.Account{},
 			assert.Error,
 		},
 	}
@@ -58,7 +58,7 @@ func (suite *RepositorySuite) TestConnect() {
 	table := []struct {
 		name     string
 		storage  func() (storage.Storage, error)
-		account  repository.Account
+		account  account.Account
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
@@ -66,7 +66,7 @@ func (suite *RepositorySuite) TestConnect() {
 			func() (storage.Storage, error) {
 				return storage.NewStorage(storage.ProviderUnknown)
 			},
-			repository.Account{},
+			account.Account{},
 			assert.Error,
 		},
 	}
@@ -109,7 +109,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 
 	table := []struct {
 		name     string
-		account  repository.Account
+		account  account.Account
 		storage  func(*testing.T) (storage.Storage, error)
 		errCheck assert.ErrorAssertionFunc
 	}{
@@ -143,11 +143,11 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
-	_, err = repository.Initialize(ctx, repository.Account{}, st)
+	_, err = repository.Initialize(ctx, account.Account{}, st)
 	require.NoError(t, err)
 
 	// now re-connect
-	_, err = repository.Connect(ctx, repository.Account{}, st)
+	_, err = repository.Connect(ctx, account.Account{}, st)
 	assert.NoError(t, err)
 }
 
@@ -155,12 +155,8 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365 := credentials.GetM365()
-	acct := repository.Account{
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-		TenantID:     m365.TenantID,
-	}
+	acct, err := ctesting.NewM365Account()
+	require.NoError(t, err)
 
 	// need to initialize the repository before we can test connecting to it.
 	st, err := ctesting.NewPrefixedS3Storage(t)
@@ -178,12 +174,8 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365 := credentials.GetM365()
-	acct := repository.Account{
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-		TenantID:     m365.TenantID,
-	}
+	acct, err := ctesting.NewM365Account()
+	require.NoError(t, err)
 
 	// need to initialize the repository before we can test connecting to it.
 	st, err := ctesting.NewPrefixedS3Storage(t)

@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -61,7 +61,7 @@ func InitConfig(configFilePath string) error {
 
 // WriteRepoConfig currently just persists corso config to the config file
 // It does not check for conflicts or existing data.
-func WriteRepoConfig(s3Config storage.S3Config, account repository.Account) error {
+func WriteRepoConfig(s3Config storage.S3Config, account account.M365Config) error {
 	// Rudimentary support for persisting repo config
 	// TODO: Handle conflicts, support other config types
 	viper.Set(ProviderTypeKey, storage.ProviderS3.String())
@@ -79,44 +79,61 @@ func WriteRepoConfig(s3Config storage.S3Config, account repository.Account) erro
 	return nil
 }
 
-func ReadRepoConfig() (s3Config storage.S3Config, account repository.Account, err error) {
+func ReadRepoConfig() (storage.S3Config, account.Account, error) {
+	var (
+		s3Config storage.S3Config
+		acct     account.Account
+		err      error
+	)
+
 	if err = viper.ReadInConfig(); err != nil {
-		return s3Config, account, errors.Wrap(err, "reading config file: "+viper.ConfigFileUsed())
+		return s3Config, acct, errors.Wrap(err, "reading config file: "+viper.ConfigFileUsed())
 	}
 
 	if providerType := viper.GetString(ProviderTypeKey); providerType != storage.ProviderS3.String() {
-		return s3Config, account, errors.New("Unsupported storage provider: " + providerType)
+		return s3Config, acct, errors.New("Unsupported storage provider: " + providerType)
 	}
 
 	s3Config.Bucket = viper.GetString(BucketNameKey)
 	s3Config.Endpoint = viper.GetString(EndpointKey)
 	s3Config.Prefix = viper.GetString(PrefixKey)
-	account.TenantID = viper.GetString(TenantIDKey)
 
-	return s3Config, account, nil
+	m365Creds := credentials.GetM365()
+	cfgTenantID := viper.GetString(TenantIDKey)
+	if len(cfgTenantID) > 0 {
+		m365Creds.TenantID = cfgTenantID
+	}
+	acct, err = account.NewAccount(
+		account.ProviderM365,
+		account.M365Config{
+			M365: m365Creds,
+		},
+	)
+
+	return s3Config, acct, err
 }
 
 // MakeS3Config creates a storage instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) in the config.
-func MakeS3Config(readFromFile bool, overrides map[string]string) (storage.Storage, string, error) {
+func MakeS3Config(readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
 	var (
-		s3Cfg   storage.S3Config
-		account repository.Account
-		err     error
+		s3Cfg storage.S3Config
+		acct  account.Account
+		err   error
 	)
 
 	// possibly read the prior config from a .corso file
 	if readFromFile {
-		s3Cfg, account, err = ReadRepoConfig()
+		s3Cfg, acct, err = ReadRepoConfig()
 		if err != nil {
-			return storage.Storage{}, "", errors.Wrap(err, "reading corso config file")
+			return storage.Storage{}, acct, errors.Wrap(err, "reading corso config file")
 		}
 	}
 
 	// compose the s3 storage config and credentials
 	aws := credentials.GetAWS(overrides)
 	if err := aws.Validate(); err != nil {
-		return storage.Storage{}, "", errors.Wrap(err, "validating aws credentials")
+		return storage.Storage{}, acct, errors.Wrap(err, "validating aws credentials")
 	}
 	s3Cfg = storage.S3Config{
 		AWS:      aws,
@@ -128,7 +145,7 @@ func MakeS3Config(readFromFile bool, overrides map[string]string) (storage.Stora
 	// compose the common config and credentials
 	corso := credentials.GetCorso()
 	if err := corso.Validate(); err != nil {
-		return storage.Storage{}, "", errors.Wrap(err, "validating corso credentials")
+		return storage.Storage{}, acct, errors.Wrap(err, "validating corso credentials")
 	}
 	cCfg := storage.CommonConfig{
 		Corso: corso,
@@ -142,15 +159,15 @@ func MakeS3Config(readFromFile bool, overrides map[string]string) (storage.Stora
 		credentials.AWSSessionToken:    aws.SessionToken,
 		credentials.CorsoPassword:      corso.CorsoPassword,
 	}); err != nil {
-		return storage.Storage{}, "", err
+		return storage.Storage{}, acct, err
 	}
 
 	// return a complete storage
 	s, err := storage.NewStorage(storage.ProviderS3, s3Cfg, cCfg)
 	if err != nil {
-		return storage.Storage{}, "", errors.Wrap(err, "configuring repository storage")
+		return storage.Storage{}, acct, errors.Wrap(err, "configuring repository storage")
 	}
-	return s, account.TenantID, nil
+	return s, acct, nil
 }
 
 // returns the first non-zero valued string

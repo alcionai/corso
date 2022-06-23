@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 )
@@ -47,19 +46,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, cfgTenantID, err := config.MakeS3Config(true, nil)
+	s, acct, err := config.MakeS3Config(true, nil)
 	if err != nil {
 		return err
 	}
 
-	m365 := credentials.GetM365()
-	a := repository.Account{
-		TenantID:     m365.TenantID,
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-	}
-	if len(cfgTenantID) > 0 {
-		a.TenantID = cfgTenantID
+	m365, err := acct.M365Config()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse m365 account config")
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -68,7 +62,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		"clientID", m365.ClientID,
 		"hasClientSecret", len(m365.ClientSecret) > 0)
 
-	r, err := repository.Connect(ctx, a, s)
+	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -19,16 +20,9 @@ type Repository struct {
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
-	Account   Account         // the user's m365 account connection details
+	Account   account.Account // the user's m365 account connection details
 	Storage   storage.Storage // the storage provider details and configuration
 	dataLayer *kopia.KopiaWrapper
-}
-
-// Account holds the user's m365 account details.
-type Account struct {
-	TenantID     string
-	ClientID     string
-	ClientSecret string
 }
 
 // Initialize will:
@@ -41,7 +35,7 @@ type Account struct {
 //  * return the connected repository
 func Initialize(
 	ctx context.Context,
-	acct Account,
+	acct account.Account,
 	storage storage.Storage,
 ) (*Repository, error) {
 	k := kopia.New(storage)
@@ -65,7 +59,7 @@ func Initialize(
 //  * return the connected repository
 func Connect(
 	ctx context.Context,
-	acct Account,
+	acct account.Account,
 	storage storage.Storage,
 ) (*Repository, error) {
 	k := kopia.New(storage)
@@ -99,10 +93,14 @@ func (r *Repository) Close(ctx context.Context) error {
 
 // NewBackup generates a backupOperation runner.
 func (r Repository) NewBackup(ctx context.Context, targets []string) (operations.BackupOperation, error) {
+	m365, err := r.Account.M365Config()
+	if err != nil {
+		return operations.BackupOperation{}, errors.Wrap(err, "retrieving m365 account credentials")
+	}
 	creds := credentials.M365{
-		ClientID:     r.Account.ClientID,
-		ClientSecret: r.Account.ClientSecret,
-		TenantID:     r.Account.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+		TenantID:     m365.TenantID,
 	}
 	return operations.NewBackupOperation(
 		ctx,
@@ -114,10 +112,14 @@ func (r Repository) NewBackup(ctx context.Context, targets []string) (operations
 
 // NewRestore generates a restoreOperation runner.
 func (r Repository) NewRestore(ctx context.Context, restorePointID string, targets []string) (operations.RestoreOperation, error) {
+	m365, err := r.Account.M365Config()
+	if err != nil {
+		return operations.RestoreOperation{}, errors.Wrap(err, "retrieving m365 account credentials")
+	}
 	creds := credentials.M365{
-		ClientID:     r.Account.ClientID,
-		ClientSecret: r.Account.ClientSecret,
-		TenantID:     r.Account.TenantID,
+		ClientID:     m365.ClientID,
+		ClientSecret: m365.ClientSecret,
+		TenantID:     m365.TenantID,
 	}
 	return operations.NewRestoreOperation(
 		ctx,
