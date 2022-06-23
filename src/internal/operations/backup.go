@@ -57,13 +57,13 @@ func (op *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) 
 
 	cs, err := gc.ExchangeDataCollection(ctx, op.Targets[0])
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving application data")
+		return nil, errors.Wrap(err, "retrieving service data")
 	}
 
 	// todo: utilize stats
 	stats, err := op.kopia.BackupCollections(ctx, cs)
 	if err != nil {
-		return nil, errors.Wrap(err, "backing up application data")
+		return nil, errors.Wrap(err, "backing up service data")
 	}
 
 	op.Status = Successful

@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/credentials"
 )
@@ -14,7 +15,8 @@ type RestoreOperation struct {
 	operation
 	Version string
 
-	creds credentials.M365
+	restorePointID string
+	creds          credentials.M365
 
 	Targets []string // something for targets/filter/source/app&users/etc
 }
@@ -25,13 +27,15 @@ func NewRestoreOperation(
 	opts OperationOpts,
 	kw *kopia.KopiaWrapper,
 	creds credentials.M365,
+	restorePointID string,
 	targets []string,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, kw),
-		Version:   "v0",
-		creds:     creds,
-		Targets:   targets,
+		operation:      newOperation(opts, kw),
+		Version:        "v0",
+		creds:          creds,
+		restorePointID: restorePointID,
+		Targets:        targets,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -49,10 +53,21 @@ func (op RestoreOperation) validate() error {
 
 // Run begins a synchronous restore operation.
 // todo (keepers): return stats block in first param.
-func (op *RestoreOperation) Run(ctx context.Context) (any, error) {
+func (op *RestoreOperation) Run(ctx context.Context) error {
+	dc, err := op.kopia.RestoreSingleItem(ctx, op.restorePointID, op.Targets)
+	if err != nil {
+		return errors.Wrap(err, "retrieving service data")
+	}
 
-	// todo: hook up with KW and GC restore operations.
+	gc, err := connector.NewGraphConnector(op.creds.TenantID, op.creds.ClientID, op.creds.ClientSecret)
+	if err != nil {
+		return errors.Wrap(err, "connecting to graph api")
+	}
+
+	if err := gc.RestoreMessages(ctx, dc); err != nil {
+		return errors.Wrap(err, "restoring service data")
+	}
 
 	op.Status = Successful
-	return nil, nil
+	return nil
 }

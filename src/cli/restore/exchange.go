@@ -15,9 +15,10 @@ import (
 
 // exchange bucket info from flags
 var (
-	folder string
-	mail   string
-	user   string
+	folder         string
+	mail           string
+	restorePointID string
+	user           string
 )
 
 // called by restore.go to map parent subcommands to provider-specific handling.
@@ -25,9 +26,11 @@ func addExchangeApp(parent *cobra.Command) *cobra.Command {
 	parent.AddCommand(exchangeCmd)
 
 	fs := exchangeCmd.Flags()
-	fs.StringVar(&user, "user", "", "ID of the user whose echange data will get restored.")
-	fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored.")
-	fs.StringVar(&mail, "mail", "", "ID of the mail message being restored.")
+	fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored")
+	fs.StringVar(&mail, "mail", "", "ID of the mail message being restored")
+	fs.StringVar(&restorePointID, "restore-point", "", "ID of the backup restore point")
+	exchangeCmd.MarkFlagRequired("restore-point")
+	fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
 
 	return exchangeCmd
 }
@@ -48,7 +51,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateRestoreFlags(user, folder, mail); err != nil {
+	if err := validateRestoreFlags(user, folder, mail, restorePointID); err != nil {
 		return errors.Wrap(err, "Missing required flags")
 	}
 
@@ -69,6 +72,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	logger.Ctx(ctx).Debugw(
 		"Called - "+cmd.CommandPath(),
+		"restorePointID", restorePointID,
 		"tenantID", m365.TenantID,
 		"clientID", m365.ClientID,
 		"hasClientSecret", len(m365.ClientSecret) > 0)
@@ -79,12 +83,12 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, []string{user, folder, mail})
+	ro, err := r.NewRestore(ctx, restorePointID, []string{cfgTenantID, user, "mail", folder, mail})
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
 
-	if _, err := ro.Run(ctx); err != nil {
+	if err := ro.Run(ctx); err != nil {
 		return errors.Wrap(err, "Failed to run Exchange restore")
 	}
 
@@ -92,7 +96,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateRestoreFlags(u, f, m string) error {
+func validateRestoreFlags(u, f, m, rpid string) error {
+	if len(rpid) == 0 {
+		return errors.New("a restore point ID is requried")
+	}
 	lu, lf, lm := len(u), len(f), len(m)
 	if (lu == 0 || u == "*") && (lf+lm > 0) {
 		return errors.New("a specific --user must be provided if --folder or --mail is specified")
