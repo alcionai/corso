@@ -54,7 +54,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Missing required flags")
 	}
 
-	s, a, err := config.MakeS3Config(true, nil)
+	s, a, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
 		return err
 	}

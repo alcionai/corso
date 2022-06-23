@@ -46,7 +46,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.MakeS3Config(true, nil)
+	s, acct, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
 		return err
 	}

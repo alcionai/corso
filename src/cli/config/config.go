@@ -113,9 +113,9 @@ func ReadRepoConfig() (storage.S3Config, account.Account, error) {
 	return s3Config, acct, err
 }
 
-// MakeS3Config creates a storage instance by mediating all the possible
-// data sources (config file, env vars, flag overrides) in the config.
-func MakeS3Config(readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
+// GetStorageAndAccount creates a storage and accoun instance by mediating all the possible
+// data sources (config file, env vars, flag overrides) and the config file.
+func GetStorageAndAccount(readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
 	var (
 		s3Cfg storage.S3Config
 		acct  account.Account

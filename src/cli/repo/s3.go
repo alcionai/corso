@@ -65,7 +65,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		storage.Endpoint:           endpoint,
 		storage.Prefix:             prefix,
 	}
-	s, a, err := config.MakeS3Config(false, overrides)
+	s, a, err := config.GetStorageAndAccount(false, overrides)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		storage.Endpoint:           endpoint,
 		storage.Prefix:             prefix,
 	}
-	s, a, err := config.MakeS3Config(true, overrides)
+	s, a, err := config.GetStorageAndAccount(true, overrides)
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,6 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "Retrieving s3 configuration")
 	}
-
 	m365, err := a.M365Config()
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse m365 account config")
