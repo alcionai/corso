@@ -31,8 +31,8 @@ const (
 	Prefix   = "prefix"
 )
 
-func (c S3Config) Config() (config, error) {
-	cfg := config{
+func (c S3Config) StringConfig() (map[string]string, error) {
+	cfg := map[string]string{
 		keyS3AccessKey:    c.AccessKey,
 		keyS3Bucket:       c.Bucket,
 		keyS3Endpoint:     c.Endpoint,

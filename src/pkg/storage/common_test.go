@@ -26,7 +26,7 @@ var goodCommonConfig = storage.CommonConfig{
 
 func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 	cfg := goodCommonConfig
-	c, err := cfg.Config()
+	c, err := cfg.StringConfig()
 	assert.NoError(suite.T(), err)
 
 	table := []struct {

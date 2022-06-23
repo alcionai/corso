@@ -24,8 +24,8 @@ const (
 // (todo) TenantID     = "TENANT_ID"
 )
 
-func (c M365Config) Config() (config, error) {
-	cfg := config{
+func (c M365Config) StringConfig() (map[string]string, error) {
+	cfg := map[string]string{
 		keyM365ClientID:     c.ClientID,
 		keyM365ClientSecret: c.ClientSecret,
 		keyM365TenantID:     c.TenantID,

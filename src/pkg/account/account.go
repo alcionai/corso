@@ -1,6 +1,10 @@
 package account
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/alcionai/corso/internal/common"
+)
 
 type accountProvider int
 
@@ -15,39 +19,18 @@ var (
 	errMissingRequired = errors.New("missing required storage configuration")
 )
 
-type (
-	config     map[string]string
-	configurer interface {
-		Config() (config, error)
-	}
-)
-
 // Account defines an account provider, along with any credentials
 // and identifiers requried to set up or communicate with that provider.
 type Account struct {
 	Provider accountProvider
-	Config   config
+	Config   map[string]string
 }
 
 // NewAccount aggregates all the supplied configurations into a single configuration
-func NewAccount(p accountProvider, cfgs ...configurer) (Account, error) {
-	cs, err := unionConfigs(cfgs...)
+func NewAccount(p accountProvider, cfgs ...common.StringConfigurer) (Account, error) {
+	cs, err := common.UnionStringConfigs(cfgs...)
 	return Account{
 		Provider: p,
 		Config:   cs,
 	}, err
-}
-
-func unionConfigs(cfgs ...configurer) (config, error) {
-	union := config{}
-	for _, cfg := range cfgs {
-		c, err := cfg.Config()
-		if err != nil {
-			return nil, err
-		}
-		for k, v := range c {
-			union[k] = v
-		}
-	}
-	return union, nil
 }
