@@ -7,7 +7,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/account"
 )
 
 // BackupOperation wraps an operation with backup-specific props.
@@ -15,7 +15,7 @@ type BackupOperation struct {
 	operation
 	Version string
 
-	creds credentials.M365
+	account account.Account
 
 	Targets []string // something for targets/filter/source/app&users/etc
 }
@@ -25,13 +25,13 @@ func NewBackupOperation(
 	ctx context.Context,
 	opts OperationOpts,
 	kw *kopia.KopiaWrapper,
-	creds credentials.M365,
+	acct account.Account,
 	targets []string,
 ) (BackupOperation, error) {
 	op := BackupOperation{
 		operation: newOperation(opts, kw),
 		Version:   "v0",
-		creds:     creds,
+		account:   acct,
 		Targets:   targets,
 	}
 	if err := op.validate(); err != nil {
@@ -42,15 +42,12 @@ func NewBackupOperation(
 }
 
 func (op BackupOperation) validate() error {
-	if err := op.creds.Validate(); err != nil {
-		return errors.Wrap(err, "invalid credentials")
-	}
 	return op.operation.validate()
 }
 
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) {
-	gc, err := connector.NewGraphConnector(op.creds.TenantID, op.creds.ClientID, op.creds.ClientSecret)
+	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to graph api")
 	}

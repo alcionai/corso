@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/support"
 	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 )
 
@@ -30,13 +31,13 @@ func TestGraphConnectorSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	evs, err := ctesting.GetRequiredEnvVars(credentials.TenantID, credentials.ClientID, credentials.ClientSecret)
+	_, err := ctesting.GetRequiredEnvVars(credentials.ClientID, credentials.ClientSecret)
 	require.NoError(suite.T(), err)
 
-	suite.connector, err = NewGraphConnector(
-		evs[credentials.TenantID],
-		evs[credentials.ClientID],
-		evs[credentials.ClientSecret])
+	a, err := ctesting.NewM365Account()
+	require.NoError(suite.T(), err)
+
+	suite.connector, err = NewGraphConnector(a)
 	suite.NoError(err)
 }
 
@@ -94,21 +95,38 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 func (suite *DiconnectedGraphConnectorSuite) TestBadConnection() {
 
 	table := []struct {
-		name   string
-		params []string
+		name string
+		acct func(t *testing.T) account.Account
 	}{
 		{
-			name:   "Invalid Credentials",
-			params: []string{"Test", "without", "data"},
+			name: "Invalid Credentials",
+			acct: func(t *testing.T) account.Account {
+				a, err := account.NewAccount(
+					account.ProviderM365,
+					account.M365Config{
+						M365: credentials.M365{
+							ClientID:     "Test",
+							ClientSecret: "without",
+						},
+						TenantID: "data",
+					},
+				)
+				require.NoError(t, err)
+				return a
+			},
 		},
 		{
-			name:   "Empty Credentials",
-			params: []string{"", "", ""},
+			name: "Empty Credentials",
+			acct: func(t *testing.T) account.Account {
+				// intentionally swallowing the error here
+				a, _ := account.NewAccount(account.ProviderM365)
+				return a
+			},
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			gc, err := NewGraphConnector(test.params[0], test.params[1], test.params[2])
+			gc, err := NewGraphConnector(test.acct(t))
 			assert.Nil(t, gc, test.name+" failed")
 			assert.NotNil(t, err, test.name+"failed")
 		})

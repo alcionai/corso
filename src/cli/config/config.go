@@ -99,14 +99,16 @@ func ReadRepoConfig() (storage.S3Config, account.Account, error) {
 	s3Config.Prefix = viper.GetString(PrefixKey)
 
 	m365Creds := credentials.GetM365()
+	tenantID := os.Getenv(account.TenantID)
 	cfgTenantID := viper.GetString(TenantIDKey)
-	if len(cfgTenantID) > 0 {
-		m365Creds.TenantID = cfgTenantID
+	if len(tenantID) == 0 || len(cfgTenantID) > 0 {
+		tenantID = cfgTenantID
 	}
 	acct, err = account.NewAccount(
 		account.ProviderM365,
 		account.M365Config{
-			M365: m365Creds,
+			M365:     m365Creds,
+			TenantID: tenantID,
 		},
 	)
 

@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -93,39 +92,21 @@ func (r *Repository) Close(ctx context.Context) error {
 
 // NewBackup generates a backupOperation runner.
 func (r Repository) NewBackup(ctx context.Context, targets []string) (operations.BackupOperation, error) {
-	m365, err := r.Account.M365Config()
-	if err != nil {
-		return operations.BackupOperation{}, errors.Wrap(err, "retrieving m365 account credentials")
-	}
-	creds := credentials.M365{
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-		TenantID:     m365.TenantID,
-	}
 	return operations.NewBackupOperation(
 		ctx,
 		operations.OperationOpts{},
 		r.dataLayer,
-		creds,
+		r.Account,
 		targets)
 }
 
 // NewRestore generates a restoreOperation runner.
 func (r Repository) NewRestore(ctx context.Context, restorePointID string, targets []string) (operations.RestoreOperation, error) {
-	m365, err := r.Account.M365Config()
-	if err != nil {
-		return operations.RestoreOperation{}, errors.Wrap(err, "retrieving m365 account credentials")
-	}
-	creds := credentials.M365{
-		ClientID:     m365.ClientID,
-		ClientSecret: m365.ClientSecret,
-		TenantID:     m365.TenantID,
-	}
 	return operations.NewRestoreOperation(
 		ctx,
 		operations.OperationOpts{},
 		r.dataLayer,
-		creds,
+		r.Account,
 		restorePointID,
 		targets)
 }

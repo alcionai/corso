@@ -19,6 +19,7 @@ import (
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
 )
 
@@ -39,9 +40,13 @@ type GraphConnector struct {
 	status  *support.ConnectorOperationStatus // contains the status of the last run status
 }
 
-func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, error) {
+func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
+	m365, err := acct.M365Config()
+	if err != nil {
+		return nil, errors.Wrap(err, "retrieving m356 account configuration")
+	}
 	// Client Provider: Uses Secret for access to tenant-level data
-	cred, err := az.NewClientSecretCredential(tenantId, clientId, secret, nil)
+	cred, err := az.NewClientSecretCredential(m365.TenantID, m365.ClientID, m365.ClientSecret, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +59,7 @@ func NewGraphConnector(tenantId, clientId, secret string) (*GraphConnector, erro
 		return nil, err
 	}
 	gc := GraphConnector{
-		tenant:  tenantId,
+		tenant:  m365.TenantID,
 		adapter: *adapter,
 		client:  *msgraphsdk.NewGraphServiceClient(adapter),
 		Users:   make(map[string]string, 0),
