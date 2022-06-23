@@ -113,7 +113,7 @@ func ReadRepoConfig() (storage.S3Config, account.Account, error) {
 	return s3Config, acct, err
 }
 
-// GetStorageAndAccount creates a storage and accoun instance by mediating all the possible
+// GetStorageAndAccount creates a storage and account instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) and the config file.
 func GetStorageAndAccount(readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
 	var (
