@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -146,7 +147,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, user strin
 // var moreOps is a comma separated string of options(e.g. "displayName, isHidden")
 // return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFolders(moreOps []string) *msfolder.MailFoldersRequestBuilderGetRequestConfiguration {
-	selecting := append(moreOps, "id")
+	selecting := append(moreOps, "id", "displayName")
 	requestParameters := &msfolder.MailFoldersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -214,21 +215,27 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	options := optionsForMailFolders([]string{})
 	response, err := gc.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
+		fmt.Printf("Error: %v\n", support.ConnectorStackErrorTrace(ctx, err))
 		return nil, err
 	}
 	if response == nil {
 		return nil, fmt.Errorf("unable to access folders for %s", user)
 	}
-	folderList := make([]string, 0)
+	folderList := make(map[string]string, 0)
 	for _, folderable := range response.GetValue() {
-		folderList = append(folderList, *folderable.GetId())
+		folderList[*folderable.GetDisplayName()] = *folderable.GetId()
 	}
-	// Time to create Exchange data Holder
+	keys := make([]string, 0, len(folderList))
+	for k := range folderList {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 	var byteArray []byte
 	collections := make([]DataCollection, 0)
 	var errs error
 	var totalItems, success int
-	for _, aFolder := range folderList {
+	for _, key := range keys {
+		aFolder := folderList[key]
 
 		result, err := gc.client.UsersById(user).MailFoldersById(aFolder).Messages().Get()
 		if err != nil {
