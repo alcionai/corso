@@ -194,7 +194,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection
 		sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
 		if err != nil {
 			errs = support.WrapAndAppend(data.UUID()+": "+
-				support.ConnectorStackErrorTrace(ctx, err), err, errs)
+				support.ConnectorStackErrorTrace(err), err, errs)
 			continue
 			// TODO: Add to retry Handler for the for failure
 		}
@@ -270,7 +270,8 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 			}
 			err = objectWriter.WriteObjectValue("", message)
 			if err != nil {
-				errs = support.WrapAndAppend(*message.GetId(), err, errs)
+				errs = support.WrapAndAppend(*message.GetId(), support.SetNonRecoverableError(err),
+					errs)
 				return true
 			}
 			byteArray, err = objectWriter.GetSerializedContent()
@@ -297,6 +298,9 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		collections = append(collections, &edc)
 	}
 
+	if errs != nil {
+		fmt.Println(errs.Error())
+	}
 	status, err := support.CreateStatus(support.Backup, totalItems, success, len(folderList), errs)
 	if err == nil {
 		gc.SetStatus(*status)
