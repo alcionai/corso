@@ -86,7 +86,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	}
 	ds := ExchangeData{id: "test", message: bytes}
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
-	edc.PopulateCollection(ds)
+	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), &edc)
 	assert.NoError(suite.T(), err)

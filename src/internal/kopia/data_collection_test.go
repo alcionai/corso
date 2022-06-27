@@ -50,15 +50,16 @@ func (suite *SingleItemCollectionUnitSuite) TestReturnsOnlyOneItem() {
 		path:   []string{},
 	}
 
-	returnedStream, err := c.NextItem()
-	require.NoError(t, err)
+	count := 0
+	for returnedStream := range c.Items() {
+		assert.Equal(t, returnedStream.UUID(), uuid)
 
-	assert.Equal(t, returnedStream.UUID(), uuid)
+		buf, err := ioutil.ReadAll(returnedStream.ToReader())
+		require.NoError(t, err)
+		assert.Equal(t, buf, data)
 
-	_, err = c.NextItem()
-	assert.ErrorIs(t, err, io.EOF)
+		count++
+	}
 
-	buf, err := ioutil.ReadAll(returnedStream.ToReader())
-	require.NoError(t, err)
-	assert.Equal(t, buf, data)
+	assert.Equal(t, 1, count)
 }
