@@ -1,4 +1,4 @@
-package config_test
+package config
 
 import (
 	"fmt"
@@ -11,8 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/cli/config"
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -22,6 +21,7 @@ bucket = '%s'
 endpoint = 's3.amazonaws.com'
 prefix = 'test-prefix'
 provider = 'S3'
+account_provider = 'M365'
 tenantid = '%s'
 `
 )
@@ -47,11 +47,14 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	viper.SetConfigFile(testConfigFilePath)
 
 	// Read and validate config
-	s3Cfg, account, err := config.ReadRepoConfig()
-	assert.NoError(suite.T(), err)
+	err = readRepoConfig()
+	require.NoError(suite.T(), err)
+
+	s3Cfg, err := s3ConfigsFromViper()
+	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), b, s3Cfg.Bucket)
 
-	m365, err := account.M365Config()
+	m365, err := m365ConfigsFromViper()
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), tID, m365.TenantID)
 }
@@ -60,20 +63,23 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	// Configure viper to read test config file
 	tempDir := suite.T().TempDir()
 	testConfigFilePath := path.Join(tempDir, "corso.toml")
-	err := config.InitConfig(testConfigFilePath)
+	err := InitConfig(testConfigFilePath)
 	assert.NoError(suite.T(), err)
 
 	s3Cfg := storage.S3Config{Bucket: "write-read-config-bucket"}
-	acct, err := ctesting.NewM365Account()
-	require.NoError(suite.T(), err)
-	m365, err := acct.M365Config()
+	m365 := account.M365Config{TenantID: "3c0748d2-470e-444c-9064-1268e52609d5"}
+
+	err = WriteRepoConfig(s3Cfg, m365)
 	require.NoError(suite.T(), err)
 
-	err = config.WriteRepoConfig(s3Cfg, m365)
-	assert.NoError(suite.T(), err)
+	err = readRepoConfig()
+	require.NoError(suite.T(), err)
 
-	readS3Cfg, readAccount, err := config.ReadRepoConfig()
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), s3Cfg, readS3Cfg)
-	assert.Equal(suite.T(), acct, readAccount)
+	readS3Cfg, err := s3ConfigsFromViper()
+	require.NoError(suite.T(), err)
+	assert.Equal(suite.T(), readS3Cfg.Bucket, s3Cfg.Bucket)
+
+	readM365, err := m365ConfigsFromViper()
+	require.NoError(suite.T(), err)
+	assert.Equal(suite.T(), readM365.TenantID, m365.TenantID)
 }
