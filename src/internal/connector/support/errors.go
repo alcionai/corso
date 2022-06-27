@@ -12,17 +12,29 @@ import (
 
 // GraphConnector has two types of errors that are exported
 // RecoverableGCError is a query error that can be overcome with time
-var RecoverableGCError = errors.New("error while connecting to msgraph")
+type RecoverableGCError struct {
+	err error
+}
 
-// NonRecoverableGCError is a permanent query error
-var NonRecoverableGCError = errors.New("error while connecting to msgraph")
+func (rgc *RecoverableGCError) Error() string {
+	return rgc.err.Error()
+}
 
 func SetRecoverableError(e error) error {
-	return errors.Wrapf(RecoverableGCError, "RecoverableGCError: %s", e.Error())
+	return &RecoverableGCError{err: e}
+}
+
+// NonRecoverableGCError is a permanent query error
+type NonRecoverableGCError struct {
+	err error
+}
+
+func (nrgc *NonRecoverableGCError) Error() string {
+	return nrgc.err.Error()
 }
 
 func SetNonRecoverableError(e error) error {
-	return errors.Wrapf(NonRecoverableGCError, "NonRecoverableGCError: %s", e.Error())
+	return &NonRecoverableGCError{err: e}
 }
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error

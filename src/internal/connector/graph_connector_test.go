@@ -45,12 +45,12 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	suite.NotNil(suite.connector)
 }
 
-type DiconnectedGraphConnectorSuite struct {
+type DisconnectedGraphConnectorSuite struct {
 	suite.Suite
 }
 
 func TestDisconnectedGraphSuite(t *testing.T) {
-	suite.Run(t, new(DiconnectedGraphConnectorSuite))
+	suite.Run(t, new(DisconnectedGraphConnectorSuite))
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers() {
@@ -91,7 +91,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *DiconnectedGraphConnectorSuite) TestBadConnection() {
+func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 
 	table := []struct {
 		name   string
@@ -126,7 +126,7 @@ func Contains(elems []string, value string) bool {
 	return false
 }
 
-func (suite *DiconnectedGraphConnectorSuite) TestBuild() {
+func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	names := make(map[string]string)
 	names["Al"] = "Bundy"
 	names["Ellen"] = "Ripley"
@@ -142,7 +142,7 @@ func (suite *DiconnectedGraphConnectorSuite) TestBuild() {
 
 }
 
-func (suite *DiconnectedGraphConnectorSuite) TestInterfaceAlignment() {
+func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	var dc DataCollection
 	concrete := NewExchangeDataCollection("Check", []string{"interface", "works"})
 	dc = &concrete
@@ -150,7 +150,7 @@ func (suite *DiconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 
 }
 
-func (suite *DiconnectedGraphConnectorSuite) TestGraphConnector_Status() {
+func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	gc := GraphConnector{}
 	suite.Equal(len(gc.Status()), 0)
 	status, err := support.CreateStatus(support.Restore, 12, 9, 8,
@@ -158,4 +158,51 @@ func (suite *DiconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	assert.NoError(suite.T(), err)
 	gc.SetStatus(*status)
 	suite.Greater(len(gc.Status()), 0)
+}
+func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {
+	tests := []struct {
+		name                 string
+		err                  error
+		returnRecoverable    bool
+		returnNonRecoverable bool
+	}{
+		{
+			name:                 "Neither Option",
+			err:                  errors.New("regular error"),
+			returnRecoverable:    false,
+			returnNonRecoverable: false,
+		},
+		{
+			name:                 "Validate Recoverable",
+			err:                  support.SetRecoverableError(errors.New("Recoverable")),
+			returnRecoverable:    true,
+			returnNonRecoverable: false,
+		},
+		{name: "Validate NonRecoverable",
+			err:                  support.SetNonRecoverableError(errors.New("Non-recoverable")),
+			returnRecoverable:    false,
+			returnNonRecoverable: true,
+		},
+		{
+			name: "Wrapped Recoverable",
+			err: support.SetRecoverableError(support.WrapAndAppend(
+				"Wrapped Recoverable", errors.New("Recoverable"), nil)),
+			returnRecoverable:    true,
+			returnNonRecoverable: false,
+		},
+		{
+			name:                 "On Nil",
+			err:                  nil,
+			returnRecoverable:    false,
+			returnNonRecoverable: false,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			recoverable := IsRecoverableError(test.err)
+			nonRecoverable := IsNonRecoverableError(test.err)
+			suite.Equal(recoverable, test.returnRecoverable, "Expected: %v received %v", test.returnRecoverable, recoverable)
+			suite.Equal(nonRecoverable, test.returnNonRecoverable)
+		})
+	}
 }
