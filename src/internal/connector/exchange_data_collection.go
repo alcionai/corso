@@ -14,9 +14,11 @@ const (
 // A DataCollection represents a collection of data of the
 // same type (e.g. mail)
 type DataCollection interface {
-	// Returns either the next item in the collection or an error if one occurred.
-	// If not more items are available in the collection, returns (nil, nil).
-	NextItem() (DataStream, error)
+	// Items returns a channel from which items in the collection can be read.
+	// Each returned struct contains the next item in the collection
+	// The channel is closed when there are no more items in the collection or if
+	// an unrecoverable error caused an early termination in the sender.
+	Items() <-chan DataStream
 	// FullPath returns a slice of strings that act as metadata tags for this
 	// DataCollection. Returned items should be ordered from most generic to least
 	// generic. For example, a DataCollection for emails from a specific user
@@ -27,9 +29,9 @@ type DataCollection interface {
 // DataStream represents a single item within a DataCollection
 // that can be consumed as a stream (it embeds io.Reader)
 type DataStream interface {
-	// Returns an io.Reader for the DataStream
+	// ToReader returns an io.Reader for the DataStream
 	ToReader() io.ReadCloser
-	// Provides a unique identifier for this data
+	// UUID provides a unique identifier for this data
 	UUID() string
 }
 
@@ -40,12 +42,8 @@ type DataStream interface {
 type ExchangeDataCollection struct {
 	// M365 user
 	user string
-	// TODO: We would want to replace this with a channel so that we
-	// don't need to wait for all data to be retrieved before reading it out
-
-	data chan ExchangeData
+	data chan DataStream
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
-
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
@@ -54,13 +52,13 @@ type ExchangeDataCollection struct {
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:     aUser,
-		data:     make(chan ExchangeData, collectionChannelBufferSize),
+		data:     make(chan DataStream, collectionChannelBufferSize),
 		fullPath: pathRepresentation,
 	}
 	return collection
 }
 
-func (edc *ExchangeDataCollection) PopulateCollection(newData ExchangeData) {
+func (edc *ExchangeDataCollection) PopulateCollection(newData *ExchangeData) {
 	edc.data <- newData
 }
 
@@ -76,14 +74,8 @@ func (edc *ExchangeDataCollection) Length() int {
 	return len(edc.data)
 }
 
-// NextItem returns either the next item in the collection or an error if one occurred.
-// If not more items are available in the collection, returns (nil, nil).
-func (edc *ExchangeDataCollection) NextItem() (DataStream, error) {
-	item, ok := <-edc.data
-	if !ok {
-		return nil, io.EOF
-	}
-	return &item, nil
+func (edc *ExchangeDataCollection) Items() <-chan DataStream {
+	return edc.data
 }
 
 func (edc *ExchangeDataCollection) FullPath() []string {

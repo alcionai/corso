@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -168,14 +167,10 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection
 	var errs error
 	// must be user.GetId(), PrimaryName no longer works 6-15-2022
 	user := dc.FullPath()[1]
-	for {
-		data, err := dc.NextItem()
-		if err == io.EOF {
-			break
-		}
-
+	// TODO(ashmrtn): Handle context cancellation.
+	for data := range dc.Items() {
 		buf := &bytes.Buffer{}
-		_, err = buf.ReadFrom(data.ToReader())
+		_, err := buf.ReadFrom(data.ToReader())
 		if err != nil {
 			errs = support.WrapAndAppend(data.UUID(), err, errs)
 			continue
@@ -286,7 +281,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 				return true
 			}
 			if byteArray != nil {
-				edc.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
+				edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
 			}
 			return true
 		}
