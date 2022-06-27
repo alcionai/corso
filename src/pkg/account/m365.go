@@ -23,7 +23,9 @@ const (
 	keyM365TenantID     = "m365_tenantID"
 )
 
-// StringConfig transforms
+// StringConfig transforms a m365Config struct into a plain
+// map[string]string.  All values in the original struct which
+// serialize into the map are expected to be strings.
 func (c M365Config) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
 		keyM365ClientID:     c.ClientID,

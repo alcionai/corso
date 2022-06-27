@@ -15,6 +15,9 @@ const (
 	keyCommonCorsoPassword = "common_corsoPassword"
 )
 
+// StringConfig transforms a commonConfig struct into a plain
+// map[string]string.  All values in the original struct which
+// serialize into the map are expected to be strings.
 func (c CommonConfig) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
 		keyCommonCorsoPassword: c.CorsoPassword,
