@@ -172,15 +172,22 @@ func getStreamItemFunc(
 	collection connector.DataCollection,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
-		// TODO(ashmrtn): Handle context cancellation.
-		for e := range collection.Items() {
-			entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
-			if err := cb(ctx, entry); err != nil {
-				return errors.Wrap(err, "executing callback")
+		items := collection.Items()
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case e, ok := <-items:
+				if !ok {
+					return nil
+				}
+
+				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
+				if err := cb(ctx, entry); err != nil {
+					return errors.Wrap(err, "executing callback")
+				}
 			}
 		}
-
-		return nil
 	}
 }
 
