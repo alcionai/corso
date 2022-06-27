@@ -298,9 +298,6 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		collections = append(collections, &edc)
 	}
 
-	if errs != nil {
-		fmt.Println(errs.Error())
-	}
 	status, err := support.CreateStatus(support.Backup, totalItems, success, len(folderList), errs)
 	if err == nil {
 		gc.SetStatus(*status)
