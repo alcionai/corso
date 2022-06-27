@@ -320,18 +320,12 @@ func (gc *GraphConnector) Status() string {
 
 // IsRecoverableError returns true iff error is a RecoverableGCEerror
 func IsRecoverableError(e error) bool {
-	if e == nil {
-		return false
-	}
 	var recoverable *support.RecoverableGCError
 	return errors.As(e, &recoverable)
 }
 
 // IsNonRecoverableError returns true iff error is a NonRecoverableGCEerror
 func IsNonRecoverableError(e error) bool {
-	if e == nil {
-		return false
-	}
 	var nonRecoverable *support.NonRecoverableGCError
 	return errors.As(e, &nonRecoverable)
 }
