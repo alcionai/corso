@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/internal/operations"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/credentials"
 )
 
 type RestoreOpIntegrationSuite struct {
@@ -27,10 +26,7 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *RestoreOpIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(
-		credentials.ClientID,
-		credentials.ClientSecret,
-	)
+	_, err := ctesting.GetRequiredEnvVars(ctesting.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 

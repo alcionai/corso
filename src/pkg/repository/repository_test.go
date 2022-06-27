@@ -100,7 +100,12 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 
 // ensure all required env values are populated
 func (suite *RepositoryIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSCredentialEnvs...)
+	_, err := ctesting.GetRequiredEnvVars(
+		append(
+			ctesting.AWSStorageCredEnvs,
+			ctesting.M365AcctCredEnvs...,
+		)...,
+	)
 	require.NoError(suite.T(), err)
 }
 

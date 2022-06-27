@@ -20,7 +20,7 @@ type GraphConnectorIntegrationSuite struct {
 	connector *GraphConnector
 }
 
-func TestGraphConnectorSuite(t *testing.T) {
+func TestGraphConnectorIntetgrationSuite(t *testing.T) {
 	if err := ctesting.RunOnAny(
 		ctesting.CorsoCITests,
 		ctesting.CorsoGraphConnectorTests,
@@ -31,7 +31,7 @@ func TestGraphConnectorSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(credentials.ClientID, credentials.ClientSecret)
+	_, err := ctesting.GetRequiredEnvVars(ctesting.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
 	a, err := ctesting.NewM365Account()

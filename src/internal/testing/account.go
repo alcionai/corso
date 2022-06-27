@@ -6,6 +6,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+var M365AcctCredEnvs = []string{
+	credentials.ClientID,
+	credentials.ClientSecret,
+}
+
 // NewM365Account returns an account.Account object initialized with environment
 // variables used for integration tests that use Graph Connector.
 func NewM365Account() (account.Account, error) {

@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/internal/operations"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/repository"
 )
 
@@ -29,8 +28,10 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	_, err := ctesting.GetRequiredEnvVars(
-		credentials.ClientID,
-		credentials.ClientSecret,
+		append(
+			ctesting.AWSStorageCredEnvs,
+			ctesting.M365AcctCredEnvs...,
+		)...,
 	)
 	require.NoError(suite.T(), err)
 }
