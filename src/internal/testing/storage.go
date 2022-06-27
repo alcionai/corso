@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var AWSCredentialEnvs = []string{
+var AWSStorageCredEnvs = []string{
 	credentials.AWSAccessKeyID,
 	credentials.AWSSecretAccessKey,
 	credentials.AWSSessionToken,

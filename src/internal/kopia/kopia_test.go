@@ -247,7 +247,7 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSCredentialEnvs...)
+	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 

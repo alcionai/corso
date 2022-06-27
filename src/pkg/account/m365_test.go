@@ -23,8 +23,8 @@ var goodM365Config = account.M365Config{
 	M365: credentials.M365{
 		ClientID:     "cid",
 		ClientSecret: "cs",
-		TenantID:     "tid",
 	},
+	TenantID: "tid",
 }
 
 func (suite *M365CfgSuite) TestM365Config_Config() {
@@ -64,8 +64,8 @@ func makeTestM365Cfg(cid, cs, tid string) account.M365Config {
 		M365: credentials.M365{
 			ClientID:     cid,
 			ClientSecret: cs,
-			TenantID:     tid,
 		},
+		TenantID: tid,
 	}
 }
 

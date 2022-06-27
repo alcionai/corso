@@ -6,10 +6,14 @@ import (
 	"github.com/alcionai/corso/pkg/credentials"
 )
 
-type M365Config struct {
-	credentials.M365 // requires: ClientID, ClientSecret, TenantID
+// config exported name consts
+const (
+	TenantID = "TENANT_ID"
+)
 
-	// (todo) TenantID string
+type M365Config struct {
+	credentials.M365 // requires: ClientID, ClientSecret
+	TenantID         string
 }
 
 // config key consts
@@ -19,11 +23,9 @@ const (
 	keyM365TenantID     = "m365_tenantID"
 )
 
-// config exported name consts
-const (
-// (todo) TenantID     = "TENANT_ID"
-)
-
+// StringConfig transforms a m365Config struct into a plain
+// map[string]string.  All values in the original struct which
+// serialize into the map are expected to be strings.
 func (c M365Config) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
 		keyM365ClientID:     c.ClientID,
@@ -48,7 +50,7 @@ func (c M365Config) validate() error {
 	check := map[string]string{
 		credentials.ClientID:     c.ClientID,
 		credentials.ClientSecret: c.ClientSecret,
-		credentials.TenantID:     c.TenantID,
+		TenantID:                 c.TenantID,
 	}
 	for k, v := range check {
 		if len(v) == 0 {

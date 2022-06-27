@@ -11,7 +11,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
 	ctesting "github.com/alcionai/corso/internal/testing"
-	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/repository"
 )
 
@@ -28,27 +28,29 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	_, err := ctesting.GetRequiredEnvVars(
-		credentials.TenantID,
-		credentials.ClientID,
-		credentials.ClientSecret,
+		append(
+			ctesting.AWSStorageCredEnvs,
+			ctesting.M365AcctCredEnvs...,
+		)...,
 	)
 	require.NoError(suite.T(), err)
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.KopiaWrapper{}
-	creds := credentials.GetM365()
+	acct, err := ctesting.NewM365Account()
+	require.NoError(suite.T(), err)
+
 	table := []struct {
 		name     string
 		opts     operations.OperationOpts
 		kw       *kopia.KopiaWrapper
-		creds    credentials.M365
+		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", operations.OperationOpts{}, kw, creds, nil, assert.NoError},
-		{"missing kopia", operations.OperationOpts{}, nil, creds, nil, assert.Error},
-		{"invalid creds", operations.OperationOpts{}, kw, credentials.M365{}, nil, assert.Error},
+		{"good", operations.OperationOpts{}, kw, acct, nil, assert.NoError},
+		{"missing kopia", operations.OperationOpts{}, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -56,7 +58,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				context.Background(),
 				operations.OperationOpts{},
 				test.kw,
-				test.creds,
+				test.acct,
 				nil)
 			test.errCheck(t, err)
 		})

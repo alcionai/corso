@@ -7,7 +7,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/account"
 )
 
 // RestoreOperation wraps an operation with restore-specific props.
@@ -16,7 +16,7 @@ type RestoreOperation struct {
 	Version string
 
 	restorePointID string
-	creds          credentials.M365
+	account        account.Account
 
 	Targets []string // something for targets/filter/source/app&users/etc
 }
@@ -26,14 +26,14 @@ func NewRestoreOperation(
 	ctx context.Context,
 	opts OperationOpts,
 	kw *kopia.KopiaWrapper,
-	creds credentials.M365,
+	acct account.Account,
 	restorePointID string,
 	targets []string,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
 		operation:      newOperation(opts, kw),
 		Version:        "v0",
-		creds:          creds,
+		account:        acct,
 		restorePointID: restorePointID,
 		Targets:        targets,
 	}
@@ -45,9 +45,6 @@ func NewRestoreOperation(
 }
 
 func (op RestoreOperation) validate() error {
-	if err := op.creds.Validate(); err != nil {
-		return errors.Wrap(err, "invalid credentials")
-	}
 	return op.operation.validate()
 }
 
@@ -59,7 +56,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		return errors.Wrap(err, "retrieving service data")
 	}
 
-	gc, err := connector.NewGraphConnector(op.creds.TenantID, op.creds.ClientID, op.creds.ClientSecret)
+	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
 		return errors.Wrap(err, "connecting to graph api")
 	}

@@ -11,9 +11,9 @@ require (
 	github.com/kopia/kopia v0.10.7
 	github.com/microsoft/kiota-abstractions-go v0.8.1
 	github.com/microsoft/kiota-authentication-azure-go v0.3.0
-	github.com/microsoft/kiota-serialization-json-go v0.5.1
-	github.com/microsoftgraph/msgraph-sdk-go v0.25.0
-	github.com/microsoftgraph/msgraph-sdk-go-core v0.26.0
+	github.com/microsoft/kiota-serialization-json-go v0.5.3
+	github.com/microsoftgraph/msgraph-sdk-go v0.28.0
+	github.com/microsoftgraph/msgraph-sdk-go-core v0.26.1
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.12.0
@@ -59,8 +59,8 @@ require (
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/microsoft/kiota-http-go v0.5.0 // indirect
-	github.com/microsoft/kiota-serialization-text-go v0.4.0 // indirect
+	github.com/microsoft/kiota-http-go v0.5.1 // indirect
+	github.com/microsoft/kiota-serialization-text-go v0.4.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.28 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect

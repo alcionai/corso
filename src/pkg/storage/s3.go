@@ -31,6 +31,9 @@ const (
 	Prefix   = "prefix"
 )
 
+// StringConfig transforms a s3Config struct into a plain
+// map[string]string.  All values in the original struct which
+// serialize into the map are expected to be strings.
 func (c S3Config) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
 		keyS3AccessKey:    c.AccessKey,
