@@ -1,27 +1,19 @@
 #! /bin/bash
 
-# Builds a docker image that contains the deps for the current version of the
-# code. Image expects dev directory to be mounted in the container at runtime.
+# Builds a docker image that wraps the corso binary
 
-source paths.sh
+IMAGE_NAME="alcionai/corso"
+VERSION=$(git describe --tags --always --dirty)
+CORSO_BINARY="./bin/corso"
 
-BASE_TAG="alcionai/base-dev"
+if [ ! -f "$CORSO_BINARY" ]; then
+    echo "$CORSO_BINARY does not exist. Build corso and ensure the binary is available at $CORSO_BINARY"
+    exit 1
+fi
 
 buildImage() {
-  docker build \
-    -f Dockerfile \
-    -t "$BASE_TAG" \
-    --build-arg uid=$(id -u) \
-    --build-arg gid=$(id -g) \
-    .
-  docker run \
-    -v "$REPO_CODE":"$GOLANG_REPO_PATH" \
-    --name build-tmp \
-    -w "$GOLANG_REPO_PATH" \
-    -it \
-    "$BASE_TAG" go get
-  docker commit build-tmp "$DEV_TAG"
-  docker rm build-tmp
+  docker build . \
+    -t "$IMAGE_NAME:$VERSION"
 }
 
 buildImage
