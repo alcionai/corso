@@ -172,7 +172,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection
 	for {
 		select {
 		case <-ctx.Done():
-			return support.WrapAndAppend("ctx", ctx.Err(), errs)
+			return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
 		case data, ok := <-items:
 			if !ok {
 				return errs
