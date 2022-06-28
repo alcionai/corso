@@ -335,15 +335,16 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
 
 	assert.Equal(t, c.FullPath(), testPath)
 
-	resultStream, err := c.NextItem()
-	require.NoError(t, err)
+	count := 0
+	for resultStream := range c.Items() {
+		buf, err := ioutil.ReadAll(resultStream.ToReader())
+		require.NoError(t, err)
+		assert.Equal(t, buf, testFileData)
 
-	_, err = c.NextItem()
-	assert.ErrorIs(t, err, io.EOF)
+		count++
+	}
 
-	buf, err := ioutil.ReadAll(resultStream.ToReader())
-	require.NoError(t, err)
-	assert.Equal(t, buf, testFileData)
+	assert.Equal(t, 1, count)
 }
 
 // TestBackupAndRestoreSingleItem_Errors exercises the public RestoreSingleItem

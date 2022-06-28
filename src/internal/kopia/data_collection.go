@@ -17,13 +17,16 @@ type singleItemCollection struct {
 	used   bool
 }
 
-func (sic *singleItemCollection) NextItem() (connector.DataStream, error) {
+func (sic *singleItemCollection) Items() <-chan connector.DataStream {
 	if sic.used {
-		return nil, io.EOF
+		return nil
 	}
 
 	sic.used = true
-	return sic.stream, nil
+	res := make(chan connector.DataStream, 1)
+	res <- sic.stream
+	close(res)
+	return res
 }
 
 func (sic singleItemCollection) FullPath() []string {

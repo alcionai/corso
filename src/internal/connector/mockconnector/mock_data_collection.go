@@ -13,7 +13,6 @@ import (
 type MockExchangeDataCollection struct {
 	fullPath     []string
 	messageCount int
-	messagesRead int
 }
 
 var (
@@ -27,7 +26,6 @@ func NewMockExchangeDataCollection(pathRepresentation []string, numMessagesToRet
 	collection := &MockExchangeDataCollection{
 		fullPath:     pathRepresentation,
 		messageCount: numMessagesToReturn,
-		messagesRead: 0,
 	}
 	return collection
 }
@@ -36,16 +34,22 @@ func (medc *MockExchangeDataCollection) FullPath() []string {
 	return append([]string{}, medc.fullPath...)
 }
 
-// NextItem returns either the next item in the collection or an error if one occurred.
-// If not more items are available in the collection, returns (nil, nil).
-func (medc *MockExchangeDataCollection) NextItem() (connector.DataStream, error) {
-	if medc.messagesRead < medc.messageCount {
-		medc.messagesRead++
-		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
-		m := []byte("test message")
-		return &MockExchangeData{uuid.NewString(), io.NopCloser(bytes.NewReader(m))}, nil
-	}
-	return nil, io.EOF
+// Items returns a channel that has the next items in the collection. The
+// channel is closed when there are no more items available.
+func (medc *MockExchangeDataCollection) Items() <-chan connector.DataStream {
+	res := make(chan connector.DataStream)
+
+	go func() {
+		defer close(res)
+
+		for i := 0; i < medc.messageCount; i++ {
+			// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
+			m := []byte("test message")
+			res <- &MockExchangeData{uuid.NewString(), io.NopCloser(bytes.NewReader(m))}
+		}
+	}()
+
+	return res
 }
 
 // ExchangeData represents a single item retrieved from exchange

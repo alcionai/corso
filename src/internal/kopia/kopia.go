@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	"io"
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
@@ -173,19 +172,20 @@ func getStreamItemFunc(
 	collection connector.DataCollection,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
+		items := collection.Items()
 		for {
-			e, err := collection.NextItem()
-			if err != nil {
-				if err == io.EOF {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case e, ok := <-items:
+				if !ok {
 					return nil
 				}
 
-				return errors.Wrap(err, "materializing directory entry")
-			}
-
-			entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
-			if err = cb(ctx, entry); err != nil {
-				return errors.Wrap(err, "executing callback")
+				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
+				if err := cb(ctx, entry); err != nil {
+					return errors.Wrap(err, "executing callback")
+				}
 			}
 		}
 	}

@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -168,49 +167,54 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection
 	var errs error
 	// must be user.GetId(), PrimaryName no longer works 6-15-2022
 	user := dc.FullPath()[1]
+	items := dc.Items()
+
 	for {
-		data, err := dc.NextItem()
-		if err == io.EOF {
-			break
-		}
+		select {
+		case <-ctx.Done():
+			return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
+		case data, ok := <-items:
+			if !ok {
+				return errs
+			}
 
-		buf := &bytes.Buffer{}
-		_, err = buf.ReadFrom(data.ToReader())
-		if err != nil {
-			errs = support.WrapAndAppend(data.UUID(), err, errs)
-			continue
-		}
-		message, err := support.CreateMessageFromBytes(buf.Bytes())
-		if err != nil {
-			errs = support.WrapAndAppend(data.UUID(), err, errs)
-			continue
-		}
-		clone := support.ToMessage(message)
-		address := dc.FullPath()[3]
-		valueId := "Integer 0x0E07"
-		enableValue := "4"
-		sv := models.NewSingleValueLegacyExtendedProperty()
-		sv.SetId(&valueId)
-		sv.SetValue(&enableValue)
-		svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-		clone.SetSingleValueExtendedProperties(svlep)
-		draft := false
-		clone.SetIsDraft(&draft)
-		sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
-		if err != nil {
-			errs = support.WrapAndAppend(data.UUID()+": "+
-				support.ConnectorStackErrorTrace(err), err, errs)
-			continue
-			// TODO: Add to retry Handler for the for failure
-		}
+			buf := &bytes.Buffer{}
+			_, err := buf.ReadFrom(data.ToReader())
+			if err != nil {
+				errs = support.WrapAndAppend(data.UUID(), err, errs)
+				continue
+			}
+			message, err := support.CreateMessageFromBytes(buf.Bytes())
+			if err != nil {
+				errs = support.WrapAndAppend(data.UUID(), err, errs)
+				continue
+			}
+			clone := support.ToMessage(message)
+			address := dc.FullPath()[3]
+			valueId := "Integer 0x0E07"
+			enableValue := "4"
+			sv := models.NewSingleValueLegacyExtendedProperty()
+			sv.SetId(&valueId)
+			sv.SetValue(&enableValue)
+			svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
+			clone.SetSingleValueExtendedProperties(svlep)
+			draft := false
+			clone.SetIsDraft(&draft)
+			sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
+			if err != nil {
+				errs = support.WrapAndAppend(data.UUID()+": "+
+					support.ConnectorStackErrorTrace(err), err, errs)
+				continue
+				// TODO: Add to retry Handler for the for failure
+			}
 
-		if sentMessage == nil && err == nil {
-			errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+			if sentMessage == nil && err == nil {
+				errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
 
+			}
+			// This completes the restore loop for a message..
 		}
-		// This completes the restore loop for a message..
 	}
-	return errs
 }
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
@@ -286,7 +290,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 				return true
 			}
 			if byteArray != nil {
-				edc.PopulateCollection(ExchangeData{id: *message.GetId(), message: byteArray})
+				edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
 			}
 			return true
 		}

@@ -1,7 +1,6 @@
 package mockconnector_test
 
 import (
-	"io"
 	"io/ioutil"
 	"testing"
 
@@ -24,7 +23,7 @@ func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection() {
 
 	messagesRead := 0
 
-	for item, err := mdc.NextItem(); err != io.EOF; item, err = mdc.NextItem() {
+	for item := range mdc.Items() {
 		_, err := ioutil.ReadAll(item.ToReader())
 		assert.NoError(suite.T(), err)
 		messagesRead++

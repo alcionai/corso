@@ -61,27 +61,26 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := NewExchangeDataCollection("Fletcher", []string{"sugar", "horses", "painted red"})
 	for i := 0; i < expected; i++ {
-		edc.PopulateCollection(ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
+		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
 	}
 	suite.Equal(expected, edc.Length())
 }
+
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NextItem() {
 	inputStrings := []string{"Jack", "and", "Jill", "went", "up", "the", "hill to",
 		"fetch", "a", "pale", "of", "water"}
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := NewExchangeDataCollection("Fletcher", []string{"sugar", "horses", "painted red"})
 	for i := 0; i < expected; i++ {
-		edc.PopulateCollection(ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
+		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
 	}
 	edc.FinishPopulation() // finished writing
-	for i := 0; i < 6; i++ {
-		data, err := edc.NextItem()
-		assert.Nil(suite.T(), err)
-		assert.NotNil(suite.T(), data)
-	}
-	// Need that EOF
-	data, err := edc.NextItem()
-	assert.Nil(suite.T(), data)
-	assert.NotNil(suite.T(), err)
 
+	count := 0
+	for data := range edc.Items() {
+		assert.NotNil(suite.T(), data)
+		count++
+	}
+
+	assert.Equal(suite.T(), expected, count)
 }
