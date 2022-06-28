@@ -1,7 +1,6 @@
 package support
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,9 +8,34 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
-
-	"github.com/alcionai/corso/pkg/logger"
 )
+
+// GraphConnector has two types of errors that are exported
+// RecoverableGCError is a query error that can be overcome with time
+type RecoverableGCError struct {
+	err error
+}
+
+func (rgc *RecoverableGCError) Error() string {
+	return rgc.err.Error()
+}
+
+func SetRecoverableError(e error) error {
+	return &RecoverableGCError{err: e}
+}
+
+// NonRecoverableGCError is a permanent query error
+type NonRecoverableGCError struct {
+	err error
+}
+
+func (nrgc *NonRecoverableGCError) Error() string {
+	return nrgc.err.Error()
+}
+
+func SetNonRecoverableError(e error) error {
+	return &NonRecoverableGCError{err: e}
+}
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error
 // and return it as a mulitierror
@@ -42,10 +66,10 @@ func GetNumberOfErrors(err error) int {
 // ListErrors is a helper method used to return the string of errors when
 // the multiError library is used.
 // depends on ConnectorStackErrorTrace
-func ListErrors(ctx context.Context, multi multierror.Error) string {
+func ListErrors(multi multierror.Error) string {
 	aString := ""
 	for idx, err := range multi.Errors {
-		detail := ConnectorStackErrorTrace(ctx, err)
+		detail := ConnectorStackErrorTrace(err)
 		if detail == "" {
 			detail = fmt.Sprintf("%v", err)
 		}
@@ -67,7 +91,7 @@ func concatenateStringFromPointers(orig string, pointers []*string) string {
 
 // ConnectorStackErrorTrace is a helper function that wraps the
 // stack trace for oDataError types from querying the M365 back store.
-func ConnectorStackErrorTrace(ctx context.Context, e error) string {
+func ConnectorStackErrorTrace(e error) string {
 	eMessage := ""
 	if oDataError, ok := e.(msgraph_errors.ODataErrorable); ok {
 		// Get MainError
@@ -99,7 +123,6 @@ func ConnectorStackErrorTrace(ctx context.Context, e error) string {
 			}
 		}
 		if inners != nil {
-			logger.Ctx(ctx).Debug("error contains inner errors")
 			eMessage = eMessage + "\nConnector Section:"
 			client := inners.GetClientRequestId()
 			rId := inners.GetRequestId()

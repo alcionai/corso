@@ -199,7 +199,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection
 		sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
 		if err != nil {
 			errs = support.WrapAndAppend(data.UUID()+": "+
-				support.ConnectorStackErrorTrace(ctx, err), err, errs)
+				support.ConnectorStackErrorTrace(err), err, errs)
 			continue
 			// TODO: Add to retry Handler for the for failure
 		}
@@ -275,7 +275,8 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 			}
 			err = objectWriter.WriteObjectValue("", message)
 			if err != nil {
-				errs = support.WrapAndAppend(*message.GetId(), err, errs)
+				errs = support.WrapAndAppend(*message.GetId(), support.SetNonRecoverableError(err),
+					errs)
 				return true
 			}
 			byteArray, err = objectWriter.GetSerializedContent()
@@ -320,4 +321,16 @@ func (gc *GraphConnector) Status() string {
 		return ""
 	}
 	return gc.status.String()
+}
+
+// IsRecoverableError returns true iff error is a RecoverableGCEerror
+func IsRecoverableError(e error) bool {
+	var recoverable *support.RecoverableGCError
+	return errors.As(e, &recoverable)
+}
+
+// IsNonRecoverableError returns true iff error is a NonRecoverableGCEerror
+func IsNonRecoverableError(e error) bool {
+	var nonRecoverable *support.NonRecoverableGCError
+	return errors.As(e, &nonRecoverable)
 }
