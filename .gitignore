@@ -17,3 +17,7 @@
 # Standard configuration file names
 .corso_test.toml
 .corso.toml
+
+# Build directories
+/bin
+/docker/bin
