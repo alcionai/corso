@@ -20,7 +20,6 @@ func TestOperationSuite(t *testing.T) {
 func (suite *OperationSuite) TestNewOperation() {
 	t := suite.T()
 	op := newOperation(OperationOpts{}, nil)
-	assert.NotNil(t, op.Errors)
 	assert.NotNil(t, op.ID)
 }
 
