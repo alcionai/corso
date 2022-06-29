@@ -53,7 +53,7 @@ func handleCreateCmd(cmd *cobra.Command, args []string) {
 }
 
 // The backup list subcommand.
-// `corso backup lis <service> [<flag>...]`
+// `corso backup list <service> [<flag>...]`
 var listCommand = "list"
 var listCmd = &cobra.Command{
 	Use:   listCommand,
