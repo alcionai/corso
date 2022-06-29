@@ -9,14 +9,14 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[UnknownModel-0]
-	_ = x[BackupModel-1]
-	_ = x[RestoreModel-2]
+	_ = x[BackupOpModel-1]
+	_ = x[RestoreOpModel-2]
 	_ = x[RestorePointModel-3]
 }
 
-const _modelType_name = "UnknownModelBackupModelRestoreModelRestorePointModel"
+const _modelType_name = "UnknownModelBackupOpModelRestoreOpModelRestorePointModel"
 
-var _modelType_index = [...]uint8{0, 12, 23, 35, 52}
+var _modelType_index = [...]uint8{0, 12, 25, 39, 56}
 
 func (i modelType) String() string {
 	if i < 0 || i >= modelType(len(_modelType_index)-1) {

@@ -11,8 +11,8 @@ type modelType int
 //go:generate stringer -type=modelType
 const (
 	UnknownModel = modelType(iota)
-	BackupModel
-	RestoreModel
+	BackupOpModel
+	RestoreOpModel
 	RestorePointModel
 
 	errStoreFlush = "flushing manifest store"
