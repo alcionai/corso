@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
@@ -24,15 +25,16 @@ var (
 
 // called by repo.go to map parent subcommands to provider-specific handling.
 func addS3Commands(parent *cobra.Command) *cobra.Command {
-	var c *cobra.Command
+	var (
+		c  *cobra.Command
+		fs *pflag.FlagSet
+	)
 	switch parent.Use {
 	case initCommand:
-		c = s3InitCmd
+		c, fs = utils.AddCommand(parent, s3InitCmd)
 	case connectCommand:
-		c = s3ConnectCmd
+		c, fs = utils.AddCommand(parent, s3ConnectCmd)
 	}
-	parent.AddCommand(c)
-	fs := c.Flags()
 	fs.StringVar(&accessKey, "access-key", "", "Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).")
 	fs.StringVar(&bucket, "bucket", "", "Name of the S3 bucket (required).")
 	c.MarkFlagRequired("bucket")
@@ -41,9 +43,11 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	return c
 }
 
+const s3ProviderCommand = "s3"
+
 // `corso repo init s3 [<flag>...]`
 var s3InitCmd = &cobra.Command{
-	Use:   "s3",
+	Use:   s3ProviderCommand,
 	Short: "Initialize a S3 repository",
 	Long:  `Bootstraps a new S3 repository and connects it to your m356 account.`,
 	RunE:  initS3Cmd,
@@ -103,7 +107,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 // `corso repo connect s3 [<flag>...]`
 var s3ConnectCmd = &cobra.Command{
-	Use:   "s3",
+	Use:   s3ProviderCommand,
 	Short: "Connect to a S3 repository",
 	Long:  `Ensures a connection to an existing S3 repository.`,
 	RunE:  connectS3Cmd,
