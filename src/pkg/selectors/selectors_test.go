@@ -1,4 +1,4 @@
-package source
+package selectors
 
 import (
 	"fmt"
@@ -8,37 +8,37 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type SourceSuite struct {
+type SelectorSuite struct {
 	suite.Suite
 }
 
-func TestSourceSuite(t *testing.T) {
-	suite.Run(t, new(SourceSuite))
+func TestSelectorSuite(t *testing.T) {
+	suite.Run(t, new(SelectorSuite))
 }
 
-func (suite *SourceSuite) TestNewSource() {
+func (suite *SelectorSuite) TestNewSelector() {
 	t := suite.T()
-	s := newSource("tid", ServiceUnknown)
+	s := newSelector("tid", ServiceUnknown)
 	assert.NotNil(t, s)
 	assert.Equal(t, s.TenantID, "tid")
 	assert.Equal(t, s.service, ServiceUnknown)
 	assert.NotNil(t, s.scopes)
 }
 
-func (suite *SourceSuite) TestSource_Service() {
+func (suite *SelectorSuite) TestSelector_Service() {
 	table := []service{
 		ServiceUnknown,
 		ServiceExchange,
 	}
 	for _, test := range table {
 		suite.T().Run(fmt.Sprintf("testing %d", test), func(t *testing.T) {
-			s := newSource("tid", test)
+			s := newSelector("tid", test)
 			assert.Equal(t, s.Service(), test)
 		})
 	}
 }
 
-func (suite *SourceSuite) TestGetIota() {
+func (suite *SelectorSuite) TestGetIota() {
 	table := []struct {
 		name   string
 		val    string
@@ -59,7 +59,7 @@ func (suite *SourceSuite) TestGetIota() {
 	}
 }
 
-func (suite *SourceSuite) TestBadCastErr() {
+func (suite *SelectorSuite) TestBadCastErr() {
 	err := badCastErr(ServiceUnknown, ServiceExchange)
 	assert.Error(suite.T(), err)
 }

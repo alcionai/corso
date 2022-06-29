@@ -1,35 +1,35 @@
-package source
+package selectors
 
 import (
 	"strconv"
 )
 
-// ExchangeSource provides an api for scoping
+// ExchangeSelector provides an api for scoping
 // data in the Exchange service.
-type ExchangeSource struct {
-	Source
+type ExchangeSelector struct {
+	Selector
 }
 
-// ToExchange transforms the generic source into an ExchangeSource.
-// Errors if the service defined by the source is not ServiceExchange.
-func (s Source) ToExchange() (*ExchangeSource, error) {
+// ToExchange transforms the generic selector into an ExchangeSelector.
+// Errors if the service defined by the selector is not ServiceExchange.
+func (s Selector) ToExchange() (*ExchangeSelector, error) {
 	if s.service != ServiceExchange {
 		return nil, badCastErr(ServiceExchange, s.service)
 	}
-	src := ExchangeSource{s}
+	src := ExchangeSelector{s}
 	return &src, nil
 }
 
-// NewExchange produces a new Source with the service set to ServiceExchange.
-func NewExchange(tenantID string) *ExchangeSource {
-	src := ExchangeSource{
-		newSource(tenantID, ServiceExchange),
+// NewExchange produces a new Selector with the service set to ServiceExchange.
+func NewExchange(tenantID string) *ExchangeSelector {
+	src := ExchangeSelector{
+		newSelector(tenantID, ServiceExchange),
 	}
 	return &src
 }
 
-// Scopes retrieves the list of exchangeScopes in the source.
-func (s *ExchangeSource) Scopes() []exchangeScope {
+// Scopes retrieves the list of exchangeScopes in the selector.
+func (s *ExchangeSelector) Scopes() []exchangeScope {
 	scopes := []exchangeScope{}
 	for _, v := range s.scopes {
 		scopes = append(scopes, exchangeScope(v))
@@ -38,31 +38,31 @@ func (s *ExchangeSource) Scopes() []exchangeScope {
 }
 
 // the following are called by the client to specify the constraints
-// each call appends one or more scopes to the source.
+// each call appends one or more scopes to the selector.
 
 // Users selects the specified users.  All of their data is included.
-func (s *ExchangeSource) Users(us ...string) {
+func (s *ExchangeSelector) Users(us ...string) {
 	// todo
 }
 
 // Contacts selects the specified contacts owned by the user.
-func (s *ExchangeSource) Contacts(u string, vs ...string) {
+func (s *ExchangeSelector) Contacts(u string, vs ...string) {
 	// todo
 }
 
 // Events selects the specified events owned by the user.
-func (s *ExchangeSource) Events(u string, vs ...string) {
+func (s *ExchangeSelector) Events(u string, vs ...string) {
 	// todo
 }
 
 // MailFolders selects the specified mail folders owned by the user.
-func (s *ExchangeSource) MailFolders(u string, vs ...string) {
+func (s *ExchangeSelector) MailFolders(u string, vs ...string) {
 	// todo
 }
 
 // MailMessages selects the specified mail messages within the given folder,
 // owned by the user.
-func (s *ExchangeSource) MailMessages(u, f string, vs ...string) {
+func (s *ExchangeSelector) MailMessages(u, f string, vs ...string) {
 	// todo
 }
 

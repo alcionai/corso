@@ -1,4 +1,4 @@
-package source_test
+package selectors_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/pkg/source"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type ExchangeSourceSuite struct {
@@ -19,8 +19,8 @@ func TestExchangeSourceSuite(t *testing.T) {
 
 func (suite *ExchangeSourceSuite) TestNewExchangeSource() {
 	t := suite.T()
-	es := source.NewExchange("tid")
+	es := selectors.NewExchange("tid")
 	assert.Equal(t, es.TenantID, "tid")
-	assert.Equal(t, es.Service(), source.ServiceExchange)
+	assert.Equal(t, es.Service(), selectors.ServiceExchange)
 	assert.NotZero(t, es.Scopes())
 }
