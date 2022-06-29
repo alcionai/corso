@@ -27,22 +27,22 @@ const (
 // Specific processes (eg: backups, restores, etc) are expected to wrap operation
 // with process specific details.
 type operation struct {
-	ID        uuid.UUID     `json:"id"`        // system generated identifier
-	CreatedAt time.Time     `json:"createdAt"` // datetime of the operation's creation
-	Options   OperationOpts `json:"options"`
-	Status    opStatus      `json:"status"`
+	ID        uuid.UUID `json:"id"`        // system generated identifier
+	CreatedAt time.Time `json:"createdAt"` // datetime of the operation's creation
+	Options   Options   `json:"options"`
+	Status    opStatus  `json:"status"`
 
 	kopia *kopia.KopiaWrapper
 }
 
-// OperationOpts configure some parameters of the operation
-type OperationOpts struct {
+// Options configure some parameters of the operation
+type Options struct {
 	// todo: collision handling
 	// todo: fast fail vs best attempt
 }
 
 func newOperation(
-	opts OperationOpts,
+	opts Options,
 	kw *kopia.KopiaWrapper,
 ) operation {
 	return operation{
@@ -67,15 +67,15 @@ func (op operation) validate() error {
 
 // Summary tracks the total files touched and errors produced
 // during an operation.
-type operationSummary struct {
-	ItemsRead    int              `json:"itemsRead"`
-	ItemsWritten int              `json:"itemsWritten"`
-	ReadErrors   multierror.Error `json:"readErrors"`
-	WriteErrors  multierror.Error `json:"writeErrors"`
+type summary struct {
+	ItemsRead    int              `json:"itemsRead,omitempty"`
+	ItemsWritten int              `json:"itemsWritten,omitempty"`
+	ReadErrors   multierror.Error `json:"readErrors,omitempty"`
+	WriteErrors  multierror.Error `json:"writeErrors,omitempty"`
 }
 
 // Metrics tracks performance details such as timing, throughput, etc.
-type operationMetrics struct {
+type metrics struct {
 	StartedAt   time.Time `json:"startedAt"`
 	CompletedAt time.Time `json:"completedAt"`
 }

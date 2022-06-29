@@ -23,15 +23,15 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
-	operationSummary
-	operationMetrics
+	summary
+	metrics
 	// todo: RestorePoint RestorePoint
 }
 
 // NewBackupOperation constructs and validates a backup operation.
 func NewBackupOperation(
 	ctx context.Context,
-	opts OperationOpts,
+	opts Options,
 	kw *kopia.KopiaWrapper,
 	acct account.Account,
 	targets []string,

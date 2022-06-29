@@ -94,7 +94,7 @@ func (r *Repository) Close(ctx context.Context) error {
 func (r Repository) NewBackup(ctx context.Context, targets []string) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
-		operations.OperationOpts{},
+		operations.Options{},
 		r.dataLayer,
 		r.Account,
 		targets)
@@ -104,7 +104,7 @@ func (r Repository) NewBackup(ctx context.Context, targets []string) (operations
 func (r Repository) NewRestore(ctx context.Context, restorePointID string, targets []string) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
-		operations.OperationOpts{},
+		operations.Options{},
 		r.dataLayer,
 		r.Account,
 		restorePointID,

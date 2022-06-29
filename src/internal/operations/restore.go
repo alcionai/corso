@@ -24,14 +24,14 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
-	operationSummary
-	operationMetrics
+	summary
+	metrics
 }
 
 // NewRestoreOperation constructs and validates a restore operation.
 func NewRestoreOperation(
 	ctx context.Context,
-	opts OperationOpts,
+	opts Options,
 	kw *kopia.KopiaWrapper,
 	acct account.Account,
 	restorePointID string,
