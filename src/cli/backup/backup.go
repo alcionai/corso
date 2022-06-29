@@ -57,7 +57,7 @@ func handleCreateCmd(cmd *cobra.Command, args []string) {
 var listCommand = "list"
 var listCmd = &cobra.Command{
 	Use:   listCommand,
-	Short: "List the backup history for a service",
+	Short: "List the history of restore points for a service",
 	Run:   handleListCmd,
 	Args:  cobra.NoArgs,
 }
