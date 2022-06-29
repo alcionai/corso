@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
@@ -18,35 +19,38 @@ const (
 	Failed
 )
 
+// --------------------------------------------------------------------------------
+// Operation Core
+// --------------------------------------------------------------------------------
+
 // An operation tracks the in-progress workload of some long-running process.
 // Specific processes (eg: backups, restores, etc) are expected to wrap operation
 // with process specific details.
 type operation struct {
-	ID        uuid.UUID // system generated identifier
-	CreatedAt time.Time // datetime of the operation's creation
+	ID        uuid.UUID `json:"id"`        // system generated identifier
+	CreatedAt time.Time `json:"createdAt"` // datetime of the operation's creation
+	Options   Options   `json:"options"`
+	Status    opStatus  `json:"status"`
 
-	options OperationOpts
-	kopia   *kopia.KopiaWrapper
-
-	Status opStatus
-	Errors []error
+	kopia *kopia.KopiaWrapper
 }
 
-// OperationOpts configure some parameters of the operation
-type OperationOpts struct {
+// Options configure some parameters of the operation
+type Options struct {
+	// todo: collision handling
+	// todo: fast fail vs best attempt
 }
 
 func newOperation(
-	opts OperationOpts,
+	opts Options,
 	kw *kopia.KopiaWrapper,
 ) operation {
 	return operation{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
-		options:   opts,
+		Options:   opts,
 		kopia:     kw,
 		Status:    InProgress,
-		Errors:    []error{},
 	}
 }
 
@@ -55,4 +59,23 @@ func (op operation) validate() error {
 		return errors.New("missing kopia connection")
 	}
 	return nil
+}
+
+// --------------------------------------------------------------------------------
+// Results
+// --------------------------------------------------------------------------------
+
+// Summary tracks the total files touched and errors produced
+// during an operation.
+type summary struct {
+	ItemsRead    int              `json:"itemsRead,omitempty"`
+	ItemsWritten int              `json:"itemsWritten,omitempty"`
+	ReadErrors   multierror.Error `json:"readErrors,omitempty"`
+	WriteErrors  multierror.Error `json:"writeErrors,omitempty"`
+}
+
+// Metrics tracks performance details such as timing, throughput, etc.
+type metrics struct {
+	StartedAt   time.Time `json:"startedAt"`
+	CompletedAt time.Time `json:"completedAt"`
 }

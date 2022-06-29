@@ -19,8 +19,7 @@ func TestOperationSuite(t *testing.T) {
 
 func (suite *OperationSuite) TestNewOperation() {
 	t := suite.T()
-	op := newOperation(OperationOpts{}, nil)
-	assert.NotNil(t, op.Errors)
+	op := newOperation(Options{}, nil)
 	assert.NotNil(t, op.ID)
 }
 
@@ -36,7 +35,7 @@ func (suite *OperationSuite) TestOperation_Validate() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			op := newOperation(OperationOpts{}, test.kw)
+			op := newOperation(Options{}, test.kw)
 			test.errCheck(t, op.validate())
 		})
 	}

@@ -37,20 +37,20 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 
 	table := []struct {
 		name     string
-		opts     operations.OperationOpts
+		opts     operations.Options
 		kw       *kopia.KopiaWrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", operations.OperationOpts{}, kw, acct, nil, assert.NoError},
-		{"missing kopia", operations.OperationOpts{}, nil, acct, nil, assert.Error},
+		{"good", operations.Options{}, kw, acct, nil, assert.NoError},
+		{"missing kopia", operations.Options{}, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := operations.NewRestoreOperation(
 				context.Background(),
-				operations.OperationOpts{},
+				operations.Options{},
 				test.kw,
 				test.acct,
 				"restore-point-id",

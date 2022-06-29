@@ -13,18 +13,25 @@ import (
 // RestoreOperation wraps an operation with restore-specific props.
 type RestoreOperation struct {
 	operation
-	Version string
 
-	restorePointID string
-	account        account.Account
+	RestorePointID string         `json:"restorePointID"`
+	Results        RestoreResults `json:"results"`
+	Targets        []string       `json:"selectors"` // todo: replace with Selectors
+	Version        string         `json:"bersion"`
 
-	Targets []string // something for targets/filter/source/app&users/etc
+	account account.Account
+}
+
+// RestoreResults aggregate the details of the results of the operation.
+type RestoreResults struct {
+	summary
+	metrics
 }
 
 // NewRestoreOperation constructs and validates a restore operation.
 func NewRestoreOperation(
 	ctx context.Context,
-	opts OperationOpts,
+	opts Options,
 	kw *kopia.KopiaWrapper,
 	acct account.Account,
 	restorePointID string,
@@ -32,10 +39,10 @@ func NewRestoreOperation(
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
 		operation:      newOperation(opts, kw),
+		RestorePointID: restorePointID,
+		Targets:        targets,
 		Version:        "v0",
 		account:        acct,
-		restorePointID: restorePointID,
-		Targets:        targets,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -51,7 +58,7 @@ func (op RestoreOperation) validate() error {
 // Run begins a synchronous restore operation.
 // todo (keepers): return stats block in first param.
 func (op *RestoreOperation) Run(ctx context.Context) error {
-	dc, err := op.kopia.RestoreSingleItem(ctx, op.restorePointID, op.Targets)
+	dc, err := op.kopia.RestoreSingleItem(ctx, op.RestorePointID, op.Targets)
 	if err != nil {
 		return errors.Wrap(err, "retrieving service data")
 	}

@@ -13,26 +13,34 @@ import (
 // BackupOperation wraps an operation with backup-specific props.
 type BackupOperation struct {
 	operation
-	Version string
+
+	Results BackupResults `json:"results"`
+	Targets []string      `json:"selectors"` // todo: replace with Selectors
+	Version string        `json:"version"`
 
 	account account.Account
+}
 
-	Targets []string // something for targets/filter/source/app&users/etc
+// BackupResults aggregate the details of the result of the operation.
+type BackupResults struct {
+	summary
+	metrics
+	// todo: RestorePoint RestorePoint
 }
 
 // NewBackupOperation constructs and validates a backup operation.
 func NewBackupOperation(
 	ctx context.Context,
-	opts OperationOpts,
+	opts Options,
 	kw *kopia.KopiaWrapper,
 	acct account.Account,
 	targets []string,
 ) (BackupOperation, error) {
 	op := BackupOperation{
 		operation: newOperation(opts, kw),
+		Targets:   targets,
 		Version:   "v0",
 		account:   acct,
-		Targets:   targets,
 	}
 	if err := op.validate(); err != nil {
 		return BackupOperation{}, err
