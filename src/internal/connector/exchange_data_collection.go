@@ -3,6 +3,8 @@ package connector
 import (
 	"bytes"
 	"io"
+
+	"github.com/alcionai/corso/pkg/restorepoint"
 )
 
 const (
@@ -33,6 +35,11 @@ type DataStream interface {
 	ToReader() io.ReadCloser
 	// UUID provides a unique identifier for this data
 	UUID() string
+}
+
+type DataStreamInfo interface {
+	// Info provide service specific info about the item
+	Info() restorepoint.ItemInfo
 }
 
 // ExchangeDataCollection represents exchange mailbox
@@ -89,6 +96,7 @@ type ExchangeData struct {
 	// going forward. Using []byte for now but I assume we'll have
 	// some structured type in here (serialization to []byte can be done in `Read`)
 	message []byte
+	info    restorepoint.ExchangeInfo
 }
 
 func (ed *ExchangeData) UUID() string {
@@ -97,4 +105,8 @@ func (ed *ExchangeData) UUID() string {
 
 func (ed *ExchangeData) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(ed.message))
+}
+
+func (ed *ExchangeData) Info() restorepoint.ItemInfo {
+	return restorepoint.ItemInfo{Exchange: &ed.info}
 }

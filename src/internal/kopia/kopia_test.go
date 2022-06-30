@@ -3,6 +3,8 @@ package kopia
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -17,6 +19,7 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/pkg/restorepoint"
 )
 
 const (
@@ -90,6 +93,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
+	details := &restorepoint.Details{}
+
 	collections := []connector.DataCollection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{tenant, user1, emails},
@@ -109,7 +114,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//   - user2
 	//     - emails
 	//       - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections)
+	dirTree, err := inflateDirTree(ctx, collections, details)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), tenant)
 
@@ -134,6 +139,18 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		require.NoError(suite.T(), err)
 		assert.Len(suite.T(), emailFiles, expectedFileCount[entry.Name()])
 	}
+
+	totalFileCount := 0
+	for _, c := range expectedFileCount {
+		totalFileCount += c
+	}
+
+	assert.Len(suite.T(), details.Entries, totalFileCount)
+	for _, e := range details.Entries {
+		b, err := json.MarshalIndent(e, "", "  ")
+		require.NoError(suite.T(), err)
+		fmt.Print(string(b))
+	}
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
@@ -144,6 +161,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
+	details := &restorepoint.Details{}
 	collections := []connector.DataCollection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{emails},
@@ -154,7 +172,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 	// Returned directory structure should look like:
 	// - emails
 	//   - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections)
+	dirTree, err := inflateDirTree(ctx, collections, details)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), emails)
 
@@ -222,7 +240,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := inflateDirTree(ctx, test.layout)
+			details := &restorepoint.Details{}
+			_, err := inflateDirTree(ctx, test.layout, details)
 			assert.Error(t, err)
 		})
 	}

@@ -20,6 +20,7 @@ import (
 
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/pkg/restorepoint"
 )
 
 const (
@@ -290,7 +291,13 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 				return true
 			}
 			if byteArray != nil {
-				edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
+				eii := restorepoint.ExchangeInfo{
+					Sender:   *message.GetSender().GetEmailAddress().GetAddress(),
+					Subject:  *message.GetSubject(),
+					Received: *message.GetReceivedDateTime(),
+				}
+
+				edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray, info: eii})
 			}
 			return true
 		}
