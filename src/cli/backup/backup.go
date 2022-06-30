@@ -12,9 +12,11 @@ var backupApplications = []func(parent *cobra.Command) *cobra.Command{
 func AddCommands(parent *cobra.Command) {
 	parent.AddCommand(backupCmd)
 	backupCmd.AddCommand(createCmd)
+	backupCmd.AddCommand(listCmd)
 
 	for _, addBackupTo := range backupApplications {
 		addBackupTo(createCmd)
+		addBackupTo(listCmd)
 	}
 }
 
@@ -47,5 +49,21 @@ var createCmd = &cobra.Command{
 // Handler for calls to `corso backup create`.
 // Produces the same output as `corso backup create --help`.
 func handleCreateCmd(cmd *cobra.Command, args []string) {
+	cmd.Help()
+}
+
+// The backup list subcommand.
+// `corso backup list <service> [<flag>...]`
+var listCommand = "list"
+var listCmd = &cobra.Command{
+	Use:   listCommand,
+	Short: "List the history of restore points for a service",
+	Run:   handleListCmd,
+	Args:  cobra.NoArgs,
+}
+
+// Handler for calls to `corso backup list`.
+// Produces the same output as `corso backup list --help`.
+func handleListCmd(cmd *cobra.Command, args []string) {
 	cmd.Help()
 }
