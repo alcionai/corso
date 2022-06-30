@@ -1,4 +1,4 @@
-;;dpackage config
+package config
 
 import (
 	"os"
