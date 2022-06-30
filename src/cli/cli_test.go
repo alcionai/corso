@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/cli/backup"
@@ -24,6 +25,8 @@ func TestCLISuite(t *testing.T) {
 }
 
 func (suite *CLISuite) TestAddCommands_noPanics() {
+	t := suite.T()
+
 	var test = &cobra.Command{
 		Use:   "test",
 		Short: "Protect your Microsoft 365 data.",
@@ -31,7 +34,7 @@ func (suite *CLISuite) TestAddCommands_noPanics() {
 		RunE:  func(c *cobra.Command, args []string) error { return nil },
 	}
 
-	repo.AddCommands(test)
-	backup.AddCommands(test)
-	restore.AddCommands(test)
+	assert.NotPanics(t, func() { repo.AddCommands(test) })
+	assert.NotPanics(t, func() { backup.AddCommands(test) })
+	assert.NotPanics(t, func() { restore.AddCommands(test) })
 }
