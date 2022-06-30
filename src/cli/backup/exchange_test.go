@@ -1,4 +1,4 @@
-package restore
+package backup
 
 import (
 	"testing"
@@ -19,31 +19,6 @@ func TestExchangeSuite(t *testing.T) {
 	suite.Run(t, new(ExchangeSuite))
 }
 
-func (suite *ExchangeSuite) TestValidateRestoreFlags() {
-	table := []struct {
-		name          string
-		u, f, m, rpid string
-		errCheck      assert.ErrorAssertionFunc
-	}{
-		{"all populated", "u", "f", "m", "rpid", assert.NoError},
-		{"folder missing user", "", "f", "m", "rpid", assert.Error},
-		{"folder with wildcard user", "*", "f", "m", "rpid", assert.Error},
-		{"mail missing user", "", "", "m", "rpid", assert.Error},
-		{"mail missing folder", "u", "", "m", "rpid", assert.Error},
-		{"mail with wildcard folder", "u", "*", "m", "rpid", assert.Error},
-		{"missing restore point id", "u", "f", "m", "", assert.Error},
-		{"all missing", "", "", "", "rpid", assert.NoError},
-	}
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.errCheck(
-				t,
-				validateRestoreFlags(test.u, test.f, test.m, test.rpid),
-			)
-		})
-	}
-}
-
 func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand
 	table := []struct {
@@ -53,7 +28,8 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"restore exchange", restoreCommand, expectUse, exchangeRestoreCmd.Short, restoreExchangeCmd},
+		{"create exchange", createCommand, expectUse, exchangeCreateCmd.Short, createExchangeCmd},
+		{"list exchange", listCommand, expectUse, exchangeListCmd.Short, listExchangeCmd},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
