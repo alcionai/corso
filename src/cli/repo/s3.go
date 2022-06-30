@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -63,13 +64,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	overrides := map[string]string{
-		credentials.AWSAccessKeyID: accessKey,
-		storage.Bucket:             bucket,
-		storage.Endpoint:           endpoint,
-		storage.Prefix:             prefix,
-	}
-	s, a, err := config.GetStorageAndAccount(false, overrides)
+	s, a, err := config.GetStorageAndAccount(false, s3Overrides())
 	if err != nil {
 		return err
 	}
@@ -123,13 +118,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	overrides := map[string]string{
-		credentials.AWSAccessKeyID: accessKey,
-		storage.Bucket:             bucket,
-		storage.Endpoint:           endpoint,
-		storage.Prefix:             prefix,
-	}
-	s, a, err := config.GetStorageAndAccount(true, overrides)
+	s, a, err := config.GetStorageAndAccount(true, s3Overrides())
 	if err != nil {
 		return err
 	}
@@ -162,4 +151,15 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to write repository configuration")
 	}
 	return nil
+}
+
+func s3Overrides() map[string]string {
+	return map[string]string{
+		config.AccountProviderTypeKey: account.ProviderM365.String(),
+		config.StorageProviderTypeKey: storage.ProviderS3.String(),
+		credentials.AWSAccessKeyID:    accessKey,
+		storage.Bucket:                bucket,
+		storage.Endpoint:              endpoint,
+		storage.Prefix:                prefix,
+	}
 }
