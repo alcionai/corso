@@ -4,32 +4,32 @@ import (
 	"strconv"
 )
 
-// ExchangeSelector provides an api for scoping
+// Exchange provides an api for scoping
 // data in the Exchange service.
-type ExchangeSelector struct {
+type Exchange struct {
 	Selector
 }
 
-// ToExchange transforms the generic selector into an ExchangeSelector.
+// ToExchange transforms the generic selector into an Exchange.
 // Errors if the service defined by the selector is not ServiceExchange.
-func (s Selector) ToExchange() (*ExchangeSelector, error) {
+func (s Selector) ToExchange() (*Exchange, error) {
 	if s.service != ServiceExchange {
 		return nil, badCastErr(ServiceExchange, s.service)
 	}
-	src := ExchangeSelector{s}
+	src := Exchange{s}
 	return &src, nil
 }
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
-func NewExchange(tenantID string) *ExchangeSelector {
-	src := ExchangeSelector{
+func NewExchange(tenantID string) *Exchange {
+	src := Exchange{
 		newSelector(tenantID, ServiceExchange),
 	}
 	return &src
 }
 
 // Scopes retrieves the list of exchangeScopes in the selector.
-func (s *ExchangeSelector) Scopes() []exchangeScope {
+func (s *Exchange) Scopes() []exchangeScope {
 	scopes := []exchangeScope{}
 	for _, v := range s.scopes {
 		scopes = append(scopes, exchangeScope(v))
@@ -41,28 +41,28 @@ func (s *ExchangeSelector) Scopes() []exchangeScope {
 // each call appends one or more scopes to the selector.
 
 // Users selects the specified users.  All of their data is included.
-func (s *ExchangeSelector) Users(us ...string) {
+func (s *Exchange) Users(us ...string) {
 	// todo
 }
 
 // Contacts selects the specified contacts owned by the user.
-func (s *ExchangeSelector) Contacts(u string, vs ...string) {
+func (s *Exchange) Contacts(u string, vs ...string) {
 	// todo
 }
 
 // Events selects the specified events owned by the user.
-func (s *ExchangeSelector) Events(u string, vs ...string) {
+func (s *Exchange) Events(u string, vs ...string) {
 	// todo
 }
 
 // MailFolders selects the specified mail folders owned by the user.
-func (s *ExchangeSelector) MailFolders(u string, vs ...string) {
+func (s *Exchange) MailFolders(u string, vs ...string) {
 	// todo
 }
 
 // MailMessages selects the specified mail messages within the given folder,
 // owned by the user.
-func (s *ExchangeSelector) MailMessages(u, f string, vs ...string) {
+func (s *Exchange) MailMessages(u, f string, vs ...string) {
 	// todo
 }
 
