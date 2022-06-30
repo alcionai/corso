@@ -52,7 +52,7 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID)
 	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
 	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfigData), 0700)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Configure viper to read test config file
 	vpr.SetConfigFile(testConfigFilePath)

@@ -113,11 +113,10 @@ func getStorageAndAccountWithViper(vpr *viper.Viper, readFromFile bool, override
 	if readFromFile {
 		err = vpr.ReadInConfig()
 		if err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-				readConfigFromViper = false
-			} else {
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 				return store, acct, errors.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
+			readConfigFromViper = false
 		}
 	}
 

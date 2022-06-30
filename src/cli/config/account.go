@@ -1,4 +1,4 @@
-package config
+;;dpackage config
 
 import (
 	"os"
@@ -19,7 +19,7 @@ func m365ConfigsFromViper(vpr *viper.Viper) (account.M365Config, error) {
 		return m365, errors.New("unsupported account provider: " + providerType)
 	}
 
-	m365.TenantID = first(vpr.GetString(TenantIDKey), os.Getenv(account.TenantID))
+	m365.TenantID = vpr.GetString(TenantIDKey)
 	return m365, nil
 }
 
