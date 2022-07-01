@@ -208,17 +208,91 @@ func (ms *ModelStore) GetWithModelStoreID(
 	return nil
 }
 
-// Update adds the new version of the model to the model store and deletes the
-// version of the model with oldID if the old and new IDs do not match. The new
-// ID of the model is returned.
+// checkPrevModelVersion compares the modelType and ModelStoreID in this model
+// to model(s) previously stored in ModelStore that have the same StableID.
+// Returns an error if len(storedModels) != 1 or the modelType or ModelStoreID
+// differ between the stored model and the given model.
+func (ms *ModelStore) checkPrevModelVersion(
+	ctx context.Context,
+	t modelType,
+	b *model.BaseModel,
+) error {
+	id, err := ms.getModelStoreID(ctx, b.StableID)
+	if err != nil {
+		return err
+	}
+
+	// We actually got something back during our lookup.
+	meta, err := ms.wrapper.rep.GetManifest(ctx, id, nil)
+	if err != nil {
+		return errors.Wrap(err, "getting previous model version")
+	}
+
+	if meta.ID != b.ModelStoreID {
+		return errors.New("updated model has different ModelStoreID")
+	}
+	if meta.Labels[manifest.TypeLabelKey] != t.String() {
+		return errors.New("updated model has different model type")
+	}
+
+	return nil
+}
+
+// Update adds the new version of the model with the given StableID to the model
+// store and deletes the version of the model with old ModelStoreID if the old
+// and new ModelStoreIDs do not match. Returns an error if another model has
+// the same StableID but a different modelType or ModelStoreID or there is no
+// previous version of the model. If an error occurs no visible changes will be
+// made to the stored model.
 func (ms *ModelStore) Update(
 	ctx context.Context,
 	t modelType,
-	oldID model.ID,
-	tags map[string]string,
-	m any,
-) (model.ID, error) {
-	return "", nil
+	m model.Model,
+) error {
+	base := m.Base()
+	if len(base.ModelStoreID) == 0 {
+		return errors.WithStack(errNoModelStoreID)
+	}
+
+	// TODO(ashmrtnz): Can remove if bottleneck.
+	if err := ms.checkPrevModelVersion(ctx, t, base); err != nil {
+		return err
+	}
+
+	err := repo.WriteSession(
+		ctx,
+		ms.wrapper.rep,
+		repo.WriteSessionOptions{Purpose: "ModelStoreUpdate"},
+		func(innerCtx context.Context, w repo.RepositoryWriter) (innerErr error) {
+			oldID := base.ModelStoreID
+
+			defer func() {
+				if innerErr != nil {
+					// Restore the old ID if we failed.
+					base.ModelStoreID = oldID
+				}
+			}()
+
+			if innerErr = putInner(innerCtx, w, t, m, false); innerErr != nil {
+				return innerErr
+			}
+
+			// If we fail at this point no changes will be made to the manifest store
+			// in kopia, making it appear like nothing ever happened. At worst some
+			// orphaned content blobs may be uploaded, but they should be garbage
+			// collected the next time kopia maintenance is run.
+			if oldID != base.ModelStoreID {
+				innerErr = w.DeleteManifest(innerCtx, oldID)
+			}
+
+			return innerErr
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, "updating model")
+	}
+
+	return nil
 }
 
 // Delete deletes the model with the given StableID. Turns into a noop if id is
