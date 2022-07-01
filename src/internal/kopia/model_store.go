@@ -236,7 +236,7 @@ func (ms *ModelStore) Delete(ctx context.Context, id model.ID) error {
 	return ms.DeleteWithModelStoreID(ctx, latest)
 }
 
-// DeletWithModelStoreIDe deletes the model with the given ModelStoreID from the
+// DeletWithModelStoreID deletes the model with the given ModelStoreID from the
 // model store. Turns into a noop if id is not empty but the model does not
 // exist.
 func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID) error {
