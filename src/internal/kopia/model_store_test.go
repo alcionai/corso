@@ -82,6 +82,7 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 			foo.Tags = test.tags
 
 			assert.Error(t, m.Put(ctx, BackupOpModel, foo))
+			assert.Error(t, m.Update(ctx, BackupOpModel, foo))
 		})
 	}
 }
@@ -102,6 +103,9 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	noModelStoreID := &fooModel{Bar: uuid.NewString()}
 	noModelStoreID.StableID = model.ID(uuid.NewString())
 	noModelStoreID.ModelStoreID = ""
+
+	assert.Error(t, m.Update(ctx, BackupOpModel, noStableID))
+	assert.Error(t, m.Update(ctx, BackupOpModel, noModelStoreID))
 
 	assert.Error(t, m.GetWithModelStoreID(ctx, "", nil))
 
@@ -204,6 +208,115 @@ func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 	}()
 
 	assert.ErrorIs(t, m.GetWithModelStoreID(ctx, "baz", nil), manifest.ErrNotFound)
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
+	table := []struct {
+		name    string
+		mutator func(m *fooModel)
+	}{
+		{
+			name: "NoTags",
+			mutator: func(m *fooModel) {
+				m.Bar = "baz"
+			},
+		},
+		{
+			name: "WithTags",
+			mutator: func(m *fooModel) {
+				m.Bar = "baz"
+				m.Tags = map[string]string{
+					"a": "42",
+				}
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			m := getModelStore(t, ctx)
+			defer func() {
+				assert.NoError(t, m.wrapper.Close(ctx))
+			}()
+
+			foo := &fooModel{Bar: uuid.NewString()}
+			// Avoid some silly test errors from comparing nil to empty map.
+			foo.Tags = map[string]string{}
+
+			require.NoError(t, m.Put(ctx, BackupOpModel, foo))
+
+			oldModelID := foo.ModelStoreID
+			oldStableID := foo.StableID
+
+			test.mutator(foo)
+
+			require.NoError(t, m.Update(ctx, BackupOpModel, foo))
+			assert.Equal(t, oldStableID, foo.StableID)
+
+			returned := &fooModel{}
+			require.NoError(t, m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned))
+			assert.Equal(t, foo, returned)
+
+			// TODO(ashmrtn): Uncomment once GetIDsForType is implemented.
+			//ids, err := m.GetIDsForType(ctx, BackupOpModel, nil)
+			//require.NoError(t, err)
+			//assert.Len(t, ids, 1)
+
+			if oldModelID == foo.ModelStoreID {
+				// Unlikely, but we don't control ModelStoreID generation and can't
+				// guarantee this won't happen.
+				return
+			}
+
+			err := m.GetWithModelStoreID(ctx, oldModelID, nil)
+			assert.ErrorIs(t, err, manifest.ErrNotFound)
+		})
+	}
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
+	startModelType := BackupOpModel
+
+	table := []struct {
+		name    string
+		t       modelType
+		mutator func(m *fooModel)
+	}{
+		{
+			name: "DifferentModelStoreID",
+			t:    startModelType,
+			mutator: func(m *fooModel) {
+				m.ModelStoreID = manifest.ID("bar")
+			},
+		},
+		{
+			name: "DifferentModelType",
+			t:    RestoreOpModel,
+			mutator: func(m *fooModel) {
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			m := getModelStore(t, ctx)
+			defer func() {
+				assert.NoError(t, m.wrapper.Close(ctx))
+			}()
+
+			foo := &fooModel{Bar: uuid.NewString()}
+
+			require.NoError(t, m.Put(ctx, startModelType, foo))
+
+			test.mutator(foo)
+
+			assert.Error(t, m.Update(ctx, test.t, foo))
+		})
+	}
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
