@@ -7,14 +7,13 @@ import (
 type ID string
 
 type Model interface {
-	GetStableID() ID
-	SetStableID(id ID)
-	GetModelStoreID() manifest.ID
-	SetModelStoreID(id manifest.ID)
+	// Returns a handle to the BaseModel for this model.
+	Base() *BaseModel
 }
 
 // BaseModel defines required fields for models stored in ModelStore. Structs
-// that wish to be stored should embed this struct.
+// that wish to be stored should embed this struct. This struct also represents
+// the common metadata the ModelStore will fill out/use.
 type BaseModel struct {
 	// StableID is an identifier that other objects can use to refer to this
 	// object in the ModelStore.
@@ -26,20 +25,12 @@ type BaseModel struct {
 	// to refer to this one. This field may change if the model is updated. This
 	// field should be treated as read-only by users.
 	ModelStoreID manifest.ID `json:"modelStoreID,omitempty"`
+	// Tags associated with this model in the store to facilitate lookup. Tags in
+	// the struct are not serialized directly into the stored model, but are part
+	// of the metadata for the model.
+	Tags map[string]string `json:"-"`
 }
 
-func (bm *BaseModel) GetStableID() ID {
-	return bm.StableID
-}
-
-func (bm *BaseModel) SetStableID(id ID) {
-	bm.StableID = id
-}
-
-func (bm *BaseModel) GetModelStoreID() manifest.ID {
-	return bm.ModelStoreID
-}
-
-func (bm *BaseModel) SetModelStoreID(id manifest.ID) {
-	bm.ModelStoreID = id
+func (bm *BaseModel) Base() *BaseModel {
+	return bm
 }
