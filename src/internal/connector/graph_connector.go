@@ -292,7 +292,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 			}
 			if byteArray != nil {
 				eii := restorepoint.ExchangeInfo{
-					Sender:   *message.GetSender().GetEmailAddress().GetAddress(),
+					// Sender:   *message.GetSender().GetEmailAddress().GetAddress(),
 					Subject:  *message.GetSubject(),
 					Received: *message.GetReceivedDateTime(),
 				}
@@ -319,7 +319,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		gc.SetStatus(*status)
 		logger.Ctx(ctx).Debugw(gc.Status())
 	}
-	return collections, errs
+	return collections, err
 }
 
 // SetStatus helper function
