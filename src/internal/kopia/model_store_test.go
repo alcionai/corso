@@ -76,10 +76,12 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 		assert.NoError(t, m.wrapper.Close(ctx))
 	}()
 
-	foo := &fooModel{Bar: uuid.NewString()}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			assert.Error(t, m.Put(ctx, BackupOpModel, test.tags, foo))
+			foo := &fooModel{Bar: uuid.NewString()}
+			foo.Tags = test.tags
+
+			assert.Error(t, m.Put(ctx, BackupOpModel, foo))
 		})
 	}
 }
@@ -94,12 +96,12 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	}()
 
 	noStableID := &fooModel{Bar: uuid.NewString()}
-	noStableID.SetStableID("")
-	noStableID.SetModelStoreID(manifest.ID(uuid.NewString()))
+	noStableID.Base().StableID = ""
+	noStableID.Base().ModelStoreID = manifest.ID(uuid.NewString())
 
 	noModelStoreID := &fooModel{Bar: uuid.NewString()}
-	noModelStoreID.SetStableID(model.ID(uuid.NewString()))
-	noModelStoreID.SetModelStoreID("")
+	noModelStoreID.Base().StableID = model.ID(uuid.NewString())
+	noModelStoreID.Base().ModelStoreID = ""
 
 	assert.Error(t, m.GetWithModelStoreID(ctx, "", nil))
 }
@@ -143,23 +145,50 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 	for _, test := range table {
 		suite.T().Run(test.t.String(), func(t *testing.T) {
 			foo := &fooModel{Bar: uuid.NewString()}
+			// Avoid some silly test errors from comparing nil to empty map.
+			foo.Tags = map[string]string{}
 
-			err := m.Put(ctx, test.t, nil, foo)
+			err := m.Put(ctx, test.t, foo)
 			test.check(t, err)
 
 			if test.hasErr {
 				return
 			}
 
-			require.NotEmpty(t, foo.GetModelStoreID())
-			require.NotEmpty(t, foo.GetStableID())
+			require.NotEmpty(t, foo.Base().ModelStoreID)
+			require.NotEmpty(t, foo.Base().StableID)
 
 			returned := &fooModel{}
-			err = m.GetWithModelStoreID(ctx, foo.GetModelStoreID(), returned)
+			err = m.GetWithModelStoreID(ctx, foo.Base().ModelStoreID, returned)
 			require.NoError(t, err)
 			assert.Equal(t, foo, returned)
 		})
 	}
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
+	ctx := context.Background()
+	t := suite.T()
+
+	m := getModelStore(t, ctx)
+	defer func() {
+		assert.NoError(t, m.wrapper.Close(ctx))
+	}()
+
+	foo := &fooModel{Bar: uuid.NewString()}
+	foo.Tags = map[string]string{
+		"bar": "baz",
+	}
+
+	require.NoError(t, m.Put(ctx, BackupOpModel, foo))
+
+	require.NotEmpty(t, foo.Base().ModelStoreID)
+	require.NotEmpty(t, foo.Base().StableID)
+
+	returned := &fooModel{}
+	err := m.GetWithModelStoreID(ctx, foo.Base().ModelStoreID, returned)
+	require.NoError(t, err)
+	assert.Equal(t, foo, returned)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
