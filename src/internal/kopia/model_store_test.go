@@ -96,14 +96,17 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	}()
 
 	noStableID := &fooModel{Bar: uuid.NewString()}
-	noStableID.Base().StableID = ""
-	noStableID.Base().ModelStoreID = manifest.ID(uuid.NewString())
+	noStableID.StableID = ""
+	noStableID.ModelStoreID = manifest.ID(uuid.NewString())
 
 	noModelStoreID := &fooModel{Bar: uuid.NewString()}
-	noModelStoreID.Base().StableID = model.ID(uuid.NewString())
-	noModelStoreID.Base().ModelStoreID = ""
+	noModelStoreID.StableID = model.ID(uuid.NewString())
+	noModelStoreID.ModelStoreID = ""
 
 	assert.Error(t, m.GetWithModelStoreID(ctx, "", nil))
+
+	assert.Error(t, m.Delete(ctx, ""))
+	assert.Error(t, m.DeleteWithModelStoreID(ctx, ""))
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGet() {
@@ -155,11 +158,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 				return
 			}
 
-			require.NotEmpty(t, foo.Base().ModelStoreID)
-			require.NotEmpty(t, foo.Base().StableID)
+			require.NotEmpty(t, foo.ModelStoreID)
+			require.NotEmpty(t, foo.StableID)
 
 			returned := &fooModel{}
-			err = m.GetWithModelStoreID(ctx, foo.Base().ModelStoreID, returned)
+			err = m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned)
 			require.NoError(t, err)
 			assert.Equal(t, foo, returned)
 		})
@@ -182,11 +185,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 
 	require.NoError(t, m.Put(ctx, BackupOpModel, foo))
 
-	require.NotEmpty(t, foo.Base().ModelStoreID)
-	require.NotEmpty(t, foo.Base().StableID)
+	require.NotEmpty(t, foo.ModelStoreID)
+	require.NotEmpty(t, foo.StableID)
 
 	returned := &fooModel{}
-	err := m.GetWithModelStoreID(ctx, foo.Base().ModelStoreID, returned)
+	err := m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned)
 	require.NoError(t, err)
 	assert.Equal(t, foo, returned)
 }
@@ -201,4 +204,37 @@ func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 	}()
 
 	assert.ErrorIs(t, m.GetWithModelStoreID(ctx, "baz", nil), manifest.ErrNotFound)
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
+	ctx := context.Background()
+	t := suite.T()
+
+	m := getModelStore(t, ctx)
+	defer func() {
+		assert.NoError(t, m.wrapper.Close(ctx))
+	}()
+
+	foo := &fooModel{Bar: uuid.NewString()}
+
+	require.NoError(t, m.Put(ctx, BackupOpModel, foo))
+
+	require.NoError(t, m.Delete(ctx, foo.StableID))
+
+	returned := &fooModel{}
+	err := m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned)
+	assert.ErrorIs(t, err, manifest.ErrNotFound)
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
+	ctx := context.Background()
+	t := suite.T()
+
+	m := getModelStore(t, ctx)
+	defer func() {
+		assert.NoError(t, m.wrapper.Close(ctx))
+	}()
+
+	assert.NoError(t, m.Delete(ctx, "foo"))
+	assert.NoError(t, m.DeleteWithModelStoreID(ctx, "foo"))
 }
