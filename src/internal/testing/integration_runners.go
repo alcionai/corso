@@ -12,6 +12,7 @@ const (
 	CorsoCITests             = "CORSO_CI_TESTS"
 	CorsoGraphConnectorTests = "CORSO_GRAPH_CONNECTOR_TESTS"
 	CorsoKopiaWrapperTests   = "CORSO_KOPIA_WRAPPER_TESTS"
+	CorsoModelStoreTests     = "CORSO_MODEL_STORE_TESTS"
 	CorsoRepositoryTests     = "CORSO_REPOSITORY_TESTS"
 )
 
