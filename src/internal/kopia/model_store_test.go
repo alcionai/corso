@@ -10,11 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/model"
 	ctesting "github.com/alcionai/corso/internal/testing"
 )
 
 type fooModel struct {
-	BaseModel
+	model.BaseModel
 	Bar string
 }
 
@@ -97,7 +98,7 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	noStableID.SetModelStoreID(manifest.ID(uuid.NewString()))
 
 	noModelStoreID := &fooModel{Bar: uuid.NewString()}
-	noModelStoreID.SetStableID(ID(uuid.NewString()))
+	noModelStoreID.SetStableID(model.ID(uuid.NewString()))
 	noModelStoreID.SetModelStoreID("")
 
 	assert.Error(t, m.GetWithModelStoreID(ctx, "", nil))

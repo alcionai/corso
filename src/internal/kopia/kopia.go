@@ -337,6 +337,12 @@ func (kw KopiaWrapper) BackupCollections(
 		return nil, err
 	}
 
+	ms := NewModelStore(&kw)
+	err = ms.Put(ctx, RestorePointModel, nil, details)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating restorepointdetails model")
+	}
+
 	return stats, nil
 }
 

@@ -4,13 +4,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alcionai/corso/internal/model"
 	"github.com/google/uuid"
 )
 
 // RestorePoint represents the result of a backup operation
 // that can be restored
 type RestorePoint struct {
-	ID           uuid.UUID `json:"id"`
+	model.BaseModel
 	CreationTime time.Time `json:"creationTime"`
 
 	// Reference to `Details`
@@ -23,7 +24,7 @@ type RestorePoint struct {
 
 // Details describes what was stored in a RestorePoint
 type Details struct {
-	ID      uuid.UUID      `json:"id"`
+	model.BaseModel
 	Entries []DetailsEntry `json:"entries"`
 
 	// internal

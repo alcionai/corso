@@ -7,6 +7,8 @@ import (
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/internal/model"
 )
 
 const (
@@ -21,44 +23,8 @@ const (
 	BackupOpModel
 	RestoreOpModel
 	RestorePointModel
+	RestorePointDetailsModel
 )
-
-type ID string
-
-type Model interface {
-	GetStableID() ID
-	// StableID is an identifier that can be used to link objects in ModelStore.
-	// Once generated (during Put), it is guaranteed not to change.
-	SetStableID(id ID)
-	GetModelStoreID() manifest.ID
-	// ModelStoreID is and opaque field in models. This field may change if the
-	// model is updated. The field housing this should always have `omitempty`.
-	SetModelStoreID(id manifest.ID)
-}
-
-// BaseModel defines required fields for models stored in ModelStore. Structs
-// that wish to be stored should embed this struct.
-type BaseModel struct {
-	StableID ID `json:"stableID,omitempty"`
-	// ModelStoreID is an opaque field.
-	ModelStoreID manifest.ID `json:"modelStoreID,omitempty"`
-}
-
-func (bm *BaseModel) GetStableID() ID {
-	return bm.StableID
-}
-
-func (bm *BaseModel) SetStableID(id ID) {
-	bm.StableID = id
-}
-
-func (bm *BaseModel) GetModelStoreID() manifest.ID {
-	return bm.ModelStoreID
-}
-
-func (bm *BaseModel) SetModelStoreID(id manifest.ID) {
-	bm.ModelStoreID = id
-}
 
 // ID of the manifest in kopia. This is not guaranteed to be stable.
 type modelType int
@@ -98,7 +64,7 @@ func tagsForModel(t modelType, tags map[string]string) (map[string]string, error
 // type or if a bad model type is give.
 func tagsForModelWithID(
 	t modelType,
-	id ID,
+	id model.ID,
 	tags map[string]string,
 ) (map[string]string, error) {
 	if len(id) == 0 {
@@ -126,13 +92,13 @@ func putInner(
 	w repo.RepositoryWriter,
 	t modelType,
 	tags map[string]string,
-	m Model,
+	m model.Model,
 	create bool,
 ) error {
 	// ModelStoreID does not need to be persisted in the model itself.
 	m.SetModelStoreID("")
 	if create {
-		m.SetStableID(ID(uuid.NewString()))
+		m.SetStableID(model.ID(uuid.NewString()))
 	}
 
 	tmpTags, err := tagsForModelWithID(t, m.GetStableID(), tags)
@@ -157,7 +123,7 @@ func (ms *ModelStore) Put(
 	ctx context.Context,
 	t modelType,
 	tags map[string]string,
-	m Model,
+	m model.Model,
 ) error {
 	err := repo.WriteSession(
 		ctx,
@@ -183,19 +149,19 @@ func (ms *ModelStore) GetIDsForType(
 	ctx context.Context,
 	t modelType,
 	tags map[string]string,
-) ([]ID, error) {
+) ([]model.ID, error) {
 	return nil, nil
 }
 
 // Get deserializes the model with the given ID into data.
-func (ms *ModelStore) Get(ctx context.Context, id ID, data any) error {
+func (ms *ModelStore) Get(ctx context.Context, id model.ID, data any) error {
 	return nil
 }
 
 // GetWithModelStoreID deserializes the model with the given ModelStoreID into
 // data. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no model
 // was found.
-func (ms *ModelStore) GetWithModelStoreID(ctx context.Context, id manifest.ID, data Model) error {
+func (ms *ModelStore) GetWithModelStoreID(ctx context.Context, id manifest.ID, data model.Model) error {
 	if len(id) == 0 {
 		return errors.New(errNoModelStoreID)
 	}
@@ -217,14 +183,14 @@ func (ms *ModelStore) GetWithModelStoreID(ctx context.Context, id manifest.ID, d
 func (ms *ModelStore) Update(
 	ctx context.Context,
 	t modelType,
-	oldID ID,
+	oldID model.ID,
 	tags map[string]string,
 	m any,
-) (ID, error) {
+) (model.ID, error) {
 	return "", nil
 }
 
 // Delete deletes the model with the given ID from the model store.
-func (ms *ModelStore) Delete(ctx context.Context, id ID) error {
+func (ms *ModelStore) Delete(ctx context.Context, id model.ID) error {
 	return nil
 }
