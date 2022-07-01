@@ -15,6 +15,7 @@ const stableIDKey = "stableID"
 
 var (
 	errNoModelStoreID = errors.New("model has no ModelStoreID")
+	errNoStableID     = errors.New("model has no StableID")
 	errBadTagKey      = errors.New("tag key overlaps with required key")
 )
 
@@ -67,7 +68,7 @@ func tagsForModelWithID(
 	tags map[string]string,
 ) (map[string]string, error) {
 	if len(id) == 0 {
-		return nil, errors.New("missing ID for model")
+		return nil, errors.WithStack(errNoStableID)
 	}
 
 	res, err := tagsForModel(t, tags)
@@ -149,6 +150,31 @@ func (ms *ModelStore) GetIDsForType(
 	return nil, nil
 }
 
+// getModelStoreID gets the ModelStoreID of the model with the given
+// StableID. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no
+// model was found. Returns an error if the given StableID is empty or more than
+// one model has the same StableID.
+func (ms *ModelStore) getModelStoreID(ctx context.Context, id model.ID) (manifest.ID, error) {
+	if len(id) == 0 {
+		return "", errors.WithStack(errNoStableID)
+	}
+
+	tags := map[string]string{stableIDKey: string(id)}
+	metadata, err := ms.wrapper.rep.FindManifests(ctx, tags)
+	if err != nil {
+		return "", errors.Wrap(err, "getting ModelStoreID")
+	}
+
+	if len(metadata) == 0 {
+		return "", errors.Wrap(manifest.ErrNotFound, "getting ModelStoreID")
+	}
+	if len(metadata) != 1 {
+		return "", errors.New("multiple models with same StableID")
+	}
+
+	return metadata[0].ID, nil
+}
+
 // Get deserializes the model with the given ID into data.
 func (ms *ModelStore) Get(ctx context.Context, id model.ID, data any) error {
 	return nil
@@ -195,7 +221,37 @@ func (ms *ModelStore) Update(
 	return "", nil
 }
 
-// Delete deletes the model with the given ID from the model store.
+// Delete deletes the model with the given StableID. Turns into a noop if id is
+// not empty but the model does not exist.
 func (ms *ModelStore) Delete(ctx context.Context, id model.ID) error {
-	return nil
+	latest, err := ms.getModelStoreID(ctx, id)
+	if err != nil {
+		if errors.Is(err, manifest.ErrNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	return ms.DeleteWithModelStoreID(ctx, latest)
+}
+
+// DeletWithModelStoreIDe deletes the model with the given ModelStoreID from the
+// model store. Turns into a noop if id is not empty but the model does not
+// exist.
+func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID) error {
+	if len(id) == 0 {
+		return errors.WithStack(errNoModelStoreID)
+	}
+
+	err := repo.WriteSession(
+		ctx,
+		ms.wrapper.rep,
+		repo.WriteSessionOptions{Purpose: "ModelStoreDelete"},
+		func(innerCtx context.Context, w repo.RepositoryWriter) error {
+			return w.DeleteManifest(innerCtx, id)
+		},
+	)
+
+	return errors.Wrap(err, "deleting model")
 }
