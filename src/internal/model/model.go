@@ -24,7 +24,7 @@ type BaseModel struct {
 	// can be used for efficient lookups, but should not be used by other models
 	// to refer to this one. This field may change if the model is updated. This
 	// field should be treated as read-only by users.
-	ModelStoreID manifest.ID `json:"modelStoreID,omitempty"`
+	ModelStoreID manifest.ID `json:"-"`
 	// Tags associated with this model in the store to facilitate lookup. Tags in
 	// the struct are not serialized directly into the stored model, but are part
 	// of the metadata for the model.

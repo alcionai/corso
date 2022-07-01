@@ -94,8 +94,6 @@ func putInner(
 	create bool,
 ) error {
 	base := m.Base()
-	// ModelStoreID does not need to be persisted in the model itself.
-	base.ModelStoreID = ""
 	if create {
 		base.StableID = model.ID(uuid.NewString())
 	}
