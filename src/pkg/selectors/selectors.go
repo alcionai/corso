@@ -1,8 +1,6 @@
 package selectors
 
 import (
-	"strconv"
-
 	"github.com/pkg/errors"
 )
 
@@ -17,71 +15,57 @@ const (
 var ErrorBadSelectorCast = errors.New("wrong selector service type")
 
 const (
-	scopeKeyGranularity = "granularity"
-	scopeKeyCategory    = "category"
+	scopeKeyCategory = "category"
 )
 
 const (
 	// All is the wildcard value used to express "all data of <type>"
-	// Ex: Events(u1, All) => all events for user u1.
+	// Ex: {user: u1, events: All) => all events for user u1.
 	All = "*"
+	// None is usesd to express "no data of <type>"
+	// Ex: {user: u1, events: None} => no events for user u1.
+	None = "^*"
 )
+
+// ---------------------------------------------------------------------------
+// Selector
+// ---------------------------------------------------------------------------
 
 // The core selector.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific selector instances.
 type Selector struct {
-	TenantID string              // The tenant making the request.
-	service  service             // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
-	scopes   []map[string]string // A slice of scopes.  Expected to get cast to fooScope within each service handler.
+	RestorePointID string              `json:"restorePointID,omitempty"` // A restore point id, used only by restore operations.
+	Service        service             `json:"service,omitempty"`        // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
+	Excludes       []map[string]string `json:"exclusions,omitempty"`     // A slice of exclusions.  Each exclusion applies to all inclusions.
+	Includes       []map[string]string `json:"scopes,omitempty"`         // A slice of inclusions.  Expected to get cast to a service wrapper within each service handler.
 }
 
 // helper for specific selector instance constructors.
-func newSelector(tenantID string, s service) Selector {
+func newSelector(s service, restorePointID string) Selector {
 	return Selector{
-		TenantID: tenantID,
-		service:  s,
-		scopes:   []map[string]string{},
+		RestorePointID: restorePointID,
+		Service:        s,
+		Excludes:       []map[string]string{},
+		Includes:       []map[string]string{},
 	}
 }
 
-// Service return the service enum for the selector.
-func (s Selector) Service() service {
-	return s.service
-}
+// ---------------------------------------------------------------------------
+// Destination
+// ---------------------------------------------------------------------------
+
+type Destination map[string]string
+
+var ErrorDestinationAlreadySet = errors.New("destination is already declared")
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
 
 func badCastErr(cast, is service) error {
 	return errors.Wrapf(ErrorBadSelectorCast, "%s service is not %s", cast, is)
 }
 
-type scopeGranularity int
-
-// granularity expresses the breadth of the request
-const (
-	GranularityUnknown scopeGranularity = iota
-	SingleItem
-	AllIn
-)
-
-// String complies with the stringer interface, so that granularities
-// can be added into the scope map.
-func (g scopeGranularity) String() string {
-	return strconv.Itoa(int(g))
-}
-
-func granularityOf(selector map[string]string) scopeGranularity {
-	return scopeGranularity(getIota(selector, scopeKeyGranularity))
-}
-
-// retrieves the iota, stored as a string, and transforms it to
-// an int.  Any errors will return a 0 by default.
-func getIota(m map[string]string, key string) int {
-	v, ok := m[key]
-	if !ok {
-		return 0
-	}
-	i, err := strconv.Atoi(v)
-	if err != nil {
-		return 0
-	}
-	return i
+func existingDestinationErr(category, is string) error {
+	return errors.Wrapf(ErrorDestinationAlreadySet, "%s destination already set to %s", category, is)
 }

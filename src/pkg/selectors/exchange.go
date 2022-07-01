@@ -1,129 +1,250 @@
 package selectors
 
 import (
-	"strconv"
+	"strings"
 )
 
-// Exchange provides an api for scoping
-// data in the Exchange service.
-type Exchange struct {
-	Selector
-}
+// ---------------------------------------------------------------------------
+// Selectors
+// ---------------------------------------------------------------------------
 
-// ToExchange transforms the generic selector into an Exchange.
-// Errors if the service defined by the selector is not ServiceExchange.
-func (s Selector) ToExchange() (*Exchange, error) {
-	if s.service != ServiceExchange {
-		return nil, badCastErr(ServiceExchange, s.service)
+type (
+	// exchange provides an api for selecting
+	// data scopes applicable to the Exchange service.
+	exchange struct {
+		Selector
 	}
-	src := Exchange{s}
-	return &src, nil
-}
+
+	// ExchangeBackup provides an api for selecting
+	// data scopes applicable to the Exchange service,
+	// plus backup-specific mehtods.
+	ExchangeBackup struct {
+		exchange
+	}
+
+	// ExchangeRestore provides an api for selecting
+	// data scopes applicable to the Exchange service,
+	// plus restore-specific mehtods.
+	ExchangeRestore struct {
+		exchange
+	}
+)
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
-func NewExchange(tenantID string) *Exchange {
-	src := Exchange{
-		newSelector(tenantID, ServiceExchange),
+func NewExchangeBackup() *ExchangeBackup {
+	src := ExchangeBackup{
+		exchange{
+			newSelector(ServiceExchange, ""),
+		},
 	}
 	return &src
 }
 
+// ToExchangeBackup transforms the generic selector into an ExchangeBackup.
+// Errors if the service defined by the selector is not ServiceExchange.
+func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
+	if s.Service != ServiceExchange {
+		return nil, badCastErr(ServiceExchange, s.Service)
+	}
+	src := ExchangeBackup{exchange{s}}
+	return &src, nil
+}
+
+// NewExchangeRestore produces a new Selector with the service set to ServiceExchange.
+func NewExchangeRestore(restorePointID string) *ExchangeRestore {
+	src := ExchangeRestore{
+		exchange{
+			newSelector(ServiceExchange, restorePointID),
+		},
+	}
+	return &src
+}
+
+// ToExchangeRestore transforms the generic selector into an ExchangeRestore.
+// Errors if the service defined by the selector is not ServiceExchange.
+func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
+	if s.Service != ServiceExchange {
+		return nil, badCastErr(ServiceExchange, s.Service)
+	}
+	src := ExchangeRestore{exchange{s}}
+	return &src, nil
+}
+
+// IncludeContacts selects the specified contacts owned by the user.
+func (s *exchange) IncludeContacts(u string, vs ...string) {
+	// todo
+}
+
+// IncludeContactFolders selects the specified contactFolders owned by the user.
+func (s *exchange) IncludeContactFolders(u string, vs ...string) {
+	// todo
+}
+
+// IncludeEvents selects the specified events owned by the user.
+func (s *exchange) IncludeEvents(u string, vs ...string) {
+	// todo
+}
+
+// IncludeMail selects the specified mail messages within the given folder,
+// owned by the user.
+func (s *exchange) IncludeMail(u, f string, vs ...string) {
+	// todo
+}
+
+// IncludeMailFolders selects the specified mail folders owned by the user.
+func (s *exchange) IncludeMailFolders(u string, vs ...string) {
+	// todo
+}
+
+// IncludeUsers selects the specified users.  All of their data is included.
+func (s *exchange) IncludeUsers(us ...string) {
+	// todo
+}
+
+// ExcludeContacts selects the specified contacts owned by the user.
+func (s *exchange) ExcludeContacts(u string, vs ...string) {
+	// todo
+}
+
+// ExcludeContactFolders selects the specified contactFolders owned by the user.
+func (s *exchange) ExcludeContactFolders(u string, vs ...string) {
+	// todo
+}
+
+// ExcludeEvents selects the specified events owned by the user.
+func (s *exchange) ExcludeEvents(u string, vs ...string) {
+	// todo
+}
+
+// ExcludeMail selects the specified mail messages within the given folder,
+// owned by the user.
+func (s *exchange) ExcludeMail(u, f string, vs ...string) {
+	// todo
+}
+
+// ExcludeMailFolders selects the specified mail folders owned by the user.
+func (s *exchange) ExcludeMailFolders(u string, vs ...string) {
+	// todo
+}
+
+// ExcludeUsers selects the specified users.  All of their data is included.
+func (s *exchange) ExcludeUsers(us ...string) {
+	// todo
+}
+
+// ---------------------------------------------------------------------------
+// Destination
+// ---------------------------------------------------------------------------
+
+type ExchangeDestination Destination
+
+func NewExchangeDestination() ExchangeDestination {
+	return ExchangeDestination{}
+}
+
+// Gets the destination of the provided category.  If no destination is set,
+// returns the current value.
+func (d ExchangeDestination) Get(cat exchangeCategory, current string) string {
+	dest, ok := d[cat.String()]
+	if !ok {
+		return current
+	}
+	return dest
+}
+
+// Sets the destination value of the provided category.  Returns an error
+// if a destination is already declared for that category.
+func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
+	cs := cat.String()
+	if curr, ok := d[cs]; ok {
+		return existingDestinationErr(cs, curr)
+	}
+	d[cs] = dest
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Scopes
+// ---------------------------------------------------------------------------
+
+type (
+	// exchangeScope specifies the data available
+	// when interfacing with the Exchange service.
+	exchangeScope map[string]string
+	// exchangeCategory enumerates the type of the lowest level of
+	// of data () in a scope.
+	exchangeCategory int
+)
+
 // Scopes retrieves the list of exchangeScopes in the selector.
-func (s *Exchange) Scopes() []exchangeScope {
+func (s *exchange) Scopes() []exchangeScope {
 	scopes := []exchangeScope{}
-	for _, v := range s.scopes {
+	for _, v := range s.Includes {
 		scopes = append(scopes, exchangeScope(v))
 	}
 	return scopes
 }
 
-// the following are called by the client to specify the constraints
-// each call appends one or more scopes to the selector.
-
-// Users selects the specified users.  All of their data is included.
-func (s *Exchange) Users(us ...string) {
-	// todo
-}
-
-// Contacts selects the specified contacts owned by the user.
-func (s *Exchange) Contacts(u string, vs ...string) {
-	// todo
-}
-
-// Events selects the specified events owned by the user.
-func (s *Exchange) Events(u string, vs ...string) {
-	// todo
-}
-
-// MailFolders selects the specified mail folders owned by the user.
-func (s *Exchange) MailFolders(u string, vs ...string) {
-	// todo
-}
-
-// MailMessages selects the specified mail messages within the given folder,
-// owned by the user.
-func (s *Exchange) MailMessages(u, f string, vs ...string) {
-	// todo
-}
-
-// -----------------------
-
-// exchangeScope specifies the data available
-// when interfacing with the Exchange service.
-type exchangeScope map[string]string
-
-type exchangeCategory int
-
-// exchangeCategory describes the type of data in scope.
+//go:generate stringer -type=exchangeCategory
 const (
 	ExchangeCategoryUnknown exchangeCategory = iota
 	ExchangeContact
+	ExchangeContactFolder
 	ExchangeEvent
-	ExchangeFolder
 	ExchangeMail
+	ExchangeMailFolder
 	ExchangeUser
 )
 
-// String complies with the stringer interface, so that exchangeCategories
-// can be added into the scope map.
-func (ec exchangeCategory) String() string {
-	return strconv.Itoa(int(ec))
+func exchangeCatAtoI(s string) exchangeCategory {
+	switch s {
+	case ExchangeContact.String():
+		return ExchangeContact
+	case ExchangeContactFolder.String():
+		return ExchangeContactFolder
+	case ExchangeEvent.String():
+		return ExchangeEvent
+	case ExchangeMail.String():
+		return ExchangeMail
+	case ExchangeMailFolder.String():
+		return ExchangeMailFolder
+	case ExchangeUser.String():
+		return ExchangeUser
+	default:
+		return ExchangeCategoryUnknown
+	}
 }
-
-var (
-	exchangeScopeKeyContactID = ExchangeContact.String()
-	exchangeScopeKeyEventID   = ExchangeEvent.String()
-	exchangeScopeKeyFolderID  = ExchangeFolder.String()
-	exchangeScopeKeyMessageID = ExchangeMail.String()
-	exchangeScopeKeyUserID    = ExchangeUser.String()
-)
 
 // Category describes the type of the data in scope.
 func (s exchangeScope) Category() exchangeCategory {
-	return exchangeCategory(getIota(s, scopeKeyCategory))
+	return exchangeCatAtoI(s[scopeKeyCategory])
 }
 
-// Granularity describes the breadth of data in scope.
-func (s exchangeScope) Granularity() scopeGranularity {
-	return granularityOf(s)
+// check whether the scope includes a certain category of data.
+// Ex: to check if you should retrieve mail data:
+// s.IncludesCategory(selector.ExchangeMail)
+func (s exchangeScope) IncludesCategory(cat exchangeCategory) bool {
+	sCat := s.Category()
+	if cat == ExchangeUser {
+		return sCat != ExchangeCategoryUnknown
+	}
+	switch sCat {
+	case ExchangeUser:
+		return cat != ExchangeCategoryUnknown
+	case ExchangeContact, ExchangeContactFolder:
+		return cat == ExchangeContact || cat == ExchangeContactFolder
+	case ExchangeEvent:
+		return cat == ExchangeEvent
+	case ExchangeMail, ExchangeMailFolder:
+		return cat == ExchangeMail || cat == ExchangeMailFolder
+	}
+	return false
 }
 
-func (s exchangeScope) UserID() string {
-	return s[exchangeScopeKeyUserID]
-}
-
-func (s exchangeScope) ContactID() string {
-	return s[exchangeScopeKeyContactID]
-}
-
-func (s exchangeScope) EventID() string {
-	return s[exchangeScopeKeyEventID]
-}
-
-func (s exchangeScope) FolderID() string {
-	return s[exchangeScopeKeyFolderID]
-}
-
-func (s exchangeScope) MessageID() string {
-	return s[exchangeScopeKeyMessageID]
+func (s exchangeScope) Get(cat exchangeCategory) []string {
+	v, ok := s[cat.String()]
+	if !ok {
+		return []string{None}
+	}
+	return strings.Split(v, ",")
 }

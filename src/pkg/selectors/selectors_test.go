@@ -1,7 +1,6 @@
 package selectors
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,48 +17,19 @@ func TestSelectorSuite(t *testing.T) {
 
 func (suite *SelectorSuite) TestNewSelector() {
 	t := suite.T()
-	s := newSelector("tid", ServiceUnknown)
+	s := newSelector(ServiceUnknown, "rpid")
 	assert.NotNil(t, s)
-	assert.Equal(t, s.TenantID, "tid")
-	assert.Equal(t, s.service, ServiceUnknown)
-	assert.NotNil(t, s.scopes)
-}
-
-func (suite *SelectorSuite) TestSelector_Service() {
-	table := []service{
-		ServiceUnknown,
-		ServiceExchange,
-	}
-	for _, test := range table {
-		suite.T().Run(fmt.Sprintf("testing %d", test), func(t *testing.T) {
-			s := newSelector("tid", test)
-			assert.Equal(t, s.Service(), test)
-		})
-	}
-}
-
-func (suite *SelectorSuite) TestGetIota() {
-	table := []struct {
-		name   string
-		val    string
-		expect int
-	}{
-		{"zero", "0", 0},
-		{"positive", "1", 1},
-		{"negative", "-1", -1},
-		{"empty", "", 0},
-		{"NaN", "fnords", 0},
-	}
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			m := map[string]string{"test": test.val}
-			result := getIota(m, "test")
-			assert.Equal(t, result, test.expect)
-		})
-	}
+	assert.Equal(t, s.Service, ServiceUnknown)
+	assert.Equal(t, s.RestorePointID, "rpid")
+	assert.NotNil(t, s.Includes)
 }
 
 func (suite *SelectorSuite) TestBadCastErr() {
 	err := badCastErr(ServiceUnknown, ServiceExchange)
+	assert.Error(suite.T(), err)
+}
+
+func (suite *SelectorSuite) TestExistingDestinationErr() {
+	err := existingDestinationErr("foo", "bar")
 	assert.Error(suite.T(), err)
 }
