@@ -4,8 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var backupApplications = []func(parent *cobra.Command) *cobra.Command{
-	addExchangeApp,
+var backupCommands = []func(parent *cobra.Command) *cobra.Command{
+	addExchangeCommands,
 }
 
 // AddCommands attaches all `corso backup * *` commands to the parent.
@@ -14,7 +14,7 @@ func AddCommands(parent *cobra.Command) {
 	backupCmd.AddCommand(createCmd)
 	backupCmd.AddCommand(listCmd)
 
-	for _, addBackupTo := range backupApplications {
+	for _, addBackupTo := range backupCommands {
 		addBackupTo(createCmd)
 		addBackupTo(listCmd)
 	}

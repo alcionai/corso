@@ -4,23 +4,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var restoreApplications = []func(parent *cobra.Command) *cobra.Command{
-	addExchangeApp,
+var restoreCommands = []func(parent *cobra.Command) *cobra.Command{
+	addExchangeCommands,
 }
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
 func AddCommands(parent *cobra.Command) {
 	parent.AddCommand(restoreCmd)
 
-	for _, addRestoreTo := range restoreApplications {
+	for _, addRestoreTo := range restoreCommands {
 		addRestoreTo(restoreCmd)
 	}
 }
 
+const restoreCommand = "restore"
+
 // The restore category of commands.
 // `corso restore [<subcommand>] [<flag>...]`
 var restoreCmd = &cobra.Command{
-	Use:   "restore",
+	Use:   restoreCommand,
 	Short: "Restore your service data",
 	Long:  `Restore the data stored in one of your M365 services.`,
 	Run:   handleRestoreCmd,

@@ -19,7 +19,7 @@ var (
 )
 
 // called by backup.go to map parent subcommands to provider-specific handling.
-func addExchangeApp(parent *cobra.Command) *cobra.Command {
+func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
@@ -44,7 +44,7 @@ var exchangeCreateCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 }
 
-// initializes a s3 repo.
+// processes an exchange service backup.
 func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 

@@ -21,7 +21,7 @@ var corsoCmd = &cobra.Command{
 	Use:   "corso",
 	Short: "Protect your Microsoft 365 data.",
 	Long:  `Reliable, secure, and efficient data protection for Microsoft 365.`,
-	Run:   handleCorsoCmd,
+	RunE:  handleCorsoCmd,
 }
 
 // the root-level flags
@@ -45,12 +45,12 @@ func initConfig() {
 
 // Handler for flat calls to `corso`.
 // Produces the same output as `corso --help`.
-func handleCorsoCmd(cmd *cobra.Command, args []string) {
+func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	if version {
 		fmt.Printf("Corso\nversion:\tpre-alpha\n")
-	} else {
-		cmd.Help()
+		return nil
 	}
+	return cmd.Help()
 }
 
 // Handle builds and executes the cli processor.

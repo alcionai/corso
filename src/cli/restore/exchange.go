@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
@@ -21,29 +22,36 @@ var (
 )
 
 // called by restore.go to map parent subcommands to provider-specific handling.
-func addExchangeApp(parent *cobra.Command) *cobra.Command {
-	parent.AddCommand(exchangeCmd)
+func addExchangeCommands(parent *cobra.Command) *cobra.Command {
+	var (
+		c  *cobra.Command
+		fs *pflag.FlagSet
+	)
 
-	fs := exchangeCmd.Flags()
-	fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored")
-	fs.StringVar(&mail, "mail", "", "ID of the mail message being restored")
-	fs.StringVar(&restorePointID, "restore-point", "", "ID of the backup restore point")
-	exchangeCmd.MarkFlagRequired("restore-point")
-	fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
-
-	return exchangeCmd
+	switch parent.Use {
+	case restoreCommand:
+		c, fs = utils.AddCommand(parent, exchangeRestoreCmd)
+		fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored")
+		fs.StringVar(&mail, "mail", "", "ID of the mail message being restored")
+		fs.StringVar(&restorePointID, "restore-point", "", "ID of the backup restore point")
+		c.MarkFlagRequired("restore-point")
+		fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
+	}
+	return c
 }
 
-// `corso restore create exchange [<flag>...]`
-var exchangeCmd = &cobra.Command{
-	Use:   "exchange",
+const exchangeServiceCommand = "exchange"
+
+// `corso restore exchange [<flag>...]`
+var exchangeRestoreCmd = &cobra.Command{
+	Use:   exchangeServiceCommand,
 	Short: "Restore M365 Exchange service data",
-	RunE:  createExchangeCmd,
+	RunE:  restoreExchangeCmd,
 	Args:  cobra.NoArgs,
 }
 
-// initializes a s3 repo.
-func createExchangeCmd(cmd *cobra.Command, args []string) error {
+// processes an exchange service restore.
+func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
