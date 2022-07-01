@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -350,4 +351,86 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
 
 	assert.NoError(t, m.Delete(ctx, "foo"))
 	assert.NoError(t, m.DeleteWithModelStoreID(ctx, "foo"))
+}
+
+// ---------------
+// regression tests that use kopia
+// ---------------
+type ModelStoreRegressionSuite struct {
+	suite.Suite
+}
+
+func TestModelStoreRegressionSuite(t *testing.T) {
+	if err := ctesting.RunOnAny(
+		ctesting.CorsoCITests,
+		ctesting.CorsoModelStoreTests,
+	); err != nil {
+		t.Skip()
+	}
+
+	suite.Run(t, new(ModelStoreRegressionSuite))
+}
+
+func (suite *ModelStoreRegressionSuite) SetupSuite() {
+	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
+	require.NoError(suite.T(), err)
+}
+
+// TODO(ashmrtn): Make a mock of whatever controls the handle to kopia so we can
+// ask it to fail on arbitrary function, thus allowing us to directly test
+// Update.
+// Tests that if we get an error or crash while in the middle of an Update no
+// results will be visible to higher layers.
+func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEffect() {
+	ctx := context.Background()
+	t := suite.T()
+
+	m := getModelStore(t, ctx)
+	defer func() {
+		assert.NoError(t, m.wrapper.Close(ctx))
+	}()
+
+	foo := &fooModel{Bar: uuid.NewString()}
+	foo.StableID = model.ID(uuid.NewString())
+	foo.ModelStoreID = manifest.ID(uuid.NewString())
+	// Avoid some silly test errors from comparing nil to empty map.
+	foo.Tags = map[string]string{}
+
+	theModelType := BackupOpModel
+
+	require.NoError(t, m.Put(ctx, theModelType, foo))
+
+	newID := manifest.ID("")
+	err := repo.WriteSession(
+		ctx,
+		m.wrapper.rep,
+		repo.WriteSessionOptions{Purpose: "WriteSessionFailureTest"},
+		func(innerCtx context.Context, w repo.RepositoryWriter) (innerErr error) {
+			base := foo.Base()
+			oldID := base.ModelStoreID
+
+			defer func() {
+				if innerErr != nil {
+					// Restore the old ID if we failed.
+					base.ModelStoreID = oldID
+				}
+			}()
+
+			innerErr = putInner(innerCtx, w, theModelType, foo, false)
+			require.NoError(t, innerErr)
+
+			newID = foo.ModelStoreID
+
+			return assert.AnError
+		},
+	)
+
+	assert.ErrorIs(t, err, assert.AnError)
+
+	err = m.GetWithModelStoreID(ctx, newID, nil)
+	assert.ErrorIs(t, err, manifest.ErrNotFound)
+
+	returned := &fooModel{}
+	require.NoError(t, m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned))
+	assert.Equal(t, foo, returned)
 }
