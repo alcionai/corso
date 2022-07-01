@@ -90,17 +90,17 @@ func putInner(
 	ctx context.Context,
 	w repo.RepositoryWriter,
 	t modelType,
-	tags map[string]string,
 	m model.Model,
 	create bool,
 ) error {
+	base := m.Base()
 	// ModelStoreID does not need to be persisted in the model itself.
-	m.SetModelStoreID("")
+	base.ModelStoreID = ""
 	if create {
-		m.SetStableID(model.ID(uuid.NewString()))
+		base.StableID = model.ID(uuid.NewString())
 	}
 
-	tmpTags, err := tagsForModelWithID(t, m.GetStableID(), tags)
+	tmpTags, err := tagsForModelWithID(t, base.StableID, base.Tags)
 	if err != nil {
 		// Will be wrapped at a higher layer.
 		return err
@@ -112,7 +112,7 @@ func putInner(
 		return err
 	}
 
-	m.SetModelStoreID(id)
+	base.ModelStoreID = id
 	return nil
 }
 
@@ -121,7 +121,6 @@ func putInner(
 func (ms *ModelStore) Put(
 	ctx context.Context,
 	t modelType,
-	tags map[string]string,
 	m model.Model,
 ) error {
 	err := repo.WriteSession(
@@ -129,7 +128,7 @@ func (ms *ModelStore) Put(
 		ms.wrapper.rep,
 		repo.WriteSessionOptions{Purpose: "ModelStorePut"},
 		func(innerCtx context.Context, w repo.RepositoryWriter) error {
-			err := putInner(innerCtx, w, t, tags, m, true)
+			err := putInner(innerCtx, w, t, m, true)
 			if err != nil {
 				return err
 			}
@@ -169,14 +168,19 @@ func (ms *ModelStore) GetWithModelStoreID(
 		return errors.WithStack(errNoModelStoreID)
 	}
 
-	_, err := ms.wrapper.rep.GetManifest(ctx, id, data)
+	metadata, err := ms.wrapper.rep.GetManifest(ctx, id, data)
 	// TODO(ashmrtnz): Should probably return some recognizable, non-kopia error
 	// if not found. That way kopia doesn't need to be imported to higher layers.
 	if err != nil {
 		return errors.Wrap(err, "getting model data")
 	}
 
-	data.SetModelStoreID(id)
+	base := data.Base()
+	base.Tags = metadata.Labels
+	// Hide the fact that StableID and modelType are just a tag from the user.
+	delete(base.Tags, stableIDKey)
+	delete(base.Tags, manifest.TypeLabelKey)
+	base.ModelStoreID = id
 	return nil
 }
 
