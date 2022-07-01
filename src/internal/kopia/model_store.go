@@ -9,11 +9,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	stableIDKey       = "stableID"
-	errNoModelStoreID = "model has no ModelStoreID"
-	errBadTagKey      = "tag key overlaps with required key"
+const stableIDKey = "stableID"
+
+var (
+	errNoModelStoreID = errors.New("model has no ModelStoreID")
+	errBadTagKey      = errors.New("tag key overlaps with required key")
 )
+
+type modelType int
 
 //go:generate stringer -type=modelType
 const (
@@ -27,20 +30,23 @@ type ID string
 
 type Model interface {
 	GetStableID() ID
-	// StableID is an identifier that can be used to link objects in ModelStore.
-	// Once generated (during Put), it is guaranteed not to change.
 	SetStableID(id ID)
 	GetModelStoreID() manifest.ID
-	// ModelStoreID is and opaque field in models. This field may change if the
-	// model is updated. The field housing this should always have `omitempty`.
 	SetModelStoreID(id manifest.ID)
 }
 
 // BaseModel defines required fields for models stored in ModelStore. Structs
 // that wish to be stored should embed this struct.
 type BaseModel struct {
+	// StableID is an identifier that other objects can use to refer to this
+	// object in the ModelStore.
+	// Once generated (during Put), it is guaranteed not to change. This field
+	// should be treated as read-only by users.
 	StableID ID `json:"stableID,omitempty"`
-	// ModelStoreID is an opaque field.
+	// ModelStoreID is an internal ID for the model in the store. If present it
+	// can be used for efficient lookups, but should not be used by other models
+	// to refer to this one. This field may change if the model is updated. This
+	// field should be treated as read-only by users.
 	ModelStoreID manifest.ID `json:"modelStoreID,omitempty"`
 }
 
@@ -60,9 +66,6 @@ func (bm *BaseModel) SetModelStoreID(id manifest.ID) {
 	bm.ModelStoreID = id
 }
 
-// ID of the manifest in kopia. This is not guaranteed to be stable.
-type modelType int
-
 func NewModelStore(kw *KopiaWrapper) *ModelStore {
 	return &ModelStore{wrapper: kw}
 }
@@ -74,14 +77,14 @@ type ModelStore struct {
 
 // tagsForModel creates a copy of tags and adds a tag for the model type to it.
 // Returns an error if another tag has the same key as the model type or if a
-// bad model type is give.
+// bad model type is given.
 func tagsForModel(t modelType, tags map[string]string) (map[string]string, error) {
 	if t == UnknownModel {
 		return nil, errors.New("bad model type")
 	}
 
 	if _, ok := tags[manifest.TypeLabelKey]; ok {
-		return nil, errors.New(errBadTagKey)
+		return nil, errors.WithStack(errBadTagKey)
 	}
 
 	res := make(map[string]string, len(tags)+1)
@@ -95,7 +98,7 @@ func tagsForModel(t modelType, tags map[string]string) (map[string]string, error
 
 // tagsForModelWithID creates a copy of tags and adds tags for the model type
 // StableID to it. Returns an error if another tag has the same key as the model
-// type or if a bad model type is give.
+// type or if a bad model type is given.
 func tagsForModelWithID(
 	t modelType,
 	id ID,
@@ -111,7 +114,7 @@ func tagsForModelWithID(
 	}
 
 	if _, ok := res[stableIDKey]; ok {
-		return nil, errors.New(errBadTagKey)
+		return nil, errors.WithStack(errBadTagKey)
 	}
 
 	res[stableIDKey] = string(id)
@@ -197,7 +200,7 @@ func (ms *ModelStore) Get(ctx context.Context, id ID, data any) error {
 // was found.
 func (ms *ModelStore) GetWithModelStoreID(ctx context.Context, id manifest.ID, data Model) error {
 	if len(id) == 0 {
-		return errors.New(errNoModelStoreID)
+		return errors.WithStack(errNoModelStoreID)
 	}
 
 	_, err := ms.wrapper.rep.GetManifest(ctx, id, data)
