@@ -84,6 +84,9 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 
 			assert.Error(t, m.Put(ctx, BackupOpModel, foo))
 			assert.Error(t, m.Update(ctx, BackupOpModel, foo))
+
+			_, err := m.GetIDsForType(ctx, BackupOpModel, test.tags)
+			assert.Error(t, err)
 		})
 	}
 }
@@ -108,10 +111,31 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	assert.Error(t, m.Update(ctx, BackupOpModel, noStableID))
 	assert.Error(t, m.Update(ctx, BackupOpModel, noModelStoreID))
 
+	assert.Error(t, m.Get(ctx, "", nil))
 	assert.Error(t, m.GetWithModelStoreID(ctx, "", nil))
 
 	assert.Error(t, m.Delete(ctx, ""))
 	assert.Error(t, m.DeleteWithModelStoreID(ctx, ""))
+}
+
+func (suite *ModelStoreIntegrationSuite) TestBadModelTypeErrors() {
+	ctx := context.Background()
+	t := suite.T()
+
+	m := getModelStore(t, ctx)
+	defer func() {
+		assert.NoError(t, m.wrapper.Close(ctx))
+	}()
+
+	foo := &fooModel{Bar: uuid.NewString()}
+
+	assert.Error(t, m.Put(ctx, UnknownModel, foo))
+
+	require.NoError(t, m.Put(ctx, BackupOpModel, foo))
+
+	_, err := m.GetIDsForType(ctx, UnknownModel, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "model type")
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGet() {
@@ -167,6 +191,10 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 			require.NotEmpty(t, foo.StableID)
 
 			returned := &fooModel{}
+			err = m.Get(ctx, foo.StableID, returned)
+			require.NoError(t, err)
+			assert.Equal(t, foo, returned)
+
 			err = m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned)
 			require.NoError(t, err)
 			assert.Equal(t, foo, returned)
@@ -194,7 +222,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 	require.NotEmpty(t, foo.StableID)
 
 	returned := &fooModel{}
-	err := m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned)
+	err := m.Get(ctx, foo.StableID, returned)
+	require.NoError(t, err)
+	assert.Equal(t, foo, returned)
+
+	err = m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned)
 	require.NoError(t, err)
 	assert.Equal(t, foo, returned)
 }
@@ -208,6 +240,7 @@ func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 		assert.NoError(t, m.wrapper.Close(ctx))
 	}()
 
+	assert.ErrorIs(t, m.Get(ctx, "baz", nil), manifest.ErrNotFound)
 	assert.ErrorIs(t, m.GetWithModelStoreID(ctx, "baz", nil), manifest.ErrNotFound)
 }
 
@@ -260,10 +293,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			require.NoError(t, m.GetWithModelStoreID(ctx, foo.ModelStoreID, returned))
 			assert.Equal(t, foo, returned)
 
-			// TODO(ashmrtn): Uncomment once GetIDsForType is implemented.
-			//ids, err := m.GetIDsForType(ctx, BackupOpModel, nil)
-			//require.NoError(t, err)
-			//assert.Len(t, ids, 1)
+			ids, err := m.GetIDsForType(ctx, BackupOpModel, nil)
+			require.NoError(t, err)
+			assert.Len(t, ids, 1)
 
 			if oldModelID == foo.ModelStoreID {
 				// Unlikely, but we don't control ModelStoreID generation and can't
@@ -271,8 +303,63 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 				return
 			}
 
-			err := m.GetWithModelStoreID(ctx, oldModelID, nil)
+			err = m.GetWithModelStoreID(ctx, oldModelID, nil)
 			assert.ErrorIs(t, err, manifest.ErrNotFound)
+		})
+	}
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
+	table := []struct {
+		t      modelType
+		check  require.ErrorAssertionFunc
+		hasErr bool
+	}{
+		{
+			t:      UnknownModel,
+			check:  require.Error,
+			hasErr: true,
+		},
+		{
+			t:      BackupOpModel,
+			check:  require.NoError,
+			hasErr: false,
+		},
+		{
+			t:      RestoreOpModel,
+			check:  require.NoError,
+			hasErr: false,
+		},
+		{
+			t:      RestorePointModel,
+			check:  require.NoError,
+			hasErr: false,
+		},
+	}
+
+	ctx := context.Background()
+	t := suite.T()
+
+	m := getModelStore(t, ctx)
+	defer func() {
+		assert.NoError(t, m.wrapper.Close(ctx))
+	}()
+
+	for _, test := range table {
+		suite.T().Run(test.t.String(), func(t *testing.T) {
+			foo := &fooModel{Bar: uuid.NewString()}
+
+			err := m.Put(ctx, test.t, foo)
+			test.check(t, err)
+
+			if test.hasErr {
+				return
+			}
+
+			ids, err := m.GetIDsForType(ctx, test.t, nil)
+			require.NoError(t, err)
+
+			assert.Len(t, ids, 1)
 		})
 	}
 }
