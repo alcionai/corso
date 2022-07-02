@@ -21,10 +21,10 @@ const (
 const (
 	// All is the wildcard value used to express "all data of <type>"
 	// Ex: {user: u1, events: All) => all events for user u1.
-	All = "*"
+	All = "ß∂ƒ∑´®≈ç√¬˜"
 	// None is usesd to express "no data of <type>"
 	// Ex: {user: u1, events: None} => no events for user u1.
-	None = "^*"
+	None = "√ç≈œ´∆¬˚¨π"
 )
 
 // ---------------------------------------------------------------------------

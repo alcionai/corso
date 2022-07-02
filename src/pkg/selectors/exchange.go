@@ -17,14 +17,14 @@ type (
 
 	// ExchangeBackup provides an api for selecting
 	// data scopes applicable to the Exchange service,
-	// plus backup-specific mehtods.
+	// plus backup-specific methods.
 	ExchangeBackup struct {
 		exchange
 	}
 
 	// ExchangeRestore provides an api for selecting
 	// data scopes applicable to the Exchange service,
-	// plus restore-specific mehtods.
+	// plus restore-specific methods.
 	ExchangeRestore struct {
 		exchange
 	}
@@ -127,7 +127,7 @@ func (s *exchange) ExcludeMailFolders(u string, vs ...string) {
 	// todo
 }
 
-// ExcludeUsers selects the specified users.  All of their data is included.
+// ExcludeUsers selects the specified users.  All of their data is excluded.
 func (s *exchange) ExcludeUsers(us ...string) {
 	// todo
 }
@@ -142,9 +142,9 @@ func NewExchangeDestination() ExchangeDestination {
 	return ExchangeDestination{}
 }
 
-// Gets the destination of the provided category.  If no destination is set,
-// returns the current value.
-func (d ExchangeDestination) Get(cat exchangeCategory, current string) string {
+// GetsOrDefault gets the destination of the provided category.  If no
+// destination is set, returns the current value.
+func (d ExchangeDestination) GetOrDefault(cat exchangeCategory, current string) string {
 	dest, ok := d[cat.String()]
 	if !ok {
 		return current
@@ -155,6 +155,9 @@ func (d ExchangeDestination) Get(cat exchangeCategory, current string) string {
 // Sets the destination value of the provided category.  Returns an error
 // if a destination is already declared for that category.
 func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
+	if len(dest) == 0 {
+		return nil
+	}
 	cs := cat.String()
 	if curr, ok := d[cs]; ok {
 		return existingDestinationErr(cs, curr)
@@ -171,7 +174,7 @@ type (
 	// exchangeScope specifies the data available
 	// when interfacing with the Exchange service.
 	exchangeScope map[string]string
-	// exchangeCategory enumerates the type of the lowest level of
+	// exchangeCategory enumerates the type of the lowest level
 	// of data () in a scope.
 	exchangeCategory int
 )
@@ -220,17 +223,21 @@ func (s exchangeScope) Category() exchangeCategory {
 	return exchangeCatAtoI(s[scopeKeyCategory])
 }
 
-// check whether the scope includes a certain category of data.
-// Ex: to check if you should retrieve mail data:
+// IncludeCategory checks whether the scope includes a
+// certain category of data.
+// Ex: to check if the scope includes mail data:
 // s.IncludesCategory(selector.ExchangeMail)
 func (s exchangeScope) IncludesCategory(cat exchangeCategory) bool {
 	sCat := s.Category()
+	if cat == ExchangeCategoryUnknown || sCat == ExchangeCategoryUnknown {
+		return false
+	}
 	if cat == ExchangeUser {
-		return sCat != ExchangeCategoryUnknown
+		return true
 	}
 	switch sCat {
 	case ExchangeUser:
-		return cat != ExchangeCategoryUnknown
+		return true
 	case ExchangeContact, ExchangeContactFolder:
 		return cat == ExchangeContact || cat == ExchangeContactFolder
 	case ExchangeEvent:
@@ -241,6 +248,9 @@ func (s exchangeScope) IncludesCategory(cat exchangeCategory) bool {
 	return false
 }
 
+// Get returns the data category in the scope.  If the scope
+// contains all data types for a user, it'll return the
+// ExchangeUser category.
 func (s exchangeScope) Get(cat exchangeCategory) []string {
 	v, ok := s[cat.String()]
 	if !ok {

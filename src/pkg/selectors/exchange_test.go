@@ -63,52 +63,42 @@ func (suite *ExchangeSourceSuite) TestNewExchangeDestination() {
 func (suite *ExchangeSourceSuite) TestExchangeDestination_Set() {
 	dest := NewExchangeDestination()
 
-	table := []struct {
-		cat   exchangeCategory
-		check assert.ErrorAssertionFunc
-	}{
-		{ExchangeCategoryUnknown, assert.NoError},
-		{ExchangeCategoryUnknown, assert.Error},
-		{ExchangeContact, assert.NoError},
-		{ExchangeContact, assert.Error},
-		{ExchangeContactFolder, assert.NoError},
-		{ExchangeContactFolder, assert.Error},
-		{ExchangeEvent, assert.NoError},
-		{ExchangeEvent, assert.Error},
-		{ExchangeMail, assert.NoError},
-		{ExchangeMail, assert.Error},
-		{ExchangeMailFolder, assert.NoError},
-		{ExchangeMailFolder, assert.Error},
-		{ExchangeUser, assert.NoError},
-		{ExchangeUser, assert.Error},
+	table := []exchangeCategory{
+		ExchangeCategoryUnknown,
+		ExchangeContact,
+		ExchangeContactFolder,
+		ExchangeEvent,
+		ExchangeMail,
+		ExchangeMailFolder,
+		ExchangeUser,
 	}
 	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			test.check(t, dest.Set(test.cat, "foo"))
+		suite.T().Run(test.String(), func(t *testing.T) {
+			assert.NoError(t, dest.Set(test, "foo"))
+			assert.Error(t, dest.Set(test, "foo"))
 		})
 	}
+
+	assert.NoError(suite.T(), dest.Set(ExchangeUser, ""))
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeDestination_Get() {
+func (suite *ExchangeSourceSuite) TestExchangeDestination_GetOrDefault() {
 	dest := NewExchangeDestination()
 
-	table := []struct {
-		cat   exchangeCategory
-		check assert.ErrorAssertionFunc
-	}{
-		{ExchangeCategoryUnknown, assert.NoError},
-		{ExchangeContact, assert.NoError},
-		{ExchangeContactFolder, assert.NoError},
-		{ExchangeEvent, assert.NoError},
-		{ExchangeMail, assert.NoError},
-		{ExchangeMailFolder, assert.NoError},
-		{ExchangeUser, assert.NoError},
+	table := []exchangeCategory{
+		ExchangeCategoryUnknown,
+		ExchangeContact,
+		ExchangeContactFolder,
+		ExchangeEvent,
+		ExchangeMail,
+		ExchangeMailFolder,
+		ExchangeUser,
 	}
 	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			assert.Equal(t, "bar", dest.Get(test.cat, "bar"))
-			test.check(t, dest.Set(test.cat, "foo"))
-			assert.Equal(t, "foo", dest.Get(test.cat, "bar"))
+		suite.T().Run(test.String(), func(t *testing.T) {
+			assert.Equal(t, "bar", dest.GetOrDefault(test, "bar"))
+			assert.NoError(t, dest.Set(test, "foo"))
+			assert.Equal(t, "foo", dest.GetOrDefault(test, "bar"))
 		})
 	}
 }
