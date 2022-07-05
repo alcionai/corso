@@ -1,6 +1,8 @@
 package selectors
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 )
 
@@ -25,6 +27,8 @@ const (
 	// None is usesd to express "no data of <type>"
 	// Ex: {user: u1, events: None} => no events for user u1.
 	None = "√ç≈œ´∆¬˚¨π"
+
+	delimiter = ","
 )
 
 // ---------------------------------------------------------------------------
@@ -68,4 +72,12 @@ func badCastErr(cast, is service) error {
 
 func existingDestinationErr(category, is string) error {
 	return errors.Wrapf(ErrorDestinationAlreadySet, "%s destination already set to %s", category, is)
+}
+
+func join(s ...string) string {
+	return strings.Join(s, delimiter)
+}
+
+func split(s string) []string {
+	return strings.Split(s, delimiter)
 }
