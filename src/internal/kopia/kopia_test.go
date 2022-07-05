@@ -233,6 +233,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 // ---------------
 type KopiaIntegrationSuite struct {
 	suite.Suite
+	k   *KopiaWrapper
+	ctx context.Context
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
@@ -251,6 +253,17 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 	require.NoError(suite.T(), err)
 }
 
+func (suite *KopiaIntegrationSuite) SetupTest() {
+	suite.ctx = context.Background()
+	k, err := openKopiaRepo(suite.T(), suite.ctx)
+	require.NoError(suite.T(), err)
+	suite.k = k
+}
+
+func (suite *KopiaIntegrationSuite) TearDownTest() {
+	assert.NoError(suite.T(), suite.k.Close(suite.ctx))
+}
+
 func (suite *KopiaIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 	ctx := context.Background()
 	t := suite.T()
@@ -263,14 +276,7 @@ func (suite *KopiaIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
-	ctx := context.Background()
 	t := suite.T()
-
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
 
 	collections := []connector.DataCollection{
 		mockconnector.NewMockExchangeDataCollection(
@@ -283,7 +289,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 
-	stats, err := k.BackupCollections(ctx, collections)
+	stats, err := suite.k.BackupCollections(suite.ctx, collections)
 	assert.NoError(t, err)
 	assert.Equal(t, stats.TotalFileCount, 47)
 	assert.Equal(t, stats.TotalDirectoryCount, 5)
@@ -292,7 +298,37 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	assert.False(t, stats.Incomplete)
 }
 
-func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) manifest.ID {
+type KopiaSimpleRepoIntegrationSuite struct {
+	suite.Suite
+	k          *KopiaWrapper
+	ctx        context.Context
+	snapshotID manifest.ID
+}
+
+func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
+	if err := ctesting.RunOnAny(
+		ctesting.CorsoCITests,
+		ctesting.CorsoKopiaWrapperTests,
+	); err != nil {
+		t.Skip()
+	}
+
+	suite.Run(t, new(KopiaSimpleRepoIntegrationSuite))
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
+	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
+	require.NoError(suite.T(), err)
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
+	t := suite.T()
+	suite.ctx = context.Background()
+	k, err := openKopiaRepo(t, suite.ctx)
+	require.NoError(t, err)
+
+	suite.k = k
+
 	collections := []connector.DataCollection{
 		&singleItemCollection{
 			path: testPath,
@@ -303,7 +339,7 @@ func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) manifes
 		},
 	}
 
-	stats, err := k.BackupCollections(ctx, collections)
+	stats, err := suite.k.BackupCollections(suite.ctx, collections)
 	require.NoError(t, err)
 	require.Equal(t, stats.TotalFileCount, 1)
 	require.Equal(t, stats.TotalDirectoryCount, 3)
@@ -311,24 +347,19 @@ func setupSimpleRepo(t *testing.T, ctx context.Context, k *KopiaWrapper) manifes
 	require.Equal(t, stats.ErrorCount, 0)
 	require.False(t, stats.Incomplete)
 
-	return manifest.ID(stats.SnapshotID)
+	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
 
-func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
-	ctx := context.Background()
+func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
+	assert.NoError(suite.T(), suite.k.Close(suite.ctx))
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	t := suite.T()
 
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
-
-	id := setupSimpleRepo(t, ctx, k)
-
-	c, err := k.RestoreSingleItem(
-		ctx,
-		string(id),
+	c, err := suite.k.RestoreSingleItem(
+		suite.ctx,
+		string(suite.snapshotID),
 		append(testPath, testFileUUID),
 	)
 	require.NoError(t, err)
@@ -349,7 +380,7 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem() {
 
 // TestBackupAndRestoreSingleItem_Errors exercises the public RestoreSingleItem
 // function.
-func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
+func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
 	table := []struct {
 		name           string
 		snapshotIDFunc func(manifest.ID) manifest.ID
@@ -380,20 +411,9 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
-			ctesting.LogTimeOfTest(t)
-
-			k, err := openKopiaRepo(t, ctx)
-			require.NoError(t, err)
-			defer func() {
-				assert.NoError(t, k.Close(ctx))
-			}()
-
-			id := setupSimpleRepo(t, ctx, k)
-
-			_, err = k.RestoreSingleItem(
-				ctx,
-				string(test.snapshotIDFunc(id)),
+			_, err := suite.k.RestoreSingleItem(
+				suite.ctx,
+				string(test.snapshotIDFunc(suite.snapshotID)),
 				test.path,
 			)
 			require.Error(t, err)
@@ -404,7 +424,7 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
 // TestBackupAndRestoreSingleItem_Errors2 exercises some edge cases in the
 // package-private restoreSingleItem function. It helps ensure kopia behaves the
 // way we expect.
-func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors2() {
+func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors2() {
 	table := []struct {
 		name        string
 		rootDirFunc func(*testing.T, context.Context, *KopiaWrapper) fs.Entry
@@ -428,19 +448,9 @@ func (suite *KopiaIntegrationSuite) TestBackupAndRestoreSingleItem_Errors2() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
-
-			k, err := openKopiaRepo(t, ctx)
-			require.NoError(t, err)
-			defer func() {
-				assert.NoError(t, k.Close(ctx))
-			}()
-
-			setupSimpleRepo(t, ctx, k)
-
-			_, err = k.restoreSingleItem(
-				ctx,
-				test.rootDirFunc(t, ctx, k),
+			_, err := suite.k.restoreSingleItem(
+				suite.ctx,
+				test.rootDirFunc(t, suite.ctx, suite.k),
 				test.path,
 			)
 			require.Error(t, err)
