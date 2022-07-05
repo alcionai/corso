@@ -142,7 +142,7 @@ func NewExchangeDestination() ExchangeDestination {
 	return ExchangeDestination{}
 }
 
-// GetsOrDefault gets the destination of the provided category.  If no
+// GetOrDefault gets the destination of the provided category.  If no
 // destination is set, returns the current value.
 func (d ExchangeDestination) GetOrDefault(cat exchangeCategory, current string) string {
 	dest, ok := d[cat.String()]
@@ -232,12 +232,10 @@ func (s exchangeScope) IncludesCategory(cat exchangeCategory) bool {
 	if cat == ExchangeCategoryUnknown || sCat == ExchangeCategoryUnknown {
 		return false
 	}
-	if cat == ExchangeUser {
+	if cat == ExchangeUser || sCat == ExchangeUser {
 		return true
 	}
 	switch sCat {
-	case ExchangeUser:
-		return true
 	case ExchangeContact, ExchangeContactFolder:
 		return cat == ExchangeContact || cat == ExchangeContactFolder
 	case ExchangeEvent:
