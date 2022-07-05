@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
@@ -68,10 +67,10 @@ func (op operation) validate() error {
 // Summary tracks the total files touched and errors produced
 // during an operation.
 type summary struct {
-	ItemsRead    int              `json:"itemsRead,omitempty"`
-	ItemsWritten int              `json:"itemsWritten,omitempty"`
-	ReadErrors   multierror.Error `json:"readErrors,omitempty"`
-	WriteErrors  multierror.Error `json:"writeErrors,omitempty"`
+	ItemsRead    int   `json:"itemsRead,omitempty"`
+	ItemsWritten int   `json:"itemsWritten,omitempty"`
+	ReadErrors   error `json:"readErrors,omitempty"`
+	WriteErrors  error `json:"writeErrors,omitempty"`
 }
 
 // Metrics tracks performance details such as timing, throughput, etc.

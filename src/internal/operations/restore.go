@@ -2,7 +2,9 @@ package operations
 
 import (
 	"context"
+	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
@@ -58,20 +60,54 @@ func (op RestoreOperation) validate() error {
 // Run begins a synchronous restore operation.
 // todo (keepers): return stats block in first param.
 func (op *RestoreOperation) Run(ctx context.Context) error {
-	dc, err := op.kopia.RestoreSingleItem(ctx, op.RestorePointID, op.Targets)
-	if err != nil {
-		return errors.Wrap(err, "retrieving service data")
+	// TODO: persist initial state of restoreOperation in modelstore
+
+	var (
+		cs                []connector.DataCollection
+		readErr, writeErr error
+	)
+
+	// persist operation results to the model store on exit
+	defer op.persistResults(time.Now(), cs, readErr, writeErr)
+
+	dc, readErr := op.kopia.RestoreSingleItem(ctx, op.RestorePointID, op.Targets)
+	if readErr != nil {
+		return errors.Wrap(readErr, "retrieving service data")
 	}
 
 	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
+		writeErr = multierror.Append(writeErr, err)
 		return errors.Wrap(err, "connecting to graph api")
 	}
 
 	if err := gc.RestoreMessages(ctx, dc); err != nil {
+		writeErr = multierror.Append(writeErr, err)
 		return errors.Wrap(err, "restoring service data")
 	}
 
 	op.Status = Successful
 	return nil
+}
+
+// writes the restoreOperation outcome to the modelStore.
+func (op *RestoreOperation) persistResults(
+	started time.Time,
+	cs []connector.DataCollection,
+	readErr, writeErr error,
+) {
+	op.Status = Successful
+	if readErr != nil || writeErr != nil {
+		op.Status = Failed
+	}
+
+	op.Results.ItemsRead = len(cs) // TODO: file count, not collection count
+	op.Results.ReadErrors = readErr
+	op.Results.ItemsWritten = -1 // TODO: get write count from GC
+	op.Results.WriteErrors = writeErr
+
+	op.Results.StartedAt = started
+	op.Results.CompletedAt = time.Now()
+
+	// TODO: persist operation to modelstore
 }

@@ -2,7 +2,9 @@ package operations
 
 import (
 	"context"
+	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
@@ -55,22 +57,56 @@ func (op BackupOperation) validate() error {
 
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) {
+	// TODO: persist initial state of backupOperation in modelstore
+
+	var (
+		cs                []connector.DataCollection
+		stats             = &kopia.BackupStats{}
+		readErr, writeErr error
+	)
+
+	// persist operation results to the model store on exit
+	defer op.persistResults(time.Now(), cs, stats, readErr, writeErr)
+
 	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
+		readErr = multierror.Append(readErr, err)
 		return nil, errors.Wrap(err, "connecting to graph api")
 	}
 
-	cs, err := gc.ExchangeDataCollection(ctx, op.Targets[0])
+	cs, err = gc.ExchangeDataCollection(ctx, op.Targets[0])
 	if err != nil {
+		readErr = multierror.Append(readErr, err)
 		return nil, errors.Wrap(err, "retrieving service data")
 	}
 
-	// todo: utilize stats
-	stats, err := op.kopia.BackupCollections(ctx, cs)
-	if err != nil {
+	stats, writeErr = op.kopia.BackupCollections(ctx, cs)
+	if writeErr != nil {
 		return nil, errors.Wrap(err, "backing up service data")
 	}
 
-	op.Status = Successful
 	return stats, nil
+}
+
+// writes the backupOperation outcome to the modelStore.
+func (op *BackupOperation) persistResults(
+	started time.Time,
+	cs []connector.DataCollection,
+	stats *kopia.BackupStats,
+	readErr, writeErr error,
+) {
+	op.Status = Successful
+	if readErr != nil || writeErr != nil {
+		op.Status = Failed
+	}
+
+	op.Results.ItemsRead = len(cs) // TODO: file count, not collection count
+	op.Results.ReadErrors = readErr
+	op.Results.ItemsWritten = stats.TotalFileCount
+	op.Results.WriteErrors = writeErr
+
+	op.Results.StartedAt = started
+	op.Results.CompletedAt = time.Now()
+
+	// TODO: persist operation to modelstore
 }

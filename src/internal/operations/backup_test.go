@@ -1,19 +1,68 @@
-package operations_test
+package operations
 
 import (
 	"context"
 	"testing"
+	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/internal/operations"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/repository"
 )
+
+// ---------------------------------------------------------------------------
+// unit
+// ---------------------------------------------------------------------------
+
+type BackupOpSuite struct {
+	suite.Suite
+}
+
+func TestBackupOpSuite(t *testing.T) {
+	suite.Run(t, new(BackupOpSuite))
+}
+
+// TODO: after modelStore integration is added, mock the store and/or
+// move this to an integration test.
+func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
+	t := suite.T()
+	ctx := context.Background()
+
+	var (
+		kw        = &kopia.KopiaWrapper{}
+		acct      = account.Account{}
+		now       = time.Now()
+		cs        = []connector.DataCollection{&connector.ExchangeDataCollection{}}
+		readErrs  = multierror.Append(nil, assert.AnError)
+		writeErrs = assert.AnError
+		stats     = &kopia.BackupStats{
+			TotalFileCount: 1,
+		}
+	)
+
+	op, err := NewBackupOperation(ctx, Options{}, kw, acct, nil)
+	require.NoError(t, err)
+
+	op.persistResults(now, cs, stats, readErrs, writeErrs)
+
+	assert.Equal(t, op.Status, Failed)
+	assert.Equal(t, op.Results.ItemsRead, len(cs))
+	assert.Equal(t, op.Results.ReadErrors, readErrs)
+	assert.Equal(t, op.Results.ItemsWritten, stats.TotalFileCount)
+	assert.Equal(t, op.Results.WriteErrors, writeErrs)
+	assert.Equal(t, op.Results.StartedAt, now)
+	assert.Less(t, now, op.Results.CompletedAt)
+}
+
+// ---------------------------------------------------------------------------
+// integration
+// ---------------------------------------------------------------------------
 
 type BackupOpIntegrationSuite struct {
 	suite.Suite
@@ -43,20 +92,20 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 
 	table := []struct {
 		name     string
-		opts     operations.Options
+		opts     Options
 		kw       *kopia.KopiaWrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", operations.Options{}, kw, acct, nil, assert.NoError},
-		{"missing kopia", operations.Options{}, nil, acct, nil, assert.Error},
+		{"good", Options{}, kw, acct, nil, assert.NoError},
+		{"missing kopia", Options{}, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := operations.NewBackupOperation(
+			_, err := NewBackupOperation(
 				context.Background(),
-				operations.Options{},
+				Options{},
 				test.kw,
 				test.acct,
 				nil)
@@ -80,16 +129,21 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
-	r, err := repository.Initialize(ctx, acct, st)
-	require.NoError(t, err)
+	k := kopia.New(st)
+	require.NoError(t, k.Initialize(ctx))
 
-	bo, err := r.NewBackup(ctx, []string{m365User})
+	bo, err := NewBackupOperation(
+		ctx,
+		Options{},
+		k,
+		acct,
+		[]string{m365User})
 	require.NoError(t, err)
 
 	stats, err := bo.Run(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, stats)
-	assert.Equal(t, bo.Status, operations.Successful)
+	assert.Equal(t, bo.Status, Successful)
 	assert.Greater(t, stats.TotalFileCount, 0)
 	assert.Zero(t, stats.ErrorCount)
 }
