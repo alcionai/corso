@@ -17,7 +17,7 @@ var (
 	errNoModelStoreID    = errors.New("model has no ModelStoreID")
 	errNoStableID        = errors.New("model has no StableID")
 	errBadTagKey         = errors.New("tag key overlaps with required key")
-	errModelTypeMismatch = errors.New("model has incorrect type")
+	errModelTypeMismatch = errors.New("model type doesn't match request")
 )
 
 type modelType int
