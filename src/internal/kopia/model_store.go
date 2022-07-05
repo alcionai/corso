@@ -230,7 +230,8 @@ func (ms *ModelStore) getModelStoreID(
 
 // Get deserializes the model with the given StableID into data. Returns
 // github.com/kopia/kopia/repo/manifest.ErrNotFound if no model was found.
-// Returns and error if the persisted model has a different type than expected.
+// Returns and error if the persisted model has a different type than expected
+// or if multiple models have the same StableID.
 func (ms *ModelStore) Get(
 	ctx context.Context,
 	t modelType,
@@ -366,7 +367,8 @@ func (ms *ModelStore) Update(
 }
 
 // Delete deletes the model with the given StableID. Turns into a noop if id is
-// not empty but the model does not exist.
+// not empty but the model does not exist. Returns an error if multiple models
+// have the same StableID.
 func (ms *ModelStore) Delete(ctx context.Context, t modelType, id model.ID) error {
 	latest, err := ms.getModelStoreID(ctx, t, id)
 	if err != nil {
