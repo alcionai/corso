@@ -14,9 +14,10 @@ import (
 const stableIDKey = "stableID"
 
 var (
-	errNoModelStoreID = errors.New("model has no ModelStoreID")
-	errNoStableID     = errors.New("model has no StableID")
-	errBadTagKey      = errors.New("tag key overlaps with required key")
+	errNoModelStoreID    = errors.New("model has no ModelStoreID")
+	errNoStableID        = errors.New("model has no StableID")
+	errBadTagKey         = errors.New("tag key overlaps with required key")
+	errModelTypeMismatch = errors.New("model type doesn't match request")
 )
 
 type modelType int
@@ -139,22 +140,71 @@ func (ms *ModelStore) Put(
 	return errors.Wrap(err, "putting model")
 }
 
-// GetIDsForType returns all IDs for models that match the given type and have
-// the given tags. Returned IDs can be used in subsequent calls to Get, Update,
-// or Delete.
+func stripHiddenTags(tags map[string]string) {
+	delete(tags, stableIDKey)
+	delete(tags, manifest.TypeLabelKey)
+}
+
+func baseModelFromMetadata(m *manifest.EntryMetadata) (*model.BaseModel, error) {
+	id, ok := m.Labels[stableIDKey]
+	if !ok {
+		return nil, errors.WithStack(errNoStableID)
+	}
+
+	res := &model.BaseModel{
+		ModelStoreID: m.ID,
+		StableID:     model.ID(id),
+		Tags:         m.Labels,
+	}
+
+	stripHiddenTags(res.Tags)
+	return res, nil
+}
+
+// GetIDsForType returns metadata for all models that match the given type and
+// have the given tags. Returned IDs can be used in subsequent calls to Get,
+// Update, or Delete.
 func (ms *ModelStore) GetIDsForType(
 	ctx context.Context,
 	t modelType,
 	tags map[string]string,
-) ([]model.ID, error) {
-	return nil, nil
+) ([]*model.BaseModel, error) {
+	if _, ok := tags[stableIDKey]; ok {
+		return nil, errors.WithStack(errBadTagKey)
+	}
+
+	tmpTags, err := tagsForModel(t, tags)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting model metadata")
+	}
+
+	metadata, err := ms.wrapper.rep.FindManifests(ctx, tmpTags)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting model metadata")
+	}
+
+	res := make([]*model.BaseModel, 0, len(metadata))
+	for _, m := range metadata {
+		bm, err := baseModelFromMetadata(m)
+		if err != nil {
+			return nil, errors.Wrap(err, "parsing model metadata")
+		}
+
+		res = append(res, bm)
+	}
+
+	return res, nil
 }
 
 // getModelStoreID gets the ModelStoreID of the model with the given
 // StableID. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no
 // model was found. Returns an error if the given StableID is empty or more than
 // one model has the same StableID.
-func (ms *ModelStore) getModelStoreID(ctx context.Context, id model.ID) (manifest.ID, error) {
+func (ms *ModelStore) getModelStoreID(
+	ctx context.Context,
+	t modelType,
+	id model.ID,
+) (manifest.ID, error) {
 	if len(id) == 0 {
 		return "", errors.WithStack(errNoStableID)
 	}
@@ -171,20 +221,38 @@ func (ms *ModelStore) getModelStoreID(ctx context.Context, id model.ID) (manifes
 	if len(metadata) != 1 {
 		return "", errors.New("multiple models with same StableID")
 	}
+	if metadata[0].Labels[manifest.TypeLabelKey] != t.String() {
+		return "", errors.WithStack(errModelTypeMismatch)
+	}
 
 	return metadata[0].ID, nil
 }
 
-// Get deserializes the model with the given ID into data.
-func (ms *ModelStore) Get(ctx context.Context, id model.ID, data any) error {
-	return nil
+// Get deserializes the model with the given StableID into data. Returns
+// github.com/kopia/kopia/repo/manifest.ErrNotFound if no model was found.
+// Returns and error if the persisted model has a different type than expected
+// or if multiple models have the same StableID.
+func (ms *ModelStore) Get(
+	ctx context.Context,
+	t modelType,
+	id model.ID,
+	data model.Model,
+) error {
+	modelID, err := ms.getModelStoreID(ctx, t, id)
+	if err != nil {
+		return err
+	}
+
+	return ms.GetWithModelStoreID(ctx, t, modelID, data)
 }
 
 // GetWithModelStoreID deserializes the model with the given ModelStoreID into
 // data. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no model
-// was found.
+// was found. Returns and error if the persisted model has a different type than
+// expected.
 func (ms *ModelStore) GetWithModelStoreID(
 	ctx context.Context,
+	t modelType,
 	id manifest.ID,
 	data model.Model,
 ) error {
@@ -199,11 +267,13 @@ func (ms *ModelStore) GetWithModelStoreID(
 		return errors.Wrap(err, "getting model data")
 	}
 
+	if metadata.Labels[manifest.TypeLabelKey] != t.String() {
+		return errors.WithStack(errModelTypeMismatch)
+	}
+
 	base := data.Base()
 	base.Tags = metadata.Labels
-	// Hide the fact that StableID and modelType are just a tag from the user.
-	delete(base.Tags, stableIDKey)
-	delete(base.Tags, manifest.TypeLabelKey)
+	stripHiddenTags(base.Tags)
 	base.ModelStoreID = id
 	return nil
 }
@@ -218,7 +288,7 @@ func (ms *ModelStore) checkPrevModelVersion(
 	t modelType,
 	b *model.BaseModel,
 ) error {
-	id, err := ms.getModelStoreID(ctx, b.StableID)
+	id, err := ms.getModelStoreID(ctx, t, b.StableID)
 	if err != nil {
 		return err
 	}
@@ -297,9 +367,10 @@ func (ms *ModelStore) Update(
 }
 
 // Delete deletes the model with the given StableID. Turns into a noop if id is
-// not empty but the model does not exist.
-func (ms *ModelStore) Delete(ctx context.Context, id model.ID) error {
-	latest, err := ms.getModelStoreID(ctx, id)
+// not empty but the model does not exist. Returns an error if multiple models
+// have the same StableID.
+func (ms *ModelStore) Delete(ctx context.Context, t modelType, id model.ID) error {
+	latest, err := ms.getModelStoreID(ctx, t, id)
 	if err != nil {
 		if errors.Is(err, manifest.ErrNotFound) {
 			return nil
