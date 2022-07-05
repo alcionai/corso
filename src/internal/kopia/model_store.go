@@ -210,8 +210,9 @@ func (ms *ModelStore) GetWithModelStoreID(
 
 // checkPrevModelVersion compares the modelType and ModelStoreID in this model
 // to model(s) previously stored in ModelStore that have the same StableID.
-// Returns an error if len(storedModels) != 1 or the modelType or ModelStoreID
-// differ between the stored model and the given model.
+// Returns an error if no models or more than one model has the same StableID or
+// the modelType or ModelStoreID differ between the stored model and the given
+// model.
 func (ms *ModelStore) checkPrevModelVersion(
 	ctx context.Context,
 	t modelType,
