@@ -14,9 +14,10 @@ import (
 const stableIDKey = "stableID"
 
 var (
-	errNoModelStoreID = errors.New("model has no ModelStoreID")
-	errNoStableID     = errors.New("model has no StableID")
-	errBadTagKey      = errors.New("tag key overlaps with required key")
+	errNoModelStoreID    = errors.New("model has no ModelStoreID")
+	errNoStableID        = errors.New("model has no StableID")
+	errBadTagKey         = errors.New("tag key overlaps with required key")
+	errModelTypeMismatch = errors.New("model has incorrect type")
 )
 
 type modelType int
@@ -199,7 +200,11 @@ func (ms *ModelStore) GetIDsForType(
 // StableID. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no
 // model was found. Returns an error if the given StableID is empty or more than
 // one model has the same StableID.
-func (ms *ModelStore) getModelStoreID(ctx context.Context, id model.ID) (manifest.ID, error) {
+func (ms *ModelStore) getModelStoreID(
+	ctx context.Context,
+	t modelType,
+	id model.ID,
+) (manifest.ID, error) {
 	if len(id) == 0 {
 		return "", errors.WithStack(errNoStableID)
 	}
@@ -216,30 +221,37 @@ func (ms *ModelStore) getModelStoreID(ctx context.Context, id model.ID) (manifes
 	if len(metadata) != 1 {
 		return "", errors.New("multiple models with same StableID")
 	}
+	if metadata[0].Labels[manifest.TypeLabelKey] != t.String() {
+		return "", errors.WithStack(errModelTypeMismatch)
+	}
 
 	return metadata[0].ID, nil
 }
 
 // Get deserializes the model with the given StableID into data. Returns
 // github.com/kopia/kopia/repo/manifest.ErrNotFound if no model was found.
+// Returns and error if the persisted model has a different type than expected.
 func (ms *ModelStore) Get(
 	ctx context.Context,
+	t modelType,
 	id model.ID,
 	data model.Model,
 ) error {
-	modelID, err := ms.getModelStoreID(ctx, id)
+	modelID, err := ms.getModelStoreID(ctx, t, id)
 	if err != nil {
 		return err
 	}
 
-	return ms.GetWithModelStoreID(ctx, modelID, data)
+	return ms.GetWithModelStoreID(ctx, t, modelID, data)
 }
 
 // GetWithModelStoreID deserializes the model with the given ModelStoreID into
 // data. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no model
-// was found.
+// was found. Returns and error if the persisted model has a different type than
+// expected.
 func (ms *ModelStore) GetWithModelStoreID(
 	ctx context.Context,
+	t modelType,
 	id manifest.ID,
 	data model.Model,
 ) error {
@@ -252,6 +264,10 @@ func (ms *ModelStore) GetWithModelStoreID(
 	// if not found. That way kopia doesn't need to be imported to higher layers.
 	if err != nil {
 		return errors.Wrap(err, "getting model data")
+	}
+
+	if metadata.Labels[manifest.TypeLabelKey] != t.String() {
+		return errors.WithStack(errModelTypeMismatch)
 	}
 
 	base := data.Base()
@@ -271,7 +287,7 @@ func (ms *ModelStore) checkPrevModelVersion(
 	t modelType,
 	b *model.BaseModel,
 ) error {
-	id, err := ms.getModelStoreID(ctx, b.StableID)
+	id, err := ms.getModelStoreID(ctx, t, b.StableID)
 	if err != nil {
 		return err
 	}
@@ -351,8 +367,8 @@ func (ms *ModelStore) Update(
 
 // Delete deletes the model with the given StableID. Turns into a noop if id is
 // not empty but the model does not exist.
-func (ms *ModelStore) Delete(ctx context.Context, id model.ID) error {
-	latest, err := ms.getModelStoreID(ctx, id)
+func (ms *ModelStore) Delete(ctx context.Context, t modelType, id model.ID) error {
+	latest, err := ms.getModelStoreID(ctx, t, id)
 	if err != nil {
 		if errors.Is(err, manifest.ErrNotFound) {
 			return nil
