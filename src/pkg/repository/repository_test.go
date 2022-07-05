@@ -11,6 +11,7 @@ import (
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -170,7 +171,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	r, err := repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)
 
-	bo, err := r.NewBackup(ctx, []string{})
+	bo, err := r.NewBackup(ctx, selectors.Selector{})
 	require.NoError(t, err)
 	require.NotNil(t, bo)
 }

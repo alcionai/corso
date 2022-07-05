@@ -13,6 +13,7 @@ import (
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type GraphConnectorIntegrationSuite struct {
@@ -31,6 +32,10 @@ func TestGraphConnectorIntetgrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
+	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+		suite.T().Skip(err)
+	}
+
 	_, err := ctesting.GetRequiredEnvVars(ctesting.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
@@ -46,14 +51,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	suite.NotNil(suite.connector)
 }
 
-type DisconnectedGraphConnectorSuite struct {
-	suite.Suite
-}
-
-func TestDisconnectedGraphSuite(t *testing.T) {
-	suite.Run(t, new(DisconnectedGraphConnectorSuite))
-}
-
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers() {
 	err := suite.connector.setTenantUsers()
 	assert.NoError(suite.T(), err)
@@ -61,14 +58,17 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
-	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
-		suite.T().Skip(err)
-	}
-	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), "lidiah@8qzvrj.onmicrosoft.com")
-	assert.NotNil(suite.T(), collectionList, "collection list")
-	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
-	assert.NotNil(suite.T(), suite.connector.status, "connector status")
-	suite.NotContains(err.Error(), "attachment failed") // TODO Create Retry Exceeded Error
+	t := suite.T()
+
+	sel := selectors.NewExchangeBackup()
+	sel.IncludeUsers("lidiah@8qzvrj.onmicrosoft.com")
+	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
+
+	assert.NotNil(t, collectionList, "collection list")
+	assert.Error(t, err) // TODO Remove after https://github.com/alcionai/corso/issues/140
+	assert.NotNil(t, suite.connector.status, "connector status")
+	assert.NotContains(t, err.Error(), "attachment failed") // TODO Create Retry Exceeded Error
+
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
@@ -90,6 +90,16 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), &edc)
 	assert.NoError(suite.T(), err)
+}
+
+// ---------------------------------------------------------------------------
+
+type DisconnectedGraphConnectorSuite struct {
+	suite.Suite
+}
+
+func TestDisconnectedGraphSuite(t *testing.T) {
+	suite.Run(t, new(DisconnectedGraphConnectorSuite))
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {

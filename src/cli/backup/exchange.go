@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // exchange bucket info from flags
@@ -72,7 +73,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	bo, err := r.NewBackup(ctx, []string{user})
+	sel := selectors.NewExchangeBackup()
+	sel.IncludeUsers(user)
+
+	bo, err := r.NewBackup(ctx, sel.Selector)
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}

@@ -20,6 +20,7 @@ import (
 
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 const (
@@ -139,11 +140,40 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // Assumption: User exists
 // TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, user string) ([]DataCollection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]DataCollection, error) {
+	eb, err := selector.ToExchangeBackup()
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting exchange data")
+	}
+
+	collections := []DataCollection{}
+	scopes := eb.Scopes()
+
+	// for each scope that includes mail messages, get all
+	for _, scope := range scopes {
+		if !scope.IncludesCategory(selectors.ExchangeMail) {
+			continue
+		}
+
+		for _, user := range scope.Get(selectors.ExchangeUser) {
+			// TODO: handle "get mail for all users"
+			// this would probably no-op without this check,
+			// but we want it made obvious that we're punting.
+			if user == selectors.All {
+				continue
+			}
+			dcs, err := gc.serializeMessages(ctx, user)
+			if err != nil {
+				return nil, err
+			}
+			collections = append(collections, dcs...)
+		}
+	}
+
 	// TODO replace with completion of Issue 124:
 
 	//TODO: Retry handler to convert return: (DataCollection, error)
-	return gc.serializeMessages(ctx, user)
+	return collections, nil
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
