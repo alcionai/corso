@@ -21,10 +21,27 @@ type fooModel struct {
 }
 
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
-	kw, err := openKopiaRepo(t, ctx)
+	w, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
-	return NewModelStore(kw)
+	return &ModelStore{w}
+}
+
+// ---------------
+// unit tests
+// ---------------
+type ModelStoreUnitSuite struct {
+	suite.Suite
+}
+
+func TestModelStoreUnitSuite(t *testing.T) {
+	suite.Run(t, new(ModelStoreUnitSuite))
+}
+func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
+	assert.NotPanics(suite.T(), func() {
+		dh := &DataHandler{}
+		dh.Close(context.Background())
+	})
 }
 
 // ---------------
@@ -58,7 +75,7 @@ func (suite *ModelStoreIntegrationSuite) SetupTest() {
 }
 
 func (suite *ModelStoreIntegrationSuite) TearDownTest() {
-	assert.NoError(suite.T(), suite.m.wrapper.Close(suite.ctx))
+	assert.NoError(suite.T(), suite.m.Close(suite.ctx))
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
@@ -309,7 +326,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			m := getModelStore(t, ctx)
 			defer func() {
-				assert.NoError(t, m.wrapper.Close(ctx))
+				assert.NoError(t, m.w.Close(ctx))
 			}()
 
 			foo := &fooModel{Bar: uuid.NewString()}
@@ -376,7 +393,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 
 			m := getModelStore(t, ctx)
 			defer func() {
-				assert.NoError(t, m.wrapper.Close(ctx))
+				assert.NoError(t, m.w.Close(ctx))
 			}()
 
 			foo := &fooModel{Bar: uuid.NewString()}
@@ -446,7 +463,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 
 	m := getModelStore(t, ctx)
 	defer func() {
-		assert.NoError(t, m.wrapper.Close(ctx))
+		assert.NoError(t, m.w.Close(ctx))
 	}()
 
 	foo := &fooModel{Bar: uuid.NewString()}
@@ -462,7 +479,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	newID := manifest.ID("")
 	err := repo.WriteSession(
 		ctx,
-		m.wrapper.rep,
+		m.w,
 		repo.WriteSessionOptions{Purpose: "WriteSessionFailureTest"},
 		func(innerCtx context.Context, w repo.RepositoryWriter) (innerErr error) {
 			base := foo.Base()

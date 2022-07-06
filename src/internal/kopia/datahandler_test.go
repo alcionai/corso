@@ -238,7 +238,7 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
 	suite.ctx = context.Background()
-	k, err := openKopiaRepo(suite.T(), suite.ctx)
+	w, err := openKopiaRepo(suite.T(), suite.ctx)
 	require.NoError(suite.T(), err)
 	suite.k = &DataHandler{w}
 }
@@ -296,7 +296,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	t := suite.T()
 	suite.ctx = context.Background()
-	k, err := openKopiaRepo(t, suite.ctx)
+	w, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
 
 	suite.k = &DataHandler{w}

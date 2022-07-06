@@ -21,7 +21,7 @@ type Repository struct {
 
 	Account   account.Account // the user's m365 account connection details
 	Storage   storage.Storage // the storage provider details and configuration
-	dataLayer *kopia.KopiaWrapper
+	dataLayer *kopia.DataHandler
 }
 
 // Initialize will:
@@ -37,16 +37,25 @@ func Initialize(
 	acct account.Account,
 	storage storage.Storage,
 ) (*Repository, error) {
-	k := kopia.New(storage)
-	if err := k.Initialize(ctx); err != nil {
+	kopiaRef := kopia.New(storage)
+	if err := kopiaRef.Initialize(ctx); err != nil {
 		return nil, err
 	}
+	// kopiaRef comes with a count of 1 and NewDataHandler bumps it again so safe
+	// to close here.
+	defer kopiaRef.Close(ctx)
+
+	dh, err := kopia.NewDataHandler(kopiaRef)
+	if err != nil {
+		return nil, err
+	}
+
 	r := Repository{
 		ID:        uuid.New(),
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		dataLayer: k,
+		dataLayer: dh,
 	}
 	return &r, nil
 }
@@ -61,16 +70,25 @@ func Connect(
 	acct account.Account,
 	storage storage.Storage,
 ) (*Repository, error) {
-	k := kopia.New(storage)
-	if err := k.Connect(ctx); err != nil {
+	kopiaRef := kopia.New(storage)
+	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
 	}
+	// kopiaRef comes with a count of 1 and NewDataHandler bumps it again so safe
+	// to close here.
+	defer kopiaRef.Close(ctx)
+
+	dh, err := kopia.NewDataHandler(kopiaRef)
+	if err != nil {
+		return nil, err
+	}
+
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	r := Repository{
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		dataLayer: k,
+		dataLayer: dh,
 	}
 	return &r, nil
 }

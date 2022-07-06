@@ -24,10 +24,10 @@ func (suite *OperationSuite) TestNewOperation() {
 }
 
 func (suite *OperationSuite) TestOperation_Validate() {
-	kwStub := &kopia.KopiaWrapper{}
+	kwStub := &kopia.DataHandler{}
 	table := []struct {
 		name     string
-		kw       *kopia.KopiaWrapper
+		kw       *kopia.DataHandler
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{"good", kwStub, assert.NoError},

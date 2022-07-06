@@ -31,7 +31,7 @@ type operation struct {
 	Options   Options   `json:"options"`
 	Status    opStatus  `json:"status"`
 
-	kopia *kopia.KopiaWrapper
+	kopia *kopia.DataHandler
 }
 
 // Options configure some parameters of the operation
@@ -42,7 +42,7 @@ type Options struct {
 
 func newOperation(
 	opts Options,
-	kw *kopia.KopiaWrapper,
+	kw *kopia.DataHandler,
 ) operation {
 	return operation{
 		ID:        uuid.New(),
