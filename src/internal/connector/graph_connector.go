@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/alcionai/corso/internal/connector/support"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -18,6 +17,7 @@ import (
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -148,6 +148,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 
 	collections := []DataCollection{}
 	scopes := eb.Scopes()
+	var errs error
 
 	// for each scope that includes mail messages, get all
 	for _, scope := range scopes {
@@ -164,16 +165,18 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 			}
 			dcs, err := gc.serializeMessages(ctx, user)
 			if err != nil {
-				return nil, err
+				errs = support.WrapAndAppend(user, err, errs)
 			}
-			collections = append(collections, dcs...)
+			if len(dcs) > 0 {
+				collections = append(collections, dcs...)
+			}
 		}
 	}
 
 	// TODO replace with completion of Issue 124:
 
 	//TODO: Retry handler to convert return: (DataCollection, error)
-	return collections, nil
+	return collections, errs
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
