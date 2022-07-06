@@ -1,8 +1,6 @@
 package backup
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -79,12 +77,13 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
 
-	result, err := bo.Run(ctx)
+	err = bo.Run(ctx)
 	if err != nil {
 		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
-	fmt.Printf("Backed up restore point %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
+	// todo: revive when restorePoints are hooked up to backupOperation results
+	// fmt.Printf("Backed up restore point %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
 	return nil
 }
 

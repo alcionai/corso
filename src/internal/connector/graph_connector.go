@@ -286,7 +286,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	status, err := support.CreateStatus(support.Backup, totalItems, success, len(folderList), errs)
 	if err == nil {
 		gc.SetStatus(*status)
-		logger.Ctx(ctx).Debugw(gc.Status())
+		logger.Ctx(ctx).Debugw(gc.PrintableStatus())
 	}
 	return collections, errs
 }
@@ -371,7 +371,13 @@ func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 	gc.status = &cos
 }
 
-func (gc *GraphConnector) Status() string {
+// Status returns the current status of the graphConnector operaion.
+func (gc *GraphConnector) Status() *support.ConnectorOperationStatus {
+	return gc.status
+}
+
+// PrintableStatus returns a string formatted version of the GC status.
+func (gc *GraphConnector) PrintableStatus() string {
 	if gc.status == nil {
 		return ""
 	}
