@@ -39,12 +39,12 @@ func SetNonRecoverableError(e error) error {
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error
 // and return it as a mulitierror
-func WrapAndAppend(identifier string, e error, previous error) error {
+func WrapAndAppend(identifier string, e, previous error) error {
 	return multierror.Append(previous, errors.Wrap(e, identifier))
 }
 
 // WrapErrorAndAppendf format version of WrapErrorAndAppend
-func WrapAndAppendf(identifier interface{}, e error, previous error) error {
+func WrapAndAppendf(identifier interface{}, e, previous error) error {
 	return multierror.Append(previous, errors.Wrapf(e, "%v", identifier))
 }
 

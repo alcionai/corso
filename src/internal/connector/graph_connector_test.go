@@ -65,9 +65,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 		suite.T().Skip(err)
 	}
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), "lidiah@8qzvrj.onmicrosoft.com")
-	assert.NotNil(suite.T(), collectionList)
+	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Error(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
-	assert.NotNil(suite.T(), suite.connector.status)
+	assert.NotNil(suite.T(), suite.connector.status, "connector status")
 	suite.NotContains(err.Error(), "attachment failed") // TODO Create Retry Exceeded Error
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
