@@ -34,7 +34,7 @@ type BackupResults struct {
 func NewBackupOperation(
 	ctx context.Context,
 	opts Options,
-	kw *kopia.DataHandler,
+	kw *kopia.Wrapper,
 	acct account.Account,
 	targets []string,
 ) (BackupOperation, error) {

@@ -21,10 +21,10 @@ type fooModel struct {
 }
 
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
-	w, err := openKopiaRepo(t, ctx)
+	c, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
-	return &ModelStore{w}
+	return &ModelStore{c}
 }
 
 // ---------------
@@ -39,8 +39,8 @@ func TestModelStoreUnitSuite(t *testing.T) {
 }
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
-		dh := &DataHandler{}
-		dh.Close(context.Background())
+		m := &ModelStore{}
+		m.Close(context.Background())
 	})
 }
 
@@ -326,7 +326,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			m := getModelStore(t, ctx)
 			defer func() {
-				assert.NoError(t, m.w.Close(ctx))
+				assert.NoError(t, m.c.Close(ctx))
 			}()
 
 			foo := &fooModel{Bar: uuid.NewString()}
@@ -393,7 +393,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 
 			m := getModelStore(t, ctx)
 			defer func() {
-				assert.NoError(t, m.w.Close(ctx))
+				assert.NoError(t, m.c.Close(ctx))
 			}()
 
 			foo := &fooModel{Bar: uuid.NewString()}
@@ -463,7 +463,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 
 	m := getModelStore(t, ctx)
 	defer func() {
-		assert.NoError(t, m.w.Close(ctx))
+		assert.NoError(t, m.c.Close(ctx))
 	}()
 
 	foo := &fooModel{Bar: uuid.NewString()}
@@ -479,7 +479,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	newID := manifest.ID("")
 	err := repo.WriteSession(
 		ctx,
-		m.w,
+		m.c,
 		repo.WriteSessionOptions{Purpose: "WriteSessionFailureTest"},
 		func(innerCtx context.Context, w repo.RepositoryWriter) (innerErr error) {
 			base := foo.Base()

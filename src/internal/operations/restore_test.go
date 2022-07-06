@@ -35,7 +35,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	ctx := context.Background()
 
 	var (
-		kw        = &kopia.DataHandler{}
+		kw        = &kopia.Wrapper{}
 		acct      = account.Account{}
 		now       = time.Now()
 		cs        = []connector.DataCollection{&connector.ExchangeDataCollection{}}
@@ -78,14 +78,14 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
-	kw := &kopia.DataHandler{}
+	kw := &kopia.Wrapper{}
 	acct, err := ctesting.NewM365Account()
 	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name     string
 		opts     Options
-		kw       *kopia.DataHandler
+		kw       *kopia.Wrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc

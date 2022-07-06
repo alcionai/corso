@@ -21,7 +21,7 @@ type Repository struct {
 
 	Account   account.Account // the user's m365 account connection details
 	Storage   storage.Storage // the storage provider details and configuration
-	dataLayer *kopia.DataHandler
+	dataLayer *kopia.Wrapper
 }
 
 // Initialize will:
@@ -41,11 +41,11 @@ func Initialize(
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		return nil, err
 	}
-	// kopiaRef comes with a count of 1 and NewDataHandler bumps it again so safe
+	// kopiaRef comes with a count of 1 and NewWrapper bumps it again so safe
 	// to close here.
 	defer kopiaRef.Close(ctx)
 
-	dh, err := kopia.NewDataHandler(kopiaRef)
+	w, err := kopia.NewWrapper(kopiaRef)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func Initialize(
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		dataLayer: dh,
+		dataLayer: w,
 	}
 	return &r, nil
 }
@@ -74,11 +74,11 @@ func Connect(
 	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
 	}
-	// kopiaRef comes with a count of 1 and NewDataHandler bumps it again so safe
+	// kopiaRef comes with a count of 1 and NewWrapper bumps it again so safe
 	// to close here.
 	defer kopiaRef.Close(ctx)
 
-	dh, err := kopia.NewDataHandler(kopiaRef)
+	w, err := kopia.NewWrapper(kopiaRef)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func Connect(
 		Version:   "v1",
 		Account:   acct,
 		Storage:   storage,
-		dataLayer: dh,
+		dataLayer: w,
 	}
 	return &r, nil
 }
