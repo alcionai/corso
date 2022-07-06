@@ -69,8 +69,54 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // -------------------
 // Exclude/Includes
 
-func contactScope(u, f string, vs ...string) map[string]string {
-	return map[string]string{
+func (s *exchange) Include(scopes ...exchangeScope) {
+	if s.Includes == nil {
+		s.Includes = []map[string]string{}
+	}
+	for _, sc := range scopes {
+		switch sc.Category() {
+		case ExchangeContactFolder:
+			sc[ExchangeContact.String()] = All
+		case ExchangeMailFolder:
+			sc[ExchangeMail.String()] = All
+		case ExchangeUser:
+			sc[ExchangeContactFolder.String()] = All
+			sc[ExchangeContact.String()] = All
+			sc[ExchangeEvent.String()] = All
+			sc[ExchangeMailFolder.String()] = All
+			sc[ExchangeMail.String()] = All
+		}
+		s.Includes = append(s.Includes, map[string]string(sc))
+	}
+}
+
+func (s *exchange) Exclude(scopes ...exchangeScope) {
+	if s.Excludes == nil {
+		s.Excludes = []map[string]string{}
+	}
+	for _, sc := range scopes {
+		switch sc.Category() {
+		case ExchangeContactFolder:
+			sc[ExchangeContact.String()] = None
+		case ExchangeMailFolder:
+			sc[ExchangeMail.String()] = None
+		case ExchangeUser:
+			sc[ExchangeContactFolder.String()] = None
+			sc[ExchangeContact.String()] = None
+			sc[ExchangeEvent.String()] = None
+			sc[ExchangeMailFolder.String()] = None
+			sc[ExchangeMail.String()] = None
+		}
+		s.Excludes = append(s.Excludes, map[string]string(sc))
+	}
+}
+
+// -------------------
+// Scope Factory
+
+func (s *exchange) Contacts(u, f string, vs ...string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity:            Item,
 		scopeKeyCategory:               ExchangeContact.String(),
 		ExchangeUser.String():          u,
 		ExchangeContactFolder.String(): f,
@@ -78,62 +124,27 @@ func contactScope(u, f string, vs ...string) map[string]string {
 	}
 }
 
-// ExcludeContacts selects the specified contacts owned by the user.
-// Use selectors.None to ignore user or folder matching.
-func (s *exchange) ExcludeContacts(user, folder string, vs ...string) {
-	s.Excludes = append(s.Excludes, contactScope(user, folder, vs...))
-}
-
-// IncludeContacts selects the specified contacts owned by the user.
-func (s *exchange) IncludeContacts(user, folder string, vs ...string) {
-	s.Includes = append(s.Includes, contactScope(user, folder, vs...))
-}
-
-func contactFolderScope(include bool, u string, vs ...string) map[string]string {
-	wildcard := All
-	if !include {
-		wildcard = None
-	}
-	return map[string]string{
+func (s *exchange) ContactFolders(u string, vs ...string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity:            Directory,
 		scopeKeyCategory:               ExchangeContactFolder.String(),
 		ExchangeUser.String():          u,
 		ExchangeContactFolder.String(): join(vs...),
-		ExchangeContact.String():       wildcard,
 	}
 }
 
-// ExcludeContactFolders selects the specified contactFolders owned by the user.
-// Use selectors.None to ignore user matching.
-func (s *exchange) ExcludeContactFolders(user string, vs ...string) {
-	s.Excludes = append(s.Excludes, contactFolderScope(false, user, vs...))
-}
-
-// IncludeContactFolders selects the specified contactFolders owned by the user.
-func (s *exchange) IncludeContactFolders(user string, vs ...string) {
-	s.Includes = append(s.Includes, contactFolderScope(true, user, vs...))
-}
-
-func eventScope(u string, vs ...string) map[string]string {
+func (s *exchange) Events(u string, vs ...string) map[string]string {
 	return map[string]string{
+		scopeKeyGranularity:    Item,
 		scopeKeyCategory:       ExchangeEvent.String(),
 		ExchangeUser.String():  u,
 		ExchangeEvent.String(): join(vs...),
 	}
 }
 
-// ExcludeEvents selects the specified events owned by the user.
-// Use selectors.None to ignore user matching.
-func (s *exchange) ExcludeEvents(user string, vs ...string) {
-	s.Excludes = append(s.Excludes, eventScope(user, vs...))
-}
-
-// IncludeEvents selects the specified events owned by the user.
-func (s *exchange) IncludeEvents(user string, vs ...string) {
-	s.Includes = append(s.Includes, eventScope(user, vs...))
-}
-
-func mailScope(u, f string, vs ...string) map[string]string {
+func (s *exchange) Mails(u, f string, vs ...string) map[string]string {
 	return map[string]string{
+		scopeKeyGranularity:         Item,
 		scopeKeyCategory:            ExchangeMail.String(),
 		ExchangeUser.String():       u,
 		ExchangeMailFolder.String(): f,
@@ -141,67 +152,21 @@ func mailScope(u, f string, vs ...string) map[string]string {
 	}
 }
 
-// ExcludeMail selects the specified mail messages within the given folder,
-// owned by the user.
-// Use selectors.None to ignore user or folder matching.
-func (s *exchange) ExcludeMail(user, folder string, vs ...string) {
-	s.Excludes = append(s.Excludes, mailScope(user, folder, vs...))
-}
-
-// IncludeMail selects the specified mail messages within the given folder,
-// owned by the user.
-func (s *exchange) IncludeMail(user, folder string, vs ...string) {
-	s.Includes = append(s.Includes, mailScope(user, folder, vs...))
-}
-
-func mailFolderScope(include bool, u string, vs ...string) map[string]string {
-	wildcard := All
-	if !include {
-		wildcard = None
-	}
+func (s *exchange) MailFolders(u string, vs ...string) map[string]string {
 	return map[string]string{
+		scopeKeyGranularity:         Directory,
 		scopeKeyCategory:            ExchangeMailFolder.String(),
 		ExchangeUser.String():       u,
 		ExchangeMailFolder.String(): join(vs...),
-		ExchangeMail.String():       wildcard,
 	}
 }
 
-// ExcludeMailFolders selects the specified mail folders owned by the user.
-// Use selectors.None to ignore user or folder matching.
-func (s *exchange) ExcludeMailFolders(user string, vs ...string) {
-	s.Excludes = append(s.Excludes, mailFolderScope(false, user, vs...))
-}
-
-// IncludeMailFolders selects the specified mail folders owned by the user.
-func (s *exchange) IncludeMailFolders(user string, vs ...string) {
-	s.Includes = append(s.Includes, mailFolderScope(true, user, vs...))
-}
-
-func userScope(include bool, vs ...string) map[string]string {
-	wildcard := All
-	if !include {
-		wildcard = None
-	}
+func (s *exchange) Users(vs ...string) map[string]string {
 	return map[string]string{
-		scopeKeyCategory:               ExchangeUser.String(),
-		ExchangeUser.String():          join(vs...),
-		ExchangeContact.String():       wildcard,
-		ExchangeContactFolder.String(): wildcard,
-		ExchangeEvent.String():         wildcard,
-		ExchangeMail.String():          wildcard,
-		ExchangeMailFolder.String():    wildcard,
+		scopeKeyGranularity:   Directory,
+		scopeKeyCategory:      ExchangeUser.String(),
+		ExchangeUser.String(): join(vs...),
 	}
-}
-
-// ExcludeUsers selects the specified users.  All of their data is excluded.
-func (s *exchange) ExcludeUsers(vs ...string) {
-	s.Excludes = append(s.Excludes, userScope(false, vs...))
-}
-
-// IncludeUsers selects the specified users.  All of their data is included.
-func (s *exchange) IncludeUsers(vs ...string) {
-	s.Includes = append(s.Includes, userScope(true, vs...))
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +253,12 @@ func exchangeCatAtoI(s string) exchangeCategory {
 	default:
 		return ExchangeCategoryUnknown
 	}
+}
+
+// Granularity describes the granularity (directory || item)
+// of the data in scope
+func (s exchangeScope) Granularity() string {
+	return s[scopeKeyGranularity]
 }
 
 // Category describes the type of the data in scope.

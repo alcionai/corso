@@ -17,7 +17,13 @@ const (
 var ErrorBadSelectorCast = errors.New("wrong selector service type")
 
 const (
-	scopeKeyCategory = "category"
+	scopeKeyCategory    = "category"
+	scopeKeyGranularity = "granularity"
+)
+
+const (
+	Directory = "directory"
+	Item      = "item"
 )
 
 const (
