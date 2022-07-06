@@ -26,7 +26,7 @@ const (
 	All = "ß∂ƒ∑´®≈ç√¬˜"
 	// None is usesd to express "no data of <type>"
 	// Ex: {user: u1, events: None} => no events for user u1.
-	None = "√ç≈œ´∆¬˚¨π"
+	None = ""
 
 	delimiter = ","
 )
