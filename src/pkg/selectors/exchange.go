@@ -1,9 +1,5 @@
 package selectors
 
-import (
-	"strings"
-)
-
 // ---------------------------------------------------------------------------
 // Selectors
 // ---------------------------------------------------------------------------
@@ -70,66 +66,118 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 	return &src, nil
 }
 
-// IncludeContacts selects the specified contacts owned by the user.
-func (s *exchange) IncludeContacts(u string, vs ...string) {
-	// todo
-}
+// -------------------
+// Exclude/Includes
 
-// IncludeContactFolders selects the specified contactFolders owned by the user.
-func (s *exchange) IncludeContactFolders(u string, vs ...string) {
-	// todo
-}
-
-// IncludeEvents selects the specified events owned by the user.
-func (s *exchange) IncludeEvents(u string, vs ...string) {
-	// todo
-}
-
-// IncludeMail selects the specified mail messages within the given folder,
-// owned by the user.
-func (s *exchange) IncludeMail(u, f string, vs ...string) {
-	// todo
-}
-
-// IncludeMailFolders selects the specified mail folders owned by the user.
-func (s *exchange) IncludeMailFolders(u string, vs ...string) {
-	// todo
-}
-
-// IncludeUsers selects the specified users.  All of their data is included.
-func (s *exchange) IncludeUsers(us ...string) {
-	// todo
+func contactScope(u, f string, vs ...string) map[string]string {
+	return map[string]string{
+		scopeKeyCategory:               ExchangeContact.String(),
+		ExchangeUser.String():          u,
+		ExchangeContactFolder.String(): f,
+		ExchangeContact.String():       join(vs...),
+	}
 }
 
 // ExcludeContacts selects the specified contacts owned by the user.
-func (s *exchange) ExcludeContacts(u string, vs ...string) {
-	// todo
+func (s *exchange) ExcludeContacts(user, folder string, vs ...string) {
+	s.Excludes = append(s.Excludes, contactScope(user, folder, vs...))
+}
+
+// IncludeContacts selects the specified contacts owned by the user.
+func (s *exchange) IncludeContacts(user, folder string, vs ...string) {
+	s.Includes = append(s.Includes, contactScope(user, folder, vs...))
+}
+
+func contactFolderScope(u string, vs ...string) map[string]string {
+	return map[string]string{
+		scopeKeyCategory:               ExchangeContactFolder.String(),
+		ExchangeUser.String():          u,
+		ExchangeContactFolder.String(): join(vs...),
+	}
+}
+
+// IncludeContactFolders selects the specified contactFolders owned by the user.
+func (s *exchange) IncludeContactFolders(user string, vs ...string) {
+	s.Includes = append(s.Includes, contactFolderScope(user, vs...))
 }
 
 // ExcludeContactFolders selects the specified contactFolders owned by the user.
-func (s *exchange) ExcludeContactFolders(u string, vs ...string) {
-	// todo
+func (s *exchange) ExcludeContactFolders(user string, vs ...string) {
+	s.Excludes = append(s.Excludes, contactFolderScope(user, vs...))
+}
+
+func eventScope(u string, vs ...string) map[string]string {
+	return map[string]string{
+		scopeKeyCategory:       ExchangeEvent.String(),
+		ExchangeUser.String():  u,
+		ExchangeEvent.String(): join(vs...),
+	}
 }
 
 // ExcludeEvents selects the specified events owned by the user.
-func (s *exchange) ExcludeEvents(u string, vs ...string) {
-	// todo
+func (s *exchange) ExcludeEvents(user string, vs ...string) {
+	s.Excludes = append(s.Excludes, eventScope(user, vs...))
+}
+
+// IncludeEvents selects the specified events owned by the user.
+func (s *exchange) IncludeEvents(user string, vs ...string) {
+	s.Includes = append(s.Includes, eventScope(user, vs...))
+}
+
+func mailScope(u, f string, vs ...string) map[string]string {
+	return map[string]string{
+		scopeKeyCategory:            ExchangeMail.String(),
+		ExchangeUser.String():       u,
+		ExchangeMailFolder.String(): f,
+		ExchangeMail.String():       join(vs...),
+	}
 }
 
 // ExcludeMail selects the specified mail messages within the given folder,
 // owned by the user.
-func (s *exchange) ExcludeMail(u, f string, vs ...string) {
-	// todo
+func (s *exchange) ExcludeMail(user, folder string, vs ...string) {
+	s.Excludes = append(s.Excludes, mailScope(user, folder, vs...))
+}
+
+// IncludeMail selects the specified mail messages within the given folder,
+// owned by the user.
+func (s *exchange) IncludeMail(user, folder string, vs ...string) {
+	s.Includes = append(s.Includes, mailScope(user, folder, vs...))
+}
+
+func mailFolderScope(u string, vs ...string) map[string]string {
+	return map[string]string{
+		scopeKeyCategory:            ExchangeMailFolder.String(),
+		ExchangeUser.String():       u,
+		ExchangeMailFolder.String(): join(vs...),
+	}
 }
 
 // ExcludeMailFolders selects the specified mail folders owned by the user.
-func (s *exchange) ExcludeMailFolders(u string, vs ...string) {
-	// todo
+func (s *exchange) ExcludeMailFolders(user string, vs ...string) {
+	s.Excludes = append(s.Excludes, mailFolderScope(user, vs...))
+}
+
+// IncludeMailFolders selects the specified mail folders owned by the user.
+func (s *exchange) IncludeMailFolders(user string, vs ...string) {
+	s.Includes = append(s.Includes, mailFolderScope(user, vs...))
+}
+
+func userScope(vs ...string) map[string]string {
+	return map[string]string{
+		scopeKeyCategory:      ExchangeUser.String(),
+		ExchangeUser.String(): join(vs...),
+	}
 }
 
 // ExcludeUsers selects the specified users.  All of their data is excluded.
-func (s *exchange) ExcludeUsers(us ...string) {
-	// todo
+func (s *exchange) ExcludeUsers(vs ...string) {
+	s.Excludes = append(s.Excludes, userScope(vs...))
+}
+
+// IncludeUsers selects the specified users.  All of their data is included.
+func (s *exchange) IncludeUsers(vs ...string) {
+	s.Includes = append(s.Includes, userScope(vs...))
 }
 
 // ---------------------------------------------------------------------------
@@ -254,5 +302,5 @@ func (s exchangeScope) Get(cat exchangeCategory) []string {
 	if !ok {
 		return []string{None}
 	}
-	return strings.Split(v, ",")
+	return split(v)
 }
