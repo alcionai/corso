@@ -24,7 +24,7 @@ type RestorePoint struct {
 	// - Backup "Specification"
 }
 
-func New(snapshotID string, detailsID string) *RestorePoint {
+func New(snapshotID, detailsID string) *RestorePoint {
 	return &RestorePoint{
 		CreationTime: time.Now(),
 		SnapshotID:   snapshotID,
@@ -38,7 +38,7 @@ type Details struct {
 	Entries []DetailsEntry `json:"entries"`
 
 	// internal
-	mu sync.Mutex
+	mu sync.Mutex `json:"-"`
 }
 
 // DetailsEntry describes a single item stored in a RestorePoint
