@@ -6,7 +6,6 @@ import (
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo"
-	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
@@ -14,12 +13,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/pkg/storage"
 )
 
 const (
-	defaultKopiaConfigFilePath = "/tmp/repository.config"
-
 	// TODO(ashmrtnz): These should be some values from upper layer corso,
 	// possibly corresponding to who is making the backup.
 	kTestHost = "a-test-machine"
@@ -27,8 +23,6 @@ const (
 )
 
 var (
-	errInit           = errors.New("initializing repo")
-	errConnect        = errors.New("connecting repo")
 	errNotConnected   = errors.New("not connected to repo")
 	errUnsupportedDir = errors.New("unsupported static children in streaming directory")
 )
@@ -55,113 +49,26 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 	}
 }
 
-type KopiaWrapper struct {
-	storage storage.Storage
-	rep     repo.Repository
+func NewDataHandler(w *wrapper) (*DataHandler, error) {
+	if err := w.wrap(); err != nil {
+		return nil, errors.Wrap(err, "creating DataHandler")
+	}
+	return &DataHandler{w}, nil
 }
 
-func New(s storage.Storage) *KopiaWrapper {
-	return &KopiaWrapper{storage: s}
+type DataHandler struct {
+	w *wrapper
 }
 
-func (kw *KopiaWrapper) Initialize(ctx context.Context) error {
-	bst, err := blobStoreByProvider(ctx, kw.storage)
-	if err != nil {
-		return errors.Wrap(err, errInit.Error())
-	}
-	defer bst.Close(ctx)
-
-	cfg, err := kw.storage.CommonConfig()
-	if err != nil {
-		return err
-	}
-
-	// todo - issue #75: nil here should be a storage.NewRepoOptions()
-	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassword); err != nil {
-		return errors.Wrap(err, errInit.Error())
-	}
-
-	// todo - issue #75: nil here should be a storage.ConnectOptions()
-	if err := repo.Connect(
-		ctx,
-		defaultKopiaConfigFilePath,
-		bst,
-		cfg.CorsoPassword,
-		nil,
-	); err != nil {
-		return errors.Wrap(err, errConnect.Error())
-	}
-
-	if err := kw.open(ctx, cfg.CorsoPassword); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (kw *KopiaWrapper) Connect(ctx context.Context) error {
-	bst, err := blobStoreByProvider(ctx, kw.storage)
-	if err != nil {
-		return errors.Wrap(err, errInit.Error())
-	}
-	defer bst.Close(ctx)
-
-	cfg, err := kw.storage.CommonConfig()
-	if err != nil {
-		return err
-	}
-
-	// todo - issue #75: nil here should be storage.ConnectOptions()
-	if err := repo.Connect(
-		ctx,
-		defaultKopiaConfigFilePath,
-		bst,
-		cfg.CorsoPassword,
-		nil,
-	); err != nil {
-		return errors.Wrap(err, errConnect.Error())
-	}
-
-	if err := kw.open(ctx, cfg.CorsoPassword); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
-	switch s.Provider {
-	case storage.ProviderS3:
-		return s3BlobStorage(ctx, s)
-	default:
-		return nil, errors.New("storage provider details are required")
-	}
-}
-
-func (kw *KopiaWrapper) Close(ctx context.Context) error {
-	if kw.rep == nil {
+func (dh *DataHandler) Close(ctx context.Context) error {
+	if dh.w == nil {
 		return nil
 	}
 
-	err := kw.rep.Close(ctx)
-	kw.rep = nil
+	err := dh.w.Close(ctx)
+	dh.w = nil
 
-	if err != nil {
-		return errors.Wrap(err, "closing repository connection")
-	}
-
-	return nil
-}
-
-func (kw *KopiaWrapper) open(ctx context.Context, password string) error {
-	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
-	rep, err := repo.Open(ctx, defaultKopiaConfigFilePath, password, nil)
-	if err != nil {
-		return errors.Wrap(err, "opening repository connection")
-	}
-
-	kw.rep = rep
-	return nil
+	return errors.Wrap(err, "closing DataHandler")
 }
 
 // getStreamItemFunc returns a function that can be used by kopia's
@@ -306,11 +213,11 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 	return res, nil
 }
 
-func (kw KopiaWrapper) BackupCollections(
+func (dh DataHandler) BackupCollections(
 	ctx context.Context,
 	collections []connector.DataCollection,
 ) (*BackupStats, error) {
-	if kw.rep == nil {
+	if dh.w == nil {
 		return nil, errNotConnected
 	}
 
@@ -319,7 +226,7 @@ func (kw KopiaWrapper) BackupCollections(
 		return nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	stats, err := kw.makeSnapshotWithRoot(ctx, dirTree)
+	stats, err := dh.makeSnapshotWithRoot(ctx, dirTree)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +234,7 @@ func (kw KopiaWrapper) BackupCollections(
 	return stats, nil
 }
 
-func (kw KopiaWrapper) makeSnapshotWithRoot(
+func (dh DataHandler) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
 ) (*BackupStats, error) {
@@ -337,12 +244,12 @@ func (kw KopiaWrapper) makeSnapshotWithRoot(
 		// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
 		Path: root.Name(),
 	}
-	ctx, rw, err := kw.rep.NewWriter(ctx, repo.WriteSessionOptions{})
+	ctx, rw, err := dh.w.NewWriter(ctx, repo.WriteSessionOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "get repo writer")
 	}
 
-	policyTree, err := policy.TreeForSource(ctx, kw.rep, si)
+	policyTree, err := policy.TreeForSource(ctx, dh.w, si)
 	if err != nil {
 		return nil, errors.Wrap(err, "get policy tree")
 	}
@@ -373,23 +280,23 @@ func (kw KopiaWrapper) makeSnapshotWithRoot(
 // split(dirname(itemPath), "/"). If the item does not exist in kopia or is not
 // a file an error is returned. The UUID of the returned DataStreams will be the
 // name of the kopia file the data is sourced from.
-func (kw KopiaWrapper) RestoreSingleItem(
+func (dh DataHandler) RestoreSingleItem(
 	ctx context.Context,
 	snapshotID string,
 	itemPath []string,
 ) (connector.DataCollection, error) {
-	manifest, err := snapshot.LoadSnapshot(ctx, kw.rep, manifest.ID(snapshotID))
+	manifest, err := snapshot.LoadSnapshot(ctx, dh.w, manifest.ID(snapshotID))
 	if err != nil {
 		return nil, errors.Wrap(err, "getting snapshot handle")
 	}
 
-	rootDirEntry, err := snapshotfs.SnapshotRoot(kw.rep, manifest)
+	rootDirEntry, err := snapshotfs.SnapshotRoot(dh.w, manifest)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting root directory")
 	}
 
 	// Fine if rootDirEntry is nil, will be checked in called function.
-	return kw.restoreSingleItem(ctx, rootDirEntry, itemPath[1:])
+	return dh.restoreSingleItem(ctx, rootDirEntry, itemPath[1:])
 }
 
 // restoreSingleItem looks up the item at the given path starting from rootDir
@@ -399,7 +306,7 @@ func (kw KopiaWrapper) RestoreSingleItem(
 // does not exist in kopia or is not a file an error is returned. The UUID of
 // the returned DataStreams will be the name of the kopia file the data is
 // sourced from.
-func (kw KopiaWrapper) restoreSingleItem(
+func (dh DataHandler) restoreSingleItem(
 	ctx context.Context,
 	rootDir fs.Entry,
 	itemPath []string,
