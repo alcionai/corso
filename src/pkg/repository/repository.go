@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/restorepoint"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -145,4 +146,22 @@ func (r Repository) NewRestore(ctx context.Context, restorePointID string, targe
 		r.Account,
 		restorePointID,
 		targets)
+}
+
+// RestorePoints lists restorepoints in a respository
+func (r Repository) RestorePoints(ctx context.Context) ([]*restorepoint.RestorePoint, error) {
+	bms, err := r.modelStore.GetIDsForType(ctx, kopia.RestorePointModel, nil)
+	if err != nil {
+		return nil, err
+	}
+	rps := make([]*restorepoint.RestorePoint, 0, len(bms))
+	for _, bm := range bms {
+		rp := restorepoint.RestorePoint{}
+		err := r.modelStore.GetWithModelStoreID(ctx, kopia.RestorePointModel, bm.ModelStoreID, &rp)
+		if err != nil {
+			return nil, err
+		}
+		rps = append(rps, &rp)
+	}
+	return rps, nil
 }
