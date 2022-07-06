@@ -22,12 +22,13 @@ var (
 
 type modelType int
 
-//go:generate stringer -type=modelType
+//go:generate go run golang.org/x/tools/cmd/stringer -type=modelType
 const (
 	UnknownModel = modelType(iota)
 	BackupOpModel
 	RestoreOpModel
 	RestorePointModel
+	RestorePointDetailsModel
 )
 
 func NewModelStore(kw *KopiaWrapper) *ModelStore {
