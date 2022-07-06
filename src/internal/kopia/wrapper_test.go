@@ -31,20 +31,6 @@ var (
 	testFileData = []byte("abcdefghijklmnopqrstuvwxyz")
 )
 
-func openKopiaRepo(t *testing.T, ctx context.Context) (*KopiaWrapper, error) {
-	storage, err := ctesting.NewPrefixedS3Storage(t)
-	if err != nil {
-		return nil, err
-	}
-
-	k := New(storage)
-	if err = k.Initialize(ctx); err != nil {
-		return nil, err
-	}
-
-	return k, nil
-}
-
 func entriesToNames(entries []fs.Entry) []string {
 	res := make([]string, 0, len(entries))
 
@@ -66,13 +52,10 @@ func TestKopiaUnitSuite(t *testing.T) {
 	suite.Run(t, new(KopiaUnitSuite))
 }
 
-func (suite *KopiaUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
-	ctx := context.Background()
-	ctesting.LogTimeOfTest(suite.T())
-
-	k := KopiaWrapper{}
+func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
-		k.Close(ctx)
+		w := &Wrapper{}
+		w.Close(context.Background())
 	})
 }
 
@@ -233,7 +216,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 // ---------------
 type KopiaIntegrationSuite struct {
 	suite.Suite
-	k   *KopiaWrapper
+	w   *Wrapper
 	ctx context.Context
 }
 
@@ -255,24 +238,13 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
 	suite.ctx = context.Background()
-	k, err := openKopiaRepo(suite.T(), suite.ctx)
+	c, err := openKopiaRepo(suite.T(), suite.ctx)
 	require.NoError(suite.T(), err)
-	suite.k = k
+	suite.w = &Wrapper{c}
 }
 
 func (suite *KopiaIntegrationSuite) TearDownTest() {
-	assert.NoError(suite.T(), suite.k.Close(suite.ctx))
-}
-
-func (suite *KopiaIntegrationSuite) TestCloseTwiceDoesNotCrash() {
-	ctx := context.Background()
-	t := suite.T()
-
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
-	assert.NoError(t, k.Close(ctx))
-	assert.Nil(t, k.rep)
-	assert.NoError(t, k.Close(ctx))
+	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
@@ -289,7 +261,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 
-	stats, err := suite.k.BackupCollections(suite.ctx, collections)
+	stats, err := suite.w.BackupCollections(suite.ctx, collections)
 	assert.NoError(t, err)
 	assert.Equal(t, stats.TotalFileCount, 47)
 	assert.Equal(t, stats.TotalDirectoryCount, 5)
@@ -300,7 +272,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 type KopiaSimpleRepoIntegrationSuite struct {
 	suite.Suite
-	k          *KopiaWrapper
+	w          *Wrapper
 	ctx        context.Context
 	snapshotID manifest.ID
 }
@@ -324,10 +296,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	t := suite.T()
 	suite.ctx = context.Background()
-	k, err := openKopiaRepo(t, suite.ctx)
+	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
 
-	suite.k = k
+	suite.w = &Wrapper{c}
 
 	collections := []connector.DataCollection{
 		&singleItemCollection{
@@ -339,7 +311,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		},
 	}
 
-	stats, err := suite.k.BackupCollections(suite.ctx, collections)
+	stats, err := suite.w.BackupCollections(suite.ctx, collections)
 	require.NoError(t, err)
 	require.Equal(t, stats.TotalFileCount, 1)
 	require.Equal(t, stats.TotalDirectoryCount, 3)
@@ -351,13 +323,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
-	assert.NoError(suite.T(), suite.k.Close(suite.ctx))
+	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	t := suite.T()
 
-	c, err := suite.k.RestoreSingleItem(
+	c, err := suite.w.RestoreSingleItem(
 		suite.ctx,
 		string(suite.snapshotID),
 		append(testPath, testFileUUID),
@@ -411,7 +383,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := suite.k.RestoreSingleItem(
+			_, err := suite.w.RestoreSingleItem(
 				suite.ctx,
 				string(test.snapshotIDFunc(suite.snapshotID)),
 				test.path,
@@ -427,19 +399,19 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors2() {
 	table := []struct {
 		name        string
-		rootDirFunc func(*testing.T, context.Context, *KopiaWrapper) fs.Entry
+		rootDirFunc func(*testing.T, context.Context, *Wrapper) fs.Entry
 		path        []string
 	}{
 		{
 			"FileAsRoot",
-			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+			func(t *testing.T, ctx context.Context, w *Wrapper) fs.Entry {
 				return virtualfs.StreamingFileFromReader(testFileUUID, bytes.NewReader(testFileData))
 			},
 			append(testPath[1:], testFileUUID),
 		},
 		{
 			"NoRootDir",
-			func(t *testing.T, ctx context.Context, k *KopiaWrapper) fs.Entry {
+			func(t *testing.T, ctx context.Context, w *Wrapper) fs.Entry {
 				return nil
 			},
 			append(testPath[1:], testFileUUID),
@@ -448,9 +420,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := suite.k.restoreSingleItem(
+			_, err := suite.w.restoreSingleItem(
 				suite.ctx,
-				test.rootDirFunc(t, suite.ctx, suite.k),
+				test.rootDirFunc(t, suite.ctx, suite.w),
 				test.path,
 			)
 			require.Error(t, err)

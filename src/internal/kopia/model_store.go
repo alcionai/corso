@@ -31,13 +31,27 @@ const (
 	RestorePointDetailsModel
 )
 
-func NewModelStore(kw *KopiaWrapper) *ModelStore {
-	return &ModelStore{wrapper: kw}
+func NewModelStore(c *conn) (*ModelStore, error) {
+	if err := c.wrap(); err != nil {
+		return nil, errors.Wrap(err, "creating ModelStore")
+	}
+	return &ModelStore{c: c}, nil
 }
 
 // ModelStore must not be accessed after the given KopiaWrapper is closed.
 type ModelStore struct {
-	wrapper *KopiaWrapper
+	c *conn
+}
+
+func (ms *ModelStore) Close(ctx context.Context) error {
+	if ms.c == nil {
+		return nil
+	}
+
+	err := ms.c.Close(ctx)
+	ms.c = nil
+
+	return errors.Wrap(err, "closing ModelStore")
 }
 
 // tagsForModel creates a copy of tags and adds a tag for the model type to it.
@@ -126,7 +140,7 @@ func (ms *ModelStore) Put(
 ) error {
 	err := repo.WriteSession(
 		ctx,
-		ms.wrapper.rep,
+		ms.c,
 		repo.WriteSessionOptions{Purpose: "ModelStorePut"},
 		func(innerCtx context.Context, w repo.RepositoryWriter) error {
 			err := putInner(innerCtx, w, t, m, true)
@@ -179,7 +193,7 @@ func (ms *ModelStore) GetIDsForType(
 		return nil, errors.Wrap(err, "getting model metadata")
 	}
 
-	metadata, err := ms.wrapper.rep.FindManifests(ctx, tmpTags)
+	metadata, err := ms.c.FindManifests(ctx, tmpTags)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting model metadata")
 	}
@@ -211,7 +225,7 @@ func (ms *ModelStore) getModelStoreID(
 	}
 
 	tags := map[string]string{stableIDKey: string(id)}
-	metadata, err := ms.wrapper.rep.FindManifests(ctx, tags)
+	metadata, err := ms.c.FindManifests(ctx, tags)
 	if err != nil {
 		return "", errors.Wrap(err, "getting ModelStoreID")
 	}
@@ -261,7 +275,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 		return errors.WithStack(errNoModelStoreID)
 	}
 
-	metadata, err := ms.wrapper.rep.GetManifest(ctx, id, data)
+	metadata, err := ms.c.GetManifest(ctx, id, data)
 	// TODO(ashmrtnz): Should probably return some recognizable, non-kopia error
 	// if not found. That way kopia doesn't need to be imported to higher layers.
 	if err != nil {
@@ -295,7 +309,7 @@ func (ms *ModelStore) checkPrevModelVersion(
 	}
 
 	// We actually got something back during our lookup.
-	meta, err := ms.wrapper.rep.GetManifest(ctx, id, nil)
+	meta, err := ms.c.GetManifest(ctx, id, nil)
 	if err != nil {
 		return errors.Wrap(err, "getting previous model version")
 	}
@@ -333,7 +347,7 @@ func (ms *ModelStore) Update(
 
 	err := repo.WriteSession(
 		ctx,
-		ms.wrapper.rep,
+		ms.c,
 		repo.WriteSessionOptions{Purpose: "ModelStoreUpdate"},
 		func(innerCtx context.Context, w repo.RepositoryWriter) (innerErr error) {
 			oldID := base.ModelStoreID
@@ -393,7 +407,7 @@ func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID
 
 	err := repo.WriteSession(
 		ctx,
-		ms.wrapper.rep,
+		ms.c,
 		repo.WriteSessionOptions{Purpose: "ModelStoreDelete"},
 		func(innerCtx context.Context, w repo.RepositoryWriter) error {
 			return w.DeleteManifest(innerCtx, id)

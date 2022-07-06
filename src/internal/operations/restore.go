@@ -34,7 +34,7 @@ type RestoreResults struct {
 func NewRestoreOperation(
 	ctx context.Context,
 	opts Options,
-	kw *kopia.KopiaWrapper,
+	kw *kopia.Wrapper,
 	acct account.Account,
 	restorePointID string,
 	targets []string,

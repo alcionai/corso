@@ -35,7 +35,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	ctx := context.Background()
 
 	var (
-		kw        = &kopia.KopiaWrapper{}
+		kw        = &kopia.Wrapper{}
 		acct      = account.Account{}
 		now       = time.Now()
 		cs        = []connector.DataCollection{&connector.ExchangeDataCollection{}}
@@ -86,14 +86,14 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
-	kw := &kopia.KopiaWrapper{}
+	kw := &kopia.Wrapper{}
 	acct, err := ctesting.NewM365Account()
 	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name     string
 		opts     Options
-		kw       *kopia.KopiaWrapper
+		kw       *kopia.Wrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
@@ -129,13 +129,20 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
-	k := kopia.New(st)
+	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))
+
+	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
+	// to close here.
+	defer k.Close(ctx)
+
+	w, err := kopia.NewWrapper(k)
+	require.NoError(t, err)
 
 	bo, err := NewBackupOperation(
 		ctx,
 		Options{},
-		k,
+		w,
 		acct,
 		[]string{m365User})
 	require.NoError(t, err)
