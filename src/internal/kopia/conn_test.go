@@ -17,7 +17,7 @@ func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
 		return nil, err
 	}
 
-	k := New(storage)
+	k := NewConn(storage)
 	if err = k.Initialize(ctx); err != nil {
 		return nil, err
 	}

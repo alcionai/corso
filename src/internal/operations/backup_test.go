@@ -129,20 +129,20 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	st, err := ctesting.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
-	k := kopia.New(st)
+	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
 	// to close here.
 	defer k.Close(ctx)
 
-	dh, err := kopia.NewWrapper(k)
+	w, err := kopia.NewWrapper(k)
 	require.NoError(t, err)
 
 	bo, err := NewBackupOperation(
 		ctx,
 		Options{},
-		dh,
+		w,
 		acct,
 		[]string{m365User})
 	require.NoError(t, err)

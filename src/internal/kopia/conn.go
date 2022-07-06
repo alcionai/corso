@@ -27,7 +27,7 @@ type conn struct {
 	refCount int
 }
 
-func New(s storage.Storage) *conn {
+func NewConn(s storage.Storage) *conn {
 	return &conn{
 		storage: s,
 	}

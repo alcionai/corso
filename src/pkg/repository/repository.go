@@ -37,7 +37,7 @@ func Initialize(
 	acct account.Account,
 	storage storage.Storage,
 ) (*Repository, error) {
-	kopiaRef := kopia.New(storage)
+	kopiaRef := kopia.NewConn(storage)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func Connect(
 	acct account.Account,
 	storage storage.Storage,
 ) (*Repository, error) {
-	kopiaRef := kopia.New(storage)
+	kopiaRef := kopia.NewConn(storage)
 	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
 	}
