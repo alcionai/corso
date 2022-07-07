@@ -340,13 +340,19 @@ func (w Wrapper) collectItems(
 	// The paths passed below is the path up to (but not including) the
 	// file/directory passed.
 	if isDirectory {
-		return nil, errors.New("directory restore not implemented")
+		dir, ok := e.(fs.Directory)
+		if !ok {
+			return nil, errors.New("requested object is not a directory")
+		}
+
+		return restoreSubtree(ctx, dir, itemPath[:len(itemPath)-1])
 	}
 
 	f, ok := e.(fs.File)
 	if !ok {
 		return nil, errors.New("requested object is not a file")
 	}
+
 	c, err := w.restoreSingleItem(ctx, f, itemPath[:len(itemPath)-1])
 	if err != nil {
 		return nil, err
@@ -401,4 +407,94 @@ func (w Wrapper) restoreSingleItem(
 		},
 		path: itemPath,
 	}, nil
+}
+
+func walkDirectory(
+	ctx context.Context,
+	dir fs.Directory,
+) ([]fs.File, []fs.Directory, error) {
+	files := []fs.File{}
+	dirs := []fs.Directory{}
+
+	err := dir.IterateEntries(ctx, func(innerCtx context.Context, e fs.Entry) error {
+		// Early exit on context cancel.
+		if err := innerCtx.Err(); err != nil {
+			return err
+		}
+
+		switch e.(type) {
+		case fs.Directory:
+			d := e.(fs.Directory)
+			dirs = append(dirs, d)
+		case fs.File:
+			f := e.(fs.File)
+			files = append(files, f)
+		default:
+			// TODO(ashmrtn): Should this actually be adding to a list of errors to be
+			// reported later? Current way will be fail-fast.
+			return errors.Errorf("unexpected item type %T", e)
+		}
+
+		return nil
+	})
+
+	return files, dirs, errors.Wrap(err, "getting directory data")
+}
+
+// restoreSubtree returns DataCollections for each subdirectory (or the
+// directory itself) that contains files. The FullPath of each returned
+// DataCollection is the path from the root of the kopia directory structure to
+// the directory. The UUID of each DataStream in each DataCollection is the name
+// of the kopia file the data is sourced from.
+func restoreSubtree(
+	ctx context.Context,
+	dir fs.Directory,
+	relativePath []string,
+) ([]connector.DataCollection, error) {
+	collections := []connector.DataCollection{}
+
+	files, dirs, err := walkDirectory(ctx, dir)
+	if err != nil {
+		return nil, errors.Wrap(err, "walking directory subtree")
+	}
+
+	if len(files) > 0 {
+		streams := make([]connector.DataStream, 0, len(files))
+
+		for _, f := range files {
+			r, err := f.Open(ctx)
+			if err != nil {
+				return nil, errors.Wrap(err, "getting reader for file")
+			}
+
+			streams = append(streams, &kopiaDataStream{
+				reader: r,
+				uuid:   f.Name(),
+			})
+		}
+
+		collections = append(collections, &kopiaDataCollection{
+			streams: streams,
+			path:    append(relativePath, dir.Name()),
+		})
+	}
+
+	for _, d := range dirs {
+		c, err := restoreSubtree(ctx, d, append(relativePath, dir.Name()))
+		if err != nil {
+			return nil, errors.Wrap(err, "walking subdirectory")
+		}
+
+		collections = append(collections, c...)
+	}
+
+	return collections, nil
+}
+
+func (w Wrapper) RestoreDirectory(
+	ctx context.Context,
+	snapshotID string,
+	basePath []string,
+) ([]connector.DataCollection, error) {
+	return w.collectItems(ctx, snapshotID, basePath, true)
 }
