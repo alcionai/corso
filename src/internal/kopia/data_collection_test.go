@@ -9,57 +9,94 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/connector"
 )
 
 // ---------------
 // unit tests
 // ---------------
-type SingleItemCollectionUnitSuite struct {
+type KopiaDataCollectionUnitSuite struct {
 	suite.Suite
 }
 
-func TestSingleItemCollectionUnitSuite(t *testing.T) {
-	suite.Run(t, new(SingleItemCollectionUnitSuite))
+func TestKopiaDataCollectionUnitSuite(t *testing.T) {
+	suite.Run(t, new(KopiaDataCollectionUnitSuite))
 }
 
-func (suite *SingleItemCollectionUnitSuite) TestReturnsPath() {
+func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	t := suite.T()
 
 	path := []string{"some", "path", "for", "data"}
 
-	c := singleItemCollection{
-		stream: kopiaDataStream{},
-		path:   path,
+	c := kopiaDataCollection{
+		streams: []connector.DataStream{},
+		path:    path,
 	}
 
 	assert.Equal(t, c.FullPath(), path)
 }
 
-func (suite *SingleItemCollectionUnitSuite) TestReturnsOnlyOneItem() {
-	t := suite.T()
-
-	data := []byte("abcdefghijklmnopqrstuvwxyz")
-	uuid := "a-file"
-	stream := &kopiaDataStream{
-		reader: io.NopCloser(bytes.NewReader(data)),
-		uuid:   uuid,
+func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
+	data := [][]byte{
+		[]byte("abcdefghijklmnopqrstuvwxyz"),
+		[]byte("zyxwvutsrqponmlkjihgfedcba"),
 	}
 
-	c := singleItemCollection{
-		stream: stream,
-		path:   []string{},
+	uuids := []string{
+		"a-file",
+		"another-file",
 	}
 
-	count := 0
-	for returnedStream := range c.Items() {
-		assert.Equal(t, returnedStream.UUID(), uuid)
-
-		buf, err := ioutil.ReadAll(returnedStream.ToReader())
-		require.NoError(t, err)
-		assert.Equal(t, buf, data)
-
-		count++
+	table := []struct {
+		name    string
+		streams []connector.DataStream
+	}{
+		{
+			name: "SingleStream",
+			streams: []connector.DataStream{
+				&kopiaDataStream{
+					reader: io.NopCloser(bytes.NewReader(data[0])),
+					uuid:   uuids[0],
+				},
+			},
+		},
+		{
+			name: "MultipleStreams",
+			streams: []connector.DataStream{
+				&kopiaDataStream{
+					reader: io.NopCloser(bytes.NewReader(data[0])),
+					uuid:   uuids[0],
+				},
+				&kopiaDataStream{
+					reader: io.NopCloser(bytes.NewReader(data[1])),
+					uuid:   uuids[1],
+				},
+			},
+		},
 	}
 
-	assert.Equal(t, 1, count)
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			c := kopiaDataCollection{
+				streams: test.streams,
+				path:    []string{},
+			}
+
+			count := 0
+			for returnedStream := range c.Items() {
+				require.Less(t, count, len(test.streams))
+
+				assert.Equal(t, returnedStream.UUID(), uuids[count])
+
+				buf, err := ioutil.ReadAll(returnedStream.ToReader())
+				require.NoError(t, err)
+				assert.Equal(t, buf, data[count])
+
+				count++
+			}
+
+			assert.Equal(t, len(test.streams), count)
+		})
+	}
 }

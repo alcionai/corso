@@ -6,31 +6,29 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 )
 
-var _ connector.DataCollection = &singleItemCollection{}
+var _ connector.DataCollection = &kopiaDataCollection{}
 var _ connector.DataStream = &kopiaDataStream{}
 
-// singleItemCollection implements DataCollection but only returns a single
-// DataStream. It is not safe for concurrent use.
-type singleItemCollection struct {
-	path   []string
-	stream connector.DataStream
-	used   bool
+type kopiaDataCollection struct {
+	path    []string
+	streams []connector.DataStream
 }
 
-func (sic *singleItemCollection) Items() <-chan connector.DataStream {
-	if sic.used {
-		return nil
-	}
+func (kdc *kopiaDataCollection) Items() <-chan connector.DataStream {
+	res := make(chan connector.DataStream)
+	go func() {
+		defer close(res)
 
-	sic.used = true
-	res := make(chan connector.DataStream, 1)
-	res <- sic.stream
-	close(res)
+		for _, s := range kdc.streams {
+			res <- s
+		}
+	}()
+
 	return res
 }
 
-func (sic singleItemCollection) FullPath() []string {
-	return append([]string{}, sic.path...)
+func (kdc kopiaDataCollection) FullPath() []string {
+	return append([]string{}, kdc.path...)
 }
 
 type kopiaDataStream struct {

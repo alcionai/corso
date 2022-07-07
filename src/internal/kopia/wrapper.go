@@ -329,10 +329,12 @@ func (w Wrapper) restoreSingleItem(
 	pathWithRoot := []string{rootDir.Name()}
 	pathWithRoot = append(pathWithRoot, itemPath[:len(itemPath)-1]...)
 
-	return &singleItemCollection{
-		stream: kopiaDataStream{
-			uuid:   itemPath[len(itemPath)-1],
-			reader: r,
+	return &kopiaDataCollection{
+		streams: []connector.DataStream{
+			&kopiaDataStream{
+				uuid:   f.Name(),
+				reader: r,
+			},
 		},
 		path: pathWithRoot,
 	}, nil
