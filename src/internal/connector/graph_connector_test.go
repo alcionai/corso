@@ -170,12 +170,13 @@ func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	gc := GraphConnector{}
-	suite.Equal(len(gc.Status()), 0)
+	suite.Equal(len(gc.PrintableStatus()), 0)
 	status, err := support.CreateStatus(support.Restore, 12, 9, 8,
 		support.WrapAndAppend("tres", errors.New("three"), support.WrapAndAppend("arc376", errors.New("one"), errors.New("two"))))
 	assert.NoError(suite.T(), err)
 	gc.SetStatus(*status)
-	suite.Greater(len(gc.Status()), 0)
+	suite.Greater(len(gc.PrintableStatus()), 0)
+	suite.Greater(gc.Status().ObjectCount, 0)
 }
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {
 	tests := []struct {
