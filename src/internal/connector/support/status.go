@@ -7,7 +7,7 @@ import (
 
 type ConnectorOperationStatus struct {
 	lastOperation    Operation
-	objectCount      int
+	ObjectCount      int
 	folderCount      int
 	successful       int
 	errorCount       int
@@ -33,14 +33,14 @@ func CreateStatus(op Operation, objects, success, folders int, err error) (*Conn
 	}
 	status := ConnectorOperationStatus{
 		lastOperation:    op,
-		objectCount:      objects,
+		ObjectCount:      objects,
 		folderCount:      folders,
 		successful:       success,
 		errorCount:       GetNumberOfErrors(err),
 		incomplete:       hasErrors,
 		incompleteReason: reason,
 	}
-	if status.objectCount != status.errorCount+status.successful {
+	if status.ObjectCount != status.errorCount+status.successful {
 		return nil, errors.New("incorrect total on initialization")
 	}
 	return &status, nil
@@ -48,7 +48,7 @@ func CreateStatus(op Operation, objects, success, folders int, err error) (*Conn
 
 func (cos *ConnectorOperationStatus) String() string {
 	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
-		cos.successful, cos.objectCount, cos.folderCount)
+		cos.successful, cos.ObjectCount, cos.folderCount)
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
 	}
