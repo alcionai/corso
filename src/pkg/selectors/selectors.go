@@ -22,8 +22,8 @@ const (
 )
 
 const (
-	Directory = "directory"
-	Item      = "item"
+	Group = "group"
+	Item  = "item"
 )
 
 const (

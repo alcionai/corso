@@ -69,46 +69,45 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // -------------------
 // Exclude/Includes
 
+// Include appends the provided scopes to the selector's inclusion set.
 func (s *exchange) Include(scopes ...exchangeScope) {
 	if s.Includes == nil {
 		s.Includes = []map[string]string{}
 	}
 	for _, sc := range scopes {
-		switch sc.Category() {
-		case ExchangeContactFolder:
-			sc[ExchangeContact.String()] = All
-		case ExchangeMailFolder:
-			sc[ExchangeMail.String()] = All
-		case ExchangeUser:
-			sc[ExchangeContactFolder.String()] = All
-			sc[ExchangeContact.String()] = All
-			sc[ExchangeEvent.String()] = All
-			sc[ExchangeMailFolder.String()] = All
-			sc[ExchangeMail.String()] = All
-		}
+		sc = extendExchangeScopeValues(All, sc)
 		s.Includes = append(s.Includes, map[string]string(sc))
 	}
 }
 
+// Exclude appends the provided scopes to the selector's exclusion set.
+// Every Exclusion scope applies globally, affecting all inclusion scopes.
 func (s *exchange) Exclude(scopes ...exchangeScope) {
 	if s.Excludes == nil {
 		s.Excludes = []map[string]string{}
 	}
 	for _, sc := range scopes {
-		switch sc.Category() {
-		case ExchangeContactFolder:
-			sc[ExchangeContact.String()] = None
-		case ExchangeMailFolder:
-			sc[ExchangeMail.String()] = None
-		case ExchangeUser:
-			sc[ExchangeContactFolder.String()] = None
-			sc[ExchangeContact.String()] = None
-			sc[ExchangeEvent.String()] = None
-			sc[ExchangeMailFolder.String()] = None
-			sc[ExchangeMail.String()] = None
-		}
+		sc = extendExchangeScopeValues(None, sc)
 		s.Excludes = append(s.Excludes, map[string]string(sc))
 	}
+}
+
+// completes population for certain scope properties, according to the
+// expecations of Include and Exclude behavior.
+func extendExchangeScopeValues(v string, sc exchangeScope) exchangeScope {
+	switch sc.Category() {
+	case ExchangeContactFolder:
+		sc[ExchangeContact.String()] = v
+	case ExchangeMailFolder:
+		sc[ExchangeMail.String()] = v
+	case ExchangeUser:
+		sc[ExchangeContactFolder.String()] = v
+		sc[ExchangeContact.String()] = v
+		sc[ExchangeEvent.String()] = v
+		sc[ExchangeMailFolder.String()] = v
+		sc[ExchangeMail.String()] = v
+	}
+	return sc
 }
 
 // -------------------
@@ -126,7 +125,7 @@ func (s *exchange) Contacts(u, f string, vs ...string) exchangeScope {
 
 func (s *exchange) ContactFolders(u string, vs ...string) exchangeScope {
 	return exchangeScope{
-		scopeKeyGranularity:            Directory,
+		scopeKeyGranularity:            Group,
 		scopeKeyCategory:               ExchangeContactFolder.String(),
 		ExchangeUser.String():          u,
 		ExchangeContactFolder.String(): join(vs...),
@@ -154,7 +153,7 @@ func (s *exchange) Mails(u, f string, vs ...string) map[string]string {
 
 func (s *exchange) MailFolders(u string, vs ...string) map[string]string {
 	return map[string]string{
-		scopeKeyGranularity:         Directory,
+		scopeKeyGranularity:         Group,
 		scopeKeyCategory:            ExchangeMailFolder.String(),
 		ExchangeUser.String():       u,
 		ExchangeMailFolder.String(): join(vs...),
@@ -163,7 +162,7 @@ func (s *exchange) MailFolders(u string, vs ...string) map[string]string {
 
 func (s *exchange) Users(vs ...string) map[string]string {
 	return map[string]string{
-		scopeKeyGranularity:   Directory,
+		scopeKeyGranularity:   Group,
 		scopeKeyCategory:      ExchangeUser.String(),
 		ExchangeUser.String(): join(vs...),
 	}
