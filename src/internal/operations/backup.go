@@ -10,15 +10,16 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // BackupOperation wraps an operation with backup-specific props.
 type BackupOperation struct {
 	operation
 
-	Results BackupResults `json:"results"`
-	Targets []string      `json:"selectors"` // todo: replace with Selectors
-	Version string        `json:"version"`
+	Results   BackupResults      `json:"results"`
+	Selectors selectors.Selector `json:"selectors"`
+	Version   string             `json:"version"`
 
 	account account.Account
 }
@@ -36,11 +37,11 @@ func NewBackupOperation(
 	opts Options,
 	kw *kopia.Wrapper,
 	acct account.Account,
-	targets []string,
+	selector selectors.Selector,
 ) (BackupOperation, error) {
 	op := BackupOperation{
 		operation: newOperation(opts, kw),
-		Targets:   targets,
+		Selectors: selector,
 		Version:   "v0",
 		account:   acct,
 	}
@@ -81,7 +82,7 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 	}
 
 	var cs []connector.DataCollection
-	cs, err = gc.ExchangeDataCollection(ctx, op.Targets[0])
+	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
 	if err != nil {
 		stats.readErr = err
 		return errors.Wrap(err, "retrieving service data")
