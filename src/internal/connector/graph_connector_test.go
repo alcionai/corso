@@ -61,7 +61,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	t := suite.T()
 
 	sel := selectors.NewExchangeBackup()
-	sel.IncludeUsers("lidiah@8qzvrj.onmicrosoft.com")
+	sel.Include(sel.Users("lidiah@8qzvrj.onmicrosoft.com"))
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 
 	require.NotNil(t, collectionList, "collection list")

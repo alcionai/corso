@@ -74,7 +74,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(ctx, r)
 
 	sel := selectors.NewExchangeBackup()
-	sel.IncludeUsers(user)
+	sel.Include(sel.Users(user))
 
 	bo, err := r.NewBackup(ctx, sel.Selector)
 	if err != nil {

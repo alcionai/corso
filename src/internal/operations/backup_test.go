@@ -145,7 +145,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	require.NoError(t, err)
 
 	sel := selectors.NewExchangeBackup()
-	sel.IncludeUsers(m365User)
+	sel.Include(sel.Users(m365User))
 
 	bo, err := NewBackupOperation(
 		ctx,
