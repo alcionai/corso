@@ -26,12 +26,12 @@ const (
 	testEmailDir   = "mail"
 	testInboxDir   = "inbox"
 	testArchiveDir = "archive"
-	testFileUUID   = "file1"
-	testFileUUID2  = "file2"
-	testFileUUID3  = "file3"
-	testFileUUID4  = "file4"
-	testFileUUID5  = "file5"
-	testFileUUID6  = "file6"
+	testFileName   = "file1"
+	testFileName2  = "file2"
+	testFileName3  = "file3"
+	testFileName4  = "file4"
+	testFileName5  = "file5"
+	testFileName6  = "file6"
 )
 
 var (
@@ -337,11 +337,11 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			path: testPath,
 			streams: []connector.DataStream{
 				&mockconnector.MockExchangeData{
-					ID:     testFileUUID,
+					ID:     testFileName,
 					Reader: io.NopCloser(bytes.NewReader(testFileData)),
 				},
 				&mockconnector.MockExchangeData{
-					ID:     testFileUUID2,
+					ID:     testFileName2,
 					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
 				},
 			},
@@ -350,19 +350,19 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			path: testPath2,
 			streams: []connector.DataStream{
 				&mockconnector.MockExchangeData{
-					ID:     testFileUUID3,
+					ID:     testFileName3,
 					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
 				},
 				&mockconnector.MockExchangeData{
-					ID:     testFileUUID4,
+					ID:     testFileName4,
 					Reader: io.NopCloser(bytes.NewReader(testFileData4)),
 				},
 				&mockconnector.MockExchangeData{
-					ID:     testFileUUID5,
+					ID:     testFileName5,
 					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
 				},
 				&mockconnector.MockExchangeData{
-					ID:     testFileUUID6,
+					ID:     testFileName6,
 					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
 				},
 			},
@@ -380,16 +380,16 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 
-	// path.Join doesn't like (testPath..., testFileUUID).
+	// path.Join doesn't like (testPath..., testFileName).
 	suite.inboxExpectedFiles = map[string][]byte{
-		path.Join(append(testPath, testFileUUID)...):  testFileData,
-		path.Join(append(testPath, testFileUUID2)...): testFileData2,
+		path.Join(append(testPath, testFileName)...):  testFileData,
+		path.Join(append(testPath, testFileName2)...): testFileData2,
 	}
 	suite.archiveExpectedFiles = map[string][]byte{
-		path.Join(append(testPath2, testFileUUID3)...): testFileData3,
-		path.Join(append(testPath2, testFileUUID4)...): testFileData4,
-		path.Join(append(testPath2, testFileUUID5)...): testFileData5,
-		path.Join(append(testPath2, testFileUUID6)...): testFileData6,
+		path.Join(append(testPath2, testFileName3)...): testFileData3,
+		path.Join(append(testPath2, testFileName4)...): testFileData4,
+		path.Join(append(testPath2, testFileName5)...): testFileData5,
+		path.Join(append(testPath2, testFileName6)...): testFileData6,
 	}
 
 	suite.allExpectedFiles = map[string][]byte{}
@@ -411,7 +411,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	c, err := suite.w.RestoreSingleItem(
 		suite.ctx,
 		string(suite.snapshotID),
-		append(testPath, testFileUUID),
+		append(testPath, testFileName),
 	)
 	require.NoError(t, err)
 
@@ -445,7 +445,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 		{
 			"NoSnapshot",
 			"foo",
-			append(testPath, testFileUUID),
+			append(testPath, testFileName),
 		},
 		{
 			"TargetNotAFile",
@@ -545,7 +545,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory_Errors(
 		{
 			"NotADirectory",
 			string(suite.snapshotID),
-			append(testPath, testFileUUID),
+			append(testPath, testFileName),
 		},
 		{
 			"NonExistantDirectory",
