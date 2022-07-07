@@ -9,6 +9,14 @@ import (
 
 // TaskList is a a generic map of a list of items with a string index
 type TaskList map[string][]string
+type optionIdentifier int
+
+//go:generate stringer -type=optionIdentifier
+const (
+	folders optionIdentifier = iota
+	messages
+	users
+)
 
 // NewTaskList constructor for TaskList
 func NewTaskList() TaskList {
@@ -38,10 +46,10 @@ func Contains(elems []string, value string) bool {
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
-// var moreOps is a comma separated string of options(e.g. "displayName, isHidden")
+// var moreOps is a []string of options(e.g. "displayName", "isHidden")
 // return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, 1)
+	selecting, err := buildOptions(moreOps, folders)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +74,7 @@ func optionsForMessageSnapshot() *msmessage.MessagesRequestBuilderGetRequestConf
 }
 
 func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, 3)
+	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +98,11 @@ func buildOptions(options []string, selection int) ([]string, error) {
 	returnedOptions := []string{"id"}
 
 	switch selection {
-	case 1:
+	case folders:
 		allowedOptions = fieldsForFolders
-	case 2:
+	case users:
 		allowedOptions = fieldsForUsers
-	case 3:
+	case messages:
 		allowedOptions = fieldsForMessages
 	default:
 		return nil, errors.New("unsupported option")
