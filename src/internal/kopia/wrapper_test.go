@@ -3,8 +3,6 @@ package kopia
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -129,11 +127,6 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	}
 
 	assert.Len(suite.T(), details.Entries, totalFileCount)
-	for _, e := range details.Entries {
-		b, err := json.MarshalIndent(e, "", "  ")
-		require.NoError(suite.T(), err)
-		fmt.Print(string(b))
-	}
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
@@ -338,7 +331,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	assert.Equal(t, len(rp.Entries), 1)
+	assert.Len(t, len(rp.Entries), 1)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
