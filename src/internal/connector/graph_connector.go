@@ -115,7 +115,7 @@ func (gc *GraphConnector) GetUsers() []string {
 	return buildFromMap(true, gc.Users)
 }
 
-// GetUsers returns the
+// GetUsersIds returns the M365 id for the user
 func (gc *GraphConnector) GetUsersIds() []string {
 	return buildFromMap(false, gc.Users)
 }
@@ -216,7 +216,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		return nil, err
 	}
 	tasklist := NewTaskList() // map[folder][] messageIds
-	callbackFunc := func(messageItem interface{}) bool {
+	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
 			err = support.WrapAndAppendf(gc.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
@@ -239,8 +239,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	var errs error
 	var attemptedItems, success int
 
-	for _, aFolder := range tasklist.GetKeys() {
-		tasks := tasklist.GetTasks(aFolder)
+	for aFolder, tasks := range tasklist {
 		// prep the items for handoff to the backup consumer
 		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
 		for _, entry := range tasks {
@@ -261,7 +260,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		success += edc.Length()
 		collections = append(collections, &edc)
 	}
-	status, err := support.CreateStatus(support.Backup, attemptedItems, success, tasklist.Length(), errs)
+	status, err := support.CreateStatus(support.Backup, attemptedItems, success, len(tasklist), errs)
 	if err == nil {
 		gc.SetStatus(*status)
 		logger.Ctx(ctx).Debugw(gc.Status())
@@ -269,8 +268,13 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	return collections, errs
 }
 
-func (gc *GraphConnector) messageToDataCollection(ctx context.Context, objectWriter *kw.JsonSerializationWriter,
-	edc ExchangeDataCollection, message models.Messageable, user string) error {
+func (gc *GraphConnector) messageToDataCollection(
+	ctx context.Context,
+	objectWriter *kw.JsonSerializationWriter,
+	edc ExchangeDataCollection,
+	message models.Messageable,
+	user string,
+) error {
 	if *message.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error

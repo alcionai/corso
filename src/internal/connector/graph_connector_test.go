@@ -218,9 +218,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TaskList() {
 	tasks := NewTaskList()
 	tasks.AddTask("person1", "Go to store")
 	tasks.AddTask("person1", "drop off mail")
-	values := tasks.GetTasks("person1")
+	values := tasks["person1"]
 	suite.Equal(len(values), 2)
-	nonValues := tasks.GetTasks("unknown")
+	nonValues := tasks["unknown"]
 	suite.Zero(len(nonValues))
 }
 
@@ -249,7 +249,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForM
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := optionsForMailFolders(test.params)
-			suite.T().Logf("%v", err)
 			suite.Equal(test.isError, err != nil)
 		})
 
@@ -282,10 +281,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForM
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := optionsForMessages(test.params)
-			suite.T().Logf("%v", err)
 			suite.Equal(test.isError, err != nil)
 		})
-
 	}
-
 }
