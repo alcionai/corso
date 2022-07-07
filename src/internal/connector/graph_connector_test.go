@@ -20,7 +20,7 @@ type GraphConnectorIntegrationSuite struct {
 	connector *GraphConnector
 }
 
-func TestGraphConnectorIntetgrationSuite(t *testing.T) {
+func TestGraphConnectorIntegrationSuite(t *testing.T) {
 	if err := ctesting.RunOnAny(
 		ctesting.CorsoCITests,
 		ctesting.CorsoGraphConnectorTests,
@@ -133,17 +133,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 	}
 }
 
-// Contains is a helper method for verifying if element
-// is contained within the slice
-func Contains(elems []string, value string) bool {
-	for _, s := range elems {
-		if value == s {
-			return true
-		}
-	}
-	return false
-}
-
 func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	names := make(map[string]string)
 	names["Al"] = "Bundy"
@@ -223,4 +212,14 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 			suite.Equal(nonRecoverable, test.returnNonRecoverable)
 		})
 	}
+}
+
+func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TaskList() {
+	tasks := NewTaskList()
+	tasks.AddTask("person1", "Go to store")
+	tasks.AddTask("person1", "drop off mail")
+	values := tasks.GetTasks("person1")
+	suite.Equal(len(values), 2)
+	nonValues := tasks.GetTasks("unknown")
+	suite.Zero(len(nonValues))
 }
