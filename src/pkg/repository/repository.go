@@ -114,15 +114,13 @@ func (r *Repository) Close(ctx context.Context) error {
 			return errors.Wrap(err, "closing corso DataLayer")
 		}
 	}
-	if r.modelStore != nil {
-		err := r.modelStore.Close(ctx)
-		r.modelStore = nil
-		if err != nil {
-			return errors.Wrap(err, "closing corso ModelStore")
-		}
-	}
 
-	return nil
+	if r.modelStore == nil {
+		return nil
+	}
+	err := r.modelStore.Close(ctx)
+	r.modelStore = nil
+	return errors.Wrap(err, "closing corso ModelStore")
 }
 
 // NewBackup generates a backupOperation runner.
