@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/kopia/kopia/fs"
-	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -356,30 +355,29 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 // function.
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
 	table := []struct {
-		name           string
-		snapshotIDFunc func(manifest.ID) manifest.ID
-		path           []string
+		name       string
+		snapshotID string
+		path       []string
 	}{
 		{
+			"EmptyPath",
+			string(suite.snapshotID),
+			[]string{},
+		},
+		{
 			"NoSnapshot",
-			func(manifest.ID) manifest.ID {
-				return manifest.ID("foo")
-			},
+			"foo",
 			append(testPath, testFileUUID),
 		},
 		{
 			"TargetNotAFile",
-			func(m manifest.ID) manifest.ID {
-				return m
-			},
+			string(suite.snapshotID),
 			testPath[:2],
 		},
 		{
 			"NonExistentFile",
-			func(m manifest.ID) manifest.ID {
-				return m
-			},
-			append(testPath, "foo"),
+			string(suite.snapshotID),
+			append(testPath, "subdir", "foo"),
 		},
 	}
 
@@ -387,44 +385,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := suite.w.RestoreSingleItem(
 				suite.ctx,
-				string(test.snapshotIDFunc(suite.snapshotID)),
-				test.path,
-			)
-			require.Error(t, err)
-		})
-	}
-}
-
-// TestBackupAndRestoreSingleItem_Errors2 exercises some edge cases in the
-// package-private restoreSingleItem function. It helps ensure kopia behaves the
-// way we expect.
-func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors2() {
-	table := []struct {
-		name        string
-		rootDirFunc func(*testing.T, context.Context, *Wrapper) fs.Entry
-		path        []string
-	}{
-		{
-			"FileAsRoot",
-			func(t *testing.T, ctx context.Context, w *Wrapper) fs.Entry {
-				return virtualfs.StreamingFileFromReader(testFileUUID, bytes.NewReader(testFileData))
-			},
-			append(testPath[1:], testFileUUID),
-		},
-		{
-			"NoRootDir",
-			func(t *testing.T, ctx context.Context, w *Wrapper) fs.Entry {
-				return nil
-			},
-			append(testPath[1:], testFileUUID),
-		},
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := suite.w.restoreSingleItem(
-				suite.ctx,
-				test.rootDirFunc(t, suite.ctx, suite.w),
+				test.snapshotID,
 				test.path,
 			)
 			require.Error(t, err)
