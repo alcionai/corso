@@ -273,11 +273,11 @@ func (w Wrapper) makeSnapshotWithRoot(
 	return &res, nil
 }
 
-// getRestoreItem returns the item that the restore operation is rooted at. For
+// getEntry returns the item that the restore operation is rooted at. For
 // single-item restores, this is the kopia file the data is sourced from. For
 // restores of directories or subtrees it is the directory at the root of the
 // subtree.
-func (w Wrapper) getRestoreItem(
+func (w Wrapper) getEntry(
 	ctx context.Context,
 	snapshotID string,
 	itemPath []string,
@@ -305,20 +305,20 @@ func (w Wrapper) getRestoreItem(
 	return e, nil
 }
 
-// restoreItem is a generic helper function that pulls data from kopia for the
+// collectItems is a generic helper function that pulls data from kopia for the
 // given item in the snapshot with ID snapshotID. If isDirectory is true, it
 // returns a slice of DataCollections with data from directories in the subtree
 // rooted at itemPath. If isDirectory is false it returns a DataCollection (in a
 // slice) with a single item corresponding to the requested item. If the item
-// does not exist in the snapshot at the given path or is not the expected type
-// it returns an error.
-func (w Wrapper) restoreItem(
+// does not exist or a file is found when a directory is expected (or the
+// opposite) it returns an error.
+func (w Wrapper) collectItems(
 	ctx context.Context,
 	snapshotID string,
 	itemPath []string,
 	isDirectory bool,
 ) ([]connector.DataCollection, error) {
-	e, err := w.getRestoreItem(ctx, snapshotID, itemPath)
+	e, err := w.getEntry(ctx, snapshotID, itemPath)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +353,7 @@ func (w Wrapper) RestoreSingleItem(
 	snapshotID string,
 	itemPath []string,
 ) (connector.DataCollection, error) {
-	c, err := w.restoreItem(ctx, snapshotID, itemPath, false)
+	c, err := w.collectItems(ctx, snapshotID, itemPath, false)
 	if err != nil {
 		return nil, err
 	}
