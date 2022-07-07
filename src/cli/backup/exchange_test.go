@@ -30,6 +30,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	}{
 		{"create exchange", createCommand, expectUse, exchangeCreateCmd.Short, createExchangeCmd},
 		{"list exchange", listCommand, expectUse, exchangeListCmd.Short, listExchangeCmd},
+		{"details exchange", detailsCommand, expectUse, exchangeDetailsCmd.Short, detailsExchangeCmd},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
