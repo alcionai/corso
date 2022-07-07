@@ -302,11 +302,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	suite.w = &Wrapper{c}
 
 	collections := []connector.DataCollection{
-		&singleItemCollection{
+		&kopiaDataCollection{
 			path: testPath,
-			stream: &kopiaDataStream{
-				uuid:   testFileUUID,
-				reader: io.NopCloser(bytes.NewReader(testFileData)),
+			streams: []connector.DataStream{
+				&kopiaDataStream{
+					uuid:   testFileUUID,
+					reader: io.NopCloser(bytes.NewReader(testFileData)),
+				},
 			},
 		},
 	}
