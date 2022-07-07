@@ -5,7 +5,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -238,7 +237,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	collections := make([]DataCollection, 0)
 	objectWriter := kw.NewJsonSerializationWriter()
 	var errs error
-	var totalItems, success int
+	var attemptedItems, success int
 
 	for _, aFolder := range tasklist.GetKeys() {
 		tasks := tasklist.GetTasks(aFolder)
@@ -247,7 +246,8 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		for _, entry := range tasks {
 			response, err := gc.client.UsersById(user).MessagesById(entry).Get()
 			if err != nil {
-				errs = support.WrapAndAppend(user, fmt.Errorf("unable to retrieve %s", entry), errs)
+				details := support.ConnectorStackErrorTrace(err)
+				errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve %s, %s", entry, details), errs)
 				continue
 			}
 			err = gc.messageToDataCollection(ctx, objectWriter, edc, response, user)
@@ -257,12 +257,11 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 			}
 		}
 		edc.FinishPopulation()
-		totalItems += len(tasks)
+		attemptedItems += len(tasks)
 		success += edc.Length()
-		fmt.Printf("Status\n %d of %d", success, totalItems)
 		collections = append(collections, &edc)
 	}
-	status, err := support.CreateStatus(support.Backup, totalItems, success, tasklist.Length(), errs)
+	status, err := support.CreateStatus(support.Backup, attemptedItems, success, tasklist.Length(), errs)
 	if err == nil {
 		gc.SetStatus(*status)
 		logger.Ctx(ctx).Debugw(gc.Status())

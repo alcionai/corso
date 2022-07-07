@@ -223,3 +223,69 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TaskList() {
 	nonValues := tasks.GetTasks("unknown")
 	suite.Zero(len(nonValues))
 }
+
+func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForMailFolders() {
+	tests := []struct {
+		name    string
+		params  []string
+		isError bool
+	}{
+		{
+			name:    "Accepted",
+			params:  []string{"displayName"},
+			isError: false,
+		},
+		{
+			name:    "Multiple Accepted",
+			params:  []string{"displayName", "parentFolderId"},
+			isError: false,
+		},
+		{
+			name:    "Incorrect param",
+			params:  []string{"status"},
+			isError: true,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := optionsForMailFolders(test.params)
+			suite.T().Logf("%v", err)
+			suite.Equal(test.isError, err != nil)
+		})
+
+	}
+
+}
+
+func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForMessages() {
+	tests := []struct {
+		name    string
+		params  []string
+		isError bool
+	}{
+		{
+			name:    "Accepted",
+			params:  []string{"subject"},
+			isError: false,
+		},
+		{
+			name:    "Multiple Accepted",
+			params:  []string{"webLink", "parentFolderId"},
+			isError: false,
+		},
+		{
+			name:    "Incorrect param",
+			params:  []string{"status"},
+			isError: true,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := optionsForMessages(test.params)
+			suite.T().Logf("%v", err)
+			suite.Equal(test.isError, err != nil)
+		})
+
+	}
+
+}
