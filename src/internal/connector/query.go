@@ -89,7 +89,7 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 
 // CheckOptions Utility Method for verifying if select options are valid the m365 object type
 // returns a list of valid options
-func buildOptions(options []string, selection int) ([]string, error) {
+func buildOptions(options []string, selection optionIdentifier) ([]string, error) {
 	var allowedOptions []string
 
 	fieldsForFolders := []string{"displayName", "isHidden", "parentFolderId", "totalItemCount"}
