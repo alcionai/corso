@@ -8,48 +8,22 @@ import (
 )
 
 // TaskList is a a generic map of a list of items with a string index
-type TaskList struct {
-	tasks map[string][]string
-}
+type TaskList map[string][]string
 
 // NewTaskList constructor for TaskList
 func NewTaskList() TaskList {
-	taskList := &TaskList{
-		tasks: make(map[string][]string, 0),
-	}
-	return *taskList
+	return make(map[string][]string, 0)
 }
 
 // AddTask helper method to ensure that keys and items are created properly
 func (tl *TaskList) AddTask(key, value string) {
-	_, isCreated := tl.tasks[key]
+	aMap := *tl
+	_, isCreated := aMap[key]
 	if isCreated {
-		tl.tasks[key] = append(tl.tasks[key], value)
+		aMap[key] = append(aMap[key], value)
 	} else {
-		tl.tasks[key] = []string{value}
+		aMap[key] = []string{value}
 	}
-}
-
-// GetTasks helper method for retrieving list by index
-func (tl *TaskList) GetTasks(key string) []string {
-	aList, ok := tl.tasks[key]
-	if ok {
-		return aList
-	}
-	return []string{}
-}
-
-func (tl *TaskList) GetKeys() []string {
-	keys := make([]string, 0)
-	for entry := range tl.tasks {
-		keys = append(keys, entry)
-	}
-	return keys
-}
-
-// Length returns the amount of indexes within the struct
-func (tl *TaskList) Length() int {
-	return len(tl.tasks)
 }
 
 // Contains is a helper method for verifying if element
