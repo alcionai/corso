@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/restorepoint"
 )
 
 // BackupOperation wraps an operation with backup-specific props.
@@ -81,12 +82,31 @@ func (op *BackupOperation) Run(ctx context.Context) (*kopia.BackupStats, error) 
 		return nil, errors.Wrap(err, "retrieving service data")
 	}
 
-	stats, writeErr = op.kopia.BackupCollections(ctx, cs)
+	stats, details, writeErr := op.kopia.BackupCollections(ctx, cs)
 	if writeErr != nil {
 		return nil, errors.Wrap(err, "backing up service data")
 	}
 
+	writeErr = op.createRestorePoint(ctx, stats.SnapshotID, details)
+	if writeErr != nil {
+		return nil, writeErr
+	}
+
 	return stats, nil
+}
+
+func (op *BackupOperation) createRestorePoint(ctx context.Context, snapID string, details *restorepoint.Details) error {
+	err := op.modelStore.Put(ctx, kopia.RestorePointDetailsModel, details)
+	if err != nil {
+		return errors.Wrap(err, "creating restorepointdetails model")
+	}
+
+	err = op.modelStore.Put(ctx, kopia.RestorePointModel,
+		restorepoint.New(snapID, string(details.ModelStoreID)))
+	if err != nil {
+		return errors.Wrap(err, "creating restorepoint model")
+	}
+	return nil
 }
 
 // writes the backupOperation outcome to the modelStore.

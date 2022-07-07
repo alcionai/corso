@@ -18,6 +18,7 @@ import (
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
 )
@@ -359,7 +360,7 @@ func (gc *GraphConnector) serializeMessageIteratorCallback(
 		}
 
 		if byteArray != nil {
-			edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
+			edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray, info: exchange.MessageInfo(message)})
 		}
 
 		return true
