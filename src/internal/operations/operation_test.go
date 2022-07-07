@@ -33,8 +33,8 @@ func (suite *OperationSuite) TestOperation_Validate() {
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{"good", kwStub, msStub, assert.NoError},
-		{"missing kopia", nil, msStub, assert.Error},
-		{"missing kopia", kwStub, nil, assert.Error},
+		{"missing kopia wrapper", nil, msStub, assert.Error},
+		{"missing kopia modelstore", kwStub, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
