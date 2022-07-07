@@ -35,11 +35,12 @@ func NewBackupOperation(
 	ctx context.Context,
 	opts Options,
 	kw *kopia.Wrapper,
+	ms *kopia.ModelStore,
 	acct account.Account,
 	targets []string,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation: newOperation(opts, kw),
+		operation: newOperation(opts, kw, ms),
 		Targets:   targets,
 		Version:   "v0",
 		account:   acct,

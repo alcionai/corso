@@ -31,7 +31,8 @@ type operation struct {
 	Options   Options   `json:"options"`
 	Status    opStatus  `json:"status"`
 
-	kopia *kopia.Wrapper
+	kopia      *kopia.Wrapper
+	modelStore *kopia.ModelStore
 }
 
 // Options configure some parameters of the operation
@@ -43,18 +44,23 @@ type Options struct {
 func newOperation(
 	opts Options,
 	kw *kopia.Wrapper,
+	ms *kopia.ModelStore,
 ) operation {
 	return operation{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		Options:   opts,
-		kopia:     kw,
-		Status:    InProgress,
+		ID:         uuid.New(),
+		CreatedAt:  time.Now(),
+		Options:    opts,
+		kopia:      kw,
+		modelStore: ms,
+		Status:     InProgress,
 	}
 }
 
 func (op operation) validate() error {
 	if op.kopia == nil {
+		return errors.New("missing kopia connection")
+	}
+	if op.modelStore == nil {
 		return errors.New("missing kopia connection")
 	}
 	return nil

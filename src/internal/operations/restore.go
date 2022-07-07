@@ -35,12 +35,13 @@ func NewRestoreOperation(
 	ctx context.Context,
 	opts Options,
 	kw *kopia.Wrapper,
+	ms *kopia.ModelStore,
 	acct account.Account,
 	restorePointID string,
 	targets []string,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:      newOperation(opts, kw),
+		operation:      newOperation(opts, kw, ms),
 		RestorePointID: restorePointID,
 		Targets:        targets,
 		Version:        "v0",
