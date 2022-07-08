@@ -304,9 +304,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		&kopiaDataCollection{
 			path: testPath,
 			streams: []connector.DataStream{
-				&kopiaDataStream{
-					uuid:   testFileUUID,
-					reader: io.NopCloser(bytes.NewReader(testFileData)),
+				&mockconnector.MockExchangeData{
+					ID:     testFileUUID,
+					Reader: io.NopCloser(bytes.NewReader(testFileData)),
 				},
 			},
 		},
@@ -314,10 +314,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	stats, err := suite.w.BackupCollections(suite.ctx, collections)
 	require.NoError(t, err)
+	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, 1)
 	require.Equal(t, stats.TotalDirectoryCount, 3)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
-	require.Equal(t, stats.ErrorCount, 0)
 	require.False(t, stats.Incomplete)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
