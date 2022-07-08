@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 const (
@@ -345,7 +347,10 @@ func (w Wrapper) collectItems(
 			return nil, errors.New("requested object is not a directory")
 		}
 
-		return restoreSubtree(ctx, dir, itemPath[:len(itemPath)-1])
+		c, err := restoreSubtree(ctx, dir, itemPath[:len(itemPath)-1])
+		// For some reason tests error out if the multierror is nil but we don't
+		// call ErrorOrNil.
+		return c, err.ErrorOrNil()
 	}
 
 	f, ok := e.(fs.File)
@@ -412,9 +417,10 @@ func (w Wrapper) restoreSingleItem(
 func walkDirectory(
 	ctx context.Context,
 	dir fs.Directory,
-) ([]fs.File, []fs.Directory, error) {
+) ([]fs.File, []fs.Directory, *multierror.Error) {
 	files := []fs.File{}
 	dirs := []fs.Directory{}
+	var errs *multierror.Error
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, e fs.Entry) error {
 		// Early exit on context cancel.
@@ -430,15 +436,19 @@ func walkDirectory(
 			f := e.(fs.File)
 			files = append(files, f)
 		default:
-			// TODO(ashmrtn): Should this actually be adding to a list of errors to be
-			// reported later? Current way will be fail-fast.
-			return errors.Errorf("unexpected item type %T", e)
+			errs = multierror.Append(errs, errors.Errorf("unexpected item type %T", e))
+			logger.Ctx(ctx).Warnf("unexpected item of type %T; skipping", e)
 		}
 
 		return nil
 	})
 
-	return files, dirs, errors.Wrap(err, "getting directory data")
+	if err != nil {
+		// If the iterator itself had an error add it to the list.
+		errs = multierror.Append(errs, errors.Wrap(err, "getting directory data"))
+	}
+
+	return files, dirs, errs
 }
 
 // restoreSubtree returns DataCollections for each subdirectory (or the
@@ -450,21 +460,34 @@ func restoreSubtree(
 	ctx context.Context,
 	dir fs.Directory,
 	relativePath []string,
-) ([]connector.DataCollection, error) {
+) ([]connector.DataCollection, *multierror.Error) {
 	collections := []connector.DataCollection{}
+	// Want a local copy of relativePath with our new element.
+	fullPath := append(append([]string{}, relativePath...), dir.Name())
+	var errs *multierror.Error
 
 	files, dirs, err := walkDirectory(ctx, dir)
 	if err != nil {
-		return nil, errors.Wrap(err, "walking directory subtree")
+		errs = multierror.Append(
+			errs, errors.Wrapf(err, "walking directory %q", path.Join(fullPath...)))
 	}
 
 	if len(files) > 0 {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			errs = multierror.Append(errs, errors.WithStack(ctxErr))
+			return nil, errs
+		}
+
 		streams := make([]connector.DataStream, 0, len(files))
 
 		for _, f := range files {
 			r, err := f.Open(ctx)
 			if err != nil {
-				return nil, errors.Wrap(err, "getting reader for file")
+				fileFullPath := path.Join(append(append([]string{}, fullPath...), f.Name())...)
+				errs = multierror.Append(
+					errs, errors.Wrapf(err, "getting reader for file %q", fileFullPath))
+				logger.Ctx(ctx).Warnf("skipping file %q", fileFullPath)
+				continue
 			}
 
 			streams = append(streams, &kopiaDataStream{
@@ -475,20 +498,29 @@ func restoreSubtree(
 
 		collections = append(collections, &kopiaDataCollection{
 			streams: streams,
-			path:    append(relativePath, dir.Name()),
+			path:    fullPath,
 		})
 	}
 
 	for _, d := range dirs {
-		c, err := restoreSubtree(ctx, d, append(relativePath, dir.Name()))
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			errs = multierror.Append(errs, errors.WithStack(ctxErr))
+			return nil, errs
+		}
+
+		c, err := restoreSubtree(ctx, d, fullPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "walking subdirectory")
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"traversing subdirectory %q",
+				path.Join(append(append([]string{}, fullPath...), d.Name())...),
+			))
 		}
 
 		collections = append(collections, c...)
 	}
 
-	return collections, nil
+	return collections, errs
 }
 
 func (w Wrapper) RestoreDirectory(
