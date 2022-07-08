@@ -246,8 +246,12 @@ github.com/microsoft/kiota-authentication-azure-go v0.3.0 h1:iLyy5qldAjBiYMGMk1r
 github.com/microsoft/kiota-authentication-azure-go v0.3.0/go.mod h1:qyZWSCug2eG1zrRnCSacyFHGsgQa4aSCWn3EOkY9Z1M=
 github.com/microsoft/kiota-http-go v0.5.1 h1:8QLZBfvPRvISUO+qWvv6fBrxaBH5n0V/Venq7Fq51cg=
 github.com/microsoft/kiota-http-go v0.5.1/go.mod h1:WqEFNw3rMEatymG4Xh3rLSTxaKq80rJdQ/CSSh7m6jI=
+github.com/microsoft/kiota-http-go v0.5.2 h1:BS/bK2xHLT8TT+p0uZKxwu+lkXDAPByugYP2n1nV0Uo=
+github.com/microsoft/kiota-http-go v0.5.2/go.mod h1:WqEFNw3rMEatymG4Xh3rLSTxaKq80rJdQ/CSSh7m6jI=
 github.com/microsoft/kiota-serialization-json-go v0.5.3 h1:NrRyed65WYhEH5NwZTzplWs+eoECEYtLpAQ5Dhwq1wc=
 github.com/microsoft/kiota-serialization-json-go v0.5.3/go.mod h1:GI9vrssO1EvqzDtvMKuhjALn40phZOWkeeaMgtCk6xE=
+github.com/microsoft/kiota-serialization-json-go v0.5.4 h1:BpkTYq1AeZPCnSsp3zpzfNL9hx3xb1/LPFteV6tbhMQ=
+github.com/microsoft/kiota-serialization-json-go v0.5.4/go.mod h1:GI9vrssO1EvqzDtvMKuhjALn40phZOWkeeaMgtCk6xE=
 github.com/microsoft/kiota-serialization-text-go v0.4.1 h1:6QPH7+geUPCpaSZkKCQw0Scngx2IF0vKodrvvWWiu2A=
 github.com/microsoft/kiota-serialization-text-go v0.4.1/go.mod h1:DsriFnVBDCc4D84qxG3j8q/1Sxu16JILfhxMZm3kdfw=
 github.com/microsoftgraph/msgraph-sdk-go v0.28.0 h1:BolP/vNW7gsNXivg/qikcdftOicLMgMm3Z/6PpSFDvU=
@@ -319,6 +323,8 @@ github.com/rogpeppe/go-internal v1.6.1 h1:/FiVV8dS/e+YqF2JvO3yXRFbBLTIuSDkuC7aBO
 github.com/rs/xid v1.4.0 h1:qd7wPTDkN6KQx2VmMBLrpHkiyQwgFXRnkOLacUiaSNY=
 github.com/rs/xid v1.4.0/go.mod h1:trrq9SKmegXys3aeAKXMUTdJsYXVwGY3RLcfgqegfbg=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
+github.com/segmentio/cli v0.5.0 h1:AssNAdZV728i8u6LWfq9pqoeQGxiyXmTt0jrCfnjcx0=
+github.com/segmentio/cli v0.5.0/go.mod h1:rktB/5TnLUnEBYdRG+jlAii0bkHWpnrb+jpXiFkoPxs=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
 github.com/sirupsen/logrus v1.6.0/go.mod h1:7uNnSEd1DgxDLC74fIahvMZmmYsHGZGEOFrfsX/uA88=

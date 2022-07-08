@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
@@ -35,24 +36,30 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	ctx := context.Background()
 
 	var (
-		kw        = &kopia.Wrapper{}
-		acct      = account.Account{}
-		now       = time.Now()
-		cs        = []connector.DataCollection{&connector.ExchangeDataCollection{}}
-		readErrs  = multierror.Append(nil, assert.AnError)
-		writeErrs = assert.AnError
+		kw    = &kopia.Wrapper{}
+		ms    = &kopia.ModelStore{}
+		acct  = account.Account{}
+		now   = time.Now()
+		stats = restoreStats{
+			readErr:  multierror.Append(nil, assert.AnError),
+			writeErr: assert.AnError,
+			cs:       []connector.DataCollection{&connector.ExchangeDataCollection{}},
+			gc: &support.ConnectorOperationStatus{
+				ObjectCount: 1,
+			},
+		}
 	)
 
-	op, err := NewRestoreOperation(ctx, Options{}, kw, acct, "foo", nil)
+	op, err := NewRestoreOperation(ctx, Options{}, kw, ms, acct, "foo", nil)
 	require.NoError(t, err)
 
-	op.persistResults(now, cs, readErrs, writeErrs)
+	op.persistResults(now, &stats)
 
 	assert.Equal(t, op.Status, Failed)
-	assert.Equal(t, op.Results.ItemsRead, len(cs))
-	assert.Equal(t, op.Results.ReadErrors, readErrs)
-	assert.Equal(t, op.Results.ItemsWritten, -1)
-	assert.Equal(t, op.Results.WriteErrors, writeErrs)
+	assert.Equal(t, op.Results.ItemsRead, len(stats.cs))
+	assert.Equal(t, op.Results.ReadErrors, stats.readErr)
+	assert.Equal(t, op.Results.ItemsWritten, stats.gc.ObjectCount)
+	assert.Equal(t, op.Results.WriteErrors, stats.writeErr)
 	assert.Equal(t, op.Results.StartedAt, now)
 	assert.Less(t, now, op.Results.CompletedAt)
 }
@@ -79,6 +86,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
+	ms := &kopia.ModelStore{}
 	acct, err := ctesting.NewM365Account()
 	require.NoError(suite.T(), err)
 
@@ -86,12 +94,14 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		name     string
 		opts     Options
 		kw       *kopia.Wrapper
+		ms       *kopia.ModelStore
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", Options{}, kw, acct, nil, assert.NoError},
-		{"missing kopia", Options{}, nil, acct, nil, assert.Error},
+		{"good", Options{}, kw, ms, acct, nil, assert.NoError},
+		{"missing kopia", Options{}, nil, ms, acct, nil, assert.Error},
+		{"missing modelstore", Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -99,6 +109,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				context.Background(),
 				Options{},
 				test.kw,
+				test.ms,
 				test.acct,
 				"restore-point-id",
 				nil)

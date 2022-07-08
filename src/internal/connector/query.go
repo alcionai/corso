@@ -8,48 +8,31 @@ import (
 )
 
 // TaskList is a a generic map of a list of items with a string index
-type TaskList struct {
-	tasks map[string][]string
-}
+type TaskList map[string][]string
+type optionIdentifier int
+
+//go:generate stringer -type=optionIdentifier
+const (
+	unknown optionIdentifier = iota
+	folders
+	messages
+	users
+)
 
 // NewTaskList constructor for TaskList
 func NewTaskList() TaskList {
-	taskList := &TaskList{
-		tasks: make(map[string][]string, 0),
-	}
-	return *taskList
+	return make(map[string][]string, 0)
 }
 
 // AddTask helper method to ensure that keys and items are created properly
 func (tl *TaskList) AddTask(key, value string) {
-	_, isCreated := tl.tasks[key]
+	aMap := *tl
+	_, isCreated := aMap[key]
 	if isCreated {
-		tl.tasks[key] = append(tl.tasks[key], value)
+		aMap[key] = append(aMap[key], value)
 	} else {
-		tl.tasks[key] = []string{value}
+		aMap[key] = []string{value}
 	}
-}
-
-// GetTasks helper method for retrieving list by index
-func (tl *TaskList) GetTasks(key string) []string {
-	aList, ok := tl.tasks[key]
-	if ok {
-		return aList
-	}
-	return []string{}
-}
-
-func (tl *TaskList) GetKeys() []string {
-	keys := make([]string, 0)
-	for entry := range tl.tasks {
-		keys = append(keys, entry)
-	}
-	return keys
-}
-
-// Length returns the amount of indexes within the struct
-func (tl *TaskList) Length() int {
-	return len(tl.tasks)
 }
 
 // Contains is a helper method for verifying if element
@@ -64,10 +47,10 @@ func Contains(elems []string, value string) bool {
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
-// var moreOps is a comma separated string of options(e.g. "displayName, isHidden")
+// var moreOps is a []string of options(e.g. "displayName", "isHidden")
 // return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, 1)
+	selecting, err := buildOptions(moreOps, folders)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +75,7 @@ func optionsForMessageSnapshot() *msmessage.MessagesRequestBuilderGetRequestConf
 }
 
 func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, 3)
+	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +90,7 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 
 // CheckOptions Utility Method for verifying if select options are valid the m365 object type
 // returns a list of valid options
-func buildOptions(options []string, selection int) ([]string, error) {
+func buildOptions(options []string, selection optionIdentifier) ([]string, error) {
 	var allowedOptions []string
 
 	fieldsForFolders := []string{"displayName", "isHidden", "parentFolderId", "totalItemCount"}
@@ -116,11 +99,11 @@ func buildOptions(options []string, selection int) ([]string, error) {
 	returnedOptions := []string{"id"}
 
 	switch selection {
-	case 1:
+	case folders:
 		allowedOptions = fieldsForFolders
-	case 2:
+	case users:
 		allowedOptions = fieldsForUsers
-	case 3:
+	case messages:
 		allowedOptions = fieldsForMessages
 	default:
 		return nil, errors.New("unsupported option")

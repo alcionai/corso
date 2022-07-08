@@ -3,10 +3,12 @@ package mockconnector
 import (
 	"bytes"
 	"io"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/pkg/restorepoint"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox
@@ -18,6 +20,7 @@ type MockExchangeDataCollection struct {
 var (
 	_ connector.DataCollection = &MockExchangeDataCollection{}
 	_ connector.DataStream     = &MockExchangeData{}
+	_ connector.DataStreamInfo = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -54,14 +57,18 @@ func (medc *MockExchangeDataCollection) Items() <-chan connector.DataStream {
 
 // ExchangeData represents a single item retrieved from exchange
 type MockExchangeData struct {
-	id     string
-	reader io.ReadCloser
+	ID     string
+	Reader io.ReadCloser
 }
 
 func (med *MockExchangeData) UUID() string {
-	return med.id
+	return med.ID
 }
 
 func (med *MockExchangeData) ToReader() io.ReadCloser {
-	return med.reader
+	return med.Reader
+}
+
+func (med *MockExchangeData) Info() restorepoint.ItemInfo {
+	return restorepoint.ItemInfo{Exchange: &restorepoint.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}}
 }

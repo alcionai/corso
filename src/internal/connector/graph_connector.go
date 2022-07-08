@@ -7,7 +7,6 @@ import (
 	"context"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/alcionai/corso/internal/connector/support"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -16,8 +15,10 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 const (
@@ -115,10 +116,13 @@ func (gc *GraphConnector) GetUsers() []string {
 	return buildFromMap(true, gc.Users)
 }
 
-// GetUsers returns the
+// GetUsersIds returns the M365 id for the user
 func (gc *GraphConnector) GetUsersIds() []string {
 	return buildFromMap(false, gc.Users)
 }
+
+// buildFromMap helper function for returning []string from map.
+// Returns list of keys iff true; otherwise returns a list of values
 func buildFromMap(isKey bool, mapping map[string]string) []string {
 	returnString := make([]string, 0)
 	if isKey {
@@ -136,13 +140,48 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // ExchangeDataStream returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
 // Assumption: User exists
-// TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, user string) ([]DataCollection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]DataCollection, error) {
+	eb, err := selector.ToExchangeBackup()
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting exchange data")
+	}
+
+	collections := []DataCollection{}
+	scopes := eb.Scopes()
+	var errs error
+
+	// for each scope that includes mail messages, get all
+	for _, scope := range scopes {
+		if !scope.IncludesCategory(selectors.ExchangeMail) {
+			continue
+		}
+
+		for _, user := range scope.Get(selectors.ExchangeUser) {
+			// TODO: handle "get mail for all users"
+			// this would probably no-op without this check,
+			// but we want it made obvious that we're punting.
+			if user == selectors.All {
+				errs = support.WrapAndAppend(
+					"all-users",
+					errors.New("all users selector currently not handled"),
+					errs)
+				continue
+			}
+			dcs, err := gc.serializeMessages(ctx, user)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+			}
+			if len(dcs) > 0 {
+				collections = append(collections, dcs...)
+			}
+		}
+	}
+
 	// TODO replace with completion of Issue 124:
 
 	//TODO: Retry handler to convert return: (DataCollection, error)
-	return gc.serializeMessages(ctx, user)
+	return collections, errs
 }
 
 // RestoreMessages: Utility function to connect to M365 backstore
@@ -216,7 +255,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		return nil, err
 	}
 	tasklist := NewTaskList() // map[folder][] messageIds
-	callbackFunc := func(messageItem interface{}) bool {
+	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
 			err = support.WrapAndAppendf(gc.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
@@ -239,15 +278,14 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	var errs error
 	var attemptedItems, success int
 
-	for _, aFolder := range tasklist.GetKeys() {
-		tasks := tasklist.GetTasks(aFolder)
+	for aFolder, tasks := range tasklist {
 		// prep the items for handoff to the backup consumer
 		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
-		for _, entry := range tasks {
-			response, err := gc.client.UsersById(user).MessagesById(entry).Get()
+		for _, task := range tasks {
+			response, err := gc.client.UsersById(user).MessagesById(task).Get()
 			if err != nil {
 				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve %s, %s", entry, details), errs)
+				errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
 				continue
 			}
 			err = gc.messageToDataCollection(ctx, objectWriter, edc, response, user)
@@ -261,10 +299,10 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		success += edc.Length()
 		collections = append(collections, &edc)
 	}
-	status, err := support.CreateStatus(support.Backup, attemptedItems, success, tasklist.Length(), errs)
+	status, err := support.CreateStatus(support.Backup, attemptedItems, success, len(tasklist), errs)
 	if err == nil {
 		gc.SetStatus(*status)
-		logger.Ctx(ctx).Debugw(gc.Status())
+		logger.Ctx(ctx).Debugw(gc.PrintableStatus())
 	}
 	return collections, errs
 }
@@ -325,7 +363,13 @@ func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 	gc.status = &cos
 }
 
-func (gc *GraphConnector) Status() string {
+// Status returns the current status of the graphConnector operaion.
+func (gc *GraphConnector) Status() *support.ConnectorOperationStatus {
+	return gc.status
+}
+
+// PrintableStatus returns a string formatted version of the GC status.
+func (gc *GraphConnector) PrintableStatus() string {
 	if gc.status == nil {
 		return ""
 	}

@@ -13,6 +13,7 @@ import (
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type GraphConnectorIntegrationSuite struct {
@@ -31,6 +32,10 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
+	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+		suite.T().Skip(err)
+	}
+
 	_, err := ctesting.GetRequiredEnvVars(ctesting.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
@@ -46,14 +51,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	suite.NotNil(suite.connector)
 }
 
-type DisconnectedGraphConnectorSuite struct {
-	suite.Suite
-}
-
-func TestDisconnectedGraphSuite(t *testing.T) {
-	suite.Run(t, new(DisconnectedGraphConnectorSuite))
-}
-
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers() {
 	err := suite.connector.setTenantUsers()
 	assert.NoError(suite.T(), err)
@@ -64,7 +61,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
-	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), "lidiah@8qzvrj.onmicrosoft.com")
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users("lidiah@8qzvrj.onmicrosoft.com"))
+	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Nil(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
 	assert.NotNil(suite.T(), suite.connector.status, "connector status")
@@ -89,6 +88,16 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), &edc)
 	assert.NoError(suite.T(), err)
+}
+
+// ---------------------------------------------------------------------------
+
+type DisconnectedGraphConnectorSuite struct {
+	suite.Suite
+}
+
+func TestDisconnectedGraphSuite(t *testing.T) {
+	suite.Run(t, new(DisconnectedGraphConnectorSuite))
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
@@ -158,12 +167,13 @@ func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	gc := GraphConnector{}
-	suite.Equal(len(gc.Status()), 0)
+	suite.Equal(len(gc.PrintableStatus()), 0)
 	status, err := support.CreateStatus(support.Restore, 12, 9, 8,
 		support.WrapAndAppend("tres", errors.New("three"), support.WrapAndAppend("arc376", errors.New("one"), errors.New("two"))))
 	assert.NoError(suite.T(), err)
 	gc.SetStatus(*status)
-	suite.Greater(len(gc.Status()), 0)
+	suite.Greater(len(gc.PrintableStatus()), 0)
+	suite.Greater(gc.Status().ObjectCount, 0)
 }
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {
 	tests := []struct {
@@ -217,9 +227,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TaskList() {
 	tasks := NewTaskList()
 	tasks.AddTask("person1", "Go to store")
 	tasks.AddTask("person1", "drop off mail")
-	values := tasks.GetTasks("person1")
+	values := tasks["person1"]
 	suite.Equal(len(values), 2)
-	nonValues := tasks.GetTasks("unknown")
+	nonValues := tasks["unknown"]
 	suite.Zero(len(nonValues))
 }
 
@@ -248,7 +258,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForM
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := optionsForMailFolders(test.params)
-			suite.T().Logf("%v", err)
 			suite.Equal(test.isError, err != nil)
 		})
 
@@ -281,10 +290,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForM
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := optionsForMessages(test.params)
-			suite.T().Logf("%v", err)
 			suite.Equal(test.isError, err != nil)
 		})
-
 	}
-
 }
