@@ -54,14 +54,14 @@ func (medc *MockExchangeDataCollection) Items() <-chan connector.DataStream {
 
 // ExchangeData represents a single item retrieved from exchange
 type MockExchangeData struct {
-	id     string
-	reader io.ReadCloser
+	ID     string
+	Reader io.ReadCloser
 }
 
 func (med *MockExchangeData) UUID() string {
-	return med.id
+	return med.ID
 }
 
 func (med *MockExchangeData) ToReader() io.ReadCloser {
-	return med.reader
+	return med.Reader
 }
