@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/pkg/restorepoint"
 )
 
 const (
@@ -72,6 +73,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
+	details := &restorepoint.Details{}
+
 	collections := []connector.DataCollection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{tenant, user1, emails},
@@ -91,7 +94,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//   - user2
 	//     - emails
 	//       - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections)
+	dirTree, err := inflateDirTree(ctx, collections, details)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), tenant)
 
@@ -116,6 +119,13 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		require.NoError(suite.T(), err)
 		assert.Len(suite.T(), emailFiles, expectedFileCount[entry.Name()])
 	}
+
+	totalFileCount := 0
+	for _, c := range expectedFileCount {
+		totalFileCount += c
+	}
+
+	assert.Len(suite.T(), details.Entries, totalFileCount)
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
@@ -126,6 +136,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
+	details := &restorepoint.Details{}
 	collections := []connector.DataCollection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{emails},
@@ -136,7 +147,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 	// Returned directory structure should look like:
 	// - emails
 	//   - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections)
+	dirTree, err := inflateDirTree(ctx, collections, details)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), emails)
 
@@ -204,7 +215,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := inflateDirTree(ctx, test.layout)
+			details := &restorepoint.Details{}
+			_, err := inflateDirTree(ctx, test.layout, details)
 			assert.Error(t, err)
 		})
 	}
@@ -260,13 +272,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 
-	stats, err := suite.w.BackupCollections(suite.ctx, collections)
+	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
 	assert.NoError(t, err)
 	assert.Equal(t, stats.TotalFileCount, 47)
 	assert.Equal(t, stats.TotalDirectoryCount, 5)
 	assert.Equal(t, stats.IgnoredErrorCount, 0)
 	assert.Equal(t, stats.ErrorCount, 0)
 	assert.False(t, stats.Incomplete)
+	assert.Len(t, rp.Entries, 47)
 }
 
 type KopiaSimpleRepoIntegrationSuite struct {
@@ -312,13 +325,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		},
 	}
 
-	stats, err := suite.w.BackupCollections(suite.ctx, collections)
+	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, 1)
 	require.Equal(t, stats.TotalDirectoryCount, 3)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
+	assert.Len(t, rp.Entries, 1)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
