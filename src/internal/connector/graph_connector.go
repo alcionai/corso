@@ -5,6 +5,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -271,35 +272,48 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 
 func (gc *GraphConnector) messageToDataCollection(ctx context.Context, objectWriter *kw.JsonSerializationWriter,
 	edc ExchangeDataCollection, message models.Messageable, user string) error {
-	if *message.GetHasAttachments() {
+	var aMessage models.Messageable
+	var err error
+	adtl := message.GetAdditionalData()
+	if len(adtl) > 2 {
+		fmt.Println(adtl)
+		aMessage, err = support.ConvertFromMessageable(adtl, message)
+		if err != nil {
+			return err
+		}
+		//os.Exit(2)
+	} else {
+		aMessage = message
+	}
+	if *aMessage.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := gc.client.
 				UsersById(user).
-				MessagesById(*message.GetId()).
+				MessagesById(*aMessage.GetId()).
 				Attachments().
 				Get()
 			retriesErr = err
 			if err == nil && attached != nil {
-				message.SetAttachments(attached.GetValue())
+				aMessage.SetAttachments(attached.GetValue())
 				break
 			}
 		}
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return support.WrapAndAppend(*message.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
+			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
 		}
 	}
-	err := objectWriter.WriteObjectValue("", message)
+	err = objectWriter.WriteObjectValue("", aMessage)
 	if err != nil {
-		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *message.GetId()))
+		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
 	}
 
 	byteArray, err := objectWriter.GetSerializedContent()
 	objectWriter.Close()
 	if err != nil {
-		return support.WrapAndAppend(*message.GetId(), errors.Wrap(err, "serializing mail content"), nil)
+		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
 	if byteArray != nil {
 		edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
