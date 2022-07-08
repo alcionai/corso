@@ -124,3 +124,24 @@ func (suite *FiltersSuite) TestContains() {
 		})
 	}
 }
+
+func (suite *FiltersSuite) TestIn() {
+	make := filters.NewIn
+	f := make(false, "", "murf")
+	nf := make(true, "", "murf")
+
+	table := []struct {
+		input    string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"smurfs", assert.True, assert.False},
+		{"sfrums", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.input, func(t *testing.T) {
+			test.expectF(t, f.Matches(test.input), "filter")
+			test.expectNF(t, nf.Matches(test.input), "negated filter")
+		})
+	}
+}
