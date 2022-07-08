@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/internal/kopia/mockkopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/backup"
 )
@@ -55,6 +57,36 @@ func entriesToNames(entries []fs.Entry) []string {
 	}
 
 	return res
+}
+
+func testForFiles(
+	t *testing.T,
+	expected map[string][]byte,
+	collections []connector.DataCollection,
+) {
+	count := 0
+	for _, c := range collections {
+		for s := range c.Items() {
+			count++
+
+			fullPath := path.Join(append(c.FullPath(), s.UUID())...)
+
+			expected, ok := expected[fullPath]
+			require.True(
+				t,
+				ok,
+				"unexpected file with path %q",
+				path.Join(append(c.FullPath(), fullPath)...),
+			)
+
+			buf, err := ioutil.ReadAll(s.ToReader())
+			require.NoError(t, err)
+
+			assert.Equal(t, expected, buf)
+		}
+	}
+
+	assert.Equal(t, len(expected), count)
 }
 
 // ---------------
@@ -236,6 +268,87 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 			assert.Error(t, err)
 		})
 	}
+}
+
+func (suite *KopiaUnitSuite) TestRestoreDirectory_FailGettingReader() {
+	ctx := context.Background()
+	t := suite.T()
+
+	expectedStreamData := map[string][]byte{
+		path.Join(testInboxDir, testFileName):  testFileData,
+		path.Join(testInboxDir, testFileName3): testFileData3,
+	}
+
+	dirs := virtualfs.NewStaticDirectory(testInboxDir, []fs.Entry{
+		&mockkopia.MockFile{
+			Entry: &mockkopia.MockEntry{
+				EntryName: testFileName,
+				EntryMode: mockkopia.DefaultPermissions,
+			},
+			Data: testFileData,
+		},
+		&mockkopia.MockFile{
+			Entry: &mockkopia.MockEntry{
+				EntryName: testFileName2,
+				EntryMode: mockkopia.DefaultPermissions,
+			},
+			OpenErr: assert.AnError,
+		},
+		&mockkopia.MockFile{
+			Entry: &mockkopia.MockEntry{
+				EntryName: testFileName3,
+				EntryMode: mockkopia.DefaultPermissions,
+			},
+			Data: testFileData3,
+		},
+	})
+
+	collections, err := restoreSubtree(ctx, dirs, nil)
+	assert.Error(t, err)
+
+	assert.Len(t, collections, 1)
+	testForFiles(t, expectedStreamData, collections)
+}
+
+func (suite *KopiaUnitSuite) TestRestoreDirectory_FailWrongItemType() {
+	ctx := context.Background()
+	t := suite.T()
+
+	expectedStreamData := map[string][]byte{
+		path.Join(testEmailDir, testInboxDir, testFileName):    testFileData,
+		path.Join(testEmailDir, testArchiveDir, testFileName3): testFileData3,
+	}
+
+	dirs := virtualfs.NewStaticDirectory(testEmailDir, []fs.Entry{
+		virtualfs.NewStaticDirectory(testInboxDir, []fs.Entry{
+			&mockkopia.MockFile{
+				Entry: &mockkopia.MockEntry{
+					EntryName: testFileName,
+					EntryMode: mockkopia.DefaultPermissions,
+				},
+				Data: testFileData,
+			},
+		}),
+		virtualfs.NewStaticDirectory("foo", []fs.Entry{
+			virtualfs.StreamingFileFromReader(
+				testFileName2, bytes.NewReader(testFileData2)),
+		}),
+		virtualfs.NewStaticDirectory(testArchiveDir, []fs.Entry{
+			&mockkopia.MockFile{
+				Entry: &mockkopia.MockEntry{
+					EntryName: testFileName3,
+					EntryMode: mockkopia.DefaultPermissions,
+				},
+				Data: testFileData3,
+			},
+		}),
+	})
+
+	collections, err := restoreSubtree(ctx, dirs, nil)
+	assert.Error(t, err)
+
+	assert.Len(t, collections, 2)
+	testForFiles(t, expectedStreamData, collections)
 }
 
 // ---------------
@@ -505,23 +618,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory() {
 				suite.ctx, string(suite.snapshotID), test.dirPath)
 			require.NoError(t, err)
 
-			found := 0
-			for _, c := range collections {
-				for ds := range c.Items() {
-					found++
-
-					fullPath := path.Join(append(c.FullPath(), ds.UUID())...)
-					expected, ok := test.expectedFiles[fullPath]
-					require.True(t, ok, "unexpected path %q", fullPath)
-
-					buf, err := ioutil.ReadAll(ds.ToReader())
-					require.NoError(t, err)
-
-					assert.Equal(t, expected, buf)
-				}
-			}
-
-			assert.Equal(t, len(test.expectedFiles), found)
+			testForFiles(t, test.expectedFiles, collections)
 		})
 	}
 }
