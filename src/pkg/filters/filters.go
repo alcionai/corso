@@ -80,7 +80,7 @@ func NewIn(negate bool, category any, substr string) Filter {
 	return Filter{In, category, norm(substr), negate}
 }
 
-// Checks whether the filter matches the
+// Checks whether the filter matches the input
 func (f Filter) Matches(input string) bool {
 	var cmp func(string, string) bool
 	switch f.Comparator {
