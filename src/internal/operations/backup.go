@@ -104,7 +104,6 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 		stats.writeErr = err
 		return err
 	}
-
 	return nil
 }
 

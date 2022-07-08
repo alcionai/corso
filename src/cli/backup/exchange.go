@@ -18,6 +18,7 @@ import (
 // exchange bucket info from flags
 var (
 	user string
+	rpID string
 )
 
 // called by backup.go to map parent subcommands to provider-specific handling.
@@ -32,6 +33,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(&user, "user", "", "ID of the user whose Exchange data is to be backed up.")
 	case listCommand:
 		c, _ = utils.AddCommand(parent, exchangeListCmd)
+	case detailsCommand:
+		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
+		fs.StringVar(&rpID, "restore-point-details", "", "ID of the restore point details to be shown.")
+		c.MarkFlagRequired("restore-point-details")
 	}
 	return c
 }
@@ -140,5 +145,53 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	for _, rp := range rps {
 		p.Print(*rp)
 	}
+	return nil
+}
+
+// `corso backup details exchange [<flag>...]`
+var exchangeDetailsCmd = &cobra.Command{
+	Use:   exchangeServiceCommand,
+	Short: "Shows the details of a M365 Exchange service backup",
+	RunE:  detailsExchangeCmd,
+	Args:  cobra.NoArgs,
+}
+
+// lists the history of backup operations
+func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	s, acct, err := config.GetStorageAndAccount(true, nil)
+	if err != nil {
+		return err
+	}
+
+	m365, err := acct.M365Config()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse m365 account config")
+	}
+
+	logger.Ctx(ctx).Debugw(
+		"Called - "+cmd.CommandPath(),
+		"tenantID", m365.TenantID)
+
+	r, err := repository.Connect(ctx, acct, s)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+	}
+	defer utils.CloseRepo(ctx, r)
+
+	rpd, err := r.RestorePointDetails(ctx, rpID)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get restorepoint details in the repository")
+	}
+
+	// TODO: Can be used to print in alternative forms
+	p, err := cli.Format("json", os.Stdout)
+	if err != nil {
+		return err
+	}
+	defer p.Flush()
+	p.Print(*rpd)
+
 	return nil
 }

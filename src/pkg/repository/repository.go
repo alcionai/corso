@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
@@ -164,4 +165,14 @@ func (r Repository) RestorePoints(ctx context.Context) ([]*restorepoint.RestoreP
 		rps = append(rps, &rp)
 	}
 	return rps, nil
+}
+
+// RestorePoints lists restorepoints in a respository
+func (r Repository) RestorePointDetails(ctx context.Context, rpDetailsID string) (*restorepoint.Details, error) {
+	rpd := restorepoint.Details{}
+	err := r.modelStore.GetWithModelStoreID(ctx, kopia.RestorePointDetailsModel, manifest.ID(rpDetailsID), &rpd)
+	if err != nil {
+		return nil, err
+	}
+	return &rpd, nil
 }
