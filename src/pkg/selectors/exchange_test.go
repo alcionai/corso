@@ -54,7 +54,7 @@ func (suite *ExchangeSourceSuite) TestToExchangeRestore() {
 	assert.NotZero(t, eb.Scopes())
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeContacts() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Contacts() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -65,7 +65,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeContacts() {
 		c2     = "c2"
 	)
 
-	sel.ExcludeContacts(user, folder, c1, c2)
+	sel.Exclude(sel.Contacts(user, folder, c1, c2))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
@@ -75,7 +75,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeContacts() {
 	assert.Equal(t, scope[ExchangeContact.String()], join(c1, c2))
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeContacts() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Contacts() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -86,7 +86,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeContacts() {
 		c2     = "c2"
 	)
 
-	sel.IncludeContacts(user, folder, c1, c2)
+	sel.Include(sel.Contacts(user, folder, c1, c2))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
@@ -98,7 +98,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeContacts() {
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeContact)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeContactFolders() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_ContactFolders() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -108,16 +108,17 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeContactFolders() {
 		f2   = "f2"
 	)
 
-	sel.ExcludeContactFolders(user, f1, f2)
+	sel.Exclude(sel.ContactFolders(user, f1, f2))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeContactFolder.String()], join(f1, f2))
+	assert.Equal(t, scope[ExchangeContact.String()], None)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeContactFolders() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_ContactFolders() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -127,18 +128,19 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeContactFolders() {
 		f2   = "f2"
 	)
 
-	sel.IncludeContactFolders(user, f1, f2)
+	sel.Include(sel.ContactFolders(user, f1, f2))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeContactFolder.String()], join(f1, f2))
+	assert.Equal(t, scope[ExchangeContact.String()], All)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeContactFolder)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeEvents() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Events() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -148,7 +150,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeEvents() {
 		e2   = "e2"
 	)
 
-	sel.ExcludeEvents(user, e1, e2)
+	sel.Exclude(sel.Events(user, e1, e2))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
@@ -157,7 +159,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeEvents() {
 	assert.Equal(t, scope[ExchangeEvent.String()], join(e1, e2))
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeEvents() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Events() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -167,7 +169,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeEvents() {
 		e2   = "e2"
 	)
 
-	sel.IncludeEvents(user, e1, e2)
+	sel.Include(sel.Events(user, e1, e2))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
@@ -178,7 +180,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeEvents() {
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeEvent)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeMail() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Mails() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -189,7 +191,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeMail() {
 		m2     = "m2"
 	)
 
-	sel.ExcludeMail(user, folder, m1, m2)
+	sel.Exclude(sel.Mails(user, folder, m1, m2))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
@@ -199,7 +201,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeMail() {
 	assert.Equal(t, scope[ExchangeMail.String()], join(m1, m2))
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeMail() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Mails() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -210,7 +212,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeMail() {
 		m2     = "m2"
 	)
 
-	sel.IncludeMail(user, folder, m1, m2)
+	sel.Include(sel.Mails(user, folder, m1, m2))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
@@ -222,7 +224,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeMail() {
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeMail)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeMailFolders() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_MailFolders() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -232,16 +234,17 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeMailFolders() {
 		f2   = "f2"
 	)
 
-	sel.ExcludeMailFolders(user, f1, f2)
+	sel.Exclude(sel.MailFolders(user, f1, f2))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeMailFolder.String()], join(f1, f2))
+	assert.Equal(t, scope[ExchangeMail.String()], None)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeMailFolders() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_MailFolders() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -251,18 +254,19 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeMailFolders() {
 		f2   = "f2"
 	)
 
-	sel.IncludeMailFolders(user, f1, f2)
+	sel.Include(sel.MailFolders(user, f1, f2))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeMailFolder.String()], join(f1, f2))
+	assert.Equal(t, scope[ExchangeMail.String()], All)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeMailFolder)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeUsers() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Users() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -271,15 +275,20 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_ExcludeUsers() {
 		u2 = "u2"
 	)
 
-	sel.ExcludeUsers(u1, u2)
+	sel.Exclude(sel.Users(u1, u2))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
+	assert.Equal(t, scope[ExchangeContact.String()], None)
+	assert.Equal(t, scope[ExchangeContactFolder.String()], None)
+	assert.Equal(t, scope[ExchangeEvent.String()], None)
+	assert.Equal(t, scope[ExchangeMail.String()], None)
+	assert.Equal(t, scope[ExchangeMailFolder.String()], None)
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeUsers() {
+func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
 	t := suite.T()
 	sel := NewExchangeBackup()
 
@@ -288,12 +297,17 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_IncludeUsers() {
 		u2 = "u2"
 	)
 
-	sel.IncludeUsers(u1, u2)
+	sel.Include(sel.Users(u1, u2))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
+	assert.Equal(t, scope[ExchangeContact.String()], All)
+	assert.Equal(t, scope[ExchangeContactFolder.String()], All)
+	assert.Equal(t, scope[ExchangeEvent.String()], All)
+	assert.Equal(t, scope[ExchangeMail.String()], All)
+	assert.Equal(t, scope[ExchangeMailFolder.String()], All)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeUser)
 }

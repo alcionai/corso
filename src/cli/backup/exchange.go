@@ -1,8 +1,6 @@
 package backup
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -11,6 +9,7 @@ import (
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // exchange bucket info from flags
@@ -74,17 +73,21 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	bo, err := r.NewBackup(ctx, []string{user})
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users(user))
+
+	bo, err := r.NewBackup(ctx, sel.Selector)
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
 
-	result, err := bo.Run(ctx)
+	err = bo.Run(ctx)
 	if err != nil {
 		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
-	fmt.Printf("Backed up restore point %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
+	// todo: revive when restorePoints are hooked up to backupOperation results
+	// fmt.Printf("Backed up restore point %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
 	return nil
 }
 

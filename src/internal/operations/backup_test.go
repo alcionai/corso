@@ -10,10 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -35,27 +36,31 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	ctx := context.Background()
 
 	var (
-		kw        = &kopia.Wrapper{}
-		acct      = account.Account{}
-		now       = time.Now()
-		cs        = []connector.DataCollection{&connector.ExchangeDataCollection{}}
-		readErrs  = multierror.Append(nil, assert.AnError)
-		writeErrs = assert.AnError
-		stats     = &kopia.BackupStats{
-			TotalFileCount: 1,
+		kw    = &kopia.Wrapper{}
+		acct  = account.Account{}
+		now   = time.Now()
+		stats = backupStats{
+			readErr:  multierror.Append(nil, assert.AnError),
+			writeErr: assert.AnError,
+			k: &kopia.BackupStats{
+				TotalFileCount: 1,
+			},
+			gc: &support.ConnectorOperationStatus{
+				ObjectCount: 1,
+			},
 		}
 	)
 
-	op, err := NewBackupOperation(ctx, Options{}, kw, acct, nil)
+	op, err := NewBackupOperation(ctx, Options{}, kw, acct, selectors.Selector{})
 	require.NoError(t, err)
 
-	op.persistResults(now, cs, stats, readErrs, writeErrs)
+	op.persistResults(now, &stats)
 
 	assert.Equal(t, op.Status, Failed)
-	assert.Equal(t, op.Results.ItemsRead, len(cs))
-	assert.Equal(t, op.Results.ReadErrors, readErrs)
-	assert.Equal(t, op.Results.ItemsWritten, stats.TotalFileCount)
-	assert.Equal(t, op.Results.WriteErrors, writeErrs)
+	assert.Equal(t, op.Results.ItemsRead, stats.gc.ObjectCount)
+	assert.Equal(t, op.Results.ReadErrors, stats.readErr)
+	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount)
+	assert.Equal(t, op.Results.WriteErrors, stats.writeErr)
 	assert.Equal(t, op.Results.StartedAt, now)
 	assert.Less(t, now, op.Results.CompletedAt)
 }
@@ -108,7 +113,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				Options{},
 				test.kw,
 				test.acct,
-				nil)
+				selectors.Selector{})
 			test.errCheck(t, err)
 		})
 	}
@@ -139,18 +144,22 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	w, err := kopia.NewWrapper(k)
 	require.NoError(t, err)
 
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users(m365User))
+
 	bo, err := NewBackupOperation(
 		ctx,
 		Options{},
 		w,
 		acct,
-		[]string{m365User})
+		sel.Selector)
 	require.NoError(t, err)
 
-	stats, err := bo.Run(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, stats)
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results)
 	assert.Equal(t, bo.Status, Successful)
-	assert.Greater(t, stats.TotalFileCount, 0)
-	assert.Zero(t, stats.ErrorCount)
+	assert.Greater(t, bo.Results.ItemsRead, 0)
+	assert.Greater(t, bo.Results.ItemsWritten, 0)
+	assert.Zero(t, bo.Results.ReadErrors)
+	assert.Zero(t, bo.Results.WriteErrors)
 }

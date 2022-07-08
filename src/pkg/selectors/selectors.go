@@ -17,7 +17,13 @@ const (
 var ErrorBadSelectorCast = errors.New("wrong selector service type")
 
 const (
-	scopeKeyCategory = "category"
+	scopeKeyCategory    = "category"
+	scopeKeyGranularity = "granularity"
+)
+
+const (
+	Group = "group"
+	Item  = "item"
 )
 
 const (
@@ -26,7 +32,7 @@ const (
 	All = "ß∂ƒ∑´®≈ç√¬˜"
 	// None is usesd to express "no data of <type>"
 	// Ex: {user: u1, events: None} => no events for user u1.
-	None = "√ç≈œ´∆¬˚¨π"
+	None = ""
 
 	delimiter = ","
 )
