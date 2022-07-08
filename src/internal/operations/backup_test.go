@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -51,7 +52,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewBackupOperation(ctx, Options{}, kw, ms, acct, nil)
+	op, err := NewBackupOperation(ctx, Options{}, kw, ms, acct, selectors.Selector{})
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
@@ -117,7 +118,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.kw,
 				test.ms,
 				test.acct,
-				nil)
+				selectors.Selector{})
 			test.errCheck(t, err)
 		})
 	}
@@ -153,13 +154,16 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	require.NoError(t, err)
 	defer ms.Close(ctx)
 
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users(m365User))
+
 	bo, err := NewBackupOperation(
 		ctx,
 		Options{},
 		w,
 		ms,
 		acct,
-		[]string{m365User})
+		sel.Selector)
 	require.NoError(t, err)
 
 	require.NoError(t, bo.Run(ctx))

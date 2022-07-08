@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -124,14 +125,14 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a backupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, targets []string) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
 		operations.Options{},
 		r.dataLayer,
 		r.modelStore,
 		r.Account,
-		targets)
+		selector)
 }
 
 // NewRestore generates a restoreOperation runner.
