@@ -8,14 +8,15 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[folders-0]
-	_ = x[messages-1]
-	_ = x[users-2]
+	_ = x[unknown-0]
+	_ = x[folders-1]
+	_ = x[messages-2]
+	_ = x[users-3]
 }
 
-const _optionIdentifier_name = "foldersmessagesusers"
+const _optionIdentifier_name = "unknownfoldersmessagesusers"
 
-var _optionIdentifier_index = [...]uint8{0, 7, 15, 20}
+var _optionIdentifier_index = [...]uint8{0, 7, 14, 22, 27}
 
 func (i optionIdentifier) String() string {
 	if i < 0 || i >= optionIdentifier(len(_optionIdentifier_index)-1) {
