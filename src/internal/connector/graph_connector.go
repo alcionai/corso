@@ -15,6 +15,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
@@ -305,6 +306,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	return collections, errs
 }
 
+// messageToDataCollection transfers message objects to objects within DataCollection
 func (gc *GraphConnector) messageToDataCollection(
 	ctx context.Context,
 	objectWriter *kw.JsonSerializationWriter,
@@ -343,9 +345,8 @@ func (gc *GraphConnector) messageToDataCollection(
 		return support.WrapAndAppend(*message.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
 	if byteArray != nil {
-		edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
+		edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray, info: exchange.MessageInfo(message)})
 	}
-
 	return nil
 }
 
