@@ -282,11 +282,11 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	for aFolder, tasks := range tasklist {
 		// prep the items for handoff to the backup consumer
 		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
-		for _, entry := range tasks {
-			response, err := gc.client.UsersById(user).MessagesById(entry).Get()
+		for _, task := range tasks {
+			response, err := gc.client.UsersById(user).MessagesById(task).Get()
 			if err != nil {
 				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve %s, %s", entry, details), errs)
+				errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
 				continue
 			}
 			err = gc.messageToDataCollection(ctx, objectWriter, edc, response, user)
@@ -336,13 +336,13 @@ func (gc *GraphConnector) messageToDataCollection(
 			return support.WrapAndAppend(*message.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
 		}
 	}
+	defer objectWriter.Close()
 	err := objectWriter.WriteObjectValue("", message)
 	if err != nil {
 		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *message.GetId()))
 	}
 
 	byteArray, err := objectWriter.GetSerializedContent()
-	objectWriter.Close()
 	if err != nil {
 		return support.WrapAndAppend(*message.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}

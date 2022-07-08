@@ -13,7 +13,8 @@ type optionIdentifier int
 
 //go:generate stringer -type=optionIdentifier
 const (
-	folders optionIdentifier = iota
+	unknown optionIdentifier = iota
+	folders
 	messages
 	users
 )
