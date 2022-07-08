@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/alcionai/corso/pkg/backup"
@@ -21,7 +22,6 @@ func (suite *ExchangeSourceSuite) TestNewExchangeBackup() {
 	t := suite.T()
 	eb := NewExchangeBackup()
 	assert.Equal(t, eb.Service, ServiceExchange)
-	assert.Zero(t, eb.BackupID)
 	assert.NotZero(t, eb.Scopes())
 }
 
@@ -32,26 +32,23 @@ func (suite *ExchangeSourceSuite) TestToExchangeBackup() {
 	eb, err := s.ToExchangeBackup()
 	require.NoError(t, err)
 	assert.Equal(t, eb.Service, ServiceExchange)
-	assert.Zero(t, eb.BackupID)
 	assert.NotZero(t, eb.Scopes())
 }
 
 func (suite *ExchangeSourceSuite) TestNewExchangeRestore() {
 	t := suite.T()
-	er := NewExchangeRestore("backupID")
+	er := NewExchangeRestore()
 	assert.Equal(t, er.Service, ServiceExchange)
-	assert.Equal(t, er.BackupID, "backupID")
 	assert.NotZero(t, er.Scopes())
 }
 
 func (suite *ExchangeSourceSuite) TestToExchangeRestore() {
 	t := suite.T()
-	eb := NewExchangeRestore("rpid")
+	eb := NewExchangeRestore()
 	s := eb.Selector
 	eb, err := s.ToExchangeRestore()
 	require.NoError(t, err)
 	assert.Equal(t, eb.Service, ServiceExchange)
-	assert.Equal(t, eb.BackupID, "rpid")
 	assert.NotZero(t, eb.Scopes())
 }
 
@@ -486,7 +483,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesPath() {
 	)
 	var (
 		path = []string{"tid", usr, "mail", fld, mail}
-		es   = NewExchangeRestore("rpid")
+		es   = NewExchangeRestore()
 	)
 
 	table := []struct {
@@ -526,7 +523,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_ExcludesPath() {
 	)
 	var (
 		path = []string{"tid", usr, "mail", fld, mail}
-		es   = NewExchangeRestore("rpid")
+		es   = NewExchangeRestore()
 	)
 
 	table := []struct {
@@ -622,124 +619,131 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 		event   = "tid/uid/event/eid"
 		mail    = "tid/uid/mail/mfld/mid"
 	)
+	split := func(s ...string) [][]string {
+		r := [][]string{}
+		for _, ss := range s {
+			r = append(r, strings.Split(ss, "/"))
+		}
+		return r
+	}
 	table := []struct {
 		name         string
 		deets        *backup.Details
 		makeSelector func() *ExchangeRestore
-		expect       []string
+		expect       [][]string
 	}{
 		{
 			"no refs",
 			makeDeets(),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				return er
 			},
-			[]string{},
+			[][]string{},
 		},
 		{
 			"contact only",
 			makeDeets(contact),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				return er
 			},
-			[]string{contact},
+			split(contact),
 		},
 		{
 			"event only",
 			makeDeets(event),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				return er
 			},
-			[]string{event},
+			split(event),
 		},
 		{
 			"mail only",
 			makeDeets(mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				return er
 			},
-			[]string{mail},
+			split(mail),
 		},
 		{
 			"all",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				return er
 			},
-			[]string{contact, event, mail},
+			split(contact, event, mail),
 		},
 		{
 			"only match contact",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Contacts("uid", "cfld", "cid"))
 				return er
 			},
-			[]string{contact},
+			split(contact),
 		},
 		{
 			"only match event",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Events("uid", "eid"))
 				return er
 			},
-			[]string{event},
+			split(event),
 		},
 		{
 			"only match mail",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Mails("uid", "mfld", "mid"))
 				return er
 			},
-			[]string{mail},
+			split(mail),
 		},
 		{
 			"exclude contact",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				er.Exclude(er.Contacts("uid", "cfld", "cid"))
 				return er
 			},
-			[]string{event, mail},
+			split(event, mail),
 		},
 		{
 			"exclude event",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				er.Exclude(er.Events("uid", "eid"))
 				return er
 			},
-			[]string{contact, mail},
+			split(contact, mail),
 		},
 		{
 			"exclude mail",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore("rpid")
+				er := NewExchangeRestore()
 				er.Include(er.Users(All))
 				er.Exclude(er.Mails("uid", "mfld", "mid"))
 				return er
 			},
-			[]string{contact, event},
+			split(contact, event),
 		},
 	}
 	for _, test := range table {
@@ -753,7 +757,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 
 func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 	var (
-		es       = NewExchangeRestore("rpid")
+		es       = NewExchangeRestore()
 		users    = es.Users(All)
 		contacts = es.ContactFolders(All, All)
 		events   = es.Events(All, All)
@@ -798,7 +802,7 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 		return extendExchangeScopeValues(None, exchangeScope(s))
 	}
 	var (
-		es          = NewExchangeRestore("rpid")
+		es          = NewExchangeRestore()
 		inAll       = include(es.Users(All))
 		inNone      = include(es.Users(None))
 		inMail      = include(es.Mails(All, All, mail))

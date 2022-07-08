@@ -36,7 +36,7 @@ type (
 func NewExchangeBackup() *ExchangeBackup {
 	src := ExchangeBackup{
 		exchange{
-			newSelector(ServiceExchange, ""),
+			newSelector(ServiceExchange),
 		},
 	}
 	return &src
@@ -53,10 +53,10 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 }
 
 // NewExchangeRestore produces a new Selector with the service set to ServiceExchange.
-func NewExchangeRestore(backupID string) *ExchangeRestore {
+func NewExchangeRestore() *ExchangeRestore {
 	src := ExchangeRestore{
 		exchange{
-			newSelector(ServiceExchange, backupID),
+			newSelector(ServiceExchange),
 		},
 	}
 	return &src
@@ -408,13 +408,13 @@ func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
 // those that match the inclusions and exclusions in the selector.
 func (s *ExchangeRestore) FilterDetails(deets *backup.Details) []string {
 	if deets == nil {
-		return []string{}
+		return nil
 	}
 
 	entIncs := exchangeScopesByCategory(s.Includes)
 	entExcs := exchangeScopesByCategory(s.Excludes)
 
-	refs := []string{}
+	refs := [][]string{}
 
 	for _, ent := range deets.Entries {
 		path := strings.Split(ent.RepoRef, "/")
@@ -438,7 +438,7 @@ func (s *ExchangeRestore) FilterDetails(deets *backup.Details) []string {
 			entIncs[cat.String()],
 			entExcs[cat.String()])
 		if matched {
-			refs = append(refs, ent.RepoRef)
+			refs = append(refs, path)
 		}
 	}
 

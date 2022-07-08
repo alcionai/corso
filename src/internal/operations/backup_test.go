@@ -75,7 +75,10 @@ type BackupOpIntegrationSuite struct {
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+	if err := ctesting.RunOnAny(
+		ctesting.CorsoCITests,
+		ctesting.CorsoOperationTests,
+	); err != nil {
 		t.Skip(err)
 	}
 	suite.Run(t, new(BackupOpIntegrationSuite))
@@ -168,6 +171,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results)
+	require.NotNil(t, bo.Results.RestorePoint)
 	assert.Equal(t, bo.Status, Successful)
 	assert.Greater(t, bo.Results.ItemsRead, 0)
 	assert.Greater(t, bo.Results.ItemsWritten, 0)

@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // exchange bucket info from flags
@@ -85,7 +86,10 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, backupID, []string{m365.TenantID, user, "mail", folder, mail})
+	sel := restoreSelectors()
+	// []string{m365.TenantID, user, "mail", folder, mail}
+
+	ro, err := r.NewRestore(ctx, restorePointID, sel)
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
@@ -98,9 +102,35 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateRestoreFlags(u, f, m, bID string) error {
-	if len(bID) == 0 {
-		return errors.New("a backup ID is requried")
+func restoreSelectors() selectors.Selector {
+	sel := selectors.NewExchangeRestore()
+	u := user
+	if user == "*" {
+		u = selectors.All
+	}
+	f := folder
+	if folder == "*" {
+		f = selectors.All
+	}
+	m := mail
+	if mail == "*" {
+		m = selectors.All
+	}
+	if len(m) > 0 {
+		sel.Include(sel.Mails(u, f, m))
+	}
+	if len(f) > 0 && len(m) == 0 {
+		sel.Include(sel.MailFolders(u, f))
+	}
+	if len(f) == 0 && len(m) == 0 {
+		sel.Include(sel.Users(u))
+	}
+	return sel.Selector
+}
+
+func validateRestoreFlags(u, f, m, rpid string) error {
+	if len(rpid) == 0 {
+		return errors.New("a restore point ID is requried")
 	}
 	lu, lf, lm := len(u), len(f), len(m)
 	if (lu == 0 || u == "*") && (lf+lm > 0) {

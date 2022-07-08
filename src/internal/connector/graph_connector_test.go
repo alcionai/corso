@@ -83,7 +83,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
-	err = suite.connector.RestoreMessages(context.Background(), &edc)
+	err = suite.connector.RestoreMessages(context.Background(), []DataCollection{&edc})
 	assert.NoError(suite.T(), err)
 }
 

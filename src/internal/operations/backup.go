@@ -29,7 +29,7 @@ type BackupOperation struct {
 type BackupResults struct {
 	summary
 	metrics
-	// todo: Backup ID
+	Backup *backup.Backup `json:"backup"`
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -113,10 +113,15 @@ func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string
 		return errors.Wrap(err, "creating backupdetails model")
 	}
 
-	err = op.modelStore.Put(ctx, kopia.BackupModel, backup.New(snapID, string(details.ModelStoreID)))
+	rp := backup.New(snapID, string(details.ModelStoreID))
+
+	err = op.modelStore.Put(ctx, kopia.BackupModel, rp)
 	if err != nil {
 		return errors.Wrap(err, "creating backup model")
 	}
+
+	op.Results.Backup = rp
+
 	return nil
 }
 

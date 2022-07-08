@@ -4,22 +4,25 @@ import (
 	"context"
 	"time"
 
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // RestoreOperation wraps an operation with restore-specific props.
 type RestoreOperation struct {
 	operation
 
-	BackupID string         `json:"backupID"`
-	Results  RestoreResults `json:"results"`
-	Targets  []string       `json:"selectors"` // todo: replace with Selectors
-	Version  string         `json:"bersion"`
+	BackupID  manifest.ID        `json:"backupID"`
+	Results   RestoreResults     `json:"results"`
+	Selectors selectors.Selector `json:"selectors"` // todo: replace with Selectors
+	Version   string             `json:"bersion"`
 
 	account account.Account
 }
@@ -37,15 +40,15 @@ func NewRestoreOperation(
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
 	acct account.Account,
-	backupID string,
-	targets []string,
+	backupID manifest.ID,
+	sel selectors.Selector,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, kw, ms),
-		BackupID:  backupID,
-		Targets:   targets,
-		Version:   "v0",
-		account:   acct,
+		operation:      newOperation(opts, kw, ms),
+		RestorePointID: backupID,
+		Selectors:      sel,
+		Version:        "v0",
+		account:        acct,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -77,22 +80,50 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	stats := restoreStats{}
 	defer op.persistResults(time.Now(), &stats)
 
-	dc, err := op.kopia.RestoreSingleItem(ctx, op.BackupID, op.Targets)
+	dcs := []connector.DataCollection{}
+
+	// retrieve the restore point details
+	rp := restorepoint.RestorePoint{}
+	err := op.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, op.BackupID, &rp)
+	if err != nil {
+		stats.readErr = errors.Wrap(err, "retrieving restore point")
+		return stats.readErr
+	}
+
+	rpd := restorepoint.Details{}
+	err = op.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rp.DetailsID), &rpd)
+	if err != nil {
+		stats.readErr = errors.Wrap(err, "retrieving restore point details")
+		return stats.readErr
+	}
+
+	er, err := op.Selectors.ToExchangeRestore()
 	if err != nil {
 		stats.readErr = err
-		return errors.Wrap(err, "retrieving service data")
+		return err
 	}
-	stats.cs = []connector.DataCollection{dc}
 
+	// retrieve all dataCollections for the matching details
+	for _, path := range er.FilterDetails(&rpd) {
+		dc, err := op.kopia.RestoreSingleItem(ctx, rp.SnapshotID, path)
+		if err != nil {
+			stats.readErr = errors.Wrap(err, "retrieving service data")
+			return stats.readErr
+		}
+		dcs = append(dcs, dc)
+	}
+	stats.cs = dcs
+
+	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
-		stats.writeErr = err
-		return errors.Wrap(err, "connecting to graph api")
+		stats.writeErr = errors.Wrap(err, "connecting to graph api")
+		return stats.writeErr
 	}
 
-	if err := gc.RestoreMessages(ctx, dc); err != nil {
-		stats.writeErr = err
-		return errors.Wrap(err, "restoring service data")
+	if err := gc.RestoreMessages(ctx, dcs); err != nil {
+		stats.writeErr = errors.Wrap(err, "restoring service data")
+		return stats.writeErr
 	}
 
 	op.Status = Successful
