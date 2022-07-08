@@ -279,7 +279,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	assert.Equal(t, stats.IgnoredErrorCount, 0)
 	assert.Equal(t, stats.ErrorCount, 0)
 	assert.False(t, stats.Incomplete)
-	assert.Equal(t, len(rp.Entries), 47)
+	assert.Len(t, rp.Entries, 47)
 }
 
 type KopiaSimpleRepoIntegrationSuite struct {
@@ -332,7 +332,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.TotalDirectoryCount, 3)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	assert.Len(t, len(rp.Entries), 1)
+	assert.Len(t, rp.Entries, 1)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
