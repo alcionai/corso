@@ -215,7 +215,6 @@ func ConvertFromMessageable(adtl map[string]any, orig models.Messageable) (model
 				}
 			}
 			return newMessage, nil
-			//Time to set additional data
 		}
 	}
 	return nil, errors.New("unknown data type")
