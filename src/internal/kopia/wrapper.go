@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"path"
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
@@ -13,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/pkg/restorepoint"
 )
 
 const (
@@ -77,6 +79,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // DataCollection.
 func getStreamItemFunc(
 	collection connector.DataCollection,
+	details *restorepoint.Details,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
 		items := collection.Items()
@@ -88,11 +91,19 @@ func getStreamItemFunc(
 				if !ok {
 					return nil
 				}
+				ei, ok := e.(connector.DataStreamInfo)
+				if !ok {
+					return errors.New("item does not implement DataStreamInfo")
+				}
 
 				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
 				if err := cb(ctx, entry); err != nil {
 					return errors.Wrap(err, "executing callback")
 				}
+
+				// Populate RestorePointDetails
+				ep := append(collection.FullPath(), e.UUID())
+				details.Add(path.Join(ep...), ei.Info())
 			}
 		}
 	}
@@ -101,7 +112,7 @@ func getStreamItemFunc(
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are either virtualfs.StreamingDirectory or
 // virtualfs.staticDirectory.
-func buildKopiaDirs(dirName string, dir *treeMap) (fs.Directory, error) {
+func buildKopiaDirs(dirName string, dir *treeMap, details *restorepoint.Details) (fs.Directory, error) {
 	// Don't support directories that have both a DataCollection and a set of
 	// static child directories.
 	if dir.collection != nil && len(dir.childDirs) > 0 {
@@ -109,7 +120,7 @@ func buildKopiaDirs(dirName string, dir *treeMap) (fs.Directory, error) {
 	}
 
 	if dir.collection != nil {
-		return virtualfs.NewStreamingDirectory(dirName, getStreamItemFunc(dir.collection)), nil
+		return virtualfs.NewStreamingDirectory(dirName, getStreamItemFunc(dir.collection, details)), nil
 	}
 
 	// Need to build the directory tree from the leaves up because intermediate
@@ -117,7 +128,7 @@ func buildKopiaDirs(dirName string, dir *treeMap) (fs.Directory, error) {
 	childDirs := []fs.Entry{}
 
 	for childName, childDir := range dir.childDirs {
-		child, err := buildKopiaDirs(childName, childDir)
+		child, err := buildKopiaDirs(childName, childDir, details)
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +154,7 @@ func newTreeMap() *treeMap {
 // ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
 // in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
 // DataCollections.
-func inflateDirTree(ctx context.Context, collections []connector.DataCollection) (fs.Directory, error) {
+func inflateDirTree(ctx context.Context, collections []connector.DataCollection, details *restorepoint.Details) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
@@ -202,7 +213,7 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 
 	var res fs.Directory
 	for dirName, dir := range roots {
-		tmp, err := buildKopiaDirs(dirName, dir)
+		tmp, err := buildKopiaDirs(dirName, dir, details)
 		if err != nil {
 			return nil, err
 		}
@@ -216,27 +227,30 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection)
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	collections []connector.DataCollection,
-) (*BackupStats, error) {
+) (*BackupStats, *restorepoint.Details, error) {
 	if w.c == nil {
-		return nil, errNotConnected
+		return nil, nil, errNotConnected
 	}
 
-	dirTree, err := inflateDirTree(ctx, collections)
+	details := &restorepoint.Details{}
+
+	dirTree, err := inflateDirTree(ctx, collections, details)
 	if err != nil {
-		return nil, errors.Wrap(err, "building kopia directories")
+		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	stats, err := w.makeSnapshotWithRoot(ctx, dirTree)
+	stats, err := w.makeSnapshotWithRoot(ctx, dirTree, details)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return stats, nil
+	return stats, details, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
+	details *restorepoint.Details,
 ) (*BackupStats, error) {
 	si := snapshot.SourceInfo{
 		Host:     kTestHost,
@@ -261,6 +275,9 @@ func (w Wrapper) makeSnapshotWithRoot(
 		return nil, errors.Wrap(err, "uploading data")
 	}
 
+	// TODO: Persist RestorePointDetails here
+	//       Create and store RestorePoint
+
 	if _, err := snapshot.SaveSnapshot(ctx, rw, man); err != nil {
 		return nil, errors.Wrap(err, "saving snapshot")
 	}
@@ -269,8 +286,78 @@ func (w Wrapper) makeSnapshotWithRoot(
 		return nil, errors.Wrap(err, "flushing writer")
 	}
 
+	// TODO: Return RestorePoint ID in stats
+
 	res := manifestToStats(man)
 	return &res, nil
+}
+
+// getEntry returns the item that the restore operation is rooted at. For
+// single-item restores, this is the kopia file the data is sourced from. For
+// restores of directories or subtrees it is the directory at the root of the
+// subtree.
+func (w Wrapper) getEntry(
+	ctx context.Context,
+	snapshotID string,
+	itemPath []string,
+) (fs.Entry, error) {
+	if len(itemPath) == 0 {
+		return nil, errors.New("no restore path given")
+	}
+
+	manifest, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
+	if err != nil {
+		return nil, errors.Wrap(err, "getting snapshot handle")
+	}
+
+	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, manifest)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting root directory")
+	}
+
+	// GetNestedEntry handles nil properly.
+	e, err := snapshotfs.GetNestedEntry(ctx, rootDirEntry, itemPath[1:])
+	if err != nil {
+		return nil, errors.Wrap(err, "getting nested object handle")
+	}
+
+	return e, nil
+}
+
+// collectItems is a generic helper function that pulls data from kopia for the
+// given item in the snapshot with ID snapshotID. If isDirectory is true, it
+// returns a slice of DataCollections with data from directories in the subtree
+// rooted at itemPath. If isDirectory is false it returns a DataCollection (in a
+// slice) with a single item corresponding to the requested item. If the item
+// does not exist or a file is found when a directory is expected (or the
+// opposite) it returns an error.
+func (w Wrapper) collectItems(
+	ctx context.Context,
+	snapshotID string,
+	itemPath []string,
+	isDirectory bool,
+) ([]connector.DataCollection, error) {
+	e, err := w.getEntry(ctx, snapshotID, itemPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// The paths passed below is the path up to (but not including) the
+	// file/directory passed.
+	if isDirectory {
+		return nil, errors.New("directory restore not implemented")
+	}
+
+	f, ok := e.(fs.File)
+	if !ok {
+		return nil, errors.New("requested object is not a file")
+	}
+	c, err := w.restoreSingleItem(ctx, f, itemPath[:len(itemPath)-1])
+	if err != nil {
+		return nil, err
+	}
+
+	return []connector.DataCollection{c}, nil
 }
 
 // RestoreSingleItem looks up the item at the given path in the snapshot with id
@@ -285,18 +372,12 @@ func (w Wrapper) RestoreSingleItem(
 	snapshotID string,
 	itemPath []string,
 ) (connector.DataCollection, error) {
-	manifest, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
+	c, err := w.collectItems(ctx, snapshotID, itemPath, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting snapshot handle")
+		return nil, err
 	}
 
-	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, manifest)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting root directory")
-	}
-
-	// Fine if rootDirEntry is nil, will be checked in called function.
-	return w.restoreSingleItem(ctx, rootDirEntry, itemPath[1:])
+	return c[0], nil
 }
 
 // restoreSingleItem looks up the item at the given path starting from rootDir
@@ -308,32 +389,21 @@ func (w Wrapper) RestoreSingleItem(
 // sourced from.
 func (w Wrapper) restoreSingleItem(
 	ctx context.Context,
-	rootDir fs.Entry,
+	f fs.File,
 	itemPath []string,
 ) (connector.DataCollection, error) {
-	e, err := snapshotfs.GetNestedEntry(ctx, rootDir, itemPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting object handle")
-	}
-
-	f, ok := e.(fs.File)
-	if !ok {
-		return nil, errors.New("not a file")
-	}
-
 	r, err := f.Open(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "opening file")
 	}
 
-	pathWithRoot := []string{rootDir.Name()}
-	pathWithRoot = append(pathWithRoot, itemPath[:len(itemPath)-1]...)
-
-	return &singleItemCollection{
-		stream: kopiaDataStream{
-			uuid:   itemPath[len(itemPath)-1],
-			reader: r,
+	return &kopiaDataCollection{
+		streams: []connector.DataStream{
+			&kopiaDataStream{
+				uuid:   f.Name(),
+				reader: r,
+			},
 		},
-		path: pathWithRoot,
+		path: itemPath,
 	}, nil
 }

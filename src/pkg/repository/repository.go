@@ -10,6 +10,8 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -19,9 +21,10 @@ type Repository struct {
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
-	Account   account.Account // the user's m365 account connection details
-	Storage   storage.Storage // the storage provider details and configuration
-	dataLayer *kopia.Wrapper
+	Account    account.Account // the user's m365 account connection details
+	Storage    storage.Storage // the storage provider details and configuration
+	dataLayer  *kopia.Wrapper
+	modelStore *kopia.ModelStore
 }
 
 // Initialize will:
@@ -41,7 +44,7 @@ func Initialize(
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		return nil, err
 	}
-	// kopiaRef comes with a count of 1 and NewWrapper bumps it again so safe
+	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
 	defer kopiaRef.Close(ctx)
 
@@ -50,12 +53,18 @@ func Initialize(
 		return nil, err
 	}
 
+	ms, err := kopia.NewModelStore(kopiaRef)
+	if err != nil {
+		return nil, err
+	}
+
 	r := Repository{
-		ID:        uuid.New(),
-		Version:   "v1",
-		Account:   acct,
-		Storage:   storage,
-		dataLayer: w,
+		ID:         uuid.New(),
+		Version:    "v1",
+		Account:    acct,
+		Storage:    storage,
+		dataLayer:  w,
+		modelStore: ms,
 	}
 	return &r, nil
 }
@@ -74,7 +83,7 @@ func Connect(
 	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
 	}
-	// kopiaRef comes with a count of 1 and NewWrapper bumps it again so safe
+	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
 	defer kopiaRef.Close(ctx)
 
@@ -83,39 +92,48 @@ func Connect(
 		return nil, err
 	}
 
+	ms, err := kopia.NewModelStore(kopiaRef)
+	if err != nil {
+		return nil, err
+	}
+
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	r := Repository{
-		Version:   "v1",
-		Account:   acct,
-		Storage:   storage,
-		dataLayer: w,
+		Version:    "v1",
+		Account:    acct,
+		Storage:    storage,
+		dataLayer:  w,
+		modelStore: ms,
 	}
 	return &r, nil
 }
 
 func (r *Repository) Close(ctx context.Context) error {
-	if r.dataLayer == nil {
+	if r.dataLayer != nil {
+		err := r.dataLayer.Close(ctx)
+		r.dataLayer = nil
+		if err != nil {
+			return errors.Wrap(err, "closing corso DataLayer")
+		}
+	}
+
+	if r.modelStore == nil {
 		return nil
 	}
-
-	err := r.dataLayer.Close(ctx)
-	r.dataLayer = nil
-
-	if err != nil {
-		return errors.Wrap(err, "closing corso Repository")
-	}
-
-	return nil
+	err := r.modelStore.Close(ctx)
+	r.modelStore = nil
+	return errors.Wrap(err, "closing corso ModelStore")
 }
 
 // NewBackup generates a backupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, targets []string) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
 		operations.Options{},
 		r.dataLayer,
+		r.modelStore,
 		r.Account,
-		targets)
+		selector)
 }
 
 // NewRestore generates a restoreOperation runner.
@@ -124,7 +142,26 @@ func (r Repository) NewRestore(ctx context.Context, restorePointID string, targe
 		ctx,
 		operations.Options{},
 		r.dataLayer,
+		r.modelStore,
 		r.Account,
 		restorePointID,
 		targets)
+}
+
+// RestorePoints lists restorepoints in a respository
+func (r Repository) RestorePoints(ctx context.Context) ([]*restorepoint.RestorePoint, error) {
+	bms, err := r.modelStore.GetIDsForType(ctx, kopia.RestorePointModel, nil)
+	if err != nil {
+		return nil, err
+	}
+	rps := make([]*restorepoint.RestorePoint, 0, len(bms))
+	for _, bm := range bms {
+		rp := restorepoint.RestorePoint{}
+		err := r.modelStore.GetWithModelStoreID(ctx, kopia.RestorePointModel, bm.ModelStoreID, &rp)
+		if err != nil {
+			return nil, err
+		}
+		rps = append(rps, &rp)
+	}
+	return rps, nil
 }

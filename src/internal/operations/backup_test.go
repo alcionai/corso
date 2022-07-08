@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 
 	var (
 		kw    = &kopia.Wrapper{}
+		ms    = &kopia.ModelStore{}
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = backupStats{
@@ -50,7 +52,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewBackupOperation(ctx, Options{}, kw, acct, nil)
+	op, err := NewBackupOperation(ctx, Options{}, kw, ms, acct, selectors.Selector{})
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
@@ -91,6 +93,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
+	ms := &kopia.ModelStore{}
 	acct, err := ctesting.NewM365Account()
 	require.NoError(suite.T(), err)
 
@@ -98,12 +101,14 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		name     string
 		opts     Options
 		kw       *kopia.Wrapper
+		ms       *kopia.ModelStore
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", Options{}, kw, acct, nil, assert.NoError},
-		{"missing kopia", Options{}, nil, acct, nil, assert.Error},
+		{"good", Options{}, kw, ms, acct, nil, assert.NoError},
+		{"missing kopia", Options{}, nil, ms, acct, nil, assert.Error},
+		{"missing modelstore", Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -111,8 +116,9 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				context.Background(),
 				Options{},
 				test.kw,
+				test.ms,
 				test.acct,
-				nil)
+				selectors.Selector{})
 			test.errCheck(t, err)
 		})
 	}
@@ -142,13 +148,22 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	w, err := kopia.NewWrapper(k)
 	require.NoError(t, err)
+	defer w.Close(ctx)
+
+	ms, err := kopia.NewModelStore(k)
+	require.NoError(t, err)
+	defer ms.Close(ctx)
+
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users(m365User))
 
 	bo, err := NewBackupOperation(
 		ctx,
 		Options{},
 		w,
+		ms,
 		acct,
-		[]string{m365User})
+		sel.Selector)
 	require.NoError(t, err)
 
 	require.NoError(t, bo.Run(ctx))

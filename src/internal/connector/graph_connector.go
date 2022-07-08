@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/alcionai/corso/internal/connector/support"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -18,8 +17,11 @@ import (
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector/exchange"
+	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 const (
@@ -139,11 +141,47 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // Assumption: User exists
 // TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, user string) ([]DataCollection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]DataCollection, error) {
+	eb, err := selector.ToExchangeBackup()
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting exchange data")
+	}
+
+	collections := []DataCollection{}
+	scopes := eb.Scopes()
+	var errs error
+
+	// for each scope that includes mail messages, get all
+	for _, scope := range scopes {
+		if !scope.IncludesCategory(selectors.ExchangeMail) {
+			continue
+		}
+
+		for _, user := range scope.Get(selectors.ExchangeUser) {
+			// TODO: handle "get mail for all users"
+			// this would probably no-op without this check,
+			// but we want it made obvious that we're punting.
+			if user == selectors.All {
+				errs = support.WrapAndAppend(
+					"all-users",
+					errors.New("all users selector currently not handled"),
+					errs)
+				continue
+			}
+			dcs, err := gc.serializeMessages(ctx, user)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+			}
+			if len(dcs) > 0 {
+				collections = append(collections, dcs...)
+			}
+		}
+	}
+
 	// TODO replace with completion of Issue 124:
 
 	//TODO: Retry handler to convert return: (DataCollection, error)
-	return gc.serializeMessages(ctx, user)
+	return collections, errs
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
@@ -359,7 +397,7 @@ func (gc *GraphConnector) serializeMessageIteratorCallback(
 		}
 
 		if byteArray != nil {
-			edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
+			edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray, info: exchange.MessageInfo(message)})
 		}
 
 		return true

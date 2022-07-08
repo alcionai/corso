@@ -10,15 +10,17 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // BackupOperation wraps an operation with backup-specific props.
 type BackupOperation struct {
 	operation
 
-	Results BackupResults `json:"results"`
-	Targets []string      `json:"selectors"` // todo: replace with Selectors
-	Version string        `json:"version"`
+	Results   BackupResults      `json:"results"`
+	Selectors selectors.Selector `json:"selectors"`
+	Version   string             `json:"version"`
 
 	account account.Account
 }
@@ -35,12 +37,13 @@ func NewBackupOperation(
 	ctx context.Context,
 	opts Options,
 	kw *kopia.Wrapper,
+	ms *kopia.ModelStore,
 	acct account.Account,
-	targets []string,
+	selector selectors.Selector,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation: newOperation(opts, kw),
-		Targets:   targets,
+		operation: newOperation(opts, kw, ms),
+		Selectors: selector,
 		Version:   "v0",
 		account:   acct,
 	}
@@ -81,7 +84,7 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 	}
 
 	var cs []connector.DataCollection
-	cs, err = gc.ExchangeDataCollection(ctx, op.Targets[0])
+	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
 	if err != nil {
 		stats.readErr = err
 		return errors.Wrap(err, "retrieving service data")
@@ -89,12 +92,33 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 	stats.gc = gc.Status()
 
 	// hand the results to the consumer
-	stats.k, err = op.kopia.BackupCollections(ctx, cs)
+	var details *restorepoint.Details
+	stats.k, details, err = op.kopia.BackupCollections(ctx, cs)
 	if err != nil {
 		stats.writeErr = err
 		return errors.Wrap(err, "backing up service data")
 	}
 
+	err = op.createRestorePoint(ctx, stats.k.SnapshotID, details)
+	if err != nil {
+		stats.writeErr = err
+		return err
+	}
+
+	return nil
+}
+
+func (op *BackupOperation) createRestorePoint(ctx context.Context, snapID string, details *restorepoint.Details) error {
+	err := op.modelStore.Put(ctx, kopia.RestorePointDetailsModel, details)
+	if err != nil {
+		return errors.Wrap(err, "creating restorepointdetails model")
+	}
+
+	err = op.modelStore.Put(ctx, kopia.RestorePointModel,
+		restorepoint.New(snapID, string(details.ModelStoreID)))
+	if err != nil {
+		return errors.Wrap(err, "creating restorepoint model")
+	}
 	return nil
 }
 

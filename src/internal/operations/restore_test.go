@@ -37,6 +37,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 	var (
 		kw    = &kopia.Wrapper{}
+		ms    = &kopia.ModelStore{}
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = restoreStats{
@@ -49,7 +50,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewRestoreOperation(ctx, Options{}, kw, acct, "foo", nil)
+	op, err := NewRestoreOperation(ctx, Options{}, kw, ms, acct, "foo", nil)
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
@@ -85,6 +86,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
+	ms := &kopia.ModelStore{}
 	acct, err := ctesting.NewM365Account()
 	require.NoError(suite.T(), err)
 
@@ -92,12 +94,14 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		name     string
 		opts     Options
 		kw       *kopia.Wrapper
+		ms       *kopia.ModelStore
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", Options{}, kw, acct, nil, assert.NoError},
-		{"missing kopia", Options{}, nil, acct, nil, assert.Error},
+		{"good", Options{}, kw, ms, acct, nil, assert.NoError},
+		{"missing kopia", Options{}, nil, ms, acct, nil, assert.Error},
+		{"missing modelstore", Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -105,6 +109,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				context.Background(),
 				Options{},
 				test.kw,
+				test.ms,
 				test.acct,
 				"restore-point-id",
 				nil)
