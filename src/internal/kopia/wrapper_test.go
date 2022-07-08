@@ -270,6 +270,21 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 	}
 }
 
+func (suite *KopiaUnitSuite) TestRestoreItem() {
+	ctx := context.Background()
+
+	file := &mockkopia.MockFile{
+		Entry: &mockkopia.MockEntry{
+			EntryName: testFileName2,
+			EntryMode: mockkopia.DefaultPermissions,
+		},
+		OpenErr: assert.AnError,
+	}
+
+	_, err := restoreSingleItem(ctx, file, nil)
+	assert.Error(suite.T(), err)
+}
+
 func (suite *KopiaUnitSuite) TestRestoreDirectory_FailGettingReader() {
 	ctx := context.Background()
 	t := suite.T()

@@ -358,7 +358,7 @@ func (w Wrapper) collectItems(
 		return nil, errors.New("requested object is not a file")
 	}
 
-	c, err := w.restoreSingleItem(ctx, f, itemPath[:len(itemPath)-1])
+	c, err := restoreSingleItem(ctx, f, itemPath[:len(itemPath)-1])
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +393,7 @@ func (w Wrapper) RestoreSingleItem(
 // does not exist in kopia or is not a file an error is returned. The UUID of
 // the returned DataStreams will be the name of the kopia file the data is
 // sourced from.
-func (w Wrapper) restoreSingleItem(
+func restoreSingleItem(
 	ctx context.Context,
 	f fs.File,
 	itemPath []string,
