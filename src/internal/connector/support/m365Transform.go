@@ -2,7 +2,6 @@ package support
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
@@ -143,7 +142,6 @@ func ConvertFromMessageable(adtl map[string]any, orig models.Messageable) (model
 					}
 				}
 				if key == "location" {
-					fmt.Printf("%s of type %T\n", key, entry)
 					aLocation := models.NewLocation()
 					mapped, ok := entry.(map[string]*kw.JsonParseNode)
 					if ok {
@@ -151,18 +149,17 @@ func ConvertFromMessageable(adtl map[string]any, orig models.Messageable) (model
 							node := *val
 							value, err := node.GetStringValue()
 							if err != nil {
-								fmt.Printf("Err: %v\n", err)
+								return nil, errors.New("map[string]*JsonParseNode conversion failure")
 							}
 							switch key {
 							case "displayName":
 								aLocation.SetDisplayName(value)
 							case "locationType":
-								ty, err := models.ParseLocationType(*value)
-								fmt.Printf("What %T\n", ty)
+								temp, err := models.ParseLocationType(*value)
 								if err != nil {
 									return nil, errors.New("location type parse failure")
 								}
-								lType, ok := ty.(*models.LocationType)
+								lType, ok := temp.(*models.LocationType)
 								if !ok {
 									return nil, errors.New("location type interface failure")
 								}

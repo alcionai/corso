@@ -5,7 +5,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -276,7 +275,6 @@ func (gc *GraphConnector) messageToDataCollection(ctx context.Context, objectWri
 	var err error
 	adtl := message.GetAdditionalData()
 	if len(adtl) > 2 {
-		fmt.Println(adtl)
 		aMessage, err = support.ConvertFromMessageable(adtl, message)
 		if err != nil {
 			return err
