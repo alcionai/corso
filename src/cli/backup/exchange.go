@@ -35,7 +35,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, _ = utils.AddCommand(parent, exchangeListCmd)
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
-		fs.StringVar(&rpID, "restorePointDetails", "", "ID of the restore point details to be shown.")
+		fs.StringVar(&rpID, "restore-point-details", "", "ID of the restore point details to be shown.")
+		c.MarkFlagRequired("restore-point-details")
 	}
 	return c
 }

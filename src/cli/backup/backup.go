@@ -80,8 +80,8 @@ var detailsCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 }
 
-// Handler for calls to `corso backup list`.
-// Produces the same output as `corso backup list --help`.
+// Handler for calls to `corso backup details`.
+// Produces the same output as `corso backup details --help`.
 func handleDetailsCmd(cmd *cobra.Command, args []string) {
 	cmd.Help()
 }
