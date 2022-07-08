@@ -121,6 +121,9 @@ func (gc *GraphConnector) GetUsers() []string {
 func (gc *GraphConnector) GetUsersIds() []string {
 	return buildFromMap(false, gc.Users)
 }
+
+// buildFromMap helper function for returning []string from map.
+// Returns list of keys iff true; otherwise returns a list of values
 func buildFromMap(isKey bool, mapping map[string]string) []string {
 	returnString := make([]string, 0)
 	if isKey {
@@ -138,7 +141,6 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // ExchangeDataStream returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
 // Assumption: User exists
-// TODO: https://github.com/alcionai/corso/issues/135
 //  Add iota to this call -> mail, contacts, calendar,  etc.
 func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]DataCollection, error) {
 	eb, err := selector.ToExchangeBackup()
