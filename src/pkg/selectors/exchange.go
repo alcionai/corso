@@ -316,6 +316,9 @@ func (s exchangeScope) includesPath(cat exchangeCategory, path []string) bool {
 	ids := idPath(cat, path)
 	for _, c := range categoryPathSet[cat] {
 		target := s.Get(c)
+		if len(target) == 0 {
+			return false
+		}
 		id, ok := ids[c]
 		if !ok {
 			return false
@@ -332,6 +335,9 @@ func (s exchangeScope) excludesPath(cat exchangeCategory, path []string) bool {
 	ids := idPath(cat, path)
 	for _, c := range categoryPathSet[cat] {
 		target := s.Get(c)
+		if len(target) == 0 {
+			return true
+		}
 		id, ok := ids[c]
 		if !ok {
 			return true
@@ -358,20 +364,32 @@ func contains(super []string, sub string) bool {
 // ---------------------------------------------------------------------------
 
 // transforms a path to a map of identified properties.
+// Malformed (ie, short len) paths will return incomplete results.
 // Example:
 // [tenantID, userID, "mail", mailFolder, mailID]
 // => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
 func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
-	m := map[exchangeCategory]string{
-		ExchangeUser: path[1],
+	m := map[exchangeCategory]string{}
+	if len(path) == 0 {
+		return m
 	}
+	m[ExchangeUser] = path[1]
 	switch cat {
 	case ExchangeContact:
+		if len(path) < 5 {
+			return m
+		}
 		m[ExchangeContactFolder] = path[3]
 		m[ExchangeContact] = path[4]
 	case ExchangeEvent:
+		if len(path) < 4 {
+			return m
+		}
 		m[ExchangeEvent] = path[3]
 	case ExchangeMail:
+		if len(path) < 5 {
+			return m
+		}
 		m[ExchangeMailFolder] = path[3]
 		m[ExchangeMail] = path[4]
 	}
@@ -392,6 +410,8 @@ func (s *ExchangeRestore) FilterDetails(deets *restorepoint.Details) []string {
 
 	for _, ent := range deets.Entries {
 		path := strings.Split(ent.RepoRef, "/")
+		// not all paths will be len=3.  Most should be longer.
+		// This just protects us from panicing four lines later.
 		if len(path) < 3 {
 			continue
 		}
@@ -417,7 +437,7 @@ func (s *ExchangeRestore) FilterDetails(deets *restorepoint.Details) []string {
 	return refs
 }
 
-// groups each scope by its category of datta (contact, event, or mail).
+// groups each scope by its category of data (contact, event, or mail).
 // user-level scopes will duplicate to all three categories.
 func exchangeScopesByCategory(scopes []map[string]string) map[string][]exchangeScope {
 	m := map[string][]exchangeScope{
@@ -440,8 +460,8 @@ func exchangeScopesByCategory(scopes []map[string]string) map[string][]exchangeS
 	return m
 }
 
-// compare each path to the included and excluded exchange scopes.  If the path
-// is included, and not excluded, it gets joined and added to the result set.
+// compare each path to the included and excluded exchange scopes.  Returns true
+// if the path is included, and not excluded.
 func matchExchangeEntry(cat exchangeCategory, path []string, incs, excs []exchangeScope) bool {
 	var included bool
 	for _, inc := range incs {
