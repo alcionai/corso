@@ -31,7 +31,7 @@ func (suite *ExchangeSuite) TestValidateRestoreFlags() {
 		{"mail missing user", "", "", "m", "rpid", assert.Error},
 		{"mail missing folder", "u", "", "m", "rpid", assert.Error},
 		{"mail with wildcard folder", "u", "*", "m", "rpid", assert.Error},
-		{"missing restore point id", "u", "f", "m", "", assert.Error},
+		{"missing backup id", "u", "f", "m", "", assert.Error},
 		{"all missing", "", "", "", "rpid", assert.NoError},
 	}
 	for _, test := range table {

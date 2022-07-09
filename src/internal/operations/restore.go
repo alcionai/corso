@@ -16,10 +16,10 @@ import (
 type RestoreOperation struct {
 	operation
 
-	RestorePointID string         `json:"restorePointID"`
-	Results        RestoreResults `json:"results"`
-	Targets        []string       `json:"selectors"` // todo: replace with Selectors
-	Version        string         `json:"bersion"`
+	BackupID string         `json:"backupID"`
+	Results  RestoreResults `json:"results"`
+	Targets  []string       `json:"selectors"` // todo: replace with Selectors
+	Version  string         `json:"bersion"`
 
 	account account.Account
 }
@@ -37,15 +37,15 @@ func NewRestoreOperation(
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
 	acct account.Account,
-	restorePointID string,
+	backupID string,
 	targets []string,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:      newOperation(opts, kw, ms),
-		RestorePointID: restorePointID,
-		Targets:        targets,
-		Version:        "v0",
-		account:        acct,
+		operation: newOperation(opts, kw, ms),
+		BackupID:  backupID,
+		Targets:   targets,
+		Version:   "v0",
+		account:   acct,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -77,7 +77,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	stats := restoreStats{}
 	defer op.persistResults(time.Now(), &stats)
 
-	dc, err := op.kopia.RestoreSingleItem(ctx, op.RestorePointID, op.Targets)
+	dc, err := op.kopia.RestoreSingleItem(ctx, op.BackupID, op.Targets)
 	if err != nil {
 		stats.readErr = err
 		return errors.Wrap(err, "retrieving service data")

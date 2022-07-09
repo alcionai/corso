@@ -47,10 +47,10 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 }
 
 // NewExchangeRestore produces a new Selector with the service set to ServiceExchange.
-func NewExchangeRestore(restorePointID string) *ExchangeRestore {
+func NewExchangeRestore(backupID string) *ExchangeRestore {
 	src := ExchangeRestore{
 		exchange{
-			newSelector(ServiceExchange, restorePointID),
+			newSelector(ServiceExchange, backupID),
 		},
 	}
 	return &src

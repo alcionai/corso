@@ -27,8 +27,8 @@ const (
 	UnknownModel = modelType(iota)
 	BackupOpModel
 	RestoreOpModel
-	RestorePointModel
-	RestorePointDetailsModel
+	BackupModel
+	BackupDetailsModel
 )
 
 func NewModelStore(c *conn) (*ModelStore, error) {

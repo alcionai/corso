@@ -11,13 +11,13 @@ func _() {
 	_ = x[UnknownModel-0]
 	_ = x[BackupOpModel-1]
 	_ = x[RestoreOpModel-2]
-	_ = x[RestorePointModel-3]
-	_ = x[RestorePointDetailsModel-4]
+	_ = x[BackupModel-3]
+	_ = x[BackupDetailsModel-4]
 }
 
-const _modelType_name = "UnknownModelBackupOpModelRestoreOpModelRestorePointModelRestorePointDetailsModel"
+const _modelType_name = "UnknownModelBackupOpModelRestoreOpModelBackupModelBackupDetailsModel"
 
-var _modelType_index = [...]uint8{0, 12, 25, 39, 56, 80}
+var _modelType_index = [...]uint8{0, 12, 25, 39, 50, 68}
 
 func (i modelType) String() string {
 	if i < 0 || i >= modelType(len(_modelType_index)-1) {

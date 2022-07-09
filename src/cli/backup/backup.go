@@ -59,7 +59,7 @@ func handleCreateCmd(cmd *cobra.Command, args []string) {
 var listCommand = "list"
 var listCmd = &cobra.Command{
 	Use:   listCommand,
-	Short: "List the history of restore points for a service",
+	Short: "List the history of backups for a service",
 	Run:   handleListCmd,
 	Args:  cobra.NoArgs,
 }
@@ -75,7 +75,7 @@ func handleListCmd(cmd *cobra.Command, args []string) {
 var detailsCommand = "details"
 var detailsCmd = &cobra.Command{
 	Use:   detailsCommand,
-	Short: "Shows the details of a restore point for a service",
+	Short: "Shows the details of a backup for a service",
 	Run:   handleDetailsCmd,
 	Args:  cobra.NoArgs,
 }
