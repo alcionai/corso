@@ -374,6 +374,14 @@ func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
 		return m
 	}
 	m[ExchangeUser] = path[1]
+	/*
+		TODO/Notice:
+		Mail and Contacts contain folder structures, identified
+		in this code as being at index 3.  This assumes a single
+		folder, while in reality users can express subfolder
+		hierarchies of arbirary depth.  Subfolder handling is coming
+		at a later time.
+	*/
 	switch cat {
 	case ExchangeContact:
 		if len(path) < 5 {
