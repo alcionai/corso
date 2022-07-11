@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/kopia/kopia/repo/manifest"
@@ -22,7 +23,7 @@ type RestoreOperation struct {
 	BackupID  manifest.ID        `json:"backupID"`
 	Results   RestoreResults     `json:"results"`
 	Selectors selectors.Selector `json:"selectors"` // todo: replace with Selectors
-	Version   string             `json:"bersion"`
+	Version   string             `json:"version"`
 
 	account account.Account
 }
@@ -80,8 +81,6 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	stats := restoreStats{}
 	defer op.persistResults(time.Now(), &stats)
 
-	dcs := []connector.DataCollection{}
-
 	// retrieve the restore point details
 	rp := backup.Backup{}
 	err := op.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, op.BackupID, &rp)
@@ -103,14 +102,16 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		return err
 	}
 
-	// retrieve all dataCollections for the matching details
-	for _, path := range er.FilterDetails(&rpd) {
-		dc, err := op.kopia.RestoreSingleItem(ctx, rp.SnapshotID, path)
-		if err != nil {
-			stats.readErr = errors.Wrap(err, "retrieving service data")
-			return stats.readErr
-		}
-		dcs = append(dcs, dc)
+	// format the details and retrieve the items from kopia
+	fds := er.FilterDetails(&rpd)
+	paths := []string{}
+	for _, fd := range fds {
+		paths = append(paths, strings.Join(fd, "/"))
+	}
+	dcs, err := op.kopia.CollectItems(ctx, rp.SnapshotID, paths, false)
+	if err != nil {
+		stats.readErr = errors.Wrap(err, "retrieving service data")
+		return stats.readErr
 	}
 	stats.cs = dcs
 

@@ -321,14 +321,13 @@ func (w Wrapper) getEntry(
 	return e, nil
 }
 
-// collectItems is a generic helper function that pulls data from kopia for the
-// given item in the snapshot with ID snapshotID. If isDirectory is true, it
-// returns a slice of DataCollections with data from directories in the subtree
-// rooted at itemPath. If isDirectory is false it returns a DataCollection (in a
-// slice) with a single item corresponding to the requested item. If the item
-// does not exist or a file is found when a directory is expected (or the
-// opposite) it returns an error.
-func (w Wrapper) collectItems(
+// CollectItems pulls data from kopia for the given items in the snapshot with
+// ID snapshotID. If isDirectory is true, it returns a slice of DataCollections
+// with data from directories in the subtree rooted at itemPath. If isDirectory
+// is false it returns a DataCollection (in a slice) with a single item for each
+// requested item. If the item does not exist or a file is found when a directory
+// is expected (or the opposite) it returns an error.
+func (w Wrapper) CollectItems(
 	ctx context.Context,
 	snapshotID string,
 	itemPath []string,
@@ -378,7 +377,7 @@ func (w Wrapper) RestoreSingleItem(
 	snapshotID string,
 	itemPath []string,
 ) (connector.DataCollection, error) {
-	c, err := w.collectItems(ctx, snapshotID, itemPath, false)
+	c, err := w.CollectItems(ctx, snapshotID, itemPath, false)
 	if err != nil {
 		return nil, err
 	}
