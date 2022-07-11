@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/backup"
 )
 
 const (
@@ -40,7 +40,7 @@ type DataStream interface {
 // DataStreamInfo is used to provide service specific
 // information about the DataStream
 type DataStreamInfo interface {
-	Info() restorepoint.ItemInfo
+	Info() backup.ItemInfo
 }
 
 var _ DataCollection = &ExchangeDataCollection{}
@@ -101,7 +101,7 @@ type ExchangeData struct {
 	// going forward. Using []byte for now but I assume we'll have
 	// some structured type in here (serialization to []byte can be done in `Read`)
 	message []byte
-	info    *restorepoint.ExchangeInfo
+	info    *backup.ExchangeInfo
 }
 
 func (ed *ExchangeData) UUID() string {
@@ -112,6 +112,6 @@ func (ed *ExchangeData) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(ed.message))
 }
 
-func (ed *ExchangeData) Info() restorepoint.ItemInfo {
-	return restorepoint.ItemInfo{Exchange: ed.info}
+func (ed *ExchangeData) Info() backup.ItemInfo {
+	return backup.ItemInfo{Exchange: ed.info}
 }

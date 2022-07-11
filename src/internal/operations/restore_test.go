@@ -111,7 +111,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.kw,
 				test.ms,
 				test.acct,
-				"restore-point-id",
+				"backup-id",
 				nil)
 			test.errCheck(t, err)
 		})

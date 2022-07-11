@@ -17,10 +17,10 @@ func TestSelectorSuite(t *testing.T) {
 
 func (suite *SelectorSuite) TestNewSelector() {
 	t := suite.T()
-	s := newSelector(ServiceUnknown, "rpid")
+	s := newSelector(ServiceUnknown, "backupID")
 	assert.NotNil(t, s)
 	assert.Equal(t, s.Service, ServiceUnknown)
-	assert.Equal(t, s.RestorePointID, "rpid")
+	assert.Equal(t, s.BackupID, "backupID")
 	assert.NotNil(t, s.Includes)
 }
 

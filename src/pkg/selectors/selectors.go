@@ -44,19 +44,19 @@ const (
 // The core selector.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific selector instances.
 type Selector struct {
-	RestorePointID string              `json:"restorePointID,omitempty"` // A restore point id, used only by restore operations.
-	Service        service             `json:"service,omitempty"`        // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
-	Excludes       []map[string]string `json:"exclusions,omitempty"`     // A slice of exclusions.  Each exclusion applies to all inclusions.
-	Includes       []map[string]string `json:"scopes,omitempty"`         // A slice of inclusions.  Expected to get cast to a service wrapper within each service handler.
+	BackupID string              `json:"backupID,omitempty"`   // A backup id, used only by restore operations.
+	Service  service             `json:"service,omitempty"`    // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
+	Excludes []map[string]string `json:"exclusions,omitempty"` // A slice of exclusions.  Each exclusion applies to all inclusions.
+	Includes []map[string]string `json:"scopes,omitempty"`     // A slice of inclusions.  Expected to get cast to a service wrapper within each service handler.
 }
 
 // helper for specific selector instance constructors.
-func newSelector(s service, restorePointID string) Selector {
+func newSelector(s service, backupID string) Selector {
 	return Selector{
-		RestorePointID: restorePointID,
-		Service:        s,
-		Excludes:       []map[string]string{},
-		Includes:       []map[string]string{},
+		BackupID: backupID,
+		Service:  s,
+		Excludes: []map[string]string{},
+		Includes: []map[string]string{},
 	}
 }
 

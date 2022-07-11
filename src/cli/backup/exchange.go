@@ -17,8 +17,8 @@ import (
 
 // exchange bucket info from flags
 var (
-	user string
-	rpID string
+	user            string
+	backupDetailsID string
 )
 
 // called by backup.go to map parent subcommands to provider-specific handling.
@@ -35,8 +35,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, _ = utils.AddCommand(parent, exchangeListCmd)
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
-		fs.StringVar(&rpID, "restore-point-details", "", "ID of the restore point details to be shown.")
-		c.MarkFlagRequired("restore-point-details")
+		fs.StringVar(&backupDetailsID, "backup-details", "", "ID of the backup details to be shown.")
+		c.MarkFlagRequired("backup-details")
 	}
 	return c
 }
@@ -94,8 +94,8 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
-	// todo: revive when restorePoints are hooked up to backupOperation results
-	// fmt.Printf("Backed up restore point %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
+	// todo: revive when backups are hooked up to backupOperation results
+	// fmt.Printf("Created backup %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
 	return nil
 }
 
@@ -131,9 +131,9 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	rps, err := r.RestorePoints(ctx)
+	rps, err := r.Backups(ctx)
 	if err != nil {
-		return errors.Wrap(err, "Failed to list restorepoints in the repository")
+		return errors.Wrap(err, "Failed to list backups in the repository")
 	}
 
 	// TODO: Can be used to print in alternative forms (e.g. json)
@@ -180,9 +180,9 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	rpd, err := r.RestorePointDetails(ctx, rpID)
+	rpd, err := r.BackupDetails(ctx, backupDetailsID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get restorepoint details in the repository")
+		return errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
 	// TODO: Can be used to print in alternative forms

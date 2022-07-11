@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/backup"
 )
 
 const (
@@ -79,7 +79,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // DataCollection.
 func getStreamItemFunc(
 	collection connector.DataCollection,
-	details *restorepoint.Details,
+	details *backup.Details,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
 		items := collection.Items()
@@ -101,7 +101,7 @@ func getStreamItemFunc(
 					return errors.Wrap(err, "executing callback")
 				}
 
-				// Populate RestorePointDetails
+				// Populate BackupDetails
 				ep := append(collection.FullPath(), e.UUID())
 				details.Add(path.Join(ep...), ei.Info())
 			}
@@ -112,7 +112,7 @@ func getStreamItemFunc(
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are either virtualfs.StreamingDirectory or
 // virtualfs.staticDirectory.
-func buildKopiaDirs(dirName string, dir *treeMap, details *restorepoint.Details) (fs.Directory, error) {
+func buildKopiaDirs(dirName string, dir *treeMap, details *backup.Details) (fs.Directory, error) {
 	// Don't support directories that have both a DataCollection and a set of
 	// static child directories.
 	if dir.collection != nil && len(dir.childDirs) > 0 {
@@ -154,7 +154,7 @@ func newTreeMap() *treeMap {
 // ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
 // in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
 // DataCollections.
-func inflateDirTree(ctx context.Context, collections []connector.DataCollection, details *restorepoint.Details) (fs.Directory, error) {
+func inflateDirTree(ctx context.Context, collections []connector.DataCollection, details *backup.Details) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
@@ -227,12 +227,12 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection,
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	collections []connector.DataCollection,
-) (*BackupStats, *restorepoint.Details, error) {
+) (*BackupStats, *backup.Details, error) {
 	if w.c == nil {
 		return nil, nil, errNotConnected
 	}
 
-	details := &restorepoint.Details{}
+	details := &backup.Details{}
 
 	dirTree, err := inflateDirTree(ctx, collections, details)
 	if err != nil {
@@ -250,7 +250,7 @@ func (w Wrapper) BackupCollections(
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
-	details *restorepoint.Details,
+	details *backup.Details,
 ) (*BackupStats, error) {
 	si := snapshot.SourceInfo{
 		Host:     kTestHost,
@@ -275,9 +275,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 		return nil, errors.Wrap(err, "uploading data")
 	}
 
-	// TODO: Persist RestorePointDetails here
-	//       Create and store RestorePoint
-
 	if _, err := snapshot.SaveSnapshot(ctx, rw, man); err != nil {
 		return nil, errors.Wrap(err, "saving snapshot")
 	}
@@ -285,8 +282,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 	if err := rw.Flush(ctx); err != nil {
 		return nil, errors.Wrap(err, "flushing writer")
 	}
-
-	// TODO: Return RestorePoint ID in stats
 
 	res := manifestToStats(man)
 	return &res, nil

@@ -15,10 +15,10 @@ import (
 
 // exchange bucket info from flags
 var (
-	folder         string
-	mail           string
-	restorePointID string
-	user           string
+	folder   string
+	mail     string
+	backupID string
+	user     string
 )
 
 // called by restore.go to map parent subcommands to provider-specific handling.
@@ -33,8 +33,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd)
 		fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored")
 		fs.StringVar(&mail, "mail", "", "ID of the mail message being restored")
-		fs.StringVar(&restorePointID, "restore-point", "", "ID of the backup restore point")
-		c.MarkFlagRequired("restore-point")
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
+		c.MarkFlagRequired("backup")
 		fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
 	}
 	return c
@@ -58,7 +58,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateRestoreFlags(user, folder, mail, restorePointID); err != nil {
+	if err := validateRestoreFlags(user, folder, mail, backupID); err != nil {
 		return errors.Wrap(err, "Missing required flags")
 	}
 
@@ -74,7 +74,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	logger.Ctx(ctx).Debugw(
 		"Called - "+cmd.CommandPath(),
-		"restorePointID", restorePointID,
+		"backupID", backupID,
 		"tenantID", m365.TenantID,
 		"clientID", m365.ClientID,
 		"hasClientSecret", len(m365.ClientSecret) > 0)
@@ -85,7 +85,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, restorePointID, []string{m365.TenantID, user, "mail", folder, mail})
+	ro, err := r.NewRestore(ctx, backupID, []string{m365.TenantID, user, "mail", folder, mail})
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
@@ -98,9 +98,9 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateRestoreFlags(u, f, m, rpid string) error {
-	if len(rpid) == 0 {
-		return errors.New("a restore point ID is requried")
+func validateRestoreFlags(u, f, m, bID string) error {
+	if len(bID) == 0 {
+		return errors.New("a backup ID is requried")
 	}
 	lu, lf, lm := len(u), len(f), len(m)
 	if (lu == 0 || u == "*") && (lf+lm > 0) {

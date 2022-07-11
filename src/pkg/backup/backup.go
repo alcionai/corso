@@ -1,4 +1,4 @@
-package restorepoint
+package backup
 
 import (
 	"sync"
@@ -7,9 +7,8 @@ import (
 	"github.com/alcionai/corso/internal/model"
 )
 
-// RestorePoint represents the result of a backup operation
-// that can be restored
-type RestorePoint struct {
+// Backup represents the result of a backup operation
+type Backup struct {
 	model.BaseModel
 	CreationTime time.Time `json:"creationTime"`
 
@@ -24,15 +23,15 @@ type RestorePoint struct {
 	// - Backup "Specification"
 }
 
-func New(snapshotID, detailsID string) *RestorePoint {
-	return &RestorePoint{
+func New(snapshotID, detailsID string) *Backup {
+	return &Backup{
 		CreationTime: time.Now(),
 		SnapshotID:   snapshotID,
 		DetailsID:    detailsID,
 	}
 }
 
-// Details describes what was stored in a RestorePoint
+// Details describes what was stored in a Backup
 type Details struct {
 	model.BaseModel
 	Entries []DetailsEntry `json:"entries"`
@@ -41,7 +40,7 @@ type Details struct {
 	mu sync.Mutex `json:"-"`
 }
 
-// DetailsEntry describes a single item stored in a RestorePoint
+// DetailsEntry describes a single item stored in a Backup
 type DetailsEntry struct {
 	// TODO: `RepoRef` is currently the full path to the item in Kopia
 	// This can be optimized.
