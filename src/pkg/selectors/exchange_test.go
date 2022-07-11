@@ -3,7 +3,7 @@ package selectors
 import (
 	"testing"
 
-	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/backup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -604,12 +604,12 @@ func (suite *ExchangeSourceSuite) TestIdPath() {
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
-	makeDeets := func(refs ...string) *restorepoint.Details {
-		deets := &restorepoint.Details{
-			Entries: []restorepoint.DetailsEntry{},
+	makeDeets := func(refs ...string) *backup.Details {
+		deets := &backup.Details{
+			Entries: []backup.DetailsEntry{},
 		}
 		for _, r := range refs {
-			deets.Entries = append(deets.Entries, restorepoint.DetailsEntry{
+			deets.Entries = append(deets.Entries, backup.DetailsEntry{
 				RepoRef: r,
 			})
 		}
@@ -622,7 +622,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 	)
 	table := []struct {
 		name         string
-		deets        *restorepoint.Details
+		deets        *backup.Details
 		makeSelector func() *ExchangeRestore
 		expect       []string
 	}{

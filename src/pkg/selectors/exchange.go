@@ -3,7 +3,7 @@ package selectors
 import (
 	"strings"
 
-	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/backup"
 )
 
 // ---------------------------------------------------------------------------
@@ -404,9 +404,9 @@ func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
 	return m
 }
 
-// FilterDetails reduces the entries in a restorePointDetails struct to only
+// FilterDetails reduces the entries in a backupDetails struct to only
 // those that match the inclusions and exclusions in the selector.
-func (s *ExchangeRestore) FilterDetails(deets *restorepoint.Details) []string {
+func (s *ExchangeRestore) FilterDetails(deets *backup.Details) []string {
 	if deets == nil {
 		return []string{}
 	}
