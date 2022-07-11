@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 const (
@@ -340,14 +342,23 @@ func (w Wrapper) collectItems(
 	// The paths passed below is the path up to (but not including) the
 	// file/directory passed.
 	if isDirectory {
-		return nil, errors.New("directory restore not implemented")
+		dir, ok := e.(fs.Directory)
+		if !ok {
+			return nil, errors.New("requested object is not a directory")
+		}
+
+		c, err := restoreSubtree(ctx, dir, itemPath[:len(itemPath)-1])
+		// For some reason tests error out if the multierror is nil but we don't
+		// call ErrorOrNil.
+		return c, err.ErrorOrNil()
 	}
 
 	f, ok := e.(fs.File)
 	if !ok {
 		return nil, errors.New("requested object is not a file")
 	}
-	c, err := w.restoreSingleItem(ctx, f, itemPath[:len(itemPath)-1])
+
+	c, err := restoreSingleItem(ctx, f, itemPath[:len(itemPath)-1])
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +393,7 @@ func (w Wrapper) RestoreSingleItem(
 // does not exist in kopia or is not a file an error is returned. The UUID of
 // the returned DataStreams will be the name of the kopia file the data is
 // sourced from.
-func (w Wrapper) restoreSingleItem(
+func restoreSingleItem(
 	ctx context.Context,
 	f fs.File,
 	itemPath []string,
@@ -401,4 +412,121 @@ func (w Wrapper) restoreSingleItem(
 		},
 		path: itemPath,
 	}, nil
+}
+
+func walkDirectory(
+	ctx context.Context,
+	dir fs.Directory,
+) ([]fs.File, []fs.Directory, *multierror.Error) {
+	files := []fs.File{}
+	dirs := []fs.Directory{}
+	var errs *multierror.Error
+
+	err := dir.IterateEntries(ctx, func(innerCtx context.Context, e fs.Entry) error {
+		// Early exit on context cancel.
+		if err := innerCtx.Err(); err != nil {
+			return err
+		}
+
+		switch e.(type) {
+		case fs.Directory:
+			d := e.(fs.Directory)
+			dirs = append(dirs, d)
+		case fs.File:
+			f := e.(fs.File)
+			files = append(files, f)
+		default:
+			errs = multierror.Append(errs, errors.Errorf("unexpected item type %T", e))
+			logger.Ctx(ctx).Warnf("unexpected item of type %T; skipping", e)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		// If the iterator itself had an error add it to the list.
+		errs = multierror.Append(errs, errors.Wrap(err, "getting directory data"))
+	}
+
+	return files, dirs, errs
+}
+
+// restoreSubtree returns DataCollections for each subdirectory (or the
+// directory itself) that contains files. The FullPath of each returned
+// DataCollection is the path from the root of the kopia directory structure to
+// the directory. The UUID of each DataStream in each DataCollection is the name
+// of the kopia file the data is sourced from.
+func restoreSubtree(
+	ctx context.Context,
+	dir fs.Directory,
+	relativePath []string,
+) ([]connector.DataCollection, *multierror.Error) {
+	collections := []connector.DataCollection{}
+	// Want a local copy of relativePath with our new element.
+	fullPath := append(append([]string{}, relativePath...), dir.Name())
+	var errs *multierror.Error
+
+	files, dirs, err := walkDirectory(ctx, dir)
+	if err != nil {
+		errs = multierror.Append(
+			errs, errors.Wrapf(err, "walking directory %q", path.Join(fullPath...)))
+	}
+
+	if len(files) > 0 {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			errs = multierror.Append(errs, errors.WithStack(ctxErr))
+			return nil, errs
+		}
+
+		streams := make([]connector.DataStream, 0, len(files))
+
+		for _, f := range files {
+			r, err := f.Open(ctx)
+			if err != nil {
+				fileFullPath := path.Join(append(append([]string{}, fullPath...), f.Name())...)
+				errs = multierror.Append(
+					errs, errors.Wrapf(err, "getting reader for file %q", fileFullPath))
+				logger.Ctx(ctx).Warnf("skipping file %q", fileFullPath)
+				continue
+			}
+
+			streams = append(streams, &kopiaDataStream{
+				reader: r,
+				uuid:   f.Name(),
+			})
+		}
+
+		collections = append(collections, &kopiaDataCollection{
+			streams: streams,
+			path:    fullPath,
+		})
+	}
+
+	for _, d := range dirs {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			errs = multierror.Append(errs, errors.WithStack(ctxErr))
+			return nil, errs
+		}
+
+		c, err := restoreSubtree(ctx, d, fullPath)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"traversing subdirectory %q",
+				path.Join(append(append([]string{}, fullPath...), d.Name())...),
+			))
+		}
+
+		collections = append(collections, c...)
+	}
+
+	return collections, errs
+}
+
+func (w Wrapper) RestoreDirectory(
+	ctx context.Context,
+	snapshotID string,
+	basePath []string,
+) ([]connector.DataCollection, error) {
+	return w.collectItems(ctx, snapshotID, basePath, true)
 }

@@ -5,9 +5,11 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"path"
 	"testing"
 
 	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,20 +17,36 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/internal/kopia/mockkopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/backup"
 )
 
 const (
-	testTenant   = "a-tenant"
-	testUser     = "user1"
-	testEmailDir = "mail"
-	testFileUUID = "a-file"
+	testTenant     = "a-tenant"
+	testUser       = "user1"
+	testEmailDir   = "mail"
+	testInboxDir   = "inbox"
+	testArchiveDir = "archive"
+	testFileName   = "file1"
+	testFileName2  = "file2"
+	testFileName3  = "file3"
+	testFileName4  = "file4"
+	testFileName5  = "file5"
+	testFileName6  = "file6"
 )
 
 var (
-	testPath     = []string{testTenant, testUser, testEmailDir}
-	testFileData = []byte("abcdefghijklmnopqrstuvwxyz")
+	testPath      = []string{testTenant, testUser, testEmailDir, testInboxDir}
+	testPath2     = []string{testTenant, testUser, testEmailDir, testArchiveDir}
+	testFileData  = []byte("abcdefghijklmnopqrstuvwxyz")
+	testFileData2 = []byte("zyxwvutsrqponmlkjihgfedcba")
+	testFileData3 = []byte("foo")
+	testFileData4 = []byte("bar")
+	testFileData5 = []byte("baz")
+	// Intentional duplicate to make sure all files are scanned during recovery
+	// (contrast to behavior of snapshotfs.TreeWalker).
+	testFileData6 = testFileData
 )
 
 func entriesToNames(entries []fs.Entry) []string {
@@ -39,6 +57,36 @@ func entriesToNames(entries []fs.Entry) []string {
 	}
 
 	return res
+}
+
+func testForFiles(
+	t *testing.T,
+	expected map[string][]byte,
+	collections []connector.DataCollection,
+) {
+	count := 0
+	for _, c := range collections {
+		for s := range c.Items() {
+			count++
+
+			fullPath := path.Join(append(c.FullPath(), s.UUID())...)
+
+			expected, ok := expected[fullPath]
+			require.True(
+				t,
+				ok,
+				"unexpected file with path %q",
+				path.Join(append(c.FullPath(), fullPath)...),
+			)
+
+			buf, err := ioutil.ReadAll(s.ToReader())
+			require.NoError(t, err)
+
+			assert.Equal(t, expected, buf)
+		}
+	}
+
+	assert.Equal(t, len(expected), count)
 }
 
 // ---------------
@@ -222,6 +270,102 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 	}
 }
 
+func (suite *KopiaUnitSuite) TestRestoreItem() {
+	ctx := context.Background()
+
+	file := &mockkopia.MockFile{
+		Entry: &mockkopia.MockEntry{
+			EntryName: testFileName2,
+			EntryMode: mockkopia.DefaultPermissions,
+		},
+		OpenErr: assert.AnError,
+	}
+
+	_, err := restoreSingleItem(ctx, file, nil)
+	assert.Error(suite.T(), err)
+}
+
+func (suite *KopiaUnitSuite) TestRestoreDirectory_FailGettingReader() {
+	ctx := context.Background()
+	t := suite.T()
+
+	expectedStreamData := map[string][]byte{
+		path.Join(testInboxDir, testFileName):  testFileData,
+		path.Join(testInboxDir, testFileName3): testFileData3,
+	}
+
+	dirs := virtualfs.NewStaticDirectory(testInboxDir, []fs.Entry{
+		&mockkopia.MockFile{
+			Entry: &mockkopia.MockEntry{
+				EntryName: testFileName,
+				EntryMode: mockkopia.DefaultPermissions,
+			},
+			Data: testFileData,
+		},
+		&mockkopia.MockFile{
+			Entry: &mockkopia.MockEntry{
+				EntryName: testFileName2,
+				EntryMode: mockkopia.DefaultPermissions,
+			},
+			OpenErr: assert.AnError,
+		},
+		&mockkopia.MockFile{
+			Entry: &mockkopia.MockEntry{
+				EntryName: testFileName3,
+				EntryMode: mockkopia.DefaultPermissions,
+			},
+			Data: testFileData3,
+		},
+	})
+
+	collections, err := restoreSubtree(ctx, dirs, nil)
+	assert.Error(t, err)
+
+	assert.Len(t, collections, 1)
+	testForFiles(t, expectedStreamData, collections)
+}
+
+func (suite *KopiaUnitSuite) TestRestoreDirectory_FailWrongItemType() {
+	ctx := context.Background()
+	t := suite.T()
+
+	expectedStreamData := map[string][]byte{
+		path.Join(testEmailDir, testInboxDir, testFileName):    testFileData,
+		path.Join(testEmailDir, testArchiveDir, testFileName3): testFileData3,
+	}
+
+	dirs := virtualfs.NewStaticDirectory(testEmailDir, []fs.Entry{
+		virtualfs.NewStaticDirectory(testInboxDir, []fs.Entry{
+			&mockkopia.MockFile{
+				Entry: &mockkopia.MockEntry{
+					EntryName: testFileName,
+					EntryMode: mockkopia.DefaultPermissions,
+				},
+				Data: testFileData,
+			},
+		}),
+		virtualfs.NewStaticDirectory("foo", []fs.Entry{
+			virtualfs.StreamingFileFromReader(
+				testFileName2, bytes.NewReader(testFileData2)),
+		}),
+		virtualfs.NewStaticDirectory(testArchiveDir, []fs.Entry{
+			&mockkopia.MockFile{
+				Entry: &mockkopia.MockEntry{
+					EntryName: testFileName3,
+					EntryMode: mockkopia.DefaultPermissions,
+				},
+				Data: testFileData3,
+			},
+		}),
+	})
+
+	collections, err := restoreSubtree(ctx, dirs, nil)
+	assert.Error(t, err)
+
+	assert.Len(t, collections, 2)
+	testForFiles(t, expectedStreamData, collections)
+}
+
 // ---------------
 // integration tests that use kopia
 // ---------------
@@ -284,9 +428,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 type KopiaSimpleRepoIntegrationSuite struct {
 	suite.Suite
-	w          *Wrapper
-	ctx        context.Context
-	snapshotID manifest.ID
+	w                    *Wrapper
+	ctx                  context.Context
+	snapshotID           manifest.ID
+	inboxExpectedFiles   map[string][]byte
+	archiveExpectedFiles map[string][]byte
+	allExpectedFiles     map[string][]byte
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
@@ -318,8 +465,33 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			path: testPath,
 			streams: []connector.DataStream{
 				&mockconnector.MockExchangeData{
-					ID:     testFileUUID,
+					ID:     testFileName,
 					Reader: io.NopCloser(bytes.NewReader(testFileData)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName2,
+					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
+				},
+			},
+		},
+		&kopiaDataCollection{
+			path: testPath2,
+			streams: []connector.DataStream{
+				&mockconnector.MockExchangeData{
+					ID:     testFileName3,
+					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName4,
+					Reader: io.NopCloser(bytes.NewReader(testFileData4)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName5,
+					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName6,
+					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
 				},
 			},
 		},
@@ -328,13 +500,33 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
-	require.Equal(t, stats.TotalFileCount, 1)
-	require.Equal(t, stats.TotalDirectoryCount, 3)
+	require.Equal(t, stats.TotalFileCount, 6)
+	require.Equal(t, stats.TotalDirectoryCount, 5)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	assert.Len(t, rp.Entries, 1)
+	assert.Len(t, rp.Entries, 6)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
+
+	// path.Join doesn't like (testPath..., testFileName).
+	suite.inboxExpectedFiles = map[string][]byte{
+		path.Join(append(testPath, testFileName)...):  testFileData,
+		path.Join(append(testPath, testFileName2)...): testFileData2,
+	}
+	suite.archiveExpectedFiles = map[string][]byte{
+		path.Join(append(testPath2, testFileName3)...): testFileData3,
+		path.Join(append(testPath2, testFileName4)...): testFileData4,
+		path.Join(append(testPath2, testFileName5)...): testFileData5,
+		path.Join(append(testPath2, testFileName6)...): testFileData6,
+	}
+
+	suite.allExpectedFiles = map[string][]byte{}
+	for k, v := range suite.inboxExpectedFiles {
+		suite.allExpectedFiles[k] = v
+	}
+	for k, v := range suite.archiveExpectedFiles {
+		suite.allExpectedFiles[k] = v
+	}
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
@@ -347,7 +539,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	c, err := suite.w.RestoreSingleItem(
 		suite.ctx,
 		string(suite.snapshotID),
-		append(testPath, testFileUUID),
+		append(testPath, testFileName),
 	)
 	require.NoError(t, err)
 
@@ -381,7 +573,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 		{
 			"NoSnapshot",
 			"foo",
-			append(testPath, testFileUUID),
+			append(testPath, testFileName),
 		},
 		{
 			"TargetNotAFile",
@@ -403,6 +595,82 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 				test.path,
 			)
 			require.Error(t, err)
+		})
+	}
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory() {
+	table := []struct {
+		name          string
+		dirPath       []string
+		expectedFiles map[string][]byte
+	}{
+		{
+			"RecoverUser",
+			[]string{testTenant, testUser},
+			suite.allExpectedFiles,
+		},
+		{
+			"RecoverMail",
+			[]string{testTenant, testUser, testEmailDir},
+			suite.allExpectedFiles,
+		},
+		{
+			"RecoverInbox",
+			[]string{testTenant, testUser, testEmailDir, testInboxDir},
+			suite.inboxExpectedFiles,
+		},
+		{
+			"RecoverArchive",
+			[]string{testTenant, testUser, testEmailDir, testArchiveDir},
+			suite.archiveExpectedFiles,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections, err := suite.w.RestoreDirectory(
+				suite.ctx, string(suite.snapshotID), test.dirPath)
+			require.NoError(t, err)
+
+			testForFiles(t, test.expectedFiles, collections)
+		})
+	}
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory_Errors() {
+	table := []struct {
+		name       string
+		snapshotID string
+		dirPath    []string
+	}{
+		{
+			"EmptyPath",
+			string(suite.snapshotID),
+			[]string{},
+		},
+		{
+			"BadSnapshotID",
+			"foo",
+			[]string{testTenant, testUser, testEmailDir},
+		},
+		{
+			"NotADirectory",
+			string(suite.snapshotID),
+			append(testPath, testFileName),
+		},
+		{
+			"NonExistantDirectory",
+			string(suite.snapshotID),
+			[]string{testTenant, testUser, testEmailDir, "subdir"},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := suite.w.RestoreDirectory(
+				suite.ctx, test.snapshotID, test.dirPath)
+			assert.Error(t, err)
 		})
 	}
 }
