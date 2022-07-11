@@ -112,7 +112,7 @@ func SetEventMessageResponse(orig models.Messageable, adtl map[string]any) (mode
 			}
 			rType, ok := temp.(*models.ResponseType)
 			if !ok {
-				return nil, errors.New(*orig.GetId() + ": responseType not returned from models.ParseResponseType: " + fmt.Sprintf("%v\t%T", temp, temp))
+				return nil, fmt.Errorf("%s : responseType not returned from models.ParseResponseType: %v\t%T", *orig.GetId(), temp, temp)
 			}
 			message.SetResponseType(rType)
 		default:
@@ -322,7 +322,6 @@ func SetAdditionalDataToEventMessage(adtl map[string]any, newMessage models.Even
 					return nil, errors.New("failed to create meeting message type")
 				}
 				newMessage.SetMeetingMessageType(mType)
-
 			}
 		}
 	}
