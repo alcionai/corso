@@ -58,17 +58,12 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
-	t := suite.T()
-
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users("lidiah@8qzvrj.onmicrosoft.com"))
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
-
-	require.NotNil(t, collectionList, "collection list")
-	assert.Error(t, err) // TODO Remove after https://github.com/alcionai/corso/issues/140
-	assert.NotNil(t, suite.connector.status, "connector status")
-	assert.NotContains(t, err.Error(), "attachment failed") // TODO Create Retry Exceeded Error
-
+	assert.NotNil(suite.T(), collectionList, "collection list")
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), suite.connector.status, "connector status")
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }

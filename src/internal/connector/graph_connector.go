@@ -15,7 +15,6 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
@@ -308,7 +307,6 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	return collections, errs
 }
 
-// messageToDataCollection transfers message objects to objects within DataCollection
 func (gc *GraphConnector) messageToDataCollection(
 	ctx context.Context,
 	objectWriter *kw.JsonSerializationWriter,
@@ -316,39 +314,49 @@ func (gc *GraphConnector) messageToDataCollection(
 	message models.Messageable,
 	user string,
 ) error {
-	if *message.GetHasAttachments() {
+	var err error
+	aMessage := message
+	adtl := message.GetAdditionalData()
+	if len(adtl) > 2 {
+		aMessage, err = support.ConvertFromMessageable(adtl, message)
+		if err != nil {
+			return err
+		}
+	}
+	if *aMessage.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := gc.client.
 				UsersById(user).
-				MessagesById(*message.GetId()).
+				MessagesById(*aMessage.GetId()).
 				Attachments().
 				Get()
 			retriesErr = err
 			if err == nil && attached != nil {
-				message.SetAttachments(attached.GetValue())
+				aMessage.SetAttachments(attached.GetValue())
 				break
 			}
 		}
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return support.WrapAndAppend(*message.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
+			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
 		}
 	}
-	defer objectWriter.Close()
-	err := objectWriter.WriteObjectValue("", message)
+	err = objectWriter.WriteObjectValue("", aMessage)
 	if err != nil {
-		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *message.GetId()))
+		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
 	}
 
 	byteArray, err := objectWriter.GetSerializedContent()
+	objectWriter.Close()
 	if err != nil {
-		return support.WrapAndAppend(*message.GetId(), errors.Wrap(err, "serializing mail content"), nil)
+		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
 	if byteArray != nil {
-		edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray, info: exchange.MessageInfo(message)})
+		edc.PopulateCollection(&ExchangeData{id: *aMessage.GetId(), message: byteArray})
 	}
+
 	return nil
 }
 
