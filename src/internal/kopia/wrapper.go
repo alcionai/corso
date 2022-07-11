@@ -525,5 +525,5 @@ func (w Wrapper) RestoreDirectory(
 	snapshotID string,
 	basePath []string,
 ) ([]connector.DataCollection, error) {
-	return w.collectItems(ctx, snapshotID, basePath, true)
+	return w.CollectItems(ctx, snapshotID, basePath, true)
 }
