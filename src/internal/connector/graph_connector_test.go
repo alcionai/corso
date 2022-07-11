@@ -58,9 +58,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
-	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
-		suite.T().Skip(err)
-	}
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users("lidiah@8qzvrj.onmicrosoft.com"))
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
