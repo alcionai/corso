@@ -14,14 +14,17 @@ import (
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
+
+	kopiarepo "github.com/kopia/kopia/repo" // question for reviewer: do you always wrap kopia packages or is it ok to import this directly here?
 )
 
 // s3 bucket info from flags
 var (
-	accessKey string
-	bucket    string
-	endpoint  string
-	prefix    string
+	accessKey       string
+	bucket          string
+	endpoint        string
+	prefix          string
+	successOnExists bool
 )
 
 // called by repo.go to map parent subcommands to provider-specific handling.
@@ -41,6 +44,7 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "Server endpoint for S3 communication.")
 	fs.StringVar(&prefix, "prefix", "", "Prefix applied to objects in the bucket.")
+	fs.BoolVar(&successOnExists, "success-on-exists", false, "Do not throw error if repo is already initialized.")
 	return c
 }
 
@@ -88,6 +92,9 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Initialize(ctx, a, s)
 	if err != nil {
+		if successOnExists && errors.Is(err, kopiarepo.ErrAlreadyInitialized) {
+			return nil
+		}
 		return errors.Wrap(err, "Failed to initialize a new S3 repository")
 	}
 	defer utils.CloseRepo(ctx, r)
