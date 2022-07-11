@@ -674,3 +674,69 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory_Errors(
 		})
 	}
 }
+
+func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
+	t := suite.T()
+
+	cs, err := suite.w.RestoreMultipleItems(
+		suite.ctx,
+		string(suite.snapshotID),
+		[][]string{
+			append(testPath, testFileName),
+			append(testPath2, testFileName3),
+		})
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(cs))
+
+	count := 0
+	for _, c := range cs {
+		for resultStream := range c.Items() {
+			buf, err := ioutil.ReadAll(resultStream.ToReader())
+			require.NoError(t, err)
+			assert.Greater(t, len(buf), 0)
+			count++
+		}
+	}
+
+	assert.Equal(t, 2, count)
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
+	table := []struct {
+		name       string
+		snapshotID string
+		paths      [][]string
+	}{
+		{
+			"EmptyPaths",
+			string(suite.snapshotID),
+			[][]string{{}},
+		},
+		{
+			"NoSnapshot",
+			"foo",
+			[][]string{append(testPath, testFileName)},
+		},
+		{
+			"TargetNotAFile",
+			string(suite.snapshotID),
+			[][]string{testPath[:2]},
+		},
+		{
+			"NonExistentFile",
+			string(suite.snapshotID),
+			[][]string{append(testPath, "subdir", "foo")},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := suite.w.RestoreMultipleItems(
+				suite.ctx,
+				test.snapshotID,
+				test.paths,
+			)
+			require.Error(t, err)
+		})
+	}
+}

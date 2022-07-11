@@ -126,10 +126,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	// m365User := "lidiah@8qzvrj.onmicrosoft.com"
-	// not the user we want to use, but all the others are
-	// suffering from JsonParseNode syndrome
-	m365User := "george.martinez@8qzvrj.onmicrosoft.com"
+	m365User := "lidiah@8qzvrj.onmicrosoft.com"
 	acct, err := ctesting.NewM365Account()
 	require.NoError(t, err)
 

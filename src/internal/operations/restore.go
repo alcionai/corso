@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/kopia/kopia/repo/manifest"
@@ -104,11 +103,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 
 	// format the details and retrieve the items from kopia
 	fds := er.FilterDetails(&rpd)
-	paths := []string{}
-	for _, fd := range fds {
-		paths = append(paths, strings.Join(fd, "/"))
-	}
-	dcs, err := op.kopia.CollectItems(ctx, rp.SnapshotID, paths, false)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, rp.SnapshotID, fds)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving service data")
 		return stats.readErr
