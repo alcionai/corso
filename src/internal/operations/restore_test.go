@@ -164,7 +164,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		bsel.Selector)
 	require.NoError(t, err)
 	require.NoError(t, bo.Run(ctx))
-	require.NotNil(t, bo.Results.RestorePoint)
+	require.NotNil(t, bo.Results.Backup)
 
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(m365User))
@@ -175,7 +175,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		w,
 		ms,
 		acct,
-		bo.Results.RestorePoint.ModelStoreID,
+		bo.Results.Backup.ModelStoreID,
 		rsel.Selector)
 	require.NoError(t, err)
 

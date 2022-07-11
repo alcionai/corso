@@ -406,7 +406,7 @@ func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
 
 // FilterDetails reduces the entries in a backupDetails struct to only
 // those that match the inclusions and exclusions in the selector.
-func (s *ExchangeRestore) FilterDetails(deets *backup.Details) []string {
+func (s *ExchangeRestore) FilterDetails(deets *backup.Details) [][]string {
 	if deets == nil {
 		return nil
 	}

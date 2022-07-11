@@ -86,10 +86,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	sel := restoreSelectors()
-	// []string{m365.TenantID, user, "mail", folder, mail}
-
-	ro, err := r.NewRestore(ctx, restorePointID, sel)
+	ro, err := r.NewRestore(ctx, backupID, restoreSelectors())
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}

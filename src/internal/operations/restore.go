@@ -11,7 +11,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -44,11 +44,11 @@ func NewRestoreOperation(
 	sel selectors.Selector,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:      newOperation(opts, kw, ms),
-		RestorePointID: backupID,
-		Selectors:      sel,
-		Version:        "v0",
-		account:        acct,
+		operation: newOperation(opts, kw, ms),
+		BackupID:  backupID,
+		Selectors: sel,
+		Version:   "v0",
+		account:   acct,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -83,14 +83,14 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	dcs := []connector.DataCollection{}
 
 	// retrieve the restore point details
-	rp := restorepoint.RestorePoint{}
+	rp := backup.Backup{}
 	err := op.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, op.BackupID, &rp)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving restore point")
 		return stats.readErr
 	}
 
-	rpd := restorepoint.Details{}
+	rpd := backup.Details{}
 	err = op.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rp.DetailsID), &rpd)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving restore point details")
