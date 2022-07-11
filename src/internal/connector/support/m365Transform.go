@@ -99,7 +99,6 @@ func SetEventMessageResponse(orig models.Messageable, adtl map[string]any) (mode
 	if !ok {
 		return nil, errors.New("unable to create event message responseable from " + *orig.GetId())
 	}
-	fmt.Printf("EventMessage: AdditonalData\n%v\n", adtl)
 	additional, err := buildMapFromAdditional(eventResponsableFields, adtl)
 	if err != nil {
 		return nil, errors.Wrap(err, *orig.GetId()+" eventMessageResponse failed on method buildMapFromAdditional")
@@ -130,7 +129,6 @@ func ConvertFromMessageable(adtl map[string]any, orig models.Messageable) (model
 	var aType string
 	aPointer, ok := adtl["@odata.type"]
 	if !ok {
-		fmt.Println(adtl)
 		return nil, errors.New("unknown data type: no @odata.type field")
 	}
 	ptr, ok := aPointer.(*string)
@@ -163,7 +161,6 @@ func ConvertFromMessageable(adtl map[string]any, orig models.Messageable) (model
 func buildMapFromAdditional(list []string, adtl map[string]any) (map[string]*string, error) {
 	returnMap := make(map[string]*string)
 	for _, entry := range list {
-		fmt.Println(entry)
 		ptr, ok := adtl[entry]
 		if !ok {
 			continue
@@ -179,7 +176,6 @@ func buildMapFromAdditional(list []string, adtl map[string]any) (map[string]*str
 			returnMap[entry] = &boolString
 			continue
 		}
-		fmt.Println("Value: " + *value)
 		returnMap[entry] = value
 	}
 	return returnMap, nil
@@ -188,10 +184,6 @@ func buildMapFromAdditional(list []string, adtl map[string]any) (map[string]*str
 func setEventRequestableFields(em models.EventMessageRequestable, adtl map[string]*string) (models.EventMessageRequestable, error) {
 
 	for key, value := range adtl {
-		if value == nil {
-			fmt.Println(key + " this is nil ")
-		}
-
 		switch key {
 		case "meetingRequestType":
 			temp, err := models.ParseMeetingRequestType(*value)
