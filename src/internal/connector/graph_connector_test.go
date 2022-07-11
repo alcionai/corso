@@ -62,7 +62,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	sel.Include(sel.Users("lidiah@8qzvrj.onmicrosoft.com"))
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(suite.T(), collectionList, "collection list")
-	assert.Nil(suite.T(), err) // TODO Remove after https://github.com/alcionai/corso/issues/140
+	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), suite.connector.status, "connector status")
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)

@@ -307,19 +307,21 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 	return collections, errs
 }
 
-func (gc *GraphConnector) messageToDataCollection(ctx context.Context, objectWriter *kw.JsonSerializationWriter,
-	edc ExchangeDataCollection, message models.Messageable, user string) error {
-	var aMessage models.Messageable
+func (gc *GraphConnector) messageToDataCollection(
+	ctx context.Context,
+	objectWriter *kw.JsonSerializationWriter,
+	edc ExchangeDataCollection,
+	message models.Messageable,
+	user string,
+) error {
 	var err error
+	aMessage := message
 	adtl := message.GetAdditionalData()
 	if len(adtl) > 2 {
 		aMessage, err = support.ConvertFromMessageable(adtl, message)
 		if err != nil {
 			return err
 		}
-		//os.Exit(2)
-	} else {
-		aMessage = message
 	}
 	if *aMessage.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
@@ -352,7 +354,7 @@ func (gc *GraphConnector) messageToDataCollection(ctx context.Context, objectWri
 		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
 	if byteArray != nil {
-		edc.PopulateCollection(&ExchangeData{id: *message.GetId(), message: byteArray})
+		edc.PopulateCollection(&ExchangeData{id: *aMessage.GetId(), message: byteArray})
 	}
 
 	return nil
