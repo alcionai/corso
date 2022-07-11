@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -125,7 +126,7 @@ func (r *Repository) Close(ctx context.Context) error {
 	return errors.Wrap(err, "closing corso ModelStore")
 }
 
-// NewBackup generates a backupOperation runner.
+// NewBackup generates a BackupOperation runner.
 func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
@@ -137,31 +138,41 @@ func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) 
 }
 
 // NewRestore generates a restoreOperation runner.
-func (r Repository) NewRestore(ctx context.Context, restorePointID string, targets []string) (operations.RestoreOperation, error) {
+func (r Repository) NewRestore(ctx context.Context, backupID string, targets []string) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
 		operations.Options{},
 		r.dataLayer,
 		r.modelStore,
 		r.Account,
-		restorePointID,
+		backupID,
 		targets)
 }
 
-// RestorePoints lists restorepoints in a respository
-func (r Repository) RestorePoints(ctx context.Context) ([]*restorepoint.RestorePoint, error) {
-	bms, err := r.modelStore.GetIDsForType(ctx, kopia.RestorePointModel, nil)
+// backups lists backups in a respository
+func (r Repository) Backups(ctx context.Context) ([]*backup.Backup, error) {
+	bms, err := r.modelStore.GetIDsForType(ctx, kopia.BackupModel, nil)
 	if err != nil {
 		return nil, err
 	}
-	rps := make([]*restorepoint.RestorePoint, 0, len(bms))
+	rps := make([]*backup.Backup, 0, len(bms))
 	for _, bm := range bms {
-		rp := restorepoint.RestorePoint{}
-		err := r.modelStore.GetWithModelStoreID(ctx, kopia.RestorePointModel, bm.ModelStoreID, &rp)
+		rp := backup.Backup{}
+		err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, bm.ModelStoreID, &rp)
 		if err != nil {
 			return nil, err
 		}
 		rps = append(rps, &rp)
 	}
 	return rps, nil
+}
+
+// BackupDetails returns the specified backup details object
+func (r Repository) BackupDetails(ctx context.Context, rpDetailsID string) (*backup.Details, error) {
+	rpd := backup.Details{}
+	err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rpDetailsID), &rpd)
+	if err != nil {
+		return nil, err
+	}
+	return &rpd, nil
 }

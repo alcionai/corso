@@ -20,7 +20,7 @@ func (suite *ExchangeSourceSuite) TestNewExchangeBackup() {
 	t := suite.T()
 	eb := NewExchangeBackup()
 	assert.Equal(t, eb.Service, ServiceExchange)
-	assert.Zero(t, eb.RestorePointID)
+	assert.Zero(t, eb.BackupID)
 	assert.NotZero(t, eb.Scopes())
 }
 
@@ -31,15 +31,15 @@ func (suite *ExchangeSourceSuite) TestToExchangeBackup() {
 	eb, err := s.ToExchangeBackup()
 	require.NoError(t, err)
 	assert.Equal(t, eb.Service, ServiceExchange)
-	assert.Zero(t, eb.RestorePointID)
+	assert.Zero(t, eb.BackupID)
 	assert.NotZero(t, eb.Scopes())
 }
 
 func (suite *ExchangeSourceSuite) TestNewExchangeRestore() {
 	t := suite.T()
-	er := NewExchangeRestore("rpid")
+	er := NewExchangeRestore("backupID")
 	assert.Equal(t, er.Service, ServiceExchange)
-	assert.Equal(t, er.RestorePointID, "rpid")
+	assert.Equal(t, er.BackupID, "backupID")
 	assert.NotZero(t, er.Scopes())
 }
 
@@ -50,7 +50,7 @@ func (suite *ExchangeSourceSuite) TestToExchangeRestore() {
 	eb, err := s.ToExchangeRestore()
 	require.NoError(t, err)
 	assert.Equal(t, eb.Service, ServiceExchange)
-	assert.Equal(t, eb.RestorePointID, "rpid")
+	assert.Equal(t, eb.BackupID, "rpid")
 	assert.NotZero(t, eb.Scopes())
 }
 

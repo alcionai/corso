@@ -184,7 +184,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 			hasErr: false,
 		},
 		{
-			t:      RestorePointModel,
+			t:      BackupModel,
 			check:  require.NoError,
 			hasErr: false,
 		},
@@ -272,7 +272,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
 			hasErr: false,
 		},
 		{
-			t:      RestorePointModel,
+			t:      BackupModel,
 			check:  require.NoError,
 			hasErr: false,
 		},

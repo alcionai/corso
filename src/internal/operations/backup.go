@@ -10,7 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/restorepoint"
+	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -29,7 +29,7 @@ type BackupOperation struct {
 type BackupResults struct {
 	summary
 	metrics
-	// todo: RestorePoint RestorePoint
+	// todo: Backup ID
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -92,32 +92,31 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 	stats.gc = gc.Status()
 
 	// hand the results to the consumer
-	var details *restorepoint.Details
+	var details *backup.Details
 	stats.k, details, err = op.kopia.BackupCollections(ctx, cs)
 	if err != nil {
 		stats.writeErr = err
 		return errors.Wrap(err, "backing up service data")
 	}
 
-	err = op.createRestorePoint(ctx, stats.k.SnapshotID, details)
+	err = op.createBackupModels(ctx, stats.k.SnapshotID, details)
 	if err != nil {
 		stats.writeErr = err
 		return err
 	}
-
 	return nil
 }
 
-func (op *BackupOperation) createRestorePoint(ctx context.Context, snapID string, details *restorepoint.Details) error {
-	err := op.modelStore.Put(ctx, kopia.RestorePointDetailsModel, details)
+func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, details *backup.Details) error {
+	err := op.modelStore.Put(ctx, kopia.BackupDetailsModel, details)
 	if err != nil {
-		return errors.Wrap(err, "creating restorepointdetails model")
+		return errors.Wrap(err, "creating backupdetails model")
 	}
 
-	err = op.modelStore.Put(ctx, kopia.RestorePointModel,
-		restorepoint.New(snapID, string(details.ModelStoreID)))
+	err = op.modelStore.Put(ctx, kopia.BackupModel,
+		backup.New(snapID, string(details.ModelStoreID)))
 	if err != nil {
-		return errors.Wrap(err, "creating restorepoint model")
+		return errors.Wrap(err, "creating backup model")
 	}
 	return nil
 }

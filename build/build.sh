@@ -1,27 +1,31 @@
-#! /bin/bash
+#!/bin/sh
 
-# Builds a docker image that contains the deps for the current version of the
-# code. Image expects dev directory to be mounted in the container at runtime.
+set -ex
 
-source paths.sh
+SCRIPT_ROOT=$(dirname $(readlink -f $0))
+PROJECT_ROOT=$(dirname ${SCRIPT_ROOT})
+SRC_DIR=${PROJECT_ROOT}
+CORSO_BUILD_ARGS=''
 
-BASE_TAG="alcionai/base-dev"
+CORSO_BUILD_CONTAINER_DIR=/go/src/github.com/alcionai/corso
+CORSO_BUILD_CONTAINER_SRC_DIR=${CORSO_BUILD_CONTAINER_DIR}/src
 
-buildImage() {
-  docker build \
-    -f Dockerfile \
-    -t "$BASE_TAG" \
-    --build-arg uid=$(id -u) \
-    --build-arg gid=$(id -g) \
-    .
-  docker run \
-    -v "$REPO_CODE":"$GOLANG_REPO_PATH" \
-    --name build-tmp \
-    -w "$GOLANG_REPO_PATH" \
-    -it \
-    "$BASE_TAG" go get
-  docker commit build-tmp "$DEV_TAG"
-  docker rm build-tmp
-}
+# temporary directory for caching go build
+mkdir -p /tmp/.corsobuild/cache
+# temporary directory for caching go modules (needed for fast cross-platform build)
+mkdir -p /tmp/.corsobuild/mod
 
-buildImage
+echo "building corso"
+docker run --rm --mount type=bind,src=${SRC_DIR},dst=${CORSO_BUILD_CONTAINER_DIR}    \
+       --mount type=bind,src=/tmp/.corsobuild/cache,dst=/tmp/.corsobuild/cache       \
+       --mount type=bind,src=/tmp/.corsobuild/mod,dst=/go/pkg/mod                    \
+       --workdir ${CORSO_BUILD_CONTAINER_SRC_DIR}                                    \
+       --env GOCACHE=/tmp/.corsobuild/cache                                          \
+       --entrypoint /usr/local/go/bin/go                                             \
+       golang:1.18                                                                   \
+       build ${CORSO_BUILD_ARGS}
+
+mkdir -p ${PROJECT_ROOT}/bin
+
+echo "creating binary image in bin/corso"
+mv ${PROJECT_ROOT}/src/corso ${PROJECT_ROOT}/bin/corso
