@@ -43,6 +43,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.45
+          run: ls; golangci-lint run ./...
 
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
