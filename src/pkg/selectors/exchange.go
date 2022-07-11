@@ -1,5 +1,11 @@
 package selectors
 
+import (
+	"strings"
+
+	"github.com/alcionai/corso/pkg/backup"
+)
+
 // ---------------------------------------------------------------------------
 // Selectors
 // ---------------------------------------------------------------------------
@@ -297,4 +303,192 @@ func (s exchangeScope) Get(cat exchangeCategory) []string {
 		return []string{None}
 	}
 	return split(v)
+}
+
+var categoryPathSet = map[exchangeCategory][]exchangeCategory{
+	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
+	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
+	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
+}
+
+// includesPath returns true if all filters in the scope match the path.
+func (s exchangeScope) includesPath(cat exchangeCategory, path []string) bool {
+	ids := idPath(cat, path)
+	for _, c := range categoryPathSet[cat] {
+		target := s.Get(c)
+		if len(target) == 0 {
+			return false
+		}
+		id, ok := ids[c]
+		if !ok {
+			return false
+		}
+		if target[0] != All && !contains(target, id) {
+			return false
+		}
+	}
+	return true
+}
+
+// excludesPath returns true if all filters in the scope match the path.
+func (s exchangeScope) excludesPath(cat exchangeCategory, path []string) bool {
+	ids := idPath(cat, path)
+	for _, c := range categoryPathSet[cat] {
+		target := s.Get(c)
+		if len(target) == 0 {
+			return true
+		}
+		id, ok := ids[c]
+		if !ok {
+			return true
+		}
+		if target[0] == All || contains(target, id) {
+			return true
+		}
+	}
+	return false
+}
+
+// temporary helper until filters replace string values for scopes.
+func contains(super []string, sub string) bool {
+	for _, s := range super {
+		if s == sub {
+			return true
+		}
+	}
+	return false
+}
+
+// ---------------------------------------------------------------------------
+// Restore Point Filtering
+// ---------------------------------------------------------------------------
+
+// transforms a path to a map of identified properties.
+// Malformed (ie, short len) paths will return incomplete results.
+// Example:
+// [tenantID, userID, "mail", mailFolder, mailID]
+// => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
+func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
+	m := map[exchangeCategory]string{}
+	if len(path) == 0 {
+		return m
+	}
+	m[ExchangeUser] = path[1]
+	/*
+		TODO/Notice:
+		Mail and Contacts contain folder structures, identified
+		in this code as being at index 3.  This assumes a single
+		folder, while in reality users can express subfolder
+		hierarchies of arbirary depth.  Subfolder handling is coming
+		at a later time.
+	*/
+	switch cat {
+	case ExchangeContact:
+		if len(path) < 5 {
+			return m
+		}
+		m[ExchangeContactFolder] = path[3]
+		m[ExchangeContact] = path[4]
+	case ExchangeEvent:
+		if len(path) < 4 {
+			return m
+		}
+		m[ExchangeEvent] = path[3]
+	case ExchangeMail:
+		if len(path) < 5 {
+			return m
+		}
+		m[ExchangeMailFolder] = path[3]
+		m[ExchangeMail] = path[4]
+	}
+	return m
+}
+
+// FilterDetails reduces the entries in a backupDetails struct to only
+// those that match the inclusions and exclusions in the selector.
+func (s *ExchangeRestore) FilterDetails(deets *backup.Details) []string {
+	if deets == nil {
+		return []string{}
+	}
+
+	entIncs := exchangeScopesByCategory(s.Includes)
+	entExcs := exchangeScopesByCategory(s.Excludes)
+
+	refs := []string{}
+
+	for _, ent := range deets.Entries {
+		path := strings.Split(ent.RepoRef, "/")
+		// not all paths will be len=3.  Most should be longer.
+		// This just protects us from panicing four lines later.
+		if len(path) < 3 {
+			continue
+		}
+		var cat exchangeCategory
+		switch path[2] {
+		case "contact":
+			cat = ExchangeContact
+		case "event":
+			cat = ExchangeEvent
+		case "mail":
+			cat = ExchangeMail
+		}
+		matched := matchExchangeEntry(
+			cat,
+			path,
+			entIncs[cat.String()],
+			entExcs[cat.String()])
+		if matched {
+			refs = append(refs, ent.RepoRef)
+		}
+	}
+
+	return refs
+}
+
+// groups each scope by its category of data (contact, event, or mail).
+// user-level scopes will duplicate to all three categories.
+func exchangeScopesByCategory(scopes []map[string]string) map[string][]exchangeScope {
+	m := map[string][]exchangeScope{
+		ExchangeContact.String(): {},
+		ExchangeEvent.String():   {},
+		ExchangeMail.String():    {},
+	}
+	for _, msc := range scopes {
+		sc := exchangeScope(msc)
+		if sc.IncludesCategory(ExchangeContact) {
+			m[ExchangeContact.String()] = append(m[ExchangeContact.String()], sc)
+		}
+		if sc.IncludesCategory(ExchangeEvent) {
+			m[ExchangeEvent.String()] = append(m[ExchangeEvent.String()], sc)
+		}
+		if sc.IncludesCategory(ExchangeMail) {
+			m[ExchangeMail.String()] = append(m[ExchangeMail.String()], sc)
+		}
+	}
+	return m
+}
+
+// compare each path to the included and excluded exchange scopes.  Returns true
+// if the path is included, and not excluded.
+func matchExchangeEntry(cat exchangeCategory, path []string, incs, excs []exchangeScope) bool {
+	var included bool
+	for _, inc := range incs {
+		if inc.includesPath(cat, path) {
+			included = true
+			break
+		}
+	}
+	if !included {
+		return false
+	}
+
+	var excluded bool
+	for _, exc := range excs {
+		if exc.excludesPath(cat, path) {
+			excluded = true
+			break
+		}
+	}
+
+	return !excluded
 }
