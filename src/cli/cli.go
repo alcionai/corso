@@ -65,7 +65,9 @@ func Handle() {
 	restore.AddCommands(corsoCmd)
 
 	ctx, log := logger.Seed(context.Background())
-	defer log.Sync() // flush all logs in the buffer
+	defer func() {
+		_ = log.Sync() // flush all logs in the buffer
+	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
 		fmt.Println(err)

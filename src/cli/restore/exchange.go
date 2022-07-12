@@ -34,7 +34,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored")
 		fs.StringVar(&mail, "mail", "", "ID of the mail message being restored")
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
-		c.MarkFlagRequired("backup")
+		cobra.CheckErr(c.MarkFlagRequired("backup"))
 		fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
 	}
 	return c
