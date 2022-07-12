@@ -168,7 +168,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results)
-	require.NotNil(t, bo.Results.Backup)
+	require.NotEmpty(t, bo.Results.BackupID)
 	assert.Equal(t, bo.Status, Successful)
 	assert.Greater(t, bo.Results.ItemsRead, 0)
 	assert.Greater(t, bo.Results.ItemsWritten, 0)

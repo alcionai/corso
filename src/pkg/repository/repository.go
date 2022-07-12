@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
@@ -145,7 +146,7 @@ func (r Repository) NewRestore(ctx context.Context, backupID string, sel selecto
 		r.dataLayer,
 		r.modelStore,
 		r.Account,
-		manifest.ID(backupID),
+		model.ID(backupID),
 		sel)
 }
 

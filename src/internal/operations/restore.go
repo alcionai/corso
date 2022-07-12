@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -19,7 +20,7 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID  manifest.ID        `json:"backupID"`
+	BackupID  model.ID           `json:"backupID"`
 	Results   RestoreResults     `json:"results"`
 	Selectors selectors.Selector `json:"selectors"` // todo: replace with Selectors
 	Version   string             `json:"version"`
@@ -40,7 +41,7 @@ func NewRestoreOperation(
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
 	acct account.Account,
-	backupID manifest.ID,
+	backupID model.ID,
 	sel selectors.Selector,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
@@ -82,7 +83,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 
 	// retrieve the restore point details
 	rp := backup.Backup{}
-	err := op.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, op.BackupID, &rp)
+	err := op.modelStore.Get(ctx, kopia.BackupModel, op.BackupID, &rp)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving restore point")
 		return stats.readErr
