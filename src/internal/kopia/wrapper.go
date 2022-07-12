@@ -22,8 +22,8 @@ import (
 const (
 	// TODO(ashmrtnz): These should be some values from upper layer corso,
 	// possibly corresponding to who is making the backup.
-	kTestHost = "a-test-machine"
-	kTestUser = "testUser"
+	corsoHost = "corso-host"
+	corsoUser = "corso"
 )
 
 var (
@@ -255,8 +255,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 	details *backup.Details,
 ) (*BackupStats, error) {
 	si := snapshot.SourceInfo{
-		Host:     kTestHost,
-		UserName: kTestUser,
+		Host:     corsoHost,
+		UserName: corsoUser,
 		// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
 		Path: root.Name(),
 	}
