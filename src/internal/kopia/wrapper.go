@@ -167,7 +167,8 @@ func getStreamItemFunc(
 				if !ok {
 					errs = multierror.Append(
 						errs, errors.Errorf("item %q does not implement DataStreamInfo", itemPath))
-					logger.Ctx(ctx).Errorf("item %q does not implement DataStreamInfo; skipping", itemPath)
+					logger.Ctx(ctx).Errorw(
+						"item does not implement DataStreamInfo; skipping", "path", itemPath)
 					continue
 				}
 
@@ -536,7 +537,8 @@ func walkDirectory(
 			files = append(files, e)
 		default:
 			errs = multierror.Append(errs, errors.Errorf("unexpected item type %T", e))
-			logger.Ctx(ctx).Warnf("unexpected item of type %T; skipping", e)
+			logger.Ctx(ctx).Errorw(
+				"unexpected item type; skipping", "type", e)
 		}
 
 		return nil
@@ -584,7 +586,8 @@ func restoreSubtree(
 				fileFullPath := path.Join(append(append([]string{}, fullPath...), f.Name())...)
 				errs = multierror.Append(
 					errs, errors.Wrapf(err, "getting reader for file %q", fileFullPath))
-				logger.Ctx(ctx).Warnf("skipping file %q", fileFullPath)
+				logger.Ctx(ctx).Errorw(
+					"unable to get file reader; skipping", "path", fileFullPath)
 				continue
 			}
 
