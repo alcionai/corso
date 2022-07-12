@@ -36,7 +36,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
 		fs.StringVar(&backupDetailsID, "backup-details", "", "ID of the backup details to be shown.")
-		c.MarkFlagRequired("backup-details")
+		cobra.CheckErr(c.MarkFlagRequired("backup-details"))
 	}
 	return c
 }

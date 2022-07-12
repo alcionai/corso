@@ -26,14 +26,14 @@ var repoCmd = &cobra.Command{
 	Use:   "repo",
 	Short: "Manage your repositories",
 	Long:  `Initialize, configure, and connect to your account backup repositories.`,
-	Run:   handleRepoCmd,
+	RunE:  handleRepoCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for flat calls to `corso repo`.
 // Produces the same output as `corso repo --help`.
-func handleRepoCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleRepoCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }
 
 // The repo init subcommand.
