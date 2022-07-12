@@ -155,7 +155,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
-	snapshotDetails := &details.Details{}
+	progress := &corsoProgress{pending: map[string]*details{}}
 
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
@@ -176,7 +176,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//   - user2
 	//     - emails
 	//       - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), tenant)
 
@@ -207,7 +207,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		totalFileCount += c
 	}
 
-	assert.Len(suite.T(), snapshotDetails.Entries, totalFileCount)
+	assert.Len(suite.T(), progress.pending, totalFileCount)
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
@@ -219,6 +219,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 	expectedFileCount := 42
 
 	snapshotDetails := &details.Details{}
+	progress := &corsoProgress{pending: map[string]*details{}}
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			[]string{emails},
@@ -229,7 +230,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 	// Returned directory structure should look like:
 	// - emails
 	//   - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), emails)
 
@@ -361,8 +362,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			snapshotDetails := &details.Details{}
-			_, err := inflateDirTree(ctx, test.layout, snapshotDetails)
+			_, err := inflateDirTree(ctx, test.layout, nil)
 			assert.Error(t, err)
 		})
 	}
@@ -564,6 +564,56 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	assert.Equal(t, 2, len(result))
 
 	testForFiles(t, expected, result)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
+	t := suite.T()
+
+	collections := []connector.DataCollection{
+		&kopiaDataCollection{
+			path: testPath,
+			streams: []connector.DataStream{
+				&mockconnector.MockExchangeData{
+					ID:     testFileName,
+					Reader: io.NopCloser(bytes.NewReader(testFileData)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName2,
+					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
+				},
+			},
+		},
+		&kopiaDataCollection{
+			path: testPath2,
+			streams: []connector.DataStream{
+				&mockconnector.MockExchangeData{
+					ID:     testFileName3,
+					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:      testFileName4,
+					ReadErr: assert.AnError,
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName5,
+					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName6,
+					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
+				},
+			},
+		},
+	}
+
+	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
+	require.NoError(t, err)
+	assert.Equal(t, 1, stats.ErrorCount)
+	assert.Equal(t, 5, stats.TotalFileCount)
+	assert.Equal(t, 5, stats.TotalDirectoryCount)
+	assert.Equal(t, 0, stats.IgnoredErrorCount)
+	assert.False(t, stats.Incomplete)
+	assert.Len(t, rp.Entries, 5)
 }
 
 type KopiaSimpleRepoIntegrationSuite struct {
