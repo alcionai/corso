@@ -39,15 +39,6 @@ jobs:
       - name: Run gofmt
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
 
-      - name: Go Lint
-        uses: golangci/golangci-lint-action@v3.2.0
-        with:
-          version: v1.45.2
-          working-directory: ./src
-          args: --timeout=15m
-          skip-go-installation: true
-          skip-pkg-cache: true
-
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
         with:
