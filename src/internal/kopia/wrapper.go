@@ -542,7 +542,7 @@ func (w Wrapper) RestoreMultipleItems(
 ) ([]connector.DataCollection, error) {
 	var (
 		dcs  = []connector.DataCollection{}
-		errs error
+		errs *multierror.Error
 	)
 	for _, path := range paths {
 		dc, err := w.RestoreSingleItem(ctx, snapshotID, path)
@@ -552,5 +552,5 @@ func (w Wrapper) RestoreMultipleItems(
 			dcs = append(dcs, dc)
 		}
 	}
-	return dcs, errs
+	return dcs, errs.ErrorOrNil()
 }

@@ -86,7 +86,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, backupID, restoreSelectors())
+	ro, err := r.NewRestore(ctx, backupID, exchangeRestoreSelectors(user, folder, mail))
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
@@ -99,18 +99,15 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func restoreSelectors() selectors.Selector {
+func exchangeRestoreSelectors(u, f, m string) selectors.Selector {
 	sel := selectors.NewExchangeRestore()
-	u := user
-	if user == "*" {
+	if u == "*" {
 		u = selectors.All
 	}
-	f := folder
-	if folder == "*" {
+	if f == "*" {
 		f = selectors.All
 	}
-	m := mail
-	if mail == "*" {
+	if m == "*" {
 		m = selectors.All
 	}
 	if len(m) > 0 {

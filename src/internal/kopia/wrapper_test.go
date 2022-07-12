@@ -678,12 +678,20 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory_Errors(
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	t := suite.T()
 
+	fp1 := append(testPath, testFileName)
+	fp2 := append(testPath2, testFileName3)
+
+	expected := map[string][]byte{
+		path.Join(fp1...): testFileData,
+		path.Join(fp2...): testFileData3,
+	}
+
 	cs, err := suite.w.RestoreMultipleItems(
 		suite.ctx,
 		string(suite.snapshotID),
 		[][]string{
-			append(testPath, testFileName),
-			append(testPath2, testFileName3),
+			fp1,
+			fp2,
 		})
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(cs))
@@ -699,6 +707,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	}
 
 	assert.Equal(t, 2, count)
+	testForFiles(t, expected, cs)
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
