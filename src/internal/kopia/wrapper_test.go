@@ -8,6 +8,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
@@ -72,17 +73,12 @@ func testForFiles(
 			fullPath := path.Join(append(c.FullPath(), s.UUID())...)
 
 			expected, ok := expected[fullPath]
-			require.True(
-				t,
-				ok,
-				"unexpected file with path %q",
-				path.Join(append(c.FullPath(), fullPath)...),
-			)
+			require.True(t, ok, "unexpected file with path %q", fullPath)
 
 			buf, err := ioutil.ReadAll(s.ToReader())
-			require.NoError(t, err)
+			require.NoError(t, err, "reading collection item: %s", fullPath)
 
-			assert.Equal(t, expected, buf)
+			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
 		}
 	}
 
@@ -677,37 +673,38 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory_Errors(
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	t := suite.T()
+	ctx := context.Background()
 
-	fp1 := append(testPath, testFileName)
-	fp2 := append(testPath2, testFileName3)
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+
+	w := &Wrapper{k}
+
+	tid := uuid.NewString()
+	p1 := []string{tid, "uid", "emails", "fid"}
+	p2 := []string{tid, "uid2", "emails", "fid"}
+	dc1 := mockconnector.NewMockExchangeDataCollection(p1, 1)
+	dc2 := mockconnector.NewMockExchangeDataCollection(p2, 1)
+	fp1 := append(p1, dc1.Names[0])
+	fp2 := append(p2, dc2.Names[0])
+
+	stats, _, err := w.BackupCollections(ctx, []connector.DataCollection{dc1, dc2})
+	require.NoError(t, err)
 
 	expected := map[string][]byte{
-		path.Join(fp1...): testFileData,
-		path.Join(fp2...): testFileData3,
+		path.Join(fp1...): dc1.Data[0],
+		path.Join(fp2...): dc2.Data[0],
 	}
 
-	cs, err := suite.w.RestoreMultipleItems(
-		suite.ctx,
-		string(suite.snapshotID),
-		[][]string{
-			fp1,
-			fp2,
-		})
+	result, err := w.RestoreMultipleItems(
+		ctx,
+		string(stats.SnapshotID),
+		[][]string{fp1, fp2})
+
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(cs))
+	assert.Equal(t, 2, len(result))
 
-	count := 0
-	for _, c := range cs {
-		for resultStream := range c.Items() {
-			buf, err := ioutil.ReadAll(resultStream.ToReader())
-			require.NoError(t, err)
-			assert.Greater(t, len(buf), 0)
-			count++
-		}
-	}
-
-	assert.Equal(t, 2, count)
-	testForFiles(t, expected, cs)
+	testForFiles(t, expected, result)
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
