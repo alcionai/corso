@@ -136,9 +136,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))
-
-	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
-	// to close here.
 	defer k.Close(ctx)
 
 	w, err := kopia.NewWrapper(k)
@@ -176,12 +173,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		rsel.Selector)
 	require.NoError(t, err)
 
-	require.NoError(t, ro.Run(ctx))
-	require.NotEmpty(t, ro.Results)
-	assert.Equal(t, ro.Status, Successful)
-	assert.Greater(t, ro.Results.ItemsRead, 0)
-	assert.Greater(t, ro.Results.ItemsWritten, 0)
-	assert.Zero(t, ro.Results.ReadErrors)
-	assert.Zero(t, ro.Results.WriteErrors)
-	assert.Equal(t, bo.Results.ItemsWritten, ro.Results.ItemsWritten)
+	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
+	require.NotEmpty(t, ro.Results, "restoreOp results")
+	assert.Equal(t, ro.Status, Successful, "restoreOp status")
+	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
+	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
+	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
+	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
+	assert.Equal(t, bo.Results.ItemsWritten, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 }

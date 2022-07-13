@@ -122,6 +122,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		stats.writeErr = errors.Wrap(err, "restoring service data")
 		return stats.writeErr
 	}
+	stats.gc = gc.Status()
 
 	op.Status = Successful
 	return nil

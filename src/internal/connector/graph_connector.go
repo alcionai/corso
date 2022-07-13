@@ -5,6 +5,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"strings"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -188,21 +189,29 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 // and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
 func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollection) error {
-	var errs error
+	var (
+		pathCounter         = map[string]bool{}
+		attempts, successes int
+		errs                error
+	)
 
 	for _, dc := range dcs {
 		// must be user.GetId(), PrimaryName no longer works 6-15-2022
 		user := dc.FullPath()[1]
 		items := dc.Items()
+		pathCounter[strings.Join(dc.FullPath(), "")] = true
 
-		for {
+		var exit bool
+		for !exit {
 			select {
 			case <-ctx.Done():
 				return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
 			case data, ok := <-items:
 				if !ok {
-					return errs
+					exit = true
+					break
 				}
+				attempts++
 
 				buf := &bytes.Buffer{}
 				_, err := buf.ReadFrom(data.ToReader())
@@ -228,20 +237,27 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 				clone.SetIsDraft(&draft)
 				sentMessage, err := gc.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
 				if err != nil {
-					errs = support.WrapAndAppend(data.UUID()+": "+
-						support.ConnectorStackErrorTrace(err), err, errs)
+					errs = support.WrapAndAppend(
+						data.UUID()+": "+support.ConnectorStackErrorTrace(err),
+						err, errs)
 					continue
 					// TODO: Add to retry Handler for the for failure
 				}
 
 				if sentMessage == nil && err == nil {
 					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
-
+				}
+				if err != nil {
+					successes++
 				}
 				// This completes the restore loop for a message..
 			}
 		}
 	}
+
+	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
+	gc.SetStatus(*status)
+	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
 }
 
@@ -302,11 +318,9 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		success += edc.Length()
 		collections = append(collections, &edc)
 	}
-	status, err := support.CreateStatus(support.Backup, attemptedItems, success, len(tasklist), errs)
-	if err == nil {
-		gc.SetStatus(*status)
-		logger.Ctx(ctx).Debugw(gc.PrintableStatus())
-	}
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(tasklist), errs)
+	gc.SetStatus(*status)
+	logger.Ctx(ctx).Debugw(gc.PrintableStatus())
 	return collections, errs
 }
 
