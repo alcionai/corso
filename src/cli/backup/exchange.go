@@ -15,8 +15,14 @@ import (
 
 // exchange bucket info from flags
 var (
-	user            string
+	user            []string
 	backupDetailsID string
+)
+
+const (
+	dataContacts = "contacts"
+	dataEmail    = "email"
+	dataEvents   = "events"
 )
 
 // called by backup.go to map parent subcommands to provider-specific handling.
@@ -28,12 +34,18 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd)
-		fs.StringVar(&user, "user", "", "ID of the user whose Exchange data is to be backed up.")
+		fs.StringArrayVar(&user, "user", nil, "Back up Exchange data by user ID; accepts * to select all users")
+		fs.BoolVar(&all, "all", false, "Back up all Exchange data for all users")
+		fs.StringArrayVar(
+			&data,
+			"data",
+			nil,
+			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
 	case listCommand:
 		c, _ = utils.AddCommand(parent, exchangeListCmd)
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
-		fs.StringVar(&backupDetailsID, "backup-details", "", "ID of the backup details to be shown.")
+		fs.StringVar(&backupDetailsID, "backup-details", "", "ID of the backup details to be shown")
 		cobra.CheckErr(c.MarkFlagRequired("backup-details"))
 	}
 	return c
@@ -55,6 +67,9 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
+	}
+	if err := validateBackupCreateFlags(all, user, data); err != nil {
+		return err
 	}
 
 	s, acct, err := config.GetStorageAndAccount(true, nil)
@@ -79,10 +94,9 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users(user))
+	sel := exchangeBackupCreateSelectors(all, user, data)
 
-	bo, err := r.NewBackup(ctx, sel.Selector)
+	bo, err := r.NewBackup(ctx, sel)
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
@@ -94,6 +108,65 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	// todo: revive when backups are hooked up to backupOperation results
 	// fmt.Printf("Created backup %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
+	return nil
+}
+
+func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
+	sel := selectors.NewExchangeBackup()
+	if all {
+		sel.Include(sel.Users(selectors.All))
+		return sel.Selector
+	}
+	if len(data) == 0 {
+		for _, user := range users {
+			if user == "*" {
+				user = selectors.All
+			}
+			sel.Include(sel.ContactFolders(user, selectors.All))
+			sel.Include(sel.MailFolders(user, selectors.All))
+			sel.Include(sel.Events(user, selectors.All))
+		}
+	}
+	for _, d := range data {
+		switch d {
+		case dataContacts:
+			for _, user := range users {
+				if user == "*" {
+					user = selectors.All
+				}
+				sel.Include(sel.ContactFolders(user, selectors.All))
+			}
+		case dataEmail:
+			for _, user := range users {
+				if user == "*" {
+					user = selectors.All
+				}
+				sel.Include(sel.MailFolders(user, selectors.All))
+			}
+		case dataEvents:
+			for _, user := range users {
+				if user == "*" {
+					user = selectors.All
+				}
+				sel.Include(sel.Events(user, selectors.All))
+			}
+		}
+	}
+	return sel.Selector
+}
+
+func validateBackupCreateFlags(all bool, users, data []string) error {
+	if len(users) == 0 && !all {
+		return errors.New("requries one or more --user ids, the wildcard --user *, or the --all flag.")
+	}
+	if len(data) > 0 && all {
+		return errors.New("--all backs up all data, and cannot be reduced with --data")
+	}
+	for _, d := range data {
+		if d != dataContacts && d != dataEmail && d != dataEvents {
+			return errors.New(d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
+		}
+	}
 	return nil
 }
 
