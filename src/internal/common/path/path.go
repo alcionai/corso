@@ -1,5 +1,3 @@
-package path
-
 // Package path provides a set of functions for wrangling paths from the outside
 // world into paths that corso can understand. Paths use the standard Unix path
 // separator character '/'. If for some reason an individual element in a raw
@@ -29,6 +27,12 @@ package path
 // Segments that are not required for a particular path are not exposed in any
 // of the functions that return path information.
 
+package path
+
+import (
+	"errors"
+)
+
 type Path struct {
 }
 
@@ -39,9 +43,9 @@ func NewPath(tenantAndService, user, dirString, item string) (*Path, error) {
 	return nil, errors.New("not implemented")
 }
 
-// JoinedPath returns a string that contains all path segments joined
+// String returns a string that contains all path segments joined
 // together. Elements of the path that need escaping will be escaped.
-func (p *Path) JoinedPath() string {
+func (p *Path) String() string {
 	return ""
 }
 
@@ -57,7 +61,7 @@ func (p *Path) HashedSegments() []string {
 }
 
 // Elements returns all elements in the path according to path splitting rules
-// that account for escaped characters. See the examples above for.
+// that account for escaped characters. See the examples above.
 func (p *Path) Elements() []string {
 	return nil
 }
