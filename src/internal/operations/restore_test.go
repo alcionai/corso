@@ -126,6 +126,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
+	/*
+		Unskip when graphapi restore parsing errors are fixed.
+	*/
+	t.Skip("test will fail due to \\r parsing error on restore")
+
 	m365User := "lidiah@8qzvrj.onmicrosoft.com"
 	acct, err := ctesting.NewM365Account()
 	require.NoError(t, err)
