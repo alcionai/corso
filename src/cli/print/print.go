@@ -22,7 +22,8 @@ type Printable interface {
 	// should list the property names of the values surfaced in Values()
 	Headers() []string
 	// list of values for tabular or csv formatting
-	// values should provide an empty string as opposed to skipping entries.
+	// if the backing data is nil or otherwise missing,
+	// values should provide an empty string as opposed to skipping entries
 	Values() []string
 }
 
@@ -32,7 +33,7 @@ func Backups(bs []*backup.Backup) {
 	for _, b := range bs {
 		ps = append(ps, b)
 	}
-	slice(ps)
+	printAll(ps)
 }
 
 // Prints the entries to the terminal with stdout.
@@ -41,11 +42,12 @@ func Entries(des []backup.DetailsEntry) {
 	for _, de := range des {
 		ps = append(ps, de)
 	}
-	slice(ps)
+	printAll(ps)
 }
 
-// slice prints the slice of printable items.
-func slice(ps []Printable) {
+// printAll prints the slice of printable items,
+// according to the caller's requested format.
+func printAll(ps []Printable) {
 	if len(ps) == 0 {
 		return
 	}

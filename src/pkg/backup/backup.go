@@ -59,7 +59,7 @@ type DetailsModel struct {
 	Entries []DetailsEntry `json:"entries"`
 }
 
-// Details augments the core with a mutext for processing.
+// Details augments the core with a mutex for processing.
 // Should be sliced back to d.DetailsModel for storage and
 // printing.
 type Details struct {
