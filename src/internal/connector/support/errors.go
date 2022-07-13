@@ -8,33 +8,27 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/internal/common"
 )
 
 // GraphConnector has two types of errors that are exported
 // RecoverableGCError is a query error that can be overcome with time
 type RecoverableGCError struct {
-	err error
-}
-
-func (rgc *RecoverableGCError) Error() string {
-	return rgc.err.Error()
+	common.BaseError
 }
 
 func SetRecoverableError(e error) error {
-	return &RecoverableGCError{err: e}
+	return RecoverableGCError{common.BaseError{Err: e}}
 }
 
 // NonRecoverableGCError is a permanent query error
 type NonRecoverableGCError struct {
-	err error
-}
-
-func (nrgc *NonRecoverableGCError) Error() string {
-	return nrgc.err.Error()
+	common.BaseError
 }
 
 func SetNonRecoverableError(e error) error {
-	return &NonRecoverableGCError{err: e}
+	return NonRecoverableGCError{common.BaseError{Err: e}}
 }
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error
