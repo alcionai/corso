@@ -428,13 +428,11 @@ func walkDirectory(
 			return err
 		}
 
-		switch e.(type) {
+		switch e := e.(type) {
 		case fs.Directory:
-			d := e.(fs.Directory)
-			dirs = append(dirs, d)
+			dirs = append(dirs, e)
 		case fs.File:
-			f := e.(fs.File)
-			files = append(files, f)
+			files = append(files, e)
 		default:
 			errs = multierror.Append(errs, errors.Errorf("unexpected item type %T", e))
 			logger.Ctx(ctx).Warnf("unexpected item of type %T; skipping", e)
