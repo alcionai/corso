@@ -5,6 +5,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	numberOfRetries = 3
+	numberOfRetries = 4
 	mailCategory    = "mail"
 )
 
@@ -30,12 +31,19 @@ const (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	tenant  string
-	adapter msgraphsdk.GraphRequestAdapter
+	tenant        string
+	adapter       msgraphsdk.GraphRequestAdapter
+	client        msgraphsdk.GraphServiceClient
+	Users         map[string]string                 //key<email> value<id>
+	Streams       map[string]chan DataStream        // Operation channel DataStreams being transformed by GC
+	status        *support.ConnectorOperationStatus // contains the status of the last run status
+	statusChannel chan *support.ConnectorOperationStatus
+	credentials   []string // tenant,client,secret
+}
+
+type subConnector struct {
 	client  msgraphsdk.GraphServiceClient
-	Users   map[string]string                 //key<email> value<id>
-	Streams string                            //Not implemented for ease of code check-in
-	status  *support.ConnectorOperationStatus // contains the status of the last run status
+	adapter msgraphsdk.GraphRequestAdapter
 }
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
@@ -43,8 +51,30 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m356 account configuration")
 	}
+	adapter, err := createAdapter(m365.TenantID, m365.ClientID, m365.ClientSecret)
+	if err != nil {
+		return nil, err
+	}
+	gc := GraphConnector{
+		tenant:        m365.TenantID,
+		adapter:       *adapter,
+		client:        *msgraphsdk.NewGraphServiceClient(adapter),
+		Users:         make(map[string]string, 0),
+		status:        nil,
+		statusChannel: make(chan *support.ConnectorOperationStatus),
+		credentials:   []string{m365.TenantID, m365.ClientID, m365.ClientSecret},
+	}
+	// TODO: Revisit Query all users.
+	err = gc.setTenantUsers()
+	if err != nil {
+		return nil, err
+	}
+	return &gc, nil
+}
+
+func createAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
-	cred, err := az.NewClientSecretCredential(m365.TenantID, m365.ClientID, m365.ClientSecret, nil)
+	cred, err := az.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,22 +83,20 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 		return nil, err
 	}
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
+	return adapter, err
+}
+
+// createSubConnector private constructor method for subConnector
+func (gc *GraphConnector) createSubConnector() (*subConnector, error) {
+	adapter, err := createAdapter(gc.credentials[0], gc.credentials[1], gc.credentials[2])
 	if err != nil {
 		return nil, err
 	}
-	gc := GraphConnector{
-		tenant:  m365.TenantID,
+	connector := subConnector{
 		adapter: *adapter,
 		client:  *msgraphsdk.NewGraphServiceClient(adapter),
-		Users:   make(map[string]string, 0),
-		status:  nil,
 	}
-	// TODO: Revisit Query all users.
-	err = gc.setTenantUsers()
-	if err != nil {
-		return nil, err
-	}
-	return &gc, nil
+	return &connector, err
 }
 
 // setTenantUsers queries the M365 to identify the users in the
@@ -168,19 +196,25 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 					errs)
 				continue
 			}
-			dcs, err := gc.serializeMessages(ctx, user)
+			dcs, tasklist, err := gc.serializeMessages(ctx, user)
+			fmt.Printf("Size of Collections %d\n", len(dcs))
+			sub, err := gc.createSubConnector()
+			if err != nil {
+				return nil, support.WrapAndAppend(user, err, errs)
+			}
+			go populateFromTaskList(ctx, tasklist, *sub, dcs, gc)
+			// run the go routine here
+			// go func aSyncPopulate
 			if err != nil {
 				errs = support.WrapAndAppend(user, err, errs)
 			}
 			if len(dcs) > 0 {
-				collections = append(collections, dcs...)
+				for _, collection := range dcs {
+					collections = append(collections, &collection)
+				}
 			}
 		}
 	}
-
-	// TODO replace with completion of Issue 124:
-
-	//TODO: Retry handler to convert return: (DataCollection, error)
 	return collections, errs
 }
 
@@ -244,15 +278,15 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([]DataCollection, error) {
+func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([]ExchangeDataCollection, TaskList, error) {
 	options := optionsForMessageSnapshot()
 	response, err := gc.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	tasklist := NewTaskList() // map[folder][] messageIds
 	callbackFunc := func(messageItem any) bool {
@@ -270,44 +304,69 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		err = support.WrapAndAppend(gc.adapter.GetBaseUrl(), iterateError, err)
 	}
 	if err != nil {
-		return nil, err // return error if snapshot is incomplete
+		return nil, nil, err // return error if snapshot is incomplete
 	}
-	// Time to create Exchange data Holder
-	collections := make([]DataCollection, 0)
-	objectWriter := kw.NewJsonSerializationWriter()
-	var errs error
-	var attemptedItems, success int
+	// Create collection of ExchangeDataCollection and create  data Holder
+	collections := make([]ExchangeDataCollection, 0)
 
-	for aFolder, tasks := range tasklist {
+	for aFolder := range tasklist {
 		// prep the items for handoff to the backup consumer
 		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
+		collections = append(collections, edc)
+	}
+
+	return collections, tasklist, err
+}
+
+// populateFromTaskList async call to fill DataCollection via a channel
+func populateFromTaskList(
+	context context.Context,
+	tasklist TaskList,
+	sc subConnector,
+	collections []ExchangeDataCollection,
+	aSyncGraphConnector *GraphConnector, // All with vairable must be made to channel functions
+) {
+	var errs error
+	var attemptedItems, success int
+	objectWriter := kw.NewJsonSerializationWriter()
+	//Todo this has to return all the errors in the status
+	for aFolder, tasks := range tasklist {
+		// Get the same folder
+
+		edc := SelectCollectionByLastIndex(aFolder, collections)
+		if edc == nil {
+			for _, task := range tasks {
+				errs = support.WrapAndAppend(task, errors.New("unable to query: collection not found during populateFromTaskList"), errs)
+			}
+			continue
+		}
+
 		for _, task := range tasks {
-			response, err := gc.client.UsersById(user).MessagesById(task).Get()
+			response, err := sc.client.UsersById(edc.user).MessagesById(task).Get()
 			if err != nil {
 				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
+				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
 				continue
 			}
-			err = gc.messageToDataCollection(ctx, objectWriter, edc, response, user)
+			err = messageToDataCollection(&sc.client, context, objectWriter, *edc, response, edc.user)
 
 			if err != nil {
-				errs = support.WrapAndAppendf(user, err, errs)
+				errs = support.WrapAndAppendf(edc.user, err, errs)
 			}
 		}
 		edc.FinishPopulation()
 		attemptedItems += len(tasks)
 		success += edc.Length()
-		collections = append(collections, &edc)
 	}
 	status, err := support.CreateStatus(support.Backup, attemptedItems, success, len(tasklist), errs)
 	if err == nil {
-		gc.SetStatus(*status)
-		logger.Ctx(ctx).Debugw(gc.PrintableStatus())
+		logger.Ctx(context).Debugw(status.String())
+		aSyncGraphConnector.statusUpdate(status)
 	}
-	return collections, errs
 }
 
-func (gc *GraphConnector) messageToDataCollection(
+func messageToDataCollection(
+	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
 	objectWriter *kw.JsonSerializationWriter,
 	edc ExchangeDataCollection,
@@ -327,7 +386,7 @@ func (gc *GraphConnector) messageToDataCollection(
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 		for count := 0; count < numberOfRetries; count++ {
-			attached, err := gc.client.
+			attached, err := client.
 				UsersById(user).
 				MessagesById(*aMessage.GetId()).
 				Attachments().
@@ -356,13 +415,24 @@ func (gc *GraphConnector) messageToDataCollection(
 	if byteArray != nil {
 		edc.PopulateCollection(&ExchangeData{id: *aMessage.GetId(), message: byteArray})
 	}
-
 	return nil
 }
 
 // SetStatus helper function
 func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 	gc.status = &cos
+}
+
+func (gc *GraphConnector) statusUpdate(status *support.ConnectorOperationStatus) {
+	gc.statusChannel <- status
+}
+
+func (gc *GraphConnector) RetrieveStatusFromChannel() *support.ConnectorOperationStatus {
+	status := <-gc.statusChannel
+	if status != nil {
+		gc.status = status
+	}
+	return status
 }
 
 // Status returns the current status of the graphConnector operaion.
