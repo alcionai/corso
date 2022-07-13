@@ -4,13 +4,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// service-agnostic flags
-// associated flag delcaration may occur in individual service handlers.
-var (
-	all  bool
-	data []string
-)
-
 var backupCommands = []func(parent *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 }

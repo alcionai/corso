@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/cli/utils"
 	ctesting "github.com/alcionai/corso/internal/testing"
 )
 
@@ -111,7 +112,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "all users, no data",
-			user:             []string{"*"},
+			user:             []string{utils.Wildcard},
 			expectIncludeLen: 3,
 		},
 		{
@@ -121,7 +122,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "all users, contacts",
-			user:             []string{"*"},
+			user:             []string{utils.Wildcard},
 			data:             []string{dataContacts},
 			expectIncludeLen: 1,
 		},
@@ -133,7 +134,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "all users, email",
-			user:             []string{"*"},
+			user:             []string{utils.Wildcard},
 			data:             []string{dataEmail},
 			expectIncludeLen: 1,
 		},
@@ -145,7 +146,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "all users, events",
-			user:             []string{"*"},
+			user:             []string{utils.Wildcard},
 			data:             []string{dataEvents},
 			expectIncludeLen: 1,
 		},
@@ -157,7 +158,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "all users, contacts + email",
-			user:             []string{"*"},
+			user:             []string{utils.Wildcard},
 			data:             []string{dataContacts, dataEmail},
 			expectIncludeLen: 2,
 		},
@@ -169,7 +170,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "all users, email + events",
-			user:             []string{"*"},
+			user:             []string{utils.Wildcard},
 			data:             []string{dataEmail, dataEvents},
 			expectIncludeLen: 2,
 		},
@@ -181,7 +182,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "all users, events + contacts",
-			user:             []string{"*"},
+			user:             []string{utils.Wildcard},
 			data:             []string{dataEvents, dataContacts},
 			expectIncludeLen: 2,
 		},

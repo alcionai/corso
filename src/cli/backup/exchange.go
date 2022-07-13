@@ -15,8 +15,10 @@ import (
 
 // exchange bucket info from flags
 var (
-	user            []string
 	backupDetailsID string
+	exchangeAll     bool
+	exchangeData    []string
+	user            []string
 )
 
 const (
@@ -34,10 +36,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd)
-		fs.StringArrayVar(&user, "user", nil, "Back up Exchange data by user ID; accepts * to select all users")
-		fs.BoolVar(&all, "all", false, "Back up all Exchange data for all users")
+		fs.StringArrayVar(&user, "user", nil, "Back up Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.BoolVar(&exchangeAll, "all", false, "Back up all Exchange data for all users")
 		fs.StringArrayVar(
-			&data,
+			&exchangeData,
 			"data",
 			nil,
 			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
@@ -68,7 +70,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
-	if err := validateBackupCreateFlags(all, user, data); err != nil {
+	if err := validateBackupCreateFlags(exchangeAll, user, exchangeData); err != nil {
 		return err
 	}
 
@@ -94,7 +96,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(all, user, data)
+	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
 
 	bo, err := r.NewBackup(ctx, sel)
 	if err != nil {
@@ -119,7 +121,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 	}
 	if len(data) == 0 {
 		for _, user := range users {
-			if user == "*" {
+			if user == utils.Wildcard {
 				user = selectors.All
 			}
 			sel.Include(sel.ContactFolders(user, selectors.All))
@@ -131,21 +133,21 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 		switch d {
 		case dataContacts:
 			for _, user := range users {
-				if user == "*" {
+				if user == utils.Wildcard {
 					user = selectors.All
 				}
 				sel.Include(sel.ContactFolders(user, selectors.All))
 			}
 		case dataEmail:
 			for _, user := range users {
-				if user == "*" {
+				if user == utils.Wildcard {
 					user = selectors.All
 				}
 				sel.Include(sel.MailFolders(user, selectors.All))
 			}
 		case dataEvents:
 			for _, user := range users {
-				if user == "*" {
+				if user == utils.Wildcard {
 					user = selectors.All
 				}
 				sel.Include(sel.Events(user, selectors.All))
