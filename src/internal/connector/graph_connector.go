@@ -5,7 +5,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -197,7 +196,9 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 				continue
 			}
 			dcs, tasklist, err := gc.serializeMessages(ctx, user)
-			fmt.Printf("Size of Collections %d\n", len(dcs))
+			if err != nil {
+				return nil, support.WrapAndAppend(user, err, errs)
+			}
 			sub, err := gc.createSubConnector()
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
