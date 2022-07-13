@@ -25,12 +25,12 @@ var restoreCmd = &cobra.Command{
 	Use:   restoreCommand,
 	Short: "Restore your service data",
 	Long:  `Restore the data stored in one of your M365 services.`,
-	Run:   handleRestoreCmd,
+	RunE:  handleRestoreCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for flat calls to `corso restore`.
 // Produces the same output as `corso restore --help`.
-func handleRestoreCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleRestoreCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }

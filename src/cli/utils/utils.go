@@ -35,7 +35,7 @@ func CloseRepo(ctx context.Context, r *repository.Repository) {
 // (ex: corso backup restore exchange) is expected to no-op.
 func HasNoFlagsAndShownHelp(cmd *cobra.Command) bool {
 	if cmd.Flags().NFlag() == 0 {
-		cmd.Help()
+		cobra.CheckErr(cmd.Help())
 		return true
 	}
 	return false

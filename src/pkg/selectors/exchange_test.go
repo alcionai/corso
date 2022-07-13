@@ -606,7 +606,9 @@ func (suite *ExchangeSourceSuite) TestIdPath() {
 func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 	makeDeets := func(refs ...string) *backup.Details {
 		deets := &backup.Details{
-			Entries: []backup.DetailsEntry{},
+			DetailsModel: backup.DetailsModel{
+				Entries: []backup.DetailsEntry{},
+			},
 		}
 		for _, r := range refs {
 			deets.Entries = append(deets.Entries, backup.DetailsEntry{
