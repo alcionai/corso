@@ -35,11 +35,11 @@ func (e Err) Unwrap() error {
 }
 
 func (e Err) Format(s fmt.State, verb rune) {
+
 	if f, ok := e.Err.(fmt.Formatter); ok {
 		f.Format(s, verb)
 		return
 	}
-
 	// Formatting magic courtesy of github.com/pkg/errors.
 	switch verb {
 	case 'v':
@@ -49,6 +49,9 @@ func (e Err) Format(s fmt.State, verb rune) {
 		}
 		fallthrough
 	case 's', 'q':
-		io.WriteString(s, e.Error())
+		_, err := io.WriteString(s, e.Error())
+		if err != nil {
+			return
+		}
 	}
 }
