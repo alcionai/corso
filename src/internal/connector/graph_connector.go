@@ -200,16 +200,16 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}
-			
+
 			if len(dcs) == 0 {
-			  if len(tasklist) != 0 {
-			    // Below error message needs revising. Assumption is that it should always
-			    // find both items to fetch and a DataCollection to put them in
-			    return nil, support.WrapAndAppend(
-			      users, errors.New("found items but not DataCollection", errs))
-			  }
-			  
-			  return nil, errs
+				if len(tasklist) != 0 {
+					// Below error message needs revising. Assumption is that it should always
+					// find both items to fetch and a DataCollection to put them in
+					return nil, support.WrapAndAppend(
+						user, errors.New("found items but no directories"), errs)
+				}
+				// return empty collection when no items found
+				return nil, errs
 			}
 			sub, err := gc.createSubConnector()
 			if err != nil {
