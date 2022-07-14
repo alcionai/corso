@@ -48,7 +48,7 @@ func (e Err) Format(s fmt.State, verb rune) {
 		}
 		fallthrough
 	case 's', 'q':
-    // nolint: errcheck
-		io.WriteString(s, e.Error())
+		// nolint: adjustment for linter
+		_, _ = io.WriteString(s, e.Error())
 	}
 }
