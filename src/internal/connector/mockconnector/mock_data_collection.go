@@ -15,6 +15,8 @@ import (
 type MockExchangeDataCollection struct {
 	fullPath     []string
 	messageCount int
+	Data         [][]byte
+	Names        []string
 }
 
 var (
@@ -26,11 +28,19 @@ var (
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
 // mock messages when iterated
 func NewMockExchangeDataCollection(pathRepresentation []string, numMessagesToReturn int) *MockExchangeDataCollection {
-	collection := &MockExchangeDataCollection{
+	c := &MockExchangeDataCollection{
 		fullPath:     pathRepresentation,
 		messageCount: numMessagesToReturn,
+		Data:         [][]byte{},
+		Names:        []string{},
 	}
-	return collection
+
+	for i := 0; i < c.messageCount; i++ {
+		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
+		c.Data = append(c.Data, []byte("test message"))
+		c.Names = append(c.Names, uuid.NewString())
+	}
+	return c
 }
 
 func (medc *MockExchangeDataCollection) FullPath() []string {
@@ -44,11 +54,11 @@ func (medc *MockExchangeDataCollection) Items() <-chan connector.DataStream {
 
 	go func() {
 		defer close(res)
-
 		for i := 0; i < medc.messageCount; i++ {
-			// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
-			m := []byte("test message")
-			res <- &MockExchangeData{uuid.NewString(), io.NopCloser(bytes.NewReader(m))}
+			res <- &MockExchangeData{
+				medc.Names[i],
+				io.NopCloser(bytes.NewReader(medc.Data[i])),
+			}
 		}
 	}()
 

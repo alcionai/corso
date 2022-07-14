@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
@@ -138,15 +139,15 @@ func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) 
 }
 
 // NewRestore generates a restoreOperation runner.
-func (r Repository) NewRestore(ctx context.Context, backupID string, targets []string) (operations.RestoreOperation, error) {
+func (r Repository) NewRestore(ctx context.Context, backupID string, sel selectors.Selector) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
 		operations.Options{},
 		r.dataLayer,
 		r.modelStore,
 		r.Account,
-		backupID,
-		targets)
+		model.ID(backupID),
+		sel)
 }
 
 // backups lists backups in a respository
@@ -155,24 +156,24 @@ func (r Repository) Backups(ctx context.Context) ([]*backup.Backup, error) {
 	if err != nil {
 		return nil, err
 	}
-	rps := make([]*backup.Backup, 0, len(bms))
+	bus := make([]*backup.Backup, 0, len(bms))
 	for _, bm := range bms {
-		rp := backup.Backup{}
-		err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, bm.ModelStoreID, &rp)
+		bu := backup.Backup{}
+		err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, bm.ModelStoreID, &bu)
 		if err != nil {
 			return nil, err
 		}
-		rps = append(rps, &rp)
+		bus = append(bus, &bu)
 	}
-	return rps, nil
+	return bus, nil
 }
 
 // BackupDetails returns the specified backup details object
 func (r Repository) BackupDetails(ctx context.Context, rpDetailsID string) (*backup.Details, error) {
-	rpd := backup.Details{}
-	err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rpDetailsID), &rpd)
+	bud := backup.Details{}
+	err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rpDetailsID), &bud)
 	if err != nil {
 		return nil, err
 	}
-	return &rpd, nil
+	return &bud, nil
 }

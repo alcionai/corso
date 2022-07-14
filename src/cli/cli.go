@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/cli/backup"
 	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/repo"
 	"github.com/alcionai/corso/cli/restore"
 	"github.com/alcionai/corso/pkg/logger"
@@ -57,6 +58,7 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 func Handle() {
 	corsoCmd.Flags().BoolP("version", "v", version, "current version info")
 	corsoCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "config file (default is $HOME/.corso)")
+	print.AddOutputFlag(corsoCmd)
 
 	corsoCmd.CompletionOptions.DisableDefaultCmd = true
 

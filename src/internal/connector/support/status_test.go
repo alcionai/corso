@@ -1,6 +1,7 @@
 package support
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -28,38 +29,37 @@ type statusParams struct {
 
 func (suite *GCStatusTestSuite) TestCreateStatus() {
 	table := []struct {
-		name       string
-		params     statusParams
-		expected   bool
-		checkError assert.ValueAssertionFunc
+		name   string
+		params statusParams
+		expect assert.BoolAssertionFunc
 	}{
 		{
-			name:       "Test: Status Success",
-			params:     statusParams{Backup, 12, 12, 3, nil},
-			expected:   false,
-			checkError: assert.Nil,
+			name:   "Test: Status Success",
+			params: statusParams{Backup, 12, 12, 3, nil},
+			expect: assert.False,
 		},
 		{
-			name:       "Test: Status Failed",
-			params:     statusParams{Restore, 12, 9, 8, WrapAndAppend("tres", errors.New("three"), WrapAndAppend("arc376", errors.New("one"), errors.New("two")))},
-			expected:   true,
-			checkError: assert.Nil,
+			name:   "Test: Status Failed",
+			params: statusParams{Restore, 12, 9, 8, WrapAndAppend("tres", errors.New("three"), WrapAndAppend("arc376", errors.New("one"), errors.New("two")))},
+			expect: assert.True,
 		},
 		{
-			name:       "Invalid status",
-			params:     statusParams{Backup, 9, 3, 12, errors.New("invalidcl")},
-			expected:   false,
-			checkError: assert.NotNil,
+			name: "Invalid status",
+			// todo: expect panic once logger.DPanicw identifies dev mode.
+			params: statusParams{Backup, 9, 3, 13, errors.New("invalidcl")},
+			expect: assert.True,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			result, err := CreateStatus(test.params.operationType, test.params.objects,
-				test.params.success, test.params.folders, test.params.err)
-			test.checkError(t, err)
-			if err == nil {
-				suite.Equal(result.incomplete, test.expected)
-			}
+			result := CreateStatus(
+				context.Background(),
+				test.params.operationType,
+				test.params.objects,
+				test.params.success,
+				test.params.folders,
+				test.params.err)
+			test.expect(t, result.incomplete, "status is incomplete")
 		})
 
 	}

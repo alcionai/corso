@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -29,7 +30,7 @@ type BackupOperation struct {
 type BackupResults struct {
 	summary
 	metrics
-	// todo: Backup ID
+	BackupID model.ID `json:"backupID"`
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -108,16 +109,20 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 }
 
 func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, details *backup.Details) error {
-	err := op.modelStore.Put(ctx, kopia.BackupDetailsModel, details)
+	err := op.modelStore.Put(ctx, kopia.BackupDetailsModel, &details.DetailsModel)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
 
-	err = op.modelStore.Put(ctx, kopia.BackupModel,
-		backup.New(snapID, string(details.ModelStoreID)))
+	bu := backup.New(snapID, string(details.ModelStoreID))
+
+	err = op.modelStore.Put(ctx, kopia.BackupModel, bu)
 	if err != nil {
 		return errors.Wrap(err, "creating backup model")
 	}
+
+	op.Results.BackupID = bu.StableID
+
 	return nil
 }
 

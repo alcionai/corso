@@ -9,15 +9,17 @@ require (
 	github.com/kopia/kopia v0.11.1
 	github.com/microsoft/kiota-abstractions-go v0.8.1
 	github.com/microsoft/kiota-authentication-azure-go v0.3.0
-	github.com/microsoft/kiota-serialization-json-go v0.5.4
+	github.com/microsoft/kiota-serialization-json-go v0.5.5
 	github.com/microsoftgraph/msgraph-sdk-go v0.28.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.26.1
 	github.com/pkg/errors v0.9.1
-	github.com/segmentio/cli v0.5.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
+	github.com/tidwall/pretty v1.2.0
+	github.com/tomlazar/table v0.1.2
+	github.com/zeebo/assert v1.1.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/tools v0.1.11
 )
@@ -43,7 +45,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chmduquesne/rollinghash v4.0.0+incompatible // indirect
-	github.com/cjlapao/common-go v0.0.21 // indirect
+	github.com/cjlapao/common-go v0.0.22 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
@@ -60,7 +62,11 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.14 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/microsoft/kiota-http-go v0.5.2 // indirect
 	github.com/microsoft/kiota-serialization-text-go v0.4.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
@@ -76,6 +82,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.35.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rs/xid v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect

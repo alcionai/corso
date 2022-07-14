@@ -43,13 +43,13 @@ var initCmd = &cobra.Command{
 	Use:   initCommand,
 	Short: "Initialize a repository.",
 	Long:  `Create a new repository to store your backups.`,
-	Run:   handleInitCmd,
+	RunE:  handleInitCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for calls to `corso repo init`.
-func handleInitCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleInitCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }
 
 // The repo connect subcommand.
@@ -59,11 +59,11 @@ var connectCmd = &cobra.Command{
 	Use:   connectCommand,
 	Short: "Connect to a repository.",
 	Long:  `Connect to an existing repository.`,
-	Run:   handleConnectCmd,
+	RunE:  handleConnectCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for calls to `corso repo connect`.
-func handleConnectCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleConnectCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }

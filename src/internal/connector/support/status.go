@@ -1,8 +1,10 @@
 package support
 
 import (
-	"errors"
+	"context"
 	"fmt"
+
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 type ConnectorOperationStatus struct {
@@ -25,25 +27,30 @@ const (
 )
 
 // Constructor for ConnectorOperationStatus. If the counts do not agree, an error is returned.
-func CreateStatus(op Operation, objects, success, folders int, err error) (*ConnectorOperationStatus, error) {
+func CreateStatus(ctx context.Context, op Operation, objects, success, folders int, err error) *ConnectorOperationStatus {
 	hasErrors := err != nil
 	var reason string
 	if err != nil {
 		reason = err.Error()
 	}
+	numErr := GetNumberOfErrors(err)
 	status := ConnectorOperationStatus{
 		lastOperation:    op,
 		ObjectCount:      objects,
 		folderCount:      folders,
 		successful:       success,
-		errorCount:       GetNumberOfErrors(err),
+		errorCount:       numErr,
 		incomplete:       hasErrors,
 		incompleteReason: reason,
 	}
 	if status.ObjectCount != status.errorCount+status.successful {
-		return nil, errors.New("incorrect total on initialization")
+		logger.Ctx(ctx).DPanicw(
+			"status object count does not match errors + successes",
+			"objects", objects,
+			"successes", success,
+			"errors", numErr)
 	}
-	return &status, nil
+	return &status
 }
 
 func (cos *ConnectorOperationStatus) String() string {
