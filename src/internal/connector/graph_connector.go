@@ -31,15 +31,15 @@ const (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	tenant        string
-	queryService  *subConnector
-	Users         map[string]string                 //key<email> value<id>
-	status        *support.ConnectorOperationStatus // contains the status of the last run status
-	statusCh chan *support.ConnectorOperationStatus
-	credentials   account.M365Config
+	tenant       string
+	queryService *graphService
+	Users        map[string]string                 //key<email> value<id>
+	status       *support.ConnectorOperationStatus // contains the status of the last run status
+	statusCh     chan *support.ConnectorOperationStatus
+	credentials  account.M365Config
 }
 
-type subConnector struct {
+type graphService struct {
 	client  msgraphsdk.GraphServiceClient
 	adapter msgraphsdk.GraphRequestAdapter
 }
@@ -55,14 +55,14 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	}
 	gc := GraphConnector{
 		tenant: m365.TenantID,
-		queryService: &subConnector{
+		queryService: &graphService{
 			adapter: *adapter,
 			client:  *msgraphsdk.NewGraphServiceClient(adapter),
 		},
-		Users:         make(map[string]string, 0),
-		status:        nil,
-		statusChannel: make(chan *support.ConnectorOperationStatus),
-		credentials:   m365,
+		Users:       make(map[string]string, 0),
+		status:      nil,
+		statusCh:    make(chan *support.ConnectorOperationStatus),
+		credentials: m365,
 	}
 	// TODO: Revisit Query all users.
 	err = gc.setTenantUsers()
@@ -87,12 +87,12 @@ func createAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 }
 
 // createSubConnector private constructor method for subConnector
-func (gc *GraphConnector) createSubConnector() (*subConnector, error) {
+func (gc *GraphConnector) createService() (*graphService, error) {
 	adapter, err := createAdapter(gc.credentials.TenantID, gc.credentials.ClientID, gc.credentials.ClientSecret)
 	if err != nil {
 		return nil, err
 	}
-	connector := subConnector{
+	connector := graphService{
 		adapter: *adapter,
 		client:  *msgraphsdk.NewGraphServiceClient(adapter),
 	}
@@ -211,12 +211,12 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 				// return empty collection when no items found
 				return nil, errs
 			}
-			sub, err := gc.createSubConnector()
+			service, err := gc.createService()
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}
 			// async call to populate
-			go sub.populateFromTaskList(ctx, tasklist, dcs, gc.statusChannel)
+			go service.populateFromTaskList(ctx, tasklist, dcs, gc.statusCh)
 			if len(dcs) > 0 {
 				for _, collection := range dcs {
 					collections = append(collections, collection)
@@ -346,7 +346,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 }
 
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func (sc *subConnector) populateFromTaskList(
+func (sc *graphService) populateFromTaskList(
 	context context.Context,
 	tasklist TaskList,
 	collections map[string]*ExchangeDataCollection,
@@ -448,7 +448,7 @@ func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 
 // AwaitStatus updates status field based on item within statusChannel.
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
-	gc.status = <-gc.statusChannel
+	gc.status = <-gc.statusCh
 	return gc.status
 }
 
