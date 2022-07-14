@@ -31,12 +31,12 @@ const (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	tenant       string
-	queryService *graphService
-	Users        map[string]string                 //key<email> value<id>
-	status       *support.ConnectorOperationStatus // contains the status of the last run status
-	statusCh     chan *support.ConnectorOperationStatus
-	credentials  account.M365Config
+	graphService
+	tenant      string
+	Users       map[string]string                 //key<email> value<id>
+	status      *support.ConnectorOperationStatus // contains the status of the last run status
+	statusCh    chan *support.ConnectorOperationStatus
+	credentials account.M365Config
 }
 
 type graphService struct {
@@ -49,22 +49,18 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m356 account configuration")
 	}
-	adapter, err := createAdapter(m365.TenantID, m365.ClientID, m365.ClientSecret)
-	if err != nil {
-		return nil, err
-	}
 	gc := GraphConnector{
-		tenant: m365.TenantID,
-		queryService: &graphService{
-			adapter: *adapter,
-			client:  *msgraphsdk.NewGraphServiceClient(adapter),
-		},
+		tenant:      m365.TenantID,
 		Users:       make(map[string]string, 0),
 		status:      nil,
 		statusCh:    make(chan *support.ConnectorOperationStatus),
 		credentials: m365,
 	}
-	// TODO: Revisit Query all users.
+	aService, err := gc.createService()
+	if err != nil {
+		return nil, err
+	}
+	gc.graphService = *aService
 	err = gc.setTenantUsers()
 	if err != nil {
 		return nil, err
@@ -110,7 +106,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
-	response, err := gc.queryService.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := gc.graphService.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return err
 	}
@@ -118,7 +114,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
 		return err
 	}
-	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.queryService.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
+	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return err
 	}
@@ -126,7 +122,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			err = support.WrapAndAppend(gc.queryService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
+			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
@@ -134,7 +130,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	}
 	iterateError = userIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = support.WrapAndAppend(gc.queryService.adapter.GetBaseUrl(), iterateError, err)
+		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
 	}
 	return err
 }
@@ -277,7 +273,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 				clone.SetSingleValueExtendedProperties(svlep)
 				draft := false
 				clone.SetIsDraft(&draft)
-				sentMessage, err := gc.queryService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
+				sentMessage, err := gc.graphService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
 				if err != nil {
 					errs = support.WrapAndAppend(
 						data.UUID()+": "+support.ConnectorStackErrorTrace(err),
@@ -307,11 +303,11 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 // to the GraphConnector struct.
 func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*ExchangeDataCollection, TaskList, error) {
 	options := optionsForMessageSnapshot()
-	response, err := gc.queryService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.queryService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -319,7 +315,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
-			err = support.WrapAndAppendf(gc.queryService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
+			err = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
@@ -328,7 +324,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	}
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = support.WrapAndAppend(gc.queryService.adapter.GetBaseUrl(), iterateError, err)
+		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
 	}
 	if err != nil {
 		return nil, nil, err // return error if snapshot is incomplete
