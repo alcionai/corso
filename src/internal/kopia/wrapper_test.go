@@ -8,6 +8,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
@@ -72,17 +73,12 @@ func testForFiles(
 			fullPath := path.Join(append(c.FullPath(), s.UUID())...)
 
 			expected, ok := expected[fullPath]
-			require.True(
-				t,
-				ok,
-				"unexpected file with path %q",
-				path.Join(append(c.FullPath(), fullPath)...),
-			)
+			require.True(t, ok, "unexpected file with path %q", fullPath)
 
 			buf, err := ioutil.ReadAll(s.ToReader())
-			require.NoError(t, err)
+			require.NoError(t, err, "reading collection item: %s", fullPath)
 
-			assert.Equal(t, expected, buf)
+			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
 		}
 	}
 
@@ -671,6 +667,82 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupRestoreDirectory_Errors(
 			_, err := suite.w.RestoreDirectory(
 				suite.ctx, test.snapshotID, test.dirPath)
 			assert.Error(t, err)
+		})
+	}
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
+	t := suite.T()
+	ctx := context.Background()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+
+	w := &Wrapper{k}
+
+	tid := uuid.NewString()
+	p1 := []string{tid, "uid", "emails", "fid"}
+	p2 := []string{tid, "uid2", "emails", "fid"}
+	dc1 := mockconnector.NewMockExchangeDataCollection(p1, 1)
+	dc2 := mockconnector.NewMockExchangeDataCollection(p2, 1)
+	fp1 := append(p1, dc1.Names[0])
+	fp2 := append(p2, dc2.Names[0])
+
+	stats, _, err := w.BackupCollections(ctx, []connector.DataCollection{dc1, dc2})
+	require.NoError(t, err)
+
+	expected := map[string][]byte{
+		path.Join(fp1...): dc1.Data[0],
+		path.Join(fp2...): dc2.Data[0],
+	}
+
+	result, err := w.RestoreMultipleItems(
+		ctx,
+		string(stats.SnapshotID),
+		[][]string{fp1, fp2})
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(result))
+
+	testForFiles(t, expected, result)
+}
+
+func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
+	table := []struct {
+		name       string
+		snapshotID string
+		paths      [][]string
+	}{
+		{
+			"EmptyPaths",
+			string(suite.snapshotID),
+			[][]string{{}},
+		},
+		{
+			"NoSnapshot",
+			"foo",
+			[][]string{append(testPath, testFileName)},
+		},
+		{
+			"TargetNotAFile",
+			string(suite.snapshotID),
+			[][]string{testPath[:2]},
+		},
+		{
+			"NonExistentFile",
+			string(suite.snapshotID),
+			[][]string{append(testPath, "subdir", "foo")},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := suite.w.RestoreMultipleItems(
+				suite.ctx,
+				test.snapshotID,
+				test.paths,
+			)
+			require.Error(t, err)
 		})
 	}
 }

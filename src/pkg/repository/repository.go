@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
@@ -138,15 +139,15 @@ func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) 
 }
 
 // NewRestore generates a restoreOperation runner.
-func (r Repository) NewRestore(ctx context.Context, backupID string, targets []string) (operations.RestoreOperation, error) {
+func (r Repository) NewRestore(ctx context.Context, backupID string, sel selectors.Selector) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
 		operations.Options{},
 		r.dataLayer,
 		r.modelStore,
 		r.Account,
-		backupID,
-		targets)
+		model.ID(backupID),
+		sel)
 }
 
 // backups lists backups in a respository

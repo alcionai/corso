@@ -9,7 +9,7 @@ require (
 	github.com/kopia/kopia v0.11.1
 	github.com/microsoft/kiota-abstractions-go v0.8.1
 	github.com/microsoft/kiota-authentication-azure-go v0.3.0
-	github.com/microsoft/kiota-serialization-json-go v0.5.4
+	github.com/microsoft/kiota-serialization-json-go v0.5.5
 	github.com/microsoftgraph/msgraph-sdk-go v0.28.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.26.1
 	github.com/pkg/errors v0.9.1
@@ -45,7 +45,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chmduquesne/rollinghash v4.0.0+incompatible // indirect
-	github.com/cjlapao/common-go v0.0.21 // indirect
+	github.com/cjlapao/common-go v0.0.22 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect

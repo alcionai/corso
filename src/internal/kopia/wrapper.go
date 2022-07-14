@@ -321,13 +321,12 @@ func (w Wrapper) getEntry(
 	return e, nil
 }
 
-// collectItems is a generic helper function that pulls data from kopia for the
-// given item in the snapshot with ID snapshotID. If isDirectory is true, it
-// returns a slice of DataCollections with data from directories in the subtree
-// rooted at itemPath. If isDirectory is false it returns a DataCollection (in a
-// slice) with a single item corresponding to the requested item. If the item
-// does not exist or a file is found when a directory is expected (or the
-// opposite) it returns an error.
+// CollectItems pulls data from kopia for the given items in the snapshot with
+// ID snapshotID. If isDirectory is true, it returns a slice of DataCollections
+// with data from directories in the subtree rooted at itemPath. If isDirectory
+// is false it returns a DataCollection (in a slice) with a single item for each
+// requested item. If the item does not exist or a file is found when a directory
+// is expected (or the opposite) it returns an error.
 func (w Wrapper) collectItems(
 	ctx context.Context,
 	snapshotID string,
@@ -527,4 +526,31 @@ func (w Wrapper) RestoreDirectory(
 	basePath []string,
 ) ([]connector.DataCollection, error) {
 	return w.collectItems(ctx, snapshotID, basePath, true)
+}
+
+// RestoreSingleItem looks up all paths- assuming each is an item declaration,
+// not a directory- in the snapshot with id snapshotID. The path should be the
+// full path of the item from the root.  Returns the results as a slice of single-
+// item DataCollections, where the DataCollection.FullPath() matches the path.
+// If the item does not exist in kopia or is not a file an error is returned.
+// The UUID of the returned DataStreams will be the name of the kopia file the
+// data is sourced from.
+func (w Wrapper) RestoreMultipleItems(
+	ctx context.Context,
+	snapshotID string,
+	paths [][]string,
+) ([]connector.DataCollection, error) {
+	var (
+		dcs  = []connector.DataCollection{}
+		errs *multierror.Error
+	)
+	for _, path := range paths {
+		dc, err := w.RestoreSingleItem(ctx, snapshotID, path)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		} else {
+			dcs = append(dcs, dc)
+		}
+	}
+	return dcs, errs.ErrorOrNil()
 }
