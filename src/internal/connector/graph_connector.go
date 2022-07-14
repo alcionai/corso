@@ -207,7 +207,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 			go populateFromTaskList(ctx, tasklist, *sub, dcs, gc.statusChannel)
 			if len(dcs) > 0 {
 				for _, collection := range dcs {
-					collections = append(collections, &collection)
+					collections = append(collections, collection)
 				}
 			}
 		}
@@ -275,7 +275,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([]ExchangeDataCollection, TaskList, error) {
+func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*ExchangeDataCollection, TaskList, error) {
 	options := optionsForMessageSnapshot()
 	response, err := gc.queryService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
@@ -304,12 +304,12 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) ([
 		return nil, nil, err // return error if snapshot is incomplete
 	}
 	// Create collection of ExchangeDataCollection and create  data Holder
-	collections := make([]ExchangeDataCollection, 0)
+	collections := make(map[string]*ExchangeDataCollection)
 
 	for aFolder := range tasklist {
 		// prep the items for handoff to the backup consumer
 		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
-		collections = append(collections, edc)
+		collections[aFolder] = &edc
 	}
 
 	return collections, tasklist, err
@@ -320,7 +320,7 @@ func populateFromTaskList(
 	context context.Context,
 	tasklist TaskList,
 	sc subConnector,
-	collections []ExchangeDataCollection,
+	collections map[string]*ExchangeDataCollection,
 	statusChannel chan<- *support.ConnectorOperationStatus, // All with vairable must be made to channel functions
 ) {
 	var errs error
@@ -329,7 +329,7 @@ func populateFromTaskList(
 	//Todo this has to return all the errors in the status
 	for aFolder, tasks := range tasklist {
 		// Get the same folder
-		edc := SelectCollectionByLastIndex(aFolder, collections)
+		edc := collections[aFolder]
 		if edc == nil {
 			for _, task := range tasks {
 				errs = support.WrapAndAppend(task, errors.New("unable to query: collection not found during populateFromTaskList"), errs)
@@ -344,7 +344,7 @@ func populateFromTaskList(
 				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
 				continue
 			}
-			err = messageToDataCollection(&sc.client, context, objectWriter, *edc, response, edc.user)
+			err = messageToDataCollection(&sc.client, context, objectWriter, edc.data, response, edc.user)
 
 			if err != nil {
 				errs = support.WrapAndAppendf(edc.user, err, errs)
@@ -365,7 +365,7 @@ func messageToDataCollection(
 	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
 	objectWriter *kw.JsonSerializationWriter,
-	edc ExchangeDataCollection,
+	dataChannel chan<- DataStream,
 	message models.Messageable,
 	user string,
 ) error {
@@ -409,7 +409,7 @@ func messageToDataCollection(
 		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
 	if byteArray != nil {
-		edc.PopulateCollection(&ExchangeData{id: *aMessage.GetId(), message: byteArray})
+		dataChannel <- &ExchangeData{id: *aMessage.GetId(), message: byteArray}
 	}
 	return nil
 }

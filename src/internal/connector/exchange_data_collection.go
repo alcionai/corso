@@ -94,16 +94,6 @@ func (edc *ExchangeDataCollection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
-func SelectCollectionByLastIndex(lastIndex string, collections []ExchangeDataCollection) *ExchangeDataCollection {
-	for _, collection := range collections {
-		names := collection.FullPath()
-		if lastIndex == names[len(names)-1] {
-			return &collection
-		}
-	}
-	return nil
-}
-
 // ExchangeData represents a single item retrieved from exchange
 type ExchangeData struct {
 	id string
