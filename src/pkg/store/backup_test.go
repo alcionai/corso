@@ -40,7 +40,7 @@ func marshal(a any) []byte {
 }
 
 func unmarshal(b []byte, a any) {
-	json.Unmarshal(b, a)
+	json.Unmarshal(b, a) //nolint:errcheck not important
 }
 
 func (m mockModelStoreGetter) Get(

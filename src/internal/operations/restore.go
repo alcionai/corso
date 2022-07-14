@@ -82,6 +82,10 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 
 	// retrieve the restore point details
 	d, b, err := store.GetDetailsFromBackupID(ctx, op.modelStore, op.BackupID)
+	if err != nil {
+		stats.readErr = errors.Wrap(err, "getting backup details for restore")
+		return stats.readErr
+	}
 
 	er, err := op.Selectors.ToExchangeRestore()
 	if err != nil {
