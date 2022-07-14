@@ -19,7 +19,7 @@ type Err struct {
 	Err error
 }
 
-func Encapsulate(e error) *Err {
+func EncapsulateError(e error) *Err {
 	return &Err{Err: e}
 }
 func (e Err) Error() string {
