@@ -128,10 +128,10 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector, opts operations.Options) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
-		operations.Options{},
+		opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		r.Account,
@@ -139,10 +139,15 @@ func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) 
 }
 
 // NewRestore generates a restoreOperation runner.
-func (r Repository) NewRestore(ctx context.Context, backupID string, sel selectors.Selector) (operations.RestoreOperation, error) {
+func (r Repository) NewRestore(
+	ctx context.Context,
+	backupID string,
+	sel selectors.Selector,
+	opts operations.Options,
+) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
-		operations.Options{},
+		opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		r.Account,

@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/cli/options"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -37,6 +38,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 		fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
+		options.AddOperationFlags(c)
 	}
 	return c
 }
@@ -86,7 +88,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, backupID, exchangeRestoreSelectors(user, emailFolder, email))
+	ro, err := r.NewRestore(ctx, backupID, exchangeRestoreSelectors(user, emailFolder, email), options.OperationOptions())
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}

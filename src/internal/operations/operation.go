@@ -36,10 +36,25 @@ type operation struct {
 	store *store.Wrapper
 }
 
+const (
+	onErrBestEffort = "best-effort"
+	onErrFailFast   = "fast-fail"
+)
+
 // Options configure some parameters of the operation
 type Options struct {
+	OnError string `json:"onError"`
 	// todo: collision handling
-	// todo: fast fail vs best attempt
+}
+
+func NewOptions(fastFail bool) Options {
+	oe := onErrBestEffort
+	if fastFail {
+		oe = onErrFailFast
+	}
+	return Options{
+		OnError: oe,
+	}
 }
 
 func newOperation(
