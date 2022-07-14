@@ -19,19 +19,22 @@ type Err struct {
 	Err error
 }
 
-func (e BaseError) Error() string {
+func Encapsulate(e error) *Err {
+	return &Err{Err: e}
+}
+func (e Err) Error() string {
 	return e.Err.Error()
 }
 
-func (e BaseError) Cause() error {
+func (e Err) Cause() error {
 	return e.Err
 }
 
-func (e BaseError) Unwrap() error {
+func (e Err) Unwrap() error {
 	return e.Err
 }
 
-func (e BaseError) Format(s fmt.State, verb rune) {
+func (e Err) Format(s fmt.State, verb rune) {
 	if f, ok := e.Err.(fmt.Formatter); ok {
 		f.Format(s, verb)
 		return
