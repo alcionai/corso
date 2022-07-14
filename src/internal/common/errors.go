@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// BaseError provides boiler-plate functions that other types of errors can use
+// Err provides boiler-plate functions that other types of errors can use
 // if they wish to be compared with `errors.As()`. This struct ensures that
 // stack traces are printed when requested (if present) and that BaseError
 // chains `errors.As()`, `errors.Is()`, and `errors.Cause()` calls properly.
