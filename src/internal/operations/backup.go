@@ -109,14 +109,14 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 }
 
 func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, details *backup.Details) error {
-	err := op.modelStore.Put(ctx, kopia.BackupDetailsModel, &details.DetailsModel)
+	err := op.modelStore.Put(ctx, model.BackupDetailsSchema, &details.DetailsModel)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
 
 	bu := backup.New(snapID, string(details.ModelStoreID))
 
-	err = op.modelStore.Put(ctx, kopia.BackupModel, bu)
+	err = op.modelStore.Put(ctx, model.BackupSchema, bu)
 	if err != nil {
 		return errors.Wrap(err, "creating backup model")
 	}

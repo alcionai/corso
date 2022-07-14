@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/store"
@@ -40,20 +39,20 @@ func marshal(a any) []byte {
 }
 
 func unmarshal(b []byte, a any) {
-	//nolint
+	//nolint:errcheck
 	json.Unmarshal(b, a)
 }
 
 func (m mockModelStoreGetter) Get(
 	ctx context.Context,
-	t kopia.ModelType,
+	s model.Schema,
 	id model.ID,
 	data model.Model,
 ) error {
 	if m.err != nil {
 		return m.err
 	}
-	if t == kopia.BackupModel {
+	if s == model.BackupSchema {
 		unmarshal(m.backup, data)
 	} else {
 		unmarshal(m.details, data)
@@ -63,13 +62,13 @@ func (m mockModelStoreGetter) Get(
 
 func (m mockModelStoreGetter) GetIDsForType(
 	ctx context.Context,
-	t kopia.ModelType,
+	s model.Schema,
 	tags map[string]string,
 ) ([]*model.BaseModel, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	if t == kopia.BackupModel {
+	if s == model.BackupSchema {
 		b := backup.Backup{}
 		unmarshal(m.backup, &b)
 		return []*model.BaseModel{&b.BaseModel}, nil
@@ -81,14 +80,14 @@ func (m mockModelStoreGetter) GetIDsForType(
 
 func (m mockModelStoreGetter) GetWithModelStoreID(
 	ctx context.Context,
-	t kopia.ModelType,
+	s model.Schema,
 	id manifest.ID,
 	data model.Model,
 ) error {
 	if m.err != nil {
 		return m.err
 	}
-	if t == kopia.BackupModel {
+	if s == model.BackupSchema {
 		unmarshal(m.backup, data)
 	} else {
 		unmarshal(m.details, data)
