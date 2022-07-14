@@ -35,7 +35,7 @@ type GraphConnector struct {
 	queryService  *subConnector
 	Users         map[string]string                 //key<email> value<id>
 	status        *support.ConnectorOperationStatus // contains the status of the last run status
-	statusChannel chan *support.ConnectorOperationStatus
+	statusCh chan *support.ConnectorOperationStatus
 	credentials   account.M365Config
 }
 
