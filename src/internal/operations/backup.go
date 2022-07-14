@@ -114,14 +114,14 @@ func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string
 		return errors.Wrap(err, "creating backupdetails model")
 	}
 
-	rp := backup.New(snapID, string(details.ModelStoreID))
+	bu := backup.New(snapID, string(details.ModelStoreID))
 
-	err = op.modelStore.Put(ctx, kopia.BackupModel, rp)
+	err = op.modelStore.Put(ctx, kopia.BackupModel, bu)
 	if err != nil {
 		return errors.Wrap(err, "creating backup model")
 	}
 
-	op.Results.BackupID = rp.StableID
+	op.Results.BackupID = bu.StableID
 
 	return nil
 }

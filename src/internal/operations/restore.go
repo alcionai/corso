@@ -82,15 +82,15 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	defer op.persistResults(time.Now(), &stats)
 
 	// retrieve the restore point details
-	rp := backup.Backup{}
-	err := op.modelStore.Get(ctx, kopia.BackupModel, op.BackupID, &rp)
+	bu := backup.Backup{}
+	err := op.modelStore.Get(ctx, kopia.BackupModel, op.BackupID, &bu)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving restore point")
 		return stats.readErr
 	}
 
-	rpd := backup.Details{}
-	err = op.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rp.DetailsID), &rpd)
+	backup := backup.Details{}
+	err = op.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(bu.DetailsID), &backup)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving restore point details")
 		return stats.readErr
@@ -103,8 +103,8 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	}
 
 	// format the details and retrieve the items from kopia
-	fds := er.FilterDetails(&rpd)
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, rp.SnapshotID, fds)
+	fds := er.FilterDetails(&backup)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, bu.SnapshotID, fds)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving service data")
 		return stats.readErr
