@@ -374,7 +374,7 @@ func populateFromTaskList(
 		success += edc.Length()
 	}
 	status := support.CreateStatus(context, support.Backup, attemptedItems, success, len(tasklist), errs)
-	logger.Ctx(context).Debugw(status.String())
+	logger.Ctx(context).Debug(status.String())
 	statusChannel <- status
 }
 
