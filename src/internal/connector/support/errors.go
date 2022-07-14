@@ -15,20 +15,20 @@ import (
 // GraphConnector has two types of errors that are exported
 // RecoverableGCError is a query error that can be overcome with time
 type RecoverableGCError struct {
-	common.BaseError
+	common.Err
 }
 
 func SetRecoverableError(e error) error {
-	return RecoverableGCError{common.BaseError{Err: e}}
+	return RecoverableGCError{*common.Encapsulate(e)}
 }
 
 // NonRecoverableGCError is a permanent query error
 type NonRecoverableGCError struct {
-	common.BaseError
+	common.Err
 }
 
 func SetNonRecoverableError(e error) error {
-	return NonRecoverableGCError{common.BaseError{Err: e}}
+	return NonRecoverableGCError{*common.Encapsulate(e)}
 }
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error
