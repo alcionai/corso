@@ -205,7 +205,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 				return nil, support.WrapAndAppend(user, err, errs)
 			}
 			// async call to populate
-			go populateFromTaskList(ctx, tasklist, *sub, dcs, gc.statusChannel)
+			go sub.populateFromTaskList(ctx, tasklist, dcs, gc.statusChannel)
 			if len(dcs) > 0 {
 				for _, collection := range dcs {
 					collections = append(collections, collection)
@@ -335,10 +335,9 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 }
 
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func populateFromTaskList(
+func (sc *subConnector) populateFromTaskList(
 	context context.Context,
 	tasklist TaskList,
-	sc subConnector,
 	collections map[string]*ExchangeDataCollection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
