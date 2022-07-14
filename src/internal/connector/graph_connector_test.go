@@ -64,7 +64,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Nil(suite.T(), err)
 	if suite.connector.status == nil {
-		status := suite.connector.RetrieveStatusFromChannel()
+		status := suite.connector.AwaitStatus()
 		assert.NotNil(suite.T(), status, "status not blocking on async call")
 	}
 	exchangeData := collectionList[0]

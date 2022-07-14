@@ -334,13 +334,13 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	return collections, tasklist, err
 }
 
-// populateFromTaskList async call to fill DataCollection via a channel
+// populateFromTaskList async call to fill DataCollection via channel implementation
 func populateFromTaskList(
 	context context.Context,
 	tasklist TaskList,
 	sc subConnector,
 	collections map[string]*ExchangeDataCollection,
-	statusChannel chan<- *support.ConnectorOperationStatus, // All with vairable must be made to channel functions
+	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
@@ -436,7 +436,8 @@ func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 	gc.status = &cos
 }
 
-func (gc *GraphConnector) RetrieveStatusFromChannel() *support.ConnectorOperationStatus {
+// AwaitStatus updates status field based on item within statusChannel.
+func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	gc.status = <-gc.statusChannel
 	return gc.status
 }
