@@ -1,14 +1,12 @@
 package backup
 
 import (
-	"os"
-
 	"github.com/pkg/errors"
-	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -36,7 +34,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
 		fs.StringVar(&backupDetailsID, "backup-details", "", "ID of the backup details to be shown.")
-		c.MarkFlagRequired("backup-details")
+		cobra.CheckErr(c.MarkFlagRequired("backup-details"))
 	}
 	return c
 }
@@ -136,15 +134,8 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to list backups in the repository")
 	}
 
-	// TODO: Can be used to print in alternative forms (e.g. json)
-	p, err := cli.Format("text", os.Stdout)
-	if err != nil {
-		return err
-	}
-	defer p.Flush()
-	for _, rp := range rps {
-		p.Print(*rp)
-	}
+	print.Backups(rps)
+
 	return nil
 }
 
@@ -185,13 +176,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	// TODO: Can be used to print in alternative forms
-	p, err := cli.Format("json", os.Stdout)
-	if err != nil {
-		return err
-	}
-	defer p.Flush()
-	p.Print(*rpd)
+	print.Entries(rpd.Entries)
 
 	return nil
 }

@@ -86,7 +86,7 @@ func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
-	k.wrap()
+	require.NoError(t, k.wrap())
 
 	assert.Equal(t, 2, k.refCount)
 

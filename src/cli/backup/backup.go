@@ -28,14 +28,14 @@ var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup your service data",
 	Long:  `Backup the data stored in one of your M365 services.`,
-	Run:   handleBackupCmd,
+	RunE:  handleBackupCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for flat calls to `corso backup`.
 // Produces the same output as `corso backup --help`.
-func handleBackupCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleBackupCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }
 
 // The backup create subcommand.
@@ -44,14 +44,14 @@ var createCommand = "create"
 var createCmd = &cobra.Command{
 	Use:   createCommand,
 	Short: "Backup an M365 Service",
-	Run:   handleCreateCmd,
+	RunE:  handleCreateCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for calls to `corso backup create`.
 // Produces the same output as `corso backup create --help`.
-func handleCreateCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleCreateCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }
 
 // The backup list subcommand.
@@ -60,14 +60,14 @@ var listCommand = "list"
 var listCmd = &cobra.Command{
 	Use:   listCommand,
 	Short: "List the history of backups for a service",
-	Run:   handleListCmd,
+	RunE:  handleListCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for calls to `corso backup list`.
 // Produces the same output as `corso backup list --help`.
-func handleListCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleListCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }
 
 // The backup details subcommand.
@@ -76,12 +76,12 @@ var detailsCommand = "details"
 var detailsCmd = &cobra.Command{
 	Use:   detailsCommand,
 	Short: "Shows the details of a backup for a service",
-	Run:   handleDetailsCmd,
+	RunE:  handleDetailsCmd,
 	Args:  cobra.NoArgs,
 }
 
 // Handler for calls to `corso backup details`.
 // Produces the same output as `corso backup details --help`.
-func handleDetailsCmd(cmd *cobra.Command, args []string) {
-	cmd.Help()
+func handleDetailsCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }

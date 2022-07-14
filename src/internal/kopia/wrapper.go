@@ -22,8 +22,8 @@ import (
 const (
 	// TODO(ashmrtnz): These should be some values from upper layer corso,
 	// possibly corresponding to who is making the backup.
-	kTestHost = "a-test-machine"
-	kTestUser = "testUser"
+	corsoHost = "corso-host"
+	corsoUser = "corso"
 )
 
 var (
@@ -255,8 +255,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 	details *backup.Details,
 ) (*BackupStats, error) {
 	si := snapshot.SourceInfo{
-		Host:     kTestHost,
-		UserName: kTestUser,
+		Host:     corsoHost,
+		UserName: corsoUser,
 		// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
 		Path: root.Name(),
 	}
@@ -428,13 +428,11 @@ func walkDirectory(
 			return err
 		}
 
-		switch e.(type) {
+		switch e := e.(type) {
 		case fs.Directory:
-			d := e.(fs.Directory)
-			dirs = append(dirs, d)
+			dirs = append(dirs, e)
 		case fs.File:
-			f := e.(fs.File)
-			files = append(files, f)
+			files = append(files, e)
 		default:
 			errs = multierror.Append(errs, errors.Errorf("unexpected item type %T", e))
 			logger.Ctx(ctx).Warnf("unexpected item of type %T; skipping", e)

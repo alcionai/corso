@@ -1,0 +1,33 @@
+name: Linting of Source Code
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  Linting:
+    environment: Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - name: Checkout src code
+        uses: actions/checkout@v3
+
+      - name: Golang Setup
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Download package dependencies
+        run: go mod download
+
+      - name: Go Lint
+        uses: golangci/golangci-lint-action@v3.2.0
+        with:
+          version: v1.45.2
+          working-directory: ./src
+          args: --timeout=15m
+          skip-pkg-cache: true

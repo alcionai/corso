@@ -16,7 +16,7 @@ func TestEnvvarsSuite(t *testing.T) {
 	suite.Run(t, new(EnvvarsTestSuite))
 }
 
-func (suite EnvvarsTestSuite) TestRunOnAny() {
+func (suite *EnvvarsTestSuite) TestRunOnAny() {
 	env_variable := "TEST_ENVVARS_SUITE"
 	os.Setenv(env_variable, "1")
 	table := []struct {
