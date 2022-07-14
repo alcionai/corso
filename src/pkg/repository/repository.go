@@ -156,24 +156,24 @@ func (r Repository) Backups(ctx context.Context) ([]*backup.Backup, error) {
 	if err != nil {
 		return nil, err
 	}
-	rps := make([]*backup.Backup, 0, len(bms))
+	bus := make([]*backup.Backup, 0, len(bms))
 	for _, bm := range bms {
-		rp := backup.Backup{}
-		err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, bm.ModelStoreID, &rp)
+		bu := backup.Backup{}
+		err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, bm.ModelStoreID, &bu)
 		if err != nil {
 			return nil, err
 		}
-		rps = append(rps, &rp)
+		bus = append(bus, &bu)
 	}
-	return rps, nil
+	return bus, nil
 }
 
 // BackupDetails returns the specified backup details object
 func (r Repository) BackupDetails(ctx context.Context, rpDetailsID string) (*backup.Details, error) {
-	rpd := backup.Details{}
-	err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rpDetailsID), &rpd)
+	bud := backup.Details{}
+	err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rpDetailsID), &bud)
 	if err != nil {
 		return nil, err
 	}
-	return &rpd, nil
+	return &bud, nil
 }
