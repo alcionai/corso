@@ -7,7 +7,7 @@ import (
 
 // Err provides boiler-plate functions that other types of errors can use
 // if they wish to be compared with `errors.As()`. This struct ensures that
-// stack traces are printed when requested (if present) and that BaseError
+// stack traces are printed when requested (if present) and that Err
 // chains `errors.As()`, `errors.Is()`, and `errors.Cause()` calls properly.
 //
 // When using errors.As, note that the variable that is passed as the second
