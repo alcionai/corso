@@ -15,7 +15,7 @@ import (
 // example, if a struct was returned, the second parameter should be a pointer
 // to said struct. If a pointer to a struct was returned, then a pointer to a
 // pointer of the struct should be passed.
-type BaseError struct {
+type Err struct {
 	Err error
 }
 
