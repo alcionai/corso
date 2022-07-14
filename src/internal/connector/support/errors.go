@@ -19,7 +19,7 @@ type RecoverableGCError struct {
 }
 
 func SetRecoverableError(e error) error {
-	return RecoverableGCError{*common.Encapsulate(e)}
+	return RecoverableGCError{*common.EncapsulateError(e)}
 }
 
 // NonRecoverableGCError is a permanent query error
@@ -28,7 +28,7 @@ type NonRecoverableGCError struct {
 }
 
 func SetNonRecoverableError(e error) error {
-	return NonRecoverableGCError{*common.Encapsulate(e)}
+	return NonRecoverableGCError{*common.EncapsulateError(e)}
 }
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error
