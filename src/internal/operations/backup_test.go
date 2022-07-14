@@ -75,7 +75,10 @@ type BackupOpIntegrationSuite struct {
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+	if err := ctesting.RunOnAny(
+		ctesting.CorsoCITests,
+		ctesting.CorsoOperationTests,
+	); err != nil {
 		t.Skip(err)
 	}
 	suite.Run(t, new(BackupOpIntegrationSuite))
@@ -128,10 +131,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	// m365User := "lidiah@8qzvrj.onmicrosoft.com"
-	// not the user we want to use, but all the others are
-	// suffering from JsonParseNode syndrome
-	m365User := "george.martinez@8qzvrj.onmicrosoft.com"
+	m365User := "lidiah@8qzvrj.onmicrosoft.com"
 	acct, err := ctesting.NewM365Account()
 	require.NoError(t, err)
 
@@ -168,6 +168,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results)
+	require.NotEmpty(t, bo.Results.BackupID)
 	assert.Equal(t, bo.Status, Successful)
 	assert.Greater(t, bo.Results.ItemsRead, 0)
 	assert.Greater(t, bo.Results.ItemsWritten, 0)

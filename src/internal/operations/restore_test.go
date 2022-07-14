@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -50,7 +51,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewRestoreOperation(ctx, Options{}, kw, ms, acct, "foo", nil)
+	op, err := NewRestoreOperation(ctx, Options{}, kw, ms, acct, "foo", selectors.Selector{})
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
@@ -73,7 +74,10 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+	if err := ctesting.RunOnAny(
+		ctesting.CorsoCITests,
+		ctesting.CorsoOperationTests,
+	); err != nil {
 		t.Skip(err)
 	}
 	suite.Run(t, new(RestoreOpIntegrationSuite))
@@ -112,8 +116,69 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.ms,
 				test.acct,
 				"backup-id",
-				nil)
+				selectors.Selector{})
 			test.errCheck(t, err)
 		})
 	}
+}
+
+func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
+	t := suite.T()
+	ctx := context.Background()
+
+	m365User := "lidiah@8qzvrj.onmicrosoft.com"
+	acct, err := ctesting.NewM365Account()
+	require.NoError(t, err)
+
+	// need to initialize the repository before we can test connecting to it.
+	st, err := ctesting.NewPrefixedS3Storage(t)
+	require.NoError(t, err)
+
+	k := kopia.NewConn(st)
+	require.NoError(t, k.Initialize(ctx))
+	defer k.Close(ctx)
+
+	w, err := kopia.NewWrapper(k)
+	require.NoError(t, err)
+	defer w.Close(ctx)
+
+	ms, err := kopia.NewModelStore(k)
+	require.NoError(t, err)
+	defer ms.Close(ctx)
+
+	bsel := selectors.NewExchangeBackup()
+	bsel.Include(bsel.Users(m365User))
+
+	bo, err := NewBackupOperation(
+		ctx,
+		Options{},
+		w,
+		ms,
+		acct,
+		bsel.Selector)
+	require.NoError(t, err)
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results.BackupID)
+
+	rsel := selectors.NewExchangeRestore()
+	rsel.Include(rsel.Users(m365User))
+
+	ro, err := NewRestoreOperation(
+		ctx,
+		Options{},
+		w,
+		ms,
+		acct,
+		bo.Results.BackupID,
+		rsel.Selector)
+	require.NoError(t, err)
+
+	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
+	require.NotEmpty(t, ro.Results, "restoreOp results")
+	assert.Equal(t, ro.Status, Successful, "restoreOp status")
+	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
+	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
+	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
+	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
+	assert.Equal(t, bo.Results.ItemsWritten, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 }

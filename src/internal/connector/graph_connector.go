@@ -5,6 +5,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"strings"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -218,59 +219,77 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 // RestoreMessages: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) RestoreMessages(ctx context.Context, dc DataCollection) error {
-	var errs error
-	// must be user.GetId(), PrimaryName no longer works 6-15-2022
-	user := dc.FullPath()[1]
-	items := dc.Items()
+func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollection) error {
+	var (
+		pathCounter         = map[string]bool{}
+		attempts, successes int
+		errs                error
+	)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
-		case data, ok := <-items:
-			if !ok {
-				return errs
-			}
+	for _, dc := range dcs {
+		// must be user.GetId(), PrimaryName no longer works 6-15-2022
+		user := dc.FullPath()[1]
+		items := dc.Items()
+		pathCounter[strings.Join(dc.FullPath(), "")] = true
 
-			buf := &bytes.Buffer{}
-			_, err := buf.ReadFrom(data.ToReader())
-			if err != nil {
-				errs = support.WrapAndAppend(data.UUID(), err, errs)
-				continue
-			}
-			message, err := support.CreateMessageFromBytes(buf.Bytes())
-			if err != nil {
-				errs = support.WrapAndAppend(data.UUID(), err, errs)
-				continue
-			}
-			clone := support.ToMessage(message)
-			address := dc.FullPath()[3]
-			// details on valueId settings: https://docs.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxprops/77844470-22ca-43fb-993d-c53e96cf9cd6
-			valueId := "Integer 0x0E07"
-			enableValue := "4"
-			sv := models.NewSingleValueLegacyExtendedProperty()
-			sv.SetId(&valueId)
-			sv.SetValue(&enableValue)
-			svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-			clone.SetSingleValueExtendedProperties(svlep)
-			draft := false
-			clone.SetIsDraft(&draft)
-			sentMessage, err := gc.queryService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
-			if err != nil {
-				errs = support.WrapAndAppend(data.UUID()+": "+
-					support.ConnectorStackErrorTrace(err), err, errs)
-				continue
-				// TODO: Add to retry Handler for the for failure
-			}
+		var exit bool
+		for !exit {
+			select {
+			case <-ctx.Done():
+				return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
+			case data, ok := <-items:
+				if !ok {
+					exit = true
+					break
+				}
+				attempts++
 
-			if sentMessage == nil && err == nil {
-				errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+				buf := &bytes.Buffer{}
+				_, err := buf.ReadFrom(data.ToReader())
+				if err != nil {
+					errs = support.WrapAndAppend(data.UUID(), err, errs)
+					continue
+				}
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				if err != nil {
+					errs = support.WrapAndAppend(data.UUID(), err, errs)
+					continue
+				}
+				clone := support.ToMessage(message)
+				address := dc.FullPath()[3]
+				valueId := "Integer 0x0E07"
+				enableValue := "4"
+				sv := models.NewSingleValueLegacyExtendedProperty()
+				sv.SetId(&valueId)
+				sv.SetValue(&enableValue)
+				svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
+				clone.SetSingleValueExtendedProperties(svlep)
+				draft := false
+				clone.SetIsDraft(&draft)
+				sentMessage, err := gc.queryService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
+				if err != nil {
+					errs = support.WrapAndAppend(
+						data.UUID()+": "+support.ConnectorStackErrorTrace(err),
+						err, errs)
+					continue
+					// TODO: Add to retry Handler for the for failure
+				}
 
+				if sentMessage == nil && err == nil {
+					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+				}
+				if err != nil {
+					successes++
+				}
+				// This completes the restore loop for a message..
 			}
-			// This completes the restore loop for a message..
 		}
 	}
+
+	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
+	gc.SetStatus(*status)
+	logger.Ctx(ctx).Debug(gc.PrintableStatus())
+	return errs
 }
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
@@ -354,11 +373,9 @@ func populateFromTaskList(
 		attemptedItems += len(tasks)
 		success += edc.Length()
 	}
-	status, err := support.CreateStatus(support.Backup, attemptedItems, success, len(tasklist), errs)
-	if err == nil {
-		logger.Ctx(context).Debugw(status.String())
-		statusChannel <- status
-	}
+	status := support.CreateStatus(context, support.Backup, attemptedItems, success, len(tasklist), errs)
+	logger.Ctx(context).Debugw(status.String())
+	statusChannel <- status
 }
 
 func messageToDataCollection(
