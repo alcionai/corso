@@ -35,7 +35,6 @@ func (e Err) Unwrap() error {
 }
 
 func (e Err) Format(s fmt.State, verb rune) {
-
 	if f, ok := e.Err.(fmt.Formatter); ok {
 		f.Format(s, verb)
 		return
