@@ -246,12 +246,12 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	rpd, err := r.BackupDetails(ctx, backupDetailsID)
+	d, _, err := r.BackupDetails(ctx, backupDetailsID)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	print.Entries(rpd.Entries)
+	print.Entries(d.Entries)
 
 	return nil
 }

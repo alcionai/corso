@@ -164,7 +164,7 @@ func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {
 
 func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 	table := []struct {
-		t      modelType
+		t      ModelType
 		check  require.ErrorAssertionFunc
 		hasErr bool
 	}{
@@ -252,7 +252,7 @@ func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 
 func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
 	table := []struct {
-		t      modelType
+		t      ModelType
 		check  require.ErrorAssertionFunc
 		hasErr bool
 	}{
@@ -369,7 +369,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 
 	table := []struct {
 		name    string
-		t       modelType
+		t       ModelType
 		mutator func(m *fooModel)
 	}{
 		{

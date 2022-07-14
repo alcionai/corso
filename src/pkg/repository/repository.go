@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
@@ -15,6 +14,7 @@ import (
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/pkg/store"
 )
 
 // Repository contains storage provider information.
@@ -152,28 +152,10 @@ func (r Repository) NewRestore(ctx context.Context, backupID string, sel selecto
 
 // backups lists backups in a respository
 func (r Repository) Backups(ctx context.Context) ([]*backup.Backup, error) {
-	bms, err := r.modelStore.GetIDsForType(ctx, kopia.BackupModel, nil)
-	if err != nil {
-		return nil, err
-	}
-	bus := make([]*backup.Backup, 0, len(bms))
-	for _, bm := range bms {
-		bu := backup.Backup{}
-		err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, bm.ModelStoreID, &bu)
-		if err != nil {
-			return nil, err
-		}
-		bus = append(bus, &bu)
-	}
-	return bus, nil
+	return store.GetBackups(ctx, r.modelStore)
 }
 
 // BackupDetails returns the specified backup details object
-func (r Repository) BackupDetails(ctx context.Context, rpDetailsID string) (*backup.Details, error) {
-	bud := backup.Details{}
-	err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rpDetailsID), &bud)
-	if err != nil {
-		return nil, err
-	}
-	return &bud, nil
+func (r Repository) BackupDetails(ctx context.Context, backupID string) (*backup.Details, *backup.Backup, error) {
+	return store.GetDetailsFromBackupID(ctx, r.modelStore, model.ID(backupID))
 }

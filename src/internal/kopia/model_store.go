@@ -20,11 +20,11 @@ var (
 	errModelTypeMismatch = errors.New("model type doesn't match request")
 )
 
-type modelType int
+type ModelType int
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=modelType
+//go:generate go run golang.org/x/tools/cmd/stringer -type=ModelType
 const (
-	UnknownModel = modelType(iota)
+	UnknownModel = ModelType(iota)
 	BackupOpModel
 	RestoreOpModel
 	BackupModel
@@ -57,7 +57,7 @@ func (ms *ModelStore) Close(ctx context.Context) error {
 // tagsForModel creates a copy of tags and adds a tag for the model type to it.
 // Returns an error if another tag has the same key as the model type or if a
 // bad model type is given.
-func tagsForModel(t modelType, tags map[string]string) (map[string]string, error) {
+func tagsForModel(t ModelType, tags map[string]string) (map[string]string, error) {
 	if t == UnknownModel {
 		return nil, errors.New("bad model type")
 	}
@@ -79,7 +79,7 @@ func tagsForModel(t modelType, tags map[string]string) (map[string]string, error
 // StableID to it. Returns an error if another tag has the same key as the model
 // type or if a bad model type is given.
 func tagsForModelWithID(
-	t modelType,
+	t ModelType,
 	id model.ID,
 	tags map[string]string,
 ) (map[string]string, error) {
@@ -106,7 +106,7 @@ func tagsForModelWithID(
 func putInner(
 	ctx context.Context,
 	w repo.RepositoryWriter,
-	t modelType,
+	t ModelType,
 	m model.Model,
 	create bool,
 ) error {
@@ -135,7 +135,7 @@ func putInner(
 // given to this function can later be used to help lookup the model.
 func (ms *ModelStore) Put(
 	ctx context.Context,
-	t modelType,
+	t ModelType,
 	m model.Model,
 ) error {
 	err := repo.WriteSession(
@@ -181,7 +181,7 @@ func baseModelFromMetadata(m *manifest.EntryMetadata) (*model.BaseModel, error) 
 // Update, or Delete.
 func (ms *ModelStore) GetIDsForType(
 	ctx context.Context,
-	t modelType,
+	t ModelType,
 	tags map[string]string,
 ) ([]*model.BaseModel, error) {
 	if _, ok := tags[stableIDKey]; ok {
@@ -217,7 +217,7 @@ func (ms *ModelStore) GetIDsForType(
 // one model has the same StableID.
 func (ms *ModelStore) getModelStoreID(
 	ctx context.Context,
-	t modelType,
+	t ModelType,
 	id model.ID,
 ) (manifest.ID, error) {
 	if len(id) == 0 {
@@ -249,7 +249,7 @@ func (ms *ModelStore) getModelStoreID(
 // or if multiple models have the same StableID.
 func (ms *ModelStore) Get(
 	ctx context.Context,
-	t modelType,
+	t ModelType,
 	id model.ID,
 	data model.Model,
 ) error {
@@ -267,7 +267,7 @@ func (ms *ModelStore) Get(
 // expected.
 func (ms *ModelStore) GetWithModelStoreID(
 	ctx context.Context,
-	t modelType,
+	t ModelType,
 	id manifest.ID,
 	data model.Model,
 ) error {
@@ -293,14 +293,14 @@ func (ms *ModelStore) GetWithModelStoreID(
 	return nil
 }
 
-// checkPrevModelVersion compares the modelType and ModelStoreID in this model
+// checkPrevModelVersion compares the ModelType and ModelStoreID in this model
 // to model(s) previously stored in ModelStore that have the same StableID.
 // Returns an error if no models or more than one model has the same StableID or
-// the modelType or ModelStoreID differ between the stored model and the given
+// the ModelType or ModelStoreID differ between the stored model and the given
 // model.
 func (ms *ModelStore) checkPrevModelVersion(
 	ctx context.Context,
-	t modelType,
+	t ModelType,
 	b *model.BaseModel,
 ) error {
 	id, err := ms.getModelStoreID(ctx, t, b.StableID)
@@ -327,12 +327,12 @@ func (ms *ModelStore) checkPrevModelVersion(
 // Update adds the new version of the model with the given StableID to the model
 // store and deletes the version of the model with old ModelStoreID if the old
 // and new ModelStoreIDs do not match. Returns an error if another model has
-// the same StableID but a different modelType or ModelStoreID or there is no
+// the same StableID but a different ModelType or ModelStoreID or there is no
 // previous version of the model. If an error occurs no visible changes will be
 // made to the stored model.
 func (ms *ModelStore) Update(
 	ctx context.Context,
-	t modelType,
+	t ModelType,
 	m model.Model,
 ) error {
 	base := m.Base()
@@ -384,7 +384,7 @@ func (ms *ModelStore) Update(
 // Delete deletes the model with the given StableID. Turns into a noop if id is
 // not empty but the model does not exist. Returns an error if multiple models
 // have the same StableID.
-func (ms *ModelStore) Delete(ctx context.Context, t modelType, id model.ID) error {
+func (ms *ModelStore) Delete(ctx context.Context, t ModelType, id model.ID) error {
 	latest, err := ms.getModelStoreID(ctx, t, id)
 	if err != nil {
 		if errors.Is(err, manifest.ErrNotFound) {
