@@ -488,7 +488,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesPath() {
 
 	table := []struct {
 		name   string
-		scope  []exchangeScope
+		scope  exchangeScope
 		expect assert.BoolAssertionFunc
 	}{
 		{"all user's items", es.Users(All()), assert.True},
@@ -509,10 +509,8 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesPath() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			scopes := extendExchangeScopeValues(All(), test.scope)
-			for _, scope := range scopes {
-				test.expect(t, scope.includesPath(ExchangeMail, path))
-			}
+			scope := extendExchangeScopeValues(AllTgt, test.scope)
+			test.expect(t, scope.includesPath(ExchangeMail, path))
 		})
 	}
 }
@@ -530,7 +528,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_ExcludesPath() {
 
 	table := []struct {
 		name   string
-		scope  []exchangeScope
+		scope  exchangeScope
 		expect assert.BoolAssertionFunc
 	}{
 		{"all user's items", es.Users(All()), assert.True},
@@ -551,10 +549,8 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_ExcludesPath() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			scopes := extendExchangeScopeValues(None(), test.scope)
-			for _, scope := range scopes {
-				test.expect(t, scope.excludesPath(ExchangeMail, path))
-			}
+			scope := extendExchangeScopeValues(NoneTgt, test.scope)
+			test.expect(t, scope.excludesPath(ExchangeMail, path))
 		})
 	}
 }
@@ -773,12 +769,10 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 		mail    int
 	}
 	type input []map[string]string
-	makeInput := func(es ...[]exchangeScope) []map[string]string {
+	makeInput := func(es ...exchangeScope) []map[string]string {
 		mss := []map[string]string{}
-		for _, sl := range es {
-			for _, s := range sl {
-				mss = append(mss, map[string]string(s))
-			}
+		for _, s := range es {
+			mss = append(mss, map[string]string(s))
 		}
 		return mss
 	}
@@ -808,11 +802,11 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 		mail = "mailID"
 		cat  = ExchangeMail
 	)
-	include := func(s []exchangeScope) []exchangeScope {
-		return extendExchangeScopeValues(All(), s)
+	include := func(s exchangeScope) []exchangeScope {
+		return []exchangeScope{extendExchangeScopeValues(AllTgt, s)}
 	}
-	exclude := func(s []exchangeScope) []exchangeScope {
-		return extendExchangeScopeValues(None(), s)
+	exclude := func(s exchangeScope) []exchangeScope {
+		return []exchangeScope{extendExchangeScopeValues(NoneTgt, s)}
 	}
 	var (
 		es          = NewExchangeRestore()
