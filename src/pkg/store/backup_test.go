@@ -2,98 +2,19 @@ package store_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/pkg/backup"
-	"github.com/alcionai/corso/pkg/store"
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/store"
+	storeMock "github.com/alcionai/corso/pkg/store/mock"
 )
-
-// ------------------------------------------------------------
-// getter mock
-// ------------------------------------------------------------
-
-type mockModelStoreGetter struct {
-	backup  []byte
-	details []byte
-	err     error
-}
-
-func NewMock(b *backup.Backup, d *backup.Details, err error) mockModelStoreGetter {
-	return mockModelStoreGetter{
-		backup:  marshal(b),
-		details: marshal(d),
-		err:     err,
-	}
-}
-
-func marshal(a any) []byte {
-	bs, _ := json.Marshal(a)
-	return bs
-}
-
-func unmarshal(b []byte, a any) {
-	//nolint:errcheck
-	json.Unmarshal(b, a)
-}
-
-func (m mockModelStoreGetter) Get(
-	ctx context.Context,
-	s model.Schema,
-	id model.ID,
-	data model.Model,
-) error {
-	if m.err != nil {
-		return m.err
-	}
-	if s == model.BackupSchema {
-		unmarshal(m.backup, data)
-	} else {
-		unmarshal(m.details, data)
-	}
-	return nil
-}
-
-func (m mockModelStoreGetter) GetIDsForType(
-	ctx context.Context,
-	s model.Schema,
-	tags map[string]string,
-) ([]*model.BaseModel, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	if s == model.BackupSchema {
-		b := backup.Backup{}
-		unmarshal(m.backup, &b)
-		return []*model.BaseModel{&b.BaseModel}, nil
-	}
-	d := backup.Details{}
-	unmarshal(m.backup, &d)
-	return []*model.BaseModel{&d.BaseModel}, nil
-}
-
-func (m mockModelStoreGetter) GetWithModelStoreID(
-	ctx context.Context,
-	s model.Schema,
-	id manifest.ID,
-	data model.Model,
-) error {
-	if m.err != nil {
-		return m.err
-	}
-	if s == model.BackupSchema {
-		unmarshal(m.backup, data)
-	} else {
-		unmarshal(m.details, data)
-	}
-	return nil
-}
 
 // ------------------------------------------------------------
 // unit tests
@@ -133,23 +54,24 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 
 	table := []struct {
 		name   string
-		mock   mockModelStoreGetter
+		mock   *storeMock.MockModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets backup",
-			mock:   NewMock(&bu, nil, nil),
+			mock:   storeMock.NewMock(&bu, nil, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   NewMock(&bu, nil, assert.AnError),
+			mock:   storeMock.NewMock(&bu, nil, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			result, err := store.GetBackup(ctx, test.mock, model.ID(uuid.NewString()))
+			store := &store.Wrapper{test.mock}
+			result, err := store.GetBackup(ctx, model.ID(uuid.NewString()))
 			test.expect(t, err)
 			if err != nil {
 				return
@@ -164,23 +86,24 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 
 	table := []struct {
 		name   string
-		mock   mockModelStoreGetter
+		mock   *storeMock.MockModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets backups",
-			mock:   NewMock(&bu, nil, nil),
+			mock:   storeMock.NewMock(&bu, nil, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   NewMock(&bu, nil, assert.AnError),
+			mock:   storeMock.NewMock(&bu, nil, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			result, err := store.GetBackups(ctx, test.mock)
+			sm := &store.Wrapper{test.mock}
+			result, err := sm.GetBackups(ctx)
 			test.expect(t, err)
 			if err != nil {
 				return
@@ -196,23 +119,24 @@ func (suite *StoreBackupUnitSuite) TestGetDetails() {
 
 	table := []struct {
 		name   string
-		mock   mockModelStoreGetter
+		mock   *storeMock.MockModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets details",
-			mock:   NewMock(nil, &deets, nil),
+			mock:   storeMock.NewMock(nil, &deets, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   NewMock(nil, &deets, assert.AnError),
+			mock:   storeMock.NewMock(nil, &deets, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			result, err := store.GetDetails(ctx, test.mock, manifest.ID(uuid.NewString()))
+			sm := &store.Wrapper{test.mock}
+			result, err := sm.GetDetails(ctx, manifest.ID(uuid.NewString()))
 			test.expect(t, err)
 			if err != nil {
 				return
@@ -227,23 +151,24 @@ func (suite *StoreBackupUnitSuite) TestGetDetailsFromBackupID() {
 
 	table := []struct {
 		name   string
-		mock   mockModelStoreGetter
+		mock   *storeMock.MockModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets details from backup id",
-			mock:   NewMock(&bu, &deets, nil),
+			mock:   storeMock.NewMock(&bu, &deets, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   NewMock(&bu, &deets, assert.AnError),
+			mock:   storeMock.NewMock(&bu, &deets, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			dResult, bResult, err := store.GetDetailsFromBackupID(ctx, test.mock, model.ID(uuid.NewString()))
+			store := &store.Wrapper{test.mock}
+			dResult, bResult, err := store.GetDetailsFromBackupID(ctx, model.ID(uuid.NewString()))
 			test.expect(t, err)
 			if err != nil {
 				return

@@ -38,13 +38,13 @@ func NewRestoreOperation(
 	ctx context.Context,
 	opts Options,
 	kw *kopia.Wrapper,
-	ms *kopia.ModelStore,
+	sw *store.Wrapper,
 	acct account.Account,
 	backupID model.ID,
 	sel selectors.Selector,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, kw, ms),
+		operation: newOperation(opts, kw, sw),
 		BackupID:  backupID,
 		Selectors: sel,
 		Version:   "v0",
@@ -81,7 +81,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	defer op.persistResults(time.Now(), &stats)
 
 	// retrieve the restore point details
-	d, b, err := store.GetDetailsFromBackupID(ctx, op.modelStore, op.BackupID)
+	d, b, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "getting backup details for restore")
 		return stats.readErr

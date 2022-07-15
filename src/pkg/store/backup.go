@@ -6,23 +6,14 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
 )
 
-type modelStoreGetter interface {
-	Get(ctx context.Context, s model.Schema, id model.ID, data model.Model) error
-	GetIDsForType(ctx context.Context, s model.Schema, tags map[string]string) ([]*model.BaseModel, error)
-	GetWithModelStoreID(ctx context.Context, s model.Schema, id manifest.ID, data model.Model) error
-}
-
-var _ modelStoreGetter = &kopia.ModelStore{}
-
 // GetBackup gets a single backup by id.
-func GetBackup(ctx context.Context, ms modelStoreGetter, backupID model.ID) (*backup.Backup, error) {
+func (w Wrapper) GetBackup(ctx context.Context, backupID model.ID) (*backup.Backup, error) {
 	b := backup.Backup{}
-	err := ms.Get(ctx, model.BackupSchema, backupID, &b)
+	err := w.Get(ctx, model.BackupSchema, backupID, &b)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting backup")
 	}
@@ -30,15 +21,15 @@ func GetBackup(ctx context.Context, ms modelStoreGetter, backupID model.ID) (*ba
 }
 
 // GetDetailsFromBackupID retrieves all backups in the model store.
-func GetBackups(ctx context.Context, ms modelStoreGetter) ([]*backup.Backup, error) {
-	bms, err := ms.GetIDsForType(ctx, model.BackupSchema, nil)
+func (w Wrapper) GetBackups(ctx context.Context) ([]*backup.Backup, error) {
+	bms, err := w.GetIDsForType(ctx, model.BackupSchema, nil)
 	if err != nil {
 		return nil, err
 	}
 	bs := make([]*backup.Backup, len(bms))
 	for i, bm := range bms {
 		b := backup.Backup{}
-		err := ms.GetWithModelStoreID(ctx, model.BackupSchema, bm.ModelStoreID, &b)
+		err := w.GetWithModelStoreID(ctx, model.BackupSchema, bm.ModelStoreID, &b)
 		if err != nil {
 			return nil, err
 		}
@@ -48,9 +39,9 @@ func GetBackups(ctx context.Context, ms modelStoreGetter) ([]*backup.Backup, err
 }
 
 // GetDetails gets the backup details by ID.
-func GetDetails(ctx context.Context, ms modelStoreGetter, detailsID manifest.ID) (*backup.Details, error) {
+func (w Wrapper) GetDetails(ctx context.Context, detailsID manifest.ID) (*backup.Details, error) {
 	d := backup.Details{}
-	err := ms.GetWithModelStoreID(ctx, model.BackupDetailsSchema, detailsID, &d)
+	err := w.GetWithModelStoreID(ctx, model.BackupDetailsSchema, detailsID, &d)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting details")
 	}
@@ -58,17 +49,13 @@ func GetDetails(ctx context.Context, ms modelStoreGetter, detailsID manifest.ID)
 }
 
 // GetDetailsFromBackupID retrieves the backup.Details within the specified backup.
-func GetDetailsFromBackupID(
-	ctx context.Context,
-	ms modelStoreGetter,
-	backupID model.ID,
-) (*backup.Details, *backup.Backup, error) {
-	b, err := GetBackup(ctx, ms, backupID)
+func (w Wrapper) GetDetailsFromBackupID(ctx context.Context, backupID model.ID) (*backup.Details, *backup.Backup, error) {
+	b, err := w.GetBackup(ctx, backupID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	d, err := GetDetails(ctx, ms, manifest.ID(b.DetailsID))
+	d, err := w.GetDetails(ctx, manifest.ID(b.DetailsID))
 	if err != nil {
 		return nil, nil, err
 	}

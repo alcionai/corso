@@ -133,7 +133,7 @@ func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) 
 		ctx,
 		operations.Options{},
 		r.dataLayer,
-		r.modelStore,
+		store.NewKopiaStore(r.modelStore),
 		r.Account,
 		selector)
 }
@@ -144,7 +144,7 @@ func (r Repository) NewRestore(ctx context.Context, backupID string, sel selecto
 		ctx,
 		operations.Options{},
 		r.dataLayer,
-		r.modelStore,
+		store.NewKopiaStore(r.modelStore),
 		r.Account,
 		model.ID(backupID),
 		sel)
@@ -152,10 +152,12 @@ func (r Repository) NewRestore(ctx context.Context, backupID string, sel selecto
 
 // backups lists backups in a respository
 func (r Repository) Backups(ctx context.Context) ([]*backup.Backup, error) {
-	return store.GetBackups(ctx, r.modelStore)
+	sw := store.NewKopiaStore(r.modelStore)
+	return sw.GetBackups(ctx)
 }
 
 // BackupDetails returns the specified backup details object
 func (r Repository) BackupDetails(ctx context.Context, backupID string) (*backup.Details, *backup.Backup, error) {
-	return store.GetDetailsFromBackupID(ctx, r.modelStore, model.ID(backupID))
+	sw := store.NewKopiaStore(r.modelStore)
+	return sw.GetDetailsFromBackupID(ctx, model.ID(backupID))
 }
