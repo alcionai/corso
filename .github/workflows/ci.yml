@@ -34,6 +34,7 @@ jobs:
 
       - name: Cache Go build
         uses: actions/cache@v3
+        id: mybuild
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
@@ -48,6 +49,10 @@ jobs:
       - name: Run go mod download
         if: steps.cache.outputs.cache-hit != 'true'
         run: go mod download
+
+      - name: Go build
+        if: steps.mybuild.outputs.cache-hit != 'true'
+        run: go build ./...
 
       - name: Get go-licenses
         run: go install github.com/google/go-licenses@latest
