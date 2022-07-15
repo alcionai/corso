@@ -212,3 +212,268 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		})
 	}
 }
+
+func (suite *ExchangeSuite) TestValidateBackupDetailFlags() {
+	stub := []string{"id-stub"}
+	table := []struct {
+		name                                                          string
+		contacts, contactFolders, emails, emailFolders, events, users []string
+		backupID                                                      string
+		expect                                                        assert.ErrorAssertionFunc
+	}{
+		{
+			name:     "only backupid",
+			backupID: "bid",
+			expect:   assert.NoError,
+		},
+		{
+			name:           "all values populated",
+			backupID:       "bid",
+			contacts:       stub,
+			contactFolders: stub,
+			emails:         stub,
+			emailFolders:   stub,
+			events:         stub,
+			users:          stub,
+			expect:         assert.NoError,
+		},
+		{
+			name:   "nothing populated",
+			expect: assert.Error,
+		},
+		{
+			name:           "no backup id",
+			contacts:       stub,
+			contactFolders: stub,
+			emails:         stub,
+			emailFolders:   stub,
+			events:         stub,
+			users:          stub,
+			expect:         assert.Error,
+		},
+		{
+			name:           "no users",
+			backupID:       "bid",
+			contacts:       stub,
+			contactFolders: stub,
+			emails:         stub,
+			emailFolders:   stub,
+			events:         stub,
+			expect:         assert.Error,
+		},
+		{
+			name:         "no contact folders",
+			backupID:     "bid",
+			contacts:     stub,
+			emails:       stub,
+			emailFolders: stub,
+			events:       stub,
+			users:        stub,
+			expect:       assert.Error,
+		},
+		{
+			name:           "no email folders",
+			backupID:       "bid",
+			contacts:       stub,
+			contactFolders: stub,
+			emails:         stub,
+			events:         stub,
+			users:          stub,
+			expect:         assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			test.expect(t, validateExchangeBackupDetailFlags(
+				test.contacts,
+				test.contactFolders,
+				test.emails,
+				test.emailFolders,
+				test.events,
+				test.users,
+				test.backupID,
+			))
+		})
+	}
+}
+
+func (suite *ExchangeSuite) TestExchangeBackupDetailSelectors() {
+	stub := []string{"id-stub"}
+	all := []string{utils.Wildcard}
+	table := []struct {
+		name                                                          string
+		contacts, contactFolders, emails, emailFolders, events, users []string
+		expectIncludeLen                                              int
+	}{
+		{
+			name:             "no selectors",
+			users:            all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all users",
+			users:            all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single user",
+			users:            stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "multiple users",
+			users:            []string{"fnord", "smarf"},
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all users, all data",
+			contacts:         all,
+			contactFolders:   all,
+			emails:           all,
+			emailFolders:     all,
+			events:           all,
+			users:            all,
+			expectIncludeLen: 3,
+		},
+		{
+			name:             "all users, all folders",
+			contactFolders:   all,
+			emailFolders:     all,
+			users:            all,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "single user, single of each data",
+			contacts:         stub,
+			contactFolders:   stub,
+			emails:           stub,
+			emailFolders:     stub,
+			events:           stub,
+			users:            stub,
+			expectIncludeLen: 3,
+		},
+		{
+			name:             "single user, single of each folder",
+			contactFolders:   stub,
+			emailFolders:     stub,
+			users:            stub,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "all users, contacts",
+			contacts:         all,
+			contactFolders:   stub,
+			users:            all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single user, contacts",
+			contacts:         stub,
+			contactFolders:   stub,
+			users:            stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all users, emails",
+			emails:           all,
+			emailFolders:     stub,
+			users:            all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single user, emails",
+			emails:           stub,
+			emailFolders:     stub,
+			users:            stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all users, events",
+			events:           all,
+			users:            all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single user, events",
+			events:           stub,
+			users:            stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all users, contacts + email",
+			contacts:         all,
+			contactFolders:   all,
+			emails:           all,
+			emailFolders:     all,
+			users:            all,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "single users, contacts + email",
+			contacts:         stub,
+			contactFolders:   stub,
+			emails:           stub,
+			emailFolders:     stub,
+			users:            stub,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "all users, email + event",
+			emails:           all,
+			emailFolders:     all,
+			events:           all,
+			users:            all,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "single users, email + event",
+			emails:           stub,
+			emailFolders:     stub,
+			events:           stub,
+			users:            stub,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "all users, event + contact",
+			contacts:         all,
+			contactFolders:   all,
+			events:           all,
+			users:            all,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "single users, event + contact",
+			contacts:         stub,
+			contactFolders:   stub,
+			events:           stub,
+			users:            stub,
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "many users, events",
+			events:           []string{"foo", "bar"},
+			users:            []string{"fnord", "smarf"},
+			expectIncludeLen: 2,
+		},
+		{
+			name:             "many users, events + contacts",
+			contacts:         []string{"foo", "bar"},
+			contactFolders:   []string{"foo", "bar"},
+			events:           []string{"foo", "bar"},
+			users:            []string{"fnord", "smarf"},
+			expectIncludeLen: 6,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := exchangeBackupDetailSelectors(
+				test.contacts,
+				test.contactFolders,
+				test.emails,
+				test.emailFolders,
+				test.events,
+				test.users)
+			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
+		})
+	}
+}

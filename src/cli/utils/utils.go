@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/alcionai/corso/pkg/repository"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/alcionai/corso/pkg/repository"
 )
 
 const (
