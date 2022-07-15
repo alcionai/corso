@@ -127,10 +127,10 @@ func validateRestoreFlags(u, f, m, rpid string) error {
 		return errors.New("a restore point ID is requried")
 	}
 	lu, lf, lm := len(u), len(f), len(m)
-	if (lu == 0 || u == "*") && (lf+lm > 0) {
+	if (lu == 0 || u == utils.Wildcard) && (lf+lm > 0) {
 		return errors.New("a specific --user must be provided if --folder or --mail is specified")
 	}
-	if (lf == 0 || f == "*") && lm > 0 {
+	if (lf == 0 || f == utils.Wildcard) && lm > 0 {
 		return errors.New("a specific --folder must be provided if a --mail is specified")
 	}
 	return nil

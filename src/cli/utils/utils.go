@@ -10,6 +10,10 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const (
+	Wildcard = "*"
+)
+
 // RequireProps validates the existence of the properties
 //  in the map.  Expects the format map[propName]propVal.
 func RequireProps(props map[string]string) error {
