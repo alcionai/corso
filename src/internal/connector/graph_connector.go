@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"sync/atomic"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -36,7 +37,7 @@ type GraphConnector struct {
 	Users            map[string]string                 //key<email> value<id>
 	status           *support.ConnectorOperationStatus // contains the status of the last run status
 	statusCh         chan *support.ConnectorOperationStatus
-	awaitingMessages int
+	awaitingMessages int32
 	credentials      account.M365Config
 }
 
@@ -449,7 +450,7 @@ func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	if gc.awaitingMessages > 0 {
 		gc.status = <-gc.statusCh
-		gc.awaitingMessages--
+		atomic.AddInt32(&gc.awaitingMessages, -1)
 		return gc.status
 	}
 	return nil
@@ -469,7 +470,7 @@ func (gc *GraphConnector) PrintableStatus() string {
 }
 
 func (gc *GraphConnector) incrementAwaitingMessages() {
-	gc.awaitingMessages++
+	atomic.AddInt32(&gc.awaitingMessages, 1)
 }
 
 // IsRecoverableError returns true iff error is a RecoverableGCEerror
