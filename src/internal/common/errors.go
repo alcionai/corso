@@ -34,6 +34,9 @@ func (e Err) Unwrap() error {
 	return e.Err
 }
 
+// Format complies with the Formatter interface and gives pretty printing when
+// functions like `fmt.Printf("%+v")` are called. Implementing this allows Err
+// to print stack traces from the encapsulated error.
 func (e Err) Format(s fmt.State, verb rune) {
 	if f, ok := e.Err.(fmt.Formatter); ok {
 		f.Format(s, verb)
@@ -48,7 +51,7 @@ func (e Err) Format(s fmt.State, verb rune) {
 		}
 		fallthrough
 	case 's', 'q':
-		// nolint: adjustment for linter
+		// nolint:errcheck
 		_, _ = io.WriteString(s, e.Error())
 	}
 }
