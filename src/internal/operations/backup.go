@@ -90,7 +90,6 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 		stats.readErr = err
 		return errors.Wrap(err, "retrieving service data")
 	}
-	stats.gc = gc.Status()
 
 	// hand the results to the consumer
 	var details *backup.Details
@@ -99,6 +98,7 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 		stats.writeErr = err
 		return errors.Wrap(err, "backing up service data")
 	}
+	stats.gc = gc.AwaitStatus()
 
 	err = op.createBackupModels(ctx, stats.k.SnapshotID, details)
 	if err != nil {
