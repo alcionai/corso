@@ -1,4 +1,4 @@
-package support
+package common
 
 // Policy is a type that defines the actions taken
 type RestorePolicy int
