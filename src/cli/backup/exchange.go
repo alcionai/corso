@@ -285,30 +285,40 @@ func exchangeBackupDetailSelectors(
 	}
 
 	// otherwise, add selectors for each type of data
-	// contacts
-	if lcf == 0 {
-		goto EMAILS
+	includeExchangeContacts(sel, users, contactFolders, contacts)
+	includeExchangeEmails(sel, users, emailFolders, email)
+	includeExchangeEvents(sel, users, events)
+
+	return sel.Selector
+}
+
+func includeExchangeContacts(sel *selectors.ExchangeBackup, users, contactFolders, contacts []string) {
+	if len(contactFolders) == 0 {
+		return
 	}
-	if lc > 0 {
+	if len(contacts) > 0 {
 		sel.Include(sel.Contacts(users, contactFolders, contacts))
 	} else {
 		sel.Include(sel.ContactFolders(users, contactFolders))
 	}
-EMAILS:
-	if lef == 0 {
-		goto EVENTS
+}
+
+func includeExchangeEmails(sel *selectors.ExchangeBackup, users, emailFolders, emails []string) {
+	if len(emailFolders) == 0 {
+		return
 	}
-	if le > 0 {
+	if len(emails) > 0 {
 		sel.Include(sel.Mails(users, emailFolders, emails))
 	} else {
 		sel.Include(sel.MailFolders(users, emailFolders))
 	}
-EVENTS:
-	if lev > 0 {
-		sel.Include(sel.Events(users, events))
-	}
+}
 
-	return sel.Selector
+func includeExchangeEvents(sel *selectors.ExchangeBackup, users, events []string) {
+	if len(events) == 0 {
+		return
+	}
+	sel.Include(sel.Events(users, events))
 }
 
 func validateExchangeBackupDetailFlags(

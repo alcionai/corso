@@ -307,7 +307,6 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailSelectors() {
 	}{
 		{
 			name:             "no selectors",
-			users:            all,
 			expectIncludeLen: 1,
 		},
 		{
