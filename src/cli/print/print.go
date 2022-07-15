@@ -28,7 +28,7 @@ type Printable interface {
 }
 
 // Prints the backups to the terminal with stdout.
-func Backups(bs []*backup.Backup) {
+func Backups(bs []backup.Backup) {
 	ps := []Printable{}
 	for _, b := range bs {
 		ps = append(ps, b)

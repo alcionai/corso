@@ -14,10 +14,11 @@ import (
 const stableIDKey = "stableID"
 
 var (
-	errNoModelStoreID    = errors.New("model has no ModelStoreID")
-	errNoStableID        = errors.New("model has no StableID")
-	errBadTagKey         = errors.New("tag key overlaps with required key")
-	errModelTypeMismatch = errors.New("model type doesn't match request")
+	errNoModelStoreID     = errors.New("model has no ModelStoreID")
+	errNoStableID         = errors.New("model has no StableID")
+	errBadTagKey          = errors.New("tag key overlaps with required key")
+	errModelTypeMismatch  = errors.New("model type doesn't match request")
+	errUnrecognizedSchema = errors.New("unrecognized model schema")
 )
 
 func NewModelStore(c *conn) (*ModelStore, error) {
@@ -47,10 +48,6 @@ func (ms *ModelStore) Close(ctx context.Context) error {
 // Returns an error if another tag has the same key as the model schema or if a
 // bad model type is given.
 func tagsForModel(s model.Schema, tags map[string]string) (map[string]string, error) {
-	if !s.Valid() {
-		return nil, errors.New("unrecognized model schema")
-	}
-
 	if _, ok := tags[manifest.TypeLabelKey]; ok {
 		return nil, errors.WithStack(errBadTagKey)
 	}
@@ -104,7 +101,7 @@ func putInner(
 	create bool,
 ) error {
 	if !s.Valid() {
-		return errors.New("unrecognized model schema")
+		return errors.WithStack(errUnrecognizedSchema)
 	}
 
 	base := m.Base()
@@ -136,7 +133,7 @@ func (ms *ModelStore) Put(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.New("unrecognized model schema")
+		return errors.WithStack(errUnrecognizedSchema)
 	}
 	err := repo.WriteSession(
 		ctx,
@@ -262,7 +259,7 @@ func (ms *ModelStore) Get(
 	data model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.New("unrecognized model schema")
+		return errors.WithStack(errUnrecognizedSchema)
 	}
 
 	modelID, err := ms.getModelStoreID(ctx, s, id)
@@ -284,7 +281,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 	data model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.New("unrecognized model schema")
+		return errors.WithStack(errUnrecognizedSchema)
 	}
 
 	if len(id) == 0 {
@@ -320,7 +317,7 @@ func (ms *ModelStore) checkPrevModelVersion(
 	b *model.BaseModel,
 ) error {
 	if !s.Valid() {
-		return errors.New("unrecognized model schema")
+		return errors.WithStack(errUnrecognizedSchema)
 	}
 
 	id, err := ms.getModelStoreID(ctx, s, b.StableID)
@@ -356,7 +353,7 @@ func (ms *ModelStore) Update(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.New("unrecognized model schema")
+		return errors.WithStack(errUnrecognizedSchema)
 	}
 
 	base := m.Base()
@@ -410,7 +407,7 @@ func (ms *ModelStore) Update(
 // have the same StableID.
 func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.ID) error {
 	if !s.Valid() {
-		return errors.New("unrecognized model schema")
+		return errors.WithStack(errUnrecognizedSchema)
 	}
 
 	latest, err := ms.getModelStoreID(ctx, s, id)

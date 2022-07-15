@@ -21,19 +21,19 @@ func (w Wrapper) GetBackup(ctx context.Context, backupID model.ID) (*backup.Back
 }
 
 // GetDetailsFromBackupID retrieves all backups in the model store.
-func (w Wrapper) GetBackups(ctx context.Context) ([]*backup.Backup, error) {
+func (w Wrapper) GetBackups(ctx context.Context) ([]backup.Backup, error) {
 	bms, err := w.GetIDsForType(ctx, model.BackupSchema, nil)
 	if err != nil {
 		return nil, err
 	}
-	bs := make([]*backup.Backup, len(bms))
+	bs := make([]backup.Backup, len(bms))
 	for i, bm := range bms {
 		b := backup.Backup{}
 		err := w.GetWithModelStoreID(ctx, model.BackupSchema, bm.ModelStoreID, &b)
 		if err != nil {
 			return nil, err
 		}
-		bs[i] = &b
+		bs[i] = b
 	}
 	return bs, nil
 }
