@@ -150,7 +150,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	sw := store.NewKopiaStore(ms)
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users(m365User))
+	bsel.Include(bsel.Users([]string{m365User}))
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -164,7 +164,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users(m365User))
+	rsel.Include(rsel.Users([]string{m365User}))
 
 	ro, err := NewRestoreOperation(
 		ctx,

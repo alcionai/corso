@@ -58,12 +58,12 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Contacts() {
 
 	const (
 		user   = "user"
-		folder = All
+		folder = AllTgt
 		c1     = "c1"
 		c2     = "c2"
 	)
 
-	sel.Exclude(sel.Contacts(user, folder, c1, c2))
+	sel.Exclude(sel.Contacts([]string{user}, []string{folder}, []string{c1, c2}))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
@@ -79,12 +79,12 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Contacts() {
 
 	const (
 		user   = "user"
-		folder = All
+		folder = AllTgt
 		c1     = "c1"
 		c2     = "c2"
 	)
 
-	sel.Include(sel.Contacts(user, folder, c1, c2))
+	sel.Include(sel.Contacts([]string{user}, []string{folder}, []string{c1, c2}))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
@@ -106,14 +106,14 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_ContactFolders() 
 		f2   = "f2"
 	)
 
-	sel.Exclude(sel.ContactFolders(user, f1, f2))
+	sel.Exclude(sel.ContactFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeContactFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeContact.String()], None)
+	assert.Equal(t, scope[ExchangeContact.String()], NoneTgt)
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_ContactFolders() {
@@ -126,14 +126,14 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_ContactFolders() 
 		f2   = "f2"
 	)
 
-	sel.Include(sel.ContactFolders(user, f1, f2))
+	sel.Include(sel.ContactFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeContactFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeContact.String()], All)
+	assert.Equal(t, scope[ExchangeContact.String()], AllTgt)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeContactFolder)
 }
@@ -148,7 +148,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Events() {
 		e2   = "e2"
 	)
 
-	sel.Exclude(sel.Events(user, e1, e2))
+	sel.Exclude(sel.Events([]string{user}, []string{e1, e2}))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
@@ -167,7 +167,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Events() {
 		e2   = "e2"
 	)
 
-	sel.Include(sel.Events(user, e1, e2))
+	sel.Include(sel.Events([]string{user}, []string{e1, e2}))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
@@ -184,12 +184,12 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Mails() {
 
 	const (
 		user   = "user"
-		folder = All
+		folder = AllTgt
 		m1     = "m1"
 		m2     = "m2"
 	)
 
-	sel.Exclude(sel.Mails(user, folder, m1, m2))
+	sel.Exclude(sel.Mails([]string{user}, []string{folder}, []string{m1, m2}))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
@@ -205,12 +205,12 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Mails() {
 
 	const (
 		user   = "user"
-		folder = All
+		folder = AllTgt
 		m1     = "m1"
 		m2     = "m2"
 	)
 
-	sel.Include(sel.Mails(user, folder, m1, m2))
+	sel.Include(sel.Mails([]string{user}, []string{folder}, []string{m1, m2}))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
@@ -232,14 +232,14 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_MailFolders() {
 		f2   = "f2"
 	)
 
-	sel.Exclude(sel.MailFolders(user, f1, f2))
+	sel.Exclude(sel.MailFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeMailFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeMail.String()], None)
+	assert.Equal(t, scope[ExchangeMail.String()], NoneTgt)
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_MailFolders() {
@@ -252,14 +252,14 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_MailFolders() {
 		f2   = "f2"
 	)
 
-	sel.Include(sel.MailFolders(user, f1, f2))
+	sel.Include(sel.MailFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
 	assert.Equal(t, scope[ExchangeMailFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeMail.String()], All)
+	assert.Equal(t, scope[ExchangeMail.String()], AllTgt)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeMailFolder)
 }
@@ -273,17 +273,17 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Users() {
 		u2 = "u2"
 	)
 
-	sel.Exclude(sel.Users(u1, u2))
+	sel.Exclude(sel.Users([]string{u1, u2}))
 	scopes := sel.Excludes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
-	assert.Equal(t, scope[ExchangeContact.String()], None)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], None)
-	assert.Equal(t, scope[ExchangeEvent.String()], None)
-	assert.Equal(t, scope[ExchangeMail.String()], None)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], None)
+	assert.Equal(t, scope[ExchangeContact.String()], NoneTgt)
+	assert.Equal(t, scope[ExchangeContactFolder.String()], NoneTgt)
+	assert.Equal(t, scope[ExchangeEvent.String()], NoneTgt)
+	assert.Equal(t, scope[ExchangeMail.String()], NoneTgt)
+	assert.Equal(t, scope[ExchangeMailFolder.String()], NoneTgt)
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
@@ -295,17 +295,17 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
 		u2 = "u2"
 	)
 
-	sel.Include(sel.Users(u1, u2))
+	sel.Include(sel.Users([]string{u1, u2}))
 	scopes := sel.Includes
 	require.Equal(t, 1, len(scopes))
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
-	assert.Equal(t, scope[ExchangeContact.String()], All)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], All)
-	assert.Equal(t, scope[ExchangeEvent.String()], All)
-	assert.Equal(t, scope[ExchangeMail.String()], All)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], All)
+	assert.Equal(t, scope[ExchangeContact.String()], AllTgt)
+	assert.Equal(t, scope[ExchangeContactFolder.String()], AllTgt)
+	assert.Equal(t, scope[ExchangeEvent.String()], AllTgt)
+	assert.Equal(t, scope[ExchangeMail.String()], AllTgt)
+	assert.Equal(t, scope[ExchangeMailFolder.String()], AllTgt)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeUser)
 }
@@ -360,19 +360,19 @@ func (suite *ExchangeSourceSuite) TestExchangeDestination_GetOrDefault() {
 }
 
 var allScopesExceptUnknown = map[string]string{
-	ExchangeContact.String():       All,
-	ExchangeContactFolder.String(): All,
-	ExchangeEvent.String():         All,
-	ExchangeMail.String():          All,
-	ExchangeMailFolder.String():    All,
-	ExchangeUser.String():          All,
+	ExchangeContact.String():       AllTgt,
+	ExchangeContactFolder.String(): AllTgt,
+	ExchangeEvent.String():         AllTgt,
+	ExchangeMail.String():          AllTgt,
+	ExchangeMailFolder.String():    AllTgt,
+	ExchangeUser.String():          AllTgt,
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeBackup_Scopes() {
 	eb := NewExchangeBackup()
 	eb.Includes = []map[string]string{allScopesExceptUnknown}
 	// todo: swap the above for this
-	// eb := NewExchangeBackup().IncludeUsers(All)
+	// eb := NewExchangeBackup().IncludeUsers(AllTgt)
 
 	scopes := eb.Scopes()
 	assert.Len(suite.T(), scopes, 1)
@@ -449,7 +449,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 	eb := NewExchangeBackup()
 	eb.Includes = []map[string]string{allScopesExceptUnknown}
 	// todo: swap the above for this
-	// eb := NewExchangeBackup().IncludeUsers(All)
+	// eb := NewExchangeBackup().IncludeUsers(AllTgt)
 
 	scope := eb.Scopes()[0]
 
@@ -464,10 +464,10 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 
 	assert.Equal(
 		suite.T(),
-		[]string{None},
+		None(),
 		scope.Get(ExchangeCategoryUnknown))
 
-	expect := []string{All}
+	expect := All()
 	for _, test := range table {
 		suite.T().Run(test.String(), func(t *testing.T) {
 			assert.Equal(t, expect, scope.Get(test))
@@ -488,29 +488,31 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesPath() {
 
 	table := []struct {
 		name   string
-		scope  exchangeScope
+		scope  []exchangeScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"all user's items", es.Users(All), assert.True},
-		{"no user's items", es.Users(None), assert.False},
-		{"matching user", es.Users(usr), assert.True},
-		{"non-maching user", es.Users("smarf"), assert.False},
-		{"one of multiple users", es.Users("smarf", usr), assert.True},
-		{"all folders", es.MailFolders(All, All), assert.True},
-		{"no folders", es.MailFolders(All, None), assert.False},
-		{"matching folder", es.MailFolders(All, fld), assert.True},
-		{"non-matching folder", es.MailFolders(All, "smarf"), assert.False},
-		{"one of multiple folders", es.MailFolders(All, "smarf", fld), assert.True},
-		{"all mail", es.Mails(All, All, All), assert.True},
-		{"no mail", es.Mails(All, All, None), assert.False},
-		{"matching mail", es.Mails(All, All, mail), assert.True},
-		{"non-matching mail", es.Mails(All, All, "smarf"), assert.False},
-		{"one of multiple mails", es.Mails(All, All, "smarf", mail), assert.True},
+		{"all user's items", es.Users(All()), assert.True},
+		{"no user's items", es.Users(None()), assert.False},
+		{"matching user", es.Users([]string{usr}), assert.True},
+		{"non-maching user", es.Users([]string{"smarf"}), assert.False},
+		{"one of multiple users", es.Users([]string{"smarf", usr}), assert.True},
+		{"all folders", es.MailFolders(All(), All()), assert.True},
+		{"no folders", es.MailFolders(All(), None()), assert.False},
+		{"matching folder", es.MailFolders(All(), []string{fld}), assert.True},
+		{"non-matching folder", es.MailFolders(All(), []string{"smarf"}), assert.False},
+		{"one of multiple folders", es.MailFolders(All(), []string{"smarf", fld}), assert.True},
+		{"all mail", es.Mails(All(), All(), All()), assert.True},
+		{"no mail", es.Mails(All(), All(), None()), assert.False},
+		{"matching mail", es.Mails(All(), All(), []string{mail}), assert.True},
+		{"non-matching mail", es.Mails(All(), All(), []string{"smarf"}), assert.False},
+		{"one of multiple mails", es.Mails(All(), All(), []string{"smarf", mail}), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			scope := extendExchangeScopeValues(All, test.scope)
-			test.expect(t, scope.includesPath(ExchangeMail, path))
+			scopes := extendExchangeScopeValues(All(), test.scope)
+			for _, scope := range scopes {
+				test.expect(t, scope.includesPath(ExchangeMail, path))
+			}
 		})
 	}
 }
@@ -528,29 +530,31 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_ExcludesPath() {
 
 	table := []struct {
 		name   string
-		scope  exchangeScope
+		scope  []exchangeScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"all user's items", es.Users(All), assert.True},
-		{"no user's items", es.Users(None), assert.False},
-		{"matching user", es.Users(usr), assert.True},
-		{"non-maching user", es.Users("smarf"), assert.False},
-		{"one of multiple users", es.Users("smarf", usr), assert.True},
-		{"all folders", es.MailFolders(None, All), assert.True},
-		{"no folders", es.MailFolders(None, None), assert.False},
-		{"matching folder", es.MailFolders(None, fld), assert.True},
-		{"non-matching folder", es.MailFolders(None, "smarf"), assert.False},
-		{"one of multiple folders", es.MailFolders(None, "smarf", fld), assert.True},
-		{"all mail", es.Mails(None, None, All), assert.True},
-		{"no mail", es.Mails(None, None, None), assert.False},
-		{"matching mail", es.Mails(None, None, mail), assert.True},
-		{"non-matching mail", es.Mails(None, None, "smarf"), assert.False},
-		{"one of multiple mails", es.Mails(None, None, "smarf", mail), assert.True},
+		{"all user's items", es.Users(All()), assert.True},
+		{"no user's items", es.Users(None()), assert.False},
+		{"matching user", es.Users([]string{usr}), assert.True},
+		{"non-maching user", es.Users([]string{"smarf"}), assert.False},
+		{"one of multiple users", es.Users([]string{"smarf", usr}), assert.True},
+		{"all folders", es.MailFolders(None(), All()), assert.True},
+		{"no folders", es.MailFolders(None(), None()), assert.False},
+		{"matching folder", es.MailFolders(None(), []string{fld}), assert.True},
+		{"non-matching folder", es.MailFolders(None(), []string{"smarf"}), assert.False},
+		{"one of multiple folders", es.MailFolders(None(), []string{"smarf", fld}), assert.True},
+		{"all mail", es.Mails(None(), None(), All()), assert.True},
+		{"no mail", es.Mails(None(), None(), None()), assert.False},
+		{"matching mail", es.Mails(None(), None(), []string{mail}), assert.True},
+		{"non-matching mail", es.Mails(None(), None(), []string{"smarf"}), assert.False},
+		{"one of multiple mails", es.Mails(None(), None(), []string{"smarf", mail}), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			scope := extendExchangeScopeValues(None, test.scope)
-			test.expect(t, scope.excludesPath(ExchangeMail, path))
+			scopes := extendExchangeScopeValues(None(), test.scope)
+			for _, scope := range scopes {
+				test.expect(t, scope.excludesPath(ExchangeMail, path))
+			}
 		})
 	}
 }
@@ -637,7 +641,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
+				er.Include(er.Users(All()))
 				return er
 			},
 			[][]string{},
@@ -647,7 +651,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
+				er.Include(er.Users(All()))
 				return er
 			},
 			split(contact),
@@ -657,7 +661,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(event),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
+				er.Include(er.Users(All()))
 				return er
 			},
 			split(event),
@@ -667,7 +671,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
+				er.Include(er.Users(All()))
 				return er
 			},
 			split(mail),
@@ -677,7 +681,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
+				er.Include(er.Users(All()))
 				return er
 			},
 			split(contact, event, mail),
@@ -687,7 +691,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Contacts("uid", "cfld", "cid"))
+				er.Include(er.Contacts([]string{"uid"}, []string{"cfld"}, []string{"cid"}))
 				return er
 			},
 			split(contact),
@@ -697,7 +701,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Events("uid", "eid"))
+				er.Include(er.Events([]string{"uid"}, []string{"eid"}))
 				return er
 			},
 			split(event),
@@ -707,7 +711,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Mails("uid", "mfld", "mid"))
+				er.Include(er.Mails([]string{"uid"}, []string{"mfld"}, []string{"mid"}))
 				return er
 			},
 			split(mail),
@@ -717,8 +721,8 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
-				er.Exclude(er.Contacts("uid", "cfld", "cid"))
+				er.Include(er.Users(All()))
+				er.Exclude(er.Contacts([]string{"uid"}, []string{"cfld"}, []string{"cid"}))
 				return er
 			},
 			split(event, mail),
@@ -728,8 +732,8 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
-				er.Exclude(er.Events("uid", "eid"))
+				er.Include(er.Users(All()))
+				er.Exclude(er.Events([]string{"uid"}, []string{"eid"}))
 				return er
 			},
 			split(contact, mail),
@@ -739,8 +743,8 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Users(All))
-				er.Exclude(er.Mails("uid", "mfld", "mid"))
+				er.Include(er.Users(All()))
+				er.Exclude(er.Mails([]string{"uid"}, []string{"mfld"}, []string{"mid"}))
 				return er
 			},
 			split(contact, event),
@@ -758,10 +762,10 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 	var (
 		es       = NewExchangeRestore()
-		users    = es.Users(All)
-		contacts = es.ContactFolders(All, All)
-		events   = es.Events(All, All)
-		mail     = es.MailFolders(All, All)
+		users    = es.Users(All())
+		contacts = es.ContactFolders(All(), All())
+		events   = es.Events(All(), All())
+		mail     = es.MailFolders(All(), All())
 	)
 	type expect struct {
 		contact int
@@ -769,16 +773,25 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 		mail    int
 	}
 	type input []map[string]string
+	makeInput := func(es ...[]exchangeScope) []map[string]string {
+		mss := []map[string]string{}
+		for _, sl := range es {
+			for _, s := range sl {
+				mss = append(mss, map[string]string(s))
+			}
+		}
+		return mss
+	}
 	table := []struct {
 		name   string
 		scopes input
 		expect expect
 	}{
-		{"users: one of each", input{users}, expect{1, 1, 1}},
-		{"contacts only", input{contacts}, expect{1, 0, 0}},
-		{"events only", input{events}, expect{0, 1, 0}},
-		{"mail only", input{mail}, expect{0, 0, 1}},
-		{"all", input{users, contacts, events, mail}, expect{2, 2, 2}},
+		{"users: one of each", makeInput(users), expect{1, 1, 1}},
+		{"contacts only", makeInput(contacts), expect{1, 0, 0}},
+		{"events only", makeInput(events), expect{0, 1, 0}},
+		{"mail only", makeInput(mail), expect{0, 0, 1}},
+		{"all", makeInput(users, contacts, events, mail), expect{2, 2, 2}},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -795,22 +808,22 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 		mail = "mailID"
 		cat  = ExchangeMail
 	)
-	include := func(s map[string]string) exchangeScope {
-		return extendExchangeScopeValues(All, exchangeScope(s))
+	include := func(s []exchangeScope) []exchangeScope {
+		return extendExchangeScopeValues(All(), s)
 	}
-	exclude := func(s map[string]string) exchangeScope {
-		return extendExchangeScopeValues(None, exchangeScope(s))
+	exclude := func(s []exchangeScope) []exchangeScope {
+		return extendExchangeScopeValues(None(), s)
 	}
 	var (
 		es          = NewExchangeRestore()
-		inAll       = include(es.Users(All))
-		inNone      = include(es.Users(None))
-		inMail      = include(es.Mails(All, All, mail))
-		inOtherMail = include(es.Mails(All, All, "smarf"))
-		exAll       = exclude(es.Users(All))
-		exNone      = exclude(es.Users(None))
-		exMail      = exclude(es.Mails(None, None, mail))
-		exOtherMail = exclude(es.Mails(None, None, "smarf"))
+		inAll       = include(es.Users(All()))
+		inNone      = include(es.Users(None()))
+		inMail      = include(es.Mails(All(), All(), []string{mail}))
+		inOtherMail = include(es.Mails(All(), All(), []string{"smarf"}))
+		exAll       = exclude(es.Users(All()))
+		exNone      = exclude(es.Users(None()))
+		exMail      = exclude(es.Mails(None(), None(), []string{mail}))
+		exOtherMail = exclude(es.Mails(None(), None(), []string{"smarf"}))
 		path        = []string{"tid", "user", "mail", "folder", mail}
 	)
 
@@ -820,16 +833,16 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 		excludes []exchangeScope
 		expect   assert.BoolAssertionFunc
 	}{
-		{"empty", []exchangeScope{}, []exchangeScope{}, assert.False},
-		{"in all", []exchangeScope{inAll}, []exchangeScope{}, assert.True},
-		{"in None", []exchangeScope{inNone}, []exchangeScope{}, assert.False},
-		{"in Mail", []exchangeScope{inMail}, []exchangeScope{}, assert.True},
-		{"in Other", []exchangeScope{inOtherMail}, []exchangeScope{}, assert.False},
-		{"ex all", []exchangeScope{inAll}, []exchangeScope{exAll}, assert.False},
-		{"ex None", []exchangeScope{inAll}, []exchangeScope{exNone}, assert.True},
-		{"in Mail", []exchangeScope{inAll}, []exchangeScope{exMail}, assert.False},
-		{"in Other", []exchangeScope{inAll}, []exchangeScope{exOtherMail}, assert.True},
-		{"in and ex mail", []exchangeScope{inMail}, []exchangeScope{exMail}, assert.False},
+		{"empty", nil, nil, assert.False},
+		{"in all", inAll, nil, assert.True},
+		{"in None", inNone, nil, assert.False},
+		{"in Mail", inMail, nil, assert.True},
+		{"in Other", inOtherMail, nil, assert.False},
+		{"ex all", inAll, exAll, assert.False},
+		{"ex None", inAll, exNone, assert.True},
+		{"in Mail", inAll, exMail, assert.False},
+		{"in Other", inAll, exOtherMail, assert.True},
+		{"in and ex mail", inMail, exMail, assert.False},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
