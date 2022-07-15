@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/cli/utils"
 	ctesting "github.com/alcionai/corso/internal/testing"
 )
 
@@ -27,10 +28,10 @@ func (suite *ExchangeSuite) TestValidateRestoreFlags() {
 	}{
 		{"all populated", "u", "f", "m", "rpid", assert.NoError},
 		{"folder missing user", "", "f", "m", "rpid", assert.Error},
-		{"folder with wildcard user", "*", "f", "m", "rpid", assert.Error},
+		{"folder with wildcard user", utils.Wildcard, "f", "m", "rpid", assert.Error},
 		{"mail missing user", "", "", "m", "rpid", assert.Error},
 		{"mail missing folder", "u", "", "m", "rpid", assert.Error},
-		{"mail with wildcard folder", "u", "*", "m", "rpid", assert.Error},
+		{"mail with wildcard folder", "u", utils.Wildcard, "m", "rpid", assert.Error},
 		{"missing backup id", "u", "f", "m", "", assert.Error},
 		{"all missing", "", "", "", "rpid", assert.NoError},
 	}
