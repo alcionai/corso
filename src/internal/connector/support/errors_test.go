@@ -37,6 +37,22 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_OnVar() {
 	suite.True(strings.Contains(received.Error(), id))
 }
 
+func (suite *GraphConnectorErrorSuite) TestAsRecoverableError() {
+	err := assert.AnError
+	var recover RecoverableGCError
+	suite.False(errors.As(err, &recover))
+	aRecoverable := SetRecoverableError(err)
+	suite.True(errors.As(aRecoverable, &recover))
+}
+
+func (suite *GraphConnectorErrorSuite) TestAsNonRecoverableError() {
+	err := assert.AnError
+	var noRecover NonRecoverableGCError
+	suite.False(errors.As(err, &noRecover))
+	nonRecoverable := SetNonRecoverableError(err)
+	suite.True(errors.As(nonRecoverable, &noRecover))
+}
+
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_Add3() {
 	errOneTwo := WrapAndAppend("user1", assert.AnError, assert.AnError)
 	combined := WrapAndAppend("unix36", assert.AnError, errOneTwo)
