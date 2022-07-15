@@ -3,6 +3,7 @@ package kopia
 import (
 	"context"
 	"path"
+	"sync"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
@@ -48,6 +49,58 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 		Incomplete:          man.IncompleteReason != "",
 		IncompleteReason:    man.IncompleteReason,
 	}
+}
+
+type details struct {
+	info    backup.ItemInfo
+	repoRef string
+}
+
+type corsoProgress struct {
+	snapshotfs.UploadProgress
+	pending map[string]*details
+	details *backup.Details
+	mu      sync.RWMutex
+}
+
+// Kopia interface function letting us hook into when it's done processing a
+// file.
+func (cp *corsoProgress) FinishedFile(relativePath string, hadErr bool) {
+	// Pass the call through as well so we don't break expected functionality.
+	defer cp.UploadProgress.FinishedFile(relativePath, hadErr)
+	// Whether it succeeded or failed, remove the entry from our pending set so we
+	// don't leak references.
+	defer func() {
+		cp.mu.Lock()
+		defer cp.mu.Unlock()
+
+		delete(cp.pending, relativePath)
+	}()
+
+	if hadErr {
+		return
+	}
+
+	d := cp.get(relativePath)
+	if d == nil {
+		return
+	}
+
+	cp.details.Add(d.repoRef, d.info)
+}
+
+func (cp *corsoProgress) put(k string, v *details) {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+
+	cp.pending[k] = v
+}
+
+func (cp *corsoProgress) get(k string) *details {
+	cp.mu.RLock()
+	defer cp.mu.RUnlock()
+
+	return cp.pending[k]
 }
 
 func NewWrapper(c *conn) (*Wrapper, error) {

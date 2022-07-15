@@ -12,6 +12,7 @@ import (
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
+	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -88,6 +89,43 @@ func testForFiles(
 // ---------------
 // unit tests
 // ---------------
+type CorsoProgressUnitSuite struct {
+	suite.Suite
+}
+
+func TestCorsoProgressUnitSuite(t *testing.T) {
+	suite.Run(t, new(CorsoProgressUnitSuite))
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
+	t := suite.T()
+	deets := &details{backup.ItemInfo{}, testFileName}
+	deets2 := &details{backup.ItemInfo{}, testFileName3}
+	bd := &backup.Details{}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		details:        bd,
+		pending:        map[string]*details{},
+	}
+
+	cp.put(testFileName, deets)
+	cp.put(testFileName2, nil)
+	cp.put(testFileName3, deets2)
+	require.Len(t, cp.pending, 3)
+
+	// Details exist.
+	cp.FinishedFile(testFileName, false)
+	// No details but pending.
+	cp.FinishedFile(testFileName2, false)
+	// Had error.
+	cp.FinishedFile(testFileName3, true)
+	// Not pending.
+	cp.FinishedFile(testFileName4, false)
+
+	assert.Empty(t, cp.pending)
+	assert.Len(t, bd.Entries, 1)
+}
+
 type KopiaUnitSuite struct {
 	suite.Suite
 }
