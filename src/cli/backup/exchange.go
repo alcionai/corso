@@ -67,7 +67,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			&emailFolder,
 			"email-folder",
 			nil,
-			"Select backup details by email folder; accepts "+utils.Wildcard+" to select all email folders")
+			"Select backup details by email folder ID; accepts "+utils.Wildcard+" to select all email folderss")
 		fs.StringArrayVar(&event, "event", nil, "Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
 		fs.StringArrayVar(&user, "user", nil, "Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
 
