@@ -14,7 +14,7 @@ func AddOperationFlags(parent *cobra.Command) {
 	fs := parent.Flags()
 	fs.BoolVar(&fastFail, "fast-fail", false, "stop processing immediately if any error occurs")
 	// TODO: reveal this flag when fail-fast support is implemented
-	fs.MarkHidden("fast-fail")
+	cobra.CheckErr(fs.MarkHidden("fast-fail"))
 }
 
 // OperationOptions produces the operation options based on the user's flags.
