@@ -76,51 +76,42 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // Exclude/Includes
 
 // Include appends the provided scopes to the selector's inclusion set.
-func (s *exchange) Include(scopes ...[]exchangeScope) {
+func (s *exchange) Include(scopes ...exchangeScope) {
 	if s.Includes == nil {
 		s.Includes = []map[string]string{}
 	}
-	concat := []exchangeScope{}
-	for _, scopeSl := range scopes {
-		concat = append(concat, extendExchangeScopeValues(All(), scopeSl)...)
-	}
-	for _, sc := range concat {
-		s.Includes = append(s.Includes, map[string]string(sc))
+	for _, scope := range scopes {
+		scope = extendExchangeScopeValues(AllTgt, scope)
+		s.Includes = append(s.Includes, map[string]string(scope))
 	}
 }
 
 // Exclude appends the provided scopes to the selector's exclusion set.
 // Every Exclusion scope applies globally, affecting all inclusion scopes.
-func (s *exchange) Exclude(scopes ...[]exchangeScope) {
+func (s *exchange) Exclude(scopes ...exchangeScope) {
 	if s.Excludes == nil {
 		s.Excludes = []map[string]string{}
 	}
-	concat := []exchangeScope{}
-	for _, scopeSl := range scopes {
-		concat = append(concat, extendExchangeScopeValues(None(), scopeSl)...)
-	}
-	for _, sc := range concat {
-		s.Excludes = append(s.Excludes, map[string]string(sc))
+	for _, scope := range scopes {
+		scope = extendExchangeScopeValues(NoneTgt, scope)
+		s.Excludes = append(s.Excludes, map[string]string(scope))
 	}
 }
 
 // completes population for certain scope properties, according to the
 // expecations of Include and Exclude behavior.
-func extendExchangeScopeValues(v []string, es []exchangeScope) []exchangeScope {
-	vv := join(v...)
-	for i := range es {
-		switch es[i].Category() {
-		case ExchangeContactFolder:
-			es[i][ExchangeContact.String()] = vv
-		case ExchangeMailFolder:
-			es[i][ExchangeMail.String()] = vv
-		case ExchangeUser:
-			es[i][ExchangeContactFolder.String()] = vv
-			es[i][ExchangeContact.String()] = vv
-			es[i][ExchangeEvent.String()] = vv
-			es[i][ExchangeMailFolder.String()] = vv
-			es[i][ExchangeMail.String()] = vv
-		}
+func extendExchangeScopeValues(v string, es exchangeScope) exchangeScope {
+	switch es.Category() {
+	case ExchangeContactFolder:
+		es[ExchangeContact.String()] = v
+	case ExchangeMailFolder:
+		es[ExchangeMail.String()] = v
+	case ExchangeUser:
+		es[ExchangeContactFolder.String()] = v
+		es[ExchangeContact.String()] = v
+		es[ExchangeEvent.String()] = v
+		es[ExchangeMailFolder.String()] = v
+		es[ExchangeMail.String()] = v
 	}
 	return es
 }
@@ -128,128 +119,89 @@ func extendExchangeScopeValues(v []string, es []exchangeScope) []exchangeScope {
 // -------------------
 // Scope Factory
 
-// Produces one or more exchange contact scopes.
-// One scope is created per combination of users,folders,contacts.
+// Produces an exchange contact scope.
+// Any combination values across the inputs is considered a match.
 // If any slice contains selectors.All, that slice is reduced to [selectors.All]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Contacts(users, folders, contacts []string) []exchangeScope {
-	users = normalize(users)
-	folders = normalize(folders)
-	contacts = normalize(contacts)
-	scopes := []exchangeScope{}
-	for _, u := range users {
-		for _, f := range folders {
-			scopes = append(scopes, exchangeScope{
-				scopeKeyGranularity:            Item,
-				scopeKeyCategory:               ExchangeContact.String(),
-				ExchangeUser.String():          u,
-				ExchangeContactFolder.String(): f,
-				ExchangeContact.String():       join(contacts...),
-			})
-		}
+func (s *exchange) Contacts(users, folders, contacts []string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity:            Item,
+		scopeKeyCategory:               ExchangeContact.String(),
+		ExchangeUser.String():          join(normalize(users)...),
+		ExchangeContactFolder.String(): join(normalize(folders)...),
+		ExchangeContact.String():       join(normalize(contacts)...),
 	}
-	return scopes
 }
 
-// Produces one or more exchange contact folder scopes.
-// One scope is created per combination of users,folders.
+// Produces an exchange contact scope.
+// Any combination values across the inputs is considered a match.
 // If any slice contains selectors.All, that slice is reduced to [selectors.All]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) ContactFolders(users, folders []string) []exchangeScope {
-	users = normalize(users)
-	folders = normalize(folders)
-	scopes := []exchangeScope{}
-	for _, u := range users {
-		scopes = append(scopes, exchangeScope{
-			scopeKeyGranularity:            Group,
-			scopeKeyCategory:               ExchangeContactFolder.String(),
-			ExchangeUser.String():          u,
-			ExchangeContactFolder.String(): join(folders...),
-		})
+func (s *exchange) ContactFolders(users, folders []string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity:            Group,
+		scopeKeyCategory:               ExchangeContactFolder.String(),
+		ExchangeUser.String():          join(normalize(users)...),
+		ExchangeContactFolder.String(): join(normalize(folders)...),
 	}
-	return scopes
 }
 
-// Produces one or more exchange event scopes.
-// One scope is created per combination of users,events.
+// Produces an exchange contact scope.
+// Any combination values across the inputs is considered a match.
 // If any slice contains selectors.All, that slice is reduced to [selectors.All]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Events(users, events []string) []exchangeScope {
-	users = normalize(users)
-	events = normalize(events)
-	scopes := []exchangeScope{}
-	for _, u := range users {
-		scopes = append(scopes, exchangeScope{
-			scopeKeyGranularity:    Item,
-			scopeKeyCategory:       ExchangeEvent.String(),
-			ExchangeUser.String():  u,
-			ExchangeEvent.String(): join(events...),
-		})
+func (s *exchange) Events(users, events []string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity:    Item,
+		scopeKeyCategory:       ExchangeEvent.String(),
+		ExchangeUser.String():  join(normalize(users)...),
+		ExchangeEvent.String(): join(normalize(events)...),
 	}
-	return scopes
 }
 
-// Produces one or more mail scopes.
-// One scope is created per combination of users,folders,mails.
+// Produces an exchange contact scope.
+// Any combination values across the inputs is considered a match.
 // If any slice contains selectors.All, that slice is reduced to [selectors.All]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Mails(users, folders, mails []string) []exchangeScope {
-	users = normalize(users)
-	folders = normalize(folders)
-	mails = normalize(mails)
-	scopes := []exchangeScope{}
-	for _, u := range users {
-		for _, f := range folders {
-			scopes = append(scopes, exchangeScope{
-				scopeKeyGranularity:         Item,
-				scopeKeyCategory:            ExchangeMail.String(),
-				ExchangeUser.String():       u,
-				ExchangeMailFolder.String(): f,
-				ExchangeMail.String():       join(mails...),
-			})
-		}
+func (s *exchange) Mails(users, folders, mails []string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity:         Item,
+		scopeKeyCategory:            ExchangeMail.String(),
+		ExchangeUser.String():       join(normalize(users)...),
+		ExchangeMailFolder.String(): join(normalize(folders)...),
+		ExchangeMail.String():       join(normalize(mails)...),
 	}
-	return scopes
 }
 
-// Produces one or more exchange mail folder scopes.
-// One scope is created per combination of users,folders.
+// Produces an exchange contact scope.
+// Any combination values across the inputs is considered a match.
 // If any slice contains selectors.All, that slice is reduced to [selectors.All]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) MailFolders(users, folders []string) []exchangeScope {
-	users = normalize(users)
-	folders = normalize(folders)
-	scopes := []exchangeScope{}
-	for _, u := range users {
-		scopes = append(scopes, exchangeScope{
-			scopeKeyGranularity:         Group,
-			scopeKeyCategory:            ExchangeMailFolder.String(),
-			ExchangeUser.String():       u,
-			ExchangeMailFolder.String(): join(folders...),
-		})
+func (s *exchange) MailFolders(users, folders []string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity:         Group,
+		scopeKeyCategory:            ExchangeMailFolder.String(),
+		ExchangeUser.String():       join(normalize(users)...),
+		ExchangeMailFolder.String(): join(normalize(folders)...),
 	}
-	return scopes
 }
 
-// Produces one or more exchange contact user scopes.
-// One scope is created per user entry.
+// Produces an exchange contact scope.
+// Any combination values across the inputs is considered a match.
 // If any slice contains selectors.All, that slice is reduced to [selectors.All]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Users(users []string) []exchangeScope {
-	users = normalize(users)
-	scopes := []exchangeScope{}
-	scopes = append(scopes, exchangeScope{
+func (s *exchange) Users(users []string) exchangeScope {
+	return exchangeScope{
 		scopeKeyGranularity:   Group,
 		scopeKeyCategory:      ExchangeUser.String(),
-		ExchangeUser.String(): join(users...),
-	})
-	return scopes
+		ExchangeUser.String(): join(normalize(users)...),
+	}
 }
 
 // ---------------------------------------------------------------------------
