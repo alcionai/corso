@@ -63,10 +63,11 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Nil(suite.T(), err)
-	if suite.connector.status == nil {
-		status := suite.connector.AwaitStatus()
-		assert.NotNil(suite.T(), status, "status not blocking on async call")
-	}
+	assert.True(suite.T(), suite.connector.awaitingMessages > 0)
+	assert.Nil(suite.T(), suite.connector.status)
+	status := suite.connector.AwaitStatus()
+	assert.NotNil(suite.T(), status, "status not blocking on async call")
+
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
