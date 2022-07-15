@@ -35,14 +35,14 @@ jobs:
       - name: Cache Go build
         uses: actions/cache@v3
         with:
-          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
 
       - name: Cache Go Mod
         uses: actions/cache@v3
         id: cache
         with:
-          path: ${{ steps.go-cache-paths.output.go-mod }}
+          path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
       - name: Run go mod download
