@@ -11,7 +11,7 @@ import (
 // chains `errors.As()`, `errors.Is()`, and `errors.Cause()` calls properly.
 //
 // When using errors.As, note that the variable that is passed as the second
-// parameter must exactly match the returned type of the error previously. For
+// parameter must be a pointer to a type that exactly matches the returned type of the error previously. For
 // example, if a struct was returned, the second parameter should be a pointer
 // to said struct. If a pointer to a struct was returned, then a pointer to a
 // pointer of the struct should be passed.
