@@ -59,11 +59,15 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users("lidiah@8qzvrj.onmicrosoft.com"))
+	sel.Include(sel.Users("meganb@8qzvrj.onmicrosoft.com"))
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Nil(suite.T(), err)
-	assert.NotNil(suite.T(), suite.connector.status, "connector status")
+	assert.True(suite.T(), suite.connector.awaitingMessages > 0)
+	assert.Nil(suite.T(), suite.connector.status)
+	status := suite.connector.AwaitStatus()
+	assert.NotNil(suite.T(), status, "status not blocking on async call")
+
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
