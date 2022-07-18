@@ -62,7 +62,7 @@ func readTestConfig() (map[string]string, error) {
 	}
 
 	testEnv := map[string]string{}
-	fallbackTo(testEnv, testCfgBucket, vpr.GetString(testCfgBucket), "test-corso-repo-init")
+	fallbackTo(testEnv, testCfgBucket, vpr.GetString(testCfgBucket), "repo-init-test")
 	fallbackTo(testEnv, testCfgEndpoint, vpr.GetString(testCfgEndpoint), "s3.amazonaws.com")
 	fallbackTo(testEnv, testCfgPrefix, vpr.GetString(testCfgPrefix))
 	fallbackTo(testEnv, testCfgTenantID, os.Getenv(account.TenantID), vpr.GetString(testCfgTenantID))
