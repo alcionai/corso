@@ -23,3 +23,4 @@ jobs:
       - name: Delete all files in the test bucket
         run: |
           aws s3 rm s3://test-corso-repo-init --recursive
+          aws s3 rm s3://repo-init-test --recursive
