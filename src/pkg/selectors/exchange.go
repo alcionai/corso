@@ -577,6 +577,15 @@ func (s exchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 	return true
 }
 
+// excludesInfo returns true if all filters in the scope matche the info.
+func (s exchangeScope) excludesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
+	// todo: implement once filters used in scopes
+	if info == nil {
+		return false
+	}
+	return false
+}
+
 // temporary helper until filters replace string values for scopes.
 func contains(super []string, sub string) bool {
 	for _, s := range super {
