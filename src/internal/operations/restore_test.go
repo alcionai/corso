@@ -16,6 +16,7 @@ import (
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/pkg/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -38,7 +39,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 	var (
 		kw    = &kopia.Wrapper{}
-		ms    = &kopia.ModelStore{}
+		sw    = &store.Wrapper{}
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = restoreStats{
@@ -51,7 +52,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewRestoreOperation(ctx, Options{}, kw, ms, acct, "foo", selectors.Selector{})
+	op, err := NewRestoreOperation(ctx, Options{}, kw, sw, acct, "foo", selectors.Selector{})
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
@@ -90,7 +91,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
-	ms := &kopia.ModelStore{}
+	sw := &store.Wrapper{}
 	acct, err := ctesting.NewM365Account()
 	require.NoError(suite.T(), err)
 
@@ -98,13 +99,13 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		name     string
 		opts     Options
 		kw       *kopia.Wrapper
-		ms       *kopia.ModelStore
+		sw       *store.Wrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", Options{}, kw, ms, acct, nil, assert.NoError},
-		{"missing kopia", Options{}, nil, ms, acct, nil, assert.Error},
+		{"good", Options{}, kw, sw, acct, nil, assert.NoError},
+		{"missing kopia", Options{}, nil, sw, acct, nil, assert.Error},
 		{"missing modelstore", Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
@@ -113,7 +114,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				context.Background(),
 				Options{},
 				test.kw,
-				test.ms,
+				test.sw,
 				test.acct,
 				"backup-id",
 				selectors.Selector{})
@@ -146,14 +147,16 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NoError(t, err)
 	defer ms.Close(ctx)
 
+	sw := store.NewKopiaStore(ms)
+
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users(m365User))
+	bsel.Include(bsel.Users([]string{m365User}))
 
 	bo, err := NewBackupOperation(
 		ctx,
 		Options{},
 		w,
-		ms,
+		sw,
 		acct,
 		bsel.Selector)
 	require.NoError(t, err)
@@ -161,13 +164,13 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users(m365User))
+	rsel.Include(rsel.Users([]string{m365User}))
 
 	ro, err := NewRestoreOperation(
 		ctx,
 		Options{},
 		w,
-		ms,
+		sw,
 		acct,
 		bo.Results.BackupID,
 		rsel.Selector)

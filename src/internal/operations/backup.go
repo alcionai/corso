@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/pkg/store"
 )
 
 // BackupOperation wraps an operation with backup-specific props.
@@ -38,12 +39,12 @@ func NewBackupOperation(
 	ctx context.Context,
 	opts Options,
 	kw *kopia.Wrapper,
-	ms *kopia.ModelStore,
+	sw *store.Wrapper,
 	acct account.Account,
 	selector selectors.Selector,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation: newOperation(opts, kw, ms),
+		operation: newOperation(opts, kw, sw),
 		Selectors: selector,
 		Version:   "v0",
 		account:   acct,
@@ -109,14 +110,14 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 }
 
 func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, details *backup.Details) error {
-	err := op.modelStore.Put(ctx, kopia.BackupDetailsModel, &details.DetailsModel)
+	err := op.store.Put(ctx, model.BackupDetailsSchema, &details.DetailsModel)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
 
 	bu := backup.New(snapID, string(details.ModelStoreID))
 
-	err = op.modelStore.Put(ctx, kopia.BackupModel, bu)
+	err = op.store.Put(ctx, model.BackupSchema, bu)
 	if err != nil {
 		return errors.Wrap(err, "creating backup model")
 	}

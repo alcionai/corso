@@ -52,7 +52,6 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 	suite.True(Contains(edc.FullPath(), "Directory"))
 	suite.True(Contains(edc.FullPath(), "File"))
 	suite.True(Contains(edc.FullPath(), "task"))
-	suite.Zero(edc.Length())
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCollection() {
@@ -63,7 +62,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	for i := 0; i < expected; i++ {
 		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
 	}
-	suite.Equal(expected, edc.Length())
+	suite.Equal(expected, len(edc.data))
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NextItem() {
