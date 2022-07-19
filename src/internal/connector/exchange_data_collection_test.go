@@ -111,5 +111,6 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Sort() {
 	SortDataCollections(collections)
 	suite.Equal(collections[0].FullPath(), expected.a)
 	suite.Equal(collections[1].FullPath(), expected.b)
-	//suite.T().Log(collection.FullPath())
+	suite.Equal(collections[2].FullPath(), expected.c)
+	suite.Equal(collections[3].FullPath(), expected.d)
 }
