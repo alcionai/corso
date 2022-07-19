@@ -4,7 +4,24 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 )
 
-type ID string
+type (
+	ID     string
+	Schema int
+)
+
+//go:generate go run golang.org/x/tools/cmd/stringer -type=Schema
+const (
+	UnknownSchema = Schema(iota)
+	BackupOpSchema
+	RestoreOpSchema
+	BackupSchema
+	BackupDetailsSchema
+)
+
+// Valid returns true if the ModelType value fits within the iota range.
+func (mt Schema) Valid() bool {
+	return mt > 0 && mt < BackupDetailsSchema+1
+}
 
 type Model interface {
 	// Returns a handle to the BaseModel for this model.

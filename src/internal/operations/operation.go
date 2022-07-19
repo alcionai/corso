@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/pkg/store"
 )
 
 type opStatus int
@@ -31,8 +32,8 @@ type operation struct {
 	Options   Options   `json:"options"`
 	Status    opStatus  `json:"status"`
 
-	kopia      *kopia.Wrapper
-	modelStore *kopia.ModelStore
+	kopia *kopia.Wrapper
+	store *store.Wrapper
 }
 
 // Options configure some parameters of the operation
@@ -44,15 +45,15 @@ type Options struct {
 func newOperation(
 	opts Options,
 	kw *kopia.Wrapper,
-	ms *kopia.ModelStore,
+	sw *store.Wrapper,
 ) operation {
 	return operation{
-		ID:         uuid.New(),
-		CreatedAt:  time.Now(),
-		Options:    opts,
-		kopia:      kw,
-		modelStore: ms,
-		Status:     InProgress,
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		Options:   opts,
+		kopia:     kw,
+		store:     sw,
+		Status:    InProgress,
 	}
 }
 
@@ -60,7 +61,7 @@ func (op operation) validate() error {
 	if op.kopia == nil {
 		return errors.New("missing kopia connection")
 	}
-	if op.modelStore == nil {
+	if op.store == nil {
 		return errors.New("missing modelstore")
 	}
 	return nil

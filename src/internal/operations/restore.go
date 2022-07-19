@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
@@ -12,8 +11,8 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/pkg/store"
 )
 
 // RestoreOperation wraps an operation with restore-specific props.
@@ -39,13 +38,13 @@ func NewRestoreOperation(
 	ctx context.Context,
 	opts Options,
 	kw *kopia.Wrapper,
-	ms *kopia.ModelStore,
+	sw *store.Wrapper,
 	acct account.Account,
 	backupID model.ID,
 	sel selectors.Selector,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, kw, ms),
+		operation: newOperation(opts, kw, sw),
 		BackupID:  backupID,
 		Selectors: sel,
 		Version:   "v0",
@@ -82,17 +81,9 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	defer op.persistResults(time.Now(), &stats)
 
 	// retrieve the restore point details
-	bu := backup.Backup{}
-	err := op.modelStore.Get(ctx, kopia.BackupModel, op.BackupID, &bu)
+	d, b, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
 	if err != nil {
-		stats.readErr = errors.Wrap(err, "retrieving restore point")
-		return stats.readErr
-	}
-
-	backup := backup.Details{}
-	err = op.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(bu.DetailsID), &backup)
-	if err != nil {
-		stats.readErr = errors.Wrap(err, "retrieving restore point details")
+		stats.readErr = errors.Wrap(err, "getting backup details for restore")
 		return stats.readErr
 	}
 
@@ -103,8 +94,8 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	}
 
 	// format the details and retrieve the items from kopia
-	fds := er.FilterDetails(&backup)
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, bu.SnapshotID, fds)
+	fds := er.FilterDetails(d)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, fds)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving service data")
 		return stats.readErr
