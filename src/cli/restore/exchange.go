@@ -103,23 +103,18 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 func exchangeRestoreSelectors(u, f, m string) selectors.Selector {
 	sel := selectors.NewExchangeRestore()
-	if u == "*" {
-		u = selectors.All
-	}
-	if f == "*" {
-		f = selectors.All
-	}
-	if m == "*" {
-		m = selectors.All
-	}
 	if len(m) > 0 {
-		sel.Include(sel.Mails(u, f, m))
+		sel.Include(sel.Mails(
+			[]string{u}, []string{f}, []string{m},
+		))
 	}
 	if len(f) > 0 && len(m) == 0 {
-		sel.Include(sel.MailFolders(u, f))
+		sel.Include(sel.MailFolders(
+			[]string{u}, []string{f},
+		))
 	}
 	if len(f) == 0 && len(m) == 0 {
-		sel.Include(sel.Users(u))
+		sel.Include(sel.Users([]string{u}))
 	}
 	return sel.Selector
 }

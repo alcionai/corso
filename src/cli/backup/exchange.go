@@ -118,42 +118,22 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
 	sel := selectors.NewExchangeBackup()
 	if all {
-		sel.Include(sel.Users(selectors.All))
+		sel.Include(sel.Users(selectors.All()))
 		return sel.Selector
 	}
 	if len(data) == 0 {
-		for _, user := range users {
-			if user == utils.Wildcard {
-				user = selectors.All
-			}
-			sel.Include(sel.ContactFolders(user, selectors.All))
-			sel.Include(sel.MailFolders(user, selectors.All))
-			sel.Include(sel.Events(user, selectors.All))
-		}
+		sel.Include(sel.ContactFolders(user, selectors.All()))
+		sel.Include(sel.MailFolders(user, selectors.All()))
+		sel.Include(sel.Events(user, selectors.All()))
 	}
 	for _, d := range data {
 		switch d {
 		case dataContacts:
-			for _, user := range users {
-				if user == utils.Wildcard {
-					user = selectors.All
-				}
-				sel.Include(sel.ContactFolders(user, selectors.All))
-			}
+			sel.Include(sel.ContactFolders(users, selectors.All()))
 		case dataEmail:
-			for _, user := range users {
-				if user == utils.Wildcard {
-					user = selectors.All
-				}
-				sel.Include(sel.MailFolders(user, selectors.All))
-			}
+			sel.Include(sel.MailFolders(users, selectors.All()))
 		case dataEvents:
-			for _, user := range users {
-				if user == utils.Wildcard {
-					user = selectors.All
-				}
-				sel.Include(sel.Events(user, selectors.All))
-			}
+			sel.Include(sel.Events(users, selectors.All()))
 		}
 	}
 	return sel.Selector

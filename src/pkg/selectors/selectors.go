@@ -27,12 +27,14 @@ const (
 )
 
 const (
-	// All is the wildcard value used to express "all data of <type>"
-	// Ex: {user: u1, events: All) => all events for user u1.
-	All = "ß∂ƒ∑´®≈ç√¬˜"
-	// None is usesd to express "no data of <type>"
-	// Ex: {user: u1, events: None} => no events for user u1.
-	None = ""
+	// AllTgt is the target value used to select "all data of <type>"
+	// Ex: {user: u1, events: AllTgt) => all events for user u1.
+	// In the event that "*" conflicts with a user value, such as a
+	// folder named "*", calls to corso should escape the value with "\*"
+	AllTgt = "*"
+	// NoneTgt is the target value used to select "no data of <type>"
+	// Ex: {user: u1, events: NoneTgt} => no events for user u1.
+	NoneTgt = ""
 
 	delimiter = ","
 )
@@ -56,6 +58,16 @@ func newSelector(s service) Selector {
 		Excludes: []map[string]string{},
 		Includes: []map[string]string{},
 	}
+}
+
+// All returns the set matching All values.
+func All() []string {
+	return []string{AllTgt}
+}
+
+// None returns the set matching None of the values.
+func None() []string {
+	return []string{NoneTgt}
 }
 
 // ---------------------------------------------------------------------------
@@ -84,4 +96,24 @@ func join(s ...string) string {
 
 func split(s string) []string {
 	return strings.Split(s, delimiter)
+}
+
+// if the provided slice contains All, returns [All]
+// if the slice contains None, returns [None]
+// if the slice contains All and None, returns the first
+// if the slice is empty, returns [None]
+// otherwise returns the input unchanged
+func normalize(s []string) []string {
+	if len(s) == 0 {
+		return None()
+	}
+	for _, e := range s {
+		if e == AllTgt {
+			return All()
+		}
+		if e == NoneTgt {
+			return None()
+		}
+	}
+	return s
 }

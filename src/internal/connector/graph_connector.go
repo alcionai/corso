@@ -187,7 +187,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 			// TODO: handle "get mail for all users"
 			// this would probably no-op without this check,
 			// but we want it made obvious that we're punting.
-			if user == selectors.All {
+			if user == selectors.AllTgt {
 				errs = support.WrapAndAppend(
 					"all-users",
 					errors.New("all users selector currently not handled"),
