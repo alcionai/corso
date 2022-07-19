@@ -82,10 +82,6 @@ func (edc *ExchangeDataCollection) FinishPopulation() {
 	}
 }
 
-func (edc *ExchangeDataCollection) Length() int {
-	return len(edc.data)
-}
-
 func (edc *ExchangeDataCollection) Items() <-chan DataStream {
 	return edc.data
 }
