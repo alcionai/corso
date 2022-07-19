@@ -207,7 +207,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := exchangeBackupCreateSelectors(test.all, test.user, test.data)
+			sel := exchangeExchangeBackupCreateSelectors(test.all, test.user, test.data)
 			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
 		})
 	}
