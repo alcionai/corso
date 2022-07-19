@@ -347,7 +347,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 
 // populateFromTaskList async call to fill DataCollection via channel implementation
 func (sc *graphService) populateFromTaskList(
-	context context.Context,
+	ctx context.Context,
 	tasklist TaskList,
 	collections map[string]*ExchangeDataCollection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
@@ -355,6 +355,7 @@ func (sc *graphService) populateFromTaskList(
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
+
 	//Todo this has to return all the errors in the status
 	for aFolder, tasks := range tasklist {
 		// Get the same folder
@@ -373,18 +374,20 @@ func (sc *graphService) populateFromTaskList(
 				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
 				continue
 			}
-			err = messageToDataCollection(&sc.client, context, objectWriter, edc.data, response, edc.user)
-
+			err = messageToDataCollection(&sc.client, ctx, objectWriter, edc.data, response, edc.user)
+			success++
 			if err != nil {
 				errs = support.WrapAndAppendf(edc.user, err, errs)
+				success--
 			}
 		}
+
 		edc.FinishPopulation()
 		attemptedItems += len(tasks)
-		success += edc.Length()
 	}
-	status := support.CreateStatus(context, support.Backup, attemptedItems, success, len(tasklist), errs)
-	logger.Ctx(context).Debug(status.String())
+
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(tasklist), errs)
+	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
 }
 
