@@ -64,7 +64,7 @@ type ExchangeDataCollection struct {
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:     aUser,
-		data:     make(chan DataStream, collectionChannelBufferSize),
+		data:     make(chan DataStream),
 		fullPath: pathRepresentation,
 	}
 	return collection
