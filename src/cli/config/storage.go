@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
@@ -59,9 +61,9 @@ func configureStorage(vpr *viper.Viper, readConfigFromViper bool, overrides map[
 
 	s3Cfg = storage.S3Config{
 		AWS:      aws,
-		Bucket:   first(overrides[storage.Bucket], s3Cfg.Bucket),
-		Endpoint: first(overrides[storage.Endpoint], s3Cfg.Endpoint),
-		Prefix:   first(overrides[storage.Prefix], s3Cfg.Prefix),
+		Bucket:   first(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
+		Endpoint: first(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
+		Prefix:   first(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),
 	}
 
 	// compose the common config and credentials
