@@ -1,7 +1,6 @@
 package selectors
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/alcionai/corso/pkg/backup"
@@ -475,6 +474,32 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 	}
 }
 
+func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesInfo() {
+	const (
+		TODO = "this is a placeholder, awaiting implemenation of filters"
+	)
+	var (
+		es = NewExchangeRestore()
+	)
+
+	table := []struct {
+		name   string
+		scope  []exchangeScope
+		info   *backup.ExchangeInfo
+		expect assert.BoolAssertionFunc
+	}{
+		{"all user's items", es.Users(All()), nil, assert.False}, // false while a todo
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			scopes := extendExchangeScopeValues(All(), test.scope)
+			for _, scope := range scopes {
+				test.expect(t, scope.includesInfo(ExchangeMail, test.info))
+			}
+		})
+	}
+}
+
 func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesPath() {
 	const (
 		usr  = "userID"
@@ -512,6 +537,32 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesPath() {
 			scopes := extendExchangeScopeValues(All(), test.scope)
 			for _, scope := range scopes {
 				test.expect(t, scope.includesPath(ExchangeMail, path))
+			}
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestExchangeScope_ExcludesInfo() {
+	const (
+		TODO = "this is a placeholder, awaiting implemenation of filters"
+	)
+	var (
+		es = NewExchangeRestore()
+	)
+
+	table := []struct {
+		name   string
+		scope  []exchangeScope
+		info   *backup.ExchangeInfo
+		expect assert.BoolAssertionFunc
+	}{
+		{"all user's items", es.Users(All()), nil, assert.False}, // false while a todo
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			scopes := extendExchangeScopeValues(None(), test.scope)
+			for _, scope := range scopes {
+				test.expect(t, scope.excludesInfo(ExchangeMail, test.info))
 			}
 		})
 	}
@@ -623,18 +674,14 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 		event   = "tid/uid/event/eid"
 		mail    = "tid/uid/mail/mfld/mid"
 	)
-	split := func(s ...string) [][]string {
-		r := [][]string{}
-		for _, ss := range s {
-			r = append(r, strings.Split(ss, "/"))
-		}
-		return r
+	arr := func(s ...string) []string {
+		return s
 	}
 	table := []struct {
 		name         string
 		deets        *backup.Details
 		makeSelector func() *ExchangeRestore
-		expect       [][]string
+		expect       []string
 	}{
 		{
 			"no refs",
@@ -644,7 +691,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Users(All()))
 				return er
 			},
-			[][]string{},
+			[]string{},
 		},
 		{
 			"contact only",
@@ -654,7 +701,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Users(All()))
 				return er
 			},
-			split(contact),
+			arr(contact),
 		},
 		{
 			"event only",
@@ -664,7 +711,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Users(All()))
 				return er
 			},
-			split(event),
+			arr(event),
 		},
 		{
 			"mail only",
@@ -674,7 +721,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Users(All()))
 				return er
 			},
-			split(mail),
+			arr(mail),
 		},
 		{
 			"all",
@@ -684,7 +731,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Users(All()))
 				return er
 			},
-			split(contact, event, mail),
+			arr(contact, event, mail),
 		},
 		{
 			"only match contact",
@@ -694,7 +741,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Contacts([]string{"uid"}, []string{"cfld"}, []string{"cid"}))
 				return er
 			},
-			split(contact),
+			arr(contact),
 		},
 		{
 			"only match event",
@@ -704,7 +751,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Events([]string{"uid"}, []string{"eid"}))
 				return er
 			},
-			split(event),
+			arr(event),
 		},
 		{
 			"only match mail",
@@ -714,7 +761,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Include(er.Mails([]string{"uid"}, []string{"mfld"}, []string{"mid"}))
 				return er
 			},
-			split(mail),
+			arr(mail),
 		},
 		{
 			"exclude contact",
@@ -725,7 +772,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Exclude(er.Contacts([]string{"uid"}, []string{"cfld"}, []string{"cid"}))
 				return er
 			},
-			split(event, mail),
+			arr(event, mail),
 		},
 		{
 			"exclude event",
@@ -736,7 +783,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Exclude(er.Events([]string{"uid"}, []string{"eid"}))
 				return er
 			},
-			split(contact, mail),
+			arr(contact, mail),
 		},
 		{
 			"exclude mail",
@@ -747,14 +794,15 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 				er.Exclude(er.Mails([]string{"uid"}, []string{"mfld"}, []string{"mid"}))
 				return er
 			},
-			split(contact, event),
+			arr(contact, event),
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := test.makeSelector()
 			results := sel.FilterDetails(test.deets)
-			assert.Equal(t, test.expect, results)
+			paths := results.Paths()
+			assert.Equal(t, test.expect, paths)
 		})
 	}
 }
@@ -804,6 +852,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 }
 
 func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
+	var TODO_EXCHANGE_INFO *backup.ExchangeInfo
 	const (
 		mail = "mailID"
 		cat  = ExchangeMail
@@ -846,7 +895,7 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, matchExchangeEntry(cat, path, test.includes, test.excludes))
+			test.expect(t, matchExchangeEntry(cat, path, TODO_EXCHANGE_INFO, test.includes, test.excludes))
 		})
 	}
 }

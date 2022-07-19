@@ -106,3 +106,42 @@ func (suite *BackupSuite) TestDetailsEntry_HeadersValues() {
 		})
 	}
 }
+
+func (suite *BackupSuite) TestDetailsModel_Path() {
+	table := []struct {
+		name   string
+		ents   []backup.DetailsEntry
+		expect []string
+	}{
+		{
+			name:   "nil entries",
+			ents:   nil,
+			expect: []string{},
+		},
+		{
+			name: "single entry",
+			ents: []backup.DetailsEntry{
+				{RepoRef: "abcde"},
+			},
+			expect: []string{"abcde"},
+		},
+		{
+			name: "multiple entries",
+			ents: []backup.DetailsEntry{
+				{RepoRef: "abcde"},
+				{RepoRef: "12345"},
+			},
+			expect: []string{"abcde", "12345"},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			d := backup.Details{
+				DetailsModel: backup.DetailsModel{
+					Entries: test.ents,
+				},
+			}
+			assert.DeepEqual(t, test.expect, d.Paths())
+		})
+	}
+}

@@ -109,7 +109,8 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
-	if err := validateBackupCreateFlags(exchangeAll, user, exchangeData); err != nil {
+
+	if err := validateExchangeBackupCreateFlags(exchangeAll, user, exchangeData); err != nil {
 		return err
 	}
 
@@ -135,7 +136,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
+	sel := exchangeExchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
 
 	bo, err := r.NewBackup(ctx, sel, options.OperationOptions())
 	if err != nil {
@@ -152,7 +153,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
+func exchangeExchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
 	sel := selectors.NewExchangeBackup()
 	if all {
 		sel.Include(sel.Users(selectors.All()))
@@ -176,7 +177,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 	return sel.Selector
 }
 
-func validateBackupCreateFlags(all bool, users, data []string) error {
+func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 	if len(users) == 0 && !all {
 		return errors.New("requries one or more --user ids, the wildcard --user *, or the --all flag.")
 	}
@@ -253,6 +254,22 @@ var exchangeDetailsCmd = &cobra.Command{
 func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if err := validateExchangeBackupDetailFlags(
+		contact,
+		contactFolder,
+		email,
+		emailFolder,
+		event,
+		user,
+		backupID,
+	); err != nil {
+		return err
+	}
+
 	s, acct, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
 		return err
@@ -278,7 +295,14 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	print.Entries(d.Entries)
+	sel := exchangeBackupDetailSelectors(contact, contactFolder, email, emailFolder, event, user)
+	erSel, err := sel.ToExchangeRestore()
+	if err != nil {
+		return err
+	}
+
+	ds := erSel.FilterDetails(d)
+	print.Entries(ds.Entries)
 
 	return nil
 }
