@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
@@ -15,6 +14,7 @@ import (
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/pkg/store"
 )
 
 // Repository contains storage provider information.
@@ -128,52 +128,41 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector, opts operations.Options) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
-		operations.Options{},
+		opts,
 		r.dataLayer,
-		r.modelStore,
+		store.NewKopiaStore(r.modelStore),
 		r.Account,
 		selector)
 }
 
 // NewRestore generates a restoreOperation runner.
-func (r Repository) NewRestore(ctx context.Context, backupID string, sel selectors.Selector) (operations.RestoreOperation, error) {
+func (r Repository) NewRestore(
+	ctx context.Context,
+	backupID string,
+	sel selectors.Selector,
+	opts operations.Options,
+) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
-		operations.Options{},
+		opts,
 		r.dataLayer,
-		r.modelStore,
+		store.NewKopiaStore(r.modelStore),
 		r.Account,
 		model.ID(backupID),
 		sel)
 }
 
 // backups lists backups in a respository
-func (r Repository) Backups(ctx context.Context) ([]*backup.Backup, error) {
-	bms, err := r.modelStore.GetIDsForType(ctx, kopia.BackupModel, nil)
-	if err != nil {
-		return nil, err
-	}
-	bus := make([]*backup.Backup, 0, len(bms))
-	for _, bm := range bms {
-		bu := backup.Backup{}
-		err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupModel, bm.ModelStoreID, &bu)
-		if err != nil {
-			return nil, err
-		}
-		bus = append(bus, &bu)
-	}
-	return bus, nil
+func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
+	sw := store.NewKopiaStore(r.modelStore)
+	return sw.GetBackups(ctx)
 }
 
 // BackupDetails returns the specified backup details object
-func (r Repository) BackupDetails(ctx context.Context, rpDetailsID string) (*backup.Details, error) {
-	bud := backup.Details{}
-	err := r.modelStore.GetWithModelStoreID(ctx, kopia.BackupDetailsModel, manifest.ID(rpDetailsID), &bud)
-	if err != nil {
-		return nil, err
-	}
-	return &bud, nil
+func (r Repository) BackupDetails(ctx context.Context, backupID string) (*backup.Details, *backup.Backup, error) {
+	sw := store.NewKopiaStore(r.modelStore)
+	return sw.GetDetailsFromBackupID(ctx, model.ID(backupID))
 }

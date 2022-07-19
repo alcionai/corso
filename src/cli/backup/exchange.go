@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/cli/options"
 	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
@@ -43,6 +44,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"data",
 			nil,
 			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
+		options.AddOperationFlags(c)
 	case listCommand:
 		c, _ = utils.AddCommand(parent, exchangeListCmd)
 	case detailsCommand:
@@ -98,7 +100,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
 
-	bo, err := r.NewBackup(ctx, sel)
+	bo, err := r.NewBackup(ctx, sel, options.OperationOptions())
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}
@@ -246,12 +248,12 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	rpd, err := r.BackupDetails(ctx, backupDetailsID)
+	d, _, err := r.BackupDetails(ctx, backupDetailsID)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	print.Entries(rpd.Entries)
+	print.Entries(d.Entries)
 
 	return nil
 }

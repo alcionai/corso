@@ -27,8 +27,8 @@ var corsoCmd = &cobra.Command{
 
 // the root-level flags
 var (
-	version bool
 	cfgFile string
+	version bool
 )
 
 func init() {
