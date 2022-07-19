@@ -488,7 +488,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 	}
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeScope_Include_MatchesInfo() {
+func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesInfo() {
 	es := NewExchangeRestore()
 	const (
 		sender  = "smarf@2many.cooks"
