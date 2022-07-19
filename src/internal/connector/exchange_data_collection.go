@@ -9,6 +9,10 @@ import (
 	"github.com/alcionai/corso/pkg/backup"
 )
 
+const (
+	maximumMessages = 2500
+)
+
 // A DataCollection represents a collection of data of the
 // same type (e.g. mail)
 type DataCollection interface {
@@ -70,7 +74,7 @@ func SortDataCollections(dcs []DataCollection) {
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:     aUser,
-		data:     make(chan DataStream),
+		data:     make(chan DataStream, maximumMessages),
 		fullPath: pathRepresentation,
 	}
 	return collection

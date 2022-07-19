@@ -21,7 +21,7 @@ const (
 
 // NewTaskList constructor for TaskList
 func NewTaskList() TaskList {
-	return make(map[string][]string, 0)
+	return make(map[string][]string)
 }
 
 // AddTask helper method to ensure that keys and items are created properly

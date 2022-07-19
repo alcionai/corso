@@ -1,10 +1,11 @@
-// Package connector uploads and retrieves data from M365 through
 // the msgraph-go-sdk.
 package connector
 
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"sync/atomic"
 
@@ -25,11 +26,11 @@ import (
 
 const (
 	numberOfRetries = 4
+	maximumServices = 5
 	mailCategory    = "mail"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
-// GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	graphService
@@ -38,6 +39,7 @@ type GraphConnector struct {
 	status           *support.ConnectorOperationStatus // contains the status of the last run status
 	statusCh         chan *support.ConnectorOperationStatus
 	awaitingMessages int32
+	servicesRunning  int32
 	credentials      account.M365Config
 }
 
@@ -147,7 +149,6 @@ func (gc *GraphConnector) GetUsersIds() []string {
 	return buildFromMap(false, gc.Users)
 }
 
-// buildFromMap helper function for returning []string from map.
 // Returns list of keys iff true; otherwise returns a list of values
 func buildFromMap(isKey bool, mapping map[string]string) []string {
 	returnString := make([]string, 0)
@@ -210,7 +211,6 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 }
 
 // RestoreMessages: Utility function to connect to M365 backstore
-// and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
 func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollection) error {
 	var (
@@ -315,75 +315,91 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	if err != nil {
 		return nil, err // return error if snapshot is incomplete
 	}
-	// Create collection of ExchangeDataCollection and create  data Holder
-	collections := make(map[string]*ExchangeDataCollection)
 
-	for aFolder := range tasklist {
-		// prep the items for handoff to the backup consumer
-		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
-		collections[aFolder] = &edc
-	}
-
-	if len(collections) == 0 {
-		if len(tasklist) != 0 {
-			// Below error message needs revising. Assumption is that it should always
-			// find both items to fetch and a DataCollection to put them in
-			return nil, support.WrapAndAppend(
-				user, errors.New("found items but no directories"), err)
-		}
-		// return empty collection when no items found
-		return nil, err
-	}
-	service, err := gc.createService()
-	if err != nil {
-		return nil, support.WrapAndAppend(user, err, err)
-	}
 	// async call to populate
-	go service.populateFromTaskList(ctx, tasklist, collections, gc.statusCh)
-	gc.incrementAwaitingMessages()
+	collections, err := gc.launchProcesses(ctx, tasklist, user)
+
+	//go service.populateFromTaskList(ctx, tasklist, collections, gc.statusCh)
 
 	return collections, err
+}
+
+func (gc *GraphConnector) launchProcesses(
+	context context.Context,
+	taskList TaskList,
+	user string,
+) (map[string]*ExchangeDataCollection, error) {
+	collections := make(map[string]*ExchangeDataCollection)
+	orderedList := make([]string, len(taskList))
+	//Get in order
+	var count int
+	for aFolder := range taskList {
+		// prep the items for handoff to the backup consumer
+		fmt.Printf("Folder: %s \t%s\n", aFolder, taskList[aFolder])
+		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
+		collections[aFolder] = &edc
+		orderedList[count] = aFolder
+		count++
+	}
+	sort.Strings(orderedList)
+	for _, process := range orderedList {
+		service, err := gc.createService()
+		if err != nil {
+			return nil, err
+		}
+		tasks, ok := taskList[process]
+		collection, iok := collections[process]
+		if ok != iok {
+			return nil, errors.New("task/collection misalignment on " + process)
+		}
+		if !ok {
+			continue // empty
+		}
+		fmt.Printf("Sending: %d tasks: %v %v\n", len(tasks), ok, iok)
+		if gc.servicesRunning < maximumServices {
+			go service.populateFromTaskList(context, tasks, collection, gc.statusCh)
+			gc.incrementServices()
+		} else {
+			gc.graphService.populateFromTaskList(context, tasks, collection, gc.statusCh)
+		}
+		gc.incrementAwaitingMessages()
+
+	}
+	return collections, nil
+
 }
 
 // populateFromTaskList async call to fill DataCollection via channel implementation
 func (sc *graphService) populateFromTaskList(
 	context context.Context,
-	tasklist TaskList,
-	collections map[string]*ExchangeDataCollection,
+	tasks []string,
+	edc *ExchangeDataCollection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
-	//Todo this has to return all the errors in the status
-	for aFolder, tasks := range tasklist {
-		// Get the same folder
-		edc := collections[aFolder]
-		if edc == nil {
-			for _, task := range tasks {
-				errs = support.WrapAndAppend(task, errors.New("unable to query: collection not found during populateFromTaskList"), errs)
-			}
+
+	for _, task := range tasks {
+		response, err := sc.client.UsersById(edc.user).MessagesById(task).Get()
+		if err != nil {
+			details := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
 			continue
 		}
+		err = messageToDataCollection(&sc.client, context, objectWriter, edc.data, response, edc.user)
 
-		for _, task := range tasks {
-			response, err := sc.client.UsersById(edc.user).MessagesById(task).Get()
-			if err != nil {
-				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
-				continue
-			}
-			err = messageToDataCollection(&sc.client, context, objectWriter, edc.data, response, edc.user)
-
-			if err != nil {
-				errs = support.WrapAndAppendf(edc.user, err, errs)
-			}
+		if err != nil {
+			errs = support.WrapAndAppendf(edc.user, err, errs)
 		}
-		edc.FinishPopulation()
-		attemptedItems += len(tasks)
-		success += edc.Length()
+		if err == nil {
+			success++
+		}
 	}
-	status := support.CreateStatus(context, support.Backup, attemptedItems, success, len(tasklist), errs)
+	edc.FinishPopulation()
+	attemptedItems += len(tasks)
+
+	status := support.CreateStatus(context, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(context).Debug(status.String())
 	statusChannel <- status
 }
@@ -399,6 +415,7 @@ func messageToDataCollection(
 	var err error
 	aMessage := message
 	adtl := message.GetAdditionalData()
+
 	if len(adtl) > 2 {
 		aMessage, err = support.ConvertFromMessageable(adtl, message)
 		if err != nil {
@@ -450,10 +467,22 @@ func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	if gc.awaitingMessages > 0 {
 		gc.status = <-gc.statusCh
+		gc.decrementServices()
 		atomic.AddInt32(&gc.awaitingMessages, -1)
 		return gc.status
 	}
 	return nil
+}
+
+func (gc *GraphConnector) AwaitStatuses(num int) *support.ConnectorOperationStatus {
+	for i := 0; i < num; i++ {
+		prev := gc.status
+		temp := gc.AwaitStatus()
+		if prev != nil && temp != nil {
+			gc.status = support.MergeStatus(prev, temp)
+		}
+	}
+	return gc.status
 }
 
 // Status returns the current status of the graphConnector operaion.
@@ -471,6 +500,16 @@ func (gc *GraphConnector) PrintableStatus() string {
 
 func (gc *GraphConnector) incrementAwaitingMessages() {
 	atomic.AddInt32(&gc.awaitingMessages, 1)
+}
+
+func (gc *GraphConnector) incrementServices() {
+	atomic.AddInt32(&gc.servicesRunning, 1)
+}
+
+func (gc *GraphConnector) decrementServices() {
+	if gc.servicesRunning > 0 {
+		atomic.AddInt32(&gc.servicesRunning, -1)
+	}
 }
 
 // IsRecoverableError returns true iff error is a RecoverableGCEerror

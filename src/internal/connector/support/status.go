@@ -52,6 +52,23 @@ func CreateStatus(ctx context.Context, op Operation, objects, success, folders i
 	}
 	return &status
 }
+func MergeStatus(one, two *ConnectorOperationStatus) *ConnectorOperationStatus {
+	var isIncomplete bool
+	if one.incomplete || two.incomplete {
+		isIncomplete = true
+	}
+
+	status := ConnectorOperationStatus{
+		lastOperation:    one.lastOperation,
+		ObjectCount:      one.ObjectCount + two.ObjectCount,
+		folderCount:      one.folderCount + two.folderCount,
+		successful:       one.successful + two.successful,
+		errorCount:       one.errorCount + two.errorCount,
+		incomplete:       isIncomplete,
+		incompleteReason: one.incompleteReason + " " + two.incompleteReason,
+	}
+	return &status
+}
 
 func (cos *ConnectorOperationStatus) String() string {
 	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
