@@ -38,8 +38,14 @@ type operation struct {
 
 // Options configure some parameters of the operation
 type Options struct {
+	FailFast bool `json:"failFast"`
 	// todo: collision handling
-	// todo: fast fail vs best attempt
+}
+
+func NewOptions(failFast bool) Options {
+	return Options{
+		FailFast: failFast,
+	}
 }
 
 func newOperation(
