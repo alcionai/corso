@@ -84,3 +84,32 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NextItem() 
 
 	assert.Equal(suite.T(), expected, count)
 }
+
+func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Sort() {
+	inputStrings := []string{"Jack", "and", "Jill", "went", "up", "the", "hill to",
+		"fetch", "a", "pale", "of", "water"}
+	names := []string{"Alfred", "Barbara", "Chloe", "Dennis"}
+	collections := []DataCollection{}
+	for i, name := range names {
+		temp := []string{inputStrings[i*3], inputStrings[3*i+1], inputStrings[3*i+2]}
+		edc := NewExchangeDataCollection(name, temp)
+		collections = append(collections, &edc)
+	}
+	expected := struct {
+		a []string
+		b []string
+		c []string
+		d []string
+	}{
+
+		a: []string{"hill to", "fetch", "a"},
+		b: []string{"Jack", "and", "Jill"},
+		c: []string{"went", "up", "the"},
+		d: []string{"pale", "of", "water"},
+	}
+
+	SortDataCollections(collections)
+	suite.Equal(collections[0].FullPath(), expected.a)
+	suite.Equal(collections[1].FullPath(), expected.b)
+	//suite.T().Log(collection.FullPath())
+}

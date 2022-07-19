@@ -3,6 +3,8 @@ package connector
 import (
 	"bytes"
 	"io"
+	"sort"
+	"strings"
 
 	"github.com/alcionai/corso/pkg/backup"
 )
@@ -52,6 +54,16 @@ type ExchangeDataCollection struct {
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
+}
+
+// SortDataCollections helper method that sorts the collection by the last item in the FullPath string literal
+func SortDataCollections(dcs []DataCollection) {
+	sort.SliceStable(dcs, func(i, j int) bool {
+		a := dcs[i].FullPath()
+		b := dcs[j].FullPath()
+		return strings.ToLower(a[len(a)-1]) < strings.ToLower(b[len(b)-1])
+	})
+
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
