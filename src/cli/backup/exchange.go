@@ -19,6 +19,11 @@ var (
 	backupDetailsID string
 	exchangeAll     bool
 	exchangeData    []string
+	contact         []string
+	contactFolder   []string
+	email           []string
+	emailFolder     []string
+	event           []string
 	user            []string
 )
 
@@ -37,8 +42,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd)
-		fs.StringArrayVar(&user, "user", nil, "Back up Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
-		fs.BoolVar(&exchangeAll, "all", false, "Back up all Exchange data for all users")
+		fs.StringArrayVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.BoolVar(&exchangeAll, "all", false, "Backup all Exchange data for all users")
 		fs.StringArrayVar(
 			&exchangeData,
 			"data",
@@ -51,6 +56,25 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
 		fs.StringVar(&backupDetailsID, "backup-details", "", "ID of the backup details to be shown")
 		cobra.CheckErr(c.MarkFlagRequired("backup-details"))
+		fs.StringArrayVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringArrayVar(
+			&contactFolder,
+			"contact-folder",
+			nil,
+			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders")
+		fs.StringArrayVar(&email, "email", nil, "Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
+		fs.StringArrayVar(
+			&emailFolder,
+			"email-folder",
+			nil,
+			"Select backup details by email folder ID; accepts "+utils.Wildcard+" to select all email folderss")
+		fs.StringArrayVar(&event, "event", nil, "Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
+		fs.StringArrayVar(&user, "user", nil, "Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
+
+		// TODO: reveal these flags when their production is supported in GC
+		cobra.CheckErr(fs.MarkHidden("contact"))
+		cobra.CheckErr(fs.MarkHidden("contact-folder"))
+		cobra.CheckErr(fs.MarkHidden("event"))
 	}
 	return c
 }
@@ -235,5 +259,91 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	print.Entries(d.Entries)
 
+	return nil
+}
+
+func exchangeBackupDetailSelectors(
+	contacts, contactFolders, emails, emailFolders, events, users []string,
+) selectors.Selector {
+	sel := selectors.NewExchangeBackup()
+	// normalize the inputs
+	lc, lcf := len(contacts), len(contactFolders)
+	le, lef := len(emails), len(emailFolders)
+	lev := len(events)
+	lu := len(users)
+
+	// if only the backupID is provided, treat that as an --all query
+	if lc+lcf+le+lef+lev+lu == 0 {
+		sel.Include(sel.Users(selectors.All()))
+		return sel.Selector
+	}
+
+	// if only users are provided, we only get one selector
+	if lc+lcf+le+lef+lev == 0 {
+		sel.Include(sel.Users(users))
+		return sel.Selector
+	}
+
+	// otherwise, add selectors for each type of data
+	includeExchangeContacts(sel, users, contactFolders, contacts)
+	includeExchangeEmails(sel, users, emailFolders, email)
+	includeExchangeEvents(sel, users, events)
+
+	return sel.Selector
+}
+
+func includeExchangeContacts(sel *selectors.ExchangeBackup, users, contactFolders, contacts []string) {
+	if len(contactFolders) == 0 {
+		return
+	}
+	if len(contacts) > 0 {
+		sel.Include(sel.Contacts(users, contactFolders, contacts))
+	} else {
+		sel.Include(sel.ContactFolders(users, contactFolders))
+	}
+}
+
+func includeExchangeEmails(sel *selectors.ExchangeBackup, users, emailFolders, emails []string) {
+	if len(emailFolders) == 0 {
+		return
+	}
+	if len(emails) > 0 {
+		sel.Include(sel.Mails(users, emailFolders, emails))
+	} else {
+		sel.Include(sel.MailFolders(users, emailFolders))
+	}
+}
+
+func includeExchangeEvents(sel *selectors.ExchangeBackup, users, events []string) {
+	if len(events) == 0 {
+		return
+	}
+	sel.Include(sel.Events(users, events))
+}
+
+func validateExchangeBackupDetailFlags(
+	contacts, contactFolders, emails, emailFolders, events, users []string,
+	backupID string,
+) error {
+	if len(backupID) == 0 {
+		return errors.New("a backup ID is requried")
+	}
+	lu := len(users)
+	lc, lcf := len(contacts), len(contactFolders)
+	le, lef := len(emails), len(emailFolders)
+	lev := len(events)
+	// if only the backupID is populated, that's the same as --all
+	if lu+lc+lcf+le+lef+lev == 0 {
+		return nil
+	}
+	if lu == 0 {
+		return errors.New("requries one or more --user ids, the wildcard --user *, or the --all flag.")
+	}
+	if lc > 0 && lcf == 0 {
+		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
+	}
+	if le > 0 && lef == 0 {
+		return errors.New("one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
+	}
 	return nil
 }
