@@ -20,6 +20,14 @@ var (
 	errMissingRequired = errors.New("missing required storage configuration")
 )
 
+// envvar consts
+// TODO: Remove these and leverage Viper AutomaticEnv() instead
+const (
+	BucketKey   = "BUCKET"
+	EndpointKey = "ENDPOINT"
+	PrefixKey   = "PREFIX"
+)
+
 // Storage defines a storage provider, along with any configuration
 // requried to set up or communicate with that provider.
 type Storage struct {
