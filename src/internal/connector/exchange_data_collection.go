@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/corso/pkg/backup"
 )
 
-
 // A DataCollection represents a collection of data of the
 // same type (e.g. mail)
 type DataCollection interface {
