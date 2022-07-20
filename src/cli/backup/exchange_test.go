@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/cli/utils"
 	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type ExchangeSuite struct {
@@ -297,7 +298,7 @@ func (suite *ExchangeSuite) TestValidateBackupDetailFlags() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupDetailSelectors() {
+func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 	stub := []string{"id-stub"}
 	all := []string{utils.Wildcard}
 	table := []struct {
@@ -307,7 +308,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailSelectors() {
 	}{
 		{
 			name:             "no selectors",
-			expectIncludeLen: 1,
+			expectIncludeLen: 0,
 		},
 		{
 			name:             "all users",
@@ -465,13 +466,111 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := exchangeBackupDetailSelectors(
+			sel := selectors.NewExchangeRestore()
+			includeExchangeBackupDetailDataSelectors(
+				sel,
 				test.contacts,
 				test.contactFolders,
 				test.emails,
 				test.emailFolders,
 				test.events,
 				test.users)
+			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
+		})
+	}
+}
+
+func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailInfoSelectors() {
+	stub := []string{"id-stub"}
+	stubs := []string{"a-stub", "b-stub"}
+	all := []string{utils.Wildcard}
+	table := []struct {
+		name                           string
+		after, before, sender, subject []string
+		expectIncludeLen               int
+	}{
+		{
+			name:             "no selectors",
+			expectIncludeLen: 0,
+		},
+		{
+			name:             "all receivedAfter",
+			after:            all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single receivedAfter",
+			after:            stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "multiple receivedAfter",
+			after:            stubs,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all receivedBefore",
+			before:           all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single receivedBefore",
+			before:           stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "multiple receivedBefore",
+			before:           stubs,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all senders",
+			sender:           all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single sender",
+			sender:           stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "multiple senders",
+			sender:           stubs,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "all subjects",
+			subject:          all,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "single subject",
+			subject:          stub,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "multiple subjects",
+			subject:          stubs,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "one of each",
+			after:            stub,
+			before:           stub,
+			sender:           stub,
+			subject:          stub,
+			expectIncludeLen: 4,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := selectors.NewExchangeRestore()
+			includeExchangeBackupDetailInfoSelectors(
+				sel,
+				test.after,
+				test.before,
+				test.sender,
+				test.subject)
 			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
 		})
 	}
