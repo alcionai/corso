@@ -17,6 +17,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
@@ -439,7 +440,7 @@ func messageToDataCollection(
 		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
 	if byteArray != nil {
-		dataChannel <- &ExchangeData{id: *aMessage.GetId(), message: byteArray}
+		dataChannel <- &ExchangeData{id: *aMessage.GetId(), message: byteArray, info: exchange.MessageInfo(aMessage)}
 	}
 	return nil
 }
