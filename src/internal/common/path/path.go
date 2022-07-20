@@ -4,7 +4,11 @@
 // path contains the '/' character, it should be escaped with '\'. If the path
 // contains '\' it should be escaped by turning it into '\\'.
 //
-// Examples:
+// Paths can be split into elements by splitting on '/' if the '/' is not
+// escaped. Additionally, corso may operate on segments in a path. Segments are
+// made up of one or more path elements.
+//
+// Examples of paths splitting by elements:
 // 1.
 //   input path: `this/is/a/path`
 //   elements of path: `this`, `is`, `a`, `path`
@@ -17,15 +21,9 @@
 // 4.
 //   input path: `this/is\\\/a/path`
 //   elements of path: `this`, `is\/a`, `path`
-//
-// Internally, corso segments paths into distinct segments:
-// * tenant and service
-// * user, if applicable
-// * subdirectories, if applicable
-// * individual item if not a directory, if applicable
-//
-// Segments that are not required for a particular path are not exposed in any
-// of the functions that return path information.
+// 5.
+//   input path: `this/is//a/path`
+//   elements of path: `this`, `is`, `a`, `path`
 
 package path
 
@@ -33,35 +31,92 @@ import (
 	"errors"
 )
 
+const (
+	emailCategory = "email"
+)
+
 type Path struct {
 }
 
-// NewPath takes a directory path and an individual item name, validates escape
-// characters are used properly, and returns a Path struct. Any segments of the
-// path that are empty are ignored in output functions.
-func NewPath(tenantAndService, user, dirString, item string) (*Path, error) {
+// NewPath takes a path that is broken into segments and elements in the segment
+// and returns a *Path. Each element in the input is escaped.
+func NewPath(segments [][]string) *Path {
+	return nil
+}
+
+// NewPathFromEscapedSegments takes already escaped segments of a path, verifies
+// the segments are escaped properly, and returns a pointer to a new Path
+// struct.
+func NewPathFromEscapedSegments(segments []string) (*Path, error) {
 	return nil, errors.New("not implemented")
 }
 
 // String returns a string that contains all path segments joined
 // together. Elements of the path that need escaping will be escaped.
-func (p *Path) String() string {
+func (p Path) String() string {
 	return ""
 }
 
-// HashedSegments returns a slice of path segments that aligns with the path
-// segmentation corso uses internally. This means that number of segments
-// returned by this function may be less than the number of segments that would
-// be returned by `strings.Split(path, '/')`. Each segment is a hash of the
-// underlying data of the segment. This function can be used to obtain path
-// segments that are safe for external libraries that may not accept special
-// characters or non-ascii characters.
-func (p *Path) HashedSegments() []string {
+// segment returns the nth segment of the path. Path segment indices are
+// 0-based.
+func (p Path) segment(n int) string {
+	return ""
+}
+
+// TransformedSegments returns a slice of the Path segments where each segments
+// has also been transformed such that it contains no characters outside the set
+// of acceptable file system path characters.
+func (p Path) TransformedSegments() []string {
 	return nil
 }
 
-// Elements returns all elements in the path according to path splitting rules
-// that account for escaped characters. See the examples above.
-func (p *Path) Elements() []string {
-	return nil
+type ExchangeMailPath struct {
+	*Path
+}
+
+// NewExchangeEmailPath creates and returns a new ExchangeEmailPath struct after
+// verifying the path is properly escaped and contains information for the
+// required segments.
+func NewExchangeMailPath(
+	tenant string,
+	user string,
+	folder []string,
+	item string,
+) (*ExchangeMailPath, error) {
+	// TODO(ashmrtn): Verify required segments are not empty.
+
+	p := NewPath([][]string{
+		{tenant},
+		{emailCategory},
+		{user},
+		folder,
+		{item},
+	})
+
+	return &ExchangeMailPath{p}, nil
+}
+
+// Tenant returns the tenant ID for the referenced email resource.
+func (emp ExchangeMailPath) Tenant() string {
+	return emp.segment(0)
+}
+
+// Tenant returns an identifier noting this is a path for an email resource.
+func (emp ExchangeMailPath) Category() string {
+	return emp.segment(1)
+}
+
+// Tenant returns the user ID for the referenced email resource.
+func (emp ExchangeMailPath) User() string {
+	return emp.segment(2)
+}
+
+// Tenant returns the folder segment for the referenced email resource.
+func (emp ExchangeMailPath) Folder() string {
+	return emp.segment(3)
+}
+
+// Tenant returns the email ID for the referenced email resource.
+func (emp ExchangeMailPath) Mail() string {
+	return emp.segment(4)
 }
