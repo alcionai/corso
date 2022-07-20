@@ -107,9 +107,11 @@ func (s *exchange) Include(scopes ...[]exchangeScope) {
 // located in folder f1, and ID'd as m1.  Use selectors.Any() to wildcard
 // a scope value.  No value will match if selectors.None() is provided.
 //
-// Group-level scopes will automatically apply the Any() wildcard to child
-// properties.
-// ex: User(u1) is the same as Mail(u1, Any(), Any()).
+// Group-level scopes will automatically apply the Any() wildcard to
+// child properties.
+// ex: User(u1) automatically includes all mail, events, and contacts,
+// therefore it is the same as selecting all of the following:
+// Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
 func (s *exchange) Exclude(scopes ...[]exchangeScope) {
 	if s.Excludes == nil {
 		s.Excludes = []map[string]string{}
@@ -271,7 +273,7 @@ func (s *exchange) Users(users []string) []exchangeScope {
 	return scopes
 }
 
-// Produces one or more exchange contact info filter scopes.
+// Produces one or more exchange mail sender filter scopes.
 // Matches any mail whose sender is equal to one of the provided strings.
 // One scope is created per senderID entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -288,7 +290,7 @@ func (sr *ExchangeRestore) MailSender(senderID []string) []exchangeScope {
 	return scopes
 }
 
-// Produces one or more exchange contact info filter scopes.
+// Produces one or more exchange mail subject filter scopes.
 // Matches any mail whose mail subject contains one of the provided strings.
 // One scope is created per subject entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -305,7 +307,7 @@ func (sr *ExchangeRestore) MailSubject(subjectSubstring []string) []exchangeScop
 	return scopes
 }
 
-// Produces one or more exchange contact info filter scopes.
+// Produces one or more exchange mail received-after filter scopes.
 // Matches any mail which was received after the timestring.
 // One scope is created per timeString entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -322,7 +324,7 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeString []string) []exchangeScop
 	return scopes
 }
 
-// Produces one or more exchange contact info filter scopes.
+// Produces one or more exchange mail received-before filter scopes.
 // Matches any mail which was received before the timestring.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
