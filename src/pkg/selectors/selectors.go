@@ -31,6 +31,9 @@ const (
 	Filter = "filter"
 )
 
+// The granularity exprerssed by the scope.  Groups imply non-item granularity,
+// such as a directory.  Items are individual files or objects.
+>>>>>>> 41aa2da (introduce exchange info selector support)
 const (
 	// AnyTgt is the target value used to select "any data of <type>"
 	// Ex: {user: u1, events: AnyTgt) => all events for user u1.
