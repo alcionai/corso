@@ -52,10 +52,23 @@ func CreateStatus(ctx context.Context, op Operation, objects, success, folders i
 	}
 	return &status
 }
+
+// MergeStatus combines ConnectorOperationsStatus value into a single status
 func MergeStatus(one, two *ConnectorOperationStatus) *ConnectorOperationStatus {
-	var isIncomplete bool
+	if one == nil && two == nil {
+		return nil
+	}
+	if one != nil && two == nil {
+		return one
+
+	}
+	if one == nil && two != nil {
+		return two
+	}
+
+	var hasErrors bool
 	if one.incomplete || two.incomplete {
-		isIncomplete = true
+		hasErrors = true
 	}
 
 	status := ConnectorOperationStatus{
@@ -64,7 +77,7 @@ func MergeStatus(one, two *ConnectorOperationStatus) *ConnectorOperationStatus {
 		folderCount:      one.folderCount + two.folderCount,
 		successful:       one.successful + two.successful,
 		errorCount:       one.errorCount + two.errorCount,
-		incomplete:       isIncomplete,
+		incomplete:       hasErrors,
 		incompleteReason: one.incompleteReason + " " + two.incompleteReason,
 	}
 	return &status
