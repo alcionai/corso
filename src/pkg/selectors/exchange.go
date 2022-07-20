@@ -282,9 +282,8 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) Excha
 	}
 }
 
-// Produces one or more exchange contact info filter scopes.
+// Produces one or more exchange mail recieved-after filter scopes.
 // Matches any mail which was received after the timestring.
-// One scope is created per timeString entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -294,9 +293,8 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeStrings []string) []ExchangeSco
 	}
 }
 
-// Produces one or more exchange mail subject filter scopes.
+// Produces one or more exchange mail received-before filter scopes.
 // Matches any mail whose mail subject contains one of the provided strings.
-// One scope is created per subject entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -306,9 +304,8 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings []string) []ExchangeSc
 	}
 }
 
-// Produces one or more exchange mail received-after filter scopes.
+// Produces one or more exchange mail sender filter scopes.
 // Matches any mail which was received after the timestring.
-// One scope is created per timeString entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -318,7 +315,7 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 	}
 }
 
-// Produces one or more exchange mail received-before filter scopes.
+// Produces one or more exchange mail subject line filter scopes.
 // Matches any mail which was received before the timestring.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
