@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/cli/options"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -16,10 +17,10 @@ import (
 
 // exchange bucket info from flags
 var (
-	folder   string
-	mail     string
-	backupID string
-	user     string
+	emailFolder string
+	email       string
+	backupID    string
+	user        string
 )
 
 // called by restore.go to map parent subcommands to provider-specific handling.
@@ -32,11 +33,12 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd)
-		fs.StringVar(&folder, "folder", "", "Name of the mail folder being restored")
-		fs.StringVar(&mail, "mail", "", "ID of the mail message being restored")
+		fs.StringVar(&emailFolder, "email-folder", "", "Name of the email folder being restored")
+		fs.StringVar(&email, "email", "", "ID of the email being restored")
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 		fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
+		options.AddOperationFlags(c)
 	}
 	return c
 }
@@ -59,7 +61,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateRestoreFlags(user, folder, mail, backupID); err != nil {
+	if err := validateRestoreFlags(user, emailFolder, email, backupID); err != nil {
 		return errors.Wrap(err, "Missing required flags")
 	}
 
@@ -86,7 +88,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, backupID, exchangeRestoreSelectors(user, folder, mail))
+	ro, err := r.NewRestore(ctx, backupID, exchangeRestoreSelectors(user, emailFolder, email), options.OperationOptions())
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
@@ -101,23 +103,18 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 func exchangeRestoreSelectors(u, f, m string) selectors.Selector {
 	sel := selectors.NewExchangeRestore()
-	if u == "*" {
-		u = selectors.All
-	}
-	if f == "*" {
-		f = selectors.All
-	}
-	if m == "*" {
-		m = selectors.All
-	}
 	if len(m) > 0 {
-		sel.Include(sel.Mails(u, f, m))
+		sel.Include(sel.Mails(
+			[]string{u}, []string{f}, []string{m},
+		))
 	}
 	if len(f) > 0 && len(m) == 0 {
-		sel.Include(sel.MailFolders(u, f))
+		sel.Include(sel.MailFolders(
+			[]string{u}, []string{f},
+		))
 	}
 	if len(f) == 0 && len(m) == 0 {
-		sel.Include(sel.Users(u))
+		sel.Include(sel.Users([]string{u}))
 	}
 	return sel.Selector
 }
@@ -127,11 +124,11 @@ func validateRestoreFlags(u, f, m, rpid string) error {
 		return errors.New("a restore point ID is requried")
 	}
 	lu, lf, lm := len(u), len(f), len(m)
-	if (lu == 0 || u == utils.Wildcard) && (lf+lm > 0) {
-		return errors.New("a specific --user must be provided if --folder or --mail is specified")
+	if (lu == 0 || u == "*") && (lf+lm > 0) {
+		return errors.New("a specific --user must be provided if --email-folder or --email is specified")
 	}
-	if (lf == 0 || f == utils.Wildcard) && lm > 0 {
-		return errors.New("a specific --folder must be provided if a --mail is specified")
+	if (lf == 0 || f == "*") && lm > 0 {
+		return errors.New("a specific --email-folder must be provided if a --email is specified")
 	}
 	return nil
 }

@@ -188,7 +188,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 			// TODO: handle "get mail for all users"
 			// this would probably no-op without this check,
 			// but we want it made obvious that we're punting.
-			if user == selectors.All {
+			if user == selectors.AllTgt {
 				errs = support.WrapAndAppend(
 					"all-users",
 					errors.New("all users selector currently not handled"),
@@ -352,9 +352,9 @@ func (gc *GraphConnector) launchProcesses(
 		if ok != iok {
 			return nil, errors.New("task/collection misalignment on " + process)
 		}
-		if !ok {
-			continue // empty
-		}
+		/*if !ok {
+			continue // trying to sen
+		}*/
 		fmt.Printf("Sending: %d tasks: %v %v\n", len(tasks), ok, iok)
 		if gc.servicesRunning < maximumServices {
 			go service.populateFromTaskList(context, tasks, collection, gc.statusCh)

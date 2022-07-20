@@ -14,21 +14,11 @@ import (
 const stableIDKey = "stableID"
 
 var (
-	errNoModelStoreID    = errors.New("model has no ModelStoreID")
-	errNoStableID        = errors.New("model has no StableID")
-	errBadTagKey         = errors.New("tag key overlaps with required key")
-	errModelTypeMismatch = errors.New("model type doesn't match request")
-)
-
-type modelType int
-
-//go:generate go run golang.org/x/tools/cmd/stringer -type=modelType
-const (
-	UnknownModel = modelType(iota)
-	BackupOpModel
-	RestoreOpModel
-	BackupModel
-	BackupDetailsModel
+	errNoModelStoreID     = errors.New("model has no ModelStoreID")
+	errNoStableID         = errors.New("model has no StableID")
+	errBadTagKey          = errors.New("tag key overlaps with required key")
+	errModelTypeMismatch  = errors.New("model type doesn't match request")
+	errUnrecognizedSchema = errors.New("unrecognized model schema")
 )
 
 func NewModelStore(c *conn) (*ModelStore, error) {
@@ -54,20 +44,16 @@ func (ms *ModelStore) Close(ctx context.Context) error {
 	return errors.Wrap(err, "closing ModelStore")
 }
 
-// tagsForModel creates a copy of tags and adds a tag for the model type to it.
-// Returns an error if another tag has the same key as the model type or if a
+// tagsForModel creates a copy of tags and adds a tag for the model schema to it.
+// Returns an error if another tag has the same key as the model schema or if a
 // bad model type is given.
-func tagsForModel(t modelType, tags map[string]string) (map[string]string, error) {
-	if t == UnknownModel {
-		return nil, errors.New("bad model type")
-	}
-
+func tagsForModel(s model.Schema, tags map[string]string) (map[string]string, error) {
 	if _, ok := tags[manifest.TypeLabelKey]; ok {
 		return nil, errors.WithStack(errBadTagKey)
 	}
 
 	res := make(map[string]string, len(tags)+1)
-	res[manifest.TypeLabelKey] = t.String()
+	res[manifest.TypeLabelKey] = s.String()
 	for k, v := range tags {
 		res[k] = v
 	}
@@ -79,15 +65,19 @@ func tagsForModel(t modelType, tags map[string]string) (map[string]string, error
 // StableID to it. Returns an error if another tag has the same key as the model
 // type or if a bad model type is given.
 func tagsForModelWithID(
-	t modelType,
+	s model.Schema,
 	id model.ID,
 	tags map[string]string,
 ) (map[string]string, error) {
+	if !s.Valid() {
+		return nil, errors.New("unrecognized model schema")
+	}
+
 	if len(id) == 0 {
 		return nil, errors.WithStack(errNoStableID)
 	}
 
-	res, err := tagsForModel(t, tags)
+	res, err := tagsForModel(s, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -106,16 +96,20 @@ func tagsForModelWithID(
 func putInner(
 	ctx context.Context,
 	w repo.RepositoryWriter,
-	t modelType,
+	s model.Schema,
 	m model.Model,
 	create bool,
 ) error {
+	if !s.Valid() {
+		return errors.WithStack(errUnrecognizedSchema)
+	}
+
 	base := m.Base()
 	if create {
 		base.StableID = model.ID(uuid.NewString())
 	}
 
-	tmpTags, err := tagsForModelWithID(t, base.StableID, base.Tags)
+	tmpTags, err := tagsForModelWithID(s, base.StableID, base.Tags)
 	if err != nil {
 		// Will be wrapped at a higher layer.
 		return err
@@ -135,15 +129,18 @@ func putInner(
 // given to this function can later be used to help lookup the model.
 func (ms *ModelStore) Put(
 	ctx context.Context,
-	t modelType,
+	s model.Schema,
 	m model.Model,
 ) error {
+	if !s.Valid() {
+		return errors.WithStack(errUnrecognizedSchema)
+	}
 	err := repo.WriteSession(
 		ctx,
 		ms.c,
 		repo.WriteSessionOptions{Purpose: "ModelStorePut"},
 		func(innerCtx context.Context, w repo.RepositoryWriter) error {
-			err := putInner(innerCtx, w, t, m, true)
+			err := putInner(innerCtx, w, s, m, true)
 			if err != nil {
 				return err
 			}
@@ -181,14 +178,18 @@ func baseModelFromMetadata(m *manifest.EntryMetadata) (*model.BaseModel, error) 
 // Update, or Delete.
 func (ms *ModelStore) GetIDsForType(
 	ctx context.Context,
-	t modelType,
+	s model.Schema,
 	tags map[string]string,
 ) ([]*model.BaseModel, error) {
+	if !s.Valid() {
+		return nil, errors.New("unrecognized model schema")
+	}
+
 	if _, ok := tags[stableIDKey]; ok {
 		return nil, errors.WithStack(errBadTagKey)
 	}
 
-	tmpTags, err := tagsForModel(t, tags)
+	tmpTags, err := tagsForModel(s, tags)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting model metadata")
 	}
@@ -217,9 +218,13 @@ func (ms *ModelStore) GetIDsForType(
 // one model has the same StableID.
 func (ms *ModelStore) getModelStoreID(
 	ctx context.Context,
-	t modelType,
+	s model.Schema,
 	id model.ID,
 ) (manifest.ID, error) {
+	if !s.Valid() {
+		return "", errors.New("unrecognized model schema")
+	}
+
 	if len(id) == 0 {
 		return "", errors.WithStack(errNoStableID)
 	}
@@ -236,7 +241,7 @@ func (ms *ModelStore) getModelStoreID(
 	if len(metadata) != 1 {
 		return "", errors.New("multiple models with same StableID")
 	}
-	if metadata[0].Labels[manifest.TypeLabelKey] != t.String() {
+	if metadata[0].Labels[manifest.TypeLabelKey] != s.String() {
 		return "", errors.WithStack(errModelTypeMismatch)
 	}
 
@@ -249,16 +254,20 @@ func (ms *ModelStore) getModelStoreID(
 // or if multiple models have the same StableID.
 func (ms *ModelStore) Get(
 	ctx context.Context,
-	t modelType,
+	s model.Schema,
 	id model.ID,
 	data model.Model,
 ) error {
-	modelID, err := ms.getModelStoreID(ctx, t, id)
+	if !s.Valid() {
+		return errors.WithStack(errUnrecognizedSchema)
+	}
+
+	modelID, err := ms.getModelStoreID(ctx, s, id)
 	if err != nil {
 		return err
 	}
 
-	return ms.GetWithModelStoreID(ctx, t, modelID, data)
+	return ms.GetWithModelStoreID(ctx, s, modelID, data)
 }
 
 // GetWithModelStoreID deserializes the model with the given ModelStoreID into
@@ -267,10 +276,14 @@ func (ms *ModelStore) Get(
 // expected.
 func (ms *ModelStore) GetWithModelStoreID(
 	ctx context.Context,
-	t modelType,
+	s model.Schema,
 	id manifest.ID,
 	data model.Model,
 ) error {
+	if !s.Valid() {
+		return errors.WithStack(errUnrecognizedSchema)
+	}
+
 	if len(id) == 0 {
 		return errors.WithStack(errNoModelStoreID)
 	}
@@ -282,7 +295,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 		return errors.Wrap(err, "getting model data")
 	}
 
-	if metadata.Labels[manifest.TypeLabelKey] != t.String() {
+	if metadata.Labels[manifest.TypeLabelKey] != s.String() {
 		return errors.WithStack(errModelTypeMismatch)
 	}
 
@@ -293,17 +306,21 @@ func (ms *ModelStore) GetWithModelStoreID(
 	return nil
 }
 
-// checkPrevModelVersion compares the modelType and ModelStoreID in this model
+// checkPrevModelVersion compares the ModelType and ModelStoreID in this model
 // to model(s) previously stored in ModelStore that have the same StableID.
 // Returns an error if no models or more than one model has the same StableID or
-// the modelType or ModelStoreID differ between the stored model and the given
+// the ModelType or ModelStoreID differ between the stored model and the given
 // model.
 func (ms *ModelStore) checkPrevModelVersion(
 	ctx context.Context,
-	t modelType,
+	s model.Schema,
 	b *model.BaseModel,
 ) error {
-	id, err := ms.getModelStoreID(ctx, t, b.StableID)
+	if !s.Valid() {
+		return errors.WithStack(errUnrecognizedSchema)
+	}
+
+	id, err := ms.getModelStoreID(ctx, s, b.StableID)
 	if err != nil {
 		return err
 	}
@@ -317,7 +334,7 @@ func (ms *ModelStore) checkPrevModelVersion(
 	if meta.ID != b.ModelStoreID {
 		return errors.New("updated model has different ModelStoreID")
 	}
-	if meta.Labels[manifest.TypeLabelKey] != t.String() {
+	if meta.Labels[manifest.TypeLabelKey] != s.String() {
 		return errors.New("updated model has different model type")
 	}
 
@@ -327,21 +344,25 @@ func (ms *ModelStore) checkPrevModelVersion(
 // Update adds the new version of the model with the given StableID to the model
 // store and deletes the version of the model with old ModelStoreID if the old
 // and new ModelStoreIDs do not match. Returns an error if another model has
-// the same StableID but a different modelType or ModelStoreID or there is no
+// the same StableID but a different ModelType or ModelStoreID or there is no
 // previous version of the model. If an error occurs no visible changes will be
 // made to the stored model.
 func (ms *ModelStore) Update(
 	ctx context.Context,
-	t modelType,
+	s model.Schema,
 	m model.Model,
 ) error {
+	if !s.Valid() {
+		return errors.WithStack(errUnrecognizedSchema)
+	}
+
 	base := m.Base()
 	if len(base.ModelStoreID) == 0 {
 		return errors.WithStack(errNoModelStoreID)
 	}
 
 	// TODO(ashmrtnz): Can remove if bottleneck.
-	if err := ms.checkPrevModelVersion(ctx, t, base); err != nil {
+	if err := ms.checkPrevModelVersion(ctx, s, base); err != nil {
 		return err
 	}
 
@@ -359,7 +380,7 @@ func (ms *ModelStore) Update(
 				}
 			}()
 
-			if innerErr = putInner(innerCtx, w, t, m, false); innerErr != nil {
+			if innerErr = putInner(innerCtx, w, s, m, false); innerErr != nil {
 				return innerErr
 			}
 
@@ -384,8 +405,12 @@ func (ms *ModelStore) Update(
 // Delete deletes the model with the given StableID. Turns into a noop if id is
 // not empty but the model does not exist. Returns an error if multiple models
 // have the same StableID.
-func (ms *ModelStore) Delete(ctx context.Context, t modelType, id model.ID) error {
-	latest, err := ms.getModelStoreID(ctx, t, id)
+func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.ID) error {
+	if !s.Valid() {
+		return errors.WithStack(errUnrecognizedSchema)
+	}
+
+	latest, err := ms.getModelStoreID(ctx, s, id)
 	if err != nil {
 		if errors.Is(err, manifest.ErrNotFound) {
 			return nil

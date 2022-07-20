@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/operations"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/repository"
@@ -171,7 +172,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	r, err := repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)
 
-	bo, err := r.NewBackup(ctx, selectors.Selector{})
+	bo, err := r.NewBackup(ctx, selectors.Selector{}, operations.Options{})
 	require.NoError(t, err)
 	require.NotNil(t, bo)
 }
@@ -190,7 +191,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	r, err := repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)
 
-	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{})
+	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{}, operations.Options{})
 	require.NoError(t, err)
 	require.NotNil(t, ro)
 }
