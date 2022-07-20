@@ -4,7 +4,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -337,7 +336,6 @@ func (gc *GraphConnector) launchProcesses(
 	var count int
 	for aFolder := range taskList {
 		// prep the items for handoff to the backup consumer
-		fmt.Printf("Folder: %s \t%s\n", aFolder, taskList[aFolder])
 		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
 		collections[aFolder] = &edc
 		orderedList[count] = aFolder
