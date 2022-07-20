@@ -24,9 +24,11 @@ const (
 
 // The granularity exprerssed by the scope.  Groups imply non-item granularity,
 // such as a directory.  Items are individual files or objects.
+// Filters are properties that search over service-specific info
 const (
-	Group = "group"
-	Item  = "item"
+	Group  = "group"
+	Item   = "item"
+	Filter = "filter"
 )
 
 const (
