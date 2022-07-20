@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -326,7 +327,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 }
 
 func (gc *GraphConnector) launchProcesses(
-	context context.Context,
+	ctx context.Context,
 	taskList TaskList,
 	user string,
 ) (map[string]*ExchangeDataCollection, error) {
@@ -353,15 +354,14 @@ func (gc *GraphConnector) launchProcesses(
 		if ok != iok {
 			return nil, errors.New("task/collection misalignment on " + process)
 		}
-		/*if !ok {
-			continue // trying to sen
-		}*/
-		fmt.Printf("Sending: %d tasks: %v %v\n", len(tasks), ok, iok)
+		if !ok {
+			continue
+		}
 		if gc.servicesRunning < maximumServices {
-			go service.populateFromTaskList(context, tasks, collection, gc.statusCh)
+			go service.populateFromTaskList(ctx, tasks, collection, gc.statusCh)
 			gc.incrementServices()
 		} else {
-			gc.graphService.populateFromTaskList(context, tasks, collection, gc.statusCh)
+			time.Sleep(30 * time.Second) // Await return of process
 		}
 		gc.incrementAwaitingMessages()
 
@@ -392,8 +392,7 @@ func (sc *graphService) populateFromTaskList(
 
 		if err != nil {
 			errs = support.WrapAndAppendf(edc.user, err, errs)
-		}
-		if err == nil {
+		} else {
 			success++
 		}
 	}
