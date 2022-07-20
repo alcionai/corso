@@ -101,8 +101,8 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Sort() {
 		d []string
 	}{
 
-		a: []string{"hill to", "fetch", "a"},
-		b: []string{"Jack", "and", "Jill"},
+		a: []string{"Jack", "and", "Jill"},
+		b: []string{"hill to", "fetch", "a"},
 		c: []string{"went", "up", "the"},
 		d: []string{"pale", "of", "water"},
 	}

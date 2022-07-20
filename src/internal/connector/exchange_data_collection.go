@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"sort"
-	"strings"
 
 	"github.com/alcionai/corso/pkg/backup"
 )
@@ -65,7 +64,7 @@ func SortDataCollections(dcs []DataCollection) {
 	sort.SliceStable(dcs, func(i, j int) bool {
 		a := dcs[i].FullPath()
 		b := dcs[j].FullPath()
-		return strings.ToLower(a[len(a)-1]) < strings.ToLower(b[len(b)-1])
+		return a[len(a)-1] < b[len(b)-1]
 	})
 
 }
