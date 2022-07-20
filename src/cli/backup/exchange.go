@@ -14,17 +14,21 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
+// ------------------------------------------------------------------------------------------------
+// setup and globals
+// ------------------------------------------------------------------------------------------------
+
 // exchange bucket info from flags
 var (
-	backupDetailsID string
-	exchangeAll     bool
-	exchangeData    []string
-	contact         []string
-	contactFolder   []string
-	email           []string
-	emailFolder     []string
-	event           []string
-	user            []string
+	backupID      string
+	exchangeAll   bool
+	exchangeData  []string
+	contact       []string
+	contactFolder []string
+	email         []string
+	emailFolder   []string
+	event         []string
+	user          []string
 )
 
 const (
@@ -33,13 +37,17 @@ const (
 	dataEvents   = "events"
 )
 
+const exchangeServiceCommand = "exchange"
+
 // called by backup.go to map parent subcommands to provider-specific handling.
 func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
+
 	switch parent.Use {
+
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd)
 		fs.StringArrayVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
@@ -50,12 +58,14 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			nil,
 			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
 		options.AddOperationFlags(c)
+
 	case listCommand:
 		c, _ = utils.AddCommand(parent, exchangeListCmd)
+
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
-		fs.StringVar(&backupDetailsID, "backup-details", "", "ID of the backup details to be shown")
-		cobra.CheckErr(c.MarkFlagRequired("backup-details"))
+		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+		cobra.CheckErr(c.MarkFlagRequired("backup"))
 		fs.StringArrayVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
 		fs.StringArrayVar(
 			&contactFolder,
@@ -76,10 +86,13 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden("contact-folder"))
 		cobra.CheckErr(fs.MarkHidden("event"))
 	}
+
 	return c
 }
 
-const exchangeServiceCommand = "exchange"
+// ------------------------------------------------------------------------------------------------
+// backup create
+// ------------------------------------------------------------------------------------------------
 
 // `corso backup create exchange [<flag>...]`
 var exchangeCreateCmd = &cobra.Command{
@@ -168,7 +181,7 @@ func validateBackupCreateFlags(all bool, users, data []string) error {
 		return errors.New("requries one or more --user ids, the wildcard --user *, or the --all flag.")
 	}
 	if len(data) > 0 && all {
-		return errors.New("--all backs up all data, and cannot be reduced with --data")
+		return errors.New("--all does a backup on all data, and cannot be reduced with --data")
 	}
 	for _, d := range data {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
@@ -177,6 +190,10 @@ func validateBackupCreateFlags(all bool, users, data []string) error {
 	}
 	return nil
 }
+
+// ------------------------------------------------------------------------------------------------
+// backup list
+// ------------------------------------------------------------------------------------------------
 
 // `corso backup list exchange [<flag>...]`
 var exchangeListCmd = &cobra.Command{
@@ -220,6 +237,10 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// ------------------------------------------------------------------------------------------------
+// backup details
+// ------------------------------------------------------------------------------------------------
+
 // `corso backup details exchange [<flag>...]`
 var exchangeDetailsCmd = &cobra.Command{
 	Use:   exchangeServiceCommand,
@@ -252,7 +273,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	d, _, err := r.BackupDetails(ctx, backupDetailsID)
+	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get backup details in the repository")
 	}
@@ -266,7 +287,6 @@ func exchangeBackupDetailSelectors(
 	contacts, contactFolders, emails, emailFolders, events, users []string,
 ) selectors.Selector {
 	sel := selectors.NewExchangeBackup()
-	// normalize the inputs
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
 	lev := len(events)
