@@ -494,6 +494,7 @@ var categoryPathSet = map[exchangeCategory][]exchangeCategory{
 	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
 	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
 	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
+	ExchangeUser:    {ExchangeUser},
 }
 
 // matches returns true if either the path or the info matches the scope details.
@@ -501,8 +502,8 @@ func (s exchangeScope) matches(cat exchangeCategory, path []string, info *backup
 	return s.matchesPath(cat, path) || s.matchesInfo(cat, info)
 }
 
-// checkExchangePath handles the standard behavior when comparing a scope and an exchangeInfo
-// returns onMatch if the scope and info match for the provided category, !onMatch otherwise.
+// matchesInfo handles the standard behavior when comparing a scope and an exchangeInfo
+// returns true if the scope and info match for the provided category.
 func (s exchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
 	// we need values to match against
 	if info == nil {
@@ -544,8 +545,8 @@ func (s exchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeIn
 	return false
 }
 
-// checkExchangePath handles the standard behavior when comparing a scope and a path
-// returns onMatch if the scope and path match for the provided category, !onMatch otherwise.
+// matchesPath handles the standard behavior when comparing a scope and a path
+// returns true if the scope and path match for the provided category.
 func (s exchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 	pathIDs := exchangeIDPath(cat, path)
 	for _, c := range categoryPathSet[cat] {
@@ -565,9 +566,10 @@ func (s exchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 		}
 		// all parts of the scope must match
 		isAny := target[0] == AnyTgt
-		in := contains(target, id)
-		if !isAny && !in {
-			return false
+		if !isAny {
+			if !contains(target, id) {
+				return false
+			}
 		}
 	}
 	return true

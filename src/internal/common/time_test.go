@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/corso/internal/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -27,7 +28,15 @@ func (suite *CommonTimeUnitSuite) TestFormatTime() {
 func (suite *CommonTimeUnitSuite) TestParseTime() {
 	t := suite.T()
 	now := time.Now()
+
 	nowStr := now.Format(time.RFC3339Nano)
-	result := common.ParseTime(nowStr)
+	result, err := common.ParseTime(nowStr)
+	require.NoError(t, err)
 	assert.Equal(t, now.UTC(), result)
+
+	_, err = common.ParseTime("")
+	require.Error(t, err)
+
+	_, err = common.ParseTime("flablabls")
+	require.Error(t, err)
 }

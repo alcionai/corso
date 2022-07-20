@@ -1,6 +1,9 @@
 package common
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // FormatTime produces the standard format for corso time values.
 // Always formats into the UTC timezone.
@@ -10,14 +13,13 @@ func FormatTime(t time.Time) string {
 
 // ParseTime makes a best attempt to produce a time value from
 // the provided string.  Always returns a UTC timezone value.
-// If it is unable to do so, it returns the epoch time instead.
-func ParseTime(s string) time.Time {
+func ParseTime(s string) (time.Time, error) {
 	if len(s) == 0 {
-		return time.Time{}
+		return time.Time{}, errors.New("cannot interpret an empty string as time.Time")
 	}
 	t, err := time.Parse(time.RFC3339Nano, s)
 	if err != nil {
-		return time.Time{}
+		return time.Time{}, err
 	}
-	return t.UTC()
+	return t.UTC(), nil
 }
