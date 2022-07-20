@@ -3,6 +3,7 @@ package selectors
 import (
 	"strings"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/backup"
 )
 
@@ -76,13 +77,22 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // Exclude/Includes
 
 // Include appends the provided scopes to the selector's inclusion set.
+//
+// All parts of the scope must match for data to be included.
+// Ex: Mail(u1, f1, m1) => only includes mail if it is owned by user u1,
+// located in folder f1, and ID'd as m1.  Use selectors.Any() to wildcard
+// a scope value.  No value will match if selectors.None() is provided.
+//
+// Group-level scopes will automatically apply the Any() wildcard to child
+// properties.
+// ex: User(u1) is the same as Mail(u1, Any(), Any()).
 func (s *exchange) Include(scopes ...[]exchangeScope) {
 	if s.Includes == nil {
 		s.Includes = []map[string]string{}
 	}
 	concat := []exchangeScope{}
 	for _, scopeSl := range scopes {
-		concat = append(concat, extendExchangeScopeValues(All(), scopeSl)...)
+		concat = append(concat, extendExchangeScopeValues(scopeSl)...)
 	}
 	for _, sc := range concat {
 		s.Includes = append(s.Includes, map[string]string(sc))
@@ -91,13 +101,22 @@ func (s *exchange) Include(scopes ...[]exchangeScope) {
 
 // Exclude appends the provided scopes to the selector's exclusion set.
 // Every Exclusion scope applies globally, affecting all inclusion scopes.
+//
+// All parts of the scope must match for data to be excluded.
+// Ex: Mail(u1, f1, m1) => only excludes mail that is owned by user u1,
+// located in folder f1, and ID'd as m1.  Use selectors.Any() to wildcard
+// a scope value.  No value will match if selectors.None() is provided.
+//
+// Group-level scopes will automatically apply the Any() wildcard to child
+// properties.
+// ex: User(u1) is the same as Mail(u1, Any(), Any()).
 func (s *exchange) Exclude(scopes ...[]exchangeScope) {
 	if s.Excludes == nil {
 		s.Excludes = []map[string]string{}
 	}
 	concat := []exchangeScope{}
 	for _, scopeSl := range scopes {
-		concat = append(concat, extendExchangeScopeValues(None(), scopeSl)...)
+		concat = append(concat, extendExchangeScopeValues(scopeSl)...)
 	}
 	for _, sc := range concat {
 		s.Excludes = append(s.Excludes, map[string]string(sc))
@@ -106,20 +125,20 @@ func (s *exchange) Exclude(scopes ...[]exchangeScope) {
 
 // completes population for certain scope properties, according to the
 // expecations of Include and Exclude behavior.
-func extendExchangeScopeValues(v []string, es []exchangeScope) []exchangeScope {
-	vv := join(v...)
+func extendExchangeScopeValues(es []exchangeScope) []exchangeScope {
+	v := join(Any()...)
 	for i := range es {
 		switch es[i].Category() {
 		case ExchangeContactFolder:
-			es[i][ExchangeContact.String()] = vv
+			es[i][ExchangeContact.String()] = v
 		case ExchangeMailFolder:
-			es[i][ExchangeMail.String()] = vv
+			es[i][ExchangeMail.String()] = v
 		case ExchangeUser:
-			es[i][ExchangeContactFolder.String()] = vv
-			es[i][ExchangeContact.String()] = vv
-			es[i][ExchangeEvent.String()] = vv
-			es[i][ExchangeMailFolder.String()] = vv
-			es[i][ExchangeMail.String()] = vv
+			es[i][ExchangeContactFolder.String()] = v
+			es[i][ExchangeContact.String()] = v
+			es[i][ExchangeEvent.String()] = v
+			es[i][ExchangeMailFolder.String()] = v
+			es[i][ExchangeMail.String()] = v
 		}
 	}
 	return es
@@ -130,7 +149,7 @@ func extendExchangeScopeValues(v []string, es []exchangeScope) []exchangeScope {
 
 // Produces one or more exchange contact scopes.
 // One scope is created per combination of users,folders,contacts.
-// If any slice contains selectors.All, that slice is reduced to [selectors.All]
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *exchange) Contacts(users, folders, contacts []string) []exchangeScope {
@@ -154,7 +173,7 @@ func (s *exchange) Contacts(users, folders, contacts []string) []exchangeScope {
 
 // Produces one or more exchange contact folder scopes.
 // One scope is created per combination of users,folders.
-// If any slice contains selectors.All, that slice is reduced to [selectors.All]
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *exchange) ContactFolders(users, folders []string) []exchangeScope {
@@ -174,7 +193,7 @@ func (s *exchange) ContactFolders(users, folders []string) []exchangeScope {
 
 // Produces one or more exchange event scopes.
 // One scope is created per combination of users,events.
-// If any slice contains selectors.All, that slice is reduced to [selectors.All]
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *exchange) Events(users, events []string) []exchangeScope {
@@ -194,7 +213,7 @@ func (s *exchange) Events(users, events []string) []exchangeScope {
 
 // Produces one or more mail scopes.
 // One scope is created per combination of users,folders,mails.
-// If any slice contains selectors.All, that slice is reduced to [selectors.All]
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *exchange) Mails(users, folders, mails []string) []exchangeScope {
@@ -218,7 +237,7 @@ func (s *exchange) Mails(users, folders, mails []string) []exchangeScope {
 
 // Produces one or more exchange mail folder scopes.
 // One scope is created per combination of users,folders.
-// If any slice contains selectors.All, that slice is reduced to [selectors.All]
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *exchange) MailFolders(users, folders []string) []exchangeScope {
@@ -238,7 +257,7 @@ func (s *exchange) MailFolders(users, folders []string) []exchangeScope {
 
 // Produces one or more exchange contact user scopes.
 // One scope is created per user entry.
-// If any slice contains selectors.All, that slice is reduced to [selectors.All]
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *exchange) Users(users []string) []exchangeScope {
@@ -248,6 +267,73 @@ func (s *exchange) Users(users []string) []exchangeScope {
 		scopeKeyGranularity:   Group,
 		scopeKeyCategory:      ExchangeUser.String(),
 		ExchangeUser.String(): join(users...),
+	})
+	return scopes
+}
+
+// Produces one or more exchange contact info filter scopes.
+// Matches any mail whose sender is equal to one of the provided strings.
+// One scope is created per senderID entry.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) MailSender(senderID []string) []exchangeScope {
+	scopes := []exchangeScope{}
+	scopes = append(scopes, exchangeScope{
+		scopeKeyGranularity:             Item,
+		scopeKeyCategory:                ExchangeMail.String(),
+		scopeKeyInfoFilter:              ExchangeInfoMailSender.String(),
+		ExchangeInfoMailSender.String(): join(senderID...),
+	})
+	return scopes
+}
+
+// Produces one or more exchange contact info filter scopes.
+// Matches any mail whose mail subject contains one of the provided strings.
+// One scope is created per subject entry.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) MailSubject(subjectSubstring []string) []exchangeScope {
+	scopes := []exchangeScope{}
+	scopes = append(scopes, exchangeScope{
+		scopeKeyGranularity:              Item,
+		scopeKeyCategory:                 ExchangeMail.String(),
+		scopeKeyInfoFilter:               ExchangeInfoMailSubject.String(),
+		ExchangeInfoMailSubject.String(): join(subjectSubstring...),
+	})
+	return scopes
+}
+
+// Produces one or more exchange contact info filter scopes.
+// Matches any mail which was received after the timestring.
+// One scope is created per timeString entry.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) MailReceivedAfter(timeString []string) []exchangeScope {
+	scopes := []exchangeScope{}
+	scopes = append(scopes, exchangeScope{
+		scopeKeyGranularity:                    Item,
+		scopeKeyCategory:                       ExchangeMail.String(),
+		scopeKeyInfoFilter:                     ExchangeInfoMailReceivedAfter.String(),
+		ExchangeInfoMailReceivedAfter.String(): join(timeString...),
+	})
+	return scopes
+}
+
+// Produces one or more exchange contact info filter scopes.
+// Matches any mail which was received before the timestring.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) MailReceivedBefore(timeString []string) []exchangeScope {
+	scopes := []exchangeScope{}
+	scopes = append(scopes, exchangeScope{
+		scopeKeyGranularity:                     Item,
+		scopeKeyCategory:                        ExchangeMail.String(),
+		scopeKeyInfoFilter:                      ExchangeInfoMailReceivedBefore.String(),
+		ExchangeInfoMailReceivedBefore.String(): join(timeString...),
 	})
 	return scopes
 }
@@ -311,16 +397,23 @@ func (s *exchange) Scopes() []exchangeScope {
 //go:generate stringer -type=exchangeCategory
 const (
 	ExchangeCategoryUnknown exchangeCategory = iota
+	// types of data identified by exchange
 	ExchangeContact
 	ExchangeContactFolder
 	ExchangeEvent
 	ExchangeMail
 	ExchangeMailFolder
 	ExchangeUser
+	// filterable topics identified by exchange
+	ExchangeInfoMailSender exchangeCategory = iota + 100 // offset to pad out future data additions
+	ExchangeInfoMailSubject
+	ExchangeInfoMailReceivedAfter
+	ExchangeInfoMailReceivedBefore
 )
 
 func exchangeCatAtoI(s string) exchangeCategory {
 	switch s {
+	// data types
 	case ExchangeContact.String():
 		return ExchangeContact
 	case ExchangeContactFolder.String():
@@ -333,6 +426,15 @@ func exchangeCatAtoI(s string) exchangeCategory {
 		return ExchangeMailFolder
 	case ExchangeUser.String():
 		return ExchangeUser
+	// filters
+	case ExchangeInfoMailSender.String():
+		return ExchangeInfoMailSender
+	case ExchangeInfoMailSubject.String():
+		return ExchangeInfoMailSubject
+	case ExchangeInfoMailReceivedAfter.String():
+		return ExchangeInfoMailReceivedAfter
+	case ExchangeInfoMailReceivedBefore.String():
+		return ExchangeInfoMailReceivedBefore
 	default:
 		return ExchangeCategoryUnknown
 	}
@@ -347,6 +449,11 @@ func (s exchangeScope) Granularity() string {
 // Category describes the type of the data in scope.
 func (s exchangeScope) Category() exchangeCategory {
 	return exchangeCatAtoI(s[scopeKeyCategory])
+}
+
+// Filer describes the specific filter, and its target values.
+func (s exchangeScope) Filter() exchangeCategory {
+	return exchangeCatAtoI(s[scopeKeyInfoFilter])
 }
 
 // IncludeCategory checks whether the scope includes a
@@ -389,60 +496,81 @@ var categoryPathSet = map[exchangeCategory][]exchangeCategory{
 	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
 }
 
-// includesPath returns true if all filters in the scope match the path.
-func (s exchangeScope) includesPath(cat exchangeCategory, path []string) bool {
-	ids := exchangeIDPath(cat, path)
+// matches returns true if either the path or the info matches the scope details.
+func (s exchangeScope) matches(cat exchangeCategory, path []string, info *backup.ExchangeInfo) bool {
+	return s.matchesPath(cat, path) || s.matchesInfo(cat, info)
+}
+
+// checkExchangePath handles the standard behavior when comparing a scope and an exchangeInfo
+// returns onMatch if the scope and info match for the provided category, !onMatch otherwise.
+func (s exchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
+	// we need values to match against
+	if info == nil {
+		return false
+	}
+	// the scope must define targets to match on
+	filterCat := s.Filter()
+	targets := s.Get(filterCat)
+	if len(targets) == 0 {
+		return false
+	}
+	if targets[0] == AnyTgt {
+		return true
+	}
+	if targets[0] == NoneTgt {
+		return false
+	}
+	// any of the targets for a given info filter may succeed.
+	for _, target := range targets {
+		switch filterCat {
+		case ExchangeInfoMailSender:
+			if target == info.Sender {
+				return true
+			}
+		case ExchangeInfoMailSubject:
+			if strings.Contains(info.Subject, target) {
+				return true
+			}
+		case ExchangeInfoMailReceivedAfter:
+			if target < common.FormatTime(info.Received) {
+				return true
+			}
+		case ExchangeInfoMailReceivedBefore:
+			if target > common.FormatTime(info.Received) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkExchangePath handles the standard behavior when comparing a scope and a path
+// returns onMatch if the scope and path match for the provided category, !onMatch otherwise.
+func (s exchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
+	pathIDs := exchangeIDPath(cat, path)
 	for _, c := range categoryPathSet[cat] {
 		target := s.Get(c)
+		// the scope must define the targets to match on
 		if len(target) == 0 {
 			return false
 		}
-		id, ok := ids[c]
+		// None() fails all matches
+		if target[0] == NoneTgt {
+			return false
+		}
+		// the path must contain a value to match against
+		id, ok := pathIDs[c]
 		if !ok {
 			return false
 		}
-		if target[0] != AllTgt && !contains(target, id) {
+		// all parts of the scope must match
+		isAny := target[0] == AnyTgt
+		in := contains(target, id)
+		if !isAny && !in {
 			return false
 		}
 	}
 	return true
-}
-
-// includesInfo returns true if all filters in the scope match the info.
-func (s exchangeScope) includesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
-	// todo: implement once filters used in scopes
-	if info == nil {
-		return false
-	}
-	return false
-}
-
-// excludesPath returns true if all filters in the scope match the path.
-func (s exchangeScope) excludesPath(cat exchangeCategory, path []string) bool {
-	ids := exchangeIDPath(cat, path)
-	for _, c := range categoryPathSet[cat] {
-		target := s.Get(c)
-		if len(target) == 0 {
-			return true
-		}
-		id, ok := ids[c]
-		if !ok {
-			return true
-		}
-		if target[0] == AllTgt || contains(target, id) {
-			return true
-		}
-	}
-	return false
-}
-
-// excludesInfo returns true if all filters in the scope matche the info.
-func (s exchangeScope) excludesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
-	// todo: implement once filters used in scopes
-	if info == nil {
-		return false
-	}
-	return false
 }
 
 // temporary helper until filters replace string values for scopes.
@@ -577,7 +705,7 @@ func matchExchangeEntry(
 ) bool {
 	var included bool
 	for _, inc := range incs {
-		if inc.includesPath(cat, path) || inc.includesInfo(cat, info) {
+		if inc.matches(cat, path, info) {
 			included = true
 			break
 		}
@@ -588,7 +716,7 @@ func matchExchangeEntry(
 
 	var excluded bool
 	for _, exc := range excs {
-		if exc.excludesPath(cat, path) || exc.excludesInfo(cat, info) {
+		if exc.matches(cat, path, info) {
 			excluded = true
 			break
 		}

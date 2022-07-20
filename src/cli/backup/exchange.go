@@ -156,22 +156,22 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 func exchangeExchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
 	sel := selectors.NewExchangeBackup()
 	if all {
-		sel.Include(sel.Users(selectors.All()))
+		sel.Include(sel.Users(selectors.Any()))
 		return sel.Selector
 	}
 	if len(data) == 0 {
-		sel.Include(sel.ContactFolders(user, selectors.All()))
-		sel.Include(sel.MailFolders(user, selectors.All()))
-		sel.Include(sel.Events(user, selectors.All()))
+		sel.Include(sel.ContactFolders(user, selectors.Any()))
+		sel.Include(sel.MailFolders(user, selectors.Any()))
+		sel.Include(sel.Events(user, selectors.Any()))
 	}
 	for _, d := range data {
 		switch d {
 		case dataContacts:
-			sel.Include(sel.ContactFolders(users, selectors.All()))
+			sel.Include(sel.ContactFolders(users, selectors.Any()))
 		case dataEmail:
-			sel.Include(sel.MailFolders(users, selectors.All()))
+			sel.Include(sel.MailFolders(users, selectors.Any()))
 		case dataEvents:
-			sel.Include(sel.Events(users, selectors.All()))
+			sel.Include(sel.Events(users, selectors.Any()))
 		}
 	}
 	return sel.Selector
@@ -318,7 +318,7 @@ func exchangeBackupDetailSelectors(
 
 	// if only the backupID is provided, treat that as an --all query
 	if lc+lcf+le+lef+lev+lu == 0 {
-		sel.Include(sel.Users(selectors.All()))
+		sel.Include(sel.Users(selectors.Any()))
 		return sel.Selector
 	}
 

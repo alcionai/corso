@@ -15,15 +15,30 @@ func _() {
 	_ = x[ExchangeMail-4]
 	_ = x[ExchangeMailFolder-5]
 	_ = x[ExchangeUser-6]
+	_ = x[ExchangeInfoMailSender-107]
+	_ = x[ExchangeInfoMailSubject-108]
+	_ = x[ExchangeInfoMailReceivedAfter-109]
+	_ = x[ExchangeInfoMailReceivedBefore-110]
 }
 
-const _exchangeCategory_name = "ExchangeCategoryUnknownExchangeContactExchangeContactFolderExchangeEventExchangeMailExchangeMailFolderExchangeUser"
+const (
+	_exchangeCategory_name_0 = "ExchangeCategoryUnknownExchangeContactExchangeContactFolderExchangeEventExchangeMailExchangeMailFolderExchangeUser"
+	_exchangeCategory_name_1 = "ExchangeInfoMailSenderExchangeInfoMailSubjectExchangeInfoMailReceivedAfterExchangeInfoMailReceivedBefore"
+)
 
-var _exchangeCategory_index = [...]uint8{0, 23, 38, 59, 72, 84, 102, 114}
+var (
+	_exchangeCategory_index_0 = [...]uint8{0, 23, 38, 59, 72, 84, 102, 114}
+	_exchangeCategory_index_1 = [...]uint8{0, 22, 45, 74, 104}
+)
 
 func (i exchangeCategory) String() string {
-	if i < 0 || i >= exchangeCategory(len(_exchangeCategory_index)-1) {
+	switch {
+	case 0 <= i && i <= 6:
+		return _exchangeCategory_name_0[_exchangeCategory_index_0[i]:_exchangeCategory_index_0[i+1]]
+	case 107 <= i && i <= 110:
+		i -= 107
+		return _exchangeCategory_name_1[_exchangeCategory_index_1[i]:_exchangeCategory_index_1[i+1]]
+	default:
 		return "exchangeCategory(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _exchangeCategory_name[_exchangeCategory_index[i]:_exchangeCategory_index[i+1]]
 }
