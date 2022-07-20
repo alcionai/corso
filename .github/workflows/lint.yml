@@ -20,24 +20,24 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
-
-      - name: Cache Go build
-        uses: actions/cache@v3
-        id: mybuild
-        with:
-          path: ~/.cache/go-build
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum')}}
       
       - name: Cache Go Mod
         uses: actions/cache@v3
         id: cache
         with:
           path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-mod${{ hashFiles('**/go.sum')}}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
       - name: Download package dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: go mod download
+
+      - name: Cache Go build
+        uses: actions/cache@v3
+        id: mybuild
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
 
       - name: Build for Lint
         if: steps.mybuild.outputs.cache-hit != 'true'

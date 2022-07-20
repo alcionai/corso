@@ -27,13 +27,7 @@ jobs:
         with:
           go-version: 1.18
 
-      - name: Cache Go build
-        uses: actions/cache@v3
-        id: mybuild
-        with:
-          path: ~/.cache/go-build
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-
+      # download packages
       - name: Cache Go Mod
         uses: actions/cache@v3
         id: cache
@@ -45,19 +39,30 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: go mod download
 
+      # build the binary
+      - name: Cache Go build
+        uses: actions/cache@v3
+        id: mybuild
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
       - name: Go build
         if: steps.mybuild.outputs.cache-hit != 'true'
         run: go build ./...
 
+      # check licenses
       - name: Get go-licenses
         run: go install github.com/google/go-licenses@latest
 
       - name: Run go-licenses
         run: go-licenses check github.com/alcionai/corso --ignore github.com/alcionai/corso
 
+      # gofmt
       - name: Run gofmt
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
 
+      # AWS creds
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -65,6 +70,7 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
+      # run the tests
       - run: echo "Running ${{ github.repository }} deployment unit tests at ${{ env.TIME_OF_TEST }}."
       - name: Deployment Tests
         env:
