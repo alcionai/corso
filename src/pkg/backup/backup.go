@@ -77,6 +77,16 @@ type DetailsEntry struct {
 	ItemInfo
 }
 
+// Paths returns the list of Paths extracted from the Entriess slice.
+func (dm DetailsModel) Paths() []string {
+	ents := dm.Entries
+	r := make([]string, len(ents))
+	for i := range ents {
+		r[i] = ents[i].RepoRef
+	}
+	return r
+}
+
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
 func (de DetailsEntry) Headers() []string {
