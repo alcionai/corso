@@ -8,7 +8,7 @@
 // escaped. Additionally, corso may operate on segments in a path. Segments are
 // made up of one or more path elements.
 //
-// Examples of paths splitting by elements:
+// Examples of paths splitting by elements and canonicalization with escaping:
 // 1.
 //   input path: `this/is/a/path`
 //   elements of path: `this`, `is`, `a`, `path`
@@ -24,6 +24,15 @@
 // 5.
 //   input path: `this/is//a/path`
 //   elements of path: `this`, `is`, `a`, `path`
+// 6.
+//   input path: `this/is\//a/path`
+//   elements of path: `this`, `is/`, `a`, `path`
+// 7.
+//   input path: `this/is/a/path/`
+//   elements of path: `this`, `is`, `a`, `path`
+// 8.
+//   input path: `this/is/a/path\/`
+//   elements of path: `this`, `is`, `a`, `path/`
 
 package path
 
@@ -39,15 +48,15 @@ type Path struct {
 }
 
 // NewPath takes a path that is broken into segments and elements in the segment
-// and returns a *Path. Each element in the input is escaped.
-func NewPath(segments [][]string) *Path {
+// and returns a Path. Each element in the input is escaped.
+func NewPath(segments [][]string) Path {
 	return nil
 }
 
 // NewPathFromEscapedSegments takes already escaped segments of a path, verifies
-// the segments are escaped properly, and returns a pointer to a new Path
-// struct.
-func NewPathFromEscapedSegments(segments []string) (*Path, error) {
+// the segments are escaped properly, and returns a new Path struct. If there is
+// an unescaped trailing '/' it is removed.
+func NewPathFromEscapedSegments(segments []string) (Path, error) {
 	return nil, errors.New("not implemented")
 }
 
