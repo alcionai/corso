@@ -22,12 +22,6 @@ const (
 	scopeKeyInfoFilter  = "info_filter"
 )
 
-// used to identify a behavior as either an exclusion or an inclusion.
-const (
-	include = "include"
-	exclude = "exclude"
-)
-
 // The granularity exprerssed by the scope.  Groups imply non-item granularity,
 // such as a directory.  Items are individual files or objects.
 const (
