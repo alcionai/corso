@@ -93,7 +93,7 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, validateBackupCreateFlags(test.all, test.user, test.data))
+			test.expect(t, validateExchangeBackupCreateFlags(test.all, test.user, test.data))
 		})
 	}
 }

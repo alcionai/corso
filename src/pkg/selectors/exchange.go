@@ -391,7 +391,7 @@ var categoryPathSet = map[exchangeCategory][]exchangeCategory{
 
 // includesPath returns true if all filters in the scope match the path.
 func (s exchangeScope) includesPath(cat exchangeCategory, path []string) bool {
-	ids := idPath(cat, path)
+	ids := exchangeIDPath(cat, path)
 	for _, c := range categoryPathSet[cat] {
 		target := s.Get(c)
 		if len(target) == 0 {
@@ -408,9 +408,18 @@ func (s exchangeScope) includesPath(cat exchangeCategory, path []string) bool {
 	return true
 }
 
+// includesInfo returns true if all filters in the scope match the info.
+func (s exchangeScope) includesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
+	// todo: implement once filters used in scopes
+	if info == nil {
+		return false
+	}
+	return false
+}
+
 // excludesPath returns true if all filters in the scope match the path.
 func (s exchangeScope) excludesPath(cat exchangeCategory, path []string) bool {
-	ids := idPath(cat, path)
+	ids := exchangeIDPath(cat, path)
 	for _, c := range categoryPathSet[cat] {
 		target := s.Get(c)
 		if len(target) == 0 {
@@ -423,6 +432,15 @@ func (s exchangeScope) excludesPath(cat exchangeCategory, path []string) bool {
 		if target[0] == AllTgt || contains(target, id) {
 			return true
 		}
+	}
+	return false
+}
+
+// excludesInfo returns true if all filters in the scope matche the info.
+func (s exchangeScope) excludesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
+	// todo: implement once filters used in scopes
+	if info == nil {
+		return false
 	}
 	return false
 }
@@ -446,7 +464,7 @@ func contains(super []string, sub string) bool {
 // Example:
 // [tenantID, userID, "mail", mailFolder, mailID]
 // => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
-func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
+func exchangeIDPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
 	m := map[exchangeCategory]string{}
 	if len(path) == 0 {
 		return m
@@ -484,7 +502,7 @@ func idPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
 
 // FilterDetails reduces the entries in a backupDetails struct to only
 // those that match the inclusions and exclusions in the selector.
-func (s *ExchangeRestore) FilterDetails(deets *backup.Details) [][]string {
+func (s *ExchangeRestore) FilterDetails(deets *backup.Details) *backup.Details {
 	if deets == nil {
 		return nil
 	}
@@ -492,9 +510,10 @@ func (s *ExchangeRestore) FilterDetails(deets *backup.Details) [][]string {
 	entIncs := exchangeScopesByCategory(s.Includes)
 	entExcs := exchangeScopesByCategory(s.Excludes)
 
-	refs := [][]string{}
+	ents := []backup.DetailsEntry{}
 
 	for _, ent := range deets.Entries {
+		// todo: use Path pkg for this
 		path := strings.Split(ent.RepoRef, "/")
 		// not all paths will be len=3.  Most should be longer.
 		// This just protects us from panicing four lines later.
@@ -513,14 +532,16 @@ func (s *ExchangeRestore) FilterDetails(deets *backup.Details) [][]string {
 		matched := matchExchangeEntry(
 			cat,
 			path,
+			ent.Exchange,
 			entIncs[cat.String()],
 			entExcs[cat.String()])
 		if matched {
-			refs = append(refs, path)
+			ents = append(ents, ent)
 		}
 	}
 
-	return refs
+	deets.Entries = ents
+	return deets
 }
 
 // groups each scope by its category of data (contact, event, or mail).
@@ -548,10 +569,15 @@ func exchangeScopesByCategory(scopes []map[string]string) map[string][]exchangeS
 
 // compare each path to the included and excluded exchange scopes.  Returns true
 // if the path is included, and not excluded.
-func matchExchangeEntry(cat exchangeCategory, path []string, incs, excs []exchangeScope) bool {
+func matchExchangeEntry(
+	cat exchangeCategory,
+	path []string,
+	info *backup.ExchangeInfo,
+	incs, excs []exchangeScope,
+) bool {
 	var included bool
 	for _, inc := range incs {
-		if inc.includesPath(cat, path) {
+		if inc.includesPath(cat, path) || inc.includesInfo(cat, info) {
 			included = true
 			break
 		}
@@ -562,7 +588,7 @@ func matchExchangeEntry(cat exchangeCategory, path []string, incs, excs []exchan
 
 	var excluded bool
 	for _, exc := range excs {
-		if exc.excludesPath(cat, path) {
+		if exc.excludesPath(cat, path) || exc.excludesInfo(cat, info) {
 			excluded = true
 			break
 		}

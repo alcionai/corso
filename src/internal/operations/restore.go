@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -95,7 +96,13 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 
 	// format the details and retrieve the items from kopia
 	fds := er.FilterDetails(d)
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, fds)
+	// todo: use path pkg for this
+	fdsPaths := fds.Paths()
+	paths := make([][]string, len(fdsPaths))
+	for i := range fdsPaths {
+		paths[i] = strings.Split(fdsPaths[i], "/")
+	}
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths)
 	if err != nil {
 		stats.readErr = errors.Wrap(err, "retrieving service data")
 		return stats.readErr
