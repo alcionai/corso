@@ -482,7 +482,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 
 func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailInfoSelectors() {
 	stub := []string{"id-stub"}
-	stubs := []string{"smarfs", "fnords"}
+	twoStubs := []string{"smarfs", "fnords"}
 	any := []string{utils.Wildcard}
 	table := []struct {
 		name                           string
@@ -505,7 +505,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailInfoSelectors() {
 		},
 		{
 			name:             "multiple receivedAfter",
-			after:            stubs,
+			after:            twoStubs,
 			expectIncludeLen: 1,
 		},
 		{
@@ -520,7 +520,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailInfoSelectors() {
 		},
 		{
 			name:             "multiple receivedBefore",
-			before:           stubs,
+			before:           twoStubs,
 			expectIncludeLen: 1,
 		},
 		{
@@ -535,7 +535,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailInfoSelectors() {
 		},
 		{
 			name:             "multiple senders",
-			sender:           stubs,
+			sender:           twoStubs,
 			expectIncludeLen: 1,
 		},
 		{
@@ -550,7 +550,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailInfoSelectors() {
 		},
 		{
 			name:             "multiple subjects",
-			subject:          stubs,
+			subject:          twoStubs,
 			expectIncludeLen: 1,
 		},
 		{
