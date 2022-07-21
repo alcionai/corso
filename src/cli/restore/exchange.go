@@ -44,7 +44,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringArrayVar(&contact, "contact", nil, "Resore contacts by ID; accepts "+utils.Wildcard+" to selectt all contacts")
+		fs.StringArrayVar(&contact, "contact", nil, "Retsore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
 		fs.StringArrayVar(
 			&contactFolder,
 			"contact-folder",
@@ -55,7 +55,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			&emailFolder,
 			"email-folder",
 			nil,
-			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folderss")
+			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders")
 		fs.StringArrayVar(&event, "event", nil, "Restore events by ID; accepts "+utils.Wildcard+" to select all events")
 		fs.StringArrayVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
 
@@ -65,10 +65,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden("event"))
 
 		// exchange-info flags
-		fs.StringArrayVar(&emailReceivedAfter, "email-received-after", nil, "Resore mail where the email was received after this datetime")
+		fs.StringArrayVar(&emailReceivedAfter, "email-received-after", nil, "Restore mail where the email was received after this datetime")
 		fs.StringArrayVar(&emailReceivedBefore, "email-received-before", nil, "Restore mail where the email was received before this datetime")
 		fs.StringArrayVar(&emailSender, "email-sender", nil, "Restore mail where the email sender matches this user id")
-		fs.StringArrayVar(&emailSubject, "email-subject", nil, "Resore mail where the email subject lines contain this value")
+		fs.StringArrayVar(&emailSubject, "email-subject", nil, "Restore mail where the email subject lines contain this value")
 
 		// others
 		options.AddOperationFlags(c)
