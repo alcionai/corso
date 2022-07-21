@@ -108,7 +108,7 @@ func createMailFolder(gc graphService, user, folder string) (models.MailFolderab
 	return gc.client.UsersById(user).MailFolders().Post(requestBody)
 }
 
-// deleteMailFolder removes mail folder from the user's M365 Exchange account
+// deleteMailFolder removes the mail folder from the user's M365 Exchange account
 func deleteMailFolder(gc graphService, user, folderID string) error {
 	return gc.client.UsersById(user).MailFoldersById(folderID).Delete()
 }
