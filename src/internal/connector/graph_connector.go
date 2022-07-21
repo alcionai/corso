@@ -43,8 +43,9 @@ type GraphConnector struct {
 }
 
 type graphService struct {
-	client  msgraphsdk.GraphServiceClient
-	adapter msgraphsdk.GraphRequestAdapter
+	client   msgraphsdk.GraphServiceClient
+	adapter  msgraphsdk.GraphRequestAdapter
+	failFast bool // if true service will exit sequence upon encountering an error
 }
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
@@ -59,7 +60,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 		statusCh:    make(chan *support.ConnectorOperationStatus),
 		credentials: m365,
 	}
-	aService, err := gc.createService()
+	aService, err := gc.createService(false)
 	if err != nil {
 		return nil, err
 	}
@@ -86,16 +87,20 @@ func createAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 }
 
 // createSubConnector private constructor method for subConnector
-func (gc *GraphConnector) createService() (*graphService, error) {
+func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
 	adapter, err := createAdapter(gc.credentials.TenantID, gc.credentials.ClientID, gc.credentials.ClientSecret)
 	if err != nil {
 		return nil, err
 	}
 	connector := graphService{
-		adapter: *adapter,
-		client:  *msgraphsdk.NewGraphServiceClient(adapter),
+		adapter:  *adapter,
+		client:   *msgraphsdk.NewGraphServiceClient(adapter),
+		failFast: shouldFailFast,
 	}
 	return &connector, err
+}
+func (gs *graphService) EnableFailFast() {
+	gs.failFast = true
 }
 
 // createMailFolder will create a mail folder iff a folder of the same name does not exit
@@ -350,7 +355,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		// return empty collection when no items found
 		return nil, err
 	}
-	service, err := gc.createService()
+	service, err := gc.createService(gc.failFast)
 	if err != nil {
 		return nil, support.WrapAndAppend(user, err, err)
 	}
@@ -395,6 +400,9 @@ func (sc *graphService) populateFromTaskList(
 			if err != nil {
 				errs = support.WrapAndAppendf(edc.user, err, errs)
 				success--
+			}
+			if errs != nil && sc.failFast {
+				break
 			}
 		}
 
