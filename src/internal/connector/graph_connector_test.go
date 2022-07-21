@@ -91,8 +91,20 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
-// ---------------------------------------------------------------------------
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
+	user := "lidiah@8qzvrj.onmicrosoft.com"
+	folderName := "createdForTest"
+	aFolder, err := createMailFolder(suite.connector.graphService, user, folderName)
+	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	if aFolder != nil {
+		err = deleteMailFolder(suite.connector.graphService, user, *aFolder.GetId())
+		assert.NoError(suite.T(), err)
+	}
+}
 
+// ---------------------------------------------------------------
+// Disconnected Test Section
+// -------------------------
 type DisconnectedGraphConnectorSuite struct {
 	suite.Suite
 }
