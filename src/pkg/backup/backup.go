@@ -77,7 +77,7 @@ type DetailsEntry struct {
 	ItemInfo
 }
 
-// Paths returns the list of Paths extracted from the Entriess slice.
+// Paths returns the list of Paths extracted from the Entries slice.
 func (dm DetailsModel) Paths() []string {
 	ents := dm.Entries
 	r := make([]string, len(ents))
