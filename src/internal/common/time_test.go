@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/common"
 )
 
 type CommonTimeUnitSuite struct {
