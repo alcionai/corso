@@ -49,10 +49,10 @@ func Contains(elems []string, value string) bool {
 	return false
 }
 
-// HasMailFolder helper function to see if MailFolder exists
-func HasMailFolder(name, user string, service graphService) (bool, error) {
+// HasMailFolder helper function to see if MailFolder exists returns folderId
+func HasMailFolder(name, user string, service graphService) (*string, error) {
 	var errs error
-	isAvailable := false
+	var isAvailable *string
 	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
 		return isAvailable, err
@@ -72,7 +72,7 @@ func HasMailFolder(name, user string, service graphService) (bool, error) {
 			return true
 		}
 		if *folder.GetDisplayName() == name {
-			isAvailable = true
+			isAvailable = folder.GetId()
 		}
 		return true
 	}

@@ -3,13 +3,13 @@ package connector
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/support"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
@@ -84,13 +84,11 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_Restore() {
 	if err != nil {
 		suite.T().Skipf("Support file not accessible: %v\n", err)
 	}
-	suite.T().Log("We are seeing the new test")
 	ds := ExchangeData{id: "test", message: bytes}
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(&ds)
-	edc.data <- &ds
 	edc.FinishPopulation()
-	err = suite.connector.Restore(context.Background(), common.Replace, []DataCollection{&edc})
+	err = suite.connector.Restore(context.Background(), []DataCollection{&edc})
 	assert.NoError(suite.T(), err)
 }
 
@@ -100,30 +98,34 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_HasFolder() {
 	require.NoError(suite.T(), err)
 	response, err := HasMailFolder("Inbox", evs[user], suite.connector.graphService)
 	assert.NoError(suite.T(), err)
-	suite.True(response)
+	assert.NotNil(suite.T(), response)
 	response, err = HasMailFolder("A_Wacky_World_Of_NonExistance", evs[user], suite.connector.graphService)
 	assert.NoError(suite.T(), err)
-	suite.False(response)
+	assert.Nil(suite.T(), response)
 
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
+	_, err := ctesting.GetRequiredEnvVars("CORSO_CI_TESTS")
+
+	t := suite.T()
 	user := "TEST_GRAPH_USER"
 	evs, err := ctesting.GetRequiredEnvVars(user)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 	folderName := "createdForTest"
-	aFolder, err := createMailFolder(suite.connector.graphService, evs[user], folderName)
-	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	_, err = createMailFolder(suite.connector.graphService, evs[user], folderName)
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	response, err := HasMailFolder(folderName, evs[user], suite.connector.graphService)
-	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
-	suite.True(response)
-	if aFolder != nil {
-		err = deleteMailFolder(suite.connector.graphService, user, *aFolder.GetId())
-		assert.NoError(suite.T(), err)
-	}
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+	require.NotNil(t, response)
+	time.Sleep(2 * time.Second) // Give time for the folder to populate
+	// Delete Folder not working in         github.com/microsoftgraph/msgraph-sdk-go v0.28.0
+	err = deleteMailFolder(suite.connector.graphService, evs[user], *response)
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	response, err = HasMailFolder(folderName, evs[user], suite.connector.graphService)
-	assert.NoError(suite.T(), err)
-	suite.False(response)
+	assert.NoError(t, err)
+	assert.Nil(t, response)
+
 }
 
 // ---------------------------------------------------------------
@@ -260,7 +262,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 			nonRecoverable := IsNonRecoverableError(test.err)
 			test.returnRecoverable(suite.T(), recoverable, "Test: %s Recoverable-received %v", test.name, recoverable)
 			test.returnNonRecoverable(suite.T(), nonRecoverable, "Test: %s non-recoverable: %v", test.name, nonRecoverable)
-			t.Logf("Is nil: %v", test.err == nil)
 		})
 	}
 }

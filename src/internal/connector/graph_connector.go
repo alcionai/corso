@@ -30,7 +30,7 @@ import (
 const (
 	numberOfRetries  = 4
 	mailCategory     = "mail"
-	timeFolderFormat = "Jan-02-06"
+	timeFolderFormat = "Jan-02-2006"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -305,24 +305,26 @@ func restoreMessage(bits []byte, service graphService, rp common.RestorePolicy, 
 	clone.SetIsDraft(&draft)
 
 	if rp == common.Copy {
-		isCreated, err := HasMailFolder(destination, user, service)
+		folderId, err := HasMailFolder(destination, user, service)
 		if err != nil {
 			return err
 		}
-		if !isCreated {
+		if folderId == nil {
 			tempFolder, err := createMailFolder(service, user, destination)
 			if err != nil {
 				return err
 			}
-			destination = *tempFolder.GetId()
+			folderId = tempFolder.GetId()
 		}
-		sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(clone)
+
+		sentMessage, err := service.client.UsersById(user).MailFoldersById(*folderId).Messages().Post(clone)
 		if err != nil {
 			return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 		}
 		if sentMessage == nil && err == nil {
 			err = errors.New("Message not Sent: Blocked by server")
 		}
+
 	}
 
 	return err
