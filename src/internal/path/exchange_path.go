@@ -10,6 +10,8 @@ const (
 	emailCategory = "email"
 )
 
+var _ Path = &ExchangeMail{}
+
 type ExchangeMail struct {
 	Base
 }
@@ -17,7 +19,7 @@ type ExchangeMail struct {
 // NewExchangeEmailPath creates and returns a new ExchangeEmailPath struct after
 // verifying the path is properly escaped and contains information for the
 // required segments.
-func NewExchangeMailPath(
+func NewExchangeMail(
 	tenant string,
 	user string,
 	folder []string,
@@ -39,7 +41,7 @@ func NewExchangeMailPath(
 	return &ExchangeMail{p}, nil
 }
 
-func NewPathFromEscapedSegments(tenant, user, folder, item string) (*ExchangeMail, error) {
+func NewExchangeMailFromEscapedSegments(tenant, user, folder, item string) (*ExchangeMail, error) {
 	if err := validateExchangeMailSegments(tenant, user, folder, item); err != nil {
 		return nil, err
 	}
@@ -97,6 +99,6 @@ func (emp ExchangeMail) FolderElements() []string {
 }
 
 // Mail returns the email ID for the referenced email resource.
-func (emp ExchangeMail) Mail() string {
+func (emp ExchangeMail) Item() string {
 	return emp.segment(4)
 }
