@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/support"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
@@ -72,7 +73,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_Restore() {
 	user := "TEST_GRAPH_USER" // user.GetId()
 	file := "TEST_GRAPH_FILE" // Test file should be sent or received by the user
 	evs, err := ctesting.GetRequiredEnvVars(user, file)
@@ -83,23 +84,46 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	if err != nil {
 		suite.T().Skipf("Support file not accessible: %v\n", err)
 	}
+	suite.T().Log("We are seeing the new test")
 	ds := ExchangeData{id: "test", message: bytes}
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(&ds)
+	edc.data <- &ds
 	edc.FinishPopulation()
-	err = suite.connector.RestoreMessages(context.Background(), []DataCollection{&edc})
+	err = suite.connector.Restore(context.Background(), common.Replace, []DataCollection{&edc})
 	assert.NoError(suite.T(), err)
 }
 
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_HasFolder() {
+	user := "TEST_GRAPH_USER"
+	evs, err := ctesting.GetRequiredEnvVars(user)
+	require.NoError(suite.T(), err)
+	response, err := HasMailFolder("Inbox", evs[user], suite.connector.graphService)
+	assert.NoError(suite.T(), err)
+	suite.True(response)
+	response, err = HasMailFolder("A_Wacky_World_Of_NonExistance", evs[user], suite.connector.graphService)
+	assert.NoError(suite.T(), err)
+	suite.False(response)
+
+}
+
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
-	user := "lidiah@8qzvrj.onmicrosoft.com"
+	user := "TEST_GRAPH_USER"
+	evs, err := ctesting.GetRequiredEnvVars(user)
+	require.NoError(suite.T(), err)
 	folderName := "createdForTest"
-	aFolder, err := createMailFolder(suite.connector.graphService, user, folderName)
+	aFolder, err := createMailFolder(suite.connector.graphService, evs[user], folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	response, err := HasMailFolder(folderName, evs[user], suite.connector.graphService)
+	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	suite.True(response)
 	if aFolder != nil {
 		err = deleteMailFolder(suite.connector.graphService, user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
+	response, err = HasMailFolder(folderName, evs[user], suite.connector.graphService)
+	assert.NoError(suite.T(), err)
+	suite.False(response)
 }
 
 // ---------------------------------------------------------------

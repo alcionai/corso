@@ -5,8 +5,10 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -17,6 +19,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
@@ -25,8 +28,9 @@ import (
 )
 
 const (
-	numberOfRetries = 4
-	mailCategory    = "mail"
+	numberOfRetries  = 4
+	mailCategory     = "mail"
+	timeFolderFormat = "Jan-02-06"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -104,18 +108,18 @@ func (gs *graphService) EnableFailFast() {
 }
 
 // createMailFolder will create a mail folder iff a folder of the same name does not exit
-func createMailFolder(gc graphService, user, folder string) (models.MailFolderable, error) {
+func createMailFolder(service graphService, user, folder string) (models.MailFolderable, error) {
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
 	isHidden := false
 	requestBody.SetIsHidden(&isHidden)
 
-	return gc.client.UsersById(user).MailFolders().Post(requestBody)
+	return service.client.UsersById(user).MailFolders().Post(requestBody)
 }
 
 // deleteMailFolder removes the mail folder from the user's M365 Exchange account
-func deleteMailFolder(gc graphService, user, folderID string) error {
-	return gc.client.UsersById(user).MailFoldersById(folderID).Delete()
+func deleteMailFolder(service graphService, user, folderID string) error {
+	return service.client.UsersById(user).MailFoldersById(folderID).Delete()
 }
 
 // setTenantUsers queries the M365 to identify the users in the
@@ -233,13 +237,12 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 // RestoreMessages: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollection) error {
+func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) error {
 	var (
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
 	)
-
 	for _, dc := range dcs {
 		// must be user.GetId(), PrimaryName no longer works 6-15-2022
 		user := dc.FullPath()[1]
@@ -264,35 +267,12 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 					errs = support.WrapAndAppend(data.UUID(), err, errs)
 					continue
 				}
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				now := time.Now().UTC()
+				newFolder := fmt.Sprint(now.Format(timeFolderFormat))
+				err = restoreMessage(buf.Bytes(), gc.graphService, common.Copy, newFolder, user)
 				if err != nil {
 					errs = support.WrapAndAppend(data.UUID(), err, errs)
-					continue
-				}
-				clone := support.ToMessage(message)
-				address := dc.FullPath()[3]
-				valueId := "Integer 0x0E07"
-				enableValue := "4"
-				sv := models.NewSingleValueLegacyExtendedProperty()
-				sv.SetId(&valueId)
-				sv.SetValue(&enableValue)
-				svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-				clone.SetSingleValueExtendedProperties(svlep)
-				draft := false
-				clone.SetIsDraft(&draft)
-				sentMessage, err := gc.graphService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
-				if err != nil {
-					errs = support.WrapAndAppend(
-						data.UUID()+": "+support.ConnectorStackErrorTrace(err),
-						err, errs)
-					continue
-					// TODO: Add to retry Handler for the for failure
-				}
-
-				if sentMessage == nil && err == nil {
-					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
-				}
-				if err != nil {
+				} else {
 					successes++
 				}
 				// This completes the restore loop for a message..
@@ -304,6 +284,49 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 	gc.SetStatus(*status)
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
+}
+
+func restoreMessage(bits []byte, service graphService, rp common.RestorePolicy, destination, user string) error {
+
+	// message creation if we cannot drop if we don't know the object id must create
+	message, err := support.CreateMessageFromBytes(bits)
+	if err != nil {
+		return err
+	}
+	clone := support.ToMessage(message)
+	valueId := "Integer 0x0E07"
+	enableValue := "4"
+	sv := models.NewSingleValueLegacyExtendedProperty()
+	sv.SetId(&valueId)
+	sv.SetValue(&enableValue)
+	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
+	clone.SetSingleValueExtendedProperties(svlep)
+	draft := false
+	clone.SetIsDraft(&draft)
+
+	if rp == common.Copy {
+		isCreated, err := HasMailFolder(destination, user, service)
+		if err != nil {
+			return err
+		}
+		if !isCreated {
+			tempFolder, err := createMailFolder(service, user, destination)
+			if err != nil {
+				return err
+			}
+			destination = *tempFolder.GetId()
+		}
+		sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(clone)
+		if err != nil {
+			return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
+		}
+		if sentMessage == nil && err == nil {
+			err = errors.New("Message not Sent: Blocked by server")
+		}
+	}
+
+	return err
+
 }
 
 // serializeMessages: Temp Function as place Holder until Collections have been added

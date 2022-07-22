@@ -3,6 +3,9 @@ package connector
 import (
 	"errors"
 
+	"github.com/alcionai/corso/internal/connector/support"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 )
@@ -44,6 +47,41 @@ func Contains(elems []string, value string) bool {
 		}
 	}
 	return false
+}
+
+// HasMailFolder helper function to see if MailFolder exists
+func HasMailFolder(name, user string, service graphService) (bool, error) {
+	var errs error
+	isAvailable := false
+	options, err := optionsForMailFolders([]string{"displayName"})
+	if err != nil {
+		return isAvailable, err
+	}
+	response, err := service.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	if err != nil || response == nil {
+		return isAvailable, err
+	}
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &service.adapter, models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return isAvailable, err
+	}
+	callbackFunc := func(folderItem any) bool {
+		folder, ok := folderItem.(models.MailFolderable)
+		if !ok {
+			errs = support.WrapAndAppend(service.adapter.GetBaseUrl(), errors.New("HasFolder() iteration failure"), errs)
+			return true
+		}
+		if *folder.GetDisplayName() == name {
+			isAvailable = true
+		}
+		return true
+	}
+	iterateError := pageIterator.Iterate(callbackFunc)
+	if iterateError != nil {
+		errs = support.WrapAndAppend(service.adapter.GetBaseUrl(), iterateError, errs)
+	}
+	return isAvailable, errs
+
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
