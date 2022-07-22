@@ -22,6 +22,13 @@ jobs:
       - name: Repo Code Checkout
         uses: actions/checkout@v3
 
+      # Get values for cache paths to be used in later steps
+      - id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+
       - name: Golang Setup
         uses: actions/setup-go@v3
         with:
@@ -34,7 +41,7 @@ jobs:
         uses: actions/cache@v3
         id: cache
         with:
-          path: ~/go/pkg/mod
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
       - name: Run go mod download
@@ -46,7 +53,7 @@ jobs:
         uses: actions/cache@v3
         id: mybuild
         with:
-          path: ~/.cache/go-build
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
 
       - name: Go build
