@@ -363,7 +363,10 @@ func restoreMessage(ctx context.Context, bits []byte, service graphService, rp c
 			return nil
 		}
 		if rp == common.Replace && isPresent {
-			service.client.UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
+			err = service.client.UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
+			if err != nil {
+				return err
+			}
 		}
 		return restoreMailToBackStore(service, user, destination, clone)
 	default:
