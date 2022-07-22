@@ -248,8 +248,7 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 	if policy == common.Copy {
 		u := dcs[0].FullPath()[1]
 		now := time.Now().UTC()
-		newFolder := fmt.Sprint(now.Format(timeFolderFormat))
-		newFolder = "Corso_Restore_" + newFolder
+		newFolder := fmt.Sprintf("Corso_Restore_%s", now.Format(timeFolderFormat))
 		isFolder, err := HasMailFolder(newFolder, u, gc.graphService)
 		if err != nil {
 			return support.WrapAndAppend(u, err, errs)
