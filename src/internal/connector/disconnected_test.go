@@ -14,9 +14,6 @@ import (
 	"github.com/alcionai/corso/pkg/credentials"
 )
 
-// ---------------------------------------------------------------
-// Disconnected Test Section
-// -------------------------
 type DisconnectedGraphConnectorSuite struct {
 	suite.Suite
 }
@@ -166,28 +163,28 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForM
 	tests := []struct {
 		name    string
 		params  []string
-		isError bool
+		isError assert.ErrorAssertionFunc
 	}{
 		{
 			name:    "Accepted",
 			params:  []string{"displayName"},
-			isError: false,
+			isError: assert.NoError,
 		},
 		{
 			name:    "Multiple Accepted",
 			params:  []string{"displayName", "parentFolderId"},
-			isError: false,
+			isError: assert.NoError,
 		},
 		{
 			name:    "Incorrect param",
 			params:  []string{"status"},
-			isError: true,
+			isError: assert.Error,
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := optionsForMailFolders(test.params)
-			suite.Equal(test.isError, err != nil)
+			test.isError(t, err)
 		})
 
 	}
