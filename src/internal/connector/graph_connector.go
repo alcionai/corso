@@ -322,7 +322,7 @@ func restoreMessage(bits []byte, service graphService, rp common.RestorePolicy, 
 			return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 		}
 		if sentMessage == nil && err == nil {
-			return errors.New("Message not Sent: Blocked by server")
+			return errors.New("message not Sent: blocked by server")
 		}
 
 	}
