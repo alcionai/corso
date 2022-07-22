@@ -20,15 +20,19 @@ import (
 
 // exchange bucket info from flags
 var (
-	backupID      string
-	exchangeAll   bool
-	exchangeData  []string
-	contact       []string
-	contactFolder []string
-	email         []string
-	emailFolder   []string
-	event         []string
-	user          []string
+	backupID            string
+	exchangeAll         bool
+	exchangeData        []string
+	contact             []string
+	contactFolder       []string
+	email               []string
+	emailFolder         []string
+	emailReceivedAfter  []string
+	emailReceivedBefore []string
+	emailSender         []string
+	emailSubject        []string
+	event               []string
+	user                []string
 )
 
 const (
@@ -66,6 +70,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
 		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
+
+		// per-data-type flags
 		fs.StringArrayVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
 		fs.StringArrayVar(
 			&contactFolder,
@@ -85,6 +91,12 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden("contact"))
 		cobra.CheckErr(fs.MarkHidden("contact-folder"))
 		cobra.CheckErr(fs.MarkHidden("event"))
+
+		// exchange-info flags
+		fs.StringArrayVar(&emailReceivedAfter, "email-received-after", nil, "Select backup details where the email was received after this datetime")
+		fs.StringArrayVar(&emailReceivedBefore, "email-received-before", nil, "Select backup details where the email was received before this datetime")
+		fs.StringArrayVar(&emailSender, "email-sender", nil, "Select backup details where the email sender matches this user id")
+		fs.StringArrayVar(&emailSubject, "email-subject", nil, "Select backup details where the email subject lines contain this value")
 	}
 
 	return c
@@ -295,48 +307,60 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := exchangeBackupDetailSelectors(contact, contactFolder, email, emailFolder, event, user)
-	erSel, err := sel.ToExchangeRestore()
-	if err != nil {
-		return err
+	sel := selectors.NewExchangeRestore()
+	includeExchangeBackupDetailDataSelectors(
+		sel,
+		contact,
+		contactFolder,
+		email,
+		emailFolder,
+		event,
+		user)
+	includeExchangeBackupDetailInfoSelectors(
+		sel,
+		emailReceivedAfter,
+		emailReceivedBefore,
+		emailSender,
+		emailSubject)
+
+	// if no selector flags were specified, get all data in the service.
+	if len(sel.Scopes()) == 0 {
+		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	ds := erSel.FilterDetails(d)
+	ds := sel.FilterDetails(d)
 	print.Entries(ds.Entries)
 
 	return nil
 }
 
-func exchangeBackupDetailSelectors(
+// builds the data-selector inclusions for `backup details exchange`
+func includeExchangeBackupDetailDataSelectors(
+	sel *selectors.ExchangeRestore,
 	contacts, contactFolders, emails, emailFolders, events, users []string,
-) selectors.Selector {
-	sel := selectors.NewExchangeBackup()
+) {
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
 	lev := len(events)
 	lu := len(users)
 
-	// if only the backupID is provided, treat that as an --all query
 	if lc+lcf+le+lef+lev+lu == 0 {
-		sel.Include(sel.Users(selectors.Any()))
-		return sel.Selector
+		return
 	}
 
 	// if only users are provided, we only get one selector
-	if lc+lcf+le+lef+lev == 0 {
+	if lu > 0 && lc+lcf+le+lef+lev == 0 {
 		sel.Include(sel.Users(users))
-		return sel.Selector
+		return
 	}
 
 	// otherwise, add selectors for each type of data
 	includeExchangeContacts(sel, users, contactFolders, contacts)
 	includeExchangeEmails(sel, users, emailFolders, email)
 	includeExchangeEvents(sel, users, events)
-
-	return sel.Selector
 }
 
-func includeExchangeContacts(sel *selectors.ExchangeBackup, users, contactFolders, contacts []string) {
+func includeExchangeContacts(sel *selectors.ExchangeRestore, users, contactFolders, contacts []string) {
 	if len(contactFolders) == 0 {
 		return
 	}
@@ -347,7 +371,7 @@ func includeExchangeContacts(sel *selectors.ExchangeBackup, users, contactFolder
 	}
 }
 
-func includeExchangeEmails(sel *selectors.ExchangeBackup, users, emailFolders, emails []string) {
+func includeExchangeEmails(sel *selectors.ExchangeRestore, users, emailFolders, emails []string) {
 	if len(emailFolders) == 0 {
 		return
 	}
@@ -358,13 +382,53 @@ func includeExchangeEmails(sel *selectors.ExchangeBackup, users, emailFolders, e
 	}
 }
 
-func includeExchangeEvents(sel *selectors.ExchangeBackup, users, events []string) {
+func includeExchangeEvents(sel *selectors.ExchangeRestore, users, events []string) {
 	if len(events) == 0 {
 		return
 	}
 	sel.Include(sel.Events(users, events))
 }
 
+// builds the info-selector inclusions for `backup details exchange`
+func includeExchangeBackupDetailInfoSelectors(
+	sel *selectors.ExchangeRestore,
+	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject []string,
+) {
+	includeExchangeInfoMailReceivedAfter(sel, emailReceivedAfter)
+	includeExchangeInfoMailReceivedBefore(sel, emailReceivedBefore)
+	includeExchangeInfoMailSender(sel, emailSender)
+	includeExchangeInfoMailSubject(sel, emailSubject)
+}
+
+func includeExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter []string) {
+	if len(receivedAfter) == 0 {
+		return
+	}
+	sel.Include(sel.MailReceivedAfter(receivedAfter))
+}
+
+func includeExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore []string) {
+	if len(receivedBefore) == 0 {
+		return
+	}
+	sel.Include(sel.MailReceivedBefore(receivedBefore))
+}
+
+func includeExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender []string) {
+	if len(sender) == 0 {
+		return
+	}
+	sel.Include(sel.MailSender(sender))
+}
+
+func includeExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject []string) {
+	if len(subject) == 0 {
+		return
+	}
+	sel.Include(sel.MailSubject(subject))
+}
+
+// checks all flags for correctness and interdependencies
 func validateExchangeBackupDetailFlags(
 	contacts, contactFolders, emails, emailFolders, events, users []string,
 	backupID string,
