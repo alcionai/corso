@@ -329,12 +329,12 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 // by the M365 ID from destrination string for the associated M365 user
 func restoreMessage(ctx context.Context, bits []byte, service graphService, rp common.RestorePolicy, destination, user string) error {
 	///Step I: Create message object from original bytes
-	message, err := support.CreateMessageFromBytes(bits)
+	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
 		return err
 	}
 	// Sets fields from original message from storage
-	clone := support.ToMessage(message)
+	clone := support.ToMessage(originalMessage)
 	valueId := "Integer 0x0E07"
 	enableValue := "4"
 	sv := models.NewSingleValueLegacyExtendedProperty()
@@ -347,22 +347,45 @@ func restoreMessage(ctx context.Context, bits []byte, service graphService, rp c
 
 	//Step II: restore message based on given policy
 	switch rp {
+	case common.Drop, common.Replace:
+		// get the file... if drop return
+		options, err := optionsForSingleMessage([]string{"parentFolderId"})
+		if err != nil {
+			return err
+		}
+		query, err := service.client.UsersById(user).MessagesById(*originalMessage.GetId()).GetWithRequestConfigurationAndResponseHandler(options, nil)
+		if err != nil {
+			return err
+		}
+		isPresent := query != nil
+		if rp == common.Drop && isPresent {
+			return nil
+		}
+		if rp == common.Replace && isPresent {
+			err = service.client.UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
+			if err != nil {
+				return err
+			}
+		}
+		return restoreMailToBackStore(service, user, destination, clone)
 	default:
 		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
 			"policy", rp)
 		fallthrough
 	case common.Copy:
-		sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(clone)
-		if err != nil {
-			return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
-		}
-		if sentMessage == nil && err == nil {
-			return errors.New("message not Sent: blocked by server")
-		}
-
+		return restoreMailToBackStore(service, user, destination, clone)
 	}
+}
 
-	return err
+func restoreMailToBackStore(service graphService, user, destination string, message models.Messageable) error {
+	sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(message)
+	if err != nil {
+		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
+	}
+	if sentMessage == nil {
+		return errors.New("message not Sent: blocked by server")
+	}
+	return nil
 
 }
 
