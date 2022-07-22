@@ -628,7 +628,7 @@ func (suite *ExchangeSourceSuite) TestIdPath() {
 	}
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
+func (suite *ExchangeSourceSuite) TestExchangeRestore_Reduce() {
 	makeDeets := func(refs ...string) *backup.Details {
 		deets := &backup.Details{
 			DetailsModel: backup.DetailsModel{
@@ -773,7 +773,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := test.makeSelector()
-			results := sel.FilterDetails(test.deets)
+			results := sel.Reduce(test.deets)
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
 		})
@@ -825,44 +825,49 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 }
 
 func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
-	var TODO_EXCHANGE_INFO *backup.ExchangeInfo
+	var exchangeInfo *backup.ExchangeInfo
 	const (
-		mail = "mailID"
-		cat  = ExchangeMail
+		mid = "mailID"
+		cat = ExchangeMail
 	)
 	var (
-		es          = NewExchangeRestore()
-		inAny       = extendExchangeScopeValues(es.Users(Any()))
-		inNone      = extendExchangeScopeValues(es.Users(None()))
-		inMail      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{mail}))
-		inOtherMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
-		exAny       = extendExchangeScopeValues(es.Users(Any()))
-		exNone      = extendExchangeScopeValues(es.Users(None()))
-		exMail      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{mail}))
-		exOtherMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
-		path        = []string{"tid", "user", "mail", "folder", mail}
+		es        = NewExchangeRestore()
+		anyUser   = extendExchangeScopeValues(es.Users(Any()))
+		noUser    = extendExchangeScopeValues(es.Users(None()))
+		mail      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{mid}))
+		otherMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
+		noMail    = extendExchangeScopeValues(es.Mails(Any(), Any(), None()))
+		path      = []string{"tid", "user", "mail", "folder", mid}
 	)
 
 	table := []struct {
 		name     string
-		includes []ExchangeScope
 		excludes []ExchangeScope
+		filters  []ExchangeScope
+		includes []ExchangeScope
 		expect   assert.BoolAssertionFunc
 	}{
-		{"empty", nil, nil, assert.False},
-		{"in all", inAny, nil, assert.True},
-		{"in None", inNone, nil, assert.False},
-		{"in Mail", inMail, nil, assert.True},
-		{"in Other", inOtherMail, nil, assert.False},
-		{"ex all", inAny, exAny, assert.False},
-		{"ex None", inAny, exNone, assert.True},
-		{"in Mail", inAny, exMail, assert.False},
-		{"in Other", inAny, exOtherMail, assert.True},
-		{"in and ex Mail", inMail, exMail, assert.False},
+		{"empty", nil, nil, nil, assert.False},
+		{"in Any", nil, nil, anyUser, assert.True},
+		{"in None", nil, nil, noUser, assert.False},
+		{"in Mail", nil, nil, mail, assert.True},
+		{"in Other", nil, nil, otherMail, assert.False},
+		{"in no Mail", nil, nil, noMail, assert.False},
+		{"ex Any", anyUser, nil, anyUser, assert.False},
+		{"ex Any filter", anyUser, anyUser, nil, assert.False},
+		{"ex None", noUser, nil, anyUser, assert.True},
+		{"ex None filter", noUser, anyUser, nil, assert.True},
+		{"ex Mail", mail, nil, anyUser, assert.False},
+		{"ex Other", otherMail, nil, anyUser, assert.True},
+		{"in and ex Mail", mail, nil, mail, assert.False},
+		{"filter Any", nil, anyUser, nil, assert.True},
+		{"filter None", nil, noUser, anyUser, assert.False},
+		{"filter Mail", nil, mail, anyUser, assert.True},
+		{"filter Other", nil, otherMail, anyUser, assert.False},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, matchExchangeEntry(cat, path, TODO_EXCHANGE_INFO, test.includes, test.excludes))
+			test.expect(t, matchExchangeEntry(cat, path, exchangeInfo, test.excludes, test.filters, test.includes))
 		})
 	}
 }
