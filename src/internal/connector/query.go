@@ -52,18 +52,18 @@ func Contains(elems []string, value string) bool {
 // HasMailFolder helper function to see if MailFolder exists returns folderId
 func HasMailFolder(name, user string, service graphService) (*string, error) {
 	var errs error
-	var isAvailable *string
+	var folderId *string
 	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
-		return isAvailable, err
+		return folderId, err
 	}
 	response, err := service.client.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil || response == nil {
-		return isAvailable, err
+		return folderId, err
 	}
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &service.adapter, models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return isAvailable, err
+		return folderId, err
 	}
 	callbackFunc := func(folderItem any) bool {
 		folder, ok := folderItem.(models.MailFolderable)
@@ -72,7 +72,7 @@ func HasMailFolder(name, user string, service graphService) (*string, error) {
 			return true
 		}
 		if *folder.GetDisplayName() == name {
-			isAvailable = folder.GetId()
+			folderId = folder.GetId()
 		}
 		return true
 	}
@@ -80,7 +80,7 @@ func HasMailFolder(name, user string, service graphService) (*string, error) {
 	if iterateError != nil {
 		errs = support.WrapAndAppend(service.adapter.GetBaseUrl(), iterateError, errs)
 	}
-	return isAvailable, errs
+	return folderId, errs
 
 }
 
