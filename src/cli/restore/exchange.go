@@ -44,7 +44,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringArrayVar(&contact, "contact", nil, "Retsore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringArrayVar(&contact, "contact", nil, "Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
 		fs.StringArrayVar(
 			&contactFolder,
 			"contact-folder",
