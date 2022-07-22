@@ -322,7 +322,7 @@ func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 	any := []string{utils.Wildcard}
 	table := []struct {
 		name                           string
-		after, before, sender, subject []string
+		after, before, sender, subject string
 		expectFilterLen                int
 	}{
 		{

@@ -22,10 +22,10 @@ var (
 	contactFolder       []string
 	email               []string
 	emailFolder         []string
-	emailReceivedAfter  []string
-	emailReceivedBefore []string
-	emailSender         []string
-	emailSubject        []string
+	emailReceivedAfter  string
+	emailReceivedBefore string
+	emailSender         string
+	emailSubject        string
 	event               []string
 	user                []string
 )
@@ -65,10 +65,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden("event"))
 
 		// exchange-info flags
-		fs.StringArrayVar(&emailReceivedAfter, "email-received-after", nil, "Restore mail where the email was received after this datetime")
-		fs.StringArrayVar(&emailReceivedBefore, "email-received-before", nil, "Restore mail where the email was received before this datetime")
-		fs.StringArrayVar(&emailSender, "email-sender", nil, "Restore mail where the email sender matches this user id")
-		fs.StringArrayVar(&emailSubject, "email-subject", nil, "Restore mail where the email subject lines contain this value")
+		fs.StringVar(&emailReceivedAfter, "email-received-after", "", "Restore mail where the email was received after this datetime")
+		fs.StringVar(&emailReceivedBefore, "email-received-before", "", "Restore mail where the email was received before this datetime")
+		fs.StringVar(&emailSender, "email-sender", "", "Restore mail where the email sender matches this user id")
+		fs.StringVar(&emailSubject, "email-subject", "", "Restore mail where the email subject lines contain this value")
 
 		// others
 		options.AddOperationFlags(c)
@@ -221,7 +221,7 @@ func includeExchangeEvents(sel *selectors.ExchangeRestore, users, events []strin
 // builds the info-selector filters for `restore exchange`
 func filterExchangeRestoreInfoSelectors(
 	sel *selectors.ExchangeRestore,
-	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject []string,
+	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject string,
 ) {
 	filterExchangeInfoMailReceivedAfter(sel, emailReceivedAfter)
 	filterExchangeInfoMailReceivedBefore(sel, emailReceivedBefore)
@@ -229,32 +229,32 @@ func filterExchangeRestoreInfoSelectors(
 	filterExchangeInfoMailSubject(sel, emailSubject)
 }
 
-func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter []string) {
+func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter string) {
 	if len(receivedAfter) == 0 {
 		return
 	}
-	sel.Filter(sel.MailReceivedAfter(receivedAfter))
+	sel.Filter(sel.MailReceivedAfter([]string{receivedAfter}))
 }
 
-func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore []string) {
+func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore string) {
 	if len(receivedBefore) == 0 {
 		return
 	}
-	sel.Filter(sel.MailReceivedBefore(receivedBefore))
+	sel.Filter(sel.MailReceivedBefore([]string{receivedBefore}))
 }
 
-func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender []string) {
+func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender string) {
 	if len(sender) == 0 {
 		return
 	}
-	sel.Filter(sel.MailSender(sender))
+	sel.Filter(sel.MailSender([]string{sender}))
 }
 
-func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject []string) {
+func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject string) {
 	if len(subject) == 0 {
 		return
 	}
-	sel.Filter(sel.MailSubject(subject))
+	sel.Filter(sel.MailSubject([]string{subject}))
 }
 
 // checks all flags for correctness and interdependencies
