@@ -168,6 +168,12 @@ func (suite *PathUnitSuite) TestPathSplitsEscapedPath() {
 			expectedSegments: []string{`this`, `is/a`, `path`},
 		},
 		{
+			name:             "TrailingSeparator2",
+			input:            []string{`this`, `is/a`, `path\\\\/`},
+			expected:         `this/is/a/path\\\\`,
+			expectedSegments: []string{`this`, `is/a`, `path\\\\`},
+		},
+		{
 			name:             "ManyEscapesNotSeparator",
 			input:            []string{`this`, `is\\\\/a`, `path/`},
 			expected:         `this/is\\\\/a/path`,
