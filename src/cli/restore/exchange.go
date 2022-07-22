@@ -163,24 +163,6 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeRestoreSelectors(u, f, m string) selectors.Selector {
-	sel := selectors.NewExchangeRestore()
-	if len(m) > 0 {
-		sel.Include(sel.Mails(
-			[]string{u}, []string{f}, []string{m},
-		))
-	}
-	if len(f) > 0 && len(m) == 0 {
-		sel.Include(sel.MailFolders(
-			[]string{u}, []string{f},
-		))
-	}
-	if len(f) == 0 && len(m) == 0 {
-		sel.Include(sel.Users([]string{u}))
-	}
-	return sel.Selector
-}
-
 // builds the data-selector inclusions for `restore exchange`
 func includeExchangeRestoreDataSelectors(
 	sel *selectors.ExchangeRestore,
