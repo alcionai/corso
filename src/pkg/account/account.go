@@ -20,7 +20,7 @@ var (
 )
 
 // Account defines an account provider, along with any credentials
-// and identifiers requried to set up or communicate with that provider.
+// and identifiers required to set up or communicate with that provider.
 type Account struct {
 	Provider accountProvider
 	Config   map[string]string
