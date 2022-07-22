@@ -48,5 +48,4 @@ jobs:
         with:
           version: v1.45.2
           working-directory: ./src
-          args: --timeout=15m
           skip-pkg-cache: true

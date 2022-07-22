@@ -58,10 +58,6 @@ jobs:
       - name: Run go-licenses
         run: go-licenses check github.com/alcionai/corso --ignore github.com/alcionai/corso
 
-      # gofmt
-      - name: Run gofmt
-        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
-
       # AWS creds
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
