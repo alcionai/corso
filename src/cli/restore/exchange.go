@@ -121,7 +121,7 @@ func exchangeRestoreSelectors(u, f, m string) selectors.Selector {
 
 func validateRestoreFlags(u, f, m, rpid string) error {
 	if len(rpid) == 0 {
-		return errors.New("a restore point ID is requried")
+		return errors.New("a restore point ID is required")
 	}
 	lu, lf, lm := len(u), len(f), len(m)
 	if (lu == 0 || u == "*") && (lf+lm > 0) {

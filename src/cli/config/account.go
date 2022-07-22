@@ -61,7 +61,7 @@ func configureAccount(vpr *viper.Viper, readConfigFromViper bool, overrides map[
 		TenantID: first(overrides[account.TenantID], m365Cfg.TenantID, os.Getenv(account.TenantID)),
 	}
 
-	// ensure requried properties are present
+	// ensure required properties are present
 	if err := utils.RequireProps(map[string]string{
 		credentials.ClientID:     m365Cfg.ClientID,
 		credentials.ClientSecret: m365Cfg.ClientSecret,

@@ -72,7 +72,7 @@ func ListErrors(multi multierror.Error) string {
 	return aString
 }
 
-// concatenateStringFromPointers is a helper funtion that adds
+// concatenateStringFromPointers is a helper function that adds
 // strings to the originalMessage iff the pointer is not nil
 func concatenateStringFromPointers(orig string, pointers []*string) string {
 	for _, pointer := range pointers {
@@ -94,7 +94,7 @@ func ConnectorStackErrorTrace(e error) string {
 		// target *string
 		// code *string
 		// details ErrorDetailsable
-		// Ignoring Additonal Detail
+		// Ignoring Additional Detail
 		code := mainErr.GetCode()
 		subject := mainErr.GetMessage()
 		target := mainErr.GetTarget()
