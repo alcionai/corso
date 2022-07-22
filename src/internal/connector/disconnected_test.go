@@ -145,7 +145,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 		suite.T().Run(test.name, func(t *testing.T) {
 			recoverable := IsRecoverableError(test.err)
 			nonRecoverable := IsNonRecoverableError(test.err)
-			test.returnRecoverable(suite.T(), recoverable, "Test: %s Recoverable-received %v", test.name, recoverable)
+			test.returnRecoverable(t, recoverable, "Test: %s Recoverable-received %v", test.name, recoverable)
 			test.returnNonRecoverable(suite.T(), nonRecoverable, "Test: %s non-recoverable: %v", test.name, nonRecoverable)
 		})
 	}
