@@ -2,6 +2,7 @@ package path
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -9,6 +10,71 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
+var basicInputs = []struct {
+	name     string
+	input    [][]string
+	expected string
+}{
+	{
+		name: "SimplePath",
+		input: [][]string{
+			{`this`},
+			{`is`},
+			{`a`},
+			{`path`},
+		},
+		expected: "this/is/a/path",
+	},
+	{
+		name: "EscapeSeparator",
+		input: [][]string{
+			{`this`},
+			{`is/a`},
+			{`path`},
+		},
+		expected: `this/is\/a/path`,
+	},
+	{
+		name: "EscapeEscapeChar",
+		input: [][]string{
+			{`this`},
+			{`is\`},
+			{`a`},
+			{`path`},
+		},
+		expected: `this/is\\/a/path`,
+	},
+	{
+		name: "EscapeEscapeAndSeparator",
+		input: [][]string{
+			{`this`},
+			{`is\/a`},
+			{`path`},
+		},
+		expected: `this/is\\\/a/path`,
+	},
+	{
+		name: "SeparatorAtEndOfElement",
+		input: [][]string{
+			{`this`},
+			{`is/`},
+			{`a`},
+			{`path`},
+		},
+		expected: `this/is\//a/path`,
+	},
+	{
+		name: "SeparatorAtEndOfPath",
+		input: [][]string{
+			{`this`},
+			{`is`},
+			{`a`},
+			{`path/`},
+		},
+		expected: `this/is/a/path\/`,
+	},
+}
 
 type PathUnitSuite struct {
 	suite.Suite
@@ -19,83 +85,7 @@ func TestPathUnitSuite(t *testing.T) {
 }
 
 func (suite *PathUnitSuite) TestPathEscapingAndSegments() {
-	table := []struct {
-		name     string
-		input    [][]string
-		expected string
-	}{
-		{
-			name: "SimplePath",
-			input: [][]string{
-				{`this`},
-				{`is`},
-				{`a`},
-				{`path`},
-			},
-			expected: "this/is/a/path",
-		},
-		{
-			name: "EscapeSeparator",
-			input: [][]string{
-				{`this`},
-				{`is/a`},
-				{`path`},
-			},
-			expected: `this/is\/a/path`,
-		},
-		{
-			name: "EscapeEscapeChar",
-			input: [][]string{
-				{`this`},
-				{`is\`},
-				{`a`},
-				{`path`},
-			},
-			expected: `this/is\\/a/path`,
-		},
-		{
-			name: "EscapeEscapeAndSeparator",
-			input: [][]string{
-				{`this`},
-				{`is\/a`},
-				{`path`},
-			},
-			expected: `this/is\\\/a/path`,
-		},
-		{
-			name: "EmptyInternalElement",
-			input: [][]string{
-				{`this`},
-				{`is`},
-				{""},
-				{`a`},
-				{`path`},
-			},
-			expected: "this/is/a/path",
-		},
-		{
-			name: "SeparatorAtEndOfElement",
-			input: [][]string{
-				{`this`},
-				{`is/`},
-				{`a`},
-				{`path`},
-			},
-			expected: `this/is\//a/path`,
-		},
-		{
-			name: "SeparatorAtEndOfPath",
-			input: [][]string{
-				{`this`},
-				{`is`},
-				{`a`},
-				{`path/`},
-			},
-			expected: `this/is/a/path\/`,
-		},
-	}
-
-	for _, test := range table {
+	for _, test := range basicInputs {
 		suite.T().Run(test.name, func(t *testing.T) {
 			p := newPath(test.input)
 			assert.Equal(t, test.expected, p.String())
@@ -108,6 +98,27 @@ func (suite *PathUnitSuite) TestPathEscapingAndSegments() {
 
 			assert.Panics(t, func() {
 				_ = p.segment(len(test.input))
+			})
+		})
+	}
+}
+
+func (suite *PathUnitSuite) TestElementUnescaping() {
+	for _, test := range basicInputs {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p := newPath(test.input)
+
+			for i, s := range test.input {
+				elements := []string{}
+				require.NotPanics(t, func() {
+					elements = p.unescapedSegmentElements(i)
+				})
+
+				assert.True(t, reflect.DeepEqual(s, elements))
+			}
+
+			assert.Panics(t, func() {
+				_ = p.unescapedSegmentElements(len(test.input))
 			})
 		})
 	}

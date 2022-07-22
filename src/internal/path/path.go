@@ -155,9 +155,23 @@ func (b Base) segment(n int) string {
 }
 
 // unescapedSegmentElements returns the unescaped version of the elements that
-// comprise the requested segment.
-func (p Base) unescapedSegmentElements(n int) []string {
-	return nil
+// comprise the requested segment. Path segment indices are 0-based.
+func (b Base) unescapedSegmentElements(n int) []string {
+	var elements []string = nil
+
+	if n == len(b.segmentIdx)-1 {
+		elements = b.elements[b.segmentIdx[n]:]
+	} else {
+		elements = b.elements[b.segmentIdx[n]:b.segmentIdx[n+1]]
+	}
+
+	res := make([]string, 0, len(elements))
+
+	for _, e := range elements {
+		res = append(res, unescapeElement(e))
+	}
+
+	return res
 }
 
 // TransformedSegments returns a slice of the path segments where each segments
@@ -191,6 +205,31 @@ func escapeElement(element string) string {
 	}
 
 	// Add the end of the element after the last escape character.
+	b.WriteString(element[startIdx:])
+
+	return b.String()
+}
+
+// unescapeElement returns the given element and converts it into a "raw"
+// element that does not have escape characters before characters that need
+// escaping.
+func unescapeElement(element string) string {
+	b := strings.Builder{}
+
+	startIdx := 0
+	prevWasEscape := false
+	for i, c := range element {
+		if c != escapeCharacter || prevWasEscape {
+			prevWasEscape = false
+			continue
+		}
+
+		// This is an escape character, remove it from the output.
+		b.WriteString(element[startIdx:i])
+		startIdx = i + 1
+		prevWasEscape = true
+	}
+
 	b.WriteString(element[startIdx:])
 
 	return b.String()
