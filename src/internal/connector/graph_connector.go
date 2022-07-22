@@ -243,6 +243,28 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 		attempts, successes int
 		errs                error
 	)
+	var folderId *string
+	policy := common.Copy
+	if policy == common.Copy {
+		u := dcs[0].FullPath()[1]
+		now := time.Now().UTC()
+		newFolder := fmt.Sprint(now.Format(timeFolderFormat))
+		isFolder, err := HasMailFolder(newFolder, u, gc.graphService)
+		if err != nil {
+			errs = support.WrapAndAppend(u, err, errs)
+		}
+		if isFolder == nil {
+			fold, err := createMailFolder(gc.graphService, u, newFolder)
+			if err != nil {
+				return support.WrapAndAppend(u, err, errs)
+			}
+			folderId = fold.GetId()
+
+		} else {
+			folderId = isFolder
+		}
+	}
+
 	for _, dc := range dcs {
 		// must be user.GetId(), PrimaryName no longer works 6-15-2022
 		user := dc.FullPath()[1]
@@ -267,9 +289,26 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 					errs = support.WrapAndAppend(data.UUID(), err, errs)
 					continue
 				}
-				now := time.Now().UTC()
-				newFolder := fmt.Sprint(now.Format(timeFolderFormat))
-				err = restoreMessage(buf.Bytes(), gc.graphService, common.Copy, newFolder, user)
+				if policy == common.Copy {
+					if folderId == nil {
+						errs = support.WrapAndAppend(data.UUID(), errors.New("Unable to create folder for collection"), errs)
+						continue
+					}
+					err = restoreMessage(buf.Bytes(), gc.graphService, common.Copy, *folderId, user)
+					if err != nil {
+						errs = support.WrapAndAppend(data.UUID(), err, errs)
+					}
+				} else {
+					folderId, err = HasMailFolder(dc.FullPath()[3], user, gc.graphService)
+					if err != nil || folderId == nil {
+						errs = support.WrapAndAppend(data.UUID(), errors.New("mail folder in full path not found"), errs)
+						continue
+					}
+					err = restoreMessage(buf.Bytes(), gc.graphService, common.Drop, *folderId, user)
+					if err != nil {
+						errs = support.WrapAndAppend(data.UUID(), err, errs)
+					}
+				}
 				if err != nil {
 					errs = support.WrapAndAppend(data.UUID(), err, errs)
 				} else {
@@ -305,19 +344,8 @@ func restoreMessage(bits []byte, service graphService, rp common.RestorePolicy, 
 	clone.SetIsDraft(&draft)
 
 	if rp == common.Copy {
-		folderId, err := HasMailFolder(destination, user, service)
-		if err != nil {
-			return err
-		}
-		if folderId == nil {
-			tempFolder, err := createMailFolder(service, user, destination)
-			if err != nil {
-				return err
-			}
-			folderId = tempFolder.GetId()
-		}
 
-		sentMessage, err := service.client.UsersById(user).MailFoldersById(*folderId).Messages().Post(clone)
+		sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(clone)
 		if err != nil {
 			return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 		}
