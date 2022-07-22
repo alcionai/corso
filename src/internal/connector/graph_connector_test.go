@@ -2,7 +2,9 @@ package connector
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -103,7 +105,8 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_HasFolder() {
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
 	t := suite.T()
 	user := "TEST_GRAPH_USER"
-	folderName := "createdForTest"
+	unique := time.Now()
+	folderName := fmt.Sprintf("TestFolder:%s", unique.Format(timeFolderFormat))
 	_, err := createMailFolder(suite.connector.graphService, suite.user, folderName)
 	require.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	response, err := HasMailFolder(folderName, user, suite.connector.graphService)
