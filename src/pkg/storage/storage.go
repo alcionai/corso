@@ -29,7 +29,7 @@ const (
 )
 
 // Storage defines a storage provider, along with any configuration
-// requried to set up or communicate with that provider.
+// required to set up or communicate with that provider.
 type Storage struct {
 	Provider storageProvider
 	Config   map[string]string

@@ -543,7 +543,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesPath() {
 		{"all user's items", es.Users(Any()), assert.True},
 		{"no user's items", es.Users(None()), assert.False},
 		{"matching user", es.Users([]string{usr}), assert.True},
-		{"non-maching user", es.Users([]string{"smarf"}), assert.False},
+		{"non-matching user", es.Users([]string{"smarf"}), assert.False},
 		{"one of multiple users", es.Users([]string{"smarf", usr}), assert.True},
 		{"all folders", es.MailFolders(Any(), Any()), assert.True},
 		{"no folders", es.MailFolders(Any(), None()), assert.False},

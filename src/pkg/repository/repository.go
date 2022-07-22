@@ -155,7 +155,7 @@ func (r Repository) NewRestore(
 		sel)
 }
 
-// backups lists backups in a respository
+// backups lists backups in a repository
 func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackups(ctx)

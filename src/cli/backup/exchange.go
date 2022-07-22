@@ -179,7 +179,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 
 func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 	if len(users) == 0 && !all {
-		return errors.New("requries one or more --user ids, the wildcard --user *, or the --all flag.")
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
 	}
 	if len(data) > 0 && all {
 		return errors.New("--all does a backup on all data, and cannot be reduced with --data")
@@ -370,7 +370,7 @@ func validateExchangeBackupDetailFlags(
 	backupID string,
 ) error {
 	if len(backupID) == 0 {
-		return errors.New("a backup ID is requried")
+		return errors.New("a backup ID is required")
 	}
 	lu := len(users)
 	lc, lcf := len(contacts), len(contactFolders)
@@ -381,7 +381,7 @@ func validateExchangeBackupDetailFlags(
 		return nil
 	}
 	if lu == 0 {
-		return errors.New("requries one or more --user ids, the wildcard --user *, or the --all flag.")
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
 	}
 	if lc > 0 && lcf == 0 {
 		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")

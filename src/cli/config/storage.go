@@ -75,7 +75,7 @@ func configureStorage(vpr *viper.Viper, readConfigFromViper bool, overrides map[
 		Corso: corso,
 	}
 
-	// ensure requried properties are present
+	// ensure required properties are present
 	if err := utils.RequireProps(map[string]string{
 		credentials.AWSAccessKeyID:     aws.AccessKey,
 		storage.Bucket:                 s3Cfg.Bucket,
