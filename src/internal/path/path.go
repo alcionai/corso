@@ -106,7 +106,29 @@ func newPath(segments [][]string) Base {
 // the segments are escaped properly, and returns a new Base struct. If there is
 // an unescaped trailing '/' it is removed.
 func newPathFromEscapedSegments(segments []string) (Base, error) {
-	return Base{}, errors.New("not implemented")
+	b := Base{}
+
+	if err := validateSegments(segments); err != nil {
+		return b, errors.Wrap(err, "validating escaped path")
+	}
+
+	// Make a copy of the input so we don't modify the original slice.
+	tmpSegments := make([]string, len(segments))
+	copy(tmpSegments, segments)
+	tmpSegments[len(tmpSegments)-1] = trimTrailingSlash(tmpSegments[len(tmpSegments)-1])
+
+	for _, s := range tmpSegments {
+		newElems := split(s)
+
+		if len(newElems) == 0 {
+			continue
+		}
+
+		b.segmentIdx = append(b.segmentIdx, len(b.elements))
+		b.elements = append(b.elements, newElems...)
+	}
+
+	return b, nil
 }
 
 // String returns a string that contains all path segments joined
@@ -169,10 +191,117 @@ func escapeElement(element string) string {
 	return b.String()
 }
 
+func validateSegments(segments []string) error {
+	for _, segment := range segments {
+		prevWasEscape := false
+
+		for _, c := range segment {
+			if c == escapeCharacter {
+				// Either the character before this was also an escape character in which
+				// case we're no longer escaping things (so prevWasEscape should become
+				// false) or the previous character was not an escape character and now
+				// we're escaping things. In either case we should invert prevWasEscape.
+				prevWasEscape = !prevWasEscape
+			} else {
+				if prevWasEscape {
+					if _, ok := charactersToEscape[c]; !ok {
+						return errors.Errorf(
+							"bad escape sequence in path: '%c%c'", escapeCharacter, c)
+					}
+				}
+
+				prevWasEscape = false
+			}
+		}
+
+		if prevWasEscape {
+			return errors.New("trailing escape character")
+		}
+	}
+
+	return nil
+}
+
+// trimTrailingSlash takes an escaped path element and returns an escaped path
+// element with the trailing path separator character removed if it was not
+// escaped. If there was no trailing path separator character or the separator
+// was escaped the input is returned unchanged.
+func trimTrailingSlash(element string) string {
+	lastIdx := len(element) - 1
+
+	if element[lastIdx] != pathSeparator {
+		return element
+	}
+
+	numSlashes := 0
+	for i := lastIdx - 1; i >= 0; i-- {
+		if element[i] != escapeCharacter {
+			break
+		}
+
+		numSlashes++
+	}
+
+	if numSlashes%2 != 0 {
+		return element
+	}
+
+	return element[:lastIdx]
+}
+
 // join returns a string containing the given elements joined by the path
 // separator '/'.
 func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(pathSeparator))
+}
+
+// split returns a slice of path elements for the given segment when the segment
+// is split on the path separator according to the escaping rules.
+func split(segment string) []string {
+	res := make([]string, 0)
+	numEscapes := 0
+	startIdx := 0
+	// Start with true to ignore leading separator.
+	prevWasSeparator := true
+
+	for i, c := range segment {
+		if c == escapeCharacter {
+			numEscapes++
+			prevWasSeparator = false
+			continue
+		}
+
+		if c != pathSeparator {
+			prevWasSeparator = false
+			numEscapes = 0
+			continue
+		}
+
+		// Remaining is just path separator handling.
+		if numEscapes%2 != 0 {
+			// This is an escaped separator.
+			prevWasSeparator = false
+			numEscapes = 0
+			continue
+		}
+
+		// Ignore leading separator characters and don't add elements that would
+		// be empty.
+		if !prevWasSeparator {
+			res = append(res, segment[startIdx:i])
+		}
+
+		// We don't want to include the path separator in the result.
+		startIdx = i + 1
+		prevWasSeparator = true
+		numEscapes = 0
+	}
+
+	// Add the final segment because the loop above won't catch it. There should
+	// be no trailing separator character, but do a bounds check to be safe.
+	res = append(res, segment[startIdx:])
+
+	return res
 }
