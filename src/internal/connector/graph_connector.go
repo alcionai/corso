@@ -343,7 +343,13 @@ func restoreMessage(bits []byte, service graphService, rp common.RestorePolicy, 
 	draft := false
 	clone.SetIsDraft(&draft)
 
-	if rp == common.Copy {
+	switch rp {
+	default:
+	  log.DPanicw("unrecognized restore policy; defaulting to copy", "policy", rp)
+	  fallthrough
+	case common.Copy:
+	  copyMessageToNewFolder(...)
+	}
 
 		sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(clone)
 		if err != nil {
