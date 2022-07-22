@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -106,8 +105,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_HasFolder() {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
-	_, err := ctesting.GetRequiredEnvVars("CORSO_CI_TESTS")
-
 	t := suite.T()
 	user := "TEST_GRAPH_USER"
 	evs, err := ctesting.GetRequiredEnvVars(user)
@@ -118,7 +115,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFold
 	response, err := HasMailFolder(folderName, evs[user], suite.connector.graphService)
 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	require.NotNil(t, response)
-	time.Sleep(2 * time.Second) // Give time for the folder to populate
 	// Delete Folder not working in         github.com/microsoftgraph/msgraph-sdk-go v0.28.0
 	err = deleteMailFolder(suite.connector.graphService, evs[user], *response)
 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
