@@ -88,8 +88,9 @@ func newPath(segments [][]string) Base {
 	res := Base{segmentIdx: make([]int, 0, len(segments))}
 	idx := 0
 	for _, s := range segments {
-		res.segmentIdx = append(res.segmentIdx, idx)
+		sIdx := idx
 
+		notEmpty := false
 		for _, e := range s {
 			if len(e) == 0 {
 				continue
@@ -97,6 +98,11 @@ func newPath(segments [][]string) Base {
 
 			res.elements = append(res.elements, escapeElement(e))
 			idx++
+			notEmpty = true
+		}
+
+		if notEmpty {
+			res.segmentIdx = append(res.segmentIdx, sIdx)
 		}
 	}
 

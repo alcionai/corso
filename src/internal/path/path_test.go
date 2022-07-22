@@ -103,6 +103,70 @@ func (suite *PathUnitSuite) TestPathEscapingAndSegments() {
 	}
 }
 
+func (suite *PathUnitSuite) TestPathEscapingAndSegments_EmpytElements() {
+	table := []struct {
+		name     string
+		input    [][]string
+		expected string
+	}{
+		{
+			name: "EmptyInternalElement",
+			input: [][]string{
+				{`this`},
+				{`is`},
+				{""},
+				{`a`},
+				{`path`},
+			},
+			expected: "this/is/a/path",
+		},
+		{
+			name: "EmptyInternalElement2",
+			input: [][]string{
+				{`this`},
+				{`is`},
+				{"", "", ""},
+				{`a`},
+				{`path`},
+			},
+			expected: "this/is/a/path",
+		},
+		{
+			name: "EmptyInternalElement3",
+			input: [][]string{
+				{`this`},
+				{`is`},
+				{},
+				{`a`},
+				{`path`},
+			},
+			expected: "this/is/a/path",
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p := newPath(test.input)
+
+			idx := 0
+			for i := 0; i < len(test.input); i++ {
+				if i == 2 {
+					continue
+				}
+
+				assert.NotPanics(t, func() {
+					_ = p.segment(idx)
+				})
+				idx++
+			}
+
+			assert.Panics(t, func() {
+				_ = p.segment(len(test.input))
+			})
+		})
+	}
+}
+
 func (suite *PathUnitSuite) TestElementUnescaping() {
 	for _, test := range basicInputs {
 		suite.T().Run(test.name, func(t *testing.T) {
