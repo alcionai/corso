@@ -115,7 +115,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFold
 	response, err := HasMailFolder(folderName, evs[user], suite.connector.graphService)
 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	require.NotNil(t, response)
-	// Delete Folder not working in         github.com/microsoftgraph/msgraph-sdk-go v0.28.0
 	err = deleteMailFolder(suite.connector.graphService, evs[user], *response)
 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	response, err = HasMailFolder(folderName, evs[user], suite.connector.graphService)
