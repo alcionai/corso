@@ -49,14 +49,7 @@ jobs:
 
       - name: Go build
         if: steps.mybuild.outputs.cache-hit != 'true'
-        run: go build ./...
-
-      # check licenses
-      - name: Get go-licenses
-        run: go install github.com/google/go-licenses@latest
-
-      - name: Run go-licenses
-        run: go-licenses check github.com/alcionai/corso --ignore github.com/alcionai/corso
+        run: go build -v ./...
 
       # AWS creds
       - name: Configure AWS credentials from Test account
@@ -75,4 +68,4 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
-        run: go test ./...
+        run: go test -v ./...
