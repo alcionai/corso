@@ -149,6 +149,18 @@ func extendExchangeScopeValues(es []exchangeScope) []exchangeScope {
 // -------------------
 // Scope Factory
 
+func makeExchangeScope(granularity string, cat exchangeCategory, vs []string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity: granularity,
+		scopeKeyCategory:    cat.String(),
+		cat.String():        join(vs...),
+	}
+}
+
+func makeExchangeUserScope(user, granularity string, cat exchangeCategory, vs []string) exchangeScope {
+	return makeExchangeScope(granularity, cat, vs).set(ExchangeUser, user)
+}
+
 // Produces one or more exchange contact scopes.
 // One scope is created per combination of users,folders,contacts.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -161,13 +173,10 @@ func (s *exchange) Contacts(users, folders, contacts []string) []exchangeScope {
 	scopes := []exchangeScope{}
 	for _, u := range users {
 		for _, f := range folders {
-			scopes = append(scopes, exchangeScope{
-				scopeKeyGranularity:            Item,
-				scopeKeyCategory:               ExchangeContact.String(),
-				ExchangeUser.String():          u,
-				ExchangeContactFolder.String(): f,
-				ExchangeContact.String():       join(contacts...),
-			})
+			scopes = append(
+				scopes,
+				makeExchangeUserScope(u, Item, ExchangeContact, contacts).set(ExchangeContactFolder, f),
+			)
 		}
 	}
 	return scopes
@@ -183,12 +192,10 @@ func (s *exchange) ContactFolders(users, folders []string) []exchangeScope {
 	folders = normalize(folders)
 	scopes := []exchangeScope{}
 	for _, u := range users {
-		scopes = append(scopes, exchangeScope{
-			scopeKeyGranularity:            Group,
-			scopeKeyCategory:               ExchangeContactFolder.String(),
-			ExchangeUser.String():          u,
-			ExchangeContactFolder.String(): join(folders...),
-		})
+		scopes = append(
+			scopes,
+			makeExchangeUserScope(u, Group, ExchangeContactFolder, folders),
+		)
 	}
 	return scopes
 }
@@ -203,12 +210,10 @@ func (s *exchange) Events(users, events []string) []exchangeScope {
 	events = normalize(events)
 	scopes := []exchangeScope{}
 	for _, u := range users {
-		scopes = append(scopes, exchangeScope{
-			scopeKeyGranularity:    Item,
-			scopeKeyCategory:       ExchangeEvent.String(),
-			ExchangeUser.String():  u,
-			ExchangeEvent.String(): join(events...),
-		})
+		scopes = append(
+			scopes,
+			makeExchangeUserScope(u, Item, ExchangeEvent, events),
+		)
 	}
 	return scopes
 }
@@ -225,13 +230,10 @@ func (s *exchange) Mails(users, folders, mails []string) []exchangeScope {
 	scopes := []exchangeScope{}
 	for _, u := range users {
 		for _, f := range folders {
-			scopes = append(scopes, exchangeScope{
-				scopeKeyGranularity:         Item,
-				scopeKeyCategory:            ExchangeMail.String(),
-				ExchangeUser.String():       u,
-				ExchangeMailFolder.String(): f,
-				ExchangeMail.String():       join(mails...),
-			})
+			scopes = append(
+				scopes,
+				makeExchangeUserScope(u, Item, ExchangeMail, mails).set(ExchangeMailFolder, f),
+			)
 		}
 	}
 	return scopes
@@ -247,12 +249,10 @@ func (s *exchange) MailFolders(users, folders []string) []exchangeScope {
 	folders = normalize(folders)
 	scopes := []exchangeScope{}
 	for _, u := range users {
-		scopes = append(scopes, exchangeScope{
-			scopeKeyGranularity:         Group,
-			scopeKeyCategory:            ExchangeMailFolder.String(),
-			ExchangeUser.String():       u,
-			ExchangeMailFolder.String(): join(folders...),
-		})
+		scopes = append(
+			scopes,
+			makeExchangeUserScope(u, Group, ExchangeMailFolder, folders),
+		)
 	}
 	return scopes
 }
@@ -265,29 +265,32 @@ func (s *exchange) MailFolders(users, folders []string) []exchangeScope {
 func (s *exchange) Users(users []string) []exchangeScope {
 	users = normalize(users)
 	scopes := []exchangeScope{}
-	scopes = append(scopes, exchangeScope{
-		scopeKeyGranularity:   Group,
-		scopeKeyCategory:      ExchangeUser.String(),
-		ExchangeUser.String(): join(users...),
-	})
+	scopes = append(
+		scopes,
+		makeExchangeScope(Group, ExchangeUser, users),
+	)
 	return scopes
 }
 
-// Produces one or more exchange mail sender filter scopes.
-// Matches any mail whose sender is equal to one of the provided strings.
-// One scope is created per senderID entry.
+func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) exchangeScope {
+	return exchangeScope{
+		scopeKeyGranularity: Filter,
+		scopeKeyCategory:    cat.String(),
+		scopeKeyInfoFilter:  filterCat.String(),
+		filterCat.String():  join(vs...),
+	}
+}
+
+// Produces one or more exchange contact info filter scopes.
+// Matches any mail which was received after the timestring.
+// One scope is created per timeString entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailSender(senderID []string) []exchangeScope {
-	scopes := []exchangeScope{}
-	scopes = append(scopes, exchangeScope{
-		scopeKeyGranularity:             Item,
-		scopeKeyCategory:                ExchangeMail.String(),
-		scopeKeyInfoFilter:              ExchangeInfoMailSender.String(),
-		ExchangeInfoMailSender.String(): join(senderID...),
-	})
-	return scopes
+func (sr *ExchangeRestore) MailReceivedAfter(timeStrings []string) []exchangeScope {
+	return []exchangeScope{
+		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedAfter, timeStrings),
+	}
 }
 
 // Produces one or more exchange mail subject filter scopes.
@@ -296,15 +299,10 @@ func (sr *ExchangeRestore) MailSender(senderID []string) []exchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailSubject(subjectSubstring []string) []exchangeScope {
-	scopes := []exchangeScope{}
-	scopes = append(scopes, exchangeScope{
-		scopeKeyGranularity:              Item,
-		scopeKeyCategory:                 ExchangeMail.String(),
-		scopeKeyInfoFilter:               ExchangeInfoMailSubject.String(),
-		ExchangeInfoMailSubject.String(): join(subjectSubstring...),
-	})
-	return scopes
+func (sr *ExchangeRestore) MailReceivedBefore(timeStrings []string) []exchangeScope {
+	return []exchangeScope{
+		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedBefore, timeStrings),
+	}
 }
 
 // Produces one or more exchange mail received-after filter scopes.
@@ -313,15 +311,10 @@ func (sr *ExchangeRestore) MailSubject(subjectSubstring []string) []exchangeScop
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailReceivedAfter(timeString []string) []exchangeScope {
-	scopes := []exchangeScope{}
-	scopes = append(scopes, exchangeScope{
-		scopeKeyGranularity:                    Item,
-		scopeKeyCategory:                       ExchangeMail.String(),
-		scopeKeyInfoFilter:                     ExchangeInfoMailReceivedAfter.String(),
-		ExchangeInfoMailReceivedAfter.String(): join(timeString...),
-	})
-	return scopes
+func (sr *ExchangeRestore) MailSender(senderIDs []string) []exchangeScope {
+	return []exchangeScope{
+		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailSender, senderIDs),
+	}
 }
 
 // Produces one or more exchange mail received-before filter scopes.
@@ -329,15 +322,10 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeString []string) []exchangeScop
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailReceivedBefore(timeString []string) []exchangeScope {
-	scopes := []exchangeScope{}
-	scopes = append(scopes, exchangeScope{
-		scopeKeyGranularity:                     Item,
-		scopeKeyCategory:                        ExchangeMail.String(),
-		scopeKeyInfoFilter:                      ExchangeInfoMailReceivedBefore.String(),
-		ExchangeInfoMailReceivedBefore.String(): join(timeString...),
-	})
-	return scopes
+func (sr *ExchangeRestore) MailSubject(subjectSubstrings []string) []exchangeScope {
+	return []exchangeScope{
+		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailSubject, subjectSubstrings),
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -492,6 +480,12 @@ func (s exchangeScope) Get(cat exchangeCategory) []string {
 	return split(v)
 }
 
+// sets a value by category to the scope.  Only intended for internal use.
+func (s exchangeScope) set(cat exchangeCategory, v string) exchangeScope {
+	s[cat.String()] = v
+	return s
+}
+
 var categoryPathSet = map[exchangeCategory][]exchangeCategory{
 	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
 	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
@@ -575,6 +569,15 @@ func (s exchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 		}
 	}
 	return true
+}
+
+// excludesInfo returns true if all filters in the scope matche the info.
+func (s exchangeScope) excludesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
+	// todo: implement once filters used in scopes
+	if info == nil {
+		return false
+	}
+	return false
 }
 
 // temporary helper until filters replace string values for scopes.
