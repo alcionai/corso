@@ -3,11 +3,12 @@ package connector
 import (
 	"errors"
 
-	"github.com/alcionai/corso/internal/connector/support"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
+
+	"github.com/alcionai/corso/internal/connector/support"
 )
 
 // TaskList is a a generic map of a list of items with a string index
