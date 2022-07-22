@@ -212,7 +212,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 			// TODO: handle "get mail for all users"
 			// this would probably no-op without this check,
 			// but we want it made obvious that we're punting.
-			if user == selectors.AnyTgt {
+			if user == selectors.AllTgt {
 				errs = support.WrapAndAppend(
 					"all-users",
 					errors.New("all users selector currently not handled"),
@@ -252,7 +252,7 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 		newFolder = "Corso_Restore_" + newFolder
 		isFolder, err := HasMailFolder(newFolder, u, gc.graphService)
 		if err != nil {
-			errs = support.WrapAndAppend(u, err, errs)
+			return support.WrapAndAppend(u, err, errs)
 		}
 		if isFolder == nil {
 			fold, err := createMailFolder(gc.graphService, u, newFolder)
