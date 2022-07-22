@@ -9,13 +9,12 @@ import (
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
-
-	kopiarepo "github.com/kopia/kopia/repo" // question for reviewer: do you always wrap kopia packages or is it ok to import this directly here?
 )
 
 // s3 bucket info from flags
@@ -24,7 +23,7 @@ var (
 	bucket          string
 	endpoint        string
 	prefix          string
-	successOnExists bool
+	succeedIfExists bool
 )
 
 // called by repo.go to map parent subcommands to provider-specific handling.
@@ -44,7 +43,10 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "Server endpoint for S3 communication.")
 	fs.StringVar(&prefix, "prefix", "", "Prefix applied to objects in the bucket.")
-	fs.BoolVar(&successOnExists, "success-on-exists", false, "Do not throw error if repo is already initialized.")
+	fs.BoolVar(&succeedIfExists, "succeed-if-exists", false, "Exit with success if the repo has already been initialized.")
+	// In general, we don't want to expose this flag to users and have them mistake it
+	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
+	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
 	return c
 }
 
@@ -92,7 +94,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Initialize(ctx, a, s)
 	if err != nil {
-		if successOnExists && errors.Is(err, kopiarepo.ErrAlreadyInitialized) {
+		if succeedIfExists && kopia.IsRepoAlreadyExistsError(err) {
 			return nil
 		}
 		return errors.Wrap(err, "Failed to initialize a new S3 repository")
