@@ -30,7 +30,7 @@ import (
 const (
 	numberOfRetries  = 4
 	mailCategory     = "mail"
-	timeFolderFormat = "Jan-02-2006"
+	timeFolderFormat = "02-Jan-2006_15:04:05"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -249,6 +249,7 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 		u := dcs[0].FullPath()[1]
 		now := time.Now().UTC()
 		newFolder := fmt.Sprint(now.Format(timeFolderFormat))
+		newFolder = "Corso_Restore_" + newFolder
 		isFolder, err := HasMailFolder(newFolder, u, gc.graphService)
 		if err != nil {
 			errs = support.WrapAndAppend(u, err, errs)
@@ -294,7 +295,7 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 						errs = support.WrapAndAppend(data.UUID(), errors.New("Unable to create folder for collection"), errs)
 						continue
 					}
-					err = restoreMessage(buf.Bytes(), gc.graphService, common.Copy, *folderId, user)
+					err = restoreMessage(ctx, buf.Bytes(), gc.graphService, common.Copy, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
@@ -304,7 +305,7 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 						errs = support.WrapAndAppend(data.UUID(), errors.New("mail folder in full path not found"), errs)
 						continue
 					}
-					err = restoreMessage(buf.Bytes(), gc.graphService, common.Drop, *folderId, user)
+					err = restoreMessage(ctx, buf.Bytes(), gc.graphService, common.Drop, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
@@ -325,13 +326,15 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 	return errs
 }
 
-func restoreMessage(bits []byte, service graphService, rp common.RestorePolicy, destination, user string) error {
-
-	// message creation if we cannot drop if we don't know the object id must create
+// restoreMessage restores copy of original message to M365 backstore in the folder designated
+// by the M365 ID from destrination string for the associated M365 user
+func restoreMessage(ctx context.Context, bits []byte, service graphService, rp common.RestorePolicy, destination, user string) error {
+	///Step I: Create message object from original bytes
 	message, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
 		return err
 	}
+	// Sets fields from original message from storage
 	clone := support.ToMessage(message)
 	valueId := "Integer 0x0E07"
 	enableValue := "4"
@@ -343,14 +346,13 @@ func restoreMessage(bits []byte, service graphService, rp common.RestorePolicy, 
 	draft := false
 	clone.SetIsDraft(&draft)
 
+	//Step II: restore message based on given policy
 	switch rp {
 	default:
-	  log.DPanicw("unrecognized restore policy; defaulting to copy", "policy", rp)
-	  fallthrough
+		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
+			"policy", rp)
+		fallthrough
 	case common.Copy:
-	  copyMessageToNewFolder(...)
-	}
-
 		sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(clone)
 		if err != nil {
 			return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
