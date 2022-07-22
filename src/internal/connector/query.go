@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
+	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 )
 
 // TaskList is a a generic map of a list of items with a string index
@@ -110,6 +111,20 @@ func optionsForMessageSnapshot() *msmessage.MessagesRequestBuilderGetRequestConf
 		},
 	}
 	return options
+}
+
+func optionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, messages)
+	if err != nil {
+		return nil, err
+	}
+	requestParams := &msitem.MessageItemRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msitem.MessageItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParams,
+	}
+	return options, nil
 }
 
 func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
