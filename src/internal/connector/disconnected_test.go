@@ -159,7 +159,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TaskList() {
 	values := tasks["person1"]
 	suite.Equal(len(values), 2)
 	nonValues := tasks["unknown"]
-	suite.Zero(len(nonValues))
+	suite.Empty(nonValues)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForMailFolders() {
