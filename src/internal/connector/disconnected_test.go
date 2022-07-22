@@ -157,7 +157,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TaskList() {
 	tasks.AddTask("person1", "Go to store")
 	tasks.AddTask("person1", "drop off mail")
 	values := tasks["person1"]
-	suite.Equal(len(values), 2)
+	suite.Len(values, 2)
 	nonValues := tasks["unknown"]
 	suite.Empty(nonValues)
 }
