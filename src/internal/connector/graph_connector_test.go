@@ -104,12 +104,11 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_HasFolder() {
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
 	t := suite.T()
-	user := "TEST_GRAPH_USER"
 	unique := time.Now()
 	folderName := fmt.Sprintf("TestFolder:%s", unique.Format(timeFolderFormat))
 	_, err := createMailFolder(suite.connector.graphService, suite.user, folderName)
 	require.NoError(t, err, support.ConnectorStackErrorTrace(err))
-	response, err := HasMailFolder(folderName, user, suite.connector.graphService)
+	response, err := HasMailFolder(folderName, suite.user, suite.connector.graphService)
 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	require.NotNil(t, response)
 	err = deleteMailFolder(suite.connector.graphService, suite.user, *response)
