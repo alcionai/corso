@@ -545,16 +545,9 @@ func (s ExchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeIn
 				return true
 			}
 		}
-		// None() fails all matches
-		if target[0] == NoneTgt {
-			return false
-		}
->>>>>>> 41aa2da (introduce exchange info selector support)
-		// the path must contain a value to match against
-		id, ok := pathIDs[c]
-		if !ok {
-			return false
-		}
+	}
+	return false
+}
 
 // matchesPath handles the standard behavior when comparing a scope and a path
 // returns true if the scope and path match for the provided category.

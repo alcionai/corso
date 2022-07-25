@@ -148,7 +148,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeExchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
+	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
 
 	bo, err := r.NewBackup(ctx, sel, options.OperationOptions())
 	if err != nil {
@@ -165,7 +165,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeExchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
+func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
 	sel := selectors.NewExchangeBackup()
 	if all {
 		sel.Include(sel.Users(selectors.Any()))
