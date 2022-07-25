@@ -50,7 +50,7 @@ type graphService struct {
 }
 
 // PopulateFunc collection of functions can be run serially or asynchronously to populate DataCollections
-type PopulateFunc func(context.Context, graphService, chan *support.ConnectorOperationStatus)
+type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
