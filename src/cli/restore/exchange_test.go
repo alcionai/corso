@@ -149,17 +149,17 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		{
 			name:             "any users",
 			users:            any,
-			expectIncludeLen: 1,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "single user",
 			users:            stub,
-			expectIncludeLen: 1,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "multiple users",
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 1,
+			expectIncludeLen: 6,
 		},
 		{
 			name:             "any users, any data",
