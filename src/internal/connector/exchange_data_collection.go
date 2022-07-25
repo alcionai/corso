@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/backup"
 )
 
@@ -53,8 +54,13 @@ var _ DataStreamInfo = &ExchangeData{}
 // It implements the DataCollection interface
 type ExchangeDataCollection struct {
 	// M365 user
-	user string
-	data chan DataStream
+	user         string
+	data         chan DataStream
+	tasks        []string
+	updateCh     chan support.ConnectorOperationStatus
+	service      graphService
+	populateFunc PopulateFunc
+
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
