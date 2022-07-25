@@ -41,7 +41,10 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
 func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 	user := "a-user"
 	fullPath := []string{"a-tenant", user, "emails"}
-	edc := NewExchangeDataCollection(user, fullPath)
+	edc := ExchangeDataCollection{
+		user:     user,
+		fullPath: fullPath,
+	}
 	assert.Equal(suite.T(), edc.FullPath(), fullPath)
 }
 
@@ -58,7 +61,11 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	inputStrings := []string{"Jack", "and", "Jill", "went", "up", "the", "hill to",
 		"fetch", "a", "pale", "of", "water"}
 	expected := len(inputStrings) / 2 // We are using pairs
-	edc := NewExchangeDataCollection("Fletcher", []string{"sugar", "horses", "painted red"})
+	edc := ExchangeDataCollection{
+		user:     "Fletcher",
+		data:     make(chan DataStream, 3),
+		fullPath: []string{"sugar", "horses", "painted red"},
+	}
 	for i := 0; i < expected; i++ {
 		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
 	}
@@ -69,7 +76,11 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NextItem() 
 	inputStrings := []string{"Jack", "and", "Jill", "went", "up", "the", "hill to",
 		"fetch", "a", "pale", "of", "water"}
 	expected := len(inputStrings) / 2 // We are using pairs
-	edc := NewExchangeDataCollection("Fletcher", []string{"sugar", "horses", "painted red"})
+	edc := ExchangeDataCollection{
+		user:     "Fletcher",
+		data:     make(chan DataStream, 3),
+		fullPath: []string{"sugar", "horses", "painted red"},
+	}
 	for i := 0; i < expected; i++ {
 		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
 	}
