@@ -1,14 +1,19 @@
 package backup_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/zeebo/assert"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type BackupSuite struct {
@@ -30,6 +35,18 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 		CreationTime: now,
 		SnapshotID:   "snapshot",
 		DetailsID:    "details",
+		Status:       "status",
+		Selectors:    selectors.Selector{},
+		ReadWrites: stats.ReadWrites{
+			ItemsRead:    1,
+			ItemsWritten: 1,
+			ReadErrors:   errors.New("1"),
+			WriteErrors:  errors.New("1"),
+		},
+		StartAndEndTime: stats.StartAndEndTime{
+			StartedAt:   now,
+			CompletedAt: now,
+		},
 	}
 
 	expectHs := []string{
@@ -37,15 +54,32 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 		"Stable ID",
 		"Snapshot ID",
 		"Details ID",
+		"Status",
+		"Selectors",
+		"ItemsRead",
+		"ItemsWritten",
+		"ReadErrors",
+		"WriteErrors",
+		"StartedAt",
+		"CompletedAt",
 	}
 	hs := b.Headers()
 	assert.DeepEqual(t, expectHs, hs)
+	nowFmt := common.FormatTime(now)
 
 	expectVs := []string{
-		now.Format(time.RFC3339Nano),
+		nowFmt,
 		"stable",
 		"snapshot",
 		"details",
+		"status",
+		"{}",
+		"1",
+		"1",
+		"1",
+		"1",
+		nowFmt,
+		nowFmt,
 	}
 	vs := b.Values()
 	assert.DeepEqual(t, expectVs, vs)
@@ -57,13 +91,13 @@ func (suite *BackupSuite) TestDetailsEntry_HeadersValues() {
 
 	table := []struct {
 		name     string
-		entry    backup.DetailsEntry
+		entry    details.DetailsEntry
 		expectHs []string
 		expectVs []string
 	}{
 		{
 			name: "no info",
-			entry: backup.DetailsEntry{
+			entry: details.DetailsEntry{
 				RepoRef: "reporef",
 			},
 			expectHs: []string{"Repo Ref"},
@@ -71,10 +105,10 @@ func (suite *BackupSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "exhange info",
-			entry: backup.DetailsEntry{
+			entry: details.DetailsEntry{
 				RepoRef: "reporef",
-				ItemInfo: backup.ItemInfo{
-					Exchange: &backup.ExchangeInfo{
+				ItemInfo: details.ItemInfo{
+					Exchange: &details.ExchangeInfo{
 						Sender:   "sender",
 						Subject:  "subject",
 						Received: now,
@@ -86,10 +120,10 @@ func (suite *BackupSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "sharepoint info",
-			entry: backup.DetailsEntry{
+			entry: details.DetailsEntry{
 				RepoRef: "reporef",
-				ItemInfo: backup.ItemInfo{
-					Sharepoint: &backup.SharepointInfo{},
+				ItemInfo: details.ItemInfo{
+					Sharepoint: &details.SharepointInfo{},
 				},
 			},
 			expectHs: []string{"Repo Ref"},
@@ -110,7 +144,7 @@ func (suite *BackupSuite) TestDetailsEntry_HeadersValues() {
 func (suite *BackupSuite) TestDetailsModel_Path() {
 	table := []struct {
 		name   string
-		ents   []backup.DetailsEntry
+		ents   []details.DetailsEntry
 		expect []string
 	}{
 		{
@@ -120,14 +154,14 @@ func (suite *BackupSuite) TestDetailsModel_Path() {
 		},
 		{
 			name: "single entry",
-			ents: []backup.DetailsEntry{
+			ents: []details.DetailsEntry{
 				{RepoRef: "abcde"},
 			},
 			expect: []string{"abcde"},
 		},
 		{
 			name: "multiple entries",
-			ents: []backup.DetailsEntry{
+			ents: []details.DetailsEntry{
 				{RepoRef: "abcde"},
 				{RepoRef: "12345"},
 			},
@@ -136,8 +170,8 @@ func (suite *BackupSuite) TestDetailsModel_Path() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			d := backup.Details{
-				DetailsModel: backup.DetailsModel{
+			d := details.Details{
+				DetailsModel: details.DetailsModel{
 					Entries: test.ents,
 				},
 			}

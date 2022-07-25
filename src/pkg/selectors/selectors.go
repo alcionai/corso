@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -82,6 +83,14 @@ func Any() []string {
 // to fail.
 func None() []string {
 	return []string{NoneTgt}
+}
+
+func (s Selector) String() string {
+	bs, err := json.Marshal(s)
+	if err != nil {
+		return "error"
+	}
+	return string(bs)
 }
 
 type baseScope interface {

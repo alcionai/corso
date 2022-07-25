@@ -11,7 +11,7 @@ type ConnectorOperationStatus struct {
 	lastOperation    Operation
 	ObjectCount      int
 	folderCount      int
-	successful       int
+	Successful       int
 	errorCount       int
 	incomplete       bool
 	incompleteReason string
@@ -38,12 +38,12 @@ func CreateStatus(ctx context.Context, op Operation, objects, success, folders i
 		lastOperation:    op,
 		ObjectCount:      objects,
 		folderCount:      folders,
-		successful:       success,
+		Successful:       success,
 		errorCount:       numErr,
 		incomplete:       hasErrors,
 		incompleteReason: reason,
 	}
-	if status.ObjectCount != status.errorCount+status.successful {
+	if status.ObjectCount != status.errorCount+status.Successful {
 		logger.Ctx(ctx).DPanicw(
 			"status object count does not match errors + successes",
 			"objects", objects,
@@ -55,7 +55,7 @@ func CreateStatus(ctx context.Context, op Operation, objects, success, folders i
 
 func (cos *ConnectorOperationStatus) String() string {
 	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
-		cos.successful, cos.ObjectCount, cos.folderCount)
+		cos.Successful, cos.ObjectCount, cos.folderCount)
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
 	}

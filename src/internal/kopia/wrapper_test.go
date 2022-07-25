@@ -20,7 +20,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/kopia/mockkopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 const (
@@ -117,7 +117,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
-	details := &backup.Details{}
+	details := &details.Details{}
 
 	collections := []connector.DataCollection{
 		mockconnector.NewMockExchangeDataCollection(
@@ -180,7 +180,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
-	details := &backup.Details{}
+	details := &details.Details{}
 	collections := []connector.DataCollection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{emails},
@@ -259,7 +259,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			details := &backup.Details{}
+			details := &details.Details{}
 			_, err := inflateDirTree(ctx, test.layout, details)
 			assert.Error(t, err)
 		})
