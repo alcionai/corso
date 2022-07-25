@@ -292,7 +292,7 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) Excha
 	}
 }
 
-// Produces one or more exchange mail recieved-after filter scopes.
+// Produces one or more exchange mail received-after filter scopes.
 // Matches any mail which was received after the timestring.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
@@ -577,15 +577,6 @@ func (s ExchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 		}
 	}
 	return true
-}
-
-// excludesInfo returns true if all filters in the scope matche the info.
-func (s exchangeScope) excludesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
-	// todo: implement once filters used in scopes
-	if info == nil {
-		return false
-	}
-	return false
 }
 
 // temporary helper until filters replace string values for scopes.
