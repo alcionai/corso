@@ -37,7 +37,21 @@
 package path
 
 import (
-	"errors"
+	"strings"
+
+	"github.com/pkg/errors"
+)
+
+const (
+	escapeCharacter = '\\'
+	pathSeparator   = '/'
+)
+
+var (
+	charactersToEscape = map[rune]struct{}{
+		pathSeparator:   {},
+		escapeCharacter: {},
+	}
 )
 
 var errMissingSegment = errors.New("missing required path segment")
@@ -57,12 +71,35 @@ type Path interface {
 }
 
 type Base struct {
+	// Escaped path elements.
+	elements []string
+	// Contains starting index in elements of each segment.
+	segmentIdx []int
 }
 
 // newPath takes a path that is broken into segments and elements in the segment
 // and returns a Base. Each element in the input is escaped.
 func newPath(segments [][]string) Base {
-	return Base{}
+	if len(segments) == 0 {
+		return Base{}
+	}
+
+	res := Base{segmentIdx: make([]int, 0, len(segments))}
+	idx := 0
+	for _, s := range segments {
+		res.segmentIdx = append(res.segmentIdx, idx)
+
+		for _, e := range s {
+			if len(e) == 0 {
+				continue
+			}
+
+			res.elements = append(res.elements, escapeElement(e))
+			idx++
+		}
+	}
+
+	return res
 }
 
 // NewPathFromEscapedSegments takes already escaped segments of a path, verifies
@@ -74,14 +111,20 @@ func newPathFromEscapedSegments(segments []string) (Base, error) {
 
 // String returns a string that contains all path segments joined
 // together. Elements of the path that need escaping will be escaped.
-func (p Base) String() string {
-	return ""
+func (b Base) String() string {
+	return join(b.elements)
 }
 
 // segment returns the nth segment of the path. Path segment indices are
-// 0-based.
-func (p Base) segment(n int) string {
-	return ""
+// 0-based. As this function is used exclusively by wrappers of path, it does no
+// bounds checking. Callers are expected to have validated the number of
+// segments when making the path.
+func (b Base) segment(n int) string {
+	if n == len(b.segmentIdx)-1 {
+		return join(b.elements[b.segmentIdx[n]:])
+	}
+
+	return join(b.elements[b.segmentIdx[n]:b.segmentIdx[n+1]])
 }
 
 // unescapedSegmentElements returns the unescaped version of the elements that
@@ -93,6 +136,43 @@ func (p Base) unescapedSegmentElements(n int) []string {
 // TransformedSegments returns a slice of the path segments where each segments
 // has also been transformed such that it contains no characters outside the set
 // of acceptable file system path characters.
-func (p Base) TransformedSegments() []string {
+func (b Base) TransformedSegments() []string {
 	return nil
+}
+
+func escapeElement(element string) string {
+	escapeIdx := make([]int, 0)
+
+	for i, c := range element {
+		if _, ok := charactersToEscape[c]; ok {
+			escapeIdx = append(escapeIdx, i)
+		}
+	}
+
+	if len(escapeIdx) == 0 {
+		return element
+	}
+
+	b := strings.Builder{}
+	b.Grow(len(element) + len(escapeIdx))
+	startIdx := 0
+
+	for _, idx := range escapeIdx {
+		b.WriteString(element[startIdx:idx])
+		b.WriteRune(escapeCharacter)
+		startIdx = idx
+	}
+
+	// Add the end of the element after the last escape character.
+	b.WriteString(element[startIdx:])
+
+	return b.String()
+}
+
+// join returns a string containing the given elements joined by the path
+// separator '/'.
+func join(elements []string) string {
+	// Have to use strings because path package does not handle escaped '/' and
+	// '\' according to the escaping rules.
+	return strings.Join(elements, string(pathSeparator))
 }
