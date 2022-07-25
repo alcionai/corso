@@ -67,17 +67,16 @@ type ExchangeDataCollection struct {
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
-func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
+func NewExchangeDataCollection(aUser string, taskList, pathRepresentation []string, gs graphService, pf PopulateFunc) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
-		user:     aUser,
-		data:     make(chan DataStream, collectionChannelBufferSize),
-		fullPath: pathRepresentation,
+		user:         aUser,
+		data:         make(chan DataStream, collectionChannelBufferSize),
+		tasks:        taskList,
+		service:      gs,
+		populateFunc: pf,
+		fullPath:     pathRepresentation,
 	}
 	return collection
-}
-
-func (edc *ExchangeDataCollection) PopulateCollection(newData *ExchangeData) {
-	edc.data <- newData
 }
 
 // FinishPopulation is used to indicate data population of the collection is complete
