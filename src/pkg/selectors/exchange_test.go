@@ -495,7 +495,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Include_MatchesInfo() {
 
 	table := []struct {
 		name   string
-		scope  []exchangeScope
+		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
 		{"any mail with a sender", es.MailSender(Any()), assert.True},
@@ -537,7 +537,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesPath() {
 
 	table := []struct {
 		name   string
-		scope  []exchangeScope
+		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
 		{"all user's items", es.Users(Any()), assert.True},
@@ -777,7 +777,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 		mail    int
 	}
 	type input []map[string]string
-	makeInput := func(es ...[]exchangeScope) []map[string]string {
+	makeInput := func(es ...[]ExchangeScope) []map[string]string {
 		mss := []map[string]string{}
 		for _, sl := range es {
 			for _, s := range sl {
@@ -828,8 +828,8 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 
 	table := []struct {
 		name     string
-		includes []exchangeScope
-		excludes []exchangeScope
+		includes []ExchangeScope
+		excludes []ExchangeScope
 		expect   assert.BoolAssertionFunc
 	}{
 		{"empty", nil, nil, assert.False},
