@@ -841,11 +841,9 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 	)
 
 	table := []struct {
-		name     string
-		excludes []ExchangeScope
-		filters  []ExchangeScope
-		includes []ExchangeScope
-		expect   assert.BoolAssertionFunc
+		name                        string
+		excludes, filters, includes []ExchangeScope
+		expect                      assert.BoolAssertionFunc
 	}{
 		{"empty", nil, nil, nil, assert.False},
 		{"in Any", nil, nil, anyUser, assert.True},
@@ -856,11 +854,12 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 		{"ex Any", anyUser, nil, anyUser, assert.False},
 		{"ex Any filter", anyUser, anyUser, nil, assert.False},
 		{"ex None", noUser, nil, anyUser, assert.True},
-		{"ex None filter", noUser, anyUser, nil, assert.True},
+		{"ex None filter mail", noUser, mail, nil, assert.True},
+		{"ex None filter any user", noUser, anyUser, nil, assert.False},
 		{"ex Mail", mail, nil, anyUser, assert.False},
 		{"ex Other", otherMail, nil, anyUser, assert.True},
 		{"in and ex Mail", mail, nil, mail, assert.False},
-		{"filter Any", nil, anyUser, nil, assert.True},
+		{"filter Any", nil, anyUser, nil, assert.False},
 		{"filter None", nil, noUser, anyUser, assert.False},
 		{"filter Mail", nil, mail, anyUser, assert.True},
 		{"filter Other", nil, otherMail, anyUser, assert.False},
