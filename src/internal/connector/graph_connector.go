@@ -42,12 +42,14 @@ type GraphConnector struct {
 	credentials      account.M365Config
 }
 
+// graphService internal struct that utilizes msgraph-sdk-go functions and interfaces
 type graphService struct {
 	client   msgraphsdk.GraphServiceClient
 	adapter  msgraphsdk.GraphRequestAdapter
 	failFast bool // if true service will exit sequence upon encountering an error
 }
 
+// PopulateFunc collection of functions can be run serially or asynchronously to populate DataCollections
 type PopulateFunc func(context.Context, graphService, chan *support.ConnectorOperationStatus)
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
