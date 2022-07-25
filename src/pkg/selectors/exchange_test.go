@@ -276,15 +276,22 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Users() {
 
 	sel.Exclude(sel.Users([]string{u1, u2}))
 	scopes := sel.Excludes
-	require.Equal(t, 1, len(scopes))
+	require.Equal(t, 6, len(scopes))
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
-	assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+	for _, scope := range scopes {
+		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
+			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeEvent.String() {
+			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
+			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+		}
+	}
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
@@ -298,17 +305,22 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
 
 	sel.Include(sel.Users([]string{u1, u2}))
 	scopes := sel.Includes
-	require.Equal(t, 1, len(scopes))
+	require.Equal(t, 6, len(scopes))
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
-	assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
-
-	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeUser)
+	for _, scope := range scopes {
+		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
+			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeEvent.String() {
+			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
+			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+		}
+	}
 }
 
 func (suite *ExchangeSourceSuite) TestNewExchangeDestination() {
@@ -559,9 +571,14 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesPath() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			scopes := extendExchangeScopeValues(test.scope)
+			var aMatch bool
 			for _, scope := range scopes {
-				test.expect(t, scope.matchesPath(ExchangeMail, path))
+				if scope.matchesPath(ExchangeMail, path) {
+					aMatch = true
+					break
+				}
 			}
+			test.expect(t, aMatch)
 		})
 	}
 }

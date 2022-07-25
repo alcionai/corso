@@ -265,10 +265,11 @@ func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 func (s *exchange) Users(users []string) []ExchangeScope {
 	users = normalize(users)
 	scopes := []ExchangeScope{}
-	scopes = append(
-		scopes,
-		makeExchangeScope(Group, ExchangeUser, users),
-	)
+	for _, u := range users {
+		scopes = append(scopes, makeExchangeUserScope(u, Group, ExchangeContactFolder, Any()))
+		scopes = append(scopes, makeExchangeUserScope(u, Item, ExchangeEvent, Any()))
+		scopes = append(scopes, makeExchangeUserScope(u, Group, ExchangeMailFolder, Any()))
+	}
 	return scopes
 }
 
