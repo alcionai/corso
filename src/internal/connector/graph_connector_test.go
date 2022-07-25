@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,7 +94,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
 	user := "lidiah@8qzvrj.onmicrosoft.com"
-	folderName := "createdForTest"
+	folderName := uuid.NewString() // todo - replace with danny's fix #391
 	aFolder, err := createMailFolder(suite.connector.graphService, user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
