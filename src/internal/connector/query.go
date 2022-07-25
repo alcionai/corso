@@ -3,6 +3,7 @@ package connector
 import (
 	"errors"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 )
@@ -22,6 +23,19 @@ const (
 // NewTaskList constructor for TaskList
 func NewTaskList() TaskList {
 	return make(map[string][]string, 0)
+}
+
+func IterateMessagesCollection(err error, tasklist *TaskList) func(any) bool {
+	return func(messageItem any) bool {
+		message, ok := messageItem.(models.Messageable)
+		if !ok {
+			err = errors.New("message iteration failure")
+			return true
+		}
+		// Saving to messages to list. Indexed by folder
+		tasklist.AddTask(*message.GetParentFolderId(), *message.GetId())
+		return true
+	}
 }
 
 // AddTask helper method to ensure that keys and items are created properly
