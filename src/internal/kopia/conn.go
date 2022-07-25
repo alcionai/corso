@@ -8,6 +8,7 @@ import (
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -19,6 +20,19 @@ var (
 	errInit    = errors.New("initializing repo")
 	errConnect = errors.New("connecting repo")
 )
+
+type ErrorRepoAlreadyExists struct {
+	common.Err
+}
+
+func RepoAlreadyExistsError(e error) error {
+	return ErrorRepoAlreadyExists{*common.EncapsulateError(e)}
+}
+
+func IsRepoAlreadyExistsError(e error) bool {
+	var erae ErrorRepoAlreadyExists
+	return errors.As(e, &erae)
+}
 
 type conn struct {
 	storage storage.Storage
@@ -47,6 +61,9 @@ func (w *conn) Initialize(ctx context.Context) error {
 
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
 	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassword); err != nil {
+		if errors.Is(err, repo.ErrAlreadyInitialized) {
+			return RepoAlreadyExistsError(err)
+		}
 		return errors.Wrap(err, errInit.Error())
 	}
 
