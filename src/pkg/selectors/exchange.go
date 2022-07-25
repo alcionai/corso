@@ -86,11 +86,11 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // Group-level scopes will automatically apply the Any() wildcard to child
 // properties.
 // ex: User(u1) is the same as Mail(u1, Any(), Any()).
-func (s *exchange) Include(scopes ...[]exchangeScope) {
+func (s *exchange) Include(scopes ...[]ExchangeScope) {
 	if s.Includes == nil {
 		s.Includes = []map[string]string{}
 	}
-	concat := []exchangeScope{}
+	concat := []ExchangeScope{}
 	for _, scopeSl := range scopes {
 		concat = append(concat, extendExchangeScopeValues(scopeSl)...)
 	}
@@ -112,11 +112,11 @@ func (s *exchange) Include(scopes ...[]exchangeScope) {
 // ex: User(u1) automatically includes all mail, events, and contacts,
 // therefore it is the same as selecting all of the following:
 // Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
-func (s *exchange) Exclude(scopes ...[]exchangeScope) {
+func (s *exchange) Exclude(scopes ...[]ExchangeScope) {
 	if s.Excludes == nil {
 		s.Excludes = []map[string]string{}
 	}
-	concat := []exchangeScope{}
+	concat := []ExchangeScope{}
 	for _, scopeSl := range scopes {
 		concat = append(concat, extendExchangeScopeValues(scopeSl)...)
 	}
@@ -127,7 +127,7 @@ func (s *exchange) Exclude(scopes ...[]exchangeScope) {
 
 // completes population for certain scope properties, according to the
 // expecations of Include and Exclude behavior.
-func extendExchangeScopeValues(es []exchangeScope) []exchangeScope {
+func extendExchangeScopeValues(es []ExchangeScope) []ExchangeScope {
 	v := join(Any()...)
 	for i := range es {
 		switch es[i].Category() {
@@ -149,15 +149,15 @@ func extendExchangeScopeValues(es []exchangeScope) []exchangeScope {
 // -------------------
 // Scope Factory
 
-func makeExchangeScope(granularity string, cat exchangeCategory, vs []string) exchangeScope {
-	return exchangeScope{
+func makeExchangeScope(granularity string, cat exchangeCategory, vs []string) ExchangeScope {
+	return ExchangeScope{
 		scopeKeyGranularity: granularity,
 		scopeKeyCategory:    cat.String(),
 		cat.String():        join(vs...),
 	}
 }
 
-func makeExchangeUserScope(user, granularity string, cat exchangeCategory, vs []string) exchangeScope {
+func makeExchangeUserScope(user, granularity string, cat exchangeCategory, vs []string) ExchangeScope {
 	return makeExchangeScope(granularity, cat, vs).set(ExchangeUser, user)
 }
 
@@ -166,11 +166,11 @@ func makeExchangeUserScope(user, granularity string, cat exchangeCategory, vs []
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Contacts(users, folders, contacts []string) []exchangeScope {
+func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 	users = normalize(users)
 	folders = normalize(folders)
 	contacts = normalize(contacts)
-	scopes := []exchangeScope{}
+	scopes := []ExchangeScope{}
 	for _, u := range users {
 		for _, f := range folders {
 			scopes = append(
@@ -187,10 +187,10 @@ func (s *exchange) Contacts(users, folders, contacts []string) []exchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) ContactFolders(users, folders []string) []exchangeScope {
+func (s *exchange) ContactFolders(users, folders []string) []ExchangeScope {
 	users = normalize(users)
 	folders = normalize(folders)
-	scopes := []exchangeScope{}
+	scopes := []ExchangeScope{}
 	for _, u := range users {
 		scopes = append(
 			scopes,
@@ -205,10 +205,10 @@ func (s *exchange) ContactFolders(users, folders []string) []exchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Events(users, events []string) []exchangeScope {
+func (s *exchange) Events(users, events []string) []ExchangeScope {
 	users = normalize(users)
 	events = normalize(events)
-	scopes := []exchangeScope{}
+	scopes := []ExchangeScope{}
 	for _, u := range users {
 		scopes = append(
 			scopes,
@@ -223,11 +223,11 @@ func (s *exchange) Events(users, events []string) []exchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Mails(users, folders, mails []string) []exchangeScope {
+func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 	users = normalize(users)
 	folders = normalize(folders)
 	mails = normalize(mails)
-	scopes := []exchangeScope{}
+	scopes := []ExchangeScope{}
 	for _, u := range users {
 		for _, f := range folders {
 			scopes = append(
@@ -244,10 +244,10 @@ func (s *exchange) Mails(users, folders, mails []string) []exchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) MailFolders(users, folders []string) []exchangeScope {
+func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 	users = normalize(users)
 	folders = normalize(folders)
-	scopes := []exchangeScope{}
+	scopes := []ExchangeScope{}
 	for _, u := range users {
 		scopes = append(
 			scopes,
@@ -262,9 +262,9 @@ func (s *exchange) MailFolders(users, folders []string) []exchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Users(users []string) []exchangeScope {
+func (s *exchange) Users(users []string) []ExchangeScope {
 	users = normalize(users)
-	scopes := []exchangeScope{}
+	scopes := []ExchangeScope{}
 	scopes = append(
 		scopes,
 		makeExchangeScope(Group, ExchangeUser, users),
@@ -272,8 +272,8 @@ func (s *exchange) Users(users []string) []exchangeScope {
 	return scopes
 }
 
-func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) exchangeScope {
-	return exchangeScope{
+func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) ExchangeScope {
+	return ExchangeScope{
 		scopeKeyGranularity: Filter,
 		scopeKeyCategory:    cat.String(),
 		scopeKeyInfoFilter:  filterCat.String(),
@@ -287,8 +287,8 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) excha
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailReceivedAfter(timeStrings []string) []exchangeScope {
-	return []exchangeScope{
+func (sr *ExchangeRestore) MailReceivedAfter(timeStrings []string) []ExchangeScope {
+	return []ExchangeScope{
 		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedAfter, timeStrings),
 	}
 }
@@ -299,8 +299,8 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeStrings []string) []exchangeSco
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailReceivedBefore(timeStrings []string) []exchangeScope {
-	return []exchangeScope{
+func (sr *ExchangeRestore) MailReceivedBefore(timeStrings []string) []ExchangeScope {
+	return []ExchangeScope{
 		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedBefore, timeStrings),
 	}
 }
@@ -311,8 +311,8 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings []string) []exchangeSc
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailSender(senderIDs []string) []exchangeScope {
-	return []exchangeScope{
+func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
+	return []ExchangeScope{
 		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailSender, senderIDs),
 	}
 }
@@ -322,8 +322,8 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []exchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailSubject(subjectSubstrings []string) []exchangeScope {
-	return []exchangeScope{
+func (sr *ExchangeRestore) MailSubject(subjectSubstrings []string) []ExchangeScope {
+	return []ExchangeScope{
 		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailSubject, subjectSubstrings),
 	}
 }
@@ -367,19 +367,19 @@ func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
 // ---------------------------------------------------------------------------
 
 type (
-	// exchangeScope specifies the data available
+	// ExchangeScope specifies the data available
 	// when interfacing with the Exchange service.
-	exchangeScope map[string]string
+	ExchangeScope map[string]string
 	// exchangeCategory enumerates the type of the lowest level
 	// of data () in a scope.
 	exchangeCategory int
 )
 
 // Scopes retrieves the list of exchangeScopes in the selector.
-func (s *exchange) Scopes() []exchangeScope {
-	scopes := []exchangeScope{}
+func (s *exchange) Scopes() []ExchangeScope {
+	scopes := []ExchangeScope{}
 	for _, v := range s.Includes {
-		scopes = append(scopes, exchangeScope(v))
+		scopes = append(scopes, ExchangeScope(v))
 	}
 	return scopes
 }
@@ -432,17 +432,17 @@ func exchangeCatAtoI(s string) exchangeCategory {
 
 // Granularity describes the granularity (directory || item)
 // of the data in scope
-func (s exchangeScope) Granularity() string {
+func (s ExchangeScope) Granularity() string {
 	return s[scopeKeyGranularity]
 }
 
 // Category describes the type of the data in scope.
-func (s exchangeScope) Category() exchangeCategory {
+func (s ExchangeScope) Category() exchangeCategory {
 	return exchangeCatAtoI(s[scopeKeyCategory])
 }
 
 // Filer describes the specific filter, and its target values.
-func (s exchangeScope) Filter() exchangeCategory {
+func (s ExchangeScope) Filter() exchangeCategory {
 	return exchangeCatAtoI(s[scopeKeyInfoFilter])
 }
 
@@ -450,7 +450,7 @@ func (s exchangeScope) Filter() exchangeCategory {
 // certain category of data.
 // Ex: to check if the scope includes mail data:
 // s.IncludesCategory(selector.ExchangeMail)
-func (s exchangeScope) IncludesCategory(cat exchangeCategory) bool {
+func (s ExchangeScope) IncludesCategory(cat exchangeCategory) bool {
 	sCat := s.Category()
 	if cat == ExchangeCategoryUnknown || sCat == ExchangeCategoryUnknown {
 		return false
@@ -472,7 +472,7 @@ func (s exchangeScope) IncludesCategory(cat exchangeCategory) bool {
 // Get returns the data category in the scope.  If the scope
 // contains all data types for a user, it'll return the
 // ExchangeUser category.
-func (s exchangeScope) Get(cat exchangeCategory) []string {
+func (s ExchangeScope) Get(cat exchangeCategory) []string {
 	v, ok := s[cat.String()]
 	if !ok {
 		return None()
@@ -481,7 +481,7 @@ func (s exchangeScope) Get(cat exchangeCategory) []string {
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
-func (s exchangeScope) set(cat exchangeCategory, v string) exchangeScope {
+func (s ExchangeScope) set(cat exchangeCategory, v string) ExchangeScope {
 	s[cat.String()] = v
 	return s
 }
@@ -494,13 +494,13 @@ var categoryPathSet = map[exchangeCategory][]exchangeCategory{
 }
 
 // matches returns true if either the path or the info matches the scope details.
-func (s exchangeScope) matches(cat exchangeCategory, path []string, info *backup.ExchangeInfo) bool {
+func (s ExchangeScope) matches(cat exchangeCategory, path []string, info *backup.ExchangeInfo) bool {
 	return s.matchesPath(cat, path) || s.matchesInfo(cat, info)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an exchangeInfo
 // returns true if the scope and info match for the provided category.
-func (s exchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
+func (s ExchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
 	// we need values to match against
 	if info == nil {
 		return false
@@ -543,7 +543,7 @@ func (s exchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeIn
 
 // matchesPath handles the standard behavior when comparing a scope and a path
 // returns true if the scope and path match for the provided category.
-func (s exchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
+func (s ExchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 	pathIDs := exchangeIDPath(cat, path)
 	for _, c := range categoryPathSet[cat] {
 		target := s.Get(c)
@@ -569,15 +569,6 @@ func (s exchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 		}
 	}
 	return true
-}
-
-// excludesInfo returns true if all filters in the scope matche the info.
-func (s exchangeScope) excludesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
-	// todo: implement once filters used in scopes
-	if info == nil {
-		return false
-	}
-	return false
 }
 
 // temporary helper until filters replace string values for scopes.
@@ -681,14 +672,14 @@ func (s *ExchangeRestore) FilterDetails(deets *backup.Details) *backup.Details {
 
 // groups each scope by its category of data (contact, event, or mail).
 // user-level scopes will duplicate to all three categories.
-func exchangeScopesByCategory(scopes []map[string]string) map[string][]exchangeScope {
-	m := map[string][]exchangeScope{
+func exchangeScopesByCategory(scopes []map[string]string) map[string][]ExchangeScope {
+	m := map[string][]ExchangeScope{
 		ExchangeContact.String(): {},
 		ExchangeEvent.String():   {},
 		ExchangeMail.String():    {},
 	}
 	for _, msc := range scopes {
-		sc := exchangeScope(msc)
+		sc := ExchangeScope(msc)
 		if sc.IncludesCategory(ExchangeContact) {
 			m[ExchangeContact.String()] = append(m[ExchangeContact.String()], sc)
 		}
@@ -708,7 +699,7 @@ func matchExchangeEntry(
 	cat exchangeCategory,
 	path []string,
 	info *backup.ExchangeInfo,
-	incs, excs []exchangeScope,
+	incs, excs []ExchangeScope,
 ) bool {
 	var included bool
 	for _, inc := range incs {

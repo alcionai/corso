@@ -46,6 +46,8 @@ type GraphConnector struct {
 // PopulateFunc collection of functions can be run serially or asynchronously to populate DataCollections
 type PopulateFunc func(context.Context, *graphService, ExchangeDataCollection, chan<- *support.ConnectorOperationStatus)
 
+type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
+
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
@@ -269,12 +271,12 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 					// TODO: Add to retry Handler for the for failure
 				}
 
-				if sentMessage == nil && err == nil {
+				if sentMessage == nil {
 					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+					continue
 				}
-				if err != nil {
-					successes++
-				}
+
+				successes++
 				// This completes the restore loop for a message..
 			}
 		}

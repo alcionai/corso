@@ -440,7 +440,6 @@ func validateExchangeBackupDetailFlags(
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
 	lev := len(events)
-	// if only the backupID is populated, that's the same as --all
 	if lu+lc+lcf+le+lef+lev == 0 {
 		return nil
 	}
