@@ -316,7 +316,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		emailFolder,
 		event,
 		user)
-	includeExchangeBackupDetailInfoSelectors(
+	filterExchangeBackupDetailInfoSelectors(
 		sel,
 		emailReceivedAfter,
 		emailReceivedBefore,
@@ -328,7 +328,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	ds := sel.FilterDetails(d)
+	ds := sel.Reduce(d)
 	print.Entries(ds.Entries)
 
 	return nil
@@ -389,43 +389,43 @@ func includeExchangeEvents(sel *selectors.ExchangeRestore, users, events []strin
 	sel.Include(sel.Events(users, events))
 }
 
-// builds the info-selector inclusions for `backup details exchange`
-func includeExchangeBackupDetailInfoSelectors(
+// builds the info-selector filters for `backup details exchange`
+func filterExchangeBackupDetailInfoSelectors(
 	sel *selectors.ExchangeRestore,
 	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject []string,
 ) {
-	includeExchangeInfoMailReceivedAfter(sel, emailReceivedAfter)
-	includeExchangeInfoMailReceivedBefore(sel, emailReceivedBefore)
-	includeExchangeInfoMailSender(sel, emailSender)
-	includeExchangeInfoMailSubject(sel, emailSubject)
+	filterExchangeInfoMailReceivedAfter(sel, emailReceivedAfter)
+	filterExchangeInfoMailReceivedBefore(sel, emailReceivedBefore)
+	filterExchangeInfoMailSender(sel, emailSender)
+	filterExchangeInfoMailSubject(sel, emailSubject)
 }
 
-func includeExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter []string) {
+func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter []string) {
 	if len(receivedAfter) == 0 {
 		return
 	}
-	sel.Include(sel.MailReceivedAfter(receivedAfter))
+	sel.Filter(sel.MailReceivedAfter(receivedAfter))
 }
 
-func includeExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore []string) {
+func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore []string) {
 	if len(receivedBefore) == 0 {
 		return
 	}
-	sel.Include(sel.MailReceivedBefore(receivedBefore))
+	sel.Filter(sel.MailReceivedBefore(receivedBefore))
 }
 
-func includeExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender []string) {
+func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender []string) {
 	if len(sender) == 0 {
 		return
 	}
-	sel.Include(sel.MailSender(sender))
+	sel.Filter(sel.MailSender(sender))
 }
 
-func includeExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject []string) {
+func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject []string) {
 	if len(subject) == 0 {
 		return
 	}
-	sel.Include(sel.MailSubject(subject))
+	sel.Filter(sel.MailSubject(subject))
 }
 
 // checks all flags for correctness and interdependencies
