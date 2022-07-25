@@ -291,12 +291,12 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 					// TODO: Add to retry Handler for the for failure
 				}
 
-				if sentMessage == nil && err == nil {
+				if sentMessage == nil {
 					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+					continue
 				}
-				if err != nil {
-					successes++
-				}
+
+				successes++
 				// This completes the restore loop for a message..
 			}
 		}
