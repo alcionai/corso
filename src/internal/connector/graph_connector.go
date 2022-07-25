@@ -48,7 +48,7 @@ type graphService struct {
 	failFast bool // if true service will exit sequence upon encountering an error
 }
 
-type PopulateFunc func(context.Context, graphService, chan *support.ConnectorOperationStatus)
+type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
