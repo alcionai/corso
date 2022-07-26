@@ -7,8 +7,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/internal/connector/data"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/stats"

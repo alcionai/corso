@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/internal/connector/data"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 

@@ -14,7 +14,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/data"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/logger"
 )
