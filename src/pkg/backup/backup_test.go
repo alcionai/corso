@@ -56,12 +56,12 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 		"Details ID",
 		"Status",
 		"Selectors",
-		"ItemsRead",
-		"ItemsWritten",
-		"ReadErrors",
-		"WriteErrors",
-		"StartedAt",
-		"CompletedAt",
+		"Items Read",
+		"Items Written",
+		"Read Errors",
+		"Write Errors",
+		"Started At",
+		"Completed At",
 	}
 	hs := b.Headers()
 	assert.DeepEqual(t, expectHs, hs)
