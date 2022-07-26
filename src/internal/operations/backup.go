@@ -99,7 +99,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "connecting to graph api")
 	}
 
-	var cs []data.DataCollection
+	var cs []data.Collection
 	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
 	if err != nil {
 		stats.readErr = err
