@@ -25,6 +25,8 @@ func NewTaskList() TaskList {
 	return make(map[string][]string, 0)
 }
 
+type GraphIterateFunc func(error, *TaskList) func(any) bool
+
 func IterateMessagesCollection(err error, tasklist *TaskList) func(any) bool {
 	return func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
