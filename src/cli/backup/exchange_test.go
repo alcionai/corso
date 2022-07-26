@@ -481,12 +481,11 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 }
 
 func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
-	stub := []string{"id-stub"}
-	twoStubs := []string{"smarfs", "fnords"}
-	any := []string{utils.Wildcard}
+	stub := "id-stub"
+	any := utils.Wildcard
 	table := []struct {
 		name                           string
-		after, before, sender, subject []string
+		after, before, sender, subject string
 		expectFilterLen                int
 	}{
 		{
@@ -504,11 +503,6 @@ func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 			expectFilterLen: 1,
 		},
 		{
-			name:            "multiple receivedAfter",
-			after:           twoStubs,
-			expectFilterLen: 1,
-		},
-		{
 			name:            "any receivedBefore",
 			before:          any,
 			expectFilterLen: 1,
@@ -516,11 +510,6 @@ func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 		{
 			name:            "single receivedBefore",
 			before:          stub,
-			expectFilterLen: 1,
-		},
-		{
-			name:            "multiple receivedBefore",
-			before:          twoStubs,
 			expectFilterLen: 1,
 		},
 		{
@@ -534,11 +523,6 @@ func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 			expectFilterLen: 1,
 		},
 		{
-			name:            "multiple senders",
-			sender:          twoStubs,
-			expectFilterLen: 1,
-		},
-		{
 			name:            "any subject",
 			subject:         any,
 			expectFilterLen: 1,
@@ -546,11 +530,6 @@ func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 		{
 			name:            "single subject",
 			subject:         stub,
-			expectFilterLen: 1,
-		},
-		{
-			name:            "multiple subjects",
-			subject:         twoStubs,
 			expectFilterLen: 1,
 		},
 		{
