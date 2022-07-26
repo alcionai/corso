@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	idata "github.com/alcionai/corso/internal/connector/data"
+	idata "github.com/alcionai/corso/internal/data"
 )
 
 // ---------------
