@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
@@ -30,8 +31,8 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
-	summary
-	metrics
+	stats.ReadWrites
+	stats.StartAndEndTime
 }
 
 // NewRestoreOperation constructs and validates a restore operation.

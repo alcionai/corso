@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
@@ -37,7 +38,7 @@ func Backups(bs []backup.Backup) {
 }
 
 // Prints the entries to the terminal with stdout.
-func Entries(des []backup.DetailsEntry) {
+func Entries(des []details.DetailsEntry) {
 	ps := []Printable{}
 	for _, de := range des {
 		ps = append(ps, de)

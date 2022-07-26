@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox
@@ -79,6 +79,6 @@ func (med *MockExchangeData) ToReader() io.ReadCloser {
 	return med.Reader
 }
 
-func (med *MockExchangeData) Info() backup.ItemInfo {
-	return backup.ItemInfo{Exchange: &backup.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}}
+func (med *MockExchangeData) Info() details.ItemInfo {
+	return details.ItemInfo{Exchange: &details.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}}
 }

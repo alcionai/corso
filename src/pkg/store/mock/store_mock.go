@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 // ------------------------------------------------------------
@@ -21,7 +22,7 @@ type MockModelStore struct {
 	err     error
 }
 
-func NewMock(b *backup.Backup, d *backup.Details, err error) *MockModelStore {
+func NewMock(b *backup.Backup, d *details.Details, err error) *MockModelStore {
 	return &MockModelStore{
 		backup:  marshal(b),
 		details: marshal(d),
@@ -89,7 +90,7 @@ func (mms *MockModelStore) GetIDsForType(
 		unmarshal(mms.backup, &b)
 		return []*model.BaseModel{&b.BaseModel}, nil
 	case model.BackupDetailsSchema:
-		d := backup.Details{}
+		d := details.Details{}
 		unmarshal(mms.backup, &d)
 		return []*model.BaseModel{&d.BaseModel}, nil
 	}

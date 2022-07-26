@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -498,7 +498,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesInfo() {
 		epoch = time.Time{}
 		now   = time.Now()
 		then  = now.Add(1 * time.Minute)
-		info  = &backup.ExchangeInfo{
+		info  = &details.ExchangeInfo{
 			Sender:   sender,
 			Subject:  subject,
 			Received: now,
@@ -629,14 +629,14 @@ func (suite *ExchangeSourceSuite) TestIdPath() {
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeRestore_Reduce() {
-	makeDeets := func(refs ...string) *backup.Details {
-		deets := &backup.Details{
-			DetailsModel: backup.DetailsModel{
-				Entries: []backup.DetailsEntry{},
+	makeDeets := func(refs ...string) *details.Details {
+		deets := &details.Details{
+			DetailsModel: details.DetailsModel{
+				Entries: []details.DetailsEntry{},
 			},
 		}
 		for _, r := range refs {
-			deets.Entries = append(deets.Entries, backup.DetailsEntry{
+			deets.Entries = append(deets.Entries, details.DetailsEntry{
 				RepoRef: r,
 			})
 		}
@@ -652,7 +652,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_Reduce() {
 	}
 	table := []struct {
 		name         string
-		deets        *backup.Details
+		deets        *details.Details
 		makeSelector func() *ExchangeRestore
 		expect       []string
 	}{
@@ -825,7 +825,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 }
 
 func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
-	var exchangeInfo *backup.ExchangeInfo
+	var exchangeInfo *details.ExchangeInfo
 	const (
 		mid = "mailID"
 		cat = ExchangeMail

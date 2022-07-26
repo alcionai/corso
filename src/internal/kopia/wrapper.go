@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/logger"
 )
 
@@ -81,7 +81,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // DataCollection.
 func getStreamItemFunc(
 	collection connector.DataCollection,
-	details *backup.Details,
+	details *details.Details,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
 		items := collection.Items()
@@ -114,7 +114,7 @@ func getStreamItemFunc(
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are either virtualfs.StreamingDirectory or
 // virtualfs.staticDirectory.
-func buildKopiaDirs(dirName string, dir *treeMap, details *backup.Details) (fs.Directory, error) {
+func buildKopiaDirs(dirName string, dir *treeMap, details *details.Details) (fs.Directory, error) {
 	// Don't support directories that have both a DataCollection and a set of
 	// static child directories.
 	if dir.collection != nil && len(dir.childDirs) > 0 {
@@ -156,7 +156,7 @@ func newTreeMap() *treeMap {
 // ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
 // in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
 // DataCollections.
-func inflateDirTree(ctx context.Context, collections []connector.DataCollection, details *backup.Details) (fs.Directory, error) {
+func inflateDirTree(ctx context.Context, collections []connector.DataCollection, details *details.Details) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
@@ -229,12 +229,12 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection,
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	collections []connector.DataCollection,
-) (*BackupStats, *backup.Details, error) {
+) (*BackupStats, *details.Details, error) {
 	if w.c == nil {
 		return nil, nil, errNotConnected
 	}
 
-	details := &backup.Details{}
+	details := &details.Details{}
 
 	dirTree, err := inflateDirTree(ctx, collections, details)
 	if err != nil {
@@ -252,7 +252,7 @@ func (w Wrapper) BackupCollections(
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
-	details *backup.Details,
+	details *details.Details,
 ) (*BackupStats, error) {
 	si := snapshot.SourceInfo{
 		Host:     corsoHost,
