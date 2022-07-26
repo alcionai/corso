@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/alcionai/corso/internal/connector/data"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
