@@ -18,7 +18,8 @@ type ExchangeMail struct {
 
 // NewExchangeEmailPath creates and returns a new ExchangeEmailPath struct after
 // verifying the path is properly escaped and contains information for the
-// required segments.
+// required segments. The provided segments and folder elements should not be
+// escaped.
 func NewExchangeMail(
 	tenant string,
 	user string,
@@ -41,6 +42,11 @@ func NewExchangeMail(
 	return &ExchangeMail{p}, nil
 }
 
+// NewExchangeMailFromEscapedSegments takes a series of already escaped segments
+// representing the tenant, user, folder, and item validates them and returns a
+// *ExchangeMail. The folder segment is expected to be the join of all folders
+// on the path to the item like `some/subfolder/structure`. Any special
+// characters in the folder path need to be escaped.
 func NewExchangeMailFromEscapedSegments(tenant, user, folder, item string) (*ExchangeMail, error) {
 	if err := validateExchangeMailSegments(tenant, user, folder, item); err != nil {
 		return nil, err
