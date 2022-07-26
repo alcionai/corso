@@ -9,9 +9,9 @@ import (
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
-var _ data.DataCollection = &ExchangeDataCollection{}
-var _ data.DataStream = &ExchangeData{}
-var _ data.DataStreamInfo = &ExchangeData{}
+var _ data.Collection = &ExchangeDataCollection{}
+var _ data.Stream = &ExchangeData{}
+var _ data.StreamInfo = &ExchangeData{}
 
 const (
 	collectionChannelBufferSize = 120
@@ -24,7 +24,7 @@ const (
 type ExchangeDataCollection struct {
 	// M365 user
 	user         string
-	data         chan data.DataStream
+	data         chan data.Stream
 	tasks        []string
 	updateCh     chan support.ConnectorOperationStatus
 	service      graphService
@@ -39,7 +39,7 @@ type ExchangeDataCollection struct {
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:     aUser,
-		data:     make(chan data.DataStream, collectionChannelBufferSize),
+		data:     make(chan data.Stream, collectionChannelBufferSize),
 		fullPath: pathRepresentation,
 	}
 	return collection
@@ -57,7 +57,7 @@ func (edc *ExchangeDataCollection) FinishPopulation() {
 	}
 }
 
-func (edc *ExchangeDataCollection) Items() <-chan data.DataStream {
+func (edc *ExchangeDataCollection) Items() <-chan data.Stream {
 	return edc.data
 }
 

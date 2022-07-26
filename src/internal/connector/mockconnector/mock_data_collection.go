@@ -20,9 +20,9 @@ type MockExchangeDataCollection struct {
 }
 
 var (
-	_ data.DataCollection = &MockExchangeDataCollection{}
-	_ data.DataStream     = &MockExchangeData{}
-	_ data.DataStreamInfo = &MockExchangeData{}
+	_ data.Collection = &MockExchangeDataCollection{}
+	_ data.Stream     = &MockExchangeData{}
+	_ data.StreamInfo = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -49,8 +49,8 @@ func (medc *MockExchangeDataCollection) FullPath() []string {
 
 // Items returns a channel that has the next items in the collection. The
 // channel is closed when there are no more items available.
-func (medc *MockExchangeDataCollection) Items() <-chan data.DataStream {
-	res := make(chan data.DataStream)
+func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
+	res := make(chan data.Stream)
 
 	go func() {
 		defer close(res)

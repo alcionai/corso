@@ -6,16 +6,16 @@ import (
 	"github.com/alcionai/corso/internal/data"
 )
 
-var _ data.DataCollection = &kopiaDataCollection{}
-var _ data.DataStream = &kopiaDataStream{}
+var _ data.Collection = &kopiaDataCollection{}
+var _ data.Stream = &kopiaDataStream{}
 
 type kopiaDataCollection struct {
 	path    []string
-	streams []data.DataStream
+	streams []data.Stream
 }
 
-func (kdc *kopiaDataCollection) Items() <-chan data.DataStream {
-	res := make(chan data.DataStream)
+func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
+	res := make(chan data.Stream)
 	go func() {
 		defer close(res)
 
