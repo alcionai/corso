@@ -825,7 +825,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 }
 
 func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
-	var TODO_EXCHANGE_INFO *details.ExchangeInfo
+	var exchangeInfo *details.ExchangeInfo
 	const (
 		mid = "mailID"
 		cat = ExchangeMail

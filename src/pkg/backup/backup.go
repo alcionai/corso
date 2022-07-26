@@ -21,7 +21,7 @@ type Backup struct {
 
 	// Reference to `Details`
 	// We store the ModelStoreID since Details is immutable
-	DetailsID string `json:"detailsId"`
+	DetailsID string `json:"detailsID"`
 
 	// Status of the operation
 	Status string `json:"status"`
@@ -44,12 +44,12 @@ func (b Backup) Headers() []string {
 		"Details ID",
 		"Status",
 		"Selectors",
-		"ItemsRead",
-		"ItemsWritten",
-		"ReadErrors",
-		"WriteErrors",
-		"StartedAt",
-		"CompletedAt",
+		"Items Read",
+		"Items Written",
+		"Read Errors",
+		"Write Errors",
+		"Started At",
+		"Completed At",
 	}
 }
 
