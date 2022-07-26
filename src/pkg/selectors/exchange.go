@@ -292,30 +292,28 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) Excha
 	}
 }
 
-// Produces one or more exchange mail received-after filter scopes.
+// Produces an exchange mail received-after filter scope.
 // Matches any mail which was received after the timestring.
-// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
-// If any slice contains selectors.None, that slice is reduced to [selectors.None]
-// If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailReceivedAfter(timeStrings []string) []ExchangeScope {
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (sr *ExchangeRestore) MailReceivedAfter(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedAfter, timeStrings),
+		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedAfter, []string{timeStrings}),
 	}
 }
 
-// Produces one or more exchange mail received-before filter scopes.
-// Matches any mail whose mail subject contains one of the provided strings.
-// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
-// If any slice contains selectors.None, that slice is reduced to [selectors.None]
-// If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailReceivedBefore(timeStrings []string) []ExchangeScope {
+// Produces an exchange mail received-before filter scope.
+// Matches any mail which was received before the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedBefore, timeStrings),
+		makeExchangeFilterScope(ExchangeMail, ExchangeInfoMailReceivedBefore, []string{timeStrings}),
 	}
 }
 
 // Produces one or more exchange mail sender filter scopes.
-// Matches any mail which was received after the timestring.
+// Matches any mail whose mail sender equals one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -326,7 +324,7 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 }
 
 // Produces one or more exchange mail subject line filter scopes.
-// Matches any mail which was received before the timestring.
+// Matches any mail whose mail subject contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
