@@ -1,6 +1,7 @@
 package path
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -138,12 +139,6 @@ func (suite *PathUnitSuite) TestPathSplitsEscapedPath() {
 			expectedSegments: []string{`this`, `is\\/a`, `path`},
 		},
 		{
-			name:             "EscapeEscapeAndSeparator",
-			input:            []string{`this`, `is\\\/a`, `path`},
-			expected:         `this/is\\\/a/path`,
-			expectedSegments: []string{`this`, `is\\\/a`, `path`},
-		},
-		{
 			name:             "EmptyInternalElement",
 			input:            []string{`this`, `is//a`, `path`},
 			expected:         "this/is/a/path",
@@ -178,6 +173,12 @@ func (suite *PathUnitSuite) TestPathSplitsEscapedPath() {
 			input:            []string{`this`, `is\\\\/a`, `path/`},
 			expected:         `this/is\\\\/a/path`,
 			expectedSegments: []string{`this`, `is\\\\/a`, `path`},
+		},
+		{
+			name:             "ManyEscapesAndSeparator",
+			input:            []string{`this`, `is\\\/a`, `path`},
+			expected:         `this/is\\\/a/path`,
+			expectedSegments: []string{`this`, `is\\\/a`, `path`},
 		},
 	}
 
@@ -216,8 +217,35 @@ func (suite *PathUnitSuite) TestEscapedFailure() {
 	}
 }
 
+func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
+	target := `i\_s/a`
+	notEscapes := []rune{'a', 'b', '#', '%'}
+
+	for _, c := range notEscapes {
+		tmp := strings.ReplaceAll(target, "_", string(c))
+		basePath := []string{"this", tmp, "path"}
+		_, err := newPathFromEscapedSegments(basePath)
+		assert.Error(
+			suite.T(),
+			err,
+			"path with bad escape sequence %c%c did not error",
+			escapeCharacter,
+			c,
+		)
+	}
+}
+
 func (suite *PathUnitSuite) TestTrailingEscapeChar() {
-	path := []string{"this", "is", "a", `path\`}
-	_, err := newPathFromEscapedSegments(path)
-	assert.Error(suite.T(), err)
+	base := []string{"this", "is", "a", "path"}
+
+	for i := 0; i < len(base); i++ {
+		suite.T().Run(fmt.Sprintf("Segment%v", i), func(t *testing.T) {
+			path := make([]string, len(base))
+			copy(path, base)
+			path[i] = path[i] + string(escapeCharacter)
+
+			_, err := newPathFromEscapedSegments(path)
+			assert.Error(suite.T(), err)
+		})
+	}
 }

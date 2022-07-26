@@ -191,31 +191,32 @@ func escapeElement(element string) string {
 	return b.String()
 }
 
+// validateSegments takes a slice of segments and ensures that escaped
+// sequences match the set of characters that need escaping and that there
+// aren't hanging escape characters at the end of a segment.
 func validateSegments(segments []string) error {
 	for _, segment := range segments {
 		prevWasEscape := false
 
 		for _, c := range segment {
-			if c == escapeCharacter {
-				// Either the character before this was also an escape character in which
-				// case we're no longer escaping things (so prevWasEscape should become
-				// false) or the previous character was not an escape character and now
-				// we're escaping things. In either case we should invert prevWasEscape.
-				prevWasEscape = !prevWasEscape
-			} else {
-				if prevWasEscape {
-					if _, ok := charactersToEscape[c]; !ok {
-						return errors.Errorf(
-							"bad escape sequence in path: '%c%c'", escapeCharacter, c)
-					}
+			switch prevWasEscape {
+			case true:
+				prevWasEscape = false
+
+				if _, ok := charactersToEscape[c]; !ok {
+					return errors.Errorf(
+						"bad escape sequence in path: '%c%c'", escapeCharacter, c)
 				}
 
-				prevWasEscape = false
+			case false:
+				if c == escapeCharacter {
+					prevWasEscape = true
+				}
 			}
 		}
 
 		if prevWasEscape {
-			return errors.New("trailing escape character")
+			return errors.New("trailing escape character in segment")
 		}
 	}
 
