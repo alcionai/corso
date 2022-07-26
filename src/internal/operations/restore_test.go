@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
@@ -45,7 +46,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		stats = restoreStats{
 			readErr:  multierror.Append(nil, assert.AnError),
 			writeErr: assert.AnError,
-			cs:       []connector.DataCollection{&connector.ExchangeDataCollection{}},
+			cs:       []data.DataCollection{&connector.ExchangeDataCollection{}},
 			gc: &support.ConnectorOperationStatus{
 				ObjectCount: 1,
 			},

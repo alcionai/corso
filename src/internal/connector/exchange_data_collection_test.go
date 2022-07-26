@@ -12,7 +12,7 @@ type ExchangeDataCollectionSuite struct {
 	suite.Suite
 }
 
-func TestDataCollectionSuite(t *testing.T) {
+func TestExchangeDataCollectionSuite(t *testing.T) {
 	suite.Run(t, new(ExchangeDataCollectionSuite))
 }
 
