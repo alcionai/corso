@@ -22,17 +22,26 @@ jobs:
       - name: Repo Code Checkout
         uses: actions/checkout@v3
 
+      # Get values for cache paths to be used in later steps
+      - id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+
       - name: Golang Setup
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
+          cache: true
+          cache-dependency-path: src/go.sum
 
       # download packages
       - name: Cache Go Mod
         uses: actions/cache@v3
         id: cache
         with:
-          path: ~/go/pkg/mod
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
       - name: Run go mod download
@@ -44,19 +53,16 @@ jobs:
         uses: actions/cache@v3
         id: mybuild
         with:
-          path: ~/.cache/go-build
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
 
       - name: Go build
         if: steps.mybuild.outputs.cache-hit != 'true'
-        run: go build ./...
+        run: go build -v ./...
 
-      # check licenses
-      - name: Get go-licenses
-        run: go install github.com/google/go-licenses@latest
-
-      - name: Run go-licenses
-        run: go-licenses check github.com/alcionai/corso --ignore github.com/alcionai/corso
+      # Alternatively, install using go install
+      - name: Set up gotestfmt
+        run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
 
       # AWS creds
       - name: Configure AWS credentials from Test account
@@ -67,12 +73,23 @@ jobs:
           aws-region: us-east-1
 
       # run the tests
-      - run: echo "Running ${{ github.repository }} deployment unit tests at ${{ env.TIME_OF_TEST }}."
-      - name: Deployment Tests
+      - run: echo "Running ${{ github.repository }} integration tests."
+      - name: Integration Tests
         env:
           CORSO_CI_TESTS: true 
           CORSO_PASSWORD: ${{ secrets.INTEGRATION_TEST_CORSO_PASSWORD }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
-        run: go test ./...
+        run: |
+          set -euo pipefail
+          go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests
+
+      # Upload the original go test log as an artifact for later review.
+      - name: Upload test log
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: test-log
+          path: /tmp/gotest.log
+          if-no-files-found: error

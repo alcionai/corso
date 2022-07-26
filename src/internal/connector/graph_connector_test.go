@@ -2,10 +2,9 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"testing"
-	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -103,18 +102,12 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_HasFolder() {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
-	t := suite.T()
-	unique := time.Now()
-	folderName := fmt.Sprintf("TestFolder:%s", unique.Format(timeFolderFormat))
-	_, err := createMailFolder(suite.connector.graphService, suite.user, folderName)
-	require.NoError(t, err, support.ConnectorStackErrorTrace(err))
-	response, err := HasMailFolder(folderName, suite.user, suite.connector.graphService)
-	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
-	require.NotNil(t, response)
-	err = deleteMailFolder(suite.connector.graphService, suite.user, *response)
-	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
-	response, err = HasMailFolder(folderName, suite.user, suite.connector.graphService)
-	assert.NoError(t, err)
-	assert.Nil(t, response)
-
+	user := "lidiah@8qzvrj.onmicrosoft.com"
+	folderName := uuid.NewString() // todo - replace with danny's fix #391
+	aFolder, err := createMailFolder(suite.connector.graphService, user, folderName)
+	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	if aFolder != nil {
+		err = deleteMailFolder(suite.connector.graphService, user, *aFolder.GetId())
+		assert.NoError(suite.T(), err)
+	}
 }

@@ -95,7 +95,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	}
 
 	// format the details and retrieve the items from kopia
-	fds := er.FilterDetails(d)
+	fds := er.Reduce(d)
 	// todo: use path pkg for this
 	fdsPaths := fds.Paths()
 	paths := make([][]string, len(fdsPaths))

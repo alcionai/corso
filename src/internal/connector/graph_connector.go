@@ -52,6 +52,8 @@ type graphService struct {
 	failFast bool // if true service will exit sequence upon encountering an error
 }
 
+type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
+
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
@@ -242,8 +244,8 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
+		folderId            *string
 	)
-	var folderId *string
 	policy := common.Copy
 	if policy == common.Copy {
 		u := dcs[0].FullPath()[1]
@@ -314,11 +316,10 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 				} else {
 					successes++
 				}
-				// This completes the restore loop for a message..
+				continue
 			}
 		}
 	}
-
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	gc.SetStatus(*status)
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())

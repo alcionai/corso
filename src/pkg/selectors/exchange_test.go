@@ -276,15 +276,22 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Users() {
 
 	sel.Exclude(sel.Users([]string{u1, u2}))
 	scopes := sel.Excludes
-	require.Equal(t, 1, len(scopes))
+	require.Equal(t, 6, len(scopes))
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
-	assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+	for _, scope := range scopes {
+		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
+			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeEvent.String() {
+			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
+			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+		}
+	}
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
@@ -298,17 +305,22 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
 
 	sel.Include(sel.Users([]string{u1, u2}))
 	scopes := sel.Includes
-	require.Equal(t, 1, len(scopes))
+	require.Equal(t, 6, len(scopes))
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], join(u1, u2))
-	assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
-
-	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeUser)
+	for _, scope := range scopes {
+		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
+			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeEvent.String() {
+			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
+		}
+		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
+			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
+			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+		}
+	}
 }
 
 func (suite *ExchangeSourceSuite) TestNewExchangeDestination() {
@@ -476,7 +488,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 	}
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeScope_Include_MatchesInfo() {
+func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesInfo() {
 	es := NewExchangeRestore()
 	const (
 		sender  = "smarf@2many.cooks"
@@ -495,7 +507,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Include_MatchesInfo() {
 
 	table := []struct {
 		name   string
-		scope  []exchangeScope
+		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
 		{"any mail with a sender", es.MailSender(Any()), assert.True},
@@ -507,12 +519,12 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Include_MatchesInfo() {
 		{"mail with a different subject", es.MailSubject([]string{"fancy"}), assert.False},
 		{"mail with the matching subject", es.MailSubject([]string{subject}), assert.True},
 		{"mail with a substring subject match", es.MailSubject([]string{subject[5:9]}), assert.True},
-		{"mail received after the epoch", es.MailReceivedAfter([]string{common.FormatTime(epoch)}), assert.True},
-		{"mail received after now", es.MailReceivedAfter([]string{common.FormatTime(now)}), assert.False},
-		{"mail received after sometime later", es.MailReceivedAfter([]string{common.FormatTime(then)}), assert.False},
-		{"mail received before the epoch", es.MailReceivedBefore([]string{common.FormatTime(epoch)}), assert.False},
-		{"mail received before now", es.MailReceivedBefore([]string{common.FormatTime(now)}), assert.False},
-		{"mail received before sometime later", es.MailReceivedBefore([]string{common.FormatTime(then)}), assert.True},
+		{"mail received after the epoch", es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
+		{"mail received after now", es.MailReceivedAfter(common.FormatTime(now)), assert.False},
+		{"mail received after sometime later", es.MailReceivedAfter(common.FormatTime(then)), assert.False},
+		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
+		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
+		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(then)), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -537,7 +549,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesPath() {
 
 	table := []struct {
 		name   string
-		scope  []exchangeScope
+		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
 		{"all user's items", es.Users(Any()), assert.True},
@@ -559,9 +571,14 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesPath() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			scopes := extendExchangeScopeValues(test.scope)
+			var aMatch bool
 			for _, scope := range scopes {
-				test.expect(t, scope.matchesPath(ExchangeMail, path))
+				if scope.matchesPath(ExchangeMail, path) {
+					aMatch = true
+					break
+				}
 			}
+			test.expect(t, aMatch)
 		})
 	}
 }
@@ -611,7 +628,7 @@ func (suite *ExchangeSourceSuite) TestIdPath() {
 	}
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
+func (suite *ExchangeSourceSuite) TestExchangeRestore_Reduce() {
 	makeDeets := func(refs ...string) *backup.Details {
 		deets := &backup.Details{
 			DetailsModel: backup.DetailsModel{
@@ -756,7 +773,7 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_FilterDetails() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := test.makeSelector()
-			results := sel.FilterDetails(test.deets)
+			results := sel.Reduce(test.deets)
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
 		})
@@ -777,7 +794,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 		mail    int
 	}
 	type input []map[string]string
-	makeInput := func(es ...[]exchangeScope) []map[string]string {
+	makeInput := func(es ...[]ExchangeScope) []map[string]string {
 		mss := []map[string]string{}
 		for _, sl := range es {
 			for _, s := range sl {
@@ -808,44 +825,48 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 }
 
 func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
-	var TODO_EXCHANGE_INFO *backup.ExchangeInfo
+	var exchangeInfo *backup.ExchangeInfo
 	const (
-		mail = "mailID"
-		cat  = ExchangeMail
+		mid = "mailID"
+		cat = ExchangeMail
 	)
 	var (
-		es          = NewExchangeRestore()
-		inAny       = extendExchangeScopeValues(es.Users(Any()))
-		inNone      = extendExchangeScopeValues(es.Users(None()))
-		inMail      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{mail}))
-		inOtherMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
-		exAny       = extendExchangeScopeValues(es.Users(Any()))
-		exNone      = extendExchangeScopeValues(es.Users(None()))
-		exMail      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{mail}))
-		exOtherMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
-		path        = []string{"tid", "user", "mail", "folder", mail}
+		es        = NewExchangeRestore()
+		anyUser   = extendExchangeScopeValues(es.Users(Any()))
+		noUser    = extendExchangeScopeValues(es.Users(None()))
+		mail      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{mid}))
+		otherMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
+		noMail    = extendExchangeScopeValues(es.Mails(Any(), Any(), None()))
+		path      = []string{"tid", "user", "mail", "folder", mid}
 	)
 
 	table := []struct {
-		name     string
-		includes []exchangeScope
-		excludes []exchangeScope
-		expect   assert.BoolAssertionFunc
+		name                        string
+		excludes, filters, includes []ExchangeScope
+		expect                      assert.BoolAssertionFunc
 	}{
-		{"empty", nil, nil, assert.False},
-		{"in all", inAny, nil, assert.True},
-		{"in None", inNone, nil, assert.False},
-		{"in Mail", inMail, nil, assert.True},
-		{"in Other", inOtherMail, nil, assert.False},
-		{"ex all", inAny, exAny, assert.False},
-		{"ex None", inAny, exNone, assert.True},
-		{"in Mail", inAny, exMail, assert.False},
-		{"in Other", inAny, exOtherMail, assert.True},
-		{"in and ex Mail", inMail, exMail, assert.False},
+		{"empty", nil, nil, nil, assert.False},
+		{"in Any", nil, nil, anyUser, assert.True},
+		{"in None", nil, nil, noUser, assert.False},
+		{"in Mail", nil, nil, mail, assert.True},
+		{"in Other", nil, nil, otherMail, assert.False},
+		{"in no Mail", nil, nil, noMail, assert.False},
+		{"ex Any", anyUser, nil, anyUser, assert.False},
+		{"ex Any filter", anyUser, anyUser, nil, assert.False},
+		{"ex None", noUser, nil, anyUser, assert.True},
+		{"ex None filter mail", noUser, mail, nil, assert.True},
+		{"ex None filter any user", noUser, anyUser, nil, assert.False},
+		{"ex Mail", mail, nil, anyUser, assert.False},
+		{"ex Other", otherMail, nil, anyUser, assert.True},
+		{"in and ex Mail", mail, nil, mail, assert.False},
+		{"filter Any", nil, anyUser, nil, assert.False},
+		{"filter None", nil, noUser, anyUser, assert.False},
+		{"filter Mail", nil, mail, anyUser, assert.True},
+		{"filter Other", nil, otherMail, anyUser, assert.False},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, matchExchangeEntry(cat, path, TODO_EXCHANGE_INFO, test.includes, test.excludes))
+			test.expect(t, matchExchangeEntry(cat, path, exchangeInfo, test.excludes, test.filters, test.includes))
 		})
 	}
 }
