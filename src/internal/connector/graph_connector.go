@@ -291,7 +291,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
-
 ) ([]ExchangeDataCollection, error) {
 	// Checked prior to being called for mail... will add selector
 	var (
