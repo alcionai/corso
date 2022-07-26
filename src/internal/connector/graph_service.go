@@ -1,6 +1,7 @@
 package connector
 
 import (
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
@@ -29,4 +30,12 @@ func deleteMailFolder(gc graphService, user, folderID string) error {
 
 func (gs *graphService) EnableFailFast() {
 	gs.failFast = true
+}
+
+type GraphQuery func(graphService, []string) (absser.Parsable, error)
+
+func GetAllMessagesForUser(gs graphService, identities []string) (absser.Parsable, error) {
+
+	options := optionsForMessageSnapshot()
+	return gs.client.UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
