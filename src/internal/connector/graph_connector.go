@@ -354,9 +354,7 @@ func (gc *GraphConnector) createCollections(
 	return collections, err
 }
 
-func SetupExchangeCollectionVars(
-	scope selectors.ExchangeScope,
-) (
+func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	PopulateFunc,
 	absser.ParsableFactory,
 	GraphQuery,
