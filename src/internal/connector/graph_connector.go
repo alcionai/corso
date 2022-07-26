@@ -5,6 +5,8 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"strings"
 	"sync/atomic"
 
@@ -45,8 +47,6 @@ type GraphConnector struct {
 
 // PopulateFunc collection of functions can be run serially or asynchronously to populate DataCollections
 type PopulateFunc func(context.Context, *graphService, ExchangeDataCollection, chan<- *support.ConnectorOperationStatus)
-
-type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
@@ -197,7 +197,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 					errs)
 				continue
 			}
-			dcs, err := gc.createCollections(ctx, user)
+			dcs, err := gc.createCollections(ctx, user, scope)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}
@@ -293,21 +293,30 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	user string,
+	scope selectors.ExchangeScope,
 
 	// scope selectors.exchangeScope,  // this is checked prior... no worrieså
 ) ([]ExchangeDataCollection, error) {
 	// Checked prior to being called for mail... will add selector
 	var response absser.Parsable
 	var err error
-	if user == "Mail" {
-		options := optionsForMessageSnapshot()
-		// based on the option do the call
-		response, err = gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
-		if err != nil {
-			return nil, err
-		}
+	if !scope.IncludesCategory(selectors.ExchangeMail) {
+		return nil, errors.New("selector only supports mails")
 	}
+	fmt.Printf("%v\n", scope)
+	os.Exit(1)
+	// selectors.Mail specific
+	options := optionsForMessageSnapshot()
+	// based on the option do the call
+	response, err = gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	// Discriminator  Potential variables to change... Discriminatory
+	// Everyone needs to make iterator  ... Type specific
+	//     ===> Everyone needs to add tasks Create
+	// Everyone needs to add specific populate function
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, err
@@ -337,6 +346,13 @@ func (gc *GraphConnector) createCollections(
 		collections = append(collections, edc)
 	}
 	return collections, err
+}
+
+func GetPopulateFunction(scope selectors.ExchangeScope) PopulateFunc {
+	if scope.IncludesCategory(selectors.ExchangeMail) {
+		return populateDataCollectionFromMail
+	}
+	return nil
 }
 
 // type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)

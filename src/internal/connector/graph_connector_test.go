@@ -85,8 +85,15 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 		suite.T().Skipf("Support file not accessible: %v\n", err)
 	}
 	ds := ExchangeData{id: "test", message: bytes}
-	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
-	edc.PopulateCollection(&ds)
+	edc := NewExchangeDataCollection(
+		"tenant",
+		[]string{"One task"},
+		[]string{"tenantId", evs[user], mailCategory, "Inbox"},
+		suite.connector.graphService,
+		nil,
+	)
+
+	edc.data <- &ds
 	edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), []DataCollection{&edc})
 	assert.NoError(suite.T(), err)
@@ -168,14 +175,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	suite.True(Contains(last, "Bundy"))
 	suite.True(Contains(last, "Ripley"))
 	suite.True(Contains(last, "Foley"))
-
-}
-
-func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
-	var dc DataCollection
-	concrete := NewExchangeDataCollection("Check", []string{"interface", "works"})
-	dc = &concrete
-	assert.NotNil(suite.T(), dc)
 
 }
 
