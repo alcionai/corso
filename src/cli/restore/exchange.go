@@ -233,14 +233,14 @@ func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receive
 	if len(receivedAfter) == 0 {
 		return
 	}
-	sel.Filter(sel.MailReceivedAfter([]string{receivedAfter}))
+	sel.Filter(sel.MailReceivedAfter(receivedAfter))
 }
 
 func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore string) {
 	if len(receivedBefore) == 0 {
 		return
 	}
-	sel.Filter(sel.MailReceivedBefore([]string{receivedBefore}))
+	sel.Filter(sel.MailReceivedBefore(receivedBefore))
 }
 
 func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender string) {

@@ -519,12 +519,12 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesInfo() {
 		{"mail with a different subject", es.MailSubject([]string{"fancy"}), assert.False},
 		{"mail with the matching subject", es.MailSubject([]string{subject}), assert.True},
 		{"mail with a substring subject match", es.MailSubject([]string{subject[5:9]}), assert.True},
-		{"mail received after the epoch", es.MailReceivedAfter([]string{common.FormatTime(epoch)}), assert.True},
-		{"mail received after now", es.MailReceivedAfter([]string{common.FormatTime(now)}), assert.False},
-		{"mail received after sometime later", es.MailReceivedAfter([]string{common.FormatTime(then)}), assert.False},
-		{"mail received before the epoch", es.MailReceivedBefore([]string{common.FormatTime(epoch)}), assert.False},
-		{"mail received before now", es.MailReceivedBefore([]string{common.FormatTime(now)}), assert.False},
-		{"mail received before sometime later", es.MailReceivedBefore([]string{common.FormatTime(then)}), assert.True},
+		{"mail received after the epoch", es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
+		{"mail received after now", es.MailReceivedAfter(common.FormatTime(now)), assert.False},
+		{"mail received after sometime later", es.MailReceivedAfter(common.FormatTime(then)), assert.False},
+		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
+		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
+		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(then)), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
