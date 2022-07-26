@@ -6,11 +6,6 @@ import (
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
-const (
-	// TODO: Reduce this when https://github.com/alcionai/corso/issues/124 is closed
-	// and we make channel population async (decouple from collection initialization)
-	collectionChannelBufferSize = 1000
-)
 
 // A DataCollection represents a collection of data of the
 // same type (e.g. mail)
