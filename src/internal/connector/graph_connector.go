@@ -397,7 +397,7 @@ func populateDataCollectionFromMail(
 			break
 		}
 	}
-
+	edc.FinishPopulation()
 	status := support.CreateStatus(ctx, support.Backup, len(edc.tasks), success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
