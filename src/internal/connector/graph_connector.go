@@ -10,8 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	ka "github.com/microsoft/kiota-authentication-azure-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -37,7 +35,7 @@ const (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	graphService
+	exchange.GraphService
 	tenant           string
 	Users            map[string]string                 //key<email> value<id>
 	status           *support.ConnectorOperationStatus // contains the status of the last run status
@@ -46,13 +44,7 @@ type GraphConnector struct {
 	credentials      account.M365Config
 }
 
-type graphService struct {
-	client   msgraphsdk.GraphServiceClient
-	adapter  msgraphsdk.GraphRequestAdapter
-	failFast bool // if true service will exit sequence upon encountering an error
-}
-
-type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
+type PopulateFunc func(context.Context, exchange.GraphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
@@ -70,7 +62,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	if err != nil {
 		return nil, err
 	}
-	gc.graphService = *aService
+	gc.GraphService = *aService
 	err = gc.setTenantUsers()
 	if err != nil {
 		return nil, err
@@ -78,50 +70,14 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	return &gc, nil
 }
 
-func createAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapter, error) {
-	// Client Provider: Uses Secret for access to tenant-level data
-	cred, err := az.NewClientSecretCredential(tenant, client, secret, nil)
-	if err != nil {
-		return nil, err
-	}
-	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, []string{"https://graph.microsoft.com/.default"})
-	if err != nil {
-		return nil, err
-	}
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
-	return adapter, err
-}
-
 // createSubConnector private constructor method for subConnector
-func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
-	adapter, err := createAdapter(gc.credentials.TenantID, gc.credentials.ClientID, gc.credentials.ClientSecret)
+func (gc *GraphConnector) createService(shouldFailFast bool) (*exchange.GraphService, error) {
+	adapter, err := exchange.CreateAdapter(gc.credentials.TenantID, gc.credentials.ClientID, gc.credentials.ClientSecret)
 	if err != nil {
 		return nil, err
 	}
-	connector := graphService{
-		adapter:  *adapter,
-		client:   *msgraphsdk.NewGraphServiceClient(adapter),
-		failFast: shouldFailFast,
-	}
-	return &connector, err
-}
-func (gs *graphService) EnableFailFast() {
-	gs.failFast = true
-}
-
-// createMailFolder will create a mail folder iff a folder of the same name does not exit
-func createMailFolder(service graphService, user, folder string) (models.MailFolderable, error) {
-	requestBody := models.NewMailFolder()
-	requestBody.SetDisplayName(&folder)
-	isHidden := false
-	requestBody.SetIsHidden(&isHidden)
-
-	return service.client.UsersById(user).MailFolders().Post(requestBody)
-}
-
-// deleteMailFolder removes the mail folder from the user's M365 Exchange account
-func deleteMailFolder(service graphService, user, folderID string) error {
-	return service.client.UsersById(user).MailFoldersById(folderID).Delete()
+	service := exchange.NewGraphService(*msgraphsdk.NewGraphServiceClient(adapter), *adapter, shouldFailFast)
+	return &service, err
 }
 
 // setTenantUsers queries the M365 to identify the users in the
@@ -135,7 +91,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
-	response, err := gc.graphService.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := gc.Client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return err
 	}
@@ -143,7 +99,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
 		return err
 	}
-	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
+	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.Adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return err
 	}
@@ -151,7 +107,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
+			err = support.WrapAndAppend(gc.Adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
@@ -159,7 +115,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	}
 	iterateError = userIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
+		err = support.WrapAndAppend(gc.Adapter.GetBaseUrl(), iterateError, err)
 	}
 	return err
 }
@@ -251,12 +207,12 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 		u := dcs[0].FullPath()[1]
 		now := time.Now().UTC()
 		newFolder := fmt.Sprintf("Corso_Restore_%s", now.Format(timeFolderFormat))
-		isFolder, err := HasMailFolder(newFolder, u, gc.graphService)
+		isFolder, err := exchange.HasMailFolder(newFolder, u, gc.GraphService)
 		if err != nil {
 			return support.WrapAndAppend(u, err, errs)
 		}
 		if isFolder == nil {
-			fold, err := createMailFolder(gc.graphService, u, newFolder)
+			fold, err := exchange.CreateMailFolder(gc.GraphService, u, newFolder)
 			if err != nil {
 				return support.WrapAndAppend(u, err, errs)
 			}
@@ -296,17 +252,17 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 						errs = support.WrapAndAppend(data.UUID(), errors.New("Unable to create folder for collection"), errs)
 						continue
 					}
-					err = restoreMessage(ctx, buf.Bytes(), gc.graphService, common.Copy, *folderId, user)
+					err = restoreMessage(ctx, buf.Bytes(), gc.GraphService, common.Copy, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
 				} else {
-					folderId, err = HasMailFolder(dc.FullPath()[3], user, gc.graphService)
+					folderId, err = exchange.HasMailFolder(dc.FullPath()[3], user, gc.GraphService)
 					if err != nil || folderId == nil {
 						errs = support.WrapAndAppend(data.UUID(), errors.New("mail folder in full path not found"), errs)
 						continue
 					}
-					err = restoreMessage(ctx, buf.Bytes(), gc.graphService, common.Drop, *folderId, user)
+					err = restoreMessage(ctx, buf.Bytes(), gc.GraphService, common.Drop, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
@@ -328,7 +284,7 @@ func (gc *GraphConnector) Restore(ctx context.Context, dcs []DataCollection) err
 
 // restoreMessage restores copy of original message to M365 backstore in the folder designated
 // by the M365 ID from destrination string for the associated M365 user
-func restoreMessage(ctx context.Context, bits []byte, service graphService, rp common.RestorePolicy, destination, user string) error {
+func restoreMessage(ctx context.Context, bits []byte, service exchange.GraphService, rp common.RestorePolicy, destination, user string) error {
 	///Step I: Create message object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
@@ -350,11 +306,11 @@ func restoreMessage(ctx context.Context, bits []byte, service graphService, rp c
 	switch rp {
 	case common.Drop, common.Replace:
 		// get the file... if drop return
-		options, err := optionsForSingleMessage([]string{"parentFolderId"})
+		options, err := exchange.OptionsForSingleMessage([]string{"parentFolderId"})
 		if err != nil {
 			return err
 		}
-		query, err := service.client.UsersById(user).MessagesById(*originalMessage.GetId()).GetWithRequestConfigurationAndResponseHandler(options, nil)
+		query, err := service.Client.UsersById(user).MessagesById(*originalMessage.GetId()).GetWithRequestConfigurationAndResponseHandler(options, nil)
 		if err != nil {
 			return err
 		}
@@ -363,7 +319,7 @@ func restoreMessage(ctx context.Context, bits []byte, service graphService, rp c
 			return nil
 		}
 		if rp == common.Replace && isPresent {
-			err = service.client.UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
+			err = service.Client.UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
 			if err != nil {
 				return err
 			}
@@ -378,8 +334,8 @@ func restoreMessage(ctx context.Context, bits []byte, service graphService, rp c
 	}
 }
 
-func restoreMailToBackStore(service graphService, user, destination string, message models.Messageable) error {
-	sentMessage, err := service.client.UsersById(user).MailFoldersById(destination).Messages().Post(message)
+func restoreMailToBackStore(service exchange.GraphService, user, destination string, message models.Messageable) error {
+	sentMessage, err := service.Client.UsersById(user).MailFoldersById(destination).Messages().Post(message)
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
@@ -393,20 +349,20 @@ func restoreMailToBackStore(service graphService, user, destination string, mess
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
 func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*ExchangeDataCollection, error) {
-	options := optionsForMessageSnapshot()
-	response, err := gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	options := exchange.OptionsForMessageSnapshot()
+	response, err := gc.Client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return nil, err
 	}
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.Adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, err
 	}
-	tasklist := NewTaskList() // map[folder][] messageIds
+	tasklist := exchange.NewTaskList() // map[folder][] messageIds
 	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
-			err = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
+			err = support.WrapAndAppendf(gc.Adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
@@ -415,7 +371,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	}
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
+		err = support.WrapAndAppend(gc.Adapter.GetBaseUrl(), iterateError, err)
 	}
 	if err != nil {
 		return nil, err // return error if snapshot is incomplete
@@ -439,21 +395,22 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		// return empty collection when no items found
 		return nil, err
 	}
-	service, err := gc.createService(gc.failFast)
+	service, err := gc.createService(gc.FailFast)
 	if err != nil {
 		return nil, support.WrapAndAppend(user, err, err)
 	}
 	// async call to populate
-	go service.populateFromTaskList(ctx, tasklist, collections, gc.statusCh)
+	go populateFromTaskList(ctx, service, tasklist, collections, gc.statusCh)
 	gc.incrementAwaitingMessages()
 
 	return collections, err
 }
 
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func (sc *graphService) populateFromTaskList(
+func populateFromTaskList(
 	ctx context.Context,
-	tasklist TaskList,
+	sc *exchange.GraphService,
+	tasklist exchange.TaskList,
 	collections map[string]*ExchangeDataCollection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
@@ -473,7 +430,7 @@ func (sc *graphService) populateFromTaskList(
 		}
 
 		for _, task := range tasks {
-			response, err := sc.client.UsersById(edc.user).MessagesById(task).Get()
+			response, err := sc.Client.UsersById(edc.user).MessagesById(task).Get()
 			if err != nil {
 				details := support.ConnectorStackErrorTrace(err)
 				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
