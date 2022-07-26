@@ -4,49 +4,18 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/alcionai/corso/internal/connector/data"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
+var _ data.DataCollection = &ExchangeDataCollection{}
+var _ data.DataStream = &ExchangeData{}
+var _ data.DataStreamInfo = &ExchangeData{}
+
 const (
-	// TODO: Reduce this when https://github.com/alcionai/corso/issues/124 is closed
-	// and we make channel population async (decouple from collection initialization)
-	collectionChannelBufferSize = 1000
+	collectionChannelBufferSize = 120
 )
-
-// A DataCollection represents a collection of data of the
-// same type (e.g. mail)
-type DataCollection interface {
-	// Items returns a channel from which items in the collection can be read.
-	// Each returned struct contains the next item in the collection
-	// The channel is closed when there are no more items in the collection or if
-	// an unrecoverable error caused an early termination in the sender.
-	Items() <-chan DataStream
-	// FullPath returns a slice of strings that act as metadata tags for this
-	// DataCollection. Returned items should be ordered from most generic to least
-	// generic. For example, a DataCollection for emails from a specific user
-	// would be {"<tenant id>", "<user ID>", "emails"}.
-	FullPath() []string
-}
-
-// DataStream represents a single item within a DataCollection
-// that can be consumed as a stream (it embeds io.Reader)
-type DataStream interface {
-	// ToReader returns an io.Reader for the DataStream
-	ToReader() io.ReadCloser
-	// UUID provides a unique identifier for this data
-	UUID() string
-}
-
-// DataStreamInfo is used to provide service specific
-// information about the DataStream
-type DataStreamInfo interface {
-	Info() details.ItemInfo
-}
-
-var _ DataCollection = &ExchangeDataCollection{}
-var _ DataStream = &ExchangeData{}
-var _ DataStreamInfo = &ExchangeData{}
 
 // ExchangeDataCollection represents exchange mailbox
 // data for a single user.
@@ -55,7 +24,7 @@ var _ DataStreamInfo = &ExchangeData{}
 type ExchangeDataCollection struct {
 	// M365 user
 	user         string
-	data         chan DataStream
+	data         chan data.DataStream
 	tasks        []string
 	updateCh     chan support.ConnectorOperationStatus
 	service      graphService
@@ -70,7 +39,7 @@ type ExchangeDataCollection struct {
 func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:     aUser,
-		data:     make(chan DataStream, collectionChannelBufferSize),
+		data:     make(chan data.DataStream, collectionChannelBufferSize),
 		fullPath: pathRepresentation,
 	}
 	return collection
@@ -88,7 +57,7 @@ func (edc *ExchangeDataCollection) FinishPopulation() {
 	}
 }
 
-func (edc *ExchangeDataCollection) Items() <-chan DataStream {
+func (edc *ExchangeDataCollection) Items() <-chan data.DataStream {
 	return edc.data
 }
 
