@@ -2,6 +2,8 @@ package connector
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"io"
 
 	"github.com/alcionai/corso/internal/connector/support"
@@ -56,8 +58,9 @@ type ExchangeDataCollection struct {
 	// M365 user
 	user         string
 	data         chan DataStream
+	context      context.Context
 	tasks        []string
-	updateCh     chan support.ConnectorOperationStatus
+	updateCh     chan *support.ConnectorOperationStatus
 	service      graphService
 	populateFunc PopulateFunc
 
@@ -67,14 +70,23 @@ type ExchangeDataCollection struct {
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
-func NewExchangeDataCollection(aUser string, taskList, pathRepresentation []string, gs graphService, pf PopulateFunc) ExchangeDataCollection {
+func NewExchangeDataCollection(
+	ctx context.Context,
+	aUser string,
+	taskList,
+	pathRepresentation []string,
+	gs graphService,
+	pf PopulateFunc,
+	uChannel chan *support.ConnectorOperationStatus) ExchangeDataCollection {
 	collection := ExchangeDataCollection{
 		user:         aUser,
 		data:         make(chan DataStream, collectionChannelBufferSize),
+		context:      ctx,
 		tasks:        taskList,
 		service:      gs,
 		populateFunc: pf,
 		fullPath:     pathRepresentation,
+		updateCh:     uChannel,
 	}
 	return collection
 }
@@ -88,6 +100,11 @@ func (edc *ExchangeDataCollection) FinishPopulation() {
 }
 
 func (edc *ExchangeDataCollection) Items() <-chan DataStream {
+	runner := edc.populateFunc
+	if runner != nil {
+		go runner(edc.context, &edc.service, *edc, edc.updateCh)
+		fmt.Println("launched from Items")
+	}
 	return edc.data
 }
 
