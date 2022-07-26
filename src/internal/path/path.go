@@ -78,7 +78,9 @@ type Base struct {
 }
 
 // newPath takes a path that is broken into segments and elements in the segment
-// and returns a Base. Each element in the input is escaped.
+// and returns a Base. Each element in the input is escaped like
+// [this, is\, a, path] will generate the escaped elements
+// [this, is\\, a, path].
 func newPath(segments [][]string) Base {
 	if len(segments) == 0 {
 		return Base{}
@@ -104,7 +106,10 @@ func newPath(segments [][]string) Base {
 
 // NewPathFromEscapedSegments takes already escaped segments of a path, verifies
 // the segments are escaped properly, and returns a new Base struct. If there is
-// an unescaped trailing '/' it is removed.
+// an unescaped trailing '/' it is removed. This function is safe to use with
+// escaped user input where each chunk is a segment. For example, the input of
+// escaped segments [this, is\//a, path] would have the elements
+// [this, is\/, a, path] and the segments the same as the input.
 func newPathFromEscapedSegments(segments []string) (Base, error) {
 	b := Base{}
 
