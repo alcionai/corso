@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"sync/atomic"
 
@@ -197,7 +196,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 					errs)
 				continue
 			}
-			dcs, err := gc.createCollections(ctx, user, scope)
+			dcs, err := gc.createCollections(ctx, scope)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}
@@ -288,42 +287,40 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 	return errs
 }
 
-// serializeMessages: Temp Function as place Holder until Collections have been added
-// to the GraphConnector struct.
+// createCollections utility function to build set of DataCollections based on jobs in selector.
 func (gc *GraphConnector) createCollections(
 	ctx context.Context,
-	user string,
 	scope selectors.ExchangeScope,
 
-	// scope selectors.exchangeScope,  // this is checked prior... no worrieså
 ) ([]ExchangeDataCollection, error) {
 	// Checked prior to being called for mail... will add selector
 	var response absser.Parsable
+	var gq GraphQuery
+	var transformer absser.ParsableFactory
+	var populationFunction PopulateFunc
+	var gIter GraphIterateFunc
 	var err error
 	if !scope.IncludesCategory(selectors.ExchangeMail) {
 		return nil, errors.New("selector only supports mails")
 	}
+	// MailSpecific Setters --> TODO create function to return them
 	fmt.Printf("%v\n", scope)
-	os.Exit(1)
-	// selectors.Mail specific
-	options := optionsForMessageSnapshot()
-	// based on the option do the call
-	response, err = gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	description := scope.Get(selectors.ExchangeMailFolder)
+	aUser := scope.Get(selectors.ExchangeUser)
+	fmt.Printf("%v\n%s\n", description, aUser[0])
+	populationFunction, transformer, gq, gIter = SetupExchangeCollectionVars(scope)
+	user := aUser[0]
+	response, err = gq(gc.graphService, []string{user})
 	if err != nil {
 		return nil, err
 	}
-
-	// Discriminator  Potential variables to change... Discriminatory
-	// Everyone needs to make iterator  ... Type specific
-	//     ===> Everyone needs to add tasks Create
-	// Everyone needs to add specific populate function
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err
 	}
 	tasklist := NewTaskList() // map[folder][] messageIds
 	// 3 Items in this
-	callbackFunc := IterateMessagesCollection(err, &tasklist)
+	callbackFunc := gIter(err, &tasklist) //Mail-Specific
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
@@ -340,19 +337,36 @@ func (gc *GraphConnector) createCollections(
 		if err != nil {
 			return nil, support.WrapAndAppend(user, err, err)
 		}
-		edc := NewExchangeDataCollection(user, tasks, []string{gc.tenant, user, mailCategory, aFolder}, *service,
-			populateDataCollectionFromMail)
+		edc := NewExchangeDataCollection(
+			ctx,
+			user,
+			tasks,
+			[]string{gc.tenant, user, mailCategory, aFolder},
+			*service,
+			populationFunction,
+			gc.statusCh)
 
 		collections = append(collections, edc)
+		gc.incrementAwaitingMessages()
 	}
 	return collections, err
 }
 
-func GetPopulateFunction(scope selectors.ExchangeScope) PopulateFunc {
+func SetupExchangeCollectionVars(
+	scope selectors.ExchangeScope,
+) (
+	PopulateFunc,
+	absser.ParsableFactory,
+	GraphQuery,
+	GraphIterateFunc) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		return populateDataCollectionFromMail
+
+		return populateDataCollectionFromMail,
+			models.CreateMessageCollectionResponseFromDiscriminatorValue,
+			GetAllMessagesForUser,
+			IterateMessagesCollection
 	}
-	return nil
+	return nil, nil, nil, nil
 }
 
 // type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
@@ -383,8 +397,6 @@ func populateDataCollectionFromMail(
 			break
 		}
 	}
-
-	edc.FinishPopulation()
 
 	status := support.CreateStatus(ctx, support.Backup, len(edc.tasks), success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())

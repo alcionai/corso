@@ -64,6 +64,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Nil(suite.T(), err)
+	collectionList[0].Items()
 	assert.True(suite.T(), suite.connector.awaitingMessages > 0)
 	assert.Nil(suite.T(), suite.connector.status)
 	status := suite.connector.AwaitStatus()
@@ -86,11 +87,13 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	}
 	ds := ExchangeData{id: "test", message: bytes}
 	edc := NewExchangeDataCollection(
+		context.Background(),
 		"tenant",
 		[]string{"One task"},
 		[]string{"tenantId", evs[user], mailCategory, "Inbox"},
 		suite.connector.graphService,
 		nil,
+		suite.connector.statusCh,
 	)
 
 	edc.data <- &ds
