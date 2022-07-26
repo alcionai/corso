@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/connector/data"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
@@ -98,7 +99,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "connecting to graph api")
 	}
 
-	var cs []connector.DataCollection
+	var cs []data.DataCollection
 	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
 	if err != nil {
 		stats.readErr = err

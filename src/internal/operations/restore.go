@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/connector/data"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
@@ -68,7 +69,7 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []connector.DataCollection
+	cs                []data.DataCollection
 	gc                *support.ConnectorOperationStatus
 	readErr, writeErr error
 }

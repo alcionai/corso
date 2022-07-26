@@ -3,19 +3,19 @@ package kopia
 import (
 	"io"
 
-	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/connector/data"
 )
 
-var _ connector.DataCollection = &kopiaDataCollection{}
-var _ connector.DataStream = &kopiaDataStream{}
+var _ data.DataCollection = &kopiaDataCollection{}
+var _ data.DataStream = &kopiaDataStream{}
 
 type kopiaDataCollection struct {
 	path    []string
-	streams []connector.DataStream
+	streams []data.DataStream
 }
 
-func (kdc *kopiaDataCollection) Items() <-chan connector.DataStream {
-	res := make(chan connector.DataStream)
+func (kdc *kopiaDataCollection) Items() <-chan data.DataStream {
+	res := make(chan data.DataStream)
 	go func() {
 		defer close(res)
 
