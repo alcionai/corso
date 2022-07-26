@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/data"
+	idata "github.com/alcionai/corso/internal/connector/data"
 )
 
 // ---------------
@@ -30,7 +30,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	path := []string{"some", "path", "for", "data"}
 
 	c := kopiaDataCollection{
-		streams: []data.DataStream{},
+		streams: []idata.DataStream{},
 		path:    path,
 	}
 
@@ -50,11 +50,11 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 
 	table := []struct {
 		name    string
-		streams []data.DataStream
+		streams []idata.DataStream
 	}{
 		{
 			name: "SingleStream",
-			streams: []data.DataStream{
+			streams: []idata.DataStream{
 				&kopiaDataStream{
 					reader: io.NopCloser(bytes.NewReader(data[0])),
 					uuid:   uuids[0],
@@ -63,7 +63,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 		},
 		{
 			name: "MultipleStreams",
-			streams: []data.DataStream{
+			streams: []idata.DataStream{
 				&kopiaDataStream{
 					reader: io.NopCloser(bytes.NewReader(data[0])),
 					uuid:   uuids[0],

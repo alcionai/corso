@@ -3,7 +3,7 @@ package kopia
 import (
 	"io"
 
-	"github.com/alcionai/corso/internal/connector/data"
+	"github.com/alcionai/corso/internal/data"
 )
 
 var _ data.DataCollection = &kopiaDataCollection{}
