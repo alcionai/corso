@@ -55,8 +55,9 @@ const (
 // Is only used to pass along more specific selector instances.
 type Selector struct {
 	Service  service             `json:"service,omitempty"`    // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
-	Excludes []map[string]string `json:"exclusions,omitempty"` // A slice of exclusions.  Each exclusion applies to all inclusions.
-	Includes []map[string]string `json:"scopes,omitempty"`     // A slice of inclusions.  Expected to get cast to a service wrapper within each service handler.
+	Excludes []map[string]string `json:"exclusions,omitempty"` // A slice of exclusion scopes.  Exclusions apply globally to all inclusions/filters, with any-match behavior.
+	Filters  []map[string]string `json:"filters,omitempty"`    // A slice of filter scopes.  All inclusions must also match ALL filters.
+	Includes []map[string]string `json:"scopes,omitempty"`     // A slice of inclusion scopes.  Comparators must match either one of these, or all filters, to be included.
 }
 
 // helper for specific selector instance constructors.
@@ -79,6 +80,61 @@ func Any() []string {
 // to fail.
 func None() []string {
 	return []string{NoneTgt}
+}
+
+type baseScope interface {
+	~map[string]string
+}
+
+func appendExcludes[T baseScope](
+	s *Selector,
+	tform func([]T) []T,
+	scopes ...[]T,
+) {
+	if s.Excludes == nil {
+		s.Excludes = []map[string]string{}
+	}
+	concat := []T{}
+	for _, scopeSl := range scopes {
+		concat = append(concat, tform(scopeSl)...)
+	}
+	for _, sc := range concat {
+		s.Excludes = append(s.Excludes, map[string]string(sc))
+	}
+}
+
+func appendFilters[T baseScope](
+	s *Selector,
+	tform func([]T) []T,
+	scopes ...[]T,
+) {
+	if s.Filters == nil {
+		s.Filters = []map[string]string{}
+	}
+	concat := []T{}
+	for _, scopeSl := range scopes {
+		concat = append(concat, tform(scopeSl)...)
+	}
+	for _, sc := range concat {
+		s.Filters = append(s.Filters, map[string]string(sc))
+	}
+}
+
+func appendIncludes[T baseScope](
+	s *Selector,
+	tform func([]T) []T,
+	scopes ...[]T,
+) {
+	if s.Includes == nil {
+		s.Includes = []map[string]string{}
+	}
+	concat := []T{}
+	for _, scopeSl := range scopes {
+		concat = append(concat, tform(scopeSl)...)
+	}
+	for _, sc := range concat {
+		s.Includes = append(s.Includes, map[string]string(sc))
+	}
 }
 
 // ---------------------------------------------------------------------------

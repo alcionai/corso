@@ -76,53 +76,63 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // -------------------
 // Exclude/Includes
 
-// Include appends the provided scopes to the selector's inclusion set.
-//
-// All parts of the scope must match for data to be included.
-// Ex: Mail(u1, f1, m1) => only includes mail if it is owned by user u1,
-// located in folder f1, and ID'd as m1.  Use selectors.Any() to wildcard
-// a scope value.  No value will match if selectors.None() is provided.
-//
-// Group-level scopes will automatically apply the Any() wildcard to child
-// properties.
-// ex: User(u1) is the same as Mail(u1, Any(), Any()).
-func (s *exchange) Include(scopes ...[]ExchangeScope) {
-	if s.Includes == nil {
-		s.Includes = []map[string]string{}
-	}
-	concat := []ExchangeScope{}
-	for _, scopeSl := range scopes {
-		concat = append(concat, extendExchangeScopeValues(scopeSl)...)
-	}
-	for _, sc := range concat {
-		s.Includes = append(s.Includes, map[string]string(sc))
-	}
-}
-
 // Exclude appends the provided scopes to the selector's exclusion set.
 // Every Exclusion scope applies globally, affecting all inclusion scopes.
 //
-// All parts of the scope must match for data to be excluded.
-// Ex: Mail(u1, f1, m1) => only excludes mail that is owned by user u1,
-// located in folder f1, and ID'd as m1.  Use selectors.Any() to wildcard
-// a scope value.  No value will match if selectors.None() is provided.
+// All parts of the scope must match for data to be exclucded.
+// Ex: Mail(u1, f1, m1) => only excludes mail if it is owned by user u1,
+// located in folder f1, and ID'd as m1.  MailSender(foo) => only excludes
+// mail whose sender is foo.  Use selectors.Any() to wildcard a scope value.
+// No value will match if selectors.None() is provided.
 //
 // Group-level scopes will automatically apply the Any() wildcard to
 // child properties.
-// ex: User(u1) automatically includes all mail, events, and contacts,
+// ex: User(u1) automatically cascades to all mail, events, and contacts,
 // therefore it is the same as selecting all of the following:
 // Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
 func (s *exchange) Exclude(scopes ...[]ExchangeScope) {
-	if s.Excludes == nil {
-		s.Excludes = []map[string]string{}
-	}
-	concat := []ExchangeScope{}
-	for _, scopeSl := range scopes {
-		concat = append(concat, extendExchangeScopeValues(scopeSl)...)
-	}
-	for _, sc := range concat {
-		s.Excludes = append(s.Excludes, map[string]string(sc))
-	}
+	appendExcludes(&s.Selector, extendExchangeScopeValues, scopes...)
+}
+
+// Filter appends the provided scopes to the selector's filters set.
+// A selector with >0 filters and 0 inclusions will include any data
+// that passes all filters.
+// A selector with >0 filters and >0 inclusions will reduce the
+// inclusion set to only the data that passes all filters.
+//
+// All parts of the scope must match for data to pass the filter.
+// Ex: Mail(u1, f1, m1) => only passes mail that is owned by user u1,
+// located in folder f1, and ID'd as m1.  MailSender(foo) => only passes
+// mail whose sender is foo.  Use selectors.Any() to wildcard a scope value.
+// No value will match if selectors.None() is provided.
+//
+// Group-level scopes will automatically apply the Any() wildcard to
+// child properties.
+// ex: User(u1) automatically cascades to all mail, events, and contacts,
+// therefore it is the same as selecting all of the following:
+// Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
+func (s *exchange) Filter(scopes ...[]ExchangeScope) {
+	appendFilters(&s.Selector, extendExchangeScopeValues, scopes...)
+}
+
+// Include appends the provided scopes to the selector's inclusion set.
+// Data is included if it matches ANY inclusion.
+// The inclusion set is later filtered (all included data must pass ALL
+// filters) and excluded (all included data must not match ANY exclusion).
+//
+// All parts of the scope must match for data to be included.
+// Ex: Mail(u1, f1, m1) => only includes mail if it is owned by user u1,
+// located in folder f1, and ID'd as m1.  MailSender(foo) => only includes
+// mail whose sender is foo.  Use selectors.Any() to wildcard a scope value.
+// No value will match if selectors.None() is provided.
+//
+// Group-level scopes will automatically apply the Any() wildcard to
+// child properties.
+// ex: User(u1) automatically cascades to all mail, events, and contacts,
+// therefore it is the same as selecting all of the following:
+// Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
+func (s *exchange) Include(scopes ...[]ExchangeScope) {
+	appendIncludes(&s.Selector, extendExchangeScopeValues, scopes...)
 }
 
 // completes population for certain scope properties, according to the
@@ -265,10 +275,11 @@ func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 func (s *exchange) Users(users []string) []ExchangeScope {
 	users = normalize(users)
 	scopes := []ExchangeScope{}
-	scopes = append(
-		scopes,
-		makeExchangeScope(Group, ExchangeUser, users),
-	)
+	for _, u := range users {
+		scopes = append(scopes, makeExchangeUserScope(u, Group, ExchangeContactFolder, Any()))
+		scopes = append(scopes, makeExchangeUserScope(u, Item, ExchangeEvent, Any()))
+		scopes = append(scopes, makeExchangeUserScope(u, Group, ExchangeMailFolder, Any()))
+	}
 	return scopes
 }
 
@@ -281,9 +292,8 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) Excha
 	}
 }
 
-// Produces one or more exchange contact info filter scopes.
+// Produces one or more exchange mail received-after filter scopes.
 // Matches any mail which was received after the timestring.
-// One scope is created per timeString entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -293,9 +303,8 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeStrings []string) []ExchangeSco
 	}
 }
 
-// Produces one or more exchange mail subject filter scopes.
+// Produces one or more exchange mail received-before filter scopes.
 // Matches any mail whose mail subject contains one of the provided strings.
-// One scope is created per subject entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -305,9 +314,8 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings []string) []ExchangeSc
 	}
 }
 
-// Produces one or more exchange mail received-after filter scopes.
+// Produces one or more exchange mail sender filter scopes.
 // Matches any mail which was received after the timestring.
-// One scope is created per timeString entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -317,7 +325,7 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 	}
 }
 
-// Produces one or more exchange mail received-before filter scopes.
+// Produces one or more exchange mail subject line filter scopes.
 // Matches any mail which was received before the timestring.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
@@ -626,15 +634,16 @@ func exchangeIDPath(cat exchangeCategory, path []string) map[exchangeCategory]st
 	return m
 }
 
-// FilterDetails reduces the entries in a backupDetails struct to only
-// those that match the inclusions and exclusions in the selector.
-func (s *ExchangeRestore) FilterDetails(deets *backup.Details) *backup.Details {
+// Reduce reduces the entries in a backupDetails struct to only
+// those that match the inclusions, filters, and exclusions in the selector.
+func (s *ExchangeRestore) Reduce(deets *backup.Details) *backup.Details {
 	if deets == nil {
 		return nil
 	}
 
-	entIncs := exchangeScopesByCategory(s.Includes)
 	entExcs := exchangeScopesByCategory(s.Excludes)
+	entFilt := exchangeScopesByCategory(s.Filters)
+	entIncs := exchangeScopesByCategory(s.Includes)
 
 	ents := []backup.DetailsEntry{}
 
@@ -659,8 +668,9 @@ func (s *ExchangeRestore) FilterDetails(deets *backup.Details) *backup.Details {
 			cat,
 			path,
 			ent.Exchange,
-			entIncs[cat.String()],
-			entExcs[cat.String()])
+			entExcs[cat.String()],
+			entFilt[cat.String()],
+			entIncs[cat.String()])
 		if matched {
 			ents = append(ents, ent)
 		}
@@ -694,31 +704,47 @@ func exchangeScopesByCategory(scopes []map[string]string) map[string][]ExchangeS
 }
 
 // compare each path to the included and excluded exchange scopes.  Returns true
-// if the path is included, and not excluded.
+// if the path is included, passes filters, and not excluded.
 func matchExchangeEntry(
 	cat exchangeCategory,
 	path []string,
 	info *backup.ExchangeInfo,
-	incs, excs []ExchangeScope,
+	excs, filts, incs []ExchangeScope,
 ) bool {
-	var included bool
-	for _, inc := range incs {
-		if inc.matches(cat, path, info) {
-			included = true
-			break
-		}
-	}
-	if !included {
+	// a passing match requires either a filter or an inclusion
+	if len(incs)+len(filts) == 0 {
 		return false
 	}
 
-	var excluded bool
-	for _, exc := range excs {
-		if exc.matches(cat, path, info) {
-			excluded = true
-			break
+	// skip this check if 0 inclusions were populated
+	// since filters act as the inclusion check in that case
+	if len(incs) > 0 {
+		// at least one inclusion must apply.
+		var included bool
+		for _, inc := range incs {
+			if inc.matches(cat, path, info) {
+				included = true
+				break
+			}
+		}
+		if !included {
+			return false
 		}
 	}
 
-	return !excluded
+	// all filters must pass
+	for _, filt := range filts {
+		if !filt.matches(cat, path, info) {
+			return false
+		}
+	}
+
+	// any matching exclusion means failure
+	for _, exc := range excs {
+		if exc.matches(cat, path, info) {
+			return false
+		}
+	}
+
+	return true
 }

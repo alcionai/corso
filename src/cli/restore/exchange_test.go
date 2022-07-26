@@ -149,17 +149,17 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		{
 			name:             "any users",
 			users:            any,
-			expectIncludeLen: 1,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "single user",
 			users:            stub,
-			expectIncludeLen: 1,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "multiple users",
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 1,
+			expectIncludeLen: 6,
 		},
 		{
 			name:             "any users, any data",
@@ -316,98 +316,98 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 	}
 }
 
-func (suite *ExchangeSuite) TestIncludeExchangeRestoreInfoSelectors() {
+func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 	stub := []string{"id-stub"}
 	twoStubs := []string{"a-stub", "b-stub"}
 	any := []string{utils.Wildcard}
 	table := []struct {
 		name                           string
 		after, before, sender, subject []string
-		expectIncludeLen               int
+		expectFilterLen                int
 	}{
 		{
-			name:             "no selectors",
-			expectIncludeLen: 0,
+			name:            "no selectors",
+			expectFilterLen: 0,
 		},
 		{
-			name:             "any receivedAfter",
-			after:            any,
-			expectIncludeLen: 1,
+			name:            "any receivedAfter",
+			after:           any,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "single receivedAfter",
-			after:            stub,
-			expectIncludeLen: 1,
+			name:            "single receivedAfter",
+			after:           stub,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "multiple receivedAfter",
-			after:            twoStubs,
-			expectIncludeLen: 1,
+			name:            "multiple receivedAfter",
+			after:           twoStubs,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "any receivedBefore",
-			before:           any,
-			expectIncludeLen: 1,
+			name:            "any receivedBefore",
+			before:          any,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "single receivedBefore",
-			before:           stub,
-			expectIncludeLen: 1,
+			name:            "single receivedBefore",
+			before:          stub,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "multiple receivedBefore",
-			before:           twoStubs,
-			expectIncludeLen: 1,
+			name:            "multiple receivedBefore",
+			before:          twoStubs,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "any senders",
-			sender:           any,
-			expectIncludeLen: 1,
+			name:            "any senders",
+			sender:          any,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "single sender",
-			sender:           stub,
-			expectIncludeLen: 1,
+			name:            "single sender",
+			sender:          stub,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "multiple senders",
-			sender:           twoStubs,
-			expectIncludeLen: 1,
+			name:            "multiple senders",
+			sender:          twoStubs,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "any subjects",
-			subject:          any,
-			expectIncludeLen: 1,
+			name:            "any subjects",
+			subject:         any,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "single subject",
-			subject:          stub,
-			expectIncludeLen: 1,
+			name:            "single subject",
+			subject:         stub,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "multiple subjects",
-			subject:          twoStubs,
-			expectIncludeLen: 1,
+			name:            "multiple subjects",
+			subject:         twoStubs,
+			expectFilterLen: 1,
 		},
 		{
-			name:             "one of each",
-			after:            stub,
-			before:           stub,
-			sender:           stub,
-			subject:          stub,
-			expectIncludeLen: 4,
+			name:            "one of each",
+			after:           stub,
+			before:          stub,
+			sender:          stub,
+			subject:         stub,
+			expectFilterLen: 4,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewExchangeRestore()
-			includeExchangeRestoreInfoSelectors(
+			filterExchangeRestoreInfoSelectors(
 				sel,
 				test.after,
 				test.before,
 				test.sender,
 				test.subject)
-			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
+			assert.Equal(t, test.expectFilterLen, len(sel.Filters))
 		})
 	}
 }
