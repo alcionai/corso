@@ -66,7 +66,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := ExchangeDataCollection{
 		user:     "Fletcher",
-		data:     make(chan DataStream, 3),
+		data:     make(chan DataStream, 10),
 		fullPath: []string{"sugar", "horses", "painted red"},
 	}
 	for i := 0; i < expected; i++ {
@@ -75,13 +75,13 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	suite.Equal(expected, len(edc.data))
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NextItem() {
+func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_ItemsNoAsync() {
 	inputStrings := []string{"Jack", "and", "Jill", "went", "up", "the", "hill to",
 		"fetch", "a", "pale", "of", "water"}
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := ExchangeDataCollection{
 		user:     "Fletcher",
-		data:     make(chan DataStream, 3),
+		data:     make(chan DataStream, 10),
 		fullPath: []string{"sugar", "horses", "painted red"},
 	}
 	for i := 0; i < expected; i++ {
