@@ -294,12 +294,14 @@ func (gc *GraphConnector) createCollections(
 
 ) ([]ExchangeDataCollection, error) {
 	// Checked prior to being called for mail... will add selector
-	var response absser.Parsable
-	var gq GraphQuery
-	var transformer absser.ParsableFactory
-	var populationFunction PopulateFunc
-	var gIter GraphIterateFunc
-	var err error
+	var (
+		response absser.Parsable
+		gq GraphQuery
+		transformer absser.ParsableFactory
+		populationFunction PopulateFunc
+		gIter GraphIterateFunc
+		err error
+	)
 	if !scope.IncludesCategory(selectors.ExchangeMail) {
 		return nil, errors.New("selector only supports mails")
 	}
