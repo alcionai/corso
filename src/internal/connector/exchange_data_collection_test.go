@@ -50,7 +50,10 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchangeDataCollection() {
 	name := "User"
-	edc := NewExchangeDataCollection(name, []string{"Directory", "File", "task"})
+	edc := &ExchangeDataCollection{
+		user:     name,
+		fullPath: []string{"Directory", "File", "task"},
+	}
 	suite.Equal(name, edc.user)
 	suite.True(Contains(edc.FullPath(), "Directory"))
 	suite.True(Contains(edc.FullPath(), "File"))
@@ -67,7 +70,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 		fullPath: []string{"sugar", "horses", "painted red"},
 	}
 	for i := 0; i < expected; i++ {
-		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
+		edc.data <- &ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])}
 	}
 	suite.Equal(expected, len(edc.data))
 }
@@ -82,7 +85,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NextItem() 
 		fullPath: []string{"sugar", "horses", "painted red"},
 	}
 	for i := 0; i < expected; i++ {
-		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
+		edc.data <- &ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])}
 	}
 	edc.FinishPopulation() // finished writing
 
