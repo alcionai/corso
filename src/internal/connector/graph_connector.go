@@ -49,8 +49,6 @@ type graphService struct {
 	failFast bool // if true service will exit sequence upon encountering an error
 }
 
-type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
-
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
@@ -311,7 +309,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*ExchangeDataCollection, error) {
+func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*exchange.ObjectCollection, error) {
 	options := optionsForMessageSnapshot()
 	response, err := gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
@@ -340,11 +338,11 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		return nil, err // return error if snapshot is incomplete
 	}
 	// Create collection of ExchangeDataCollection and create  data Holder
-	collections := make(map[string]*ExchangeDataCollection)
+	collections := make(map[string]*exchange.ObjectCollection)
 
 	for aFolder := range tasklist {
 		// prep the items for handoff to the backup consumer
-		edc := NewExchangeDataCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
+		edc := exchange.NewObjectCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
 		collections[aFolder] = &edc
 	}
 
@@ -373,7 +371,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 func (sc *graphService) populateFromTaskList(
 	ctx context.Context,
 	tasklist TaskList,
-	collections map[string]*ExchangeDataCollection,
+	collections map[string]*exchange.ObjectCollection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
@@ -466,7 +464,7 @@ func messageToDataCollection(
 		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
 	if byteArray != nil {
-		dataChannel <- &ExchangeData{id: *aMessage.GetId(), message: byteArray, info: exchange.MessageInfo(aMessage)}
+		dataChannel <- &exchange.ObjectData{id: *aMessage.GetId(), message: byteArray, info: exchange.MessageInfo(aMessage)}
 	}
 	return nil
 }
