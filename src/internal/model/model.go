@@ -5,8 +5,10 @@ import (
 )
 
 type (
-	ID     string
-	Schema int
+	// StableID is used by BaseModel.ID to uniquely identify objects
+	// stored in the modelStore.
+	StableID string
+	Schema   int
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type=Schema
@@ -32,11 +34,11 @@ type Model interface {
 // that wish to be stored should embed this struct. This struct also represents
 // the common metadata the ModelStore will fill out/use.
 type BaseModel struct {
-	// StableID is an identifier that other objects can use to refer to this
+	// ID is an identifier that other objects can use to refer to this
 	// object in the ModelStore.
 	// Once generated (during Put), it is guaranteed not to change. This field
 	// should be treated as read-only by users.
-	StableID ID `json:"stableID,omitempty"`
+	ID StableID `json:"ID,omitempty"`
 	// ModelStoreID is an internal ID for the model in the store. If present it
 	// can be used for efficient lookups, but should not be used by other models
 	// to refer to this one. This field may change if the model is updated. This

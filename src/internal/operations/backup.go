@@ -34,7 +34,7 @@ type BackupOperation struct {
 type BackupResults struct {
 	stats.ReadWrites
 	stats.StartAndEndTime
-	BackupID model.ID `json:"backupID"`
+	BackupID model.StableID `json:"backupID"`
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -159,7 +159,7 @@ func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string
 	if err != nil {
 		return errors.Wrap(err, "creating backup model")
 	}
-	op.Results.BackupID = b.StableID
+	op.Results.BackupID = b.ID
 
 	return nil
 }

@@ -22,7 +22,7 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID  model.ID           `json:"backupID"`
+	BackupID  model.StableID     `json:"backupID"`
 	Results   RestoreResults     `json:"results"`
 	Selectors selectors.Selector `json:"selectors"` // todo: replace with Selectors
 	Version   string             `json:"version"`
@@ -43,7 +43,7 @@ func NewRestoreOperation(
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	acct account.Account,
-	backupID model.ID,
+	backupID model.StableID,
 	sel selectors.Selector,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{

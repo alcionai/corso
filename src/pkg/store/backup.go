@@ -12,7 +12,7 @@ import (
 )
 
 // GetBackup gets a single backup by id.
-func (w Wrapper) GetBackup(ctx context.Context, backupID model.ID) (*backup.Backup, error) {
+func (w Wrapper) GetBackup(ctx context.Context, backupID model.StableID) (*backup.Backup, error) {
 	b := backup.Backup{}
 	err := w.Get(ctx, model.BackupSchema, backupID, &b)
 	if err != nil {
@@ -50,7 +50,7 @@ func (w Wrapper) GetDetails(ctx context.Context, detailsID manifest.ID) (*detail
 }
 
 // GetDetailsFromBackupID retrieves the backup.Details within the specified backup.
-func (w Wrapper) GetDetailsFromBackupID(ctx context.Context, backupID model.ID) (*details.Details, *backup.Backup, error) {
+func (w Wrapper) GetDetailsFromBackupID(ctx context.Context, backupID model.StableID) (*details.Details, *backup.Backup, error) {
 	b, err := w.GetBackup(ctx, backupID)
 	if err != nil {
 		return nil, nil, err
