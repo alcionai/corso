@@ -1,4 +1,4 @@
-package service
+package graph
 
 import msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
@@ -9,6 +9,6 @@ type Service interface {
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
 	Adapter() *msgraphsdk.GraphRequestAdapter
-
-	Policy() bool
+	// ErrPolicy returns if the service is implementing a Fast-Fail policy or not
+	ErrPolicy() bool
 }
