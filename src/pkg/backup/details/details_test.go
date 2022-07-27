@@ -1,4 +1,4 @@
-package store_test
+package details_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/store"
 	storeMock "github.com/alcionai/corso/pkg/store/mock"
 )
@@ -31,17 +32,25 @@ var (
 		SnapshotID:   uuid.NewString(),
 		DetailsID:    detailsID,
 	}
+	deets = details.Details{
+		DetailsModel: details.DetailsModel{
+			BaseModel: model.BaseModel{
+				StableID:     model.ID(detailsID),
+				ModelStoreID: manifest.ID(uuid.NewString()),
+			},
+		},
+	}
 )
 
-type StoreBackupUnitSuite struct {
+type StoreDetailsUnitSuite struct {
 	suite.Suite
 }
 
-func TestStoreBackupUnitSuite(t *testing.T) {
-	suite.Run(t, new(StoreBackupUnitSuite))
+func TestStoreDetailsUnitSuite(t *testing.T) {
+	suite.Run(t, new(StoreDetailsUnitSuite))
 }
 
-func (suite *StoreBackupUnitSuite) TestGetBackup() {
+func (suite *StoreDetailsUnitSuite) TestGetDetails() {
 	ctx := context.Background()
 
 	table := []struct {
@@ -50,30 +59,30 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 		expect assert.ErrorAssertionFunc
 	}{
 		{
-			name:   "gets backup",
-			mock:   storeMock.NewMock(&bu, nil, nil),
+			name:   "gets details",
+			mock:   storeMock.NewMock(nil, &deets, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, nil, assert.AnError),
+			mock:   storeMock.NewMock(nil, &deets, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sm := &store.Wrapper{Storer: test.mock}
-			result, err := sm.GetBackup(ctx, model.ID(uuid.NewString()))
+			result, err := sm.GetDetails(ctx, manifest.ID(uuid.NewString()))
 			test.expect(t, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, bu.StableID, result.StableID)
+			assert.Equal(t, deets.StableID, result.StableID)
 		})
 	}
 }
 
-func (suite *StoreBackupUnitSuite) TestGetBackups() {
+func (suite *StoreDetailsUnitSuite) TestGetDetailsFromBackupID() {
 	ctx := context.Background()
 
 	table := []struct {
@@ -82,26 +91,26 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 		expect assert.ErrorAssertionFunc
 	}{
 		{
-			name:   "gets backups",
-			mock:   storeMock.NewMock(&bu, nil, nil),
+			name:   "gets details from backup id",
+			mock:   storeMock.NewMock(&bu, &deets, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, nil, assert.AnError),
+			mock:   storeMock.NewMock(&bu, &deets, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sm := &store.Wrapper{Storer: test.mock}
-			result, err := sm.GetBackups(ctx)
+			store := &store.Wrapper{Storer: test.mock}
+			dResult, bResult, err := store.GetDetailsFromBackupID(ctx, model.ID(uuid.NewString()))
 			test.expect(t, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, 1, len(result))
-			assert.Equal(t, bu.StableID, result[0].StableID)
+			assert.Equal(t, deets.StableID, dResult.StableID)
+			assert.Equal(t, bu.StableID, bResult.StableID)
 		})
 	}
 }

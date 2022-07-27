@@ -48,7 +48,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 				TotalFileCount: 1,
 			},
 			gc: &support.ConnectorOperationStatus{
-				ObjectCount: 1,
+				Successful: 1,
 			},
 		}
 	)
@@ -59,7 +59,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	op.persistResults(now, &stats)
 
 	assert.Equal(t, op.Status, Failed)
-	assert.Equal(t, op.Results.ItemsRead, stats.gc.ObjectCount)
+	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful)
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr)
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount)
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr)

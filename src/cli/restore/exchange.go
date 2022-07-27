@@ -17,10 +17,17 @@ import (
 
 // exchange bucket info from flags
 var (
-	emailFolder string
-	email       string
-	backupID    string
-	user        string
+	backupID            string
+	contact             []string
+	contactFolder       []string
+	email               []string
+	emailFolder         []string
+	emailReceivedAfter  string
+	emailReceivedBefore string
+	emailSender         string
+	emailSubject        string
+	event               []string
+	user                []string
 )
 
 // called by restore.go to map parent subcommands to provider-specific handling.
@@ -33,11 +40,37 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd)
-		fs.StringVar(&emailFolder, "email-folder", "", "Name of the email folder being restored")
-		fs.StringVar(&email, "email", "", "ID of the email being restored")
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
-		fs.StringVar(&user, "user", "", "ID of the user whose exchange data will get restored")
+
+		// per-data-type flags
+		fs.StringArrayVar(&contact, "contact", nil, "Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringArrayVar(
+			&contactFolder,
+			"contact-folder",
+			nil,
+			"Restore all contacts within the folder ID; accepts "+utils.Wildcard+" to select all contact folders")
+		fs.StringArrayVar(&email, "email", nil, "Restore emails by ID; accepts "+utils.Wildcard+" to select all emails")
+		fs.StringArrayVar(
+			&emailFolder,
+			"email-folder",
+			nil,
+			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders")
+		fs.StringArrayVar(&event, "event", nil, "Restore events by ID; accepts "+utils.Wildcard+" to select all events")
+		fs.StringArrayVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
+
+		// TODO: reveal these flags when their production is supported in GC
+		cobra.CheckErr(fs.MarkHidden("contact"))
+		cobra.CheckErr(fs.MarkHidden("contact-folder"))
+		cobra.CheckErr(fs.MarkHidden("event"))
+
+		// exchange-info flags
+		fs.StringVar(&emailReceivedAfter, "email-received-after", "", "Restore mail where the email was received after this datetime")
+		fs.StringVar(&emailReceivedBefore, "email-received-before", "", "Restore mail where the email was received before this datetime")
+		fs.StringVar(&emailSender, "email-sender", "", "Restore mail where the email sender matches this user id")
+		fs.StringVar(&emailSubject, "email-subject", "", "Restore mail where the email subject lines contain this value")
+
+		// others
 		options.AddOperationFlags(c)
 	}
 	return c
@@ -61,8 +94,16 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateRestoreFlags(user, emailFolder, email, backupID); err != nil {
-		return errors.Wrap(err, "Missing required flags")
+	if err := validateExchangeRestoreFlags(
+		contact,
+		contactFolder,
+		email,
+		emailFolder,
+		event,
+		user,
+		backupID,
+	); err != nil {
+		return err
 	}
 
 	s, a, err := config.GetStorageAndAccount(true, nil)
@@ -88,7 +129,28 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	ro, err := r.NewRestore(ctx, backupID, exchangeRestoreSelectors(user, emailFolder, email), options.OperationOptions())
+	sel := selectors.NewExchangeRestore()
+	includeExchangeRestoreDataSelectors(
+		sel,
+		contact,
+		contactFolder,
+		email,
+		emailFolder,
+		event,
+		user)
+	filterExchangeRestoreInfoSelectors(
+		sel,
+		emailReceivedAfter,
+		emailReceivedBefore,
+		emailSender,
+		emailSubject)
+
+	// if no selector flags were specified, get all data in the service.
+	if len(sel.Scopes()) == 0 {
+		sel.Include(sel.Users(selectors.Any()))
+	}
+
+	ro, err := r.NewRestore(ctx, backupID, sel.Selector, options.OperationOptions())
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
@@ -101,34 +163,124 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeRestoreSelectors(u, f, m string) selectors.Selector {
-	sel := selectors.NewExchangeRestore()
-	if len(m) > 0 {
-		sel.Include(sel.Mails(
-			[]string{u}, []string{f}, []string{m},
-		))
+// builds the data-selector inclusions for `restore exchange`
+func includeExchangeRestoreDataSelectors(
+	sel *selectors.ExchangeRestore,
+	contacts, contactFolders, emails, emailFolders, events, users []string,
+) {
+	lc, lcf := len(contacts), len(contactFolders)
+	le, lef := len(emails), len(emailFolders)
+	lev := len(events)
+	lu := len(users)
+
+	if lc+lcf+le+lef+lev+lu == 0 {
+		return
 	}
-	if len(f) > 0 && len(m) == 0 {
-		sel.Include(sel.MailFolders(
-			[]string{u}, []string{f},
-		))
+
+	// if only users are provided, we only get one selector
+	if lu > 0 && lc+lcf+le+lef+lev == 0 {
+		sel.Include(sel.Users(users))
+		return
 	}
-	if len(f) == 0 && len(m) == 0 {
-		sel.Include(sel.Users([]string{u}))
-	}
-	return sel.Selector
+
+	// otherwise, add selectors for each type of data
+	includeExchangeContacts(sel, users, contactFolders, contacts)
+	includeExchangeEmails(sel, users, emailFolders, email)
+	includeExchangeEvents(sel, users, events)
 }
 
-func validateRestoreFlags(u, f, m, rpid string) error {
-	if len(rpid) == 0 {
-		return errors.New("a restore point ID is requried")
+func includeExchangeContacts(sel *selectors.ExchangeRestore, users, contactFolders, contacts []string) {
+	if len(contactFolders) == 0 {
+		return
 	}
-	lu, lf, lm := len(u), len(f), len(m)
-	if (lu == 0 || u == "*") && (lf+lm > 0) {
-		return errors.New("a specific --user must be provided if --email-folder or --email is specified")
+	if len(contacts) > 0 {
+		sel.Include(sel.Contacts(users, contactFolders, contacts))
+	} else {
+		sel.Include(sel.ContactFolders(users, contactFolders))
 	}
-	if (lf == 0 || f == "*") && lm > 0 {
-		return errors.New("a specific --email-folder must be provided if a --email is specified")
+}
+
+func includeExchangeEmails(sel *selectors.ExchangeRestore, users, emailFolders, emails []string) {
+	if len(emailFolders) == 0 {
+		return
+	}
+	if len(emails) > 0 {
+		sel.Include(sel.Mails(users, emailFolders, emails))
+	} else {
+		sel.Include(sel.MailFolders(users, emailFolders))
+	}
+}
+
+func includeExchangeEvents(sel *selectors.ExchangeRestore, users, events []string) {
+	if len(events) == 0 {
+		return
+	}
+	sel.Include(sel.Events(users, events))
+}
+
+// builds the info-selector filters for `restore exchange`
+func filterExchangeRestoreInfoSelectors(
+	sel *selectors.ExchangeRestore,
+	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject string,
+) {
+	filterExchangeInfoMailReceivedAfter(sel, emailReceivedAfter)
+	filterExchangeInfoMailReceivedBefore(sel, emailReceivedBefore)
+	filterExchangeInfoMailSender(sel, emailSender)
+	filterExchangeInfoMailSubject(sel, emailSubject)
+}
+
+func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter string) {
+	if len(receivedAfter) == 0 {
+		return
+	}
+	sel.Filter(sel.MailReceivedAfter(receivedAfter))
+}
+
+func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore string) {
+	if len(receivedBefore) == 0 {
+		return
+	}
+	sel.Filter(sel.MailReceivedBefore(receivedBefore))
+}
+
+func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender string) {
+	if len(sender) == 0 {
+		return
+	}
+	sel.Filter(sel.MailSender([]string{sender}))
+}
+
+func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject string) {
+	if len(subject) == 0 {
+		return
+	}
+	sel.Filter(sel.MailSubject([]string{subject}))
+}
+
+// checks all flags for correctness and interdependencies
+func validateExchangeRestoreFlags(
+	contacts, contactFolders, emails, emailFolders, events, users []string,
+	backupID string,
+) error {
+	if len(backupID) == 0 {
+		return errors.New("a backup ID is required")
+	}
+	lu := len(users)
+	lc, lcf := len(contacts), len(contactFolders)
+	le, lef := len(emails), len(emailFolders)
+	lev := len(events)
+	// if only the backupID is populated, that's the same as --all
+	if lu+lc+lcf+le+lef+lev == 0 {
+		return nil
+	}
+	if lu == 0 {
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
+	}
+	if lc > 0 && lcf == 0 {
+		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
+	}
+	if le > 0 && lef == 0 {
+		return errors.New("one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
 	}
 	return nil
 }

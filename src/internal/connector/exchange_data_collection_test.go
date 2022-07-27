@@ -56,7 +56,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCollection() {
 	inputStrings := []string{"Jack", "and", "Jill", "went", "up", "the", "hill to",
-		"fetch", "a", "pale", "of", "water"}
+		"fetch", "a", "pail", "of", "water"}
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := NewExchangeDataCollection("Fletcher", []string{"sugar", "horses", "painted red"})
 	for i := 0; i < expected; i++ {
@@ -65,21 +65,22 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	suite.Equal(expected, len(edc.data))
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NextItem() {
+func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Items() {
 	inputStrings := []string{"Jack", "and", "Jill", "went", "up", "the", "hill to",
-		"fetch", "a", "pale", "of", "water"}
+		"fetch", "a", "pail", "of", "water"}
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := NewExchangeDataCollection("Fletcher", []string{"sugar", "horses", "painted red"})
 	for i := 0; i < expected; i++ {
-		edc.PopulateCollection(&ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
+		edc.data <- &ExchangeData{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])}
 	}
-	edc.FinishPopulation() // finished writing
-
+	close(edc.data)
+	suite.Equal(expected, len(edc.data))
+	streams := edc.Items()
+	suite.Equal(expected, len(streams))
 	count := 0
-	for data := range edc.Items() {
-		assert.NotNil(suite.T(), data)
+	for item := range streams {
+		assert.NotNil(suite.T(), item)
 		count++
 	}
-
-	assert.Equal(suite.T(), expected, count)
+	suite.Equal(count, expected)
 }

@@ -9,8 +9,10 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
@@ -30,8 +32,8 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
-	summary
-	metrics
+	stats.ReadWrites
+	stats.StartAndEndTime
 }
 
 // NewRestoreOperation constructs and validates a restore operation.
@@ -67,7 +69,7 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []connector.DataCollection
+	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
 	readErr, writeErr error
 }
@@ -95,7 +97,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	}
 
 	// format the details and retrieve the items from kopia
-	fds := er.FilterDetails(d)
+	fds := er.Reduce(d)
 	// todo: use path pkg for this
 	fdsPaths := fds.Paths()
 	paths := make([][]string, len(fdsPaths))

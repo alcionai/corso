@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 	"github.com/alcionai/corso/pkg/store"
@@ -155,14 +156,14 @@ func (r Repository) NewRestore(
 		sel)
 }
 
-// backups lists backups in a respository
+// backups lists backups in a repository
 func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackups(ctx)
 }
 
 // BackupDetails returns the specified backup details object
-func (r Repository) BackupDetails(ctx context.Context, backupID string) (*backup.Details, *backup.Backup, error) {
+func (r Repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetDetailsFromBackupID(ctx, model.ID(backupID))
 }

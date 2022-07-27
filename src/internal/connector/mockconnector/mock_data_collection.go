@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox
@@ -20,9 +20,9 @@ type MockExchangeDataCollection struct {
 }
 
 var (
-	_ connector.DataCollection = &MockExchangeDataCollection{}
-	_ connector.DataStream     = &MockExchangeData{}
-	_ connector.DataStreamInfo = &MockExchangeData{}
+	_ data.Collection = &MockExchangeDataCollection{}
+	_ data.Stream     = &MockExchangeData{}
+	_ data.StreamInfo = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -49,8 +49,8 @@ func (medc *MockExchangeDataCollection) FullPath() []string {
 
 // Items returns a channel that has the next items in the collection. The
 // channel is closed when there are no more items available.
-func (medc *MockExchangeDataCollection) Items() <-chan connector.DataStream {
-	res := make(chan connector.DataStream)
+func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
+	res := make(chan data.Stream)
 
 	go func() {
 		defer close(res)
@@ -79,6 +79,6 @@ func (med *MockExchangeData) ToReader() io.ReadCloser {
 	return med.Reader
 }
 
-func (med *MockExchangeData) Info() backup.ItemInfo {
-	return backup.ItemInfo{Exchange: &backup.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}}
+func (med *MockExchangeData) Info() details.ItemInfo {
+	return details.ItemInfo{Exchange: &details.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}}
 }

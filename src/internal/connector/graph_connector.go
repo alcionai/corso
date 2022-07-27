@@ -19,6 +19,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -47,6 +48,8 @@ type graphService struct {
 	adapter  msgraphsdk.GraphRequestAdapter
 	failFast bool // if true service will exit sequence upon encountering an error
 }
+
+type PopulateFunc func(context.Context, graphService, ExchangeDataCollection, chan *support.ConnectorOperationStatus)
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
@@ -188,13 +191,13 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // use to read mailbox data out for the specified user
 // Assumption: User exists
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]DataCollection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting exchange data")
 	}
 
-	collections := []DataCollection{}
+	collections := []data.Collection{}
 	scopes := eb.Scopes()
 	var errs error
 
@@ -208,7 +211,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 			// TODO: handle "get mail for all users"
 			// this would probably no-op without this check,
 			// but we want it made obvious that we're punting.
-			if user == selectors.AllTgt {
+			if user == selectors.AnyTgt {
 				errs = support.WrapAndAppend(
 					"all-users",
 					errors.New("all users selector currently not handled"),
@@ -233,7 +236,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 // RestoreMessages: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollection) error {
+func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collection) error {
 	var (
 		pathCounter         = map[string]bool{}
 		attempts, successes int
@@ -289,12 +292,12 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollect
 					// TODO: Add to retry Handler for the for failure
 				}
 
-				if sentMessage == nil && err == nil {
+				if sentMessage == nil {
 					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
+					continue
 				}
-				if err != nil {
-					successes++
-				}
+
+				successes++
 				// This completes the restore loop for a message..
 			}
 		}
@@ -419,7 +422,7 @@ func messageToDataCollection(
 	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
 	objectWriter *kw.JsonSerializationWriter,
-	dataChannel chan<- DataStream,
+	dataChannel chan<- data.Stream,
 	message models.Messageable,
 	user string,
 ) error {

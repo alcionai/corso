@@ -8,10 +8,13 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -29,8 +32,8 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
-	summary
-	metrics
+	stats.ReadWrites
+	stats.StartAndEndTime
 	BackupID model.ID `json:"backupID"`
 }
 
@@ -71,12 +74,23 @@ type backupStats struct {
 }
 
 // Run begins a synchronous backup operation.
-func (op *BackupOperation) Run(ctx context.Context) error {
+func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// TODO: persist initial state of backupOperation in modelstore
 
 	// persist operation results to the model store on exit
-	stats := backupStats{}
-	defer op.persistResults(time.Now(), &stats)
+	var (
+		stats   backupStats
+		details *details.Details
+	)
+	defer func() {
+		op.persistResults(time.Now(), &stats)
+
+		err = op.createBackupModels(ctx, stats.k.SnapshotID, details)
+		if err != nil {
+			stats.writeErr = err
+			// todo: ^ we're not persisting this yet, except for the error shown to the user.
+		}
+	}()
 
 	// retrieve data from the producer
 	gc, err := connector.NewGraphConnector(op.account)
@@ -85,7 +99,7 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 		return errors.Wrap(err, "connecting to graph api")
 	}
 
-	var cs []connector.DataCollection
+	var cs []data.Collection
 	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
 	if err != nil {
 		stats.readErr = err
@@ -93,7 +107,6 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 	}
 
 	// hand the results to the consumer
-	var details *backup.Details
 	stats.k, details, err = op.kopia.BackupCollections(ctx, cs)
 	if err != nil {
 		stats.writeErr = err
@@ -101,33 +114,11 @@ func (op *BackupOperation) Run(ctx context.Context) error {
 	}
 	stats.gc = gc.AwaitStatus()
 
-	err = op.createBackupModels(ctx, stats.k.SnapshotID, details)
-	if err != nil {
-		stats.writeErr = err
-		return err
-	}
-	return nil
+	return err
 }
 
-func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, details *backup.Details) error {
-	err := op.store.Put(ctx, model.BackupDetailsSchema, &details.DetailsModel)
-	if err != nil {
-		return errors.Wrap(err, "creating backupdetails model")
-	}
-
-	bu := backup.New(snapID, string(details.ModelStoreID))
-
-	err = op.store.Put(ctx, model.BackupSchema, bu)
-	if err != nil {
-		return errors.Wrap(err, "creating backup model")
-	}
-
-	op.Results.BackupID = bu.StableID
-
-	return nil
-}
-
-// writes the backupOperation outcome to the modelStore.
+// writes the results metrics to the operation results.
+// later stored in the manifest using createBackupModels.
 func (op *BackupOperation) persistResults(
 	started time.Time,
 	stats *backupStats,
@@ -141,7 +132,7 @@ func (op *BackupOperation) persistResults(
 	op.Results.WriteErrors = stats.writeErr
 
 	if stats.gc != nil {
-		op.Results.ItemsRead = stats.gc.ObjectCount
+		op.Results.ItemsRead = stats.gc.Successful
 	}
 	if stats.k != nil {
 		op.Results.ItemsWritten = stats.k.TotalFileCount
@@ -149,6 +140,26 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
+}
 
-	// TODO: persist operation to modelstore
+// stores the operation details, results, and selectors in the backup manifest.
+func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, details *details.Details) error {
+	err := op.store.Put(ctx, model.BackupDetailsSchema, &details.DetailsModel)
+	if err != nil {
+		return errors.Wrap(err, "creating backupdetails model")
+	}
+
+	b := backup.New(
+		snapID, string(details.ModelStoreID), op.Status.String(),
+		op.Selectors,
+		op.Results.ReadWrites,
+		op.Results.StartAndEndTime,
+	)
+	err = op.store.Put(ctx, model.BackupSchema, b)
+	if err != nil {
+		return errors.Wrap(err, "creating backup model")
+	}
+	op.Results.BackupID = b.StableID
+
+	return nil
 }

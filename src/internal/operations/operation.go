@@ -12,11 +12,12 @@ import (
 
 type opStatus int
 
+//go:generate stringer -type=opStatus -linecomment
 const (
-	Unknown opStatus = iota
-	InProgress
-	Successful
-	Failed
+	Unknown    opStatus = iota // Status Unknown
+	InProgress                 // In Progress
+	Successful                 // Successful
+	Failed                     // Failed
 )
 
 // --------------------------------------------------------------------------------
@@ -71,23 +72,4 @@ func (op operation) validate() error {
 		return errors.New("missing modelstore")
 	}
 	return nil
-}
-
-// --------------------------------------------------------------------------------
-// Results
-// --------------------------------------------------------------------------------
-
-// Summary tracks the total files touched and errors produced
-// during an operation.
-type summary struct {
-	ItemsRead    int   `json:"itemsRead,omitempty"`
-	ItemsWritten int   `json:"itemsWritten,omitempty"`
-	ReadErrors   error `json:"readErrors,omitempty"`
-	WriteErrors  error `json:"writeErrors,omitempty"`
-}
-
-// Metrics tracks performance details such as timing, throughput, etc.
-type metrics struct {
-	StartedAt   time.Time `json:"startedAt"`
-	CompletedAt time.Time `json:"completedAt"`
 }

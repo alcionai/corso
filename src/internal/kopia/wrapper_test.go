@@ -16,11 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia/mockkopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 const (
@@ -63,7 +63,7 @@ func entriesToNames(entries []fs.Entry) []string {
 func testForFiles(
 	t *testing.T,
 	expected map[string][]byte,
-	collections []connector.DataCollection,
+	collections []data.Collection,
 ) {
 	count := 0
 	for _, c := range collections {
@@ -117,9 +117,9 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
-	details := &backup.Details{}
+	details := &details.Details{}
 
-	collections := []connector.DataCollection{
+	collections := []data.Collection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{tenant, user1, emails},
 			expectedFileCount[user1],
@@ -180,8 +180,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
-	details := &backup.Details{}
-	collections := []connector.DataCollection{
+	details := &details.Details{}
+	collections := []data.Collection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{emails},
 			expectedFileCount,
@@ -203,7 +203,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 	table := []struct {
 		name   string
-		layout []connector.DataCollection
+		layout []data.Collection
 	}{
 		{
 			"MultipleRoots",
@@ -214,7 +214,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 			// - user2
 			//   - emails
 			//     - 42 separate files
-			[]connector.DataCollection{
+			[]data.Collection{
 				mockconnector.NewMockExchangeDataCollection(
 					[]string{"user1", "emails"},
 					5,
@@ -227,7 +227,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		},
 		{
 			"NoCollectionPath",
-			[]connector.DataCollection{
+			[]data.Collection{
 				mockconnector.NewMockExchangeDataCollection(
 					nil,
 					5,
@@ -242,7 +242,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 			//     - emails
 			//       - 5 separate files
 			//     - 42 separate files
-			[]connector.DataCollection{
+			[]data.Collection{
 				mockconnector.NewMockExchangeDataCollection(
 					[]string{"a-tenant", "user1", "emails"},
 					5,
@@ -259,7 +259,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			details := &backup.Details{}
+			details := &details.Details{}
 			_, err := inflateDirTree(ctx, test.layout, details)
 			assert.Error(t, err)
 		})
@@ -401,7 +401,7 @@ func (suite *KopiaIntegrationSuite) TearDownTest() {
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	t := suite.T()
 
-	collections := []connector.DataCollection{
+	collections := []data.Collection{
 		mockconnector.NewMockExchangeDataCollection(
 			[]string{"a-tenant", "user1", "emails"},
 			5,
@@ -456,10 +456,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	suite.w = &Wrapper{c}
 
-	collections := []connector.DataCollection{
+	collections := []data.Collection{
 		&kopiaDataCollection{
 			path: testPath,
-			streams: []connector.DataStream{
+			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
 					Reader: io.NopCloser(bytes.NewReader(testFileData)),
@@ -472,7 +472,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		},
 		&kopiaDataCollection{
 			path: testPath2,
-			streams: []connector.DataStream{
+			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
 					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
@@ -688,7 +688,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	fp1 := append(p1, dc1.Names[0])
 	fp2 := append(p2, dc2.Names[0])
 
-	stats, _, err := w.BackupCollections(ctx, []connector.DataCollection{dc1, dc2})
+	stats, _, err := w.BackupCollections(ctx, []data.Collection{dc1, dc2})
 	require.NoError(t, err)
 
 	expected := map[string][]byte{

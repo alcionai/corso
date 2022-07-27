@@ -4,12 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
@@ -87,13 +89,13 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
-	err = suite.connector.RestoreMessages(context.Background(), []DataCollection{&edc})
+	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{&edc})
 	assert.NoError(suite.T(), err)
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
 	user := "lidiah@8qzvrj.onmicrosoft.com"
-	folderName := "createdForTest"
+	folderName := uuid.NewString() // todo - replace with danny's fix #391
 	aFolder, err := createMailFolder(suite.connector.graphService, user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
@@ -171,7 +173,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
-	var dc DataCollection
+	var dc data.Collection
 	concrete := NewExchangeDataCollection("Check", []string{"interface", "works"})
 	dc = &concrete
 	assert.NotNil(suite.T(), dc)
