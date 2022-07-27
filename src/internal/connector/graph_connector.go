@@ -55,7 +55,7 @@ func (gs *graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &gs.adapter
 }
 
-func (gs *graphService) Policy() bool {
+func (gs *graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 

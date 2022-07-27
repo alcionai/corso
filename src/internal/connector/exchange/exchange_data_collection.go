@@ -13,7 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/service"
+	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
@@ -31,7 +31,7 @@ const (
 
 // PopulateFunc are a class of functions that can be used to fill exchange.Collections with
 // the corresponding information
-type PopulateFunc func(context.Context, service.Service, Collection, chan *support.ConnectorOperationStatus)
+type PopulateFunc func(context.Context, graph.Service, Collection, chan *support.ConnectorOperationStatus)
 
 // ExchangeDataCollection represents exchange mailbox
 // data for a single user.
@@ -74,7 +74,7 @@ func (eoc *Collection) FinishPopulation() {
 func PopulateFromTaskList(
 	ctx context.Context,
 	tasklist support.TaskList,
-	service service.Service,
+	service graph.Service,
 	collections map[string]*Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
@@ -106,7 +106,7 @@ func PopulateFromTaskList(
 				errs = support.WrapAndAppendf(edc.User, err, errs)
 				success--
 			}
-			if errs != nil && service.Policy() {
+			if errs != nil && service.ErrPolicy() {
 				break
 			}
 		}
