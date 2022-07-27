@@ -12,9 +12,11 @@ import (
 )
 
 var basicInputs = []struct {
-	name     string
-	input    [][]string
-	expected string
+	name                      string
+	input                     [][]string
+	expectedString            string
+	expectedEscapedSegments   []string
+	expectedUnescapedElements [][]string
 }{
 	{
 		name: "SimplePath",
@@ -24,7 +26,19 @@ var basicInputs = []struct {
 			{`a`},
 			{`path`},
 		},
-		expected: "this/is/a/path",
+		expectedString: "this/is/a/path",
+		expectedEscapedSegments: []string{
+			`this`,
+			`is`,
+			`a`,
+			`path`,
+		},
+		expectedUnescapedElements: [][]string{
+			{`this`},
+			{`is`},
+			{`a`},
+			{`path`},
+		},
 	},
 	{
 		name: "EscapeSeparator",
@@ -33,7 +47,17 @@ var basicInputs = []struct {
 			{`is/a`},
 			{`path`},
 		},
-		expected: `this/is\/a/path`,
+		expectedString: `this/is\/a/path`,
+		expectedEscapedSegments: []string{
+			`this`,
+			`is\/a`,
+			`path`,
+		},
+		expectedUnescapedElements: [][]string{
+			{`this`},
+			{`is/a`},
+			{`path`},
+		},
 	},
 	{
 		name: "EscapeEscapeChar",
@@ -43,7 +67,19 @@ var basicInputs = []struct {
 			{`a`},
 			{`path`},
 		},
-		expected: `this/is\\/a/path`,
+		expectedString: `this/is\\/a/path`,
+		expectedEscapedSegments: []string{
+			`this`,
+			`is\\`,
+			`a`,
+			`path`,
+		},
+		expectedUnescapedElements: [][]string{
+			{`this`},
+			{`is\`},
+			{`a`},
+			{`path`},
+		},
 	},
 	{
 		name: "EscapeEscapeAndSeparator",
@@ -52,7 +88,17 @@ var basicInputs = []struct {
 			{`is\/a`},
 			{`path`},
 		},
-		expected: `this/is\\\/a/path`,
+		expectedString: `this/is\\\/a/path`,
+		expectedEscapedSegments: []string{
+			`this`,
+			`is\\\/a`,
+			`path`,
+		},
+		expectedUnescapedElements: [][]string{
+			{`this`},
+			{`is\/a`},
+			{`path`},
+		},
 	},
 	{
 		name: "SeparatorAtEndOfElement",
@@ -62,7 +108,19 @@ var basicInputs = []struct {
 			{`a`},
 			{`path`},
 		},
-		expected: `this/is\//a/path`,
+		expectedString: `this/is\//a/path`,
+		expectedEscapedSegments: []string{
+			`this`,
+			`is\/`,
+			`a`,
+			`path`,
+		},
+		expectedUnescapedElements: [][]string{
+			{`this`},
+			{`is/`},
+			{`a`},
+			{`path`},
+		},
 	},
 	{
 		name: "SeparatorAtEndOfPath",
@@ -72,7 +130,19 @@ var basicInputs = []struct {
 			{`a`},
 			{`path/`},
 		},
-		expected: `this/is/a/path\/`,
+		expectedString: `this/is/a/path\/`,
+		expectedEscapedSegments: []string{
+			`this`,
+			`is`,
+			`a`,
+			`path\/`,
+		},
+		expectedUnescapedElements: [][]string{
+			{`this`},
+			{`is`},
+			{`a`},
+			{`path/`},
+		},
 	},
 }
 
@@ -88,12 +158,15 @@ func (suite *PathUnitSuite) TestPathEscapingAndSegments() {
 	for _, test := range basicInputs {
 		suite.T().Run(test.name, func(t *testing.T) {
 			p := newPath(test.input)
-			assert.Equal(t, test.expected, p.String())
+			assert.Equal(t, test.expectedString, p.String())
 
-			for i := 0; i < len(test.input); i++ {
+			for i, s := range test.expectedEscapedSegments {
+				segment := ""
 				assert.NotPanics(t, func() {
-					_ = p.segment(i)
+					segment = p.segment(i)
 				})
+
+				assert.Equal(t, s, segment)
 			}
 
 			assert.Panics(t, func() {
@@ -167,12 +240,12 @@ func (suite *PathUnitSuite) TestPathEscapingAndSegments_EmpytElements() {
 	}
 }
 
-func (suite *PathUnitSuite) TestElementUnescaping() {
+func (suite *PathUnitSuite) TestUnescapedSegmentElements() {
 	for _, test := range basicInputs {
 		suite.T().Run(test.name, func(t *testing.T) {
 			p := newPath(test.input)
 
-			for i, s := range test.input {
+			for i, s := range test.expectedUnescapedElements {
 				elements := []string{}
 				require.NotPanics(t, func() {
 					elements = p.unescapedSegmentElements(i)

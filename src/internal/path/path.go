@@ -90,7 +90,6 @@ func newPath(segments [][]string) Base {
 	for _, s := range segments {
 		sIdx := idx
 
-		notEmpty := false
 		for _, e := range s {
 			if len(e) == 0 {
 				continue
@@ -98,10 +97,9 @@ func newPath(segments [][]string) Base {
 
 			res.elements = append(res.elements, escapeElement(e))
 			idx++
-			notEmpty = true
 		}
 
-		if notEmpty {
+		if sIdx != idx {
 			res.segmentIdx = append(res.segmentIdx, sIdx)
 		}
 	}
@@ -174,7 +172,7 @@ func (b Base) unescapedSegmentElements(n int) []string {
 	res := make([]string, 0, len(elements))
 
 	for _, e := range elements {
-		res = append(res, unescapeElement(e))
+		res = append(res, unescape(e))
 	}
 
 	return res
@@ -219,10 +217,11 @@ func escapeElement(element string) string {
 	return b.String()
 }
 
-// unescapeElement returns the given element and converts it into a "raw"
+// unescape returns the given element and converts it into a "raw"
 // element that does not have escape characters before characters that need
-// escaping.
-func unescapeElement(element string) string {
+// escaping. Using this function on segments that contain escaped path
+// separators will result in an ambiguous or incorrect segment.
+func unescape(element string) string {
 	b := strings.Builder{}
 
 	startIdx := 0
