@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	ctesting "github.com/alcionai/corso/internal/testing"
@@ -85,8 +86,8 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	if err != nil {
 		suite.T().Skipf("Support file not accessible: %v\n", err)
 	}
-	ds := ExchangeData{id: "test", message: bytes}
-	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
+	ds := exchange.Stream{Id: "test", Message: bytes}
+	edc := exchange.NewCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{&edc})
@@ -174,7 +175,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 
 func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	var dc data.Collection
-	concrete := NewExchangeDataCollection("Check", []string{"interface", "works"})
+	concrete := exchange.NewCollection("Check", []string{"interface", "works"})
 	dc = &concrete
 	assert.NotNil(suite.T(), dc)
 
