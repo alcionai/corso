@@ -5,12 +5,8 @@ package exchange
 
 import (
 	"bytes"
-	"context"
 	"io"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-
-	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
@@ -23,32 +19,12 @@ const (
 	collectionChannelBufferSize = 1000
 )
 
-type Service interface {
-	// Client() returns msgraph Service client that can be used to process and execute
-	// the majority of the queries to the M365 Backstore
-	Client() *msgraphsdk.GraphServiceClient
-	// Adapter() returns GraphRequest adapter used to process large requests, create batches
-	// and page iterators
-	Adapter() *msgraphsdk.GraphRequestAdapter
-}
-
-// PopulateFunc are a class of functions that can be used to fill exchange.Collections with
-// the corresponding information
-type PopulateFunc func(context.Context, Service, Collection, chan *support.ConnectorOperationStatus)
-
-// ExchangeDataCollection represents exchange mailbox
-// data for a single user.
-//
-// It implements the DataCollection interface
+// Collection represents an compilation of M365 objects from a specific exchange application.
+// Each Collection is to only hold one application type at a time. This is not enforced
 type Collection struct {
 	// M365 user
-	User         string // M365 user
-	Data         chan data.Stream
-	tasks        []string
-	updateCh     chan support.ConnectorOperationStatus
-	service      Service
-	populateFunc PopulateFunc
-
+	User string           // M365 user
+	Data chan data.Stream // represents a single M365 object from an Exchange application
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
@@ -76,6 +52,7 @@ func (eoc *Collection) FinishPopulation() {
 	}
 }
 
+// Items() returns the channel containing M365 Exchange objects
 func (eoc *Collection) Items() <-chan data.Stream {
 	return eoc.Data
 }
