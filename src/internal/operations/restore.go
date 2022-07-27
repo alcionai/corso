@@ -98,6 +98,10 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 
 	// format the details and retrieve the items from kopia
 	fds := er.Reduce(d)
+	if len(fds.Entries) == 0 {
+		return errors.New("nothing to restore: no items in the backup match the provided selectors")
+	}
+
 	// todo: use path pkg for this
 	fdsPaths := fds.Paths()
 	paths := make([][]string, len(fdsPaths))
