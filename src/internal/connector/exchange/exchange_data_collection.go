@@ -20,7 +20,7 @@ var _ data.Stream = &Stream{}
 var _ data.StreamInfo = &Stream{}
 
 const (
-	collectionChannelBufferSize = 120
+	collectionChannelBufferSize = 1000
 )
 
 type Service interface {
@@ -84,7 +84,7 @@ func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
-// ExchangeData represents a single item retrieved from exchange
+// Stream represents a single item retrieved from exchange
 type Stream struct {
 	Id string
 	// TODO: We may need this to be a "oneOf" of `message`, `contact`, etc.
