@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
@@ -88,7 +89,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
-	err = suite.connector.RestoreMessages(context.Background(), []DataCollection{&edc})
+	err = suite.connector.RestoreMessages(context.Background(), []data.DataCollection{&edc})
 	assert.NoError(suite.T(), err)
 }
 
@@ -172,7 +173,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
-	var dc DataCollection
+	var dc data.DataCollection
 	concrete := NewExchangeDataCollection("Check", []string{"interface", "works"})
 	dc = &concrete
 	assert.NotNil(suite.T(), dc)

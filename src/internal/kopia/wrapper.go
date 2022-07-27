@@ -14,7 +14,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/logger"
 )
@@ -80,7 +80,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // kopia callbacks on directory entries. It binds the directory to the given
 // DataCollection.
 func getStreamItemFunc(
-	collection connector.DataCollection,
+	collection data.DataCollection,
 	details *details.Details,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -93,7 +93,7 @@ func getStreamItemFunc(
 				if !ok {
 					return nil
 				}
-				ei, ok := e.(connector.DataStreamInfo)
+				ei, ok := e.(data.DataStreamInfo)
 				if !ok {
 					return errors.New("item does not implement DataStreamInfo")
 				}
@@ -143,7 +143,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, details *details.Details) (fs.
 
 type treeMap struct {
 	childDirs  map[string]*treeMap
-	collection connector.DataCollection
+	collection data.DataCollection
 }
 
 func newTreeMap() *treeMap {
@@ -156,7 +156,7 @@ func newTreeMap() *treeMap {
 // ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
 // in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
 // DataCollections.
-func inflateDirTree(ctx context.Context, collections []connector.DataCollection, details *details.Details) (fs.Directory, error) {
+func inflateDirTree(ctx context.Context, collections []data.DataCollection, details *details.Details) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
@@ -228,7 +228,7 @@ func inflateDirTree(ctx context.Context, collections []connector.DataCollection,
 
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
-	collections []connector.DataCollection,
+	collections []data.DataCollection,
 ) (*BackupStats, *details.Details, error) {
 	if w.c == nil {
 		return nil, nil, errNotConnected
@@ -332,7 +332,7 @@ func (w Wrapper) collectItems(
 	snapshotID string,
 	itemPath []string,
 	isDirectory bool,
-) ([]connector.DataCollection, error) {
+) ([]data.DataCollection, error) {
 	e, err := w.getEntry(ctx, snapshotID, itemPath)
 	if err != nil {
 		return nil, err
@@ -362,7 +362,7 @@ func (w Wrapper) collectItems(
 		return nil, err
 	}
 
-	return []connector.DataCollection{c}, nil
+	return []data.DataCollection{c}, nil
 }
 
 // RestoreSingleItem looks up the item at the given path in the snapshot with id
@@ -376,7 +376,7 @@ func (w Wrapper) RestoreSingleItem(
 	ctx context.Context,
 	snapshotID string,
 	itemPath []string,
-) (connector.DataCollection, error) {
+) (data.DataCollection, error) {
 	c, err := w.collectItems(ctx, snapshotID, itemPath, false)
 	if err != nil {
 		return nil, err
@@ -396,14 +396,14 @@ func restoreSingleItem(
 	ctx context.Context,
 	f fs.File,
 	itemPath []string,
-) (connector.DataCollection, error) {
+) (data.DataCollection, error) {
 	r, err := f.Open(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "opening file")
 	}
 
 	return &kopiaDataCollection{
-		streams: []connector.DataStream{
+		streams: []data.DataStream{
 			&kopiaDataStream{
 				uuid:   f.Name(),
 				reader: r,
@@ -457,8 +457,8 @@ func restoreSubtree(
 	ctx context.Context,
 	dir fs.Directory,
 	relativePath []string,
-) ([]connector.DataCollection, *multierror.Error) {
-	collections := []connector.DataCollection{}
+) ([]data.DataCollection, *multierror.Error) {
+	collections := []data.DataCollection{}
 	// Want a local copy of relativePath with our new element.
 	fullPath := append(append([]string{}, relativePath...), dir.Name())
 	var errs *multierror.Error
@@ -475,7 +475,7 @@ func restoreSubtree(
 			return nil, errs
 		}
 
-		streams := make([]connector.DataStream, 0, len(files))
+		streams := make([]data.DataStream, 0, len(files))
 
 		for _, f := range files {
 			r, err := f.Open(ctx)
@@ -524,7 +524,7 @@ func (w Wrapper) RestoreDirectory(
 	ctx context.Context,
 	snapshotID string,
 	basePath []string,
-) ([]connector.DataCollection, error) {
+) ([]data.DataCollection, error) {
 	return w.collectItems(ctx, snapshotID, basePath, true)
 }
 
@@ -539,9 +539,9 @@ func (w Wrapper) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
 	paths [][]string,
-) ([]connector.DataCollection, error) {
+) ([]data.DataCollection, error) {
 	var (
-		dcs  = []connector.DataCollection{}
+		dcs  = []data.DataCollection{}
 		errs *multierror.Error
 	)
 	for _, path := range paths {

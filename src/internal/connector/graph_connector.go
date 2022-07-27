@@ -19,6 +19,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -190,13 +191,13 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // use to read mailbox data out for the specified user
 // Assumption: User exists
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]DataCollection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]data.DataCollection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting exchange data")
 	}
 
-	collections := []DataCollection{}
+	collections := []data.DataCollection{}
 	scopes := eb.Scopes()
 	var errs error
 
@@ -235,7 +236,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 // RestoreMessages: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
 // FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []DataCollection) error {
+func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.DataCollection) error {
 	var (
 		pathCounter         = map[string]bool{}
 		attempts, successes int
@@ -421,7 +422,7 @@ func messageToDataCollection(
 	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
 	objectWriter *kw.JsonSerializationWriter,
-	dataChannel chan<- DataStream,
+	dataChannel chan<- data.DataStream,
 	message models.Messageable,
 	user string,
 ) error {

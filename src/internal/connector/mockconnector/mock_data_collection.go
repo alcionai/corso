@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
@@ -20,9 +20,9 @@ type MockExchangeDataCollection struct {
 }
 
 var (
-	_ connector.DataCollection = &MockExchangeDataCollection{}
-	_ connector.DataStream     = &MockExchangeData{}
-	_ connector.DataStreamInfo = &MockExchangeData{}
+	_ data.DataCollection = &MockExchangeDataCollection{}
+	_ data.DataStream     = &MockExchangeData{}
+	_ data.DataStreamInfo = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -49,8 +49,8 @@ func (medc *MockExchangeDataCollection) FullPath() []string {
 
 // Items returns a channel that has the next items in the collection. The
 // channel is closed when there are no more items available.
-func (medc *MockExchangeDataCollection) Items() <-chan connector.DataStream {
-	res := make(chan connector.DataStream)
+func (medc *MockExchangeDataCollection) Items() <-chan data.DataStream {
+	res := make(chan data.DataStream)
 
 	go func() {
 		defer close(res)
