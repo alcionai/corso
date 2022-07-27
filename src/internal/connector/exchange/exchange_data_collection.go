@@ -206,3 +206,11 @@ func (od *Stream) ToReader() io.ReadCloser {
 func (od *Stream) Info() details.ItemInfo {
 	return details.ItemInfo{Exchange: od.info}
 }
+func NewStream(identifier string, bytes []byte, detail details.ExchangeInfo) Stream {
+	return Stream{
+		id:      identifier,
+		message: bytes,
+		info:    &detail,
+	}
+
+}
