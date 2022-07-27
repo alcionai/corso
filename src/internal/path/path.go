@@ -163,7 +163,7 @@ func (b Base) segment(n int) string {
 // unescapedSegmentElements returns the unescaped version of the elements that
 // comprise the requested segment. Path segment indices are 0-based.
 func (b Base) unescapedSegmentElements(n int) []string {
-	var elements []string = nil
+	var elements []string
 
 	if n == len(b.segmentIdx)-1 {
 		elements = b.elements[b.segmentIdx[n]:]
@@ -187,6 +187,9 @@ func (b Base) TransformedSegments() []string {
 	return nil
 }
 
+// escapeElement takes a single path element and escapes all characters that
+// require an escape sequence. If there are no characters that need escaping,
+// the input is returned unchanged.
 func escapeElement(element string) string {
 	escapeIdx := make([]int, 0)
 
