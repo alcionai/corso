@@ -22,7 +22,7 @@ func AddOutputFlag(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
 	fs.BoolVar(&outputAsJSON, "json", false, "output data in JSON format")
 	fs.BoolVar(&outputAsJSONDebug, "json-debug", false, "output all internal and debugging data in JSON format")
-	fs.MarkHidden("json-debug")
+	cobra.CheckErr(fs.MarkHidden("json-debug"))
 }
 
 type Printable interface {
