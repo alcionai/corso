@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector"
+	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
@@ -46,7 +46,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		stats = restoreStats{
 			readErr:  multierror.Append(nil, assert.AnError),
 			writeErr: assert.AnError,
-			cs:       []data.Collection{&connector.ExchangeDataCollection{}},
+			cs:       []data.Collection{&exchange.Collection{}},
 			gc: &support.ConnectorOperationStatus{
 				ObjectCount: 1,
 			},
