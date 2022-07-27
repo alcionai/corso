@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	idata "github.com/alcionai/corso/internal/connector/data"
+	"github.com/alcionai/corso/internal/data"
 )
 
 // ---------------
@@ -30,7 +30,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	path := []string{"some", "path", "for", "data"}
 
 	c := kopiaDataCollection{
-		streams: []idata.DataStream{},
+		streams: []data.Stream{},
 		path:    path,
 	}
 
@@ -38,7 +38,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 }
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
-	data := [][]byte{
+	testData := [][]byte{
 		[]byte("abcdefghijklmnopqrstuvwxyz"),
 		[]byte("zyxwvutsrqponmlkjihgfedcba"),
 	}
@@ -50,26 +50,26 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 
 	table := []struct {
 		name    string
-		streams []idata.DataStream
+		streams []data.Stream
 	}{
 		{
 			name: "SingleStream",
-			streams: []idata.DataStream{
+			streams: []data.Stream{
 				&kopiaDataStream{
-					reader: io.NopCloser(bytes.NewReader(data[0])),
+					reader: io.NopCloser(bytes.NewReader(testData[0])),
 					uuid:   uuids[0],
 				},
 			},
 		},
 		{
 			name: "MultipleStreams",
-			streams: []idata.DataStream{
+			streams: []data.Stream{
 				&kopiaDataStream{
-					reader: io.NopCloser(bytes.NewReader(data[0])),
+					reader: io.NopCloser(bytes.NewReader(testData[0])),
 					uuid:   uuids[0],
 				},
 				&kopiaDataStream{
-					reader: io.NopCloser(bytes.NewReader(data[1])),
+					reader: io.NopCloser(bytes.NewReader(testData[1])),
 					uuid:   uuids[1],
 				},
 			},
@@ -91,7 +91,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 
 				buf, err := ioutil.ReadAll(returnedStream.ToReader())
 				require.NoError(t, err)
-				assert.Equal(t, buf, data[count])
+				assert.Equal(t, buf, testData[count])
 
 				count++
 			}
