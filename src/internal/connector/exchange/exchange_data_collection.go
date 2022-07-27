@@ -8,11 +8,14 @@ import (
 	"context"
 	"io"
 
+	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 var _ data.Collection = &Collection{}
@@ -30,6 +33,7 @@ type Service interface {
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
 	Adapter() *msgraphsdk.GraphRequestAdapter
+	Policy() bool
 }
 
 // PopulateFunc are a class of functions that can be used to fill exchange.Collections with
@@ -74,6 +78,56 @@ func (eoc *Collection) FinishPopulation() {
 	if eoc.Data != nil {
 		close(eoc.Data)
 	}
+}
+
+// populateFromTaskList async call to fill DataCollection via channel implementation
+func populateFromTaskList(
+	ctx context.Context,
+	tasklist TaskList,
+	service Service,
+	collections map[string]*exchange.Collection,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+) {
+	var errs error
+	var attemptedItems, success int
+	objectWriter := kw.NewJsonSerializationWriter()
+
+	//Todo this has to return all the errors in the status
+	for aFolder, tasks := range tasklist {
+		// Get the same folder
+		edc := collections[aFolder]
+		if edc == nil {
+			for _, task := range tasks {
+				errs = support.WrapAndAppend(task, errors.New("unable to query: collection not found during populateFromTaskList"), errs)
+			}
+			continue
+		}
+
+		for _, task := range tasks {
+			response, err := sc.client.UsersById(edc.User).MessagesById(task).Get()
+			if err != nil {
+				details := support.ConnectorStackErrorTrace(err)
+				errs = support.WrapAndAppend(edc.User, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
+				continue
+			}
+			err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.Data, response, edc.User)
+			success++
+			if err != nil {
+				errs = support.WrapAndAppendf(edc.User, err, errs)
+				success--
+			}
+			if errs != nil && service.Policy() {
+				break
+			}
+		}
+
+		edc.FinishPopulation()
+		attemptedItems += len(tasks)
+	}
+
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(tasklist), errs)
+	logger.Ctx(ctx).Debug(status.String())
+	statusChannel <- status
 }
 
 func (eoc *Collection) Items() <-chan data.Stream {
