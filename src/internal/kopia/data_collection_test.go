@@ -30,7 +30,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	path := []string{"some", "path", "for", "data"}
 
 	c := kopiaDataCollection{
-		streams: []data.DataStream{},
+		streams: []data.Stream{},
 		path:    path,
 	}
 
@@ -50,11 +50,11 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 
 	table := []struct {
 		name    string
-		streams []data.DataStream
+		streams []data.Stream
 	}{
 		{
 			name: "SingleStream",
-			streams: []data.DataStream{
+			streams: []data.Stream{
 				&kopiaDataStream{
 					reader: io.NopCloser(bytes.NewReader(testData[0])),
 					uuid:   uuids[0],
@@ -63,7 +63,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 		},
 		{
 			name: "MultipleStreams",
-			streams: []data.DataStream{
+			streams: []data.Stream{
 				&kopiaDataStream{
 					reader: io.NopCloser(bytes.NewReader(testData[0])),
 					uuid:   uuids[0],

@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type DataCollectionSuite struct {
+type CollectionSuite struct {
 	suite.Suite
 }
 
 func TestDataCollectionSuite(t *testing.T) {
-	suite.Run(t, new(DataCollectionSuite))
+	suite.Run(t, new(CollectionSuite))
 }

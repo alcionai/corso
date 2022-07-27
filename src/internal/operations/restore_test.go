@@ -46,7 +46,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		stats = restoreStats{
 			readErr:  multierror.Append(nil, assert.AnError),
 			writeErr: assert.AnError,
-			cs:       []data.DataCollection{&connector.ExchangeDataCollection{}},
+			cs:       []data.Collection{&connector.ExchangeDataCollection{}},
 			gc: &support.ConnectorOperationStatus{
 				ObjectCount: 1,
 			},

@@ -69,7 +69,7 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []data.DataCollection
+	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
 	readErr, writeErr error
 }
