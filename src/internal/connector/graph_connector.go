@@ -10,7 +10,6 @@ import (
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
-	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -26,8 +25,7 @@ import (
 )
 
 const (
-	numberOfRetries = 4
-	mailCategory    = "mail"
+	mailCategory = "mail"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -47,6 +45,18 @@ type graphService struct {
 	client   msgraphsdk.GraphServiceClient
 	adapter  msgraphsdk.GraphRequestAdapter
 	failFast bool // if true service will exit sequence upon encountering an error
+}
+
+func (gs *graphService) Client() *msgraphsdk.GraphServiceClient {
+	return &gs.client
+}
+
+func (gs *graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
+	return &gs.adapter
+}
+
+func (gs *graphService) ErrPolicy() bool {
+	return gs.failFast
 }
 
 func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
@@ -319,7 +329,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	if err != nil {
 		return nil, err
 	}
-	tasklist := NewTaskList() // map[folder][] messageIds
+	tasklist := support.NewTaskList() // map[folder][] messageIds
 	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
@@ -361,112 +371,10 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		return nil, support.WrapAndAppend(user, err, err)
 	}
 	// async call to populate
-	go service.populateFromTaskList(ctx, tasklist, collections, gc.statusCh)
+	go exchange.PopulateFromTaskList(ctx, tasklist, service, collections, gc.statusCh)
 	gc.incrementAwaitingMessages()
 
 	return collections, err
-}
-
-// populateFromTaskList async call to fill DataCollection via channel implementation
-func (sc *graphService) populateFromTaskList(
-	ctx context.Context,
-	tasklist TaskList,
-	collections map[string]*exchange.Collection,
-	statusChannel chan<- *support.ConnectorOperationStatus,
-) {
-	var errs error
-	var attemptedItems, success int
-	objectWriter := kw.NewJsonSerializationWriter()
-
-	//Todo this has to return all the errors in the status
-	for aFolder, tasks := range tasklist {
-		// Get the same folder
-		edc := collections[aFolder]
-		if edc == nil {
-			for _, task := range tasks {
-				errs = support.WrapAndAppend(task, errors.New("unable to query: collection not found during populateFromTaskList"), errs)
-			}
-			continue
-		}
-
-		for _, task := range tasks {
-			response, err := sc.client.UsersById(edc.User).MessagesById(task).Get()
-			if err != nil {
-				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(edc.User, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
-				continue
-			}
-			err = messageToDataCollection(&sc.client, ctx, objectWriter, edc.Data, response, edc.User)
-			success++
-			if err != nil {
-				errs = support.WrapAndAppendf(edc.User, err, errs)
-				success--
-			}
-			if errs != nil && sc.failFast {
-				break
-			}
-		}
-
-		edc.FinishPopulation()
-		attemptedItems += len(tasks)
-	}
-
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(tasklist), errs)
-	logger.Ctx(ctx).Debug(status.String())
-	statusChannel <- status
-}
-
-func messageToDataCollection(
-	client *msgraphsdk.GraphServiceClient,
-	ctx context.Context,
-	objectWriter *kw.JsonSerializationWriter,
-	dataChannel chan<- data.Stream,
-	message models.Messageable,
-	user string,
-) error {
-	var err error
-	aMessage := message
-	adtl := message.GetAdditionalData()
-	if len(adtl) > 2 {
-		aMessage, err = support.ConvertFromMessageable(adtl, message)
-		if err != nil {
-			return err
-		}
-	}
-	if *aMessage.GetHasAttachments() {
-		// getting all the attachments might take a couple attempts due to filesize
-		var retriesErr error
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := client.
-				UsersById(user).
-				MessagesById(*aMessage.GetId()).
-				Attachments().
-				Get()
-			retriesErr = err
-			if err == nil && attached != nil {
-				aMessage.SetAttachments(attached.GetValue())
-				break
-			}
-		}
-		if retriesErr != nil {
-			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
-		}
-	}
-	err = objectWriter.WriteObjectValue("", aMessage)
-	if err != nil {
-		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
-	}
-
-	byteArray, err := objectWriter.GetSerializedContent()
-	objectWriter.Close()
-	if err != nil {
-		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
-	}
-	if byteArray != nil {
-		dataChannel <- &exchange.Stream{Id: *aMessage.GetId(), Message: byteArray, Inf: exchange.MessageInfo(aMessage)}
-	}
-	return nil
 }
 
 // SetStatus helper function

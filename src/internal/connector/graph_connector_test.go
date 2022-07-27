@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/internal/data"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -86,8 +87,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	if err != nil {
 		suite.T().Skipf("Support file not accessible: %v\n", err)
 	}
-	ds := exchange.Stream{Id: "test", Message: bytes}
+
+	ds := exchange.NewStream("test", bytes, details.ExchangeInfo{})
 	edc := exchange.NewCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
+
 	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{&edc})
@@ -242,16 +245,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 			t.Logf("Is nil: %v", test.err == nil)
 		})
 	}
-}
-
-func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TaskList() {
-	tasks := NewTaskList()
-	tasks.AddTask("person1", "Go to store")
-	tasks.AddTask("person1", "drop off mail")
-	values := tasks["person1"]
-	suite.Equal(len(values), 2)
-	nonValues := tasks["unknown"]
-	suite.Zero(len(nonValues))
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_TestOptionsForMailFolders() {

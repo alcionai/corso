@@ -59,3 +59,13 @@ func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
 		test.checkObject(suite.T(), result)
 	}
 }
+
+func (suite *DataSupportSuite) TestDataSupport_TaskList() {
+	tasks := NewTaskList()
+	tasks.AddTask("person1", "Go to store")
+	tasks.AddTask("person1", "drop off mail")
+	values := tasks["person1"]
+	suite.Equal(len(values), 2)
+	nonValues := tasks["unknown"]
+	suite.Zero(len(nonValues))
+}

@@ -28,7 +28,7 @@ func TestExchangeDataCollectionSuite(t *testing.T) {
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Valid() {
 	m := []byte("test message")
 	description := "aFile"
-	ed := &Stream{Id: description, Message: m}
+	ed := &Stream{id: description, message: m}
 
 	// Read the message using the `ExchangeData` reader and validate it matches what we set
 	buf := &bytes.Buffer{}
@@ -41,7 +41,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Valid() {
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
 	var empty []byte
 	expected := int64(0)
-	ed := &Stream{Message: empty}
+	ed := &Stream{message: empty}
 	buf := &bytes.Buffer{}
 	received, err := buf.ReadFrom(ed.ToReader())
 	suite.Equal(expected, received)
@@ -69,7 +69,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := NewCollection("Fletcher", []string{"sugar", "horses", "painted red"})
 	for i := 0; i < expected; i++ {
-		edc.PopulateCollection(&Stream{Id: inputStrings[i*2], Message: []byte(inputStrings[i*2+1])})
+		edc.PopulateCollection(&Stream{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
 	}
 	suite.Equal(expected, len(edc.Data))
 }
@@ -80,7 +80,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Items() {
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := NewCollection("Fletcher", []string{"sugar", "horses", "painted red"})
 	for i := 0; i < expected; i++ {
-		edc.Data <- &Stream{Id: inputStrings[i*2], Message: []byte(inputStrings[i*2+1])}
+		edc.Data <- &Stream{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])}
 	}
 	close(edc.Data)
 	suite.Equal(expected, len(edc.Data))
