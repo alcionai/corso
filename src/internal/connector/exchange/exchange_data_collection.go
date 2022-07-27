@@ -148,8 +148,15 @@ type Stream struct {
 	Inf     *details.ExchangeInfo //temporary change to bring populate function into directory
 }
 
+<<<<<<< Updated upstream
 func (od *Stream) UUID() string {
 	return od.Id
+=======
+func NewObjectData(objectID string, byte)
+
+func (od *ObjectData) UUID() string {
+	return od.id
+>>>>>>> Stashed changes
 }
 
 func (od *Stream) ToReader() io.ReadCloser {
