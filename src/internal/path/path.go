@@ -88,7 +88,7 @@ func newPath(segments [][]string) Base {
 	res := Base{segmentIdx: make([]int, 0, len(segments))}
 	idx := 0
 	for _, s := range segments {
-		res.segmentIdx = append(res.segmentIdx, idx)
+		sIdx := idx
 
 		for _, e := range s {
 			if len(e) == 0 {
@@ -97,6 +97,10 @@ func newPath(segments [][]string) Base {
 
 			res.elements = append(res.elements, escapeElement(e))
 			idx++
+		}
+
+		if sIdx != idx {
+			res.segmentIdx = append(res.segmentIdx, sIdx)
 		}
 	}
 
@@ -155,9 +159,23 @@ func (b Base) segment(n int) string {
 }
 
 // unescapedSegmentElements returns the unescaped version of the elements that
-// comprise the requested segment.
-func (p Base) unescapedSegmentElements(n int) []string {
-	return nil
+// comprise the requested segment. Path segment indices are 0-based.
+func (b Base) unescapedSegmentElements(n int) []string {
+	var elements []string
+
+	if n == len(b.segmentIdx)-1 {
+		elements = b.elements[b.segmentIdx[n]:]
+	} else {
+		elements = b.elements[b.segmentIdx[n]:b.segmentIdx[n+1]]
+	}
+
+	res := make([]string, 0, len(elements))
+
+	for _, e := range elements {
+		res = append(res, unescape(e))
+	}
+
+	return res
 }
 
 // TransformedSegments returns a slice of the path segments where each segments
@@ -167,6 +185,9 @@ func (b Base) TransformedSegments() []string {
 	return nil
 }
 
+// escapeElement takes a single path element and escapes all characters that
+// require an escape sequence. If there are no characters that need escaping,
+// the input is returned unchanged.
 func escapeElement(element string) string {
 	escapeIdx := make([]int, 0)
 
@@ -191,6 +212,32 @@ func escapeElement(element string) string {
 	}
 
 	// Add the end of the element after the last escape character.
+	b.WriteString(element[startIdx:])
+
+	return b.String()
+}
+
+// unescape returns the given element and converts it into a "raw"
+// element that does not have escape characters before characters that need
+// escaping. Using this function on segments that contain escaped path
+// separators will result in an ambiguous or incorrect segment.
+func unescape(element string) string {
+	b := strings.Builder{}
+
+	startIdx := 0
+	prevWasEscape := false
+	for i, c := range element {
+		if c != escapeCharacter || prevWasEscape {
+			prevWasEscape = false
+			continue
+		}
+
+		// This is an escape character, remove it from the output.
+		b.WriteString(element[startIdx:i])
+		startIdx = i + 1
+		prevWasEscape = true
+	}
+
 	b.WriteString(element[startIdx:])
 
 	return b.String()
