@@ -26,6 +26,7 @@ var _ data.StreamInfo = &Stream{}
 
 const (
 	collectionChannelBufferSize = 1000
+	numberOfRetries             = 4
 )
 
 // PopulateFunc are a class of functions that can be used to fill exchange.Collections with
@@ -139,7 +140,7 @@ func messageToDataCollection(
 	if *aMessage.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
-		for count := 0; count < 5; count++ {
+		for count := 0; count < numberOfRetries; count++ {
 			attached, err := client.
 				UsersById(user).
 				MessagesById(*aMessage.GetId()).

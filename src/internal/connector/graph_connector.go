@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	numberOfRetries = 4
-	mailCategory    = "mail"
+	mailCategory = "mail"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
