@@ -30,7 +30,7 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 
 	b := backup.Backup{
 		BaseModel: model.BaseModel{
-			StableID: model.ID("stable"),
+			ID: model.StableID("stable"),
 		},
 		CreationTime: now,
 		SnapshotID:   "snapshot",
