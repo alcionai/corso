@@ -116,11 +116,11 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	theModelType := model.BackupOpSchema
 
 	noStableID := &fooModel{Bar: uuid.NewString()}
-	noStableID.StableID = ""
+	noStableID.ID = ""
 	noStableID.ModelStoreID = manifest.ID(uuid.NewString())
 
 	noModelStoreID := &fooModel{Bar: uuid.NewString()}
-	noModelStoreID.StableID = model.ID(uuid.NewString())
+	noModelStoreID.ID = model.StableID(uuid.NewString())
 	noModelStoreID.ModelStoreID = ""
 
 	assert.Error(t, suite.m.Update(suite.ctx, theModelType, noStableID))
@@ -155,11 +155,11 @@ func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {
 	require.NoError(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
 
 	returned := &fooModel{}
-	assert.Error(t, suite.m.Get(suite.ctx, model.RestoreOpSchema, foo.StableID, returned))
+	assert.Error(t, suite.m.Get(suite.ctx, model.RestoreOpSchema, foo.ID, returned))
 	assert.Error(
 		t, suite.m.GetWithModelStoreID(suite.ctx, model.RestoreOpSchema, foo.ModelStoreID, returned))
 
-	assert.Error(t, suite.m.Delete(suite.ctx, model.RestoreOpSchema, foo.StableID))
+	assert.Error(t, suite.m.Delete(suite.ctx, model.RestoreOpSchema, foo.ID))
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGet() {
@@ -204,10 +204,10 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 			}
 
 			require.NotEmpty(t, foo.ModelStoreID)
-			require.NotEmpty(t, foo.StableID)
+			require.NotEmpty(t, foo.ID)
 
 			returned := &fooModel{}
-			err = suite.m.Get(suite.ctx, test.s, foo.StableID, returned)
+			err = suite.m.Get(suite.ctx, test.s, foo.ID, returned)
 			require.NoError(t, err)
 			assert.Equal(t, foo, returned)
 
@@ -230,10 +230,10 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 	require.NoError(t, suite.m.Put(suite.ctx, theModelType, foo))
 
 	require.NotEmpty(t, foo.ModelStoreID)
-	require.NotEmpty(t, foo.StableID)
+	require.NotEmpty(t, foo.ID)
 
 	returned := &fooModel{}
-	err := suite.m.Get(suite.ctx, theModelType, foo.StableID, returned)
+	err := suite.m.Get(suite.ctx, theModelType, foo.ID, returned)
 	require.NoError(t, err)
 	assert.Equal(t, foo, returned)
 
@@ -336,12 +336,12 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			require.NoError(t, m.Put(ctx, theModelType, foo))
 
 			oldModelID := foo.ModelStoreID
-			oldStableID := foo.StableID
+			oldStableID := foo.ID
 
 			test.mutator(foo)
 
 			require.NoError(t, m.Update(ctx, theModelType, foo))
-			assert.Equal(t, oldStableID, foo.StableID)
+			assert.Equal(t, oldStableID, foo.ID)
 
 			returned := &fooModel{}
 			require.NoError(
@@ -415,7 +415,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
 
 	require.NoError(t, suite.m.Put(suite.ctx, theModelType, foo))
 
-	require.NoError(t, suite.m.Delete(suite.ctx, theModelType, foo.StableID))
+	require.NoError(t, suite.m.Delete(suite.ctx, theModelType, foo.ID))
 
 	returned := &fooModel{}
 	err := suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
@@ -467,7 +467,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	}()
 
 	foo := &fooModel{Bar: uuid.NewString()}
-	foo.StableID = model.ID(uuid.NewString())
+	foo.ID = model.StableID(uuid.NewString())
 	foo.ModelStoreID = manifest.ID(uuid.NewString())
 	// Avoid some silly test errors from comparing nil to empty map.
 	foo.Tags = map[string]string{}
