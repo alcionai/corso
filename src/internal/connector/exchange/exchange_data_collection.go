@@ -1,4 +1,4 @@
-package connector
+package exchange
 
 import (
 	"bytes"
@@ -9,9 +9,9 @@ import (
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
-var _ data.Collection = &ExchangeDataCollection{}
-var _ data.Stream = &ExchangeData{}
-var _ data.StreamInfo = &ExchangeData{}
+var _ data.Collection = &DataCollection{}
+var _ data.Stream = &EData{}
+var _ data.StreamInfo = &EData{}
 
 const (
 	collectionChannelBufferSize = 120
@@ -21,7 +21,7 @@ const (
 // data for a single user.
 //
 // It implements the DataCollection interface
-type ExchangeDataCollection struct {
+type DataCollection struct {
 	// M365 user
 	user         string
 	data         chan data.Stream
@@ -36,8 +36,8 @@ type ExchangeDataCollection struct {
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
-func NewExchangeDataCollection(aUser string, pathRepresentation []string) ExchangeDataCollection {
-	collection := ExchangeDataCollection{
+func NewExchangeDataCollection(aUser string, pathRepresentation []string) DataCollection {
+	collection := DataCollection{
 		user:     aUser,
 		data:     make(chan data.Stream, collectionChannelBufferSize),
 		fullPath: pathRepresentation,
@@ -45,28 +45,28 @@ func NewExchangeDataCollection(aUser string, pathRepresentation []string) Exchan
 	return collection
 }
 
-func (edc *ExchangeDataCollection) PopulateCollection(newData *ExchangeData) {
+func (edc *DataCollection) PopulateCollection(newData *EData) {
 	edc.data <- newData
 }
 
 // FinishPopulation is used to indicate data population of the collection is complete
 // TODO: This should be an internal method once we move the message retrieval logic into `ExchangeDataCollection`
-func (edc *ExchangeDataCollection) FinishPopulation() {
+func (edc *DataCollection) FinishPopulation() {
 	if edc != nil && edc.data != nil {
 		close(edc.data)
 	}
 }
 
-func (edc *ExchangeDataCollection) Items() <-chan data.Stream {
+func (edc *DataCollection) Items() <-chan data.Stream {
 	return edc.data
 }
 
-func (edc *ExchangeDataCollection) FullPath() []string {
+func (edc *DataCollection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
 // ExchangeData represents a single item retrieved from exchange
-type ExchangeData struct {
+type EData struct {
 	id string
 	// TODO: We may need this to be a "oneOf" of `message`, `contact`, etc.
 	// going forward. Using []byte for now but I assume we'll have
@@ -75,14 +75,14 @@ type ExchangeData struct {
 	info    *details.ExchangeInfo
 }
 
-func (ed *ExchangeData) UUID() string {
+func (ed *EData) UUID() string {
 	return ed.id
 }
 
-func (ed *ExchangeData) ToReader() io.ReadCloser {
+func (ed *EData) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(ed.message))
 }
 
-func (ed *ExchangeData) Info() details.ItemInfo {
+func (ed *EData) Info() details.ItemInfo {
 	return details.ItemInfo{Exchange: ed.info}
 }
