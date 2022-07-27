@@ -89,7 +89,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
-	err = suite.connector.RestoreMessages(context.Background(), []data.DataCollection{&edc})
+	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{&edc})
 	assert.NoError(suite.T(), err)
 }
 
@@ -173,7 +173,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
-	var dc data.DataCollection
+	var dc data.Collection
 	concrete := NewExchangeDataCollection("Check", []string{"interface", "works"})
 	dc = &concrete
 	assert.NotNil(suite.T(), dc)
