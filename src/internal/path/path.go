@@ -78,7 +78,8 @@ type Base struct {
 }
 
 // newPath takes a path that is broken into segments and elements in the segment
-// and returns a Base. Each element in the input is escaped.
+// and returns a Base. Each element in the input will get escaped.
+// Example: [this, is\, a, path] will transform into [this, is\\, a, path].
 func newPath(segments [][]string) Base {
 	if len(segments) == 0 {
 		return Base{}
@@ -104,9 +105,35 @@ func newPath(segments [][]string) Base {
 
 // NewPathFromEscapedSegments takes already escaped segments of a path, verifies
 // the segments are escaped properly, and returns a new Base struct. If there is
-// an unescaped trailing '/' it is removed.
+// an unescaped trailing '/' it is removed. This function is safe to use with
+// escaped user input where each chunk is a segment. For example, the input
+// [this, is\//a, path] will produce:
+// segments: [this, is\//a, path]
+// elements: [this, is\/, a, path].
 func newPathFromEscapedSegments(segments []string) (Base, error) {
-	return Base{}, errors.New("not implemented")
+	b := Base{}
+
+	if err := validateSegments(segments); err != nil {
+		return b, errors.Wrap(err, "validating escaped path")
+	}
+
+	// Make a copy of the input so we don't modify the original slice.
+	tmpSegments := make([]string, len(segments))
+	copy(tmpSegments, segments)
+	tmpSegments[len(tmpSegments)-1] = trimTrailingSlash(tmpSegments[len(tmpSegments)-1])
+
+	for _, s := range tmpSegments {
+		newElems := split(s)
+
+		if len(newElems) == 0 {
+			continue
+		}
+
+		b.segmentIdx = append(b.segmentIdx, len(b.elements))
+		b.elements = append(b.elements, newElems...)
+	}
+
+	return b, nil
 }
 
 // String returns a string that contains all path segments joined
@@ -169,10 +196,118 @@ func escapeElement(element string) string {
 	return b.String()
 }
 
+// validateSegments takes a slice of segments and ensures that escaped
+// sequences match the set of characters that need escaping and that there
+// aren't hanging escape characters at the end of a segment.
+func validateSegments(segments []string) error {
+	for _, segment := range segments {
+		prevWasEscape := false
+
+		for _, c := range segment {
+			switch prevWasEscape {
+			case true:
+				prevWasEscape = false
+
+				if _, ok := charactersToEscape[c]; !ok {
+					return errors.Errorf(
+						"bad escape sequence in path: '%c%c'", escapeCharacter, c)
+				}
+
+			case false:
+				if c == escapeCharacter {
+					prevWasEscape = true
+				}
+			}
+		}
+
+		if prevWasEscape {
+			return errors.New("trailing escape character in segment")
+		}
+	}
+
+	return nil
+}
+
+// trimTrailingSlash takes an escaped path element and returns an escaped path
+// element with the trailing path separator character removed if it was not
+// escaped. If there was no trailing path separator character or the separator
+// was escaped the input is returned unchanged.
+func trimTrailingSlash(element string) string {
+	lastIdx := len(element) - 1
+
+	if element[lastIdx] != pathSeparator {
+		return element
+	}
+
+	numSlashes := 0
+	for i := lastIdx - 1; i >= 0; i-- {
+		if element[i] != escapeCharacter {
+			break
+		}
+
+		numSlashes++
+	}
+
+	if numSlashes%2 != 0 {
+		return element
+	}
+
+	return element[:lastIdx]
+}
+
 // join returns a string containing the given elements joined by the path
 // separator '/'.
 func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(pathSeparator))
+}
+
+// split returns a slice of path elements for the given segment when the segment
+// is split on the path separator according to the escaping rules.
+func split(segment string) []string {
+	res := make([]string, 0)
+	numEscapes := 0
+	startIdx := 0
+	// Start with true to ignore leading separator.
+	prevWasSeparator := true
+
+	for i, c := range segment {
+		if c == escapeCharacter {
+			numEscapes++
+			prevWasSeparator = false
+			continue
+		}
+
+		if c != pathSeparator {
+			prevWasSeparator = false
+			numEscapes = 0
+			continue
+		}
+
+		// Remaining is just path separator handling.
+		if numEscapes%2 != 0 {
+			// This is an escaped separator.
+			prevWasSeparator = false
+			numEscapes = 0
+			continue
+		}
+
+		// Ignore leading separator characters and don't add elements that would
+		// be empty.
+		if !prevWasSeparator {
+			res = append(res, segment[startIdx:i])
+		}
+
+		// We don't want to include the path separator in the result.
+		startIdx = i + 1
+		prevWasSeparator = true
+		numEscapes = 0
+	}
+
+	// Add the final segment because the loop above won't catch it. There should
+	// be no trailing separator character, but do a bounds check to be safe.
+	res = append(res, segment[startIdx:])
+
+	return res
 }
