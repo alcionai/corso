@@ -10,6 +10,9 @@ CORSO_BUILD_ARGS=''
 CORSO_BUILD_CONTAINER_DIR=/go/src/github.com/alcionai/corso
 CORSO_BUILD_CONTAINER_SRC_DIR=${CORSO_BUILD_CONTAINER_DIR}/src
 
+GOOS=linux
+GOARCH=amd64
+
 # temporary directory for caching go build
 mkdir -p /tmp/.corsobuild/cache
 # temporary directory for caching go modules (needed for fast cross-platform build)
@@ -20,6 +23,9 @@ docker run --rm --mount type=bind,src=${SRC_DIR},dst=${CORSO_BUILD_CONTAINER_DIR
        --mount type=bind,src=/tmp/.corsobuild/cache,dst=/tmp/.corsobuild/cache       \
        --mount type=bind,src=/tmp/.corsobuild/mod,dst=/go/pkg/mod                    \
        --workdir ${CORSO_BUILD_CONTAINER_SRC_DIR}                                    \
+       --env GOCACHE=/tmp/.corsobuild/cache                                          \
+       --env GOOS=${GOOS}                                                            \
+       --env GOARCH=${GOARCH}                                                        \
        --env GOCACHE=/tmp/.corsobuild/cache                                          \
        --entrypoint /usr/local/go/bin/go                                             \
        golang:1.18                                                                   \
