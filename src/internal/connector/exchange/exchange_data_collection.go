@@ -29,10 +29,6 @@ const (
 	numberOfRetries             = 4
 )
 
-// PopulateFunc are a class of functions that can be used to fill exchange.Collections with
-// the corresponding information
-type PopulateFunc func(context.Context, graph.Service, Collection, chan *support.ConnectorOperationStatus)
-
 // ExchangeDataCollection represents exchange mailbox
 // data for a single user.
 //
