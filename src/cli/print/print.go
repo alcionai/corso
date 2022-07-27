@@ -12,14 +12,22 @@ import (
 	"github.com/tomlazar/table"
 )
 
-var outputAsJSON bool
+var (
+	outputAsJSON      bool
+	outputAsJSONDebug bool
+)
 
 // adds the --output flag to the provided command.
 func AddOutputFlag(parent *cobra.Command) {
-	parent.PersistentFlags().BoolVar(&outputAsJSON, "json", false, "output data in JSON format")
+	fs := parent.PersistentFlags()
+	fs.BoolVar(&outputAsJSON, "json", false, "output data in JSON format")
+	fs.BoolVar(&outputAsJSONDebug, "json-debug", false, "output all internal and debugging data in JSON format")
+	fs.MarkHidden("json-debug")
 }
 
 type Printable interface {
+	// reduces the struct to a minimized format for easier human consumption
+	MinimumPrintable() any
 	// should list the property names of the values surfaced in Values()
 	Headers() []string
 	// list of values for tabular or csv formatting
@@ -52,16 +60,25 @@ func printAll(ps []Printable) {
 	if len(ps) == 0 {
 		return
 	}
-	if outputAsJSON {
-		outputJSON(ps)
+	if outputAsJSON || outputAsJSONDebug {
+		outputJSON(ps, outputAsJSONDebug)
 		return
 	}
 	outputTable(ps)
 }
 
-// output to stdout the list of printable structs as json
-func outputJSON(ps []Printable) {
-	bs, err := json.Marshal(ps)
+// output to stdout the list of printable structs as json.
+// if debug is false, calls ps.Printable() first
+func outputJSON(ps []Printable, debug bool) {
+	sl := make([]any, 0, len(ps))
+	for _, p := range ps {
+		if debug {
+			sl = append(sl, p)
+		} else {
+			sl = append(sl, p.MinimumPrintable())
+		}
+	}
+	bs, err := json.Marshal(sl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error formatting results to json: %v\n", err)
 		return
