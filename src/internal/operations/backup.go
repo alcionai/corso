@@ -124,8 +124,8 @@ func (op *BackupOperation) persistResults(
 	started time.Time,
 	stats *backupStats,
 ) {
-	op.Status = Successful
-	if stats.readErr != nil || stats.writeErr != nil {
+	op.Status = Completed
+	if stats.k.TotalFileCount == 0 && (stats.readErr != nil || stats.writeErr != nil) {
 		op.Status = Failed
 	}
 

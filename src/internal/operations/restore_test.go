@@ -180,7 +180,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
-	assert.Equal(t, ro.Status, Successful, "restoreOp status")
+	assert.Equal(t, ro.Status, Completed, "restoreOp status")
 	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
 	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")

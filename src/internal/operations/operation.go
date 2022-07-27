@@ -16,7 +16,7 @@ type opStatus int
 const (
 	Unknown    opStatus = iota // Status Unknown
 	InProgress                 // In Progress
-	Successful                 // Successful
+	Completed                  // Completed
 	Failed                     // Failed
 )
 

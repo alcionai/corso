@@ -129,7 +129,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	}
 	stats.gc = gc.AwaitStatus()
 
-	op.Status = Successful
+	op.Status = Completed
 	return nil
 }
 

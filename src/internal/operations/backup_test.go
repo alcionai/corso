@@ -31,8 +31,6 @@ func TestBackupOpSuite(t *testing.T) {
 	suite.Run(t, new(BackupOpSuite))
 }
 
-// TODO: after modelStore integration is added, mock the store and/or
-// move this to an integration test.
 func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	t := suite.T()
 	ctx := context.Background()
@@ -59,13 +57,13 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 
 	op.persistResults(now, &stats)
 
-	assert.Equal(t, op.Status, Failed)
-	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful)
-	assert.Equal(t, op.Results.ReadErrors, stats.readErr)
-	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount)
-	assert.Equal(t, op.Results.WriteErrors, stats.writeErr)
-	assert.Equal(t, op.Results.StartedAt, now)
-	assert.Less(t, now, op.Results.CompletedAt)
+	assert.Equal(t, op.Status, Completed, "status")
+	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
+	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
+	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
+	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
+	assert.Equal(t, op.Results.StartedAt, now, "started at")
+	assert.Less(t, now, op.Results.CompletedAt, "completed at")
 }
 
 // ---------------------------------------------------------------------------
@@ -173,7 +171,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results)
 	require.NotEmpty(t, bo.Results.BackupID)
-	assert.Equal(t, bo.Status, Successful)
+	assert.Equal(t, bo.Status, Completed)
 	assert.Greater(t, bo.Results.ItemsRead, 0)
 	assert.Greater(t, bo.Results.ItemsWritten, 0)
 	assert.Zero(t, bo.Results.ReadErrors)
