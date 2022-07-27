@@ -7,8 +7,6 @@ import (
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 )
 
-// TaskList is a a generic map of a list of items with a string index
-type TaskList map[string][]string
 type optionIdentifier int
 
 //go:generate stringer -type=optionIdentifier
@@ -18,22 +16,6 @@ const (
 	messages
 	users
 )
-
-// NewTaskList constructor for TaskList
-func NewTaskList() TaskList {
-	return make(map[string][]string, 0)
-}
-
-// AddTask helper method to ensure that keys and items are created properly
-func (tl *TaskList) AddTask(key, value string) {
-	aMap := *tl
-	_, isCreated := aMap[key]
-	if isCreated {
-		aMap[key] = append(aMap[key], value)
-	} else {
-		aMap[key] = []string{value}
-	}
-}
 
 // Contains is a helper method for verifying if element
 // is contained within the slice

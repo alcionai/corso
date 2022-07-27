@@ -58,7 +58,7 @@ func (b Backup) Headers() []string {
 func (b Backup) Values() []string {
 	return []string{
 		common.FormatTime(b.CreationTime),
-		string(b.StableID),
+		string(b.ID),
 		b.SnapshotID,
 		b.DetailsID,
 		b.Status,

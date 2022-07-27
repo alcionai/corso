@@ -25,7 +25,7 @@ var (
 	detailsID = uuid.NewString()
 	bu        = backup.Backup{
 		BaseModel: model.BaseModel{
-			StableID:     model.ID(uuid.NewString()),
+			ID:           model.StableID(uuid.NewString()),
 			ModelStoreID: manifest.ID(uuid.NewString()),
 		},
 		CreationTime: time.Now(),
@@ -35,7 +35,7 @@ var (
 	deets = details.Details{
 		DetailsModel: details.DetailsModel{
 			BaseModel: model.BaseModel{
-				StableID:     model.ID(detailsID),
+				ID:           model.StableID(detailsID),
 				ModelStoreID: manifest.ID(uuid.NewString()),
 			},
 		},
@@ -77,7 +77,7 @@ func (suite *StoreDetailsUnitSuite) TestGetDetails() {
 			if err != nil {
 				return
 			}
-			assert.Equal(t, deets.StableID, result.StableID)
+			assert.Equal(t, deets.ID, result.ID)
 		})
 	}
 }
@@ -104,13 +104,13 @@ func (suite *StoreDetailsUnitSuite) TestGetDetailsFromBackupID() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			store := &store.Wrapper{Storer: test.mock}
-			dResult, bResult, err := store.GetDetailsFromBackupID(ctx, model.ID(uuid.NewString()))
+			dResult, bResult, err := store.GetDetailsFromBackupID(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, deets.StableID, dResult.StableID)
-			assert.Equal(t, bu.StableID, bResult.StableID)
+			assert.Equal(t, deets.ID, dResult.ID)
+			assert.Equal(t, bu.ID, bResult.ID)
 		})
 	}
 }

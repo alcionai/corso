@@ -10,8 +10,10 @@ import (
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/connector/service"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/backup/details"
@@ -26,19 +28,9 @@ const (
 	collectionChannelBufferSize = 1000
 )
 
-type Service interface {
-	// Client() returns msgraph Service client that can be used to process and execute
-	// the majority of the queries to the M365 Backstore
-	Client() *msgraphsdk.GraphServiceClient
-	// Adapter() returns GraphRequest adapter used to process large requests, create batches
-	// and page iterators
-	Adapter() *msgraphsdk.GraphRequestAdapter
-	Policy() bool
-}
-
 // PopulateFunc are a class of functions that can be used to fill exchange.Collections with
 // the corresponding information
-type PopulateFunc func(context.Context, Service, Collection, chan *support.ConnectorOperationStatus)
+type PopulateFunc func(context.Context, service.Service, Collection, chan *support.ConnectorOperationStatus)
 
 // ExchangeDataCollection represents exchange mailbox
 // data for a single user.
@@ -50,7 +42,7 @@ type Collection struct {
 	Data         chan data.Stream
 	tasks        []string
 	updateCh     chan support.ConnectorOperationStatus
-	service      Service
+	service      service.Service
 	populateFunc PopulateFunc
 
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
@@ -80,12 +72,13 @@ func (eoc *Collection) FinishPopulation() {
 	}
 }
 
+// NOTE: Refactor has not happened moving into folders
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func populateFromTaskList(
+func PopulateFromTaskList(
 	ctx context.Context,
-	tasklist TaskList,
-	service Service,
-	collections map[string]*exchange.Collection,
+	tasklist support.TaskList,
+	service service.Service,
+	collections map[string]*Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
@@ -104,7 +97,7 @@ func populateFromTaskList(
 		}
 
 		for _, task := range tasks {
-			response, err := sc.client.UsersById(edc.User).MessagesById(task).Get()
+			response, err := service.Client().UsersById(edc.User).MessagesById(task).Get()
 			if err != nil {
 				details := support.ConnectorStackErrorTrace(err)
 				errs = support.WrapAndAppend(edc.User, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
@@ -130,6 +123,59 @@ func populateFromTaskList(
 	statusChannel <- status
 }
 
+func messageToDataCollection(
+	client *msgraphsdk.GraphServiceClient,
+	ctx context.Context,
+	objectWriter *kw.JsonSerializationWriter,
+	dataChannel chan<- data.Stream,
+	message models.Messageable,
+	user string,
+) error {
+	var err error
+	aMessage := message
+	adtl := message.GetAdditionalData()
+	if len(adtl) > 2 {
+		aMessage, err = support.ConvertFromMessageable(adtl, message)
+		if err != nil {
+			return err
+		}
+	}
+	if *aMessage.GetHasAttachments() {
+		// getting all the attachments might take a couple attempts due to filesize
+		var retriesErr error
+		for count := 0; count < 5; count++ {
+			attached, err := client.
+				UsersById(user).
+				MessagesById(*aMessage.GetId()).
+				Attachments().
+				Get()
+			retriesErr = err
+			if err == nil && attached != nil {
+				aMessage.SetAttachments(attached.GetValue())
+				break
+			}
+		}
+		if retriesErr != nil {
+			logger.Ctx(ctx).Debug("exceeded maximum retries")
+			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
+		}
+	}
+	err = objectWriter.WriteObjectValue("", aMessage)
+	if err != nil {
+		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
+	}
+
+	byteArray, err := objectWriter.GetSerializedContent()
+	objectWriter.Close()
+	if err != nil {
+		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
+	}
+	if byteArray != nil {
+		dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage)}
+	}
+	return nil
+}
+
 func (eoc *Collection) Items() <-chan data.Stream {
 	return eoc.Data
 }
@@ -140,29 +186,23 @@ func (edc *Collection) FullPath() []string {
 
 // Stream represents a single item retrieved from exchange
 type Stream struct {
-	Id string
+	id string
 	// TODO: We may need this to be a "oneOf" of `message`, `contact`, etc.
 	// going forward. Using []byte for now but I assume we'll have
 	// some structured type in here (serialization to []byte can be done in `Read`)
-	Message []byte
-	Inf     *details.ExchangeInfo //temporary change to bring populate function into directory
+	message []byte
+	info    *details.ExchangeInfo //temporary change to bring populate function into directory
 }
 
-<<<<<<< Updated upstream
 func (od *Stream) UUID() string {
-	return od.Id
-=======
-func NewObjectData(objectID string, byte)
-
-func (od *ObjectData) UUID() string {
 	return od.id
->>>>>>> Stashed changes
+
 }
 
 func (od *Stream) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(od.Message))
+	return io.NopCloser(bytes.NewReader(od.message))
 }
 
 func (od *Stream) Info() details.ItemInfo {
-	return details.ItemInfo{Exchange: od.Inf}
+	return details.ItemInfo{Exchange: od.info}
 }

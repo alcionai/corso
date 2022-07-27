@@ -44,7 +44,7 @@ func unmarshal(b []byte, a any) {
 // deleter iface
 // ------------------------------------------------------------
 
-func (mms *MockModelStore) Delete(ctx context.Context, s model.Schema, id model.ID) error {
+func (mms *MockModelStore) Delete(ctx context.Context, s model.Schema, id model.StableID) error {
 	return mms.err
 }
 
@@ -59,7 +59,7 @@ func (mms *MockModelStore) DeleteWithModelStoreID(ctx context.Context, id manife
 func (mms *MockModelStore) Get(
 	ctx context.Context,
 	s model.Schema,
-	id model.ID,
+	id model.StableID,
 	data model.Model,
 ) error {
 	if mms.err != nil {

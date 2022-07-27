@@ -66,7 +66,7 @@ func tagsForModel(s model.Schema, tags map[string]string) (map[string]string, er
 // type or if a bad model type is given.
 func tagsForModelWithID(
 	s model.Schema,
-	id model.ID,
+	id model.StableID,
 	tags map[string]string,
 ) (map[string]string, error) {
 	if !s.Valid() {
@@ -106,10 +106,10 @@ func putInner(
 
 	base := m.Base()
 	if create {
-		base.StableID = model.ID(uuid.NewString())
+		base.ID = model.StableID(uuid.NewString())
 	}
 
-	tmpTags, err := tagsForModelWithID(s, base.StableID, base.Tags)
+	tmpTags, err := tagsForModelWithID(s, base.ID, base.Tags)
 	if err != nil {
 		// Will be wrapped at a higher layer.
 		return err
@@ -165,7 +165,7 @@ func baseModelFromMetadata(m *manifest.EntryMetadata) (*model.BaseModel, error) 
 
 	res := &model.BaseModel{
 		ModelStoreID: m.ID,
-		StableID:     model.ID(id),
+		ID:           model.StableID(id),
 		Tags:         m.Labels,
 	}
 
@@ -219,7 +219,7 @@ func (ms *ModelStore) GetIDsForType(
 func (ms *ModelStore) getModelStoreID(
 	ctx context.Context,
 	s model.Schema,
-	id model.ID,
+	id model.StableID,
 ) (manifest.ID, error) {
 	if !s.Valid() {
 		return "", errors.New("unrecognized model schema")
@@ -255,7 +255,7 @@ func (ms *ModelStore) getModelStoreID(
 func (ms *ModelStore) Get(
 	ctx context.Context,
 	s model.Schema,
-	id model.ID,
+	id model.StableID,
 	data model.Model,
 ) error {
 	if !s.Valid() {
@@ -320,7 +320,7 @@ func (ms *ModelStore) checkPrevModelVersion(
 		return errors.WithStack(errUnrecognizedSchema)
 	}
 
-	id, err := ms.getModelStoreID(ctx, s, b.StableID)
+	id, err := ms.getModelStoreID(ctx, s, b.ID)
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (ms *ModelStore) Update(
 // Delete deletes the model with the given StableID. Turns into a noop if id is
 // not empty but the model does not exist. Returns an error if multiple models
 // have the same StableID.
-func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.ID) error {
+func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.StableID) error {
 	if !s.Valid() {
 		return errors.WithStack(errUnrecognizedSchema)
 	}

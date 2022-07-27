@@ -168,7 +168,10 @@ func makeExchangeScope(granularity string, cat exchangeCategory, vs []string) Ex
 }
 
 func makeExchangeUserScope(user, granularity string, cat exchangeCategory, vs []string) ExchangeScope {
-	return makeExchangeScope(granularity, cat, vs).set(ExchangeUser, user)
+	es := makeExchangeScope(granularity, cat, vs).set(ExchangeUser, user)
+	es[scopeKeyResource] = user
+	es[scopeKeyDataType] = cat.dataType()
+	return es
 }
 
 // Produces one or more exchange contact scopes.
@@ -288,6 +291,8 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) Excha
 		scopeKeyGranularity: Filter,
 		scopeKeyCategory:    cat.String(),
 		scopeKeyInfoFilter:  filterCat.String(),
+		scopeKeyResource:    Filter,
+		scopeKeyDataType:    cat.dataType(),
 		filterCat.String():  join(vs...),
 	}
 }
@@ -434,6 +439,19 @@ func exchangeCatAtoI(s string) exchangeCategory {
 	default:
 		return ExchangeCategoryUnknown
 	}
+}
+
+// exchangeDataType returns the human-readable name of the core data type.
+// Ex: ExchangeContactFolder.dataType() => ExchangeContact.String()
+// Ex: ExchangeEvent.dataType() => ExchangeEvent.String().
+func (ec exchangeCategory) dataType() string {
+	switch ec {
+	case ExchangeContact, ExchangeContactFolder:
+		return ExchangeContact.String()
+	case ExchangeMail, ExchangeMailFolder:
+		return ExchangeMail.String()
+	}
+	return ec.String()
 }
 
 // Granularity describes the granularity (directory || item)

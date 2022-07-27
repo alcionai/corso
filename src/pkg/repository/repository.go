@@ -152,7 +152,7 @@ func (r Repository) NewRestore(
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		r.Account,
-		model.ID(backupID),
+		model.StableID(backupID),
 		sel)
 }
 
@@ -165,5 +165,5 @@ func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
 // BackupDetails returns the specified backup details object
 func (r Repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetDetailsFromBackupID(ctx, model.ID(backupID))
+	return sw.GetDetailsFromBackupID(ctx, model.StableID(backupID))
 }

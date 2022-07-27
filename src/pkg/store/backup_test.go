@@ -24,7 +24,7 @@ var (
 	detailsID = uuid.NewString()
 	bu        = backup.Backup{
 		BaseModel: model.BaseModel{
-			StableID:     model.ID(uuid.NewString()),
+			ID:           model.StableID(uuid.NewString()),
 			ModelStoreID: manifest.ID(uuid.NewString()),
 		},
 		CreationTime: time.Now(),
@@ -63,12 +63,12 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sm := &store.Wrapper{Storer: test.mock}
-			result, err := sm.GetBackup(ctx, model.ID(uuid.NewString()))
+			result, err := sm.GetBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, bu.StableID, result.StableID)
+			assert.Equal(t, bu.ID, result.ID)
 		})
 	}
 }
@@ -101,7 +101,7 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 				return
 			}
 			assert.Equal(t, 1, len(result))
-			assert.Equal(t, bu.StableID, result[0].StableID)
+			assert.Equal(t, bu.ID, result[0].ID)
 		})
 	}
 }

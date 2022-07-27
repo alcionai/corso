@@ -86,6 +86,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	if err != nil {
 		suite.T().Skipf("Support file not accessible: %v\n", err)
 	}
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 	ds := exchange.Stream{Id: "test", Message: bytes}
 	edc := exchange.NewCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
@@ -93,6 +94,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	ds := exchange.ObjectData{id: "test", message: bytes}
 	edc := exchange.NewObjectCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 >>>>>>> Stashed changes
+=======
+	ds := exchange.Stream{Id: "test", Message: bytes}
+	edc := exchange.NewCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
+>>>>>>> main
 	edc.PopulateCollection(&ds)
 	edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{&edc})
