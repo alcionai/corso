@@ -38,12 +38,8 @@ type PopulateFunc func(context.Context, service.Service, Collection, chan *suppo
 // It implements the DataCollection interface
 type Collection struct {
 	// M365 user
-	User         string // M365 user
-	Data         chan data.Stream
-	tasks        []string
-	updateCh     chan support.ConnectorOperationStatus
-	service      service.Service
-	populateFunc PopulateFunc
+	User string // M365 user
+	Data chan data.Stream
 
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
