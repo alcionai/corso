@@ -56,8 +56,8 @@ func NewCollection(aUser string, pathRepresentation []string) Collection {
 	return collection
 }
 
-// AddJob appends additional job to the job list
-func (eoc *Collection) AddJob(job string) {
+// AddJob appends additional objectID to the job list
+func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, job)
 }
 
