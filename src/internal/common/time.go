@@ -11,6 +11,14 @@ func FormatTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
 }
 
+// FormatTimeForExchangeFolder produces standard format for
+// GraphConnector. Format used on CI testing and default folder
+// creation during the restore process
+func FormatTimeForExchangeFolder(t time.Time) string {
+	timeFolderFormat := "02-Jan-2006_15:04:05"
+	return t.UTC().Format(timeFolderFormat)
+}
+
 // ParseTime makes a best attempt to produce a time value from
 // the provided string.  Always returns a UTC timezone value.
 func ParseTime(s string) (time.Time, error) {
