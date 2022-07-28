@@ -1,13 +1,16 @@
 package mockconnector_test
 
 import (
+	"bytes"
 	"io/ioutil"
 	"testing"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/internal/connector/support"
 )
 
 type MockExchangeDataCollectionSuite struct {
@@ -29,4 +32,36 @@ func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection() {
 		messagesRead++
 	}
 	assert.Equal(suite.T(), 2, messagesRead)
+}
+
+func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection_NewExchangeCollectionMail() {
+	expected := 3
+	mdc := mockconnector.NewMockExchangeCollectionMail([]string{"foo", "bar"}, expected)
+
+	messagesRead := 0
+	for item := range mdc.Items() {
+		_, err := ioutil.ReadAll(item.ToReader())
+		assert.NoError(suite.T(), err)
+		messagesRead++
+	}
+	assert.Equal(suite.T(), expected, messagesRead)
+}
+
+// NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
+// functions by verifying no failures on (de)serializing steps using kiota serialization library
+func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection_NewExchangeCollectionMail_Hydration() {
+	t := suite.T()
+	mdc := mockconnector.NewMockExchangeCollectionMail([]string{"foo", "bar"}, 3)
+	var (
+		byteArray []byte
+	)
+	buf := &bytes.Buffer{}
+	for stream := range mdc.Items() {
+		_, err := buf.ReadFrom(stream.ToReader())
+		assert.NoError(t, err)
+		byteArray = buf.Bytes()
+		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
+		assert.NoError(t, err)
+		assert.NotNil(t, something)
+	}
 }
