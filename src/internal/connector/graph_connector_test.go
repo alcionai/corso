@@ -84,7 +84,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	if err != nil {
 		suite.T().Skipf("Environment not configured: %v\n", err)
 	}
-	mdc := mockconnector.NewMockExchangeCollectionMail([]string{"tenant", evs[user], mailCategory, "Inbox"}, 1)
+	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", evs[user], mailCategory, "Inbox"}, 1)
 	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
 	assert.NoError(suite.T(), err)
 }
