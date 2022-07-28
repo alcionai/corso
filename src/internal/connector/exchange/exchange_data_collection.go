@@ -37,7 +37,9 @@ type Collection struct {
 	// M365 user
 	User string // M365 user
 	Data chan data.Stream
-
+	// jobs represents an inventory of M365 objectIds whose information
+	// is desired to be sent through the data channel
+	jobs []string
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
@@ -48,17 +50,25 @@ func NewCollection(aUser string, pathRepresentation []string) Collection {
 	collection := Collection{
 		User:     aUser,
 		Data:     make(chan data.Stream, collectionChannelBufferSize),
+		jobs:     make([]string, 0),
 		fullPath: pathRepresentation,
 	}
 	return collection
 }
 
+// AddJob appends additional job to the job list
+func (eoc *Collection) AddJob(job string) {
+	eoc.jobs = append(eoc.jobs, job)
+}
+
+// PopulateCollection TODO: remove after async functionilty completed
 func (eoc *Collection) PopulateCollection(newData *Stream) {
 	eoc.Data <- newData
 }
 
 // FinishPopulation is used to indicate data population of the collection is complete
 // TODO: This should be an internal method once we move the message retrieval logic into `ExchangeDataCollection`
+// TODO: This will be removed as the channel will be filled from calls from exchange.Collection
 func (eoc *Collection) FinishPopulation() {
 	if eoc.Data != nil {
 		close(eoc.Data)
