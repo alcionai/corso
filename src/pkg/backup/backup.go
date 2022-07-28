@@ -1,7 +1,7 @@
 package backup
 
 import (
-	"strconv"
+	"fmt"
 	"time"
 
 	"github.com/alcionai/corso/internal/common"
@@ -34,50 +34,6 @@ type Backup struct {
 	stats.StartAndEndTime
 }
 
-// MinimumPrintable reduces the Backup to its minimally printable details.
-func (b Backup) MinimumPrintable() any {
-	// todo: implement printable backup struct
-	return b
-}
-
-// Headers returns the human-readable names of properties in a Backup
-// for printing out to a terminal in a columnar display.
-func (b Backup) Headers() []string {
-	return []string{
-		"Creation Time",
-		"Stable ID",
-		"Snapshot ID",
-		"Details ID",
-		"Status",
-		"Selectors",
-		"Items Read",
-		"Items Written",
-		"Read Errors",
-		"Write Errors",
-		"Started At",
-		"Completed At",
-	}
-}
-
-// Values returns the values matching the Headers list for printing
-// out to a terminal in a columnar display.
-func (b Backup) Values() []string {
-	return []string{
-		common.FormatTime(b.CreationTime),
-		string(b.ID),
-		b.SnapshotID,
-		b.DetailsID,
-		b.Status,
-		b.Selectors.String(),
-		strconv.Itoa(b.ReadWrites.ItemsRead),
-		strconv.Itoa(b.ReadWrites.ItemsWritten),
-		strconv.Itoa(support.GetNumberOfErrors(b.ReadWrites.ReadErrors)),
-		strconv.Itoa(support.GetNumberOfErrors(b.ReadWrites.WriteErrors)),
-		common.FormatTime(b.StartAndEndTime.StartedAt),
-		common.FormatTime(b.StartAndEndTime.CompletedAt),
-	}
-}
-
 func New(
 	snapshotID, detailsID, status string,
 	selector selectors.Selector,
@@ -92,5 +48,55 @@ func New(
 		Selectors:       selector,
 		ReadWrites:      rw,
 		StartAndEndTime: se,
+	}
+}
+
+// --------------------------------------------------------------------------------
+// CLI Output
+// --------------------------------------------------------------------------------
+
+type Printable struct {
+	ID         model.StableID      `json:"id"`
+	ErrorCount int                 `json:"errorCount"`
+	StartedAt  time.Time           `json:"started at"`
+	Status     string              `json:"status"`
+	Version    string              `json:"version"`
+	Selectors  selectors.Printable `json:"selectors"`
+}
+
+// MinimumPrintable reduces the Backup to its minimally printable details.
+func (b Backup) MinimumPrintable() any {
+	// todo: implement printable backup struct
+	return Printable{
+		ID:         b.ID,
+		ErrorCount: support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors),
+		StartedAt:  b.StartedAt,
+		Status:     b.Status,
+		Version:    "0",
+		Selectors:  b.Selectors.Printable(),
+	}
+}
+
+// Headers returns the human-readable names of properties in a Backup
+// for printing out to a terminal in a columnar display.
+func (b Backup) Headers() []string {
+	return []string{
+		"Started At",
+		"ID",
+		"Status",
+		"Selectors",
+	}
+}
+
+// Values returns the values matching the Headers list for printing
+// out to a terminal in a columnar display.
+func (b Backup) Values() []string {
+	errCount := support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
+	status := fmt.Sprintf("%s (%d errors)", b.Status, errCount)
+	return []string{
+		common.FormatTime(b.StartedAt),
+		string(b.ID),
+		status,
+		b.Selectors.Printable().Resources(),
 	}
 }

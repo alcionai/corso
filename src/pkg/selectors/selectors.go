@@ -48,10 +48,13 @@ const (
 	// None() to any selector will force all matches() checks on that
 	// selector to fail.
 	// Ex: {user: u1, events: NoneTgt} => matches nothing.
-	NoneTgt = ""
-
+	NoneTgt   = ""
 	delimiter = ","
 )
+
+// All is the resource name that gets output when the resource is AnyTgt.
+// It is not used aside from printing resources.
+const All = "All"
 
 // ---------------------------------------------------------------------------
 // Selector
@@ -217,7 +220,7 @@ func toResourceTypeMap(ms []map[string]string) map[string][]string {
 	for _, m := range ms {
 		res := m[scopeKeyResource]
 		if res == AnyTgt {
-			res = "All"
+			res = All
 		}
 		r[res] = addToSet(r[res], m[scopeKeyDataType])
 	}
