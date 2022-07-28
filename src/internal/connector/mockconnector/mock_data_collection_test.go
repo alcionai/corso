@@ -13,16 +13,16 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 )
 
-type MockExchangeDataCollectionSuite struct {
+type MockExchangeCollectionSuite struct {
 	suite.Suite
 }
 
-func TestMockExchangeDataCollectionSuite(t *testing.T) {
-	suite.Run(t, new(MockExchangeDataCollectionSuite))
+func TestMockExchangeCollectionSuite(t *testing.T) {
+	suite.Run(t, new(MockExchangeCollectionSuite))
 }
 
-func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection() {
-	mdc := mockconnector.NewMockExchangeDataCollection([]string{"foo", "bar"}, 2)
+func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
+	mdc := mockconnector.NewMockExchangeCollection([]string{"foo", "bar"}, 2)
 
 	messagesRead := 0
 
@@ -34,24 +34,11 @@ func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection() {
 	assert.Equal(suite.T(), 2, messagesRead)
 }
 
-func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection_NewExchangeCollectionMail() {
-	expected := 3
-	mdc := mockconnector.NewMockExchangeCollectionMail([]string{"foo", "bar"}, expected)
-
-	messagesRead := 0
-	for item := range mdc.Items() {
-		_, err := ioutil.ReadAll(item.ToReader())
-		assert.NoError(suite.T(), err)
-		messagesRead++
-	}
-	assert.Equal(suite.T(), expected, messagesRead)
-}
-
 // NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
 // functions by verifying no failures on (de)serializing steps using kiota serialization library
-func (suite *MockExchangeDataCollectionSuite) TestMockExchangeDataCollection_NewExchangeCollectionMail_Hydration() {
+func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
 	t := suite.T()
-	mdc := mockconnector.NewMockExchangeCollectionMail([]string{"foo", "bar"}, 3)
+	mdc := mockconnector.NewMockExchangeCollection([]string{"foo", "bar"}, 3)
 	var (
 		byteArray []byte
 	)
