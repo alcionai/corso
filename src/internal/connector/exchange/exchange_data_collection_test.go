@@ -93,3 +93,14 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Items() {
 	}
 	suite.Equal(count, expected)
 }
+
+func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
+	eoc := NewCollection("Dexter", []string{"Today", "is", "was", "different"})
+	suite.Zero(len(eoc.jobs))
+	shopping := []string{"tomotoes", "potatoes", "pasta", "ice tea"}
+	for _, item := range shopping {
+		eoc.AddJob(item)
+	}
+	suite.Equal(len(shopping), len(eoc.jobs))
+
+}
