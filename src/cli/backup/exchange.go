@@ -329,8 +329,11 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ds := sel.Reduce(d)
-	print.Entries(ds.Entries)
+	if len(ds.Entries) == 0 {
+		return errors.New("nothing to display: no items in the backup match the provided selectors")
+	}
 
+	print.Entries(ds.Entries)
 	return nil
 }
 
