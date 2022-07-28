@@ -19,7 +19,6 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/tidwall/pretty v1.2.0
 	github.com/tomlazar/table v0.1.2
-	github.com/zeebo/assert v1.1.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/tools v0.1.11
 )

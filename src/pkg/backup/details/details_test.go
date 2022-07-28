@@ -42,15 +42,15 @@ var (
 	}
 )
 
-type StoreDetailsUnitSuite struct {
+type DetailsUnitSuite struct {
 	suite.Suite
 }
 
-func TestStoreDetailsUnitSuite(t *testing.T) {
-	suite.Run(t, new(StoreDetailsUnitSuite))
+func TestDetailsUnitSuite(t *testing.T) {
+	suite.Run(t, new(DetailsUnitSuite))
 }
 
-func (suite *StoreDetailsUnitSuite) TestGetDetails() {
+func (suite *DetailsUnitSuite) TestGetDetails() {
 	ctx := context.Background()
 
 	table := []struct {
@@ -82,7 +82,7 @@ func (suite *StoreDetailsUnitSuite) TestGetDetails() {
 	}
 }
 
-func (suite *StoreDetailsUnitSuite) TestGetDetailsFromBackupID() {
+func (suite *DetailsUnitSuite) TestGetDetailsFromBackupID() {
 	ctx := context.Background()
 
 	table := []struct {
@@ -111,6 +111,101 @@ func (suite *StoreDetailsUnitSuite) TestGetDetailsFromBackupID() {
 			}
 			assert.Equal(t, deets.ID, dResult.ID)
 			assert.Equal(t, bu.ID, bResult.ID)
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
+	now := time.Now()
+	nowStr := now.Format(time.RFC3339Nano)
+
+	table := []struct {
+		name     string
+		entry    details.DetailsEntry
+		expectHs []string
+		expectVs []string
+	}{
+		{
+			name: "no info",
+			entry: details.DetailsEntry{
+				RepoRef: "reporef",
+			},
+			expectHs: []string{"Repo Ref"},
+			expectVs: []string{"reporef"},
+		},
+		{
+			name: "exhange info",
+			entry: details.DetailsEntry{
+				RepoRef: "reporef",
+				ItemInfo: details.ItemInfo{
+					Exchange: &details.ExchangeInfo{
+						Sender:   "sender",
+						Subject:  "subject",
+						Received: now,
+					},
+				},
+			},
+			expectHs: []string{"Repo Ref", "Sender", "Subject", "Received"},
+			expectVs: []string{"reporef", "sender", "subject", nowStr},
+		},
+		{
+			name: "sharepoint info",
+			entry: details.DetailsEntry{
+				RepoRef: "reporef",
+				ItemInfo: details.ItemInfo{
+					Sharepoint: &details.SharepointInfo{},
+				},
+			},
+			expectHs: []string{"Repo Ref"},
+			expectVs: []string{"reporef"},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			hs := test.entry.Headers()
+			assert.Equal(t, test.expectHs, hs)
+			vs := test.entry.Values()
+			assert.Equal(t, test.expectVs, vs)
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
+	table := []struct {
+		name   string
+		ents   []details.DetailsEntry
+		expect []string
+	}{
+		{
+			name:   "nil entries",
+			ents:   nil,
+			expect: []string{},
+		},
+		{
+			name: "single entry",
+			ents: []details.DetailsEntry{
+				{RepoRef: "abcde"},
+			},
+			expect: []string{"abcde"},
+		},
+		{
+			name: "multiple entries",
+			ents: []details.DetailsEntry{
+				{RepoRef: "abcde"},
+				{RepoRef: "12345"},
+			},
+			expect: []string{"abcde", "12345"},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			d := details.Details{
+				DetailsModel: details.DetailsModel{
+					Entries: test.ents,
+				},
+			}
+			assert.Equal(t, test.expect, d.Paths())
 		})
 	}
 }
