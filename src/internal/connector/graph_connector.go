@@ -5,7 +5,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -333,7 +332,6 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		if _, ok = collections[directory]; !ok {
 			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory})
 			collections[directory] = &edc
-			fmt.Printf("Did we create folder: %v\n", ok)
 		}
 		//tasklist.AddTask(*message.GetParentFolderId(), *message.GetId())
 		collections[directory].AddJob(*message.GetId())
