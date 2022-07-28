@@ -1,14 +1,13 @@
 package restore
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/options"
+	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -108,12 +107,12 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, a, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
-		return err
+		return Only(err)
 	}
 
 	m365, err := a.M365Config()
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse m365 account config")
+		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -125,7 +124,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
@@ -152,14 +151,14 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, options.Control())
 	if err != nil {
-		return errors.Wrap(err, "Failed to initialize Exchange restore")
+		return Only(errors.Wrap(err, "Failed to initialize Exchange restore"))
 	}
 
 	if err := ro.Run(ctx); err != nil {
-		return errors.Wrap(err, "Failed to run Exchange restore")
+		return Only(errors.Wrap(err, "Failed to run Exchange restore"))
 	}
 
-	fmt.Printf("Restored Exchange in %s for user %s.\n", s.Provider, user)
+	Infof("Restored Exchange in %s for user %s.\n", s.Provider, user)
 	return nil
 }
 
@@ -274,7 +273,7 @@ func validateExchangeRestoreFlags(
 		return nil
 	}
 	if lu == 0 {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if lc > 0 && lcf == 0 {
 		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")

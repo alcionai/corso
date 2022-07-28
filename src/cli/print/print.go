@@ -3,7 +3,7 @@ package print
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/backup/details"
@@ -17,6 +17,12 @@ var (
 	outputAsJSONDebug bool
 )
 
+var rootCmd = &cobra.Command{}
+
+func SetRootCommand(root *cobra.Command) {
+	rootCmd = root
+}
+
 // adds the --output flag to the provided command.
 func AddOutputFlag(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
@@ -24,6 +30,50 @@ func AddOutputFlag(parent *cobra.Command) {
 	fs.BoolVar(&outputAsJSONDebug, "json-debug", false, "output all internal and debugging data in JSON format")
 	cobra.CheckErr(fs.MarkHidden("json-debug"))
 }
+
+// ---------------------------------------------------------------------------------------------------------
+// Helper funcs
+// ---------------------------------------------------------------------------------------------------------
+
+// Only tells the CLI to only display this error, preventing the usage
+// (ie, help) menu from displaying as well.
+func Only(e error) error {
+	rootCmd.SilenceUsage = true
+	// rootCmd.SilenceErrors = true
+	return e
+}
+
+// Info prints the strings to cobra's error writer (stdErr by default)
+// if s is nil, prints nothing.
+func Info(s ...any) {
+	info(rootCmd.ErrOrStderr(), s...)
+}
+
+// info is the testable core of Info()
+func info(w io.Writer, s ...any) {
+	if len(s) == 0 {
+		return
+	}
+	fmt.Fprint(w, s...)
+}
+
+// Info prints the formatted strings to cobra's error writer (stdErr by default)
+// if t is empty, prints nothing.
+func Infof(t string, s ...any) {
+	infof(rootCmd.ErrOrStderr(), t, s...)
+}
+
+// infof is the testable core of Infof()
+func infof(w io.Writer, t string, s ...any) {
+	if len(t) == 0 {
+		return
+	}
+	fmt.Fprintf(w, t, s...)
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Output control for backup list/details
+// ---------------------------------------------------------------------------------------------------------
 
 type Printable interface {
 	// reduces the struct to a minimized format for easier human consumption
@@ -98,7 +148,7 @@ func outputTable(ps []Printable) {
 		t.Rows = append(t.Rows, p.Values())
 	}
 	_ = t.WriteTable(
-		os.Stdout,
+		rootCmd.OutOrStdout(),
 		&table.Config{
 			ShowIndex:       false,
 			Color:           false,
@@ -134,8 +184,10 @@ func outputJSONArr(ps []Printable, debug bool) {
 func printJSON(a any) {
 	bs, err := json.Marshal(a)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error formatting results to json: %v\n", err)
+		fmt.Fprintf(rootCmd.OutOrStderr(), "error formatting results to json: %v\n", err)
 		return
 	}
-	fmt.Println(string(pretty.Pretty(bs)))
+	fmt.Fprintln(
+		rootCmd.OutOrStdout(),
+		string(pretty.Pretty(bs)))
 }

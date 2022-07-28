@@ -1,13 +1,12 @@
 package repo
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli/config"
+	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
@@ -72,16 +71,16 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	s, a, err := config.GetStorageAndAccount(false, s3Overrides())
 	if err != nil {
-		return err
+		return Only(err)
 	}
 	s3Cfg, err := s.S3Config()
 	if err != nil {
-		return errors.Wrap(err, "Retrieving s3 configuration")
+		return Only(errors.Wrap(err, "Retrieving s3 configuration"))
 	}
 
 	m365, err := a.M365Config()
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse m365 account config")
+		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	log.Debugw(
@@ -97,14 +96,14 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		if succeedIfExists && kopia.IsRepoAlreadyExistsError(err) {
 			return nil
 		}
-		return errors.Wrap(err, "Failed to initialize a new S3 repository")
+		return Only(errors.Wrap(err, "Failed to initialize a new S3 repository"))
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	fmt.Printf("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
+	Infof("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(s3Cfg, m365); err != nil {
-		return errors.Wrap(err, "Failed to write repository configuration")
+		return Only(errors.Wrap(err, "Failed to write repository configuration"))
 	}
 	return nil
 }
@@ -129,15 +128,15 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	s, a, err := config.GetStorageAndAccount(true, s3Overrides())
 	if err != nil {
-		return err
+		return Only(err)
 	}
 	s3Cfg, err := s.S3Config()
 	if err != nil {
-		return errors.Wrap(err, "Retrieving s3 configuration")
+		return Only(errors.Wrap(err, "Retrieving s3 configuration"))
 	}
 	m365, err := a.M365Config()
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse m365 account config")
+		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	log.Debugw(
@@ -150,14 +149,14 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to the S3 repository")
+		return Only(errors.Wrap(err, "Failed to connect to the S3 repository"))
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	fmt.Printf("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
+	Infof("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(s3Cfg, m365); err != nil {
-		return errors.Wrap(err, "Failed to write repository configuration")
+		return Only(errors.Wrap(err, "Failed to write repository configuration"))
 	}
 	return nil
 }
