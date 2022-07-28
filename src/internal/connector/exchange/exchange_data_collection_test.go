@@ -57,7 +57,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchangeDataCollection() {
 	name := "User"
 	edc := NewCollection(name, []string{"Directory", "File", "task"})
-	suite.Equal(name, edc.User)
+	suite.Equal(name, edc.user)
 	suite.True(contains(edc.FullPath(), "Directory"))
 	suite.True(contains(edc.FullPath(), "File"))
 	suite.True(contains(edc.FullPath(), "task"))
@@ -71,7 +71,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_PopulateCol
 	for i := 0; i < expected; i++ {
 		edc.PopulateCollection(&Stream{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])})
 	}
-	suite.Equal(expected, len(edc.Data))
+	suite.Equal(expected, len(edc.data))
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Items() {
@@ -80,10 +80,10 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_Items() {
 	expected := len(inputStrings) / 2 // We are using pairs
 	edc := NewCollection("Fletcher", []string{"sugar", "horses", "painted red"})
 	for i := 0; i < expected; i++ {
-		edc.Data <- &Stream{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])}
+		edc.data <- &Stream{id: inputStrings[i*2], message: []byte(inputStrings[i*2+1])}
 	}
-	close(edc.Data)
-	suite.Equal(expected, len(edc.Data))
+	close(edc.data)
+	suite.Equal(expected, len(edc.data))
 	streams := edc.Items()
 	suite.Equal(expected, len(streams))
 	count := 0

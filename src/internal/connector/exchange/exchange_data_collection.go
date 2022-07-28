@@ -35,8 +35,8 @@ const (
 // It implements the DataCollection interface
 type Collection struct {
 	// M365 user
-	User string // M365 user
-	Data chan data.Stream
+	user string // M365 user
+	data chan data.Stream
 
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
@@ -46,22 +46,22 @@ type Collection struct {
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(aUser string, pathRepresentation []string) Collection {
 	collection := Collection{
-		User:     aUser,
-		Data:     make(chan data.Stream, collectionChannelBufferSize),
+		user:     aUser,
+		data:     make(chan data.Stream, collectionChannelBufferSize),
 		fullPath: pathRepresentation,
 	}
 	return collection
 }
 
 func (eoc *Collection) PopulateCollection(newData *Stream) {
-	eoc.Data <- newData
+	eoc.data <- newData
 }
 
 // FinishPopulation is used to indicate data population of the collection is complete
 // TODO: This should be an internal method once we move the message retrieval logic into `ExchangeDataCollection`
 func (eoc *Collection) FinishPopulation() {
-	if eoc.Data != nil {
-		close(eoc.Data)
+	if eoc.data != nil {
+		close(eoc.data)
 	}
 }
 
@@ -90,16 +90,16 @@ func PopulateFromTaskList(
 		}
 
 		for _, task := range tasks {
-			response, err := service.Client().UsersById(edc.User).MessagesById(task).Get()
+			response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
 			if err != nil {
 				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(edc.User, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
+				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
 				continue
 			}
-			err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.Data, response, edc.User)
+			err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
 			success++
 			if err != nil {
-				errs = support.WrapAndAppendf(edc.User, err, errs)
+				errs = support.WrapAndAppendf(edc.user, err, errs)
 				success--
 			}
 			if errs != nil && service.ErrPolicy() {
@@ -170,7 +170,7 @@ func messageToDataCollection(
 }
 
 func (eoc *Collection) Items() <-chan data.Stream {
-	return eoc.Data
+	return eoc.data
 }
 
 func (edc *Collection) FullPath() []string {
