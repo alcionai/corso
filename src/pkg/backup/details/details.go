@@ -41,6 +41,12 @@ func (dm DetailsModel) Paths() []string {
 	return r
 }
 
+// MinimumPrintable DetailsEntries is a passthrough func, because no
+// reduction is needed for the json output.
+func (de DetailsEntry) MinimumPrintable() any {
+	return de
+}
+
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
 func (de DetailsEntry) Headers() []string {

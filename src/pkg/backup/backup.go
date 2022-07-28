@@ -34,6 +34,12 @@ type Backup struct {
 	stats.StartAndEndTime
 }
 
+// MinimumPrintable reduces the Backup to its minimally printable details.
+func (b Backup) MinimumPrintable() any {
+	// todo: implement printable backup struct
+	return b
+}
+
 // Headers returns the human-readable names of properties in a Backup
 // for printing out to a terminal in a columnar display.
 func (b Backup) Headers() []string {
