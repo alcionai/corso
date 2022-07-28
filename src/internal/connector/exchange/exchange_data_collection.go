@@ -68,40 +68,36 @@ func (eoc *Collection) PopulateCollection(newData *Stream) {
 }
 
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func PopulateFromCollection(
+func (edc *Collection) PopulateFromCollection(
 	ctx context.Context,
 	service graph.Service,
-	collections map[string]*Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, edc := range collections {
-
-		for _, task := range edc.jobs {
-			response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
-			if err != nil {
-				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
-				continue
-			}
-			err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
-			success++
-			if err != nil {
-				errs = support.WrapAndAppendf(edc.user, err, errs)
-				success--
-			}
-			if errs != nil && service.ErrPolicy() {
-				break
-			}
+	for _, task := range edc.jobs {
+		response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
+		if err != nil {
+			details := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
+			continue
 		}
-		close(edc.data)
-		attemptedItems += len(edc.jobs)
+		err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		success++
+		if err != nil {
+			errs = support.WrapAndAppendf(edc.user, err, errs)
+			success--
+		}
+		if errs != nil && service.ErrPolicy() {
+			break
+		}
 	}
+	close(edc.data)
+	attemptedItems += len(edc.jobs)
 
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(collections), errs)
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
 }
