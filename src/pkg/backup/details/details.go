@@ -23,6 +23,12 @@ type Details struct {
 	mu sync.Mutex `json:"-"`
 }
 
+func (d *Details) Add(repoRef string, info ItemInfo) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.Entries = append(d.Entries, DetailsEntry{RepoRef: repoRef, ItemInfo: info})
+}
+
 // DetailsEntry describes a single item stored in a Backup
 type DetailsEntry struct {
 	// TODO: `RepoRef` is currently the full path to the item in Kopia
@@ -77,6 +83,7 @@ func (de DetailsEntry) Values() []string {
 type ItemInfo struct {
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
 	Sharepoint *SharepointInfo `json:"sharepoint,omitempty"`
+	Onedrive   *OnedriveInfo   `json:"onedrive,omitempty"`
 }
 
 // ExchangeInfo describes an exchange item
@@ -103,12 +110,6 @@ func (e ExchangeInfo) Values() []string {
 // just to illustrate usage
 type SharepointInfo struct{}
 
-func (d *Details) Add(repoRef string, info ItemInfo) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.Entries = append(d.Entries, DetailsEntry{RepoRef: repoRef, ItemInfo: info})
-}
-
 // Headers returns the human-readable names of properties in a SharepointInfo
 // for printing out to a terminal in a columnar display.
 func (s SharepointInfo) Headers() []string {
@@ -118,5 +119,21 @@ func (s SharepointInfo) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (s SharepointInfo) Values() []string {
+	return []string{}
+}
+
+// OnedriveInfo describes a onedrive item
+// TODO: Implement this
+type OnedriveInfo struct{}
+
+// Headers returns the human-readable names of properties in a OnedriveInfo
+// for printing out to a terminal in a columnar display.
+func (oi OnedriveInfo) Headers() []string {
+	return []string{}
+}
+
+// Values returns the values matching the Headers list for printing
+// out to a terminal in a columnar display.
+func (oi OnedriveInfo) Values() []string {
 	return []string{}
 }

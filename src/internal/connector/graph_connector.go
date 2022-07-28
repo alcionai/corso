@@ -17,6 +17,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/graph"
+	"github.com/alcionai/corso/internal/connector/onedrive"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
@@ -169,6 +170,12 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 		}
 	}
 	return returnString
+}
+
+// OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data for the specified user
+// TODO: Wire to selectors once Onedrive selectors are implemented
+func (gc *GraphConnector) OneDriveDataCollections(ctx context.Context, selector selectors.Selector, user string) ([]data.Collection, error) {
+	return onedrive.NewCollections(user, &gc.graphService).Get(ctx)
 }
 
 // ExchangeDataStream returns a DataCollection which the caller can
