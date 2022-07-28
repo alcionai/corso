@@ -8,8 +8,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	ka "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -17,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector/exchange"
+	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
@@ -83,23 +82,13 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	return &gc, nil
 }
 
-func createAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapter, error) {
-	// Client Provider: Uses Secret for access to tenant-level data
-	cred, err := az.NewClientSecretCredential(tenant, client, secret, nil)
-	if err != nil {
-		return nil, err
-	}
-	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(cred, []string{"https://graph.microsoft.com/.default"})
-	if err != nil {
-		return nil, err
-	}
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
-	return adapter, err
-}
-
-// createSubConnector private constructor method for subConnector
+// createService constructor for graphService component
 func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
-	adapter, err := createAdapter(gc.credentials.TenantID, gc.credentials.ClientID, gc.credentials.ClientSecret)
+	adapter, err := graph.CreateAdapter(
+		gc.credentials.TenantID,
+		gc.credentials.ClientID,
+		gc.credentials.ClientSecret,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +99,7 @@ func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, err
 	}
 	return &connector, err
 }
+
 func (gs *graphService) EnableFailFast() {
 	gs.failFast = true
 }
