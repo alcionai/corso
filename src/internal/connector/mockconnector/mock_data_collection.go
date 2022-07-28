@@ -27,24 +27,8 @@ var (
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
-// mock messages when iterated
-func NewMockExchangeDataCollection(pathRepresentation []string, numMessagesToReturn int) *MockExchangeDataCollection {
-	c := &MockExchangeDataCollection{
-		fullPath:     pathRepresentation,
-		messageCount: numMessagesToReturn,
-		Data:         [][]byte{},
-		Names:        []string{},
-	}
-
-	for i := 0; i < c.messageCount; i++ {
-		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
-		c.Data = append(c.Data, []byte("test message"))
-		c.Names = append(c.Names, uuid.NewString())
-	}
-	return c
-}
-
-func NewMockExchangeCollectionMail(pathRepresentation []string, numMessagesToReturn int) *MockExchangeDataCollection {
+// mock messages when iterated. Exchange type mail
+func NewMockExchangeCollection(pathRepresentation []string, numMessagesToReturn int) *MockExchangeDataCollection {
 	c := &MockExchangeDataCollection{
 		fullPath:     pathRepresentation,
 		messageCount: numMessagesToReturn,
