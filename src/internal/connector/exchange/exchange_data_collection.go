@@ -67,11 +67,9 @@ func (eoc *Collection) PopulateCollection(newData *Stream) {
 	eoc.data <- newData
 }
 
-// NOTE: Refactor has not happened moving into folders
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func PopulateFromTaskList(
+func PopulateFromCollection(
 	ctx context.Context,
-	tasklist support.TaskList,
 	service graph.Service,
 	collections map[string]*Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
@@ -80,18 +78,9 @@ func PopulateFromTaskList(
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	//Todo this has to return all the errors in the status
-	for aFolder, tasks := range tasklist {
-		// Get the same folder
-		edc := collections[aFolder]
-		if edc == nil {
-			for _, task := range tasks {
-				errs = support.WrapAndAppend(task, errors.New("unable to query: collection not found during populateFromTaskList"), errs)
-			}
-			continue
-		}
+	for _, edc := range collections {
 
-		for _, task := range tasks {
+		for _, task := range edc.jobs {
 			response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
 			if err != nil {
 				details := support.ConnectorStackErrorTrace(err)
@@ -109,10 +98,10 @@ func PopulateFromTaskList(
 			}
 		}
 		close(edc.data)
-		attemptedItems += len(tasks)
+		attemptedItems += len(edc.jobs)
 	}
 
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(tasklist), errs)
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(collections), errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
 }
