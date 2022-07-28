@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/exchange"
+	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -76,25 +76,16 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
-//TODO add mockdata for this test... Will not pass as is
+//TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
+// is able to restore a messageable item to a Mailbox.
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
 	user := "TEST_GRAPH_USER" // user.GetId()
-	file := "TEST_GRAPH_FILE" // Test file should be sent or received by the user
-	evs, err := ctesting.GetRequiredEnvVars(user, file)
+	evs, err := ctesting.GetRequiredEnvVars(user)
 	if err != nil {
 		suite.T().Skipf("Environment not configured: %v\n", err)
 	}
-	bytes, err := ctesting.LoadAFile(evs[file]) // TEST_GRAPH_FILE should have a single Message && not present in target inbox
-	if err != nil {
-		suite.T().Skipf("Support file not accessible: %v\n", err)
-	}
-
-	ds := exchange.NewStream("test", bytes, details.ExchangeInfo{})
-	edc := exchange.NewCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
-
-	edc.PopulateCollection(&ds)
-	//edc.FinishPopulation()
-	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{&edc})
+	mdc := mockconnector.NewMockLargeExchangeCollectionMail([]string{"tenant", evs[user], mailCategory, "Inbox"}, 1)
+	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
 	assert.NoError(suite.T(), err)
 }
 
