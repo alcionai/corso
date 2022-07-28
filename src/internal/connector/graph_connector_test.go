@@ -76,6 +76,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
+//TODO add mockdata for this test... Will not pass as is
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
 	user := "TEST_GRAPH_USER" // user.GetId()
 	file := "TEST_GRAPH_FILE" // Test file should be sent or received by the user
@@ -92,7 +93,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	edc := exchange.NewCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
 
 	edc.PopulateCollection(&ds)
-	edc.FinishPopulation()
+	//edc.FinishPopulation()
 	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{&edc})
 	assert.NoError(suite.T(), err)
 }

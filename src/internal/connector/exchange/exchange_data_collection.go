@@ -67,15 +67,6 @@ func (eoc *Collection) PopulateCollection(newData *Stream) {
 	eoc.data <- newData
 }
 
-// FinishPopulation is used to indicate data population of the collection is complete
-// TODO: This should be an internal method once we move the message retrieval logic into `ExchangeDataCollection`
-// TODO: This will be removed as the channel will be filled from calls from exchange.Collection
-func (eoc *Collection) FinishPopulation() {
-	if eoc.data != nil {
-		close(eoc.data)
-	}
-}
-
 // NOTE: Refactor has not happened moving into folders
 // populateFromTaskList async call to fill DataCollection via channel implementation
 func PopulateFromTaskList(
@@ -117,8 +108,7 @@ func PopulateFromTaskList(
 				break
 			}
 		}
-
-		edc.FinishPopulation()
+		close(edc.data)
 		attemptedItems += len(tasks)
 	}
 
