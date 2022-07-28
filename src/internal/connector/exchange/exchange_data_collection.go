@@ -37,8 +37,8 @@ type Collection struct {
 	// M365 user
 	user string // M365 user
 	data chan data.Stream
-	// jobs represents an inventory of M365 objectIds whose information
-	// is desired to be sent through the data channel
+	// jobs represents items from the inventory of M365 objectIds whose information
+	// is desired to be sent through the data channel for eventual storage
 	jobs []string
 
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
