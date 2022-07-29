@@ -14,7 +14,7 @@ func FormatTime(t time.Time) string {
 // FormatTimeForExchangeFolder produces standard format for
 // GraphConnector. Format used on CI testing and default folder
 // creation during the restore process
-func FormatTimeForExchangeFolder(t time.Time) string {
+func FormatSimpleDateTime(t time.Time) string {
 	timeFolderFormat := "02-Jan-2006_15:04:05"
 	return t.UTC().Format(timeFolderFormat)
 }
