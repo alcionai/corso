@@ -319,7 +319,8 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	if err != nil {
 		return nil, err
 	}
-	tasklist := support.NewTaskList() // map[folder][] messageIds
+	// Create collection of ExchangeDataCollection and create  data Holder
+	collections := make(map[string]*exchange.Collection)
 	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
@@ -327,7 +328,12 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
-		tasklist.AddTask(*message.GetParentFolderId(), *message.GetId())
+		directory := *message.GetParentFolderId()
+		if _, ok = collections[directory]; !ok {
+			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory})
+			collections[directory] = &edc
+		}
+		collections[directory].AddJob(*message.GetId())
 		return true
 	}
 	iterateError := pageIterator.Iterate(callbackFunc)
@@ -337,31 +343,13 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	if err != nil {
 		return nil, err // return error if snapshot is incomplete
 	}
-	// Create collection of ExchangeDataCollection and create  data Holder
-	collections := make(map[string]*exchange.Collection)
 
-	for aFolder := range tasklist {
-		// prep the items for handoff to the backup consumer
-		edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, aFolder})
-		collections[aFolder] = &edc
-	}
-
-	if len(collections) == 0 {
-		if len(tasklist) != 0 {
-			// Below error message needs revising. Assumption is that it should always
-			// find both items to fetch and a DataCollection to put them in
-			return nil, support.WrapAndAppend(
-				user, errors.New("found items but no directories"), err)
-		}
-		// return empty collection when no items found
-		return nil, err
-	}
 	service, err := gc.createService(gc.failFast)
 	if err != nil {
 		return nil, support.WrapAndAppend(user, err, err)
 	}
 	// async call to populate
-	go exchange.PopulateFromTaskList(ctx, tasklist, service, collections, gc.statusCh)
+	go exchange.PopulateFromCollection(ctx, service, collections, gc.statusCh)
 	gc.incrementAwaitingMessages()
 
 	return collections, err

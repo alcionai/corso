@@ -156,6 +156,12 @@ func (r Repository) NewRestore(
 		sel)
 }
 
+// backups lists a backup by id
+func (r Repository) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
+	sw := store.NewKopiaStore(r.modelStore)
+	return sw.GetBackup(ctx, id)
+}
+
 // backups lists backups in a repository
 func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)

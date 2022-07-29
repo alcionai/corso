@@ -6,25 +6,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-// TaskList is a a generic map of a list of items with a string index
-type TaskList map[string][]string
-
-// NewTaskList constructor for TaskList
-func NewTaskList() TaskList {
-	return make(map[string][]string, 0)
-}
-
-// AddTask helper method to ensure that keys and items are created properly
-func (tl *TaskList) AddTask(key, value string) {
-	aMap := *tl
-	_, isCreated := aMap[key]
-	if isCreated {
-		aMap[key] = append(aMap[key], value)
-	} else {
-		aMap[key] = []string{value}
-	}
-}
-
 // CreateFromBytes helper function to initialize m365 object form bytes.
 // @param bytes -> source, createFunc -> abstract function for initialization
 func CreateFromBytes(bytes []byte, createFunc absser.ParsableFactory) (absser.Parsable, error) {
