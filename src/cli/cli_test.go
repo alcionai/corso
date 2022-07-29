@@ -4,12 +4,10 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/alcionai/corso/cli/backup"
-	"github.com/alcionai/corso/cli/repo"
-	"github.com/alcionai/corso/cli/restore"
 )
 
 type CliSuite struct {
@@ -34,7 +32,5 @@ func (suite *CLISuite) TestAddCommands_noPanics() {
 		RunE:  func(c *cobra.Command, args []string) error { return nil },
 	}
 
-	assert.NotPanics(t, func() { repo.AddCommands(test) })
-	assert.NotPanics(t, func() { backup.AddCommands(test) })
-	assert.NotPanics(t, func() { restore.AddCommands(test) })
+	assert.NotPanics(t, func() { cli.BuildCommandTree(test) })
 }
