@@ -19,8 +19,28 @@ const (
 	users
 )
 
+// GraphQuery represents functions which perform exchange-specific queries
+// into M365 backstore.
+//TODO: use selector or path for granularity into specific folders or specific date ranges
 type GraphQuery func(graph.Service, []string) (absser.Parsable, error)
 
+// GetAllMessagesForUser is a GraphQuery function for receiving all messages for a single user
+func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+	selecting := []string{"id", "parentFolderId"}
+	options, err := optionsForMessages(selecting)
+	if err != nil {
+		return nil, err
+	}
+	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+//---------------------------------------------------
+// exchange.Query Option Section
+//------------------------------------------------
+
+// optionsForMessages used to select allowable options for exchange.Mail types
+// @param moreOps is []string of options(e.g. "parentFolderId, subject")
+// @return is first call in Messages().GetWithRequestConfigurationAndResponseHandler
 func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
@@ -36,8 +56,8 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 }
 
 // optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
-// var moreOps is a []string of options(e.g. "displayName", "isHidden")
-// return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
+// @param moreOps is a []string of options(e.g. "displayName", "isHidden")
+// @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, folders)
 	if err != nil {
@@ -54,7 +74,8 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 }
 
 // CheckOptions Utility Method for verifying if select options are valid the m365 object type
-// returns a list of valid options
+// @return is a pair. The first is a string literal of allowable options based on the object type,
+// the second is an error. An error is returned if an unsupported option or optionIdentifier where used
 func buildOptions(options []string, selection optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
 
@@ -103,13 +124,4 @@ func buildOptions(options []string, selection optionIdentifier) ([]string, error
 		}
 	}
 	return returnedOptions, nil
-}
-
-func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
-	selecting := []string{"id", "parentFolderId"}
-	options, err := optionsForMessages(selecting)
-	if err != nil {
-		return nil, err
-	}
-	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
