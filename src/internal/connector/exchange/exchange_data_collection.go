@@ -81,7 +81,7 @@ func (edc *Collection) PopulateFromCollection(
 		response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
 		if err != nil {
 			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
+			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
 			continue
 		}
 		err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
