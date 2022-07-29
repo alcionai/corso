@@ -160,8 +160,12 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to run Exchange backup")
 	}
 
-	// todo: revive when backups are hooked up to backupOperation results
-	// fmt.Printf("Created backup %s in %s for Exchange user %s.\n", result.SnapshotID, s.Provider, user)
+	bu, err := r.Backup(ctx, bo.Results.BackupID)
+	if err != nil {
+		return errors.Wrap(err, "Unable to retrieve backup results from storage")
+	}
+	print.Backup(*bu)
+
 	return nil
 }
 

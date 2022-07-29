@@ -333,7 +333,6 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory})
 			collections[directory] = &edc
 		}
-		//tasklist.AddTask(*message.GetParentFolderId(), *message.GetId())
 		collections[directory].AddJob(*message.GetId())
 		return true
 	}
@@ -350,10 +349,8 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		return nil, support.WrapAndAppend(user, err, err)
 	}
 	// async call to populate
-	for _, edc := range collections {
-		go edc.PopulateFromCollection(ctx, service, gc.statusCh)
-		gc.incrementAwaitingMessages()
-	}
+	go exchange.PopulateFromCollection(ctx, service, collections, gc.statusCh)
+	gc.incrementAwaitingMessages()
 
 	return collections, err
 }
