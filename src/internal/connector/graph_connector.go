@@ -321,6 +321,8 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	}
 	// Create collection of ExchangeDataCollection and create  data Holder
 	collections := make(map[string]*exchange.Collection)
+	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
+	// with corresponding messageIDs. New collections are created for each directory
 	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
@@ -330,7 +332,12 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		// Saving to messages to list. Indexed by folder
 		directory := *message.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
-			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory})
+			service, err := gc.createService(gc.failFast)
+			if err != nil {
+				err = support.WrapAndAppend(user, err, err)
+				return true
+			}
+			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory}, service, gc.statusCh)
 			collections[directory] = &edc
 		}
 		collections[directory].AddJob(*message.GetId())
@@ -344,12 +351,8 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 		return nil, err // return error if snapshot is incomplete
 	}
 
-	service, err := gc.createService(gc.failFast)
-	if err != nil {
-		return nil, support.WrapAndAppend(user, err, err)
-	}
 	// async call to populate
-	go exchange.PopulateFromCollection(ctx, service, collections, gc.statusCh)
+	//go exchange.PopulateFromCollection(ctx, service, collections, gc.statusCh)
 	gc.incrementAwaitingMessages()
 
 	return collections, err

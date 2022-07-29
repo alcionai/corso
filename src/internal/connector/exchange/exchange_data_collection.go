@@ -41,19 +41,21 @@ type Collection struct {
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
 
-	service graph.Service
-	status  chan<- *support.ConnectorOperationStatus
+	service  graph.Service
+	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
-func NewCollection(aUser string, pathRepresentation []string) Collection {
+func NewCollection(aUser string, pathRepresentation []string, aService graph.Service, statusCh chan<- *support.ConnectorOperationStatus) Collection {
 	collection := Collection{
 		user:     aUser,
 		data:     make(chan data.Stream, collectionChannelBufferSize),
 		jobs:     make([]string, 0),
+		service:  aService,
+		statusCh: statusCh,
 		fullPath: pathRepresentation,
 	}
 	return collection
@@ -64,16 +66,11 @@ func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, objID)
 }
 
-// PopulateCollection TODO: remove after async functionilty completed
-func (eoc *Collection) PopulateCollection(newData *Stream) {
-	eoc.data <- newData
-}
-
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
 
-	go PopulateFromCollection(context.TODO(), eoc.service, make(map[string]*Collection, 0), eoc.status) // PlaceHolder until PR #441 approved
+	go PopulateFromCollection(context.TODO(), eoc.service, make(map[string]*Collection, 0), eoc.statusCh) // PlaceHolder until PR #441 approved
 	return eoc.data
 }
 
