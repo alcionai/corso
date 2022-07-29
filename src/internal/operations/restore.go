@@ -127,7 +127,8 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		stats.writeErr = errors.Wrap(err, "restoring service data")
 		return stats.writeErr
 	}
-	stats.gc = gc.Status()
+	// TODO: not currently functional.  Returning nil.
+	stats.gc = gc.AwaitStatus()
 
 	op.Status = Successful
 	return nil
@@ -139,7 +140,8 @@ func (op *RestoreOperation) persistResults(
 	stats *restoreStats,
 ) {
 	op.Status = Successful
-	if stats.readErr != nil || stats.writeErr != nil {
+	if (stats.readErr != nil || stats.writeErr != nil) &&
+		(stats.gc == nil || stats.gc.Successful == 0) {
 		op.Status = Failed
 	}
 	op.Results.ReadErrors = stats.readErr
@@ -148,7 +150,7 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsRead = len(stats.cs) // TODO: file count, not collection count
 
 	if stats.gc != nil {
-		op.Results.ItemsWritten = stats.gc.ObjectCount
+		op.Results.ItemsWritten = stats.gc.Successful
 	}
 
 	op.Results.StartedAt = started

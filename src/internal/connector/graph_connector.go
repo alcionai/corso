@@ -5,6 +5,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -240,6 +241,9 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		attempts, successes int
 		errs                error
 	)
+	fmt.Printf("\n-----\nStarting restore %d\n-----\n", gc.awaitingMessages)
+	gc.incrementAwaitingMessages()
+	fmt.Printf("\n-----\ninc %d\n-----\n", gc.awaitingMessages)
 
 	for _, dc := range dcs {
 		// must be user.GetId(), PrimaryName no longer works 6-15-2022
@@ -301,8 +305,14 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		}
 	}
 
+	fmt.Printf("\n-----\ncreating status %d\n-----\n", gc.awaitingMessages)
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
-	gc.SetStatus(*status)
+	// set the channel asynchronously so that this func doesn't block.
+	go func(cos *support.ConnectorOperationStatus) {
+		fmt.Printf("\n-----\nchan status %d\n-----\n", gc.awaitingMessages)
+		gc.statusCh <- cos
+		fmt.Printf("\n-----\nend channel %d\n-----\n", gc.awaitingMessages)
+	}(status)
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
 }
@@ -356,19 +366,16 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	return collections, err
 }
 
-// SetStatus helper function
-func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
-	gc.status = &cos
-}
-
 // AwaitStatus updates status field based on item within statusChannel.
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
+	fmt.Printf("\n-----\nawaiting %d\n-----\n", gc.awaitingMessages)
 	if gc.awaitingMessages > 0 {
+		fmt.Printf("\n-----\nmore than 0 %d\n-----\n", gc.awaitingMessages)
 		gc.status = <-gc.statusCh
 		atomic.AddInt32(&gc.awaitingMessages, -1)
-		return gc.status
 	}
-	return nil
+	fmt.Printf("\n-----\nwaited %d\n-----\n", gc.awaitingMessages)
+	return gc.status
 }
 
 // Status returns the current status of the graphConnector operaion.
