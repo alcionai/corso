@@ -39,7 +39,6 @@ func AddOutputFlag(parent *cobra.Command) {
 // (ie, help) menu from displaying as well.
 func Only(e error) error {
 	rootCmd.SilenceUsage = true
-	// rootCmd.SilenceErrors = true
 	return e
 }
 
