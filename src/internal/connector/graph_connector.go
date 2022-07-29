@@ -333,7 +333,6 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory})
 			collections[directory] = &edc
 		}
-		//tasklist.AddTask(*message.GetParentFolderId(), *message.GetId())
 		collections[directory].AddJob(*message.GetId())
 		return true
 	}
