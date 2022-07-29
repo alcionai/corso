@@ -2,6 +2,7 @@ package operations
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -21,7 +22,7 @@ func TestOperationSuite(t *testing.T) {
 func (suite *OperationSuite) TestNewOperation() {
 	t := suite.T()
 	op := newOperation(Options{}, nil, nil)
-	assert.NotNil(t, op.ID)
+	assert.Greater(t, op.CreatedAt, time.Time{})
 }
 
 func (suite *OperationSuite) TestOperation_Validate() {

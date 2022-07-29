@@ -36,6 +36,36 @@ type Printable interface {
 	Values() []string
 }
 
+func print(p Printable) {
+	if outputAsJSON || outputAsJSONDebug {
+		outputJSON(p, outputAsJSONDebug)
+		return
+	}
+	outputTable([]Printable{p})
+}
+
+// printAll prints the slice of printable items,
+// according to the caller's requested format.
+func printAll(ps []Printable) {
+	if len(ps) == 0 {
+		return
+	}
+	if outputAsJSON || outputAsJSONDebug {
+		outputJSONArr(ps, outputAsJSONDebug)
+		return
+	}
+	outputTable(ps)
+}
+
+// ------------------------------------------------------------------------------------------
+// Type Formatters (TODO: migrate to owning packages)
+// ------------------------------------------------------------------------------------------
+
+// Prints the backup to the terminal with stdout.
+func Backup(b backup.Backup) {
+	print(b)
+}
+
 // Prints the backups to the terminal with stdout.
 func Backups(bs []backup.Backup) {
 	ps := []Printable{}
@@ -54,37 +84,9 @@ func Entries(des []details.DetailsEntry) {
 	printAll(ps)
 }
 
-// printAll prints the slice of printable items,
-// according to the caller's requested format.
-func printAll(ps []Printable) {
-	if len(ps) == 0 {
-		return
-	}
-	if outputAsJSON || outputAsJSONDebug {
-		outputJSON(ps, outputAsJSONDebug)
-		return
-	}
-	outputTable(ps)
-}
-
-// output to stdout the list of printable structs as json.
-// if debug is false, calls ps.Printable() first
-func outputJSON(ps []Printable, debug bool) {
-	sl := make([]any, 0, len(ps))
-	for _, p := range ps {
-		if debug {
-			sl = append(sl, p)
-		} else {
-			sl = append(sl, p.MinimumPrintable())
-		}
-	}
-	bs, err := json.Marshal(sl)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error formatting results to json: %v\n", err)
-		return
-	}
-	fmt.Println(string(pretty.Pretty(bs)))
-}
+// ------------------------------------------------------------------------------------------
+// Tabular
+// ------------------------------------------------------------------------------------------
 
 // output to stdout the list of printable structs in a table
 func outputTable(ps []Printable) {
@@ -102,4 +104,38 @@ func outputTable(ps []Printable) {
 			Color:           false,
 			AlternateColors: false,
 		})
+}
+
+// ------------------------------------------------------------------------------------------
+// JSON
+// ------------------------------------------------------------------------------------------
+
+func outputJSON(p Printable, debug bool) {
+	if debug {
+		printJSON(p)
+		return
+	}
+	printJSON(p.MinimumPrintable())
+}
+
+func outputJSONArr(ps []Printable, debug bool) {
+	sl := make([]any, 0, len(ps))
+	for _, p := range ps {
+		if debug {
+			sl = append(sl, p)
+		} else {
+			sl = append(sl, p.MinimumPrintable())
+		}
+	}
+	printJSON(sl)
+}
+
+// output to stdout the list of printable structs as json.
+func printJSON(a any) {
+	bs, err := json.Marshal(a)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error formatting results to json: %v\n", err)
+		return
+	}
+	fmt.Println(string(pretty.Pretty(bs)))
 }

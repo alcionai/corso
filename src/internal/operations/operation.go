@@ -3,7 +3,6 @@ package operations
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
@@ -28,7 +27,6 @@ const (
 // Specific processes (eg: backups, restores, etc) are expected to wrap operation
 // with process specific details.
 type operation struct {
-	ID        uuid.UUID `json:"id"`        // system generated identifier
 	CreatedAt time.Time `json:"createdAt"` // datetime of the operation's creation
 	Options   Options   `json:"options"`
 	Status    opStatus  `json:"status"`
@@ -55,7 +53,6 @@ func newOperation(
 	sw *store.Wrapper,
 ) operation {
 	return operation{
-		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		Options:   opts,
 		kopia:     kw,
