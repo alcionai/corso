@@ -150,7 +150,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
 
-	bo, err := r.NewBackup(ctx, sel, options.OperationOptions())
+	bo, err := r.NewBackup(ctx, sel, options.Control())
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange backup")
 	}

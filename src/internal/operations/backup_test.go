@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -53,7 +54,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewBackupOperation(ctx, Options{}, kw, sw, acct, selectors.Selector{})
+	op, err := NewBackupOperation(ctx, control.Options{}, kw, sw, acct, selectors.Selector{})
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
@@ -103,22 +104,22 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 
 	table := []struct {
 		name     string
-		opts     Options
+		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
+		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
+		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := NewBackupOperation(
 				context.Background(),
-				Options{},
+				test.opts,
 				test.kw,
 				test.sw,
 				test.acct,
@@ -162,7 +163,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	bo, err := NewBackupOperation(
 		ctx,
-		Options{},
+		control.Options{},
 		kw,
 		sw,
 		acct,
