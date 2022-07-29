@@ -137,7 +137,7 @@ func (op *RestoreOperation) persistResults(
 	started time.Time,
 	stats *restoreStats,
 ) {
-	op.Status = Successful
+	op.Status = Completed
 	if (stats.readErr != nil || stats.writeErr != nil) &&
 		(stats.gc == nil || stats.gc.Successful == 0) {
 		op.Status = Failed
