@@ -10,13 +10,13 @@ func _() {
 	var x [1]struct{}
 	_ = x[Unknown-0]
 	_ = x[InProgress-1]
-	_ = x[Successful-2]
+	_ = x[Completed-2]
 	_ = x[Failed-3]
 }
 
-const _opStatus_name = "Status UnknownIn ProgressSuccessfulFailed"
+const _opStatus_name = "Status UnknownIn ProgressCompletedFailed"
 
-var _opStatus_index = [...]uint8{0, 14, 25, 35, 41}
+var _opStatus_index = [...]uint8{0, 14, 25, 34, 40}
 
 func (i opStatus) String() string {
 	if i < 0 || i >= opStatus(len(_opStatus_index)-1) {
