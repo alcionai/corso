@@ -1,7 +1,7 @@
 package options
 
 import (
-	"github.com/alcionai/corso/internal/operations"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,7 @@ func AddOperationFlags(parent *cobra.Command) {
 	cobra.CheckErr(fs.MarkHidden("fast-fail"))
 }
 
-// OperationOptions produces the operation options based on the user's flags.
-func OperationOptions() operations.Options {
-	return operations.NewOptions(fastFail)
+// Control produces the control options based on the user's flags.
+func Control() control.Options {
+	return control.NewOptions(fastFail)
 }
