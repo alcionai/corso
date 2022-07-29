@@ -10,6 +10,15 @@ import (
 	"github.com/alcionai/corso/pkg/store"
 )
 
+// opStatus describes the current status of an operation.
+// InProgress - the standard value for any process that has not
+//   arrived at an end state.  The two end states are Failed and
+//   Completed.
+// Failed - the operation was unable to begin processing data at all.
+//   No items have been written by the consumer.
+// Completed - the operation was able to process one or more of the
+//   items in the request. Both partial success (0 < N < len(items)
+//   errored) and total success (0 errors) are set as Completed.
 type opStatus int
 
 //go:generate stringer -type=opStatus -linecomment
