@@ -348,9 +348,10 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	if err != nil {
 		return nil, support.WrapAndAppend(user, err, err)
 	}
-	// async call to populate
-	go exchange.PopulateFromCollection(ctx, service, collections, gc.statusCh)
-	gc.incrementAwaitingMessages()
+	for _, edc := range collections {
+		go edc.PopulateFromCollection(ctx, service, gc.statusCh)
+		gc.incrementAwaitingMessages()
+	}
 
 	return collections, err
 }
