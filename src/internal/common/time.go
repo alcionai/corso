@@ -11,7 +11,7 @@ func FormatTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
 }
 
-// FormatTimeForExchangeFolder produces standard format for
+// FormatSimpleDateTime produces standard format for
 // GraphConnector. Format used on CI testing and default folder
 // creation during the restore process
 func FormatSimpleDateTime(t time.Time) string {
