@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -53,7 +54,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewRestoreOperation(ctx, Options{}, kw, sw, acct, "foo", selectors.Selector{})
+	op, err := NewRestoreOperation(ctx, control.Options{}, kw, sw, acct, "foo", selectors.Selector{})
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
@@ -98,22 +99,22 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 
 	table := []struct {
 		name     string
-		opts     Options
+		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
+		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
+		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := NewRestoreOperation(
 				context.Background(),
-				Options{},
+				test.opts,
 				test.kw,
 				test.sw,
 				test.acct,
@@ -155,7 +156,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 	bo, err := NewBackupOperation(
 		ctx,
-		Options{},
+		control.Options{},
 		w,
 		sw,
 		acct,
@@ -169,7 +170,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 	ro, err := NewRestoreOperation(
 		ctx,
-		Options{},
+		control.Options{},
 		w,
 		sw,
 		acct,
@@ -218,7 +219,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 
 	bo, err := NewBackupOperation(
 		ctx,
-		Options{},
+		control.Options{},
 		w,
 		sw,
 		acct,
@@ -232,7 +233,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 
 	ro, err := NewRestoreOperation(
 		ctx,
-		Options{},
+		control.Options{},
 		w,
 		sw,
 		acct,

@@ -150,7 +150,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector, options.OperationOptions())
+	ro, err := r.NewRestore(ctx, backupID, sel.Selector, options.Control())
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize Exchange restore")
 	}
