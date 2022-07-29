@@ -111,6 +111,8 @@ func buildOptions(options []string, selection optionIdentifier) ([]string, error
 		allowedOptions = fieldsForUsers
 	case messages:
 		allowedOptions = fieldsForMessages
+	case unknown:
+		fallthrough
 	default:
 		return nil, errors.New("unsupported option")
 	}
