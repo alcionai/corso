@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/options"
 	"github.com/alcionai/corso/cli/print"
+	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -128,12 +129,12 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
-		return err
+		return Only(err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse m365 account config")
+		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -150,14 +151,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
 
-	bo, err := r.NewBackup(ctx, sel, options.OperationOptions())
+	bo, err := r.NewBackup(ctx, sel, options.Control())
 	if err != nil {
-		return errors.Wrap(err, "Failed to initialize Exchange backup")
+		return Only(errors.Wrap(err, "Failed to initialize Exchange backup"))
 	}
 
 	err = bo.Run(ctx)
 	if err != nil {
-		return errors.Wrap(err, "Failed to run Exchange backup")
+		return Only(errors.Wrap(err, "Failed to run Exchange backup"))
 	}
 
 	bu, err := r.Backup(ctx, bo.Results.BackupID)
@@ -226,12 +227,12 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
-		return err
+		return Only(err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse m365 account config")
+		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -240,13 +241,13 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
 	rps, err := r.Backups(ctx)
 	if err != nil {
-		return errors.Wrap(err, "Failed to list backups in the repository")
+		return Only(errors.Wrap(err, "Failed to list backups in the repository"))
 	}
 
 	print.Backups(rps)
@@ -288,12 +289,12 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(true, nil)
 	if err != nil {
-		return err
+		return Only(err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse m365 account config")
+		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -302,13 +303,13 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get backup details in the repository")
+		return Only(errors.Wrap(err, "Failed to get backup details in the repository"))
 	}
 
 	sel := selectors.NewExchangeRestore()
@@ -334,7 +335,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ds := sel.Reduce(d)
 	if len(ds.Entries) == 0 {
-		return errors.New("nothing to display: no items in the backup match the provided selectors")
+		return Only(errors.New("nothing to display: no items in the backup match the provided selectors"))
 	}
 
 	print.Entries(ds.Entries)

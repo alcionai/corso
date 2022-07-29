@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -40,7 +39,7 @@ func initConfig() {
 	cobra.CheckErr(err)
 
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		print.Info("Using config file:", viper.ConfigFileUsed())
 	}
 }
 
@@ -48,7 +47,7 @@ func initConfig() {
 // Produces the same output as `corso --help`.
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	if version {
-		fmt.Printf("Corso\nversion:\tpre-alpha\n")
+		print.Infof("Corso\nversion:\tpre-alpha\n")
 		return nil
 	}
 	return cmd.Help()
@@ -58,6 +57,7 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 func Handle() {
 	corsoCmd.Flags().BoolP("version", "v", version, "current version info")
 	corsoCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "config file (default is $HOME/.corso)")
+	print.SetRootCommand(corsoCmd)
 	print.AddOutputFlag(corsoCmd)
 
 	corsoCmd.CompletionOptions.DisableDefaultCmd = true
@@ -72,7 +72,6 @@ func Handle() {
 	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }

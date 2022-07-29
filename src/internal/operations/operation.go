@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/store"
 )
 
@@ -27,28 +28,16 @@ const (
 // Specific processes (eg: backups, restores, etc) are expected to wrap operation
 // with process specific details.
 type operation struct {
-	CreatedAt time.Time `json:"createdAt"` // datetime of the operation's creation
-	Options   Options   `json:"options"`
-	Status    opStatus  `json:"status"`
+	CreatedAt time.Time       `json:"createdAt"` // datetime of the operation's creation
+	Options   control.Options `json:"options"`
+	Status    opStatus        `json:"status"`
 
 	kopia *kopia.Wrapper
 	store *store.Wrapper
 }
 
-// Options configure some parameters of the operation
-type Options struct {
-	FailFast bool `json:"failFast"`
-	// todo: collision handling
-}
-
-func NewOptions(failFast bool) Options {
-	return Options{
-		FailFast: failFast,
-	}
-}
-
 func newOperation(
-	opts Options,
+	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 ) operation {

@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 	"github.com/alcionai/corso/pkg/store"
@@ -129,7 +130,7 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector, opts operations.Options) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector, opts control.Options) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
 		opts,
@@ -144,7 +145,7 @@ func (r Repository) NewRestore(
 	ctx context.Context,
 	backupID string,
 	sel selectors.Selector,
-	opts operations.Options,
+	opts control.Options,
 ) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
