@@ -127,7 +127,6 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		stats.writeErr = errors.Wrap(err, "restoring service data")
 		return stats.writeErr
 	}
-	// TODO: not currently functional.  Returning nil.
 	stats.gc = gc.AwaitStatus()
 
 	op.Status = Successful
