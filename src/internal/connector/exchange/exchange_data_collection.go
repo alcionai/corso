@@ -70,7 +70,7 @@ func (eoc *Collection) AddJob(objID string) {
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
 
-	go PopulateFromCollection(context.TODO(), eoc.service, make(map[string]*Collection, 0), eoc.statusCh) // PlaceHolder until PR #441 approved
+	go eoc.PopulateFromCollection(context.TODO(), eoc.service, eoc.statusCh)
 	return eoc.data
 }
 
