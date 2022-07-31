@@ -60,7 +60,7 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 // optionsForSingleMessage to select allowable option for a singular exchange.Mail object
 // @params moreOps is []string of options (e.g. subject, content.Type)
 // @return is first call in MessageById().GetWithRequestConfigurationAndResponseHandler
-func optionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilderGetRequestConfiguration, error) {
+func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
 		return nil, err
