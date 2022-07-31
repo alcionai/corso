@@ -325,16 +325,24 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	}
 	// Create collection of ExchangeDataCollection and create  data Holder
 	collections := make(map[string]*exchange.Collection)
+	var errs error
+	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
+	// with corresponding messageIDs. New collections are created for each directory
 	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
-			err = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
+			errs = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
 		directory := *message.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
-			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory})
+			service, err := gc.createService(gc.failFast)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return true
+			}
+			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory}, service, gc.statusCh)
 			collections[directory] = &edc
 		}
 		collections[directory].AddJob(*message.GetId())
@@ -342,22 +350,17 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	}
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
+		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
 	}
-	if err != nil {
-		return nil, err // return error if snapshot is incomplete
+	if errs != nil {
+		return nil, errs // return error if snapshot is incomplete
 	}
 
-	service, err := gc.createService(gc.failFast)
-	if err != nil {
-		return nil, support.WrapAndAppend(user, err, err)
-	}
-	for _, edc := range collections {
-		go edc.PopulateFromCollection(ctx, service, gc.statusCh)
+	for range collections {
 		gc.incrementAwaitingMessages()
 	}
 
-	return collections, err
+	return collections, errs
 }
 
 // AwaitStatus updates status field based on item within statusChannel.

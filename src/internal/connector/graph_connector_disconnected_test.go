@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/exchange"
+	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
@@ -86,8 +86,8 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 
 func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	var dc data.Collection
-	concrete := exchange.NewCollection("Check", []string{"interface", "works"})
-	dc = &concrete
+	concrete := mockconnector.NewMockExchangeCollection([]string{"a", "path"}, 1)
+	dc = concrete
 	assert.NotNil(suite.T(), dc)
 
 }
