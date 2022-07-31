@@ -240,6 +240,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		attempts, successes int
 		errs                error
 	)
+	gc.incrementAwaitingMessages()
 
 	for _, dc := range dcs {
 		// must be user.GetId(), PrimaryName no longer works 6-15-2022
@@ -302,7 +303,10 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	}
 
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
-	gc.SetStatus(*status)
+	// set the channel asynchronously so that this func doesn't block.
+	go func(cos *support.ConnectorOperationStatus) {
+		gc.statusCh <- cos
+	}(status)
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
 }
@@ -321,16 +325,24 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	}
 	// Create collection of ExchangeDataCollection and create  data Holder
 	collections := make(map[string]*exchange.Collection)
+	var errs error
+	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
+	// with corresponding messageIDs. New collections are created for each directory
 	callbackFunc := func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
-			err = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
+			errs = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
 		directory := *message.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
-			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory})
+			service, err := gc.createService(gc.failFast)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return true
+			}
+			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory}, service, gc.statusCh)
 			collections[directory] = &edc
 		}
 		collections[directory].AddJob(*message.GetId())
@@ -338,26 +350,17 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	}
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
+		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
 	}
-	if err != nil {
-		return nil, err // return error if snapshot is incomplete
+	if errs != nil {
+		return nil, errs // return error if snapshot is incomplete
 	}
 
-	service, err := gc.createService(gc.failFast)
-	if err != nil {
-		return nil, support.WrapAndAppend(user, err, err)
+	for range collections {
+		gc.incrementAwaitingMessages()
 	}
-	// async call to populate
-	go exchange.PopulateFromCollection(ctx, service, collections, gc.statusCh)
-	gc.incrementAwaitingMessages()
 
-	return collections, err
-}
-
-// SetStatus helper function
-func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
-	gc.status = &cos
+	return collections, errs
 }
 
 // AwaitStatus updates status field based on item within statusChannel.
@@ -365,9 +368,8 @@ func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	if gc.awaitingMessages > 0 {
 		gc.status = <-gc.statusCh
 		atomic.AddInt32(&gc.awaitingMessages, -1)
-		return gc.status
 	}
-	return nil
+	return gc.status
 }
 
 // Status returns the current status of the graphConnector operaion.

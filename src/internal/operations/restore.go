@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -39,7 +40,7 @@ type RestoreResults struct {
 // NewRestoreOperation constructs and validates a restore operation.
 func NewRestoreOperation(
 	ctx context.Context,
-	opts Options,
+	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	acct account.Account,
@@ -126,9 +127,8 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		stats.writeErr = errors.Wrap(err, "restoring service data")
 		return stats.writeErr
 	}
-	stats.gc = gc.Status()
+	stats.gc = gc.AwaitStatus()
 
-	op.Status = Successful
 	return nil
 }
 
@@ -137,8 +137,9 @@ func (op *RestoreOperation) persistResults(
 	started time.Time,
 	stats *restoreStats,
 ) {
-	op.Status = Successful
-	if stats.readErr != nil || stats.writeErr != nil {
+	op.Status = Completed
+	if (stats.readErr != nil || stats.writeErr != nil) &&
+		(stats.gc == nil || stats.gc.Successful == 0) {
 		op.Status = Failed
 	}
 	op.Results.ReadErrors = stats.readErr
@@ -147,7 +148,7 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsRead = len(stats.cs) // TODO: file count, not collection count
 
 	if stats.gc != nil {
-		op.Results.ItemsWritten = stats.gc.ObjectCount
+		op.Results.ItemsWritten = stats.gc.Successful
 	}
 
 	op.Results.StartedAt = started

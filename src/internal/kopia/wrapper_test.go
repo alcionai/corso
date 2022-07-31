@@ -120,11 +120,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	details := &details.Details{}
 
 	collections := []data.Collection{
-		mockconnector.NewMockExchangeDataCollection(
+		mockconnector.NewMockExchangeCollection(
 			[]string{tenant, user1, emails},
 			expectedFileCount[user1],
 		),
-		mockconnector.NewMockExchangeDataCollection(
+		mockconnector.NewMockExchangeCollection(
 			[]string{tenant, user2, emails},
 			expectedFileCount[user2],
 		),
@@ -182,7 +182,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	details := &details.Details{}
 	collections := []data.Collection{
-		mockconnector.NewMockExchangeDataCollection(
+		mockconnector.NewMockExchangeCollection(
 			[]string{emails},
 			expectedFileCount,
 		),
@@ -215,11 +215,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 			//   - emails
 			//     - 42 separate files
 			[]data.Collection{
-				mockconnector.NewMockExchangeDataCollection(
+				mockconnector.NewMockExchangeCollection(
 					[]string{"user1", "emails"},
 					5,
 				),
-				mockconnector.NewMockExchangeDataCollection(
+				mockconnector.NewMockExchangeCollection(
 					[]string{"user2", "emails"},
 					42,
 				),
@@ -228,7 +228,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		{
 			"NoCollectionPath",
 			[]data.Collection{
-				mockconnector.NewMockExchangeDataCollection(
+				mockconnector.NewMockExchangeCollection(
 					nil,
 					5,
 				),
@@ -243,11 +243,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 			//       - 5 separate files
 			//     - 42 separate files
 			[]data.Collection{
-				mockconnector.NewMockExchangeDataCollection(
+				mockconnector.NewMockExchangeCollection(
 					[]string{"a-tenant", "user1", "emails"},
 					5,
 				),
-				mockconnector.NewMockExchangeDataCollection(
+				mockconnector.NewMockExchangeCollection(
 					[]string{"a-tenant", "user1"},
 					42,
 				),
@@ -402,11 +402,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	t := suite.T()
 
 	collections := []data.Collection{
-		mockconnector.NewMockExchangeDataCollection(
+		mockconnector.NewMockExchangeCollection(
 			[]string{"a-tenant", "user1", "emails"},
 			5,
 		),
-		mockconnector.NewMockExchangeDataCollection(
+		mockconnector.NewMockExchangeCollection(
 			[]string{"a-tenant", "user2", "emails"},
 			42,
 		),
@@ -683,8 +683,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	tid := uuid.NewString()
 	p1 := []string{tid, "uid", "emails", "fid"}
 	p2 := []string{tid, "uid2", "emails", "fid"}
-	dc1 := mockconnector.NewMockExchangeDataCollection(p1, 1)
-	dc2 := mockconnector.NewMockExchangeDataCollection(p2, 1)
+	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
+	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
 	fp1 := append(p1, dc1.Names[0])
 	fp2 := append(p2, dc2.Names[0])
 

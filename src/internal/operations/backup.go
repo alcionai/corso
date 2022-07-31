@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -40,7 +41,7 @@ type BackupResults struct {
 // NewBackupOperation constructs and validates a backup operation.
 func NewBackupOperation(
 	ctx context.Context,
-	opts Options,
+	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	acct account.Account,
@@ -123,8 +124,8 @@ func (op *BackupOperation) persistResults(
 	started time.Time,
 	stats *backupStats,
 ) {
-	op.Status = Successful
-	if stats.readErr != nil || stats.writeErr != nil {
+	op.Status = Completed
+	if stats.k.TotalFileCount == 0 && (stats.readErr != nil || stats.writeErr != nil) {
 		op.Status = Failed
 	}
 

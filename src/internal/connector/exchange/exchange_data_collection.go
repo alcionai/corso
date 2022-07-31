@@ -41,17 +41,26 @@ type Collection struct {
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
 
+	service  graph.Service
+	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
-func NewCollection(aUser string, pathRepresentation []string) Collection {
+func NewCollection(
+	aUser string,
+	pathRepresentation []string,
+	aService graph.Service,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) Collection {
 	collection := Collection{
 		user:     aUser,
 		data:     make(chan data.Stream, collectionChannelBufferSize),
 		jobs:     make([]string, 0),
+		service:  aService,
+		statusCh: statusCh,
 		fullPath: pathRepresentation,
 	}
 	return collection
@@ -62,46 +71,48 @@ func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, objID)
 }
 
-// PopulateCollection TODO: remove after async functionilty completed
-func (eoc *Collection) PopulateCollection(newData *Stream) {
-	eoc.data <- newData
+// Items utility function to asynchronously execute process to fill data channel with
+// M365 exchange objects and returns the data channel
+func (eoc *Collection) Items() <-chan data.Stream {
+	go eoc.PopulateFromCollection(context.TODO(), eoc.service, eoc.statusCh)
+	return eoc.data
+}
+
+func (edc *Collection) FullPath() []string {
+	return append([]string{}, edc.fullPath...)
 }
 
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func PopulateFromCollection(
+func (edc *Collection) PopulateFromCollection(
 	ctx context.Context,
 	service graph.Service,
-	collections map[string]*Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, edc := range collections {
-
-		for _, task := range edc.jobs {
-			response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
-			if err != nil {
-				details := support.ConnectorStackErrorTrace(err)
-				errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve %s, %s", task, details), errs)
-				continue
-			}
-			err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
-			success++
-			if err != nil {
-				errs = support.WrapAndAppendf(edc.user, err, errs)
-				success--
-			}
-			if errs != nil && service.ErrPolicy() {
-				break
-			}
+	for _, task := range edc.jobs {
+		response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
+		if err != nil {
+			details := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
+			continue
 		}
-		close(edc.data)
-		attemptedItems += len(edc.jobs)
+		err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		success++
+		if err != nil {
+			errs = support.WrapAndAppendf(edc.user, err, errs)
+			success--
+		}
+		if errs != nil && service.ErrPolicy() {
+			break
+		}
 	}
+	close(edc.data)
+	attemptedItems += len(edc.jobs)
 
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, len(collections), errs)
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
 }
@@ -159,14 +170,6 @@ func messageToDataCollection(
 	return nil
 }
 
-func (eoc *Collection) Items() <-chan data.Stream {
-	return eoc.data
-}
-
-func (edc *Collection) FullPath() []string {
-	return append([]string{}, edc.fullPath...)
-}
-
 // Stream represents a single item retrieved from exchange
 type Stream struct {
 	id string
@@ -189,6 +192,8 @@ func (od *Stream) ToReader() io.ReadCloser {
 func (od *Stream) Info() details.ItemInfo {
 	return details.ItemInfo{Exchange: od.info}
 }
+
+// NewStream constructor for exchange.Stream object
 func NewStream(identifier string, bytes []byte, detail details.ExchangeInfo) Stream {
 	return Stream{
 		id:      identifier,
