@@ -69,7 +69,6 @@ func (eoc *Collection) AddJob(objID string) {
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
-
 	go eoc.PopulateFromCollection(context.TODO(), eoc.service, eoc.statusCh)
 	return eoc.data
 }
