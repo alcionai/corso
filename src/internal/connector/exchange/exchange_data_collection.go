@@ -49,7 +49,12 @@ type Collection struct {
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
-func NewCollection(aUser string, pathRepresentation []string, aService graph.Service, statusCh chan<- *support.ConnectorOperationStatus) Collection {
+func NewCollection(
+  aUser string,
+  pathRepresentation []string,
+  aService graph.Service,
+  statusCh chan<- *support.ConnectorOperationStatus,
+) Collection {
 	collection := Collection{
 		user:     aUser,
 		data:     make(chan data.Stream, collectionChannelBufferSize),
