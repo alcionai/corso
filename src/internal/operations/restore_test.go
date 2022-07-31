@@ -59,13 +59,13 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 	op.persistResults(now, &stats)
 
-	assert.Equal(t, op.Status, Failed)
-	assert.Equal(t, op.Results.ItemsRead, len(stats.cs))
-	assert.Equal(t, op.Results.ReadErrors, stats.readErr)
-	assert.Equal(t, op.Results.ItemsWritten, stats.gc.ObjectCount)
-	assert.Equal(t, op.Results.WriteErrors, stats.writeErr)
-	assert.Equal(t, op.Results.StartedAt, now)
-	assert.Less(t, now, op.Results.CompletedAt)
+	assert.Equal(t, op.Status, Failed, "status")
+	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
+	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
+	assert.Equal(t, op.Results.ItemsWritten, stats.gc.Successful, "items written")
+	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
+	assert.Equal(t, op.Results.StartedAt, now, "started at")
+	assert.Less(t, now, op.Results.CompletedAt, "completed at")
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +180,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
-	assert.Equal(t, ro.Status, Successful, "restoreOp status")
+	assert.Equal(t, ro.Status, Completed, "restoreOp status")
 	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
 	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")

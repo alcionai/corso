@@ -240,6 +240,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		attempts, successes int
 		errs                error
 	)
+	gc.incrementAwaitingMessages()
 
 	for _, dc := range dcs {
 		// must be user.GetId(), PrimaryName no longer works 6-15-2022
@@ -302,7 +303,10 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	}
 
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
-	gc.SetStatus(*status)
+	// set the channel asynchronously so that this func doesn't block.
+	go func(cos *support.ConnectorOperationStatus) {
+		gc.statusCh <- cos
+	}(status)
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
 }
@@ -359,19 +363,13 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	return collections, errs
 }
 
-// SetStatus helper function
-func (gc *GraphConnector) SetStatus(cos support.ConnectorOperationStatus) {
-	gc.status = &cos
-}
-
 // AwaitStatus updates status field based on item within statusChannel.
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	if gc.awaitingMessages > 0 {
 		gc.status = <-gc.statusCh
 		atomic.AddInt32(&gc.awaitingMessages, -1)
-		return gc.status
 	}
-	return nil
+	return gc.status
 }
 
 // Status returns the current status of the graphConnector operaion.
