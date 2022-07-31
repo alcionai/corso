@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 // ---------------------------------------------------------------------------
@@ -168,7 +168,10 @@ func makeExchangeScope(granularity string, cat exchangeCategory, vs []string) Ex
 }
 
 func makeExchangeUserScope(user, granularity string, cat exchangeCategory, vs []string) ExchangeScope {
-	return makeExchangeScope(granularity, cat, vs).set(ExchangeUser, user)
+	es := makeExchangeScope(granularity, cat, vs).set(ExchangeUser, user)
+	es[scopeKeyResource] = user
+	es[scopeKeyDataType] = cat.dataType()
+	return es
 }
 
 // Produces one or more exchange contact scopes.
@@ -288,6 +291,8 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) Excha
 		scopeKeyGranularity: Filter,
 		scopeKeyCategory:    cat.String(),
 		scopeKeyInfoFilter:  filterCat.String(),
+		scopeKeyResource:    Filter,
+		scopeKeyDataType:    cat.dataType(),
 		filterCat.String():  join(vs...),
 	}
 }
@@ -436,6 +441,19 @@ func exchangeCatAtoI(s string) exchangeCategory {
 	}
 }
 
+// exchangeDataType returns the human-readable name of the core data type.
+// Ex: ExchangeContactFolder.dataType() => ExchangeContact.String()
+// Ex: ExchangeEvent.dataType() => ExchangeEvent.String().
+func (ec exchangeCategory) dataType() string {
+	switch ec {
+	case ExchangeContact, ExchangeContactFolder:
+		return ExchangeContact.String()
+	case ExchangeMail, ExchangeMailFolder:
+		return ExchangeMail.String()
+	}
+	return ec.String()
+}
+
 // Granularity describes the granularity (directory || item)
 // of the data in scope
 func (s ExchangeScope) Granularity() string {
@@ -500,13 +518,13 @@ var categoryPathSet = map[exchangeCategory][]exchangeCategory{
 }
 
 // matches returns true if either the path or the info matches the scope details.
-func (s ExchangeScope) matches(cat exchangeCategory, path []string, info *backup.ExchangeInfo) bool {
+func (s ExchangeScope) matches(cat exchangeCategory, path []string, info *details.ExchangeInfo) bool {
 	return s.matchesPath(cat, path) || s.matchesInfo(cat, info)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an exchangeInfo
 // returns true if the scope and info match for the provided category.
-func (s ExchangeScope) matchesInfo(cat exchangeCategory, info *backup.ExchangeInfo) bool {
+func (s ExchangeScope) matchesInfo(cat exchangeCategory, info *details.ExchangeInfo) bool {
 	// we need values to match against
 	if info == nil {
 		return false
@@ -634,7 +652,7 @@ func exchangeIDPath(cat exchangeCategory, path []string) map[exchangeCategory]st
 
 // Reduce reduces the entries in a backupDetails struct to only
 // those that match the inclusions, filters, and exclusions in the selector.
-func (s *ExchangeRestore) Reduce(deets *backup.Details) *backup.Details {
+func (s *ExchangeRestore) Reduce(deets *details.Details) *details.Details {
 	if deets == nil {
 		return nil
 	}
@@ -643,7 +661,7 @@ func (s *ExchangeRestore) Reduce(deets *backup.Details) *backup.Details {
 	entFilt := exchangeScopesByCategory(s.Filters)
 	entIncs := exchangeScopesByCategory(s.Includes)
 
-	ents := []backup.DetailsEntry{}
+	ents := []details.DetailsEntry{}
 
 	for _, ent := range deets.Entries {
 		// todo: use Path pkg for this
@@ -706,7 +724,7 @@ func exchangeScopesByCategory(scopes []map[string]string) map[string][]ExchangeS
 func matchExchangeEntry(
 	cat exchangeCategory,
 	path []string,
-	info *backup.ExchangeInfo,
+	info *details.ExchangeInfo,
 	excs, filts, incs []ExchangeScope,
 ) bool {
 	// a passing match requires either a filter or an inclusion

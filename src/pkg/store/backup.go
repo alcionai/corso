@@ -8,10 +8,11 @@ import (
 
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 // GetBackup gets a single backup by id.
-func (w Wrapper) GetBackup(ctx context.Context, backupID model.ID) (*backup.Backup, error) {
+func (w Wrapper) GetBackup(ctx context.Context, backupID model.StableID) (*backup.Backup, error) {
 	b := backup.Backup{}
 	err := w.Get(ctx, model.BackupSchema, backupID, &b)
 	if err != nil {
@@ -39,8 +40,8 @@ func (w Wrapper) GetBackups(ctx context.Context) ([]backup.Backup, error) {
 }
 
 // GetDetails gets the backup details by ID.
-func (w Wrapper) GetDetails(ctx context.Context, detailsID manifest.ID) (*backup.Details, error) {
-	d := backup.Details{}
+func (w Wrapper) GetDetails(ctx context.Context, detailsID manifest.ID) (*details.Details, error) {
+	d := details.Details{}
 	err := w.GetWithModelStoreID(ctx, model.BackupDetailsSchema, detailsID, &d)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting details")
@@ -49,7 +50,7 @@ func (w Wrapper) GetDetails(ctx context.Context, detailsID manifest.ID) (*backup
 }
 
 // GetDetailsFromBackupID retrieves the backup.Details within the specified backup.
-func (w Wrapper) GetDetailsFromBackupID(ctx context.Context, backupID model.ID) (*backup.Details, *backup.Backup, error) {
+func (w Wrapper) GetDetailsFromBackupID(ctx context.Context, backupID model.StableID) (*details.Details, *backup.Backup, error) {
 	b, err := w.GetBackup(ctx, backupID)
 	if err != nil {
 		return nil, nil, err

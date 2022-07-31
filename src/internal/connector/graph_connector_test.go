@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -9,7 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -65,6 +68,13 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	assert.Nil(suite.T(), err)
 	assert.True(suite.T(), suite.connector.awaitingMessages > 0)
 	assert.Nil(suite.T(), suite.connector.status)
+	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
+	channel := collectionList[0].Items()
+	for object := range channel {
+		buf := &bytes.Buffer{}
+		_, err := buf.ReadFrom(object.ToReader())
+		assert.Nil(suite.T(), err, "received a buf.Read error")
+	}
 	status := suite.connector.AwaitStatus()
 	assert.NotNil(suite.T(), status, "status not blocking on async call")
 
@@ -72,22 +82,16 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_Restore() {
+//TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
+// is able to restore a messageable item to a Mailbox.
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
 	user := "TEST_GRAPH_USER" // user.GetId()
-	file := "TEST_GRAPH_FILE" // Test file should be sent or received by the user
-	evs, err := ctesting.GetRequiredEnvVars(user, file)
+	evs, err := ctesting.GetRequiredEnvVars(user)
 	if err != nil {
 		suite.T().Skipf("Environment not configured: %v\n", err)
 	}
-	bytes, err := ctesting.LoadAFile(evs[file]) // TEST_GRAPH_FILE should have a single Message && not present in target inbox
-	if err != nil {
-		suite.T().Skipf("Support file not accessible: %v\n", err)
-	}
-	ds := ExchangeData{id: "test", message: bytes}
-	edc := NewExchangeDataCollection("tenant", []string{"tenantId", evs[user], mailCategory, "Inbox"})
-	edc.PopulateCollection(&ds)
-	edc.FinishPopulation()
-	err = suite.connector.Restore(context.Background(), []DataCollection{&edc})
+	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", evs[user], mailCategory, "Inbox"}, 1)
+	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
 	assert.NoError(suite.T(), err)
 }
 

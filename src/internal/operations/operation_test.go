@@ -2,11 +2,13 @@ package operations
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/store"
 )
 
@@ -20,8 +22,8 @@ func TestOperationSuite(t *testing.T) {
 
 func (suite *OperationSuite) TestNewOperation() {
 	t := suite.T()
-	op := newOperation(Options{}, nil, nil)
-	assert.NotNil(t, op.ID)
+	op := newOperation(control.Options{}, nil, nil)
+	assert.Greater(t, op.CreatedAt, time.Time{})
 }
 
 func (suite *OperationSuite) TestOperation_Validate() {
@@ -39,7 +41,7 @@ func (suite *OperationSuite) TestOperation_Validate() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			op := newOperation(Options{}, test.kw, test.sw)
+			op := newOperation(control.Options{}, test.kw, test.sw)
 			test.errCheck(t, op.validate())
 		})
 	}

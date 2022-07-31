@@ -12,6 +12,8 @@ import (
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/storage"
 	"github.com/alcionai/corso/pkg/store"
@@ -128,7 +130,7 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector, opts operations.Options) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector, opts control.Options) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
 		opts,
@@ -143,7 +145,7 @@ func (r Repository) NewRestore(
 	ctx context.Context,
 	backupID string,
 	sel selectors.Selector,
-	opts operations.Options,
+	opts control.Options,
 ) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
@@ -151,8 +153,14 @@ func (r Repository) NewRestore(
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		r.Account,
-		model.ID(backupID),
+		model.StableID(backupID),
 		sel)
+}
+
+// backups lists a backup by id
+func (r Repository) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
+	sw := store.NewKopiaStore(r.modelStore)
+	return sw.GetBackup(ctx, id)
 }
 
 // backups lists backups in a repository
@@ -162,7 +170,7 @@ func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
 }
 
 // BackupDetails returns the specified backup details object
-func (r Repository) BackupDetails(ctx context.Context, backupID string) (*backup.Details, *backup.Backup, error) {
+func (r Repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetDetailsFromBackupID(ctx, model.ID(backupID))
+	return sw.GetDetailsFromBackupID(ctx, model.StableID(backupID))
 }

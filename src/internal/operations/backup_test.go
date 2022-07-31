@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	ctesting "github.com/alcionai/corso/internal/testing"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -30,8 +31,6 @@ func TestBackupOpSuite(t *testing.T) {
 	suite.Run(t, new(BackupOpSuite))
 }
 
-// TODO: after modelStore integration is added, mock the store and/or
-// move this to an integration test.
 func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	t := suite.T()
 	ctx := context.Background()
@@ -48,23 +47,23 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 				TotalFileCount: 1,
 			},
 			gc: &support.ConnectorOperationStatus{
-				ObjectCount: 1,
+				Successful: 1,
 			},
 		}
 	)
 
-	op, err := NewBackupOperation(ctx, Options{}, kw, sw, acct, selectors.Selector{})
+	op, err := NewBackupOperation(ctx, control.Options{}, kw, sw, acct, selectors.Selector{})
 	require.NoError(t, err)
 
 	op.persistResults(now, &stats)
 
-	assert.Equal(t, op.Status, Failed)
-	assert.Equal(t, op.Results.ItemsRead, stats.gc.ObjectCount)
-	assert.Equal(t, op.Results.ReadErrors, stats.readErr)
-	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount)
-	assert.Equal(t, op.Results.WriteErrors, stats.writeErr)
-	assert.Equal(t, op.Results.StartedAt, now)
-	assert.Less(t, now, op.Results.CompletedAt)
+	assert.Equal(t, op.Status, Completed, "status")
+	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
+	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
+	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
+	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
+	assert.Equal(t, op.Results.StartedAt, now, "started at")
+	assert.Less(t, now, op.Results.CompletedAt, "completed at")
 }
 
 // ---------------------------------------------------------------------------
@@ -103,22 +102,22 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 
 	table := []struct {
 		name     string
-		opts     Options
+		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
+		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
+		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := NewBackupOperation(
 				context.Background(),
-				Options{},
+				test.opts,
 				test.kw,
 				test.sw,
 				test.acct,
@@ -162,7 +161,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	bo, err := NewBackupOperation(
 		ctx,
-		Options{},
+		control.Options{},
 		kw,
 		sw,
 		acct,
@@ -172,7 +171,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results)
 	require.NotEmpty(t, bo.Results.BackupID)
-	assert.Equal(t, bo.Status, Successful)
+	assert.Equal(t, bo.Status, Completed)
 	assert.Greater(t, bo.Results.ItemsRead, 0)
 	assert.Greater(t, bo.Results.ItemsWritten, 0)
 	assert.Zero(t, bo.Results.ReadErrors)

@@ -1,6 +1,8 @@
 package selectors
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -20,6 +22,8 @@ const (
 	scopeKeyCategory    = "category"
 	scopeKeyGranularity = "granularity"
 	scopeKeyInfoFilter  = "info_filter"
+	scopeKeyResource    = "resource"
+	scopeKeyDataType    = "type"
 )
 
 // The granularity exprerssed by the scope.  Groups imply non-item granularity,
@@ -44,10 +48,13 @@ const (
 	// None() to any selector will force all matches() checks on that
 	// selector to fail.
 	// Ex: {user: u1, events: NoneTgt} => matches nothing.
-	NoneTgt = ""
-
+	NoneTgt   = ""
 	delimiter = ","
 )
+
+// All is the resource name that gets output when the resource is AnyTgt.
+// It is not used aside from printing resources.
+const All = "All"
 
 // ---------------------------------------------------------------------------
 // Selector
@@ -59,7 +66,7 @@ type Selector struct {
 	Service  service             `json:"service,omitempty"`    // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
 	Excludes []map[string]string `json:"exclusions,omitempty"` // A slice of exclusion scopes.  Exclusions apply globally to all inclusions/filters, with any-match behavior.
 	Filters  []map[string]string `json:"filters,omitempty"`    // A slice of filter scopes.  All inclusions must also match ALL filters.
-	Includes []map[string]string `json:"scopes,omitempty"`     // A slice of inclusion scopes.  Comparators must match either one of these, or all filters, to be included.
+	Includes []map[string]string `json:"includes,omitempty"`   // A slice of inclusion scopes.  Comparators must match either one of these, or all filters, to be included.
 }
 
 // helper for specific selector instance constructors.
@@ -82,6 +89,14 @@ func Any() []string {
 // to fail.
 func None() []string {
 	return []string{NoneTgt}
+}
+
+func (s Selector) String() string {
+	bs, err := json.Marshal(s)
+	if err != nil {
+		return "error"
+	}
+	return string(bs)
 }
 
 type baseScope interface {
@@ -137,6 +152,94 @@ func appendIncludes[T baseScope](
 	for _, sc := range concat {
 		s.Includes = append(s.Includes, map[string]string(sc))
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Printing Selectors for Human Reading
+// ---------------------------------------------------------------------------
+
+type Printable struct {
+	Service  string              `json:"service"`
+	Excludes map[string][]string `json:"excludes,omitempty"`
+	Filters  map[string][]string `json:"filters,omitempty"`
+	Includes map[string][]string `json:"includes,omitempty"`
+}
+
+// Printable is the minimized display of a selector, formatted for human readability.
+// This transformer assumes that the scopeKeyResource and scopeKeyDataType have been
+// added to all scopes as they were created.  It is unable to infer resource or data
+// type values from existing scope values.
+func (s Selector) Printable() Printable {
+	return Printable{
+		Service:  s.Service.String(),
+		Excludes: toResourceTypeMap(s.Excludes),
+		Filters:  toResourceTypeMap(s.Filters),
+		Includes: toResourceTypeMap(s.Includes),
+	}
+}
+
+// Resources generates a tabular-readable output of the resources in Printable.
+// Only the first (arbitrarily picked) resource is displayed.  All others are
+// simply counted.  If no inclusions exist, uses Filters.  If no filters exist,
+// defaults to "All".
+// Resource refers to the top-level entity in the service. User for Exchange,
+// Site for sharepoint, etc.
+func (p Printable) Resources() string {
+	s := resourcesShortFormat(p.Includes)
+	if len(s) == 0 {
+		s = resourcesShortFormat(p.Filters)
+	}
+	if len(s) == 0 {
+		s = "All"
+	}
+	return s
+}
+
+// returns a string with the resources in the map.  Shortened to the first resource key,
+// plus, if more exist, " (len-1 more)"
+func resourcesShortFormat(m map[string][]string) string {
+	var s string
+	for k := range m {
+		s = k
+		break
+	}
+	if len(s) > 0 && len(m) > 1 {
+		s = fmt.Sprintf("%s (%d more)", s, len(m)-1)
+	}
+	return s
+}
+
+// Transforms the slice to a single map.
+// Keys are each map's scopeKeyResource value.
+// Values are the set of all scopeKeyDataTypes for a given resource.
+func toResourceTypeMap(ms []map[string]string) map[string][]string {
+	if len(ms) == 0 {
+		return nil
+	}
+	r := make(map[string][]string)
+	for _, m := range ms {
+		res := m[scopeKeyResource]
+		if res == AnyTgt {
+			res = All
+		}
+		r[res] = addToSet(r[res], m[scopeKeyDataType])
+	}
+	return r
+}
+
+// returns [v] if set is empty,
+// returns self if set contains v,
+// appends v to self, otherwise.
+func addToSet(set []string, v string) []string {
+	if len(set) == 0 {
+		return []string{v}
+	}
+	for _, s := range set {
+		if s == v {
+			return set
+		}
+	}
+	return append(set, v)
 }
 
 // ---------------------------------------------------------------------------

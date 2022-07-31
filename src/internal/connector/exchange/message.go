@@ -3,11 +3,11 @@ package exchange
 import (
 	"time"
 
-	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-func MessageInfo(msg models.Messageable) *backup.ExchangeInfo {
+func MessageInfo(msg models.Messageable) *details.ExchangeInfo {
 	sender := ""
 	subject := ""
 	received := time.Time{}
@@ -22,7 +22,7 @@ func MessageInfo(msg models.Messageable) *backup.ExchangeInfo {
 	if msg.GetReceivedDateTime() != nil {
 		received = *msg.GetReceivedDateTime()
 	}
-	return &backup.ExchangeInfo{
+	return &details.ExchangeInfo{
 		Sender:   sender,
 		Subject:  subject,
 		Received: received,

@@ -9,9 +9,12 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -20,7 +23,7 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID  model.ID           `json:"backupID"`
+	BackupID  model.StableID     `json:"backupID"`
 	Results   RestoreResults     `json:"results"`
 	Selectors selectors.Selector `json:"selectors"` // todo: replace with Selectors
 	Version   string             `json:"version"`
@@ -30,18 +33,18 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
-	summary
-	metrics
+	stats.ReadWrites
+	stats.StartAndEndTime
 }
 
 // NewRestoreOperation constructs and validates a restore operation.
 func NewRestoreOperation(
 	ctx context.Context,
-	opts Options,
+	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	acct account.Account,
-	backupID model.ID,
+	backupID model.StableID,
 	sel selectors.Selector,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
@@ -67,7 +70,7 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []connector.DataCollection
+	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
 	readErr, writeErr error
 }
@@ -96,6 +99,10 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 
 	// format the details and retrieve the items from kopia
 	fds := er.Reduce(d)
+	if len(fds.Entries) == 0 {
+		return errors.New("nothing to restore: no items in the backup match the provided selectors")
+	}
+
 	// todo: use path pkg for this
 	fdsPaths := fds.Paths()
 	paths := make([][]string, len(fdsPaths))
@@ -120,9 +127,8 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		stats.writeErr = errors.Wrap(err, "restoring service data")
 		return stats.writeErr
 	}
-	stats.gc = gc.Status()
+	stats.gc = gc.AwaitStatus()
 
-	op.Status = Successful
 	return nil
 }
 
@@ -131,8 +137,9 @@ func (op *RestoreOperation) persistResults(
 	started time.Time,
 	stats *restoreStats,
 ) {
-	op.Status = Successful
-	if stats.readErr != nil || stats.writeErr != nil {
+	op.Status = Completed
+	if (stats.readErr != nil || stats.writeErr != nil) &&
+		(stats.gc == nil || stats.gc.Successful == 0) {
 		op.Status = Failed
 	}
 	op.Results.ReadErrors = stats.readErr
@@ -141,7 +148,7 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsRead = len(stats.cs) // TODO: file count, not collection count
 
 	if stats.gc != nil {
-		op.Results.ItemsWritten = stats.gc.ObjectCount
+		op.Results.ItemsWritten = stats.gc.Successful
 	}
 
 	op.Results.StartedAt = started

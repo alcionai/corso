@@ -1,14 +1,19 @@
 package backup_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/zeebo/assert"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type BackupSuite struct {
@@ -19,129 +24,71 @@ func TestBackupSuite(t *testing.T) {
 	suite.Run(t, new(BackupSuite))
 }
 
+func stubBackup(t time.Time) backup.Backup {
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users(selectors.Any()))
+	return backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID("id"),
+		},
+		CreationTime: t,
+		SnapshotID:   "snapshot",
+		DetailsID:    "details",
+		Status:       "status",
+		Selectors:    sel.Selector,
+		ReadWrites: stats.ReadWrites{
+			ItemsRead:    1,
+			ItemsWritten: 1,
+			ReadErrors:   errors.New("1"),
+			WriteErrors:  errors.New("1"),
+		},
+		StartAndEndTime: stats.StartAndEndTime{
+			StartedAt:   t,
+			CompletedAt: t,
+		},
+	}
+}
+
 func (suite *BackupSuite) TestBackup_HeadersValues() {
 	t := suite.T()
 	now := time.Now()
-
-	b := backup.Backup{
-		BaseModel: model.BaseModel{
-			StableID: model.ID("stable"),
-		},
-		CreationTime: now,
-		SnapshotID:   "snapshot",
-		DetailsID:    "details",
-	}
+	b := stubBackup(now)
 
 	expectHs := []string{
-		"Creation Time",
-		"Stable ID",
-		"Snapshot ID",
-		"Details ID",
+		"Started At",
+		"ID",
+		"Status",
+		"Selectors",
 	}
 	hs := b.Headers()
-	assert.DeepEqual(t, expectHs, hs)
+	assert.Equal(t, expectHs, hs)
+	nowFmt := common.FormatTime(now)
 
 	expectVs := []string{
-		now.Format(time.RFC3339Nano),
-		"stable",
-		"snapshot",
-		"details",
+		nowFmt,
+		"id",
+		"status (2 errors)",
+		selectors.All,
 	}
 	vs := b.Values()
-	assert.DeepEqual(t, expectVs, vs)
+	assert.Equal(t, expectVs, vs)
 }
 
-func (suite *BackupSuite) TestDetailsEntry_HeadersValues() {
+func (suite *BackupSuite) TestBackup_MinimumPrintable() {
+	t := suite.T()
 	now := time.Now()
-	nowStr := now.Format(time.RFC3339Nano)
+	b := stubBackup(now)
 
-	table := []struct {
-		name     string
-		entry    backup.DetailsEntry
-		expectHs []string
-		expectVs []string
-	}{
-		{
-			name: "no info",
-			entry: backup.DetailsEntry{
-				RepoRef: "reporef",
-			},
-			expectHs: []string{"Repo Ref"},
-			expectVs: []string{"reporef"},
-		},
-		{
-			name: "exhange info",
-			entry: backup.DetailsEntry{
-				RepoRef: "reporef",
-				ItemInfo: backup.ItemInfo{
-					Exchange: &backup.ExchangeInfo{
-						Sender:   "sender",
-						Subject:  "subject",
-						Received: now,
-					},
-				},
-			},
-			expectHs: []string{"Repo Ref", "Sender", "Subject", "Received"},
-			expectVs: []string{"reporef", "sender", "subject", nowStr},
-		},
-		{
-			name: "sharepoint info",
-			entry: backup.DetailsEntry{
-				RepoRef: "reporef",
-				ItemInfo: backup.ItemInfo{
-					Sharepoint: &backup.SharepointInfo{},
-				},
-			},
-			expectHs: []string{"Repo Ref"},
-			expectVs: []string{"reporef"},
-		},
-	}
+	resultIface := b.MinimumPrintable()
+	result, ok := resultIface.(backup.Printable)
+	require.True(t, ok)
 
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			hs := test.entry.Headers()
-			assert.DeepEqual(t, test.expectHs, hs)
-			vs := test.entry.Values()
-			assert.DeepEqual(t, test.expectVs, vs)
-		})
-	}
-}
+	assert.Equal(t, b.ID, result.ID, "id")
+	assert.Equal(t, 2, result.ErrorCount, "error count")
+	assert.Equal(t, now, result.StartedAt, "started at")
+	assert.Equal(t, b.Status, result.Status, "status")
 
-func (suite *BackupSuite) TestDetailsModel_Path() {
-	table := []struct {
-		name   string
-		ents   []backup.DetailsEntry
-		expect []string
-	}{
-		{
-			name:   "nil entries",
-			ents:   nil,
-			expect: []string{},
-		},
-		{
-			name: "single entry",
-			ents: []backup.DetailsEntry{
-				{RepoRef: "abcde"},
-			},
-			expect: []string{"abcde"},
-		},
-		{
-			name: "multiple entries",
-			ents: []backup.DetailsEntry{
-				{RepoRef: "abcde"},
-				{RepoRef: "12345"},
-			},
-			expect: []string{"abcde", "12345"},
-		},
-	}
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			d := backup.Details{
-				DetailsModel: backup.DetailsModel{
-					Entries: test.ents,
-				},
-			}
-			assert.DeepEqual(t, test.expect, d.Paths())
-		})
-	}
+	bselp := b.Selectors.Printable()
+	assert.Equal(t, bselp, result.Selectors, "selectors")
+	assert.Equal(t, bselp.Resources(), result.Selectors.Resources(), "selector resources")
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 // ------------------------------------------------------------
@@ -21,7 +22,7 @@ type MockModelStore struct {
 	err     error
 }
 
-func NewMock(b *backup.Backup, d *backup.Details, err error) *MockModelStore {
+func NewMock(b *backup.Backup, d *details.Details, err error) *MockModelStore {
 	return &MockModelStore{
 		backup:  marshal(b),
 		details: marshal(d),
@@ -43,7 +44,7 @@ func unmarshal(b []byte, a any) {
 // deleter iface
 // ------------------------------------------------------------
 
-func (mms *MockModelStore) Delete(ctx context.Context, s model.Schema, id model.ID) error {
+func (mms *MockModelStore) Delete(ctx context.Context, s model.Schema, id model.StableID) error {
 	return mms.err
 }
 
@@ -58,7 +59,7 @@ func (mms *MockModelStore) DeleteWithModelStoreID(ctx context.Context, id manife
 func (mms *MockModelStore) Get(
 	ctx context.Context,
 	s model.Schema,
-	id model.ID,
+	id model.StableID,
 	data model.Model,
 ) error {
 	if mms.err != nil {
@@ -89,7 +90,7 @@ func (mms *MockModelStore) GetIDsForType(
 		unmarshal(mms.backup, &b)
 		return []*model.BaseModel{&b.BaseModel}, nil
 	case model.BackupDetailsSchema:
-		d := backup.Details{}
+		d := details.Details{}
 		unmarshal(mms.backup, &d)
 		return []*model.BaseModel{&d.BaseModel}, nil
 	}
