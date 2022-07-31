@@ -50,10 +50,10 @@ type Collection struct {
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
-  aUser string,
-  pathRepresentation []string,
-  aService graph.Service,
-  statusCh chan<- *support.ConnectorOperationStatus,
+	aUser string,
+	pathRepresentation []string,
+	aService graph.Service,
+	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
 		user:     aUser,
