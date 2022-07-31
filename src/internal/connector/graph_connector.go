@@ -248,13 +248,13 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	if policy == common.Copy {
 		u := dcs[0].FullPath()[1]
 		now := time.Now().UTC()
-		newFolder := fmt.Sprintf("Corso_Restore_%s", now.Format(timeFolderFormat))
-		isFolder, err := exchange.HasMailFolder(newFolder, u, gc.GraphService)
+		newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatSimpleDateTime(now))
+		isFolder, err := exchange.HasMailFolder(newFolder, u, gc.graphService)
 		if err != nil {
 			return support.WrapAndAppend(u, err, errs)
 		}
 		if isFolder == nil {
-			fold, err := exchange.CreateMailFolder(gc.GraphService, u, newFolder)
+			fold, err := createMailFolder(gc.graphService, u, newFolder)
 			if err != nil {
 				return support.WrapAndAppend(u, err, errs)
 			}
@@ -364,7 +364,7 @@ func restoreMessage(ctx context.Context, bits []byte, service graph.Service, rp 
 			return nil
 		}
 		if rp == common.Replace && isPresent {
-			err = service.Client.UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
+			err = service.Client().UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
 			if err != nil {
 				return err
 			}
@@ -399,7 +399,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	if err != nil {
 		return nil, err
 	}
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.Adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, err
 	}
