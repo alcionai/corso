@@ -1,4 +1,4 @@
-package exchange
+package connector
 
 import (
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
