@@ -34,7 +34,7 @@ const (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	exchange.GraphService
+	graphService
 	tenant           string
 	Users            map[string]string                 //key<email> value<id>
 	status           *support.ConnectorOperationStatus // contains the status of the last run status
@@ -77,7 +77,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	if err != nil {
 		return nil, err
 	}
-	gc.GraphService = *aService
+	gc.graphService = *aService
 	err = gc.setTenantUsers()
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
-	response, err := gc.Client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
 		return err
 	}
-	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.Adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
+	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			err = support.WrapAndAppend(gc.Adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
+			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
 		gc.Users[*user.GetMail()] = *user.GetId()
@@ -157,7 +157,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	}
 	iterateError = userIterator.Iterate(callbackFunc)
 	if iterateError != nil {
-		err = support.WrapAndAppend(gc.Adapter.GetBaseUrl(), iterateError, err)
+		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
 	}
 	return err
 }
@@ -294,17 +294,17 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 						errs = support.WrapAndAppend(data.UUID(), errors.New("Unable to create folder for collection"), errs)
 						continue
 					}
-					err = restoreMessage(ctx, buf.Bytes(), gc.GraphService, common.Copy, *folderId, user)
+					err = restoreMessage(ctx, buf.Bytes(), &gc.graphService, common.Copy, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
 				} else {
-					folderId, err = exchange.HasMailFolder(dc.FullPath()[3], user, gc.GraphService)
+					folderId, err = exchange.HasMailFolder(dc.FullPath()[3], user, gc.graphService)
 					if err != nil || folderId == nil {
 						errs = support.WrapAndAppend(data.UUID(), errors.New("mail folder in full path not found"), errs)
 						continue
 					}
-					err = restoreMessage(ctx, buf.Bytes(), gc.GraphService, common.Drop, *folderId, user)
+					err = restoreMessage(ctx, buf.Bytes(), &gc.graphService, common.Drop, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
@@ -379,8 +379,8 @@ func restoreMessage(ctx context.Context, bits []byte, service graph.Service, rp 
 	}
 }
 
-func restoreMailToBackStore(service exchange.GraphService, user, destination string, message models.Messageable) error {
-	sentMessage, err := service.Client.UsersById(user).MailFoldersById(destination).Messages().Post(message)
+func restoreMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
+	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
