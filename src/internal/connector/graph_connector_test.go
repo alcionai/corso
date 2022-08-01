@@ -94,6 +94,12 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
+///------------------------------------------------------------
+// Exchange Functions
+//-------------------------------------------------------
+
+//  TestGraphConnector_CreateAndDeleteFolder ensures msgraph application has the ability
+//  to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
 	user := "lidiah@8qzvrj.onmicrosoft.com"
 	folderName := uuid.NewString() // todo - replace with danny's fix #391
@@ -103,4 +109,14 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 		err = exchange.DeleteMailFolder(&suite.connector.graphService, user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
+}
+
+// TestGraphConnector_GetMailFolderID verifies the ability to retrieve folder ID of folders
+// at the top level of the file tree
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_GetMailFolderID() {
+	user := "lidiah@8qzvrj.onmicrosoft.com"
+	folderName := "Inbox"
+	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, user)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), folderID)
 }
