@@ -104,21 +104,6 @@ func (gs *graphService) EnableFailFast() {
 	gs.failFast = true
 }
 
-// createMailFolder will create a mail folder iff a folder of the same name does not exit
-func createMailFolder(gc graphService, user, folder string) (models.MailFolderable, error) {
-	requestBody := models.NewMailFolder()
-	requestBody.SetDisplayName(&folder)
-	isHidden := false
-	requestBody.SetIsHidden(&isHidden)
-
-	return gc.client.UsersById(user).MailFolders().Post(requestBody)
-}
-
-// deleteMailFolder removes the mail folder from the user's M365 Exchange account
-func deleteMailFolder(gc graphService, user, folderID string) error {
-	return gc.client.UsersById(user).MailFoldersById(folderID).Delete()
-}
-
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the return value is true
