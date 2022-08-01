@@ -299,7 +299,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
 				} else {
-					folderId, err = exchange.HasMailFolder(dc.FullPath()[3], user, gc.graphService)
+					folderId, err = exchange.`HasMail`Folder(dc.FullPath()[3], user, gc.graphService)
 					if err != nil || folderId == nil {
 						errs = support.WrapAndAppend(data.UUID(), errors.New("mail folder in full path not found"), errs)
 						continue
