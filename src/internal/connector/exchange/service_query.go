@@ -38,7 +38,7 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 // exchange.Query Option Section
 //------------------------------------------------
 
-// optionsForMessages used to select allowable options for exchange.Mail types
+// optionsForMessages - used to select allowable options for exchange.Mail types
 // @param moreOps is []string of options(e.g. "parentFolderId, subject")
 // @return is first call in Messages().GetWithRequestConfigurationAndResponseHandler
 func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
@@ -55,7 +55,7 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 	return options, nil
 }
 
-// optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
+// optionsForMailFolders transforms the options into a more dynamic call for MailFolders.
 // @param moreOps is a []string of options(e.g. "displayName", "isHidden")
 // @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilderGetRequestConfiguration, error) {
@@ -73,10 +73,10 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 	return options, nil
 }
 
-// CheckOptions Utility Method for verifying if select options are valid the m365 object type
+// buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
-// the second is an error. An error is returned if an unsupported option or optionIdentifier where used
-func buildOptions(options []string, selection optionIdentifier) ([]string, error) {
+// the second is an error. An error is returned if an unsupported option or optionIdentifier was used
+func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
 
 	fieldsForFolders := map[string]int{
@@ -104,7 +104,7 @@ func buildOptions(options []string, selection optionIdentifier) ([]string, error
 	}
 	returnedOptions := []string{"id"}
 
-	switch selection {
+	switch optId {
 	case folders:
 		allowedOptions = fieldsForFolders
 	case users:
