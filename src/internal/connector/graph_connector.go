@@ -310,8 +310,8 @@ func restoreMessage(ctx context.Context, bits []byte, service graph.Service, rp 
 	}
 	// Sets fields from original message from storage
 	clone := support.ToMessage(originalMessage)
-	valueId := "Integer 0x0E07"
-	enableValue := "4"
+	valueId := exchange.RestorePropertyTag
+	enableValue := exchange.RestoreCanonicalEnableValue
 	sv := models.NewSingleValueLegacyExtendedProperty()
 	sv.SetId(&valueId)
 	sv.SetValue(&enableValue)
