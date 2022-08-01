@@ -254,7 +254,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	}
 
 	for _, dc := range dcs {
-		// must be user.GetId(), PrimaryName no longer works 6-15-2022
 		user := dc.FullPath()[1]
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
