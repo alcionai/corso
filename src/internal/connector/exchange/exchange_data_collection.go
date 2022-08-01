@@ -41,7 +41,7 @@ type Collection struct {
 	// service - client/adapter pair used to access M365 back store
 	service graph.Service
 	// populate - Utility function to populate collection based on the M365 application type and granularity
-	populate Populater
+	populate populater
 	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
@@ -50,14 +50,14 @@ type Collection struct {
 
 // Populater are a class of functions that can be used to fill exchange.Collections with
 // the corresponding information
-type Populater func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
+type populater func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
 	user string,
 	fullPath []string,
 	service graph.Service,
-	populate Populater,
+	populate populater,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
