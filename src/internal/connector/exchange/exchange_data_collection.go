@@ -29,10 +29,8 @@ const (
 	numberOfRetries             = 4
 )
 
-// ExchangeDataCollection represents exchange mailbox
-// data for a single user.
-//
-// It implements the DataCollection interface
+// Collection implements the interface from data.Collection
+// Structure holds data for an Exchange application for a single user
 type Collection struct {
 	// M365 user
 	user string // M365 user
@@ -42,37 +40,39 @@ type Collection struct {
 	jobs []string
 	// service - client/adapter pair used to access M365 back store
 	service graph.Service
-	// dataFillFunc - Utility function to populate collection based on the M365 application type and granularity
-	dataFillFunc PopulateFunc
-	statusCh     chan<- *support.ConnectorOperationStatus
+	// populate - Utility function to populate collection based on the M365 application type and granularity
+	populate Populater
+	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
 
-// PopulateFunc are a class of functions that can be used to fill exchange.Collections with
+// Populater are a class of functions that can be used to fill exchange.Collections with
 // the corresponding information
-type PopulateFunc func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
+type Populater func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
-	aUser string,
-	pathRepresentation []string,
-	aService graph.Service,
+	user string,
+	fullPath []string,
+	service graph.Service,
+	populate Populater,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
-		user:     aUser,
+		user:     user,
 		data:     make(chan data.Stream, collectionChannelBufferSize),
 		jobs:     make([]string, 0),
-		service:  aService,
+		service:  service,
 		statusCh: statusCh,
-		fullPath: pathRepresentation,
+		fullPath: fullPath,
+		populate: populate,
 	}
 	return collection
 }
 
-// AddJob appends additional objectID to job field job
+// AddJob appends additional objectID to structure's jobs field
 func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, objID)
 }
@@ -80,19 +80,15 @@ func (eoc *Collection) AddJob(objID string) {
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
-	if eoc.dataFillFunc != nil {
-		go eoc.dataFillFunc(context.TODO(), eoc.service, eoc, eoc.statusCh)
+	if eoc.populate != nil {
+		go eoc.populate(context.TODO(), eoc.service, eoc, eoc.statusCh)
 	}
 	return eoc.data
 }
 
+// FullPath returns the Collection's fullPath []string
 func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
-}
-
-// SetPopulateFunction Setter method for dataFillFunc field.
-func (eoc *Collection) SetPopulateFunction(aFunction PopulateFunc) {
-	eoc.dataFillFunc = aFunction
 }
 
 // populateFromTaskList async call to fill DataCollection via channel implementation

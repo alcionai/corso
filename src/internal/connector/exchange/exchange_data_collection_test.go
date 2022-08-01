@@ -3,9 +3,15 @@ package exchange
 import (
 	"bytes"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 type ExchangeDataCollectionSuite struct {
@@ -83,14 +89,27 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_SetPopulate() {
+func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
+	expected := 5
 	eoc := Collection{
 		user:     "Dexter",
 		fullPath: []string{"Today", "is", "currently", "different"},
+		data:     make(chan data.Stream, expected),
 	}
 	t := suite.T()
-	assert.Nil(t, eoc.dataFillFunc)
-	eoc.SetPopulateFunction(PopulateFromCollection)
-	assert.NotNil(t, eoc.dataFillFunc)
+	detail := &details.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}
+	for i := 0; i < expected; i++ {
+		temp := NewStream(uuid.NewString(), mockconnector.GetMockMessageBytes("Test_Items()"), *detail)
+		eoc.data <- &temp
+	}
+	close(eoc.data)
+	itemsReturn := eoc.Items()
+	suite.Equal(len(itemsReturn), expected)
+	retrieved := 0
+	for item := range itemsReturn {
+		assert.NotNil(t, item)
+		retrieved++
+	}
+	suite.Equal(expected, retrieved)
 
 }
