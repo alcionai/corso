@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -96,7 +97,8 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
 	user := "lidiah@8qzvrj.onmicrosoft.com"
-	folderName := uuid.NewString() // todo - replace with danny's fix #391
+	now := time.Now()
+	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
