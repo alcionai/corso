@@ -278,7 +278,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 				}
 				switch policy {
 				case common.Copy:
-					err = restoreMessage(ctx, buf.Bytes(), &gc.graphService, common.Copy, *folderId, user)
+					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, common.Copy, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
@@ -298,50 +298,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	}(status)
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
-}
-
-// restoreMessage restores copy of original message to M365 backstore in the folder designated
-// by the M365 ID from destrination string for the associated M365 user
-func restoreMessage(ctx context.Context, bits []byte, service graph.Service, rp common.RestorePolicy, destination, user string) error {
-	///Step I: Create message object from original bytes
-	originalMessage, err := support.CreateMessageFromBytes(bits)
-	if err != nil {
-		return err
-	}
-	// Sets fields from original message from storage
-	clone := support.ToMessage(originalMessage)
-	valueId := exchange.RestorePropertyTag
-	enableValue := exchange.RestoreCanonicalEnableValue
-	sv := models.NewSingleValueLegacyExtendedProperty()
-	sv.SetId(&valueId)
-	sv.SetValue(&enableValue)
-	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-	clone.SetSingleValueExtendedProperties(svlep)
-	draft := false
-	clone.SetIsDraft(&draft)
-
-	//Step II: restore message based on given policy
-	switch rp {
-	case common.Copy:
-		return restoreMailToBackStore(service, user, destination, clone)
-
-	default:
-		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
-			"policy", rp)
-		return errors.New("restore policy not yet supported")
-	}
-}
-
-func restoreMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
-	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
-	if err != nil {
-		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
-	}
-	if sentMessage == nil {
-		return errors.New("message not Sent: blocked by server")
-	}
-	return nil
-
 }
 
 // serializeMessages: Temp Function as place Holder until Collections have been added

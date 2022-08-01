@@ -1,13 +1,17 @@
 package exchange
 
 import (
+	"context"
+
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/pkg/logger"
 )
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
@@ -67,5 +71,51 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 		return nil, errors.New("folder not found")
 	}
 	return folderId, errs
+
+}
+
+// RestoreMailMessage creates a copy of original message and then sends the
+// Messageable object  to M365 backstore in the folder designated
+// by the M365 ID from destrination string for the associated M365 user
+func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service, rp common.RestorePolicy, destination, user string) error {
+	///Step I: Create message object from original bytes
+	originalMessage, err := support.CreateMessageFromBytes(bits)
+	if err != nil {
+		return err
+	}
+	// Sets fields from original message from storage
+	clone := support.ToMessage(originalMessage)
+	valueId := RestorePropertyTag
+	enableValue := RestoreCanonicalEnableValue
+	sv := models.NewSingleValueLegacyExtendedProperty()
+	sv.SetId(&valueId)
+	sv.SetValue(&enableValue)
+	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
+	clone.SetSingleValueExtendedProperties(svlep)
+	draft := false
+	clone.SetIsDraft(&draft)
+
+	//Step II: restore message based on given policy
+	switch rp {
+	case common.Copy:
+		return SendMailToBackStore(service, user, destination, clone)
+
+	default:
+		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
+			"policy", rp)
+		return errors.New("restore policy not yet supported")
+	}
+}
+
+// SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
+func SendMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
+	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
+	if err != nil {
+		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
+	}
+	if sentMessage == nil {
+		return errors.New("message not Sent: blocked by server")
+	}
+	return nil
 
 }
