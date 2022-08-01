@@ -123,7 +123,7 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 		return stats.writeErr
 	}
 
-	if err := gc.Restore(ctx, dcs); err != nil {
+	if err := gc.RestoreMessages(ctx, dcs); err != nil {
 		stats.writeErr = errors.Wrap(err, "restoring service data")
 		return stats.writeErr
 	}
