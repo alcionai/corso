@@ -10,8 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 )
 
-// CreateMailFolder makesa mail folder iff a folder of the same name does not exist
-// at the same level of the file tree.
+// CreateMailFolder makes a mail folder iff a folder of the same name does not exist
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
 func CreateMailFolder(gs graph.Service, user, folder string) (models.MailFolderable, error) {
 	requestBody := models.NewMailFolder()
