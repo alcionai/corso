@@ -327,8 +327,13 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 				errs = support.WrapAndAppend(user, err, errs)
 				return true
 			}
-			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory}, service, gc.statusCh)
-			edc.SetPopulateFunction(exchange.PopulateFromCollection)
+			edc := exchange.NewCollection(
+				user,
+				[]string{gc.tenant, user, mailCategory, directory},
+				service,
+				exchange.PopulateFromCollection,
+				gc.statusCh,
+			)
 			collections[directory] = &edc
 		}
 		collections[directory].AddJob(*message.GetId())
