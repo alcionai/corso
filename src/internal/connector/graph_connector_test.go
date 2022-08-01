@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
@@ -93,13 +94,13 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
 	user := "lidiah@8qzvrj.onmicrosoft.com"
 	folderName := uuid.NewString() // todo - replace with danny's fix #391
-	aFolder, err := createMailFolder(suite.connector.graphService, user, folderName)
+	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
-		err = deleteMailFolder(suite.connector.graphService, user, *aFolder.GetId())
+		err = exchange.DeleteMailFolder(&suite.connector.graphService, user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
 }
