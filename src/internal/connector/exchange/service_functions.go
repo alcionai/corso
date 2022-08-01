@@ -33,7 +33,7 @@ func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 func GetMailFolderID(service graph.Service, name, user string) (*string, error) {
 	var errs error
 	var folderId *string
-	options, err := OptionsForMailFolders([]string{"displayName"})
+	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
 		return folderId, err
 	}
