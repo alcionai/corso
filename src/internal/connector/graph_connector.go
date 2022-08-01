@@ -276,32 +276,17 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					errs = support.WrapAndAppend(data.UUID(), err, errs)
 					continue
 				}
-				if policy == common.Copy {
-					if folderId == nil {
-						errs = support.WrapAndAppend(data.UUID(), errors.New("Unable to create folder for collection"), errs)
-						continue
-					}
+				switch policy {
+				case common.Copy:
 					err = restoreMessage(ctx, buf.Bytes(), &gc.graphService, common.Copy, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
-				} else {
-					folderId, err = exchange.GetMailFolderID(&gc.graphService, dc.FullPath()[3], user)
-					if err != nil || folderId == nil {
-						errs = support.WrapAndAppend(data.UUID(), errors.New("mail folder in full path not found"), errs)
-						continue
-					}
-					err = restoreMessage(ctx, buf.Bytes(), &gc.graphService, common.Drop, *folderId, user)
-					if err != nil {
-						errs = support.WrapAndAppend(data.UUID(), err, errs)
-					}
+				default:
+					errs = support.WrapAndAppend(data.UUID(), errors.New("restore policy not supported"), errs)
+					continue
 				}
-				if err != nil {
-					errs = support.WrapAndAppend(data.UUID(), err, errs)
-				} else {
-					successes++
-				}
-				continue
+				successes++
 			}
 		}
 	}
