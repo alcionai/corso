@@ -28,22 +28,25 @@ func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 }
 
 // GetMailFolderID query function to retrieve the M365 ID based on the folder's displayName.
-// @param folderName the target folder's display name
+// @param folderName the target folder's display name. Case sensitive
 // @returns a *string if the folder exists, nil otherwise
-func GetMailFolderID(service graph.Service, name, user string) (*string, error) {
+func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
 	var errs error
 	var folderId *string
 	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
-		return folderId, err
+		return nil, err
 	}
 	response, err := service.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
-	if err != nil || response == nil {
-		return folderId, err
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		return nil, errors.New("mail folder query to m365 back store returned nil")
 	}
 	pageIterator, err := msgraphgocore.NewPageIterator(response, service.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return folderId, err
+		return nil, err
 	}
 	callbackFunc := func(folderItem any) bool {
 		folder, ok := folderItem.(models.MailFolderable)
@@ -51,8 +54,9 @@ func GetMailFolderID(service graph.Service, name, user string) (*string, error) 
 			errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), errors.New("HasFolder() iteration failure"), errs)
 			return true
 		}
-		if *folder.GetDisplayName() == name {
+		if *folder.GetDisplayName() == folderName {
 			folderId = folder.GetId()
+			return false
 		}
 		return true
 	}
