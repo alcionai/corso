@@ -88,6 +88,9 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_SetPopulate() {
 		user:     "Dexter",
 		fullPath: []string{"Today", "is", "currently", "different"},
 	}
-	eoc.SetPopulateFunction(eoc.PopulateFromCollection)
+	t := suite.T()
+	assert.Nil(t, eoc.dataFillFunc)
+	eoc.SetPopulateFunction(PopulateFromCollection)
+	assert.NotNil(t, eoc.dataFillFunc)
 
 }

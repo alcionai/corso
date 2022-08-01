@@ -40,8 +40,9 @@ type Collection struct {
 	// jobs represents items from the inventory of M365 objectIds whose information
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
-
-	service      graph.Service
+	// service - client/adapter pair used to access M365 back store
+	service graph.Service
+	// dataFillFunc - Utility function to populate collection based on the M365 application type and granularity
 	dataFillFunc PopulateFunc
 	statusCh     chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
@@ -51,7 +52,7 @@ type Collection struct {
 
 // PopulateFunc are a class of functions that can be used to fill exchange.Collections with
 // the corresponding information
-type PopulateFunc (*Collection) func(context.Context, graph.Service, chan *support.ConnectorOperationStatus)
+type PopulateFunc func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
@@ -76,15 +77,12 @@ func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, objID)
 }
 
-// SetPopulateFunction sets the populate function for structure
-func (eoc *Collection) SetPopulateFunction(function PopulateFunc) {
-	eoc.dataFillFunc = function
-}
-
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
-	go eoc.PopulateFromCollection(context.TODO(), eoc.service, eoc.statusCh)
+	if eoc.dataFillFunc != nil {
+		go eoc.dataFillFunc(context.TODO(), eoc.service, eoc, eoc.statusCh)
+	}
 	return eoc.data
 }
 
@@ -92,10 +90,16 @@ func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
+// SetPopulateFunction Setter method for dataFillFunc field.
+func (eoc *Collection) SetPopulateFunction(aFunction PopulateFunc) {
+	eoc.dataFillFunc = aFunction
+}
+
 // populateFromTaskList async call to fill DataCollection via channel implementation
-func (edc *Collection) PopulateFromCollection(
+func PopulateFromCollection(
 	ctx context.Context,
 	service graph.Service,
+	edc *Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
