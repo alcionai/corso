@@ -290,6 +290,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 			}
 		}
 	}
+	gc.incrementAwaitingMessages()
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	// set the channel asynchronously so that this func doesn't block.
 	go func(cos *support.ConnectorOperationStatus) {
