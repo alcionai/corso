@@ -41,12 +41,17 @@ type Collection struct {
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
 
-	service  graph.Service
-	statusCh chan<- *support.ConnectorOperationStatus
+	service      graph.Service
+	dataFillFunc PopulateFunc
+	statusCh     chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
+
+// PopulateFunc are a class of functions that can be used to fill exchange.Collections with
+// the corresponding information
+type PopulateFunc (*Collection) func(context.Context, graph.Service, chan *support.ConnectorOperationStatus)
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
@@ -69,6 +74,11 @@ func NewCollection(
 // AddJob appends additional objectID to job field job
 func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, objID)
+}
+
+// SetPopulateFunction sets the populate function for structure
+func (eoc *Collection) SetPopulateFunction(function PopulateFunc) {
+	eoc.dataFillFunc = function
 }
 
 // Items utility function to asynchronously execute process to fill data channel with

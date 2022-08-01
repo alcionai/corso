@@ -82,3 +82,12 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 	suite.Equal(len(shopping), len(eoc.jobs))
 
 }
+
+func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_SetPopulate() {
+	eoc := Collection{
+		user:     "Dexter",
+		fullPath: []string{"Today", "is", "currently", "different"},
+	}
+	eoc.SetPopulateFunction(eoc.PopulateFromCollection)
+
+}
