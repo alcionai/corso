@@ -229,7 +229,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		errs                error
 		folderId            *string
 	)
-	policy := common.Copy
+	policy := common.Copy // TODO policy to be updated from external source after completion of refactoring
 	if policy == common.Copy {
 		u := dcs[0].FullPath()[1]
 		now := time.Now().UTC()
