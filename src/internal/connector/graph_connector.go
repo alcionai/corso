@@ -107,21 +107,6 @@ func (gs *graphService) EnableFailFast() {
 	gs.failFast = true
 }
 
-// createMailFolder will create a mail folder iff a folder of the same name does not exit
-func createMailFolder(gc graphService, user, folder string) (models.MailFolderable, error) {
-	requestBody := models.NewMailFolder()
-	requestBody.SetDisplayName(&folder)
-	isHidden := false
-	requestBody.SetIsHidden(&isHidden)
-
-	return gc.client.UsersById(user).MailFolders().Post(requestBody)
-}
-
-// deleteMailFolder removes the mail folder from the user's M365 Exchange account
-func deleteMailFolder(gc graphService, user, folderID string) error {
-	return gc.client.UsersById(user).MailFoldersById(folderID).Delete()
-}
-
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the return value is true
@@ -249,16 +234,19 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		u := dcs[0].FullPath()[1]
 		now := time.Now().UTC()
 		newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatSimpleDateTime(now))
-		isFolder, err := exchange.HasMailFolder(newFolder, u, gc.graphService)
+		isFolder, err := exchange.GetMailFolderID(&gc.graphService, newFolder, u)
 		if err != nil {
-			return support.WrapAndAppend(u, err, errs)
-		}
-		if isFolder == nil {
-			fold, err := createMailFolder(gc.graphService, u, newFolder)
-			if err != nil {
-				return support.WrapAndAppend(u, err, errs)
+			// Create Restore FolderFolder
+			if strings.Contains("folder not found", err.Error()) {
+
+				fold, err := exchange.CreateMailFolder(&gc.graphService, u, newFolder)
+				if err != nil {
+					return support.WrapAndAppend(u, err, errs)
+				}
+				folderId = fold.GetId()
+			} else {
+				return err
 			}
-			folderId = fold.GetId()
 
 		} else {
 			folderId = isFolder
@@ -299,7 +287,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
 				} else {
-					folderId, err = exchange.`HasMail`Folder(dc.FullPath()[3], user, gc.graphService)
+					folderId, err = exchange.GetMailFolderID(&gc.graphService, dc.FullPath()[3], user)
 					if err != nil || folderId == nil {
 						errs = support.WrapAndAppend(data.UUID(), errors.New("mail folder in full path not found"), errs)
 						continue
@@ -349,33 +337,13 @@ func restoreMessage(ctx context.Context, bits []byte, service graph.Service, rp 
 
 	//Step II: restore message based on given policy
 	switch rp {
-	case common.Drop, common.Replace:
-		// get the file... if drop return
-		options, err := exchange.OptionsForSingleMessage([]string{"parentFolderId"})
-		if err != nil {
-			return err
-		}
-		query, err := service.Client().UsersById(user).MessagesById(*originalMessage.GetId()).GetWithRequestConfigurationAndResponseHandler(options, nil)
-		if err != nil {
-			return err
-		}
-		isPresent := query != nil
-		if rp == common.Drop && isPresent {
-			return nil
-		}
-		if rp == common.Replace && isPresent {
-			err = service.Client().UsersById(user).MessagesById(*originalMessage.GetId()).Delete()
-			if err != nil {
-				return err
-			}
-		}
+	case common.Copy:
 		return restoreMailToBackStore(service, user, destination, clone)
+
 	default:
 		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
 			"policy", rp)
-		fallthrough
-	case common.Copy:
-		return restoreMailToBackStore(service, user, destination, clone)
+		return errors.New("restore policy not yet supported")
 	}
 }
 

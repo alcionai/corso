@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
@@ -95,23 +97,30 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_HasFolder() {
-	response, err := HasMailFolder("Inbox", suite.user, suite.connector.graphService)
-	assert.NoError(suite.T(), err)
-	assert.NotNil(suite.T(), response)
-	response, err = HasMailFolder("A_Wacky_World_Of_NonExistance", suite.user, suite.connector.graphService)
-	assert.NoError(suite.T(), err)
-	assert.Nil(suite.T(), response)
+///------------------------------------------------------------
+// Exchange Functions
+//-------------------------------------------------------
 
-}
-
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_createDeleteFolder() {
+//  TestGraphConnector_CreateAndDeleteFolder ensures msgraph application has the ability
+//  to create and remove folders within the tenant
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
 	user := "lidiah@8qzvrj.onmicrosoft.com"
-	folderName := uuid.NewString() // todo - replace with danny's fix #391
-	aFolder, err := createMailFolder(suite.connector.graphService, user, folderName)
+	now := time.Now()
+	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
+	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
-		err = deleteMailFolder(suite.connector.graphService, user, *aFolder.GetId())
+		err = exchange.DeleteMailFolder(&suite.connector.graphService, user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
+}
+
+// TestGraphConnector_GetMailFolderID verifies the ability to retrieve folder ID of folders
+// at the top level of the file tree
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_GetMailFolderID() {
+	user := "lidiah@8qzvrj.onmicrosoft.com"
+	folderName := "Inbox"
+	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, user)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), folderID)
 }
