@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -205,6 +206,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 					errs)
 				continue
 			}
+			// TODO: Creates a map of collections based on scope
 			dcs, err := gc.serializeMessages(ctx, user)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
@@ -304,12 +306,13 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
 func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*exchange.Collection, error) {
-	options := optionsForMessageSnapshot()
-	response, err := gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	var transformer absser.ParsableFactory
+	response, err := exchange.GetAllMessagesForUser(&gc.graphService, []string{user}) //TODO: Selector to be used for exchange.query
 	if err != nil {
 		return nil, err
 	}
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
+	transformer = models.CreateMessageCollectionResponseFromDiscriminatorValue
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err
 	}
@@ -318,26 +321,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	var errs error
 	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 	// with corresponding messageIDs. New collections are created for each directory
-	callbackFunc := func(messageItem any) bool {
-		message, ok := messageItem.(models.Messageable)
-		if !ok {
-			errs = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
-			return true
-		}
-		// Saving to messages to list. Indexed by folder
-		directory := *message.GetParentFolderId()
-		if _, ok = collections[directory]; !ok {
-			service, err := gc.createService(gc.failFast)
-			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
-				return true
-			}
-			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory}, service, gc.statusCh)
-			collections[directory] = &edc
-		}
-		collections[directory].AddJob(*message.GetId())
-		return true
-	}
+	callbackFunc := exchange.IterateMessagesCollection(gc.tenant, user, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
