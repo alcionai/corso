@@ -68,17 +68,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 	}
 }
 
-// contains Helper test method for evaluating if
-// string exists within string literal
-func contains(elems []string, value string) bool {
-	for _, s := range elems {
-		if value == s {
-			return true
-		}
-	}
-	return false
-}
-
 func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	names := make(map[string]string)
 	names["Al"] = "Bundy"
@@ -86,12 +75,12 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	names["Axel"] = "Foley"
 	first := buildFromMap(true, names)
 	last := buildFromMap(false, names)
-	suite.True(contains(first, "Al"))
-	suite.True(contains(first, "Ellen"))
-	suite.True(contains(first, "Axel"))
-	suite.True(contains(last, "Bundy"))
-	suite.True(contains(last, "Ripley"))
-	suite.True(contains(last, "Foley"))
+	suite.Contains(first, "Al")
+	suite.Contains(first, "Ellen")
+	suite.Contains(first, "Axel")
+	suite.Contains(last, "Bundy")
+	suite.Contains(last, "Ripley")
+	suite.Contains(last, "Foley")
 
 }
 
