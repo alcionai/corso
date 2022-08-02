@@ -75,12 +75,12 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	names["Axel"] = "Foley"
 	first := buildFromMap(true, names)
 	last := buildFromMap(false, names)
-	suite.True(Contains(first, "Al"))
-	suite.True(Contains(first, "Ellen"))
-	suite.True(Contains(first, "Axel"))
-	suite.True(Contains(last, "Bundy"))
-	suite.True(Contains(last, "Ripley"))
-	suite.True(Contains(last, "Foley"))
+	suite.Contains(first, "Al")
+	suite.Contains(first, "Ellen")
+	suite.Contains(first, "Axel")
+	suite.Contains(last, "Bundy")
+	suite.Contains(last, "Ripley")
+	suite.Contains(last, "Foley")
 
 }
 
