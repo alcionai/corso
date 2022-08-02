@@ -202,8 +202,8 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 					errs)
 				continue
 			}
-			// TODO: Creates a map of collections based on scope
-			dcs, err := gc.serializeMessages(ctx, user)
+			// Creates a map of collections based on scope
+			dcs, err := gc.createCollections(ctx, scope)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}
@@ -298,15 +298,27 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	return errs
 }
 
-// serializeMessages: Temp Function as place Holder until Collections have been added
+// createCollection utility function that retrieves M365
+// IDs through Microsoft Graph API. The selectors.ExchangeScope
+// determines the type of collections that are stored.
+// a mas place Holder until Collections have been added
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*exchange.Collection, error) {
-	var transformer absser.ParsableFactory
-	response, err := exchange.GetAllMessagesForUser(&gc.graphService, []string{user}) //TODO: Selector to be used for exchange.query
+func (gc *GraphConnector) createCollections(
+	ctx context.Context,
+	scope selectors.ExchangeScope,
+) (map[string]*exchange.Collection, error) {
+
+	var (
+		transformer absser.ParsableFactory
+		query       exchange.GraphQuery
+		gIter       exchange.GraphIterateFunc
+	)
+	user := scope.Get(selectors.ExchangeUser)[0]
+	transformer, query, gIter = exchange.SetupExchangeCollectionVars(scope)
+	response, err := query(&gc.graphService, []string{user})
 	if err != nil {
 		return nil, err
 	}
-	transformer = models.CreateMessageCollectionResponseFromDiscriminatorValue
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err
@@ -316,7 +328,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	var errs error
 	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 	// with corresponding messageIDs. New collections are created for each directory
-	callbackFunc := exchange.IterateMessagesCollection(gc.tenant, user, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
+	callbackFunc := gIter(gc.tenant, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
