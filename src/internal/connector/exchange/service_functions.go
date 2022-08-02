@@ -77,7 +77,7 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 // Messageable object to the M365 backstore in the folder designated
 // by the destination string (expects an M365 ID) for the associated M365 user.
 func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service, rp common.RestorePolicy, destination, user string) error {
-	///Step I: Create message object from original bytes
+	// Step I: Create message object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
 		return err
