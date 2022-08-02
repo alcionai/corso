@@ -41,7 +41,14 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 
 // IterateMessageCollection utility function for Iterating through MessagesCollectionResponse
 // During iteration, Collections are added to the map based on the parent folder
-func IterateMessagesCollection(tenant, user string, errs error, failFast bool, credentials account.M365Config, collections map[string]*Collection, statusCh chan<- *support.ConnectorOperationStatus) func(any) bool {
+func IterateMessagesCollection(
+	tenant, user string,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) func(any) bool {
 	return func(messageItem any) bool {
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
