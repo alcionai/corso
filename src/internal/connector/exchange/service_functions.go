@@ -4,7 +4,6 @@ import (
 	"context"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
