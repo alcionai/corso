@@ -110,7 +110,6 @@ func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilde
 	return options, nil
 }
 
-// optionsForMailFolders creates transforms the 'select' into a more dynamic call for MailFolders.
 // optionsForMailFolders transforms the options into a more dynamic call for MailFolders.
 // @param moreOps is a []string of options(e.g. "displayName", "isHidden")
 // @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
