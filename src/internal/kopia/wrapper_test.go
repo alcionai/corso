@@ -19,7 +19,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia/mockkopia"
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
@@ -104,7 +104,7 @@ func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
-	ctesting.LogTimeOfTest(suite.T())
+	tester.LogTimeOfTest(suite.T())
 
 	ctx := context.Background()
 	tenant := "a-tenant"
@@ -173,7 +173,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
-	ctesting.LogTimeOfTest(suite.T())
+	tester.LogTimeOfTest(suite.T())
 
 	ctx := context.Background()
 	emails := "emails"
@@ -372,9 +372,9 @@ type KopiaIntegrationSuite struct {
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoKopiaWrapperTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoKopiaWrapperTests,
 	); err != nil {
 		t.Skip()
 	}
@@ -383,7 +383,7 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
+	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 
@@ -433,9 +433,9 @@ type KopiaSimpleRepoIntegrationSuite struct {
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoKopiaWrapperTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoKopiaWrapperTests,
 	); err != nil {
 		t.Skip()
 	}
@@ -444,7 +444,7 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
+	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 

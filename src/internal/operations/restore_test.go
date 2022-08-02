@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -77,9 +77,9 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoOperationTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoOperationTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -87,14 +87,14 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *RestoreOpIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.M365AcctCredEnvs...)
+	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	acct, err := ctesting.NewM365Account()
+	acct, err := tester.NewM365Account()
 	require.NoError(suite.T(), err)
 
 	table := []struct {
@@ -130,11 +130,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	ctx := context.Background()
 
 	m365User := "lidiah@8qzvrj.onmicrosoft.com"
-	acct, err := ctesting.NewM365Account()
+	acct, err := tester.NewM365Account()
 	require.NoError(t, err)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewPrefixedS3Storage(t)
+	st, err := tester.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	k := kopia.NewConn(st)
@@ -193,11 +193,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	ctx := context.Background()
 
 	m365User := "lidiah@8qzvrj.onmicrosoft.com"
-	acct, err := ctesting.NewM365Account()
+	acct, err := tester.NewM365Account()
 	require.NoError(t, err)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewPrefixedS3Storage(t)
+	st, err := tester.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	k := kopia.NewConn(st)

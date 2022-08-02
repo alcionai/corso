@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 )
 
 func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
-	storage, err := ctesting.NewPrefixedS3Storage(t)
+	storage, err := tester.NewPrefixedS3Storage(t)
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +53,9 @@ type WrapperIntegrationSuite struct {
 }
 
 func TestWrapperIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoKopiaWrapperTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoKopiaWrapperTests,
 	); err != nil {
 		t.Skip()
 	}
@@ -64,7 +64,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 }
 
 func (suite *WrapperIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
+	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 
