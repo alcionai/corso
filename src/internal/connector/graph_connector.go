@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -229,8 +230,8 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		errs                error
 		folderId            *string
 	)
-	policy := common.Copy // TODO policy to be updated from external source after completion of refactoring
-	if policy == common.Copy {
+	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
+	if policy == control.Copy {
 		u := dcs[0].FullPath()[1]
 		now := time.Now().UTC()
 		newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatSimpleDateTime(now))
@@ -277,8 +278,8 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					continue
 				}
 				switch policy {
-				case common.Copy:
-					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, common.Copy, *folderId, user)
+				case control.Copy:
+					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, control.Copy, *folderId, user)
 					if err != nil {
 						errs = support.WrapAndAppend(data.UUID(), err, errs)
 					}
