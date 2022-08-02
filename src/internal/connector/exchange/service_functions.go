@@ -32,7 +32,7 @@ func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 
 // GetMailFolderID query function to retrieve the M365 ID based on the folder's displayName.
 // @param folderName the target folder's display name. Case sensitive
-// @returns a *string if the folder exists. If folder does not exist returns nil, error-> folder not found
+// @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
 func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
 	var errs error
 	var folderId *string
