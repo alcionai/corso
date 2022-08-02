@@ -1,4 +1,4 @@
-package testing
+package tester
 
 import (
 	"github.com/alcionai/corso/pkg/account"

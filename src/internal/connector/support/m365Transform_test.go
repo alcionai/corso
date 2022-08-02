@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 )
 
 type SupportTestSuite struct {
@@ -21,7 +21,7 @@ const (
 )
 
 func TestSupportTestSuite(t *testing.T) {
-	evs, err := ctesting.GetRequiredEnvVars(SUPPORT_FILE)
+	evs, err := tester.GetRequiredEnvVars(SUPPORT_FILE)
 	if err != nil {
 		t.Skipf("Env not configured: %v\n", err)
 	}
@@ -33,7 +33,7 @@ func TestSupportTestSuite(t *testing.T) {
 }
 
 func (suite *SupportTestSuite) TestToMessage() {
-	bytes, err := ctesting.LoadAFile(os.Getenv(SUPPORT_FILE))
+	bytes, err := tester.LoadAFile(os.Getenv(SUPPORT_FILE))
 	if err != nil {
 		suite.T().Errorf("Failed with %v\n", err)
 	}
