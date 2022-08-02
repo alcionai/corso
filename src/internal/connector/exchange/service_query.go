@@ -52,9 +52,11 @@ type GraphIterateFunc func(
 	chan<- *support.ConnectorOperationStatus,
 ) func(any) bool
 
-// IterateMessageCollection utility function for Iterating through MessagesCollectionResponse
-// During iteration, Collections are added to the map based on the parent folder
-func IterateMessagesCollection(
+// IterateSelectAllMessageForCollection utility function for
+// Iterating through MessagesCollectionResponse
+// During iteration, messages belonging to any folder are
+// placed into a Collection based on the parent folder
+func IterateSelectAllMessagesForCollections(
 	tenant string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -64,8 +66,8 @@ func IterateMessagesCollection(
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
 	return func(messageItem any) bool {
-		// How to deconstruct scope to type ??
-		message_type := messages
+		// Defines the type of collection being created within the function
+		collection_type := messages
 		user := scope.Get(selectors.ExchangeUser)[0]
 
 		message, ok := messageItem.(models.Messageable)
@@ -84,7 +86,7 @@ func IterateMessagesCollection(
 			edc := NewCollection(
 				user,
 				[]string{tenant, user, mailCategory, directory},
-				message_type,
+				collection_type,
 				service,
 				statusCh,
 			)
