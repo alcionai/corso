@@ -7,9 +7,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/logger"
 )
 
@@ -76,7 +76,7 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 // RestoreMailMessage creates a copy of the original message and then sends the
 // Messageable object to the M365 backstore in the folder designated
 // by the destination string (expects an M365 ID) for the associated M365 user.
-func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service, rp common.RestorePolicy, destination, user string) error {
+func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service, rp control.CollisionPolicy, destination, user string) error {
 	// Step I: Create message object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
@@ -96,7 +96,7 @@ func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service,
 
 	//Step II: restore message based on given policy
 	switch rp {
-	case common.Copy:
+	case control.Copy:
 		return SendMailToBackStore(service, user, destination, clone)
 
 	default:
