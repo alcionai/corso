@@ -63,8 +63,14 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
+	userID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
 	sel := selectors.NewExchangeBackup()
+<<<<<<< HEAD
 	sel.Include(sel.Users([]string{suite.user}))
+=======
+	sel.Include(sel.Users([]string{userID}))
+>>>>>>> main
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Nil(suite.T(), err)
@@ -104,13 +110,14 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 //  TestGraphConnector_CreateAndDeleteFolder ensures msgraph application has the ability
 //  to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
-	user := "lidiah@8qzvrj.onmicrosoft.com"
+	userID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, user, folderName)
+	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, userID, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
-		err = exchange.DeleteMailFolder(&suite.connector.graphService, user, *aFolder.GetId())
+		err = exchange.DeleteMailFolder(&suite.connector.graphService, userID, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
 }
@@ -118,9 +125,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 // TestGraphConnector_GetMailFolderID verifies the ability to retrieve folder ID of folders
 // at the top level of the file tree
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_GetMailFolderID() {
-	user := "lidiah@8qzvrj.onmicrosoft.com"
+	userID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
 	folderName := "Inbox"
-	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, user)
+	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, userID)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), folderID)
 }

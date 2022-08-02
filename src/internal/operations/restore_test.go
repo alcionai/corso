@@ -129,7 +129,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365User := "lidiah@8qzvrj.onmicrosoft.com"
+	m365UserID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
 	acct, err := tester.NewM365Account()
 	require.NoError(t, err)
 
@@ -152,7 +153,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	sw := store.NewKopiaStore(ms)
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m365User}))
+	bsel.Include(bsel.Users([]string{m365UserID}))
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -166,7 +167,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users([]string{m365User}))
+	rsel.Include(rsel.Users([]string{m365UserID}))
 
 	ro, err := NewRestoreOperation(
 		ctx,
@@ -192,7 +193,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365User := "lidiah@8qzvrj.onmicrosoft.com"
+	m365UserID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
 	acct, err := tester.NewM365Account()
 	require.NoError(t, err)
 
@@ -215,7 +217,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	sw := store.NewKopiaStore(ms)
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m365User}))
+	bsel.Include(bsel.Users([]string{m365UserID}))
 
 	bo, err := NewBackupOperation(
 		ctx,

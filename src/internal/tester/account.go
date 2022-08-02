@@ -16,7 +16,7 @@ var M365AcctCredEnvs = []string{
 func NewM365Account() (account.Account, error) {
 	cfg, err := readTestConfig()
 	if err != nil {
-		return account.Account{}, errors.Wrap(err, "configuring m365 account from test file")
+		return account.Account{}, errors.Wrap(err, "configuring m365 account from test configuration")
 	}
 
 	return account.NewAccount(
