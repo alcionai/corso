@@ -201,6 +201,7 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 					errs)
 				continue
 			}
+			// TODO: Creates a map of collections based on scope
 			dcs, err := gc.serializeMessages(ctx, user)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
@@ -313,26 +314,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	var errs error
 	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 	// with corresponding messageIDs. New collections are created for each directory
-	callbackFunc := func(messageItem any) bool {
-		message, ok := messageItem.(models.Messageable)
-		if !ok {
-			errs = support.WrapAndAppendf(gc.graphService.adapter.GetBaseUrl(), errors.New("message iteration failure"), err)
-			return true
-		}
-		// Saving to messages to list. Indexed by folder
-		directory := *message.GetParentFolderId()
-		if _, ok = collections[directory]; !ok {
-			service, err := gc.createService(gc.failFast)
-			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
-				return true
-			}
-			edc := exchange.NewCollection(user, []string{gc.tenant, user, mailCategory, directory}, service, gc.statusCh)
-			collections[directory] = &edc
-		}
-		collections[directory].AddJob(*message.GetId())
-		return true
-	}
+	callbackFunc := exchange.IterateMessagesCollection(gc.tenant, user, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
