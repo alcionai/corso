@@ -110,7 +110,8 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
 	GraphQuery,
-	GraphIterateFunc) {
+	GraphIterateFunc,
+) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
 
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
