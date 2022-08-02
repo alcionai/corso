@@ -15,6 +15,8 @@ import (
 	"github.com/alcionai/corso/pkg/logger"
 )
 
+var ErrFolderNotFound = errors.New("folder not found")
+
 type exchangeService struct {
 	client      msgraphsdk.GraphServiceClient
 	adapter     msgraphsdk.GraphRequestAdapter
@@ -106,7 +108,7 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	if iterateError != nil {
 		errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), iterateError, errs)
 	} else if folderId == nil {
-		return nil, errors.New("folder not found")
+		return nil, ErrFolderNotFound
 	}
 	return folderId, errs
 

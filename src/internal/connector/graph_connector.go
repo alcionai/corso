@@ -240,7 +240,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		isFolder, err := exchange.GetMailFolderID(&gc.graphService, newFolder, u)
 		if err != nil {
 			// Create Restore FolderFolder
-			if strings.Contains("folder not found", err.Error()) {
+			if errors.Is(err, exchange.ErrFolderNotFound) {
 
 				fold, err := exchange.CreateMailFolder(&gc.graphService, u, newFolder)
 				if err != nil {
