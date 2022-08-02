@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -25,9 +25,9 @@ type GraphConnectorIntegrationSuite struct {
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoGraphConnectorTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -35,14 +35,14 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	if err := ctesting.RunOnAny(ctesting.CorsoCITests); err != nil {
+	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
 
-	_, err := ctesting.GetRequiredEnvVars(ctesting.M365AcctCredEnvs...)
+	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
-	a, err := ctesting.NewM365Account()
+	a, err := tester.NewM365Account()
 	require.NoError(suite.T(), err)
 
 	suite.connector, err = NewGraphConnector(a)
@@ -50,7 +50,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
-	ctesting.LogTimeOfTest(suite.T())
+	tester.LogTimeOfTest(suite.T())
 	suite.NotNil(suite.connector)
 }
 
@@ -86,7 +86,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 // is able to restore a messageable item to a Mailbox.
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
 	user := "TEST_GRAPH_USER" // user.GetId()
-	evs, err := ctesting.GetRequiredEnvVars(user)
+	evs, err := tester.GetRequiredEnvVars(user)
 	if err != nil {
 		suite.T().Skipf("Environment not configured: %v\n", err)
 	}

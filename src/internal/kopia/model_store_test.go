@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/model"
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 )
 
 type fooModel struct {
@@ -54,9 +54,9 @@ type ModelStoreIntegrationSuite struct {
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoModelStoreTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoModelStoreTests,
 	); err != nil {
 		t.Skip()
 	}
@@ -65,7 +65,7 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
+	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 
@@ -437,9 +437,9 @@ type ModelStoreRegressionSuite struct {
 }
 
 func TestModelStoreRegressionSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoModelStoreTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoModelStoreTests,
 	); err != nil {
 		t.Skip()
 	}
@@ -448,7 +448,7 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 }
 
 func (suite *ModelStoreRegressionSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(ctesting.AWSStorageCredEnvs...)
+	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
 }
 

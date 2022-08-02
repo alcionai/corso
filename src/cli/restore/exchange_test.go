@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/cli/utils"
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -45,7 +45,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 			child := cmds[0]
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
-			ctesting.AreSameFunc(t, test.expectRunE, child.RunE)
+			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 		})
 	}
 }
