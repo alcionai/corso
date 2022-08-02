@@ -105,8 +105,9 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
 			temp := NewStream(uuid.NewString(), mockconnector.GetMockMessageBytes("Test_Items()"), *detail)
 			eoc.data <- &temp
 		}
-
+		close(eoc.data)
 	}
+
 	eoc := Collection{
 		user:     "Dexter",
 		fullPath: []string{"Today", "is", "currently", "different"},
@@ -115,9 +116,6 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
 	}
 	t := suite.T()
 	itemsReturn := eoc.Items()
-	time.Sleep(2 * time.Second) // await for async population of channel
-	close(eoc.data)
-	suite.Equal(len(itemsReturn), expected)
 	retrieved := 0
 	for item := range itemsReturn {
 		assert.NotNil(t, item)
