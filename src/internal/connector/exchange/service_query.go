@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type optionIdentifier int
@@ -39,10 +40,23 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
+// GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
+// @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
+type GraphIterateFunc func(
+	string,
+	selectors.ExchangeScope,
+	error,
+	bool,
+	account.M365Config,
+	map[string]*Collection,
+	chan<- *support.ConnectorOperationStatus,
+) func(any) bool
+
 // IterateMessageCollection utility function for Iterating through MessagesCollectionResponse
 // During iteration, Collections are added to the map based on the parent folder
 func IterateMessagesCollection(
-	tenant, user string,
+	tenant string,
+	scope selectors.ExchangeScope,
 	errs error,
 	failFast bool,
 	credentials account.M365Config,
@@ -50,6 +64,10 @@ func IterateMessagesCollection(
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
 	return func(messageItem any) bool {
+		// How to deconstruct scope to type ??
+		message_type := messages
+		user := scope.Get(selectors.ExchangeUser)[0]
+
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
 			errs = support.WrapAndAppendf(user, errors.New("message iteration failure"), errs)
@@ -63,7 +81,13 @@ func IterateMessagesCollection(
 				errs = support.WrapAndAppend(user, err, errs)
 				return true
 			}
-			edc := NewCollection(user, []string{tenant, user, mailCategory, directory}, service, statusCh)
+			edc := NewCollection(
+				user,
+				[]string{tenant, user, mailCategory, directory},
+				message_type,
+				service,
+				statusCh,
+			)
 			collections[directory] = &edc
 		}
 		collections[directory].AddJob(*message.GetId())
