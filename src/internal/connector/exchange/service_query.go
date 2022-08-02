@@ -113,6 +113,7 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 		"displayName":    1,
 		"isHidden":       2,
 		"parentFolderId": 3,
+		"id":             4,
 	}
 
 	fieldsForUsers := map[string]int{
@@ -123,6 +124,7 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 		"department":     5,
 		"displayName":    6,
 		"employeeId":     7,
+		"id":             8,
 	}
 
 	fieldsForMessages := map[string]int{
@@ -131,6 +133,7 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 		"parentFolderId":    3,
 		"subject":           4,
 		"webLink":           5,
+		"id":                6,
 	}
 	returnedOptions := []string{"id"}
 
