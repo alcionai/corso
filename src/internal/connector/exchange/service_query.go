@@ -5,7 +5,6 @@ import (
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
-
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector/graph"
