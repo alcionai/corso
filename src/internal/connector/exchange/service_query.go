@@ -2,14 +2,19 @@ package exchange
 
 import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector/graph"
+	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/pkg/account"
 )
 
 type optionIdentifier int
+
+const mailCategory = "mail"
 
 //go:generate stringer -type=optionIdentifier
 const (
@@ -32,6 +37,31 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 		return nil, err
 	}
 	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// IterateMessageCollection utility function for Iterating through MessagesCollectionResponse
+// During iteration, Collections are added to the map based on the parent folder
+func IterateMessagesCollection(tenant, user string, errs error, failFast bool, credentials account.M365Config, collections map[string]*Collection, statusCh chan<- *support.ConnectorOperationStatus) func(any) bool {
+	return func(messageItem any) bool {
+		message, ok := messageItem.(models.Messageable)
+		if !ok {
+			errs = support.WrapAndAppendf(user, errors.New("message iteration failure"), errs)
+			return true
+		}
+		// Saving to messages to list. Indexed by folder
+		directory := *message.GetParentFolderId()
+		if _, ok = collections[directory]; !ok {
+			service, err := createService(credentials, failFast)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return true
+			}
+			edc := NewCollection(user, []string{tenant, user, mailCategory, directory}, service, statusCh)
+			collections[directory] = &edc
+		}
+		collections[directory].AddJob(*message.GetId())
+		return true
+	}
 }
 
 //---------------------------------------------------
