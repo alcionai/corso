@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -9,6 +10,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type exchangeService struct {
@@ -103,4 +105,17 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	}
 	return folderId, errs
 
+}
+
+func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
+	absser.ParsableFactory,
+	GraphQuery,
+	GraphIterateFunc) {
+	if scope.IncludesCategory(selectors.ExchangeMail) {
+
+		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
+			GetAllMessagesForUser,
+			IterateMessagesCollection
+	}
+	return nil, nil, nil
 }
