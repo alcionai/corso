@@ -131,7 +131,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365User := "lidiah@8qzvrj.onmicrosoft.com"
+	m365UserID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
 	acct, err := tester.NewM365Account()
 	require.NoError(t, err)
 
@@ -157,7 +158,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	sw := store.NewKopiaStore(ms)
 
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{m365User}))
+	sel.Include(sel.Users([]string{m365UserID}))
 
 	bo, err := NewBackupOperation(
 		ctx,
