@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -299,12 +300,14 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 // serializeMessages: Temp Function as place Holder until Collections have been added
 // to the GraphConnector struct.
 func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*exchange.Collection, error) {
+	var transformer absser.ParsableFactory
 	options := optionsForMessageSnapshot()
 	response, err := gc.graphService.client.UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return nil, err
 	}
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateMessageCollectionResponseFromDiscriminatorValue)
+	transformer = models.CreateMessageCollectionResponseFromDiscriminatorValue
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err
 	}
