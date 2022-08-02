@@ -298,10 +298,9 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	return errs
 }
 
-// createCollection utility function that retrieves M365
+// createCollection - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are stored.
-// a mas place Holder until Collections have been added
 // to the GraphConnector struct.
 func (gc *GraphConnector) createCollections(
 	ctx context.Context,
