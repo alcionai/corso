@@ -105,7 +105,7 @@ func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
-// populateFromTaskList async call to fill DataCollection via channel implementation
+// PopulateFromCollection async call to fill DataCollection via channel implementation
 func PopulateFromCollection(
 	ctx context.Context,
 	service graph.Service,
