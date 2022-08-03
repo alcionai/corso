@@ -107,14 +107,15 @@ func (edc *Collection) PopulateForContactCollection(
 			continue
 		}
 		err = contactToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
-		success++
 		if err != nil {
 			errs = support.WrapAndAppendf(edc.user, err, errs)
-			success--
+	
+		  if service.ErrPolicy() {
+			  break
+			}
 		}
-		if errs != nil && service.ErrPolicy() {
-			break
-		}
+		
+		success++
 
 	}
 	close(edc.data)
