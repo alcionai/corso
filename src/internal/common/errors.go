@@ -22,6 +22,7 @@ type Err struct {
 func EncapsulateError(e error) *Err {
 	return &Err{Err: e}
 }
+
 func (e Err) Error() string {
 	return e.Err.Error()
 }

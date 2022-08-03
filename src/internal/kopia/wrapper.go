@@ -300,7 +300,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 			return nil
 		},
 	)
-
 	// Telling kopia to always flush may hide other errors if it fails while
 	// flushing the write session (hence logging above).
 	if err != nil {
@@ -461,7 +460,6 @@ func walkDirectory(
 
 		return nil
 	})
-
 	if err != nil {
 		// If the iterator itself had an error add it to the list.
 		errs = multierror.Append(errs, errors.Wrap(err, "getting directory data"))

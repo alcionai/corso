@@ -12,12 +12,10 @@ import (
 	"github.com/alcionai/corso/cli"
 )
 
-var (
-	// generate markdown files in the given.
-	// callers of this func can then migrate the files
-	// to where they need.
-	cliMarkdownDir string
-)
+// generate markdown files in the given.
+// callers of this func can then migrate the files
+// to where they need.
+var cliMarkdownDir string
 
 // The root-level command.
 // `corso <command> [<subcommand>] [<service>] [<flag>...]`

@@ -40,13 +40,15 @@ func handleBackupCmd(cmd *cobra.Command, args []string) error {
 
 // The backup create subcommand.
 // `corso backup create <service> [<flag>...]`
-var createCommand = "create"
-var createCmd = &cobra.Command{
-	Use:   createCommand,
-	Short: "Backup an M365 Service",
-	RunE:  handleCreateCmd,
-	Args:  cobra.NoArgs,
-}
+var (
+	createCommand = "create"
+	createCmd     = &cobra.Command{
+		Use:   createCommand,
+		Short: "Backup an M365 Service",
+		RunE:  handleCreateCmd,
+		Args:  cobra.NoArgs,
+	}
+)
 
 // Handler for calls to `corso backup create`.
 // Produces the same output as `corso backup create --help`.
@@ -56,13 +58,15 @@ func handleCreateCmd(cmd *cobra.Command, args []string) error {
 
 // The backup list subcommand.
 // `corso backup list <service> [<flag>...]`
-var listCommand = "list"
-var listCmd = &cobra.Command{
-	Use:   listCommand,
-	Short: "List the history of backups for a service",
-	RunE:  handleListCmd,
-	Args:  cobra.NoArgs,
-}
+var (
+	listCommand = "list"
+	listCmd     = &cobra.Command{
+		Use:   listCommand,
+		Short: "List the history of backups for a service",
+		RunE:  handleListCmd,
+		Args:  cobra.NoArgs,
+	}
+)
 
 // Handler for calls to `corso backup list`.
 // Produces the same output as `corso backup list --help`.
@@ -72,13 +76,15 @@ func handleListCmd(cmd *cobra.Command, args []string) error {
 
 // The backup details subcommand.
 // `corso backup list <service> [<flag>...]`
-var detailsCommand = "details"
-var detailsCmd = &cobra.Command{
-	Use:   detailsCommand,
-	Short: "Shows the details of a backup for a service",
-	RunE:  handleDetailsCmd,
-	Args:  cobra.NoArgs,
-}
+var (
+	detailsCommand = "details"
+	detailsCmd     = &cobra.Command{
+		Use:   detailsCommand,
+		Short: "Shows the details of a backup for a service",
+		RunE:  handleDetailsCmd,
+		Args:  cobra.NoArgs,
+	}
+)
 
 // Handler for calls to `corso backup details`.
 // Produces the same output as `corso backup details --help`.

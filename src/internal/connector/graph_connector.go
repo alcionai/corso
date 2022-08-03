@@ -35,7 +35,7 @@ const (
 type GraphConnector struct {
 	graphService
 	tenant           string
-	Users            map[string]string                 //key<email> value<id>
+	Users            map[string]string                 // key<email> value<id>
 	status           *support.ConnectorOperationStatus // contains the status of the last run status
 	statusCh         chan *support.ConnectorOperationStatus
 	awaitingMessages int32

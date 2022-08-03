@@ -36,17 +36,18 @@ const (
 
 // GraphQuery represents functions which perform exchange-specific queries
 // into M365 backstore.
-//TODO: use selector or path for granularity into specific folders or specific date ranges
+// TODO: use selector or path for granularity into specific folders or specific date ranges
 type GraphQuery func(graph.Service, string) (absser.Parsable, error)
 
 // GetAllMessagesForUser is a GraphQuery function for receiving all messages for a single user
 func GetAllMessagesForUser(gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
-	options, err := optionsForMessages(selecting)
 
+	options, err := optionsForMessages(selecting)
 	if err != nil {
 		return nil, err
 	}
+
 	return gs.Client().UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
@@ -57,21 +58,19 @@ func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, erro
 	if err != nil {
 		return nil, err
 	}
-	return gs.Client().UsersById(user).Contacts().GetWithRequestConfigurationAndResponseHandler(options, nil)
 
+	return gs.Client().UsersById(user).Contacts().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GetAllFolderDisplayNamesForUser is a GraphQuery function for getting FolderId and display
 // names for Mail Folder. All other information for the MailFolder object is omitted.
 func GetAllFolderNamesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
 	options, err := optionsForMailFolders([]string{"id", "displayName"})
-
 	if err != nil {
 		return nil, err
 	}
 
 	return gs.Client().UsersById(identities[0]).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
-
 }
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
@@ -144,7 +143,6 @@ func IterateAllContactsForCollection(
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
 	return func(contactsItem any) bool {
-
 		user := scope.Get(selectors.ExchangeUser)[0]
 
 		contact, ok := contactsItem.(models.Contactable)
@@ -215,7 +213,6 @@ func IterateAndFilterMessagesForCollections(
 		}
 		collections[directory].AddJob(*message.GetId())
 		return true
-
 	}
 }
 
@@ -287,7 +284,6 @@ func CollectMailFolders(
 		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
 	}
 	return err
-
 }
 
 //---------------------------------------------------

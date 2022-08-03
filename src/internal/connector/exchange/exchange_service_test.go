@@ -91,9 +91,7 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
 				suite.Equal(test.expected, len(config.QueryParameters.Select))
 			}
 		})
-
 	}
-
 }
 
 // NOTE the requirements are in PR 475

@@ -23,7 +23,6 @@ func CreateFromBytes(bytes []byte, createFunc absser.ParsableFactory) (absser.Pa
 
 // CreateMessageFromBytes function to transform bytes into Messageable object
 func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
-
 	aMessage, err := CreateFromBytes(bytes, models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
 		return nil, err
