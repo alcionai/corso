@@ -27,6 +27,9 @@ var _ data.StreamInfo = &Stream{}
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
+	// RestorePropertyTag defined: https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
+	RestorePropertyTag          = "Integer 0x0E07"
+	RestoreCanonicalEnableValue = "4"
 )
 
 // Collection implements the interface from data.Collection
@@ -57,7 +60,10 @@ func NewCollection(
 	user string,
 	fullPath []string,
 	service graph.Service,
-	populate populater,
+	aUser string,
+	pathRepresentation []string,
+	collectionType optionIdentifier,
+	aService graph.Service,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
@@ -67,9 +73,20 @@ func NewCollection(
 		service:  service,
 		statusCh: statusCh,
 		fullPath: fullPath,
-		populate: populate,
+		populate: getPopulateFunction(collectionType),
 	}
 	return collection
+}
+
+// getPopulateFunction is a function to set populate function field
+// with exchange-application specific functions
+func getPopulateFunction(optId optionIdentifier) populater {
+	switch optId {
+	case messages:
+		return PopulateFromCollection
+	default:
+		return nil
+	}
 }
 
 // AddJob appends additional objectID to structure's jobs field

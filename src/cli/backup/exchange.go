@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/cli/options"
-	"github.com/alcionai/corso/cli/print"
 	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/pkg/logger"
@@ -165,8 +164,8 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve backup results from storage")
 	}
-	print.Backup(*bu)
 
+	OutputBackup(*bu)
 	return nil
 }
 
@@ -250,8 +249,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(errors.Wrap(err, "Failed to list backups in the repository"))
 	}
 
-	print.Backups(rps)
-
+	OutputBackups(rps)
 	return nil
 }
 
@@ -338,7 +336,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(errors.New("nothing to display: no items in the backup match the provided selectors"))
 	}
 
-	print.Entries(ds.Entries)
+	OutputEntries(ds.Entries)
 	return nil
 }
 

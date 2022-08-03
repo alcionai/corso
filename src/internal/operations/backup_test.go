@@ -12,7 +12,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/kopia"
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -75,9 +75,9 @@ type BackupOpIntegrationSuite struct {
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoOperationTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoOperationTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -85,10 +85,10 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(
+	_, err := tester.GetRequiredEnvVars(
 		append(
-			ctesting.AWSStorageCredEnvs,
-			ctesting.M365AcctCredEnvs...,
+			tester.AWSStorageCredEnvs,
+			tester.M365AcctCredEnvs...,
 		)...,
 	)
 	require.NoError(suite.T(), err)
@@ -97,7 +97,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	acct, err := ctesting.NewM365Account()
+	acct, err := tester.NewM365Account()
 	require.NoError(suite.T(), err)
 
 	table := []struct {
@@ -131,12 +131,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365User := "lidiah@8qzvrj.onmicrosoft.com"
-	acct, err := ctesting.NewM365Account()
+	m365UserID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
+	acct, err := tester.NewM365Account()
 	require.NoError(t, err)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := ctesting.NewPrefixedS3Storage(t)
+	st, err := tester.NewPrefixedS3Storage(t)
 	require.NoError(t, err)
 
 	k := kopia.NewConn(st)
@@ -157,7 +158,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	sw := store.NewKopiaStore(ms)
 
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{m365User}))
+	sel.Include(sel.Users([]string{m365UserID}))
 
 	bo, err := NewBackupOperation(
 		ctx,

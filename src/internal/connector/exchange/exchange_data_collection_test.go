@@ -21,15 +21,6 @@ type ExchangeDataCollectionSuite struct {
 	suite.Suite
 }
 
-func contains(elems []string, value string) bool {
-	for _, s := range elems {
-		if value == s {
-			return true
-		}
-	}
-	return false
-}
-
 func TestExchangeDataCollectionSuite(t *testing.T) {
 	suite.Run(t, new(ExchangeDataCollectionSuite))
 }
@@ -73,9 +64,9 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 		fullPath: []string{"Directory", "File", "task"},
 	}
 	suite.Equal(name, edc.user)
-	suite.True(contains(edc.FullPath(), "Directory"))
-	suite.True(contains(edc.FullPath(), "File"))
-	suite.True(contains(edc.FullPath(), "task"))
+	suite.Contains(edc.FullPath(), "Directory")
+	suite.Contains(edc.FullPath(), "File")
+	suite.Contains(edc.FullPath(), "task")
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {

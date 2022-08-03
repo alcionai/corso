@@ -3,6 +3,7 @@ package control
 // CollisionPolicy describes how the datalayer behaves in case of a collision.
 type CollisionPolicy int
 
+//go:generate stringer -type=CollisionPolicy
 const (
 	Unknown CollisionPolicy = iota
 	Copy
