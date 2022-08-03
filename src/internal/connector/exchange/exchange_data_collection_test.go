@@ -84,7 +84,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 }
 
 // TestExchangeCollection_Items() tests for the Collection.Items() ability
-// to asynchornously fill `data` field with Stream objects
+// to asynchronously fill `data` field with Stream objects
 func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
 	expected := 5
 	testFunction := func(ctx context.Context,
