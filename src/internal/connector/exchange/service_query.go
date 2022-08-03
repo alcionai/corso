@@ -3,6 +3,7 @@ package exchange
 import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	"github.com/pkg/errors"
@@ -15,7 +16,10 @@ import (
 
 type optionIdentifier int
 
-const mailCategory = "mail"
+const (
+	mailCategory     = "mail"
+	contactsCategory = "contacts"
+)
 
 //go:generate stringer -type=optionIdentifier
 const (
@@ -23,6 +27,7 @@ const (
 	folders
 	messages
 	users
+	contacts
 )
 
 // GraphQuery represents functions which perform exchange-specific queries
@@ -38,6 +43,16 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 		return nil, err
 	}
 	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+func GetAllContactsForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+	selecting := []string{"id", "parentFolderId"}
+	options, err := optionsForMailContacts(selecting)
+	if err != nil {
+		return nil, err
+	}
+	return gs.Client().UsersById(identities[0]).Contacts().GetWithRequestConfigurationAndResponseHandler(options, nil)
+
 }
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
@@ -97,6 +112,47 @@ func IterateSelectAllMessagesForCollections(
 	}
 }
 
+func IterateAllContactsForCollection(
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) func(any) bool {
+	return func(contactsItem any) bool {
+
+		collection_type := users
+		user := scope.Get(selectors.ExchangeUser)[0]
+
+		contact, ok := contactsItem.(models.Contactable)
+		if !ok {
+			errs = support.WrapAndAppend(user, errors.New("contact iteration failure"), errs)
+			return true
+		}
+		directory := *contact.GetParentFolderId()
+		if _, ok := collections[directory]; !ok {
+			service, err := createService(credentials, failFast)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return true
+			}
+			edc := NewCollection(
+				user,
+				[]string{tenant, user, contactsCategory, directory},
+				collection_type,
+				service,
+				statusCh,
+			)
+			collections[directory] = &edc
+		}
+		collections[directory].AddJob(*contact.GetId())
+		return true
+
+	}
+}
+
 //---------------------------------------------------
 // exchange.Query Option Section
 //------------------------------------------------
@@ -136,6 +192,22 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 	return options, nil
 }
 
+// optionsForMailContacts transforms options into select query for MailContacts
+// @return is the first call in Contacts().GetWithRequestConfigurationAndResponseHandler(options, handler)
+func optionsForMailContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, contacts)
+	if err != nil {
+		return nil, err
+	}
+	requestParameters := &mscontacts.ContactsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontacts.ContactsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	return options, nil
+}
+
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
@@ -168,9 +240,16 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 		"webLink":           5,
 		"id":                6,
 	}
+
+	fieldsForContacts := map[string]int{
+		"id":             1,
+		"parentFolderId": 2,
+	}
 	returnedOptions := []string{"id"}
 
 	switch optId {
+	case contacts:
+		allowedOptions = fieldsForContacts
 	case folders:
 		allowedOptions = fieldsForFolders
 	case users:
