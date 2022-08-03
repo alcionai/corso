@@ -83,6 +83,47 @@ func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
+func (edc *Collection) PopulateForContactCollection(
+	ctx context.Context,
+	service graph.Service,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+) {
+	var (
+		errs    error
+		success int
+	)
+	objectWriter := kw.NewJsonSerializationWriter()
+
+	for _, task := range edc.jobs {
+		response, err := service.Client().UsersById(edc.user).ContactsById(task).Get()
+		if err != nil {
+			details := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(edc.user, errors.Wrapf(
+				err,
+				"unable to retrieve item %s; details: %s", task, details,
+			),
+				errs,
+			)
+			continue
+		}
+		err = contactToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		success++
+		if err != nil {
+			errs = support.WrapAndAppendf(edc.user, err, errs)
+			success--
+		}
+		if errs != nil && service.ErrPolicy() {
+			break
+		}
+
+	}
+	close(edc.data)
+	attemptedItems := len(edc.jobs)
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
+	logger.Ctx(ctx).Debug(status.String())
+	statusChannel <- status
+}
+
 // populateFromTaskList async call to fill DataCollection via channel implementation
 func (edc *Collection) PopulateFromCollection(
 	ctx context.Context,
@@ -116,6 +157,29 @@ func (edc *Collection) PopulateFromCollection(
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
+}
+
+func contactToDataCollection(
+	client *msgraphsdk.GraphServiceClient,
+	ctx context.Context,
+	objectWriter *kw.JsonSerializationWriter,
+	dataChannel chan<- data.Stream,
+	contact models.Contactable,
+	user string,
+) error {
+	defer objectWriter.Close()
+	err := objectWriter.WriteObjectValue("", contact)
+	if err != nil {
+		return support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
+	}
+	byteArray, err := objectWriter.GetSerializedContent()
+	if err != nil {
+		return support.WrapAndAppend(*contact.GetId(), err, nil)
+	}
+	if byteArray != nil {
+		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: nil}
+	}
+	return nil
 }
 
 func messageToDataCollection(
