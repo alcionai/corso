@@ -5,10 +5,8 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -17,7 +15,6 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/exchange"
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -233,33 +230,17 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		folderId            *string
 	)
 	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
-	if policy == control.Copy {
-		u := dcs[0].FullPath()[1]
-		now := time.Now().UTC()
-		newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatSimpleDateTime(now))
-		isFolder, err := exchange.GetMailFolderID(&gc.graphService, newFolder, u)
-		if err != nil {
-			// Create Restore FolderFolder
-			if errors.Is(err, exchange.ErrFolderNotFound) {
-
-				fold, err := exchange.CreateMailFolder(&gc.graphService, u, newFolder)
-				if err != nil {
-					return support.WrapAndAppend(u, err, errs)
-				}
-				folderId = fold.GetId()
-			} else {
-				return err
-			}
-
-		} else {
-			folderId = isFolder
-		}
-	}
 
 	for _, dc := range dcs {
 		user := dc.FullPath()[1]
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
+		if policy == control.Copy {
+			folderId, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
+			if errs != nil {
+				return errs
+			}
+		}
 
 		var exit bool
 		for !exit {

@@ -2,12 +2,15 @@ package exchange
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/pkg/account"
@@ -112,6 +115,28 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	}
 	return folderId, errs
 
+}
+
+// GetCopyRestoreFolder utility function to create an unique folder for the restore process
+func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
+	now := time.Now().UTC()
+	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatSimpleDateTime(now))
+	isFolder, err := GetMailFolderID(service, newFolder, user)
+	if err != nil {
+		// Verify unique folder was not found
+		if errors.Is(err, ErrFolderNotFound) {
+
+			fold, err := CreateMailFolder(service, user, newFolder)
+			if err != nil {
+				return nil, support.WrapAndAppend(user, err, err)
+			}
+			return fold.GetId(), nil
+		} else {
+			return nil, err
+		}
+
+	}
+	return isFolder, nil
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
