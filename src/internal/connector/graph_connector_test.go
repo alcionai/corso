@@ -3,6 +3,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -90,8 +91,21 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTest() {
 	t := suite.T()
 	user, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
-	collection, err := suite.connector.serializeMessages(context.Background(), user)
+	require.NoError(t, err)
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users([]string{user}))
+	eb, err := sel.ToExchangeBackup()
+	require.NoError(t, err)
+	var mailScope selectors.ExchangeScope
+	all := eb.Scopes()
+	for _, scope := range all {
+		fmt.Printf("%v\n", scope)
+		if scope.IncludesCategory(selectors.ExchangeMail) {
+			mailScope = scope
+		}
+	}
+
+	collection, err := suite.connector.createCollections(context.Background(), mailScope)
 	require.NoError(t, err)
 	for _, edc := range collection {
 		testName := strings.Join(edc.FullPath(), " ")
