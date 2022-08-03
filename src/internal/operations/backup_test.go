@@ -158,7 +158,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	sw := store.NewKopiaStore(ms)
 
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{m365UserID}))
+	sel.Include(
+		sel.MailFolders([]string{m365UserID}, []string{"Inbox"}),
+	)
 
 	bo, err := NewBackupOperation(
 		ctx,

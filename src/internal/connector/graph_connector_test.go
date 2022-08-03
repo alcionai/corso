@@ -66,7 +66,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	userID, err := tester.M365UserID()
 	require.NoError(suite.T(), err)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{userID}))
+	sel.Include(
+		sel.MailFolders([]string{userID}, []string{"Inbox"}),
+	)
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(suite.T(), collectionList, "collection list")
 	assert.Nil(suite.T(), err)

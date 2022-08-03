@@ -153,7 +153,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	sw := store.NewKopiaStore(ms)
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m365UserID}))
+	bsel.Include(
+		bsel.MailFolders([]string{m365UserID}, []string{"Inbox"}),
+	)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -167,7 +169,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users([]string{m365UserID}))
+	rsel.Include(
+		rsel.MailFolders([]string{m365UserID}, []string{"Inbox"}),
+	)
 
 	ro, err := NewRestoreOperation(
 		ctx,
@@ -217,7 +221,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	sw := store.NewKopiaStore(ms)
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m365UserID}))
+	bsel.Include(
+		bsel.MailFolders([]string{m365UserID}, []string{"Inbox"}),
+	)
 
 	bo, err := NewBackupOperation(
 		ctx,
