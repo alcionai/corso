@@ -5,9 +5,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/alcionai/corso/pkg/account"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+
+	"github.com/alcionai/corso/pkg/account"
 )
 
 const (

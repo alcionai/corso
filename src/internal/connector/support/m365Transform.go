@@ -5,9 +5,8 @@ import (
 	"strconv"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/pkg/errors"
-
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 )
 
 var eventResponsableFields = []string{"responseType"}
