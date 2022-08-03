@@ -123,7 +123,7 @@ func IterateAllContactsForCollection(
 ) func(any) bool {
 	return func(contactsItem any) bool {
 
-		collection_type := users
+		collection_type := contacts
 		user := scope.Get(selectors.ExchangeUser)[0]
 
 		contact, ok := contactsItem.(models.Contactable)
