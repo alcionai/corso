@@ -24,7 +24,7 @@ func SetRootCommand(root *cobra.Command) {
 	rootCmd = root
 }
 
-// adds the --output flag to the provided command.
+// adds the persistent flag --output to the provided command.
 func AddOutputFlag(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
 	fs.BoolVar(&outputAsJSON, "json", false, "output data in JSON format")
@@ -43,7 +43,23 @@ func Only(e error) error {
 	return e
 }
 
-// Info prints the strings to cobra's error writer (stdErr by default)
+// Err prints the params to cobra's error writer (stdErr by default)
+// if s is nil, prints nothing.
+// Prepends the message with "Error: "
+func Err(s ...any) {
+	err(rootCmd.ErrOrStderr(), s...)
+}
+
+// err is the testable core of Err()
+func err(w io.Writer, s ...any) {
+	if len(s) == 0 {
+		return
+	}
+	msg := append([]any{"Error: "}, s...)
+	fmt.Fprint(w, msg...)
+}
+
+// Info prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
 func Info(s ...any) {
 	info(rootCmd.ErrOrStderr(), s...)

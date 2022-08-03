@@ -11,6 +11,7 @@ import (
 const (
 	CorsoCITests             = "CORSO_CI_TESTS"
 	CorsoCLIConfigTests      = "CORSO_CLI_CONFIG_TESTS"
+	CorsoCLIRepoTests        = "CORSO_CLI_REPO_TESTS"
 	CorsoGraphConnectorTests = "CORSO_GRAPH_CONNECTOR_TESTS"
 	CorsoKopiaWrapperTests   = "CORSO_KOPIA_WRAPPER_TESTS"
 	CorsoModelStoreTests     = "CORSO_MODEL_STORE_TESTS"

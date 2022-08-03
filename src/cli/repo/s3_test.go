@@ -28,8 +28,8 @@ func (suite *S3Suite) TestAddS3Commands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"init s3", initCommand, expectUse, s3InitCmd.Short, initS3Cmd},
-		{"connect s3", connectCommand, expectUse, s3ConnectCmd.Short, connectS3Cmd},
+		{"init s3", initCommand, expectUse, s3InitCmd().Short, initS3Cmd},
+		{"connect s3", connectCommand, expectUse, s3ConnectCmd().Short, connectS3Cmd},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
