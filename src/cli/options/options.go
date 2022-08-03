@@ -1,8 +1,9 @@
 package options
 
 import (
-	"github.com/alcionai/corso/pkg/control"
 	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/pkg/control"
 )
 
 var (

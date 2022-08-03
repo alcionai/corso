@@ -1,9 +1,10 @@
 package tester
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/pkg/errors"
 )
 
 var M365AcctCredEnvs = []string{

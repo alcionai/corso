@@ -3,9 +3,10 @@ package model_test
 import (
 	"testing"
 
-	"github.com/alcionai/corso/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/model"
 )
 
 type ModelUnitSuite struct {

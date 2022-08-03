@@ -5,3 +5,16 @@ linters:
   enable:
     - gofmt
     - misspell
+    - gci
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/alcionai/corso)
+    skip-generated: true
+
+issues:
+  # Limit on number of errors with identical text reported.
+  max-same-issues: 50
