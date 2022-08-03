@@ -14,3 +14,7 @@ linters-settings:
       - default
       - prefix(github.com/alcionai/corso)
     skip-generated: true
+
+issues:
+  # Limit on number of errors with identical text reported.
+  max-same-issues: 50
