@@ -39,7 +39,7 @@ func NewMockExchangeCollection(pathRepresentation []string, numMessagesToReturn 
 
 	for i := 0; i < c.messageCount; i++ {
 		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
-		c.Data = append(c.Data, getMockMessageBytes("From: NewMockExchangeCollection"))
+		c.Data = append(c.Data, GetMockMessageBytes("From: NewMockExchangeCollection"))
 		c.Names = append(c.Names, uuid.NewString())
 	}
 	return c
@@ -85,9 +85,9 @@ func (med *MockExchangeData) Info() details.ItemInfo {
 	return details.ItemInfo{Exchange: &details.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}}
 }
 
-// getMockMessageBytes returns bytes for Messageable item.
+// GetMockMessageBytes returns bytes for Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
-func getMockMessageBytes(subject string) []byte {
+func GetMockMessageBytes(subject string) []byte {
 
 	userID, err := tester.M365UserID()
 	if err != nil {

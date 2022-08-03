@@ -2,10 +2,19 @@ package exchange
 
 import (
 	"bytes"
+	"context"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/connector/graph"
+	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 type ExchangeDataCollectionSuite struct {
@@ -72,4 +81,36 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 	}
 	suite.Equal(len(shopping), len(eoc.jobs))
 
+}
+
+// TestExchangeCollection_Items() tests for the Collection.Items() ability
+// to asynchronously fill `data` field with Stream objects
+func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
+	expected := 5
+	testFunction := func(ctx context.Context,
+		service graph.Service,
+		eoc *Collection,
+		notUsed chan<- *support.ConnectorOperationStatus) {
+		detail := &details.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}
+		for i := 0; i < expected; i++ {
+			temp := NewStream(uuid.NewString(), mockconnector.GetMockMessageBytes("Test_Items()"), *detail)
+			eoc.data <- &temp
+		}
+		close(eoc.data)
+	}
+
+	eoc := Collection{
+		user:     "Dexter",
+		fullPath: []string{"Today", "is", "currently", "different"},
+		data:     make(chan data.Stream, expected),
+		populate: testFunction,
+	}
+	t := suite.T()
+	itemsReturn := eoc.Items()
+	retrieved := 0
+	for item := range itemsReturn {
+		assert.NotNil(t, item)
+		retrieved++
+	}
+	suite.Equal(expected, retrieved)
 }
