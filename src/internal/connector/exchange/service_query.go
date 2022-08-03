@@ -149,7 +149,6 @@ func IterateAllContactsForCollection(
 		}
 		collections[directory].AddJob(*contact.GetId())
 		return true
-
 	}
 }
 
