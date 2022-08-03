@@ -1,4 +1,4 @@
-package testing
+package tester
 
 import (
 	"os"
@@ -18,7 +18,28 @@ const (
 
 	// M365 config
 	testCfgTenantID = "tenantid"
+	testCfgUserID   = "m365userid"
 )
+
+// test specific env vars
+const (
+	EnvCorsoM365TestUserID = "CORSO_M356_TEST_USER_ID"
+)
+
+// global to hold the test config results.
+var testConfig map[string]string
+
+// call this instead of returning testConfig directly.
+func cloneTestConfig() map[string]string {
+	if testConfig == nil {
+		return map[string]string{}
+	}
+	clone := map[string]string{}
+	for k, v := range testConfig {
+		clone[k] = v
+	}
+	return clone
+}
 
 func newTestViper() (*viper.Viper, error) {
 	vpr := viper.New()
@@ -48,6 +69,10 @@ func newTestViper() (*viper.Viper, error) {
 // local integration test controls.  Populates values with
 // defaults where standard.
 func readTestConfig() (map[string]string, error) {
+	if testConfig != nil {
+		return cloneTestConfig(), nil
+	}
+
 	vpr, err := newTestViper()
 	if err != nil {
 		return nil, err
@@ -66,8 +91,10 @@ func readTestConfig() (map[string]string, error) {
 	fallbackTo(testEnv, testCfgEndpoint, vpr.GetString(testCfgEndpoint), "s3.amazonaws.com")
 	fallbackTo(testEnv, testCfgPrefix, vpr.GetString(testCfgPrefix))
 	fallbackTo(testEnv, testCfgTenantID, os.Getenv(account.TenantID), vpr.GetString(testCfgTenantID))
+	fallbackTo(testEnv, testCfgUserID, os.Getenv(EnvCorsoM365TestUserID), vpr.GetString(testCfgTenantID), "lidiah@8qzvrj.onmicrosoft.com")
 
-	return testEnv, nil
+	testConfig = testEnv
+	return cloneTestConfig(), nil
 }
 
 // writes the first non-zero valued string to the map at the key.

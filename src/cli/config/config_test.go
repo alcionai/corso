@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
@@ -184,9 +184,9 @@ type ConfigIntegrationSuite struct {
 }
 
 func TestConfigIntegrationSuite(t *testing.T) {
-	if err := ctesting.RunOnAny(
-		ctesting.CorsoCITests,
-		ctesting.CorsoCLIConfigTests,
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoCLIConfigTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -194,10 +194,10 @@ func TestConfigIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ConfigIntegrationSuite) SetupSuite() {
-	_, err := ctesting.GetRequiredEnvVars(
+	_, err := tester.GetRequiredEnvVars(
 		append(
-			ctesting.AWSStorageCredEnvs,
-			ctesting.M365AcctCredEnvs...,
+			tester.AWSStorageCredEnvs,
+			tester.M365AcctCredEnvs...,
 		)...,
 	)
 	require.NoError(suite.T(), err)

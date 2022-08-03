@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 )
 
 type DataSupportSuite struct {
@@ -21,7 +21,7 @@ const (
 )
 
 func TestDataSupportSuite(t *testing.T) {
-	err := ctesting.RunOnAny(support_file)
+	err := tester.RunOnAny(support_file)
 	if err != nil {
 		t.Skipf("Skipping: %v\n", err)
 	}
@@ -29,7 +29,7 @@ func TestDataSupportSuite(t *testing.T) {
 }
 
 func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
-	bytes, err := ctesting.LoadAFile(os.Getenv(SUPPORT_FILE))
+	bytes, err := tester.LoadAFile(os.Getenv(SUPPORT_FILE))
 	if err != nil {
 		suite.T().Errorf("Failed with %v\n", err)
 	}

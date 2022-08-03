@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	ctesting "github.com/alcionai/corso/internal/testing"
+	"github.com/alcionai/corso/internal/tester"
 )
 
 type S3Suite struct {
@@ -44,7 +44,7 @@ func (suite *S3Suite) TestAddS3Commands() {
 			child := cmds[0]
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
-			ctesting.AreSameFunc(t, test.expectRunE, child.RunE)
+			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 		})
 	}
 }

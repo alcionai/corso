@@ -111,12 +111,12 @@ func printAll(ps []Printable) {
 // ------------------------------------------------------------------------------------------
 
 // Prints the backup to the terminal with stdout.
-func Backup(b backup.Backup) {
+func OutputBackup(b backup.Backup) {
 	print(b)
 }
 
 // Prints the backups to the terminal with stdout.
-func Backups(bs []backup.Backup) {
+func OutputBackups(bs []backup.Backup) {
 	ps := []Printable{}
 	for _, b := range bs {
 		ps = append(ps, b)
@@ -125,7 +125,7 @@ func Backups(bs []backup.Backup) {
 }
 
 // Prints the entries to the terminal with stdout.
-func Entries(des []details.DetailsEntry) {
+func OutputEntries(des []details.DetailsEntry) {
 	ps := []Printable{}
 	for _, de := range des {
 		ps = append(ps, de)
