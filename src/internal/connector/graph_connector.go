@@ -313,7 +313,10 @@ func (gc *GraphConnector) createCollections(
 		gIter       exchange.GraphIterateFunc
 	)
 	user := scope.Get(selectors.ExchangeUser)[0]
-	transformer, query, gIter = exchange.SetupExchangeCollectionVars(scope)
+	transformer, query, gIter, err := exchange.SetupExchangeCollectionVars(scope)
+	if err != nil {
+		return nil, support.WrapAndAppend(user, err, nil)
+	}
 	response, err := query(&gc.graphService, []string{user})
 	if err != nil {
 		return nil, err

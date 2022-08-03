@@ -111,12 +111,14 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
 	GraphQuery,
 	GraphIterateFunc,
+	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
 
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
-			IterateSelectAllMessagesForCollections
+			IterateSelectAllMessagesForCollections,
+			nil
 	}
-	return nil, nil, nil
+	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
