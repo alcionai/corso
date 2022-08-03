@@ -113,5 +113,4 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
 		retrieved++
 	}
 	suite.Equal(expected, retrieved)
-
 }
