@@ -54,9 +54,9 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd)
-		fs.StringArrayVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.StringSliceVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
 		fs.BoolVar(&exchangeAll, "all", false, "Backup all Exchange data for all users")
-		fs.StringArrayVar(
+		fs.StringSliceVar(
 			&exchangeData,
 			"data",
 			nil,
@@ -72,20 +72,20 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringArrayVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
-		fs.StringArrayVar(
+		fs.StringSliceVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder",
 			nil,
 			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders")
-		fs.StringArrayVar(&email, "email", nil, "Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
-		fs.StringArrayVar(
+		fs.StringSliceVar(&email, "email", nil, "Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
+		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder",
 			nil,
 			"Select backup details by email folder ID; accepts "+utils.Wildcard+" to select all email folderss")
-		fs.StringArrayVar(&event, "event", nil, "Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
-		fs.StringArrayVar(&user, "user", nil, "Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.StringSliceVar(&event, "event", nil, "Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
+		fs.StringSliceVar(&user, "user", nil, "Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
 
 		// TODO: reveal these flags when their production is supported in GC
 		cobra.CheckErr(fs.MarkHidden("contact"))
