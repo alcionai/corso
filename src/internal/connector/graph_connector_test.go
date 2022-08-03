@@ -3,6 +3,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,24 +87,26 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTest() {
 	t := suite.T()
-	user := "george.martinez@8qzvrj.onmicrosoft.com"
-	// Get all the messages
-	// Awaiting PR
+	user, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
 	collection, err := suite.connector.serializeMessages(context.Background(), user)
 	require.NoError(t, err)
 	for _, edc := range collection {
-		streamChannel := edc.Items()
-		// Verify that each message can be restored
-		for stream := range streamChannel {
-			buf := &bytes.Buffer{}
-			read, err := buf.ReadFrom(stream.ToReader())
-			suite.NoError(err)
-			suite.NotZero(read)
-			message, err := support.CreateMessageFromBytes(buf.Bytes())
-			suite.NotNil(message)
-			suite.NoError(err)
+		testName := strings.Join(edc.FullPath(), " ")
+		suite.T().Run(testName, func(t *testing.T) {
+			streamChannel := edc.Items()
+			// Verify that each message can be restored
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
 
-		}
+			}
+		})
 	}
 }
 
