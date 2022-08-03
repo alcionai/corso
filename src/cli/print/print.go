@@ -71,6 +71,7 @@ func info(w io.Writer, s ...any) {
 		return
 	}
 	fmt.Fprint(w, s...)
+	fmt.Fprintf(w, "\n")
 }
 
 // Info prints the formatted strings to cobra's error writer (stdErr by default)
@@ -85,6 +86,7 @@ func infof(w io.Writer, t string, s ...any) {
 		return
 	}
 	fmt.Fprintf(w, t, s...)
+	fmt.Fprintf(w, "\n")
 }
 
 // ---------------------------------------------------------------------------------------------------------
