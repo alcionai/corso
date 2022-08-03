@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -116,7 +117,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
-	response, err := gc.graphService.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return err
 	}
@@ -202,8 +203,8 @@ func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector s
 					errs)
 				continue
 			}
-			// TODO: Creates a map of collections based on scope
-			dcs, err := gc.serializeMessages(ctx, user)
+			// Creates a map of collections based on scope
+			dcs, err := gc.createCollections(ctx, scope)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}
@@ -226,14 +227,20 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
+		folderId            *string
 	)
-	gc.incrementAwaitingMessages()
+	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
 	for _, dc := range dcs {
-		// must be user.GetId(), PrimaryName no longer works 6-15-2022
 		user := dc.FullPath()[1]
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
+		if policy == control.Copy {
+			folderId, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
+			if errs != nil {
+				return errs
+			}
+		}
 
 		var exit bool
 		for !exit {
@@ -253,42 +260,21 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					errs = support.WrapAndAppend(data.UUID(), err, errs)
 					continue
 				}
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				if err != nil {
-					errs = support.WrapAndAppend(data.UUID(), err, errs)
+				switch policy {
+				case control.Copy:
+					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, control.Copy, *folderId, user)
+					if err != nil {
+						errs = support.WrapAndAppend(data.UUID(), err, errs)
+					}
+				default:
+					errs = support.WrapAndAppend(data.UUID(), errors.New("restore policy not supported"), errs)
 					continue
 				}
-				clone := support.ToMessage(message)
-				address := dc.FullPath()[3]
-				valueId := "Integer 0x0E07"
-				enableValue := "4"
-				sv := models.NewSingleValueLegacyExtendedProperty()
-				sv.SetId(&valueId)
-				sv.SetValue(&enableValue)
-				svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-				clone.SetSingleValueExtendedProperties(svlep)
-				draft := false
-				clone.SetIsDraft(&draft)
-				sentMessage, err := gc.graphService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
-				if err != nil {
-					errs = support.WrapAndAppend(
-						data.UUID()+": "+support.ConnectorStackErrorTrace(err),
-						err, errs)
-					continue
-					// TODO: Add to retry Handler for the for failure
-				}
-
-				if sentMessage == nil {
-					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
-					continue
-				}
-
 				successes++
-				// This completes the restore loop for a message..
 			}
 		}
 	}
-
+	gc.incrementAwaitingMessages()
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	// set the channel asynchronously so that this func doesn't block.
 	go func(cos *support.ConnectorOperationStatus) {
@@ -298,15 +284,26 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	return errs
 }
 
-// serializeMessages: Temp Function as place Holder until Collections have been added
+// createCollection - utility function that retrieves M365
+// IDs through Microsoft Graph API. The selectors.ExchangeScope
+// determines the type of collections that are stored.
 // to the GraphConnector struct.
-func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (map[string]*exchange.Collection, error) {
-	var transformer absser.ParsableFactory
-	response, err := exchange.GetAllMessagesForUser(&gc.graphService, []string{user}) //TODO: Selector to be used for exchange.query
+func (gc *GraphConnector) createCollections(
+	ctx context.Context,
+	scope selectors.ExchangeScope,
+) (map[string]*exchange.Collection, error) {
+
+	var (
+		transformer absser.ParsableFactory
+		query       exchange.GraphQuery
+		gIter       exchange.GraphIterateFunc
+	)
+	user := scope.Get(selectors.ExchangeUser)[0]
+	transformer, query, gIter = exchange.SetupExchangeCollectionVars(scope)
+	response, err := query(&gc.graphService, []string{user})
 	if err != nil {
 		return nil, err
 	}
-	transformer = models.CreateMessageCollectionResponseFromDiscriminatorValue
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err
@@ -316,7 +313,7 @@ func (gc *GraphConnector) serializeMessages(ctx context.Context, user string) (m
 	var errs error
 	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 	// with corresponding messageIDs. New collections are created for each directory
-	callbackFunc := exchange.IterateMessagesCollection(gc.tenant, user, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
+	callbackFunc := gIter(gc.tenant, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
