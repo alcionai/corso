@@ -109,12 +109,12 @@ func (edc *Collection) PopulateForContactCollection(
 		err = contactToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
 		if err != nil {
 			errs = support.WrapAndAppendf(edc.user, err, errs)
-	
-		  if service.ErrPolicy() {
-			  break
+
+			if service.ErrPolicy() {
+				break
 			}
 		}
-		
+
 		success++
 
 	}
@@ -143,14 +143,14 @@ func (edc *Collection) PopulateFromCollection(
 			continue
 		}
 		err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
-		success++
 		if err != nil {
 			errs = support.WrapAndAppendf(edc.user, err, errs)
-			success--
+
+			if service.ErrPolicy() {
+				break
+			}
 		}
-		if errs != nil && service.ErrPolicy() {
-			break
-		}
+		success++
 	}
 	close(edc.data)
 	attemptedItems += len(edc.jobs)
