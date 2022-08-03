@@ -114,11 +114,21 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 
 }
 
-// RestoreMailMessage creates a copy of the original message and then sends the
-// Messageable object to the M365 backstore in the folder designated
-// by the destination string (expects an M365 ID) for the associated M365 user.
-func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service, rp control.CollisionPolicy, destination, user string) error {
-	// Step I: Create message object from original bytes
+// RestoreMailMessage utility function to place an exchange.Mail
+// message into the user's M365 Exchange account.
+// @param bits - byte array representation of exchange.Message from Corso backstore
+// @param service - connector to M365 graph
+// @param cp - collision policy that directs restore workflow
+// @param destination - M365 Folder ID. Verified and sent by higher function
+func RestoreMailMessage(
+	ctx context.Context,
+	bits []byte,
+	service graph.Service,
+	cp control.CollisionPolicy,
+	destination,
+	user string,
+) error {
+	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
 		return err
@@ -135,11 +145,11 @@ func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service,
 	draft := false
 	clone.SetIsDraft(&draft)
 
-	//Step II: restore message based on given policy
-	switch rp {
+	// Switch workflow based on collision policy
+	switch cp {
 	default:
 		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
-			"policy", rp)
+			"policy", cp)
 		fallthrough
 	case control.Copy:
 		return SendMailToBackStore(service, user, destination, clone)
@@ -148,6 +158,9 @@ func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service,
 }
 
 // SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
+// @param user string represents M365 ID of user within the tenant
+// @param destination represents M365 ID of a folder within the users's space
+// @param message is a models.Messageable interface from "github.com/microsoftgraph/msgraph-sdk-go/models"
 func SendMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
 	if err != nil {
