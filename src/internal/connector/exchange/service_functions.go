@@ -144,7 +144,7 @@ func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
 // @param bits - byte array representation of exchange.Message from Corso backstore
 // @param service - connector to M365 graph
 // @param cp - collision policy that directs restore workflow
-// @param destination - M365 Folder ID. Verified and sent by higher function
+// @param destination - M365 Folder ID. Verified and sent by higher function. `copy` policy can use directly
 func RestoreMailMessage(
 	ctx context.Context,
 	bits []byte,
