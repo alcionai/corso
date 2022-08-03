@@ -46,7 +46,7 @@ jobs:
       - name: Generate Markdown
         working-directory: ./src
         run: |
-          go run ./cmd/mdgen/mdgen.go
+          go run ./cmd/mdgen/mdgen.go generate
 
       # migrate generated md files into /docs/docs/cli
       - name: Move CLI .md to Docs

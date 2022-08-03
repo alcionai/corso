@@ -6,28 +6,48 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 
 	"github.com/alcionai/corso/cli"
 )
 
-const (
-	// generate markdown files in the current directory.
+var (
+	// generate markdown files in the given.
 	// callers of this func can then migrate the files
 	// to where they need.
-	cliMarkdownDir = "./cmd/mdgen/cli_markdown"
+	cliMarkdownDir string
 )
 
+// The root-level command.
+// `corso <command> [<subcommand>] [<service>] [<flag>...]`
+var cmd = &cobra.Command{
+	Use:   "generate",
+	Short: "Autogenerate Corso documentation.",
+	Run:   genDocs,
+}
+
 func main() {
+	cmd.
+		PersistentFlags().
+		StringVar(
+			&cliMarkdownDir,
+			"cli-folder",
+			"./cmd/mdgen/cli_markdown",
+			"folder where cli docs will be generated (default: ./cmd/mdgen/cli_markdown)")
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func genDocs(cmd *cobra.Command, args []string) {
 	if err := makeDir(cliMarkdownDir); err != nil {
 		fatal(errors.Wrap(err, "preparing directory for markdown generation"))
 	}
-	cmd := cli.CorsoCommand()
-	err := doc.GenMarkdownTree(cmd, cliMarkdownDir)
+	err := doc.GenMarkdownTree(cli.CorsoCommand(), cliMarkdownDir)
 	if err != nil {
 		fatal(errors.Wrap(err, "generating the Corso CLI markdown"))
 	}
-
 }
 
 func makeDir(dir string) error {
