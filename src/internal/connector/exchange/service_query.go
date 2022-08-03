@@ -45,6 +45,7 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
+// GetAllContactsForUser GraphQuery function for receiving all contacts for a single user
 func GetAllContactsForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
 	options, err := optionsForMailContacts(selecting)
@@ -243,7 +244,13 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 
 	fieldsForContacts := map[string]int{
 		"id":             1,
-		"parentFolderId": 2,
+		"companyName":    2,
+		"department":     3,
+		"displayName":    4,
+		"fileAs":         5,
+		"givenName":      6,
+		"manager":        7,
+		"parentFolderId": 8,
 	}
 	returnedOptions := []string{"id"}
 
