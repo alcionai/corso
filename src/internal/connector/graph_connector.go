@@ -306,7 +306,6 @@ func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
 ) (map[string]*exchange.Collection, error) {
-
 	var (
 		transformer absser.ParsableFactory
 		query       exchange.GraphQuery
