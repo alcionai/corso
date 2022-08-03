@@ -329,7 +329,7 @@ func (gc *GraphConnector) createCollections(
 	collections := make(map[string]*exchange.Collection)
 	var errs error
 	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
-	// with corresponding messageIDs. New collections are created for each directory
+	// with corresponding item IDs. New collections are created for each directory
 	callbackFunc := gIter(gc.tenant, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
