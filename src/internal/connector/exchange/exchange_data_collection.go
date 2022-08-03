@@ -55,6 +55,7 @@ type Collection struct {
 func NewCollection(
 	aUser string,
 	pathRepresentation []string,
+	collectionType optionIdentifier,
 	aService graph.Service,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {

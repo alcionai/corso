@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -16,6 +17,7 @@ import (
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 var ErrFolderNotFound = errors.New("folder not found")
@@ -114,6 +116,23 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 		return nil, ErrFolderNotFound
 	}
 	return folderId, errs
+
+}
+
+// SetupExchangeCollectionVars is a helper function returns a sets
+// Exchange.Type specific functions based on scope
+func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
+	absser.ParsableFactory,
+	GraphQuery,
+	GraphIterateFunc,
+) {
+	if scope.IncludesCategory(selectors.ExchangeMail) {
+
+		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
+			GetAllMessagesForUser,
+			IterateSelectAllMessagesForCollections
+	}
+	return nil, nil, nil
 
 }
 
