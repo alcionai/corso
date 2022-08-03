@@ -59,11 +59,8 @@ type populater func(context.Context, graph.Service, *Collection, chan<- *support
 func NewCollection(
 	user string,
 	fullPath []string,
-	service graph.Service,
-	aUser string,
-	pathRepresentation []string,
 	collectionType optionIdentifier,
-	aService graph.Service,
+	service graph.Service,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
