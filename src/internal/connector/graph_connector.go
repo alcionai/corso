@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -116,7 +117,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
-	response, err := gc.graphService.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return err
 	}
@@ -226,14 +227,20 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
+		folderId            *string
 	)
-	gc.incrementAwaitingMessages()
+	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
 	for _, dc := range dcs {
-		// must be user.GetId(), PrimaryName no longer works 6-15-2022
 		user := dc.FullPath()[1]
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
+		if policy == control.Copy {
+			folderId, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
+			if errs != nil {
+				return errs
+			}
+		}
 
 		var exit bool
 		for !exit {
@@ -253,42 +260,21 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					errs = support.WrapAndAppend(data.UUID(), err, errs)
 					continue
 				}
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				if err != nil {
-					errs = support.WrapAndAppend(data.UUID(), err, errs)
+				switch policy {
+				case control.Copy:
+					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, control.Copy, *folderId, user)
+					if err != nil {
+						errs = support.WrapAndAppend(data.UUID(), err, errs)
+					}
+				default:
+					errs = support.WrapAndAppend(data.UUID(), errors.New("restore policy not supported"), errs)
 					continue
 				}
-				clone := support.ToMessage(message)
-				address := dc.FullPath()[3]
-				valueId := "Integer 0x0E07"
-				enableValue := "4"
-				sv := models.NewSingleValueLegacyExtendedProperty()
-				sv.SetId(&valueId)
-				sv.SetValue(&enableValue)
-				svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-				clone.SetSingleValueExtendedProperties(svlep)
-				draft := false
-				clone.SetIsDraft(&draft)
-				sentMessage, err := gc.graphService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
-				if err != nil {
-					errs = support.WrapAndAppend(
-						data.UUID()+": "+support.ConnectorStackErrorTrace(err),
-						err, errs)
-					continue
-					// TODO: Add to retry Handler for the for failure
-				}
-
-				if sentMessage == nil {
-					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
-					continue
-				}
-
 				successes++
-				// This completes the restore loop for a message..
 			}
 		}
 	}
-
+	gc.incrementAwaitingMessages()
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	// set the channel asynchronously so that this func doesn't block.
 	go func(cos *support.ConnectorOperationStatus) {

@@ -5,6 +5,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
+	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector/graph"
@@ -114,6 +115,23 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 	}
 	options := &msmessage.MessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
+	}
+	return options, nil
+}
+
+// optionsForSingleMessage to select allowable option for a singular exchange.Mail object
+// @params moreOps is []string of options (e.g. subject, content.Type)
+// @return is first call in MessageById().GetWithRequestConfigurationAndResponseHandler
+func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, messages)
+	if err != nil {
+		return nil, err
+	}
+	requestParams := &msitem.MessageItemRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msitem.MessageItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParams,
 	}
 	return options, nil
 }

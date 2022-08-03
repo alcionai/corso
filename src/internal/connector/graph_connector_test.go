@@ -22,6 +22,7 @@ import (
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
+	user      string
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
@@ -47,6 +48,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	suite.connector, err = NewGraphConnector(a)
 	suite.NoError(err)
+	suite.user = "lidiah@8qzvrj.onmicrosoft.com"
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
