@@ -20,18 +20,7 @@ type exchangeService struct {
 	credentials account.M365Config
 }
 
-func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
-	return &es.client
-}
-
-func (es *exchangeService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return &es.adapter
-}
-
-func (es *exchangeService) ErrPolicy() bool {
-	return es.failFast
-}
-
+// createService internal constructor for exchangeService struct
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
 		credentials.TenantID,
@@ -42,11 +31,27 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 		return nil, err
 	}
 	service := exchangeService{
-		adapter:  *adapter,
-		client:   *msgraphsdk.NewGraphServiceClient(adapter),
-		failFast: shouldFailFast,
+		adapter:     *adapter,
+		client:      *msgraphsdk.NewGraphServiceClient(adapter),
+		failFast:    shouldFailFast,
+		credentials: credentials,
 	}
 	return &service, err
+}
+
+///------------------------------------------------------------
+// Functions to comply with graph.Service Interface
+//-------------------------------------------------------
+func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
+	return &es.client
+}
+
+func (es *exchangeService) Adapter() *msgraphsdk.GraphRequestAdapter {
+	return &es.adapter
+}
+
+func (es *exchangeService) ErrPolicy() bool {
+	return es.failFast
 }
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
