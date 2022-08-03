@@ -137,13 +137,13 @@ func RestoreMailMessage(ctx context.Context, bits []byte, service graph.Service,
 
 	//Step II: restore message based on given policy
 	switch rp {
-	case control.Copy:
-		return SendMailToBackStore(service, user, destination, clone)
-
 	default:
 		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
 			"policy", rp)
-		return errors.New("restore policy not yet supported")
+		fallthrough
+	case control.Copy:
+		return SendMailToBackStore(service, user, destination, clone)
+
 	}
 }
 
