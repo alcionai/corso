@@ -5,3 +5,12 @@ linters:
   enable:
     - gofmt
     - misspell
+    - gci
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/alcionai/corso)
+    skip-generated: true
