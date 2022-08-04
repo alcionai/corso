@@ -136,7 +136,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
 func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
 	var errs error
-	var folderId *string
+	var folderID *string
 	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 			return true
 		}
 		if *folder.GetDisplayName() == folderName {
-			folderId = folder.GetId()
+			folderID = folder.GetId()
 			return false
 		}
 		return true
@@ -167,10 +167,10 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), iterateError, errs)
-	} else if folderId == nil {
+	} else if folderID == nil {
 		return nil, ErrFolderNotFound
 	}
-	return folderId, errs
+	return folderID, errs
 
 }
 
@@ -205,9 +205,9 @@ func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
 				return nil, support.WrapAndAppend(user, err, err)
 			}
 			return fold.GetId(), nil
-		} else {
-			return nil, err
 		}
+
+		return nil, err
 
 	}
 	return isFolder, nil
@@ -234,10 +234,10 @@ func RestoreMailMessage(
 	}
 	// Sets fields from original message from storage
 	clone := support.ToMessage(originalMessage)
-	valueId := RestorePropertyTag
+	valueID := RestorePropertyTag
 	enableValue := RestoreCanonicalEnableValue
 	sv := models.NewSingleValueLegacyExtendedProperty()
-	sv.SetId(&valueId)
+	sv.SetId(&valueID)
 	sv.SetValue(&enableValue)
 	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
 	clone.SetSingleValueExtendedProperties(svlep)

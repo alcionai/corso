@@ -20,6 +20,7 @@ type fooModel struct {
 	Bar string
 }
 
+//revive:disable:context-as-argument
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
 	c, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
