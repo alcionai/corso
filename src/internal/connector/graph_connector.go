@@ -302,7 +302,7 @@ func (gc *GraphConnector) createCollections(
 	if err != nil {
 		return nil, support.WrapAndAppend(user, err, nil)
 	}
-	response, err := query(&gc.graphService, []string{user})
+	response, err := query(&gc.graphService, user)
 	if err != nil {
 		return nil, err
 	}
