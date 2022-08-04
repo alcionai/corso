@@ -48,7 +48,7 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 
 func GetAllContactsForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
-	options, err := optionsForMailContacts(selecting)
+	options, err := optionsForContacts(selecting)
 	if err != nil {
 		return nil, err
 	}
@@ -209,9 +209,9 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 	return options, nil
 }
 
-// optionsForMailContacts transforms options into select query for MailContacts
+// optionsForContacts transforms options into select query for MailContacts
 // @return is the first call in Contacts().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForMailContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGetRequestConfiguration, error) {
+func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
