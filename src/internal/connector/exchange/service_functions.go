@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -74,6 +75,60 @@ func CreateMailFolder(gs graph.Service, user, folder string) (models.MailFoldera
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
 func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete()
+}
+
+type MailFolder struct {
+	ID          string
+	DisplayName string
+}
+
+// GetAllMailFolders retrieves all mail folders for the specified user.
+// If nameContains is populated, only returns mail matching that property.
+// Returns a slice of {ID, DisplayName} tuples.
+func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolder, error) {
+	var (
+		mfs = []MailFolder{}
+		err error
+	)
+
+	opts, err := optionsForMailFolders([]string{"id", "displayName"})
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(opts, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+
+	cb := func(folderItem any) bool {
+		folder, ok := folderItem.(models.MailFolderable)
+		if !ok {
+			err = errors.New("HasFolder() iteration failure")
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
+		if include {
+			mfs = append(mfs, MailFolder{
+				ID:          *folder.GetId(),
+				DisplayName: *folder.GetDisplayName(),
+			})
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(cb); err != nil {
+		return nil, err
+	}
+	return mfs, err
 }
 
 // GetMailFolderID query function to retrieve the M365 ID based on the folder's displayName.

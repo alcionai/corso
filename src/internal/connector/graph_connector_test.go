@@ -153,7 +153,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, userID, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
-		err = exchange.DeleteMailFolder(&suite.connector.graphService, userID, *aFolder.GetId())
+		err = exchange.DeleteMailFolder(suite.connector.Service(), userID, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
 }

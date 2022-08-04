@@ -42,21 +42,28 @@ type GraphConnector struct {
 	credentials      account.M365Config
 }
 
+// Service returns the GC's embedded graph.Service
+func (gc GraphConnector) Service() graph.Service {
+	return gc.graphService
+}
+
+var _ graph.Service = &graphService{}
+
 type graphService struct {
 	client   msgraphsdk.GraphServiceClient
 	adapter  msgraphsdk.GraphRequestAdapter
 	failFast bool // if true service will exit sequence upon encountering an error
 }
 
-func (gs *graphService) Client() *msgraphsdk.GraphServiceClient {
+func (gs graphService) Client() *msgraphsdk.GraphServiceClient {
 	return &gs.client
 }
 
-func (gs *graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (gs graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &gs.adapter
 }
 
-func (gs *graphService) ErrPolicy() bool {
+func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
