@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/cli/backup"
 	"github.com/alcionai/corso/cli/config"
@@ -18,30 +17,17 @@ import (
 // The root-level command.
 // `corso <command> [<subcommand>] [<service>] [<flag>...]`
 var corsoCmd = &cobra.Command{
-	Use:   "corso",
-	Short: "Protect your Microsoft 365 data.",
-	Long:  `Reliable, secure, and efficient data protection for Microsoft 365.`,
-	RunE:  handleCorsoCmd,
+	Use:               "corso",
+	Short:             "Protect your Microsoft 365 data.",
+	Long:              `Reliable, secure, and efficient data protection for Microsoft 365.`,
+	RunE:              handleCorsoCmd,
+	PersistentPreRunE: config.InitFunc(),
 }
 
 // the root-level flags
 var (
-	cfgFile string
 	version bool
 )
-
-func init() {
-	cobra.OnInitialize(initConfig)
-}
-
-func initConfig() {
-	err := config.InitConfig(cfgFile)
-	cobra.CheckErr(err)
-
-	if err := viper.ReadInConfig(); err == nil {
-		print.Info("Using config file:", viper.ConfigFileUsed())
-	}
-}
 
 // Handler for flat calls to `corso`.
 // Produces the same output as `corso --help`.
@@ -55,8 +41,10 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 
 // Handle builds and executes the cli processor.
 func Handle() {
+	ctx := config.Seed(context.Background())
+
 	corsoCmd.Flags().BoolP("version", "v", version, "current version info")
-	corsoCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "config file (default is $HOME/.corso)")
+	config.AddConfigFileFlag(corsoCmd)
 	print.SetRootCommand(corsoCmd)
 	print.AddOutputFlag(corsoCmd)
 
@@ -66,7 +54,7 @@ func Handle() {
 	backup.AddCommands(corsoCmd)
 	restore.AddCommands(corsoCmd)
 
-	ctx, log := logger.Seed(context.Background())
+	ctx, log := logger.Seed(ctx)
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()
