@@ -147,7 +147,7 @@ func PopulateForContactCollection(
 			)
 			continue
 		}
-		err = contactToDataCollection(service.Client(), ctx, objectWriter, dataChannel, response, user)
+		err = contactToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
@@ -187,7 +187,7 @@ func PopulateForMailCollection(
 			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
 			continue
 		}
-		err = messageToDataCollection(service.Client(), ctx, objectWriter, dataChannel, response, user)
+		err = messageToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
@@ -207,8 +207,8 @@ func PopulateForMailCollection(
 }
 
 func contactToDataCollection(
-	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	contact models.Contactable,
@@ -230,8 +230,8 @@ func contactToDataCollection(
 }
 
 func messageToDataCollection(
-	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	message models.Messageable,
