@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,12 +44,6 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 			params: statusParams{Restore, 12, 9, 8, WrapAndAppend("tres", errors.New("three"), WrapAndAppend("arc376", errors.New("one"), errors.New("two")))},
 			expect: assert.True,
 		},
-		{
-			name: "Invalid status",
-			// todo: expect panic once logger.DPanicw identifies dev mode.
-			params: statusParams{Backup, 9, 3, 13, errors.New("invalidcl")},
-			expect: assert.True,
-		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -63,4 +58,19 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 		})
 
 	}
+}
+
+func (suite *GCStatusTestSuite) TestCreateStatus_InvalidStatus() {
+	t := suite.T()
+	params := statusParams{Backup, 9, 3, 13, errors.New("invalidcl")}
+	require.Panics(t, func() {
+		CreateStatus(
+			context.Background(),
+			params.operationType,
+			params.objects,
+			params.success,
+			params.folders,
+			params.err,
+		)
+	})
 }
