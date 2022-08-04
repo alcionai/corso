@@ -144,8 +144,7 @@ func (suite *ModelStoreIntegrationSuite) TestBadModelTypeErrors() {
 	require.NoError(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
 
 	_, err := suite.m.GetIDsForType(suite.ctx, model.UnknownSchema, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "schema")
+	assert.ErrorIs(t, err, errUnrecognizedSchema)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {
