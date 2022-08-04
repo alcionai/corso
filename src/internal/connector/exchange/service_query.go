@@ -1,6 +1,8 @@
 package exchange
 
 import (
+	"fmt"
+
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -51,6 +53,7 @@ type GraphIterateFunc func(
 	account.M365Config,
 	map[string]*Collection,
 	chan<- *support.ConnectorOperationStatus,
+	int,
 ) func(any) bool
 
 // IterateSelectAllMessageForCollection utility function for
@@ -65,6 +68,7 @@ func IterateSelectAllMessagesForCollections(
 	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
+	rounds int,
 ) func(any) bool {
 	return func(messageItem any) bool {
 		// Defines the type of collection being created within the function
@@ -96,6 +100,105 @@ func IterateSelectAllMessagesForCollections(
 		collections[directory].AddJob(*message.GetId())
 		return true
 	}
+}
+
+func IterateAndFilterMessagesForCollections(
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+	rounds int,
+) func(any) bool {
+	return func(messageItem any) bool {
+		user := scope.Get(selectors.ExchangeUser)[0]
+		if rounds == 0 {
+
+			err := AddMailFolderSpecificCollections(
+				scope,
+				tenant,
+				user,
+				collections,
+				credentials,
+				failFast,
+				statusCh,
+			)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return false
+			}
+			fmt.Printf("Ran Create Folder on Round: %d\n", rounds)
+		}
+		rounds++
+
+		message, ok := messageItem.(models.Messageable)
+		if !ok {
+			errs = support.WrapAndAppend(user, errors.New("message iteration failure"), errs)
+			return true
+		}
+		// Saving only
+		directory := *message.GetParentFolderId()
+		if _, ok = collections[directory]; !ok {
+			return true //
+		}
+		collections[directory].AddJob(*message.GetId())
+		return true
+
+	}
+}
+
+func AddMailFolderSpecificCollections(
+	scope selectors.ExchangeScope,
+	tenant string,
+	user string,
+	collections map[string]*Collection,
+	credentials account.M365Config,
+	failFast bool,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) error {
+	queryService, err := createService(credentials, failFast)
+	if err != nil {
+		return errors.New("unable to create service a folder query service for " + user)
+	}
+	folderNames := scope.Get(selectors.ExchangeMailFolder)
+	options, err := optionsForMailFolders([]string{"id", "displayName"})
+	if err != nil {
+		return err
+	}
+	query, err := queryService.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	if err != nil {
+		return fmt.Errorf("unable to query in AddMailFolderSpecificCollections: %s", support.ConnectorStackErrorTrace(err))
+	}
+	for _, folder := range query.GetValue() {
+		ptr := folder.GetDisplayName()
+		if ptr == nil {
+			continue
+		}
+		name := *ptr
+		for _, permitted := range folderNames {
+			if name == permitted {
+				directory := *folder.GetId()
+				service, err := createService(credentials, failFast)
+				if err != nil {
+					return errors.New("unable to create service a folder query service for " + user)
+				}
+				temp := NewCollection(
+					user,
+					[]string{tenant, user, mailCategory, directory},
+					messages,
+					service,
+					statusCh,
+				)
+				collections[directory] = &temp
+				break
+			}
+		}
+
+	}
+	return nil
+
 }
 
 //---------------------------------------------------
