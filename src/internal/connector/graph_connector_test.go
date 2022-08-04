@@ -142,14 +142,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 // TestGraphConnector_SingleMailFolderCollectionQuery verifies that single folder support
 // enabled createCollections
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolderCollectionQuery() {
-	userID := "TEST_GRAPH_USER" // user.GetId()
-	evs, err := tester.GetRequiredEnvVars(userID)
 	t := suite.T()
-	require.NoError(t, err)
-	user := evs[userID]
-	//suite.connector, err = NewGraphConnector(a)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{user}, []string{"Inbox"}))
+	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
 	scopes := sel.Scopes()
 	for _, scope := range scopes {
 		collections, err := suite.connector.createCollections(context.Background(), scope)
