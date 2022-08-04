@@ -127,8 +127,8 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	GraphIterateFunc,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		granularity := scope.Get(selectors.ExchangeMailFolder)
-		if granularity[0] == selectors.AnyTgt {
+		folders := scope.Get(selectors.ExchangeMailFolder)
+		if folders[0] == selectors.AnyTgt {
 
 			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 				GetAllMessagesForUser,
