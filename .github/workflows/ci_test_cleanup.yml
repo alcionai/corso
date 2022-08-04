@@ -8,10 +8,6 @@ jobs:
   Test-User-Data-Cleanup:
     runs-on: ubuntu-latest
 
-      - name: Delete all files in the test bucket
-        run: |
-          aws s3 rm s3://test-corso-repo-init --recursive
-
       # check out the repo
       - name: Repo Code Checkout
         uses: actions/checkout@v3
