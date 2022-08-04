@@ -34,7 +34,7 @@ func main() {
 			&cliMarkdownDir,
 			"cli-folder",
 			"./cmd/mdgen/cli_markdown",
-			"folder where cli docs will be generated (default: ./cmd/mdgen/cli_markdown)")
+			"relative path to the folder where cli docs will be generated (default: ./cmd/mdgen/cli_markdown)")
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
