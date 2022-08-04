@@ -46,6 +46,7 @@ func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsab
 	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
+// GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
 func GetAllContactsForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
 	options, err := optionsForContacts(selecting)
@@ -59,13 +60,13 @@ func GetAllContactsForUser(gs graph.Service, identities []string) (absser.Parsab
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
-	string,
-	selectors.ExchangeScope,
-	error,
-	bool,
-	account.M365Config,
-	map[string]*Collection,
-	chan<- *support.ConnectorOperationStatus,
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	graphStatusChannel chan<- *support.ConnectorOperationStatus,
 ) func(any) bool
 
 // IterateSelectAllMessageForCollection utility function for
@@ -113,6 +114,9 @@ func IterateSelectAllMessagesForCollections(
 	}
 }
 
+// IterateAllContactsForCollection GraphIterateFunc for moving through
+// a ContactsCollectionsResponse using the msgraphgocore paging interface.
+// Contacts Ids are placed into a collection based upon the parent folder
 func IterateAllContactsForCollection(
 	tenant string,
 	scope selectors.ExchangeScope,
