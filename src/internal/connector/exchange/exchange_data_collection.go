@@ -81,6 +81,8 @@ func getPopulateFunction(optId optionIdentifier) populater {
 	switch optId {
 	case messages:
 		return PopulateFromCollection
+	case contacts:
+		return PopulateForContactCollection
 	default:
 		return nil
 	}
@@ -105,8 +107,51 @@ func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
-// PopulateFromCollection async call to fill DataCollection via channel implementation
-func PopulateFromCollection(
+func (edc *Collection) PopulateForContactCollection(
+	ctx context.Context,
+	service graph.Service,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+) {
+	var (
+		errs    error
+		success int
+	)
+	objectWriter := kw.NewJsonSerializationWriter()
+
+	for _, task := range edc.jobs {
+		response, err := service.Client().UsersById(edc.user).ContactsById(task).Get()
+		if err != nil {
+			details := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(edc.user, errors.Wrapf(
+				err,
+				"unable to retrieve item %s; details: %s", task, details,
+			),
+				errs,
+			)
+			continue
+		}
+		err = contactToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		if err != nil {
+			errs = support.WrapAndAppendf(edc.user, err, errs)
+
+			if service.ErrPolicy() {
+				break
+			}
+			continue
+		}
+
+		success++
+
+	}
+	close(edc.data)
+	attemptedItems := len(edc.jobs)
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
+	logger.Ctx(ctx).Debug(status.String())
+	statusChannel <- status
+}
+
+// PopulateForMailCollection async call to fill DataCollection via channel implementation
+func PopulateForMailCollection(
 	ctx context.Context,
 	service graph.Service,
 	edc *Collection,
