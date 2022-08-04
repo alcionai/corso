@@ -125,10 +125,10 @@ func IterateAndFilterMessagesForCollections(
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
-	var rounds int
+	var isFilterSet bool
 	return func(messageItem any) bool {
 		user := scope.Get(selectors.ExchangeUser)[0]
-		if rounds == 0 {
+		if !isFilterSet {
 
 			err := AddMailFolderSpecificCollections(
 				scope,
@@ -143,8 +143,8 @@ func IterateAndFilterMessagesForCollections(
 				errs = support.WrapAndAppend(user, err, errs)
 				return false
 			}
+			isFilterSet = true
 		}
-		rounds++
 
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
