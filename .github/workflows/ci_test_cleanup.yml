@@ -53,7 +53,7 @@ jobs:
           echo "HALF_HOUR_AGO=${date -u -v-30M --iso-8601=seconds}" >> $GITHUB_ENV
 
       # run the folder purge
-      - name: Generate Markdown
+      - name: Purge folders
         working-directory: ./src
         run: |
           go run ./cmd/purge/purge.go \
