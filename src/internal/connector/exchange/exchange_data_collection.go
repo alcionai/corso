@@ -27,12 +27,13 @@ var _ data.StreamInfo = &Stream{}
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
+	// RestorePropertyTag defined: https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
+	RestorePropertyTag          = "Integer 0x0E07"
+	RestoreCanonicalEnableValue = "4"
 )
 
-// ExchangeDataCollection represents exchange mailbox
-// data for a single user.
-//
-// It implements the DataCollection interface
+// Collection implements the interface from data.Collection
+// Structure holds data for an Exchange application for a single user
 type Collection struct {
 	// M365 user
 	user string // M365 user
@@ -40,34 +41,52 @@ type Collection struct {
 	// jobs represents items from the inventory of M365 objectIds whose information
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
-
-	service  graph.Service
+	// service - client/adapter pair used to access M365 back store
+	service graph.Service
+	// populate - Utility function to populate collection based on the M365 application type and granularity
+	populate populater
 	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
 
+// Populater are a class of functions that can be used to fill exchange.Collections with
+// the corresponding information
+type populater func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
+
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
-	aUser string,
-	pathRepresentation []string,
+	user string,
+	fullPath []string,
 	collectionType optionIdentifier,
-	aService graph.Service,
+	service graph.Service,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
-		user:     aUser,
+		user:     user,
 		data:     make(chan data.Stream, collectionChannelBufferSize),
 		jobs:     make([]string, 0),
-		service:  aService,
+		service:  service,
 		statusCh: statusCh,
-		fullPath: pathRepresentation,
+		fullPath: fullPath,
+		populate: getPopulateFunction(collectionType),
 	}
 	return collection
 }
 
-// AddJob appends additional objectID to job field job
+// getPopulateFunction is a function to set populate function field
+// with exchange-application specific functions
+func getPopulateFunction(optId optionIdentifier) populater {
+	switch optId {
+	case messages:
+		return PopulateFromCollection
+	default:
+		return nil
+	}
+}
+
+// AddJob appends additional objectID to structure's jobs field
 func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, objID)
 }
@@ -75,60 +94,22 @@ func (eoc *Collection) AddJob(objID string) {
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
-	go eoc.PopulateFromCollection(context.TODO(), eoc.service, eoc.statusCh)
+	if eoc.populate != nil {
+		go eoc.populate(context.TODO(), eoc.service, eoc, eoc.statusCh)
+	}
 	return eoc.data
 }
 
+// FullPath returns the Collection's fullPath []string
 func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
-func (edc *Collection) PopulateForContactCollection(
+// PopulateFromCollection async call to fill DataCollection via channel implementation
+func PopulateFromCollection(
 	ctx context.Context,
 	service graph.Service,
-	statusChannel chan<- *support.ConnectorOperationStatus,
-) {
-	var (
-		errs    error
-		success int
-	)
-	objectWriter := kw.NewJsonSerializationWriter()
-
-	for _, task := range edc.jobs {
-		response, err := service.Client().UsersById(edc.user).ContactsById(task).Get()
-		if err != nil {
-			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(edc.user, errors.Wrapf(
-				err,
-				"unable to retrieve item %s; details: %s", task, details,
-			),
-				errs,
-			)
-			continue
-		}
-		err = contactToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
-		if err != nil {
-			errs = support.WrapAndAppendf(edc.user, err, errs)
-
-			if service.ErrPolicy() {
-				break
-			}
-		}
-
-		success++
-
-	}
-	close(edc.data)
-	attemptedItems := len(edc.jobs)
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
-	logger.Ctx(ctx).Debug(status.String())
-	statusChannel <- status
-}
-
-// populateFromTaskList async call to fill DataCollection via channel implementation
-func (edc *Collection) PopulateFromCollection(
-	ctx context.Context,
-	service graph.Service,
+	edc *Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error

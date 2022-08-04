@@ -3,9 +3,10 @@ package filters_test
 import (
 	"testing"
 
-	"github.com/alcionai/corso/pkg/filters"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/pkg/filters"
 )
 
 type FiltersSuite struct {

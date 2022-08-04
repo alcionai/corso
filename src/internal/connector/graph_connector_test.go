@@ -3,6 +3,8 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +24,7 @@ import (
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
+	user      string
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
@@ -47,6 +50,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	suite.connector, err = NewGraphConnector(a)
 	suite.NoError(err)
+	suite.user = "lidiah@8qzvrj.onmicrosoft.com"
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
@@ -82,6 +86,44 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTest() {
+	t := suite.T()
+	user, err := tester.M365UserID()
+	require.NoError(t, err)
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users([]string{user}))
+	eb, err := sel.ToExchangeBackup()
+	require.NoError(t, err)
+	var mailScope selectors.ExchangeScope
+	all := eb.Scopes()
+	for _, scope := range all {
+		fmt.Printf("%v\n", scope)
+		if scope.IncludesCategory(selectors.ExchangeMail) {
+			mailScope = scope
+		}
+	}
+
+	collection, err := suite.connector.createCollections(context.Background(), mailScope)
+	require.NoError(t, err)
+	for _, edc := range collection {
+		testName := strings.Join(edc.FullPath(), " ")
+		suite.T().Run(testName, func(t *testing.T) {
+			streamChannel := edc.Items()
+			// Verify that each message can be restored
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
+
+			}
+		})
+	}
 }
 
 //TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector

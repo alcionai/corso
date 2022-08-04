@@ -3,9 +3,10 @@ package tester
 import (
 	"testing"
 
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
-	"github.com/pkg/errors"
 )
 
 var AWSStorageCredEnvs = []string{

@@ -254,35 +254,54 @@ func (w Wrapper) makeSnapshotWithRoot(
 	root fs.Directory,
 	details *details.Details,
 ) (*BackupStats, error) {
-	si := snapshot.SourceInfo{
-		Host:     corsoHost,
-		UserName: corsoUser,
-		// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
-		Path: root.Name(),
-	}
-	ctx, rw, err := w.c.NewWriter(ctx, repo.WriteSessionOptions{})
+	var man *snapshot.Manifest
+
+	err := repo.WriteSession(
+		ctx,
+		w.c,
+		repo.WriteSessionOptions{
+			Purpose: "KopiaWrapperBackup",
+			// Always flush so we don't leak write sessions. Still uses reachability
+			// for consistency.
+			FlushOnFailure: true,
+		},
+		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+			si := snapshot.SourceInfo{
+				Host:     corsoHost,
+				UserName: corsoUser,
+				// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
+				Path: root.Name(),
+			}
+
+			policyTree, err := policy.TreeForSource(innerCtx, w.c, si)
+			if err != nil {
+				err = errors.Wrap(err, "get policy tree")
+				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				return err
+			}
+
+			u := snapshotfs.NewUploader(rw)
+			man, err = u.Upload(innerCtx, root, policyTree, si)
+			if err != nil {
+				err = errors.Wrap(err, "uploading data")
+				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				return err
+			}
+
+			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
+				err = errors.Wrap(err, "saving snapshot")
+				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				return err
+			}
+
+			return nil
+		},
+	)
+
+	// Telling kopia to always flush may hide other errors if it fails while
+	// flushing the write session (hence logging above).
 	if err != nil {
-		return nil, errors.Wrap(err, "get repo writer")
-	}
-
-	policyTree, err := policy.TreeForSource(ctx, w.c, si)
-	if err != nil {
-		return nil, errors.Wrap(err, "get policy tree")
-	}
-
-	u := snapshotfs.NewUploader(rw)
-
-	man, err := u.Upload(ctx, root, policyTree, si)
-	if err != nil {
-		return nil, errors.Wrap(err, "uploading data")
-	}
-
-	if _, err := snapshot.SaveSnapshot(ctx, rw, man); err != nil {
-		return nil, errors.Wrap(err, "saving snapshot")
-	}
-
-	if err := rw.Flush(ctx); err != nil {
-		return nil, errors.Wrap(err, "flushing writer")
+		return nil, errors.Wrap(err, "kopia backup")
 	}
 
 	res := manifestToStats(man)
