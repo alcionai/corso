@@ -34,26 +34,26 @@ const (
 // GraphQuery represents functions which perform exchange-specific queries
 // into M365 backstore.
 //TODO: use selector or path for granularity into specific folders or specific date ranges
-type GraphQuery func(graph.Service, []string) (absser.Parsable, error)
+type GraphQuery func(graph.Service, string) (absser.Parsable, error)
 
 // GetAllMessagesForUser is a GraphQuery function for receiving all messages for a single user
-func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+func GetAllMessagesForUser(gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
 	options, err := optionsForMessages(selecting)
 	if err != nil {
 		return nil, err
 	}
-	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	return gs.Client().UsersById(user).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
-func GetAllContactsForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
 	options, err := optionsForContacts(selecting)
 	if err != nil {
 		return nil, err
 	}
-	return gs.Client().UsersById(identities[0]).Contacts().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	return gs.Client().UsersById(user).Contacts().GetWithRequestConfigurationAndResponseHandler(options, nil)
 
 }
 
