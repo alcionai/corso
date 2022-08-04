@@ -98,7 +98,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 
 func main() {
 	fs := purgeCmd.Flags()
-	fs.StringVar(&before, "before", "", "oldest folder to delete.  (default: now in UTC)")
+	fs.StringVar(&before, "before", "", "folders older than this date are deleted.  (default: now in UTC)")
 	fs.StringVar(&user, "user", "", "m365 user id whose folders will be deleted")
 	cobra.CheckErr(purgeCmd.MarkFlagRequired("user"))
 	fs.StringVar(&tenant, "tenant", "", "m365 tenant containing the user")
