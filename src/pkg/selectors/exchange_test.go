@@ -875,12 +875,13 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 func (suite *ExchangeSourceSuite) TestContains() {
 	target := "fnords"
 	var (
-		es        = NewExchangeRestore()
-		anyUser   = extendExchangeScopeValues(es.Users(Any()))
-		noMail    = extendExchangeScopeValues(es.Mails(None(), None(), None()))
-		does      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{target}))
-		doesNot   = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
-		wrongType = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
+		es                  = NewExchangeRestore()
+		anyUser             = extendExchangeScopeValues(es.Users(Any()))
+		noMail              = extendExchangeScopeValues(es.Mails(None(), None(), None()))
+		does                = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{target}))
+		doesNot             = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
+		wrongType           = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
+		wrongTypeGoodTarget = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
 	)
 	table := []struct {
 		name   string
@@ -892,6 +893,7 @@ func (suite *ExchangeSourceSuite) TestContains() {
 		{"does contain", does, assert.True},
 		{"does not contain", doesNot, assert.False},
 		{"wrong type", wrongType, assert.False},
+		{"wrong type but right target", wrongTypeGoodTarget, assert.False},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
