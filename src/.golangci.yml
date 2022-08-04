@@ -6,6 +6,7 @@ linters:
     - gci
     - gofmt
     - gofumpt
+    - lll
     - misspell
     - revive
 
@@ -16,6 +17,8 @@ linters-settings:
       - default
       - prefix(github.com/alcionai/corso)
     skip-generated: true
+  lll:
+    line-length: 120
   revive:
     max-open-files: 2048
     # Don't know why, but false means ignore generated files.
