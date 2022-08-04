@@ -134,6 +134,12 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 			IterateSelectAllMessagesForCollections,
 			nil
 	}
+	if scope.IncludesCategory(selectors.ExchangeContactFolder) {
+		return models.CreateContactFromDiscriminatorValue,
+			GetAllContactsForUser,
+			IterateAllContactsForCollection,
+			nil
+	}
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
