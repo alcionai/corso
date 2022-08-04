@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -200,8 +199,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 
 // GetCopyRestoreFolder utility function to create an unique folder for the restore process
 func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
-	now := time.Now().UTC()
-	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatSimpleDateTime(now))
+	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	isFolder, err := GetMailFolderID(service, newFolder, user)
 	if err != nil {
 		// Verify unique folder was not found

@@ -1,0 +1,62 @@
+name: CI Test Cleanup
+on:
+  schedule:
+    # every half hour
+    - cron: "*/30 * * * *"
+
+jobs:
+  Test-User-Data-Cleanup:
+    runs-on: ubuntu-latest
+
+      - name: Delete all files in the test bucket
+        run: |
+          aws s3 rm s3://test-corso-repo-init --recursive
+
+      # check out the repo
+      - name: Repo Code Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      # Get values for cache paths to be used in later steps
+      - id: go-cache-paths
+        working-directory: ./src
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+      - name: Golang Setup
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+          cache: true
+          cache-dependency-path: src/go.sum
+
+      # download packages
+      - name: Cache Go Mod
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+      - name: Run go mod download
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: ./src
+        run: go mod download
+
+      # sets the maximimum time to now-30m.
+      # CI test have a 10 minute timeout.
+      # At 20 minutes ago, we should be safe from conflicts.
+      # The additional 10 minutes is just to be good citizens.
+      - name: Set purge boundary
+        run: |
+          echo "HALF_HOUR_AGO=${date -u -v-30M --iso-8601=seconds}" >> $GITHUB_ENV
+
+      # run the folder purge
+      - name: Generate Markdown
+        working-directory: ./src
+        run: |
+          go run ./cmd/purge/purge.go \
+          --user ${{ secrets.CORSO_M356_TEST_USER_ID }} \
+          --prefix "Corso_Restore_" \
+          --before ${{ HALF_HOUR_AGO }}
