@@ -53,7 +53,14 @@ type Collection struct {
 
 // Populater are a class of functions that can be used to fill exchange.Collections with
 // the corresponding information
-type populater func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
+type populater func(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+)
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
@@ -80,7 +87,7 @@ func NewCollection(
 func getPopulateFunction(optId optionIdentifier) populater {
 	switch optId {
 	case messages:
-		return PopulateFromCollection
+		return PopulateForMailCollection
 	case contacts:
 		return PopulateForContactCollection
 	default:
@@ -97,7 +104,14 @@ func (eoc *Collection) AddJob(objID string) {
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
 	if eoc.populate != nil {
-		go eoc.populate(context.TODO(), eoc.service, eoc, eoc.statusCh)
+		go eoc.populate(
+			context.TODO(),
+			eoc.service,
+			eoc.user,
+			eoc.jobs,
+			eoc.data,
+			eoc.statusCh,
+		)
 	}
 	return eoc.data
 }
@@ -107,9 +121,12 @@ func (edc *Collection) FullPath() []string {
 	return append([]string{}, edc.fullPath...)
 }
 
-func (edc *Collection) PopulateForContactCollection(
+func PopulateForContactCollection(
 	ctx context.Context,
 	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var (
@@ -118,11 +135,11 @@ func (edc *Collection) PopulateForContactCollection(
 	)
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, task := range edc.jobs {
-		response, err := service.Client().UsersById(edc.user).ContactsById(task).Get()
+	for _, task := range jobs {
+		response, err := service.Client().UsersById(user).ContactsById(task).Get()
 		if err != nil {
 			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(edc.user, errors.Wrapf(
+			errs = support.WrapAndAppend(user, errors.Wrapf(
 				err,
 				"unable to retrieve item %s; details: %s", task, details,
 			),
@@ -130,9 +147,9 @@ func (edc *Collection) PopulateForContactCollection(
 			)
 			continue
 		}
-		err = contactToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		err = contactToDataCollection(service.Client(), ctx, objectWriter, dataChannel, response, user)
 		if err != nil {
-			errs = support.WrapAndAppendf(edc.user, err, errs)
+			errs = support.WrapAndAppendf(user, err, errs)
 
 			if service.ErrPolicy() {
 				break
@@ -143,8 +160,8 @@ func (edc *Collection) PopulateForContactCollection(
 		success++
 
 	}
-	close(edc.data)
-	attemptedItems := len(edc.jobs)
+	close(dataChannel)
+	attemptedItems := len(jobs)
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
@@ -154,23 +171,25 @@ func (edc *Collection) PopulateForContactCollection(
 func PopulateForMailCollection(
 	ctx context.Context,
 	service graph.Service,
-	edc *Collection,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, task := range edc.jobs {
-		response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
+	for _, task := range jobs {
+		response, err := service.Client().UsersById(user).MessagesById(task).Get()
 		if err != nil {
 			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
+			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
 			continue
 		}
-		err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		err = messageToDataCollection(service.Client(), ctx, objectWriter, dataChannel, response, user)
 		if err != nil {
-			errs = support.WrapAndAppendf(edc.user, err, errs)
+			errs = support.WrapAndAppendf(user, err, errs)
 
 			if service.ErrPolicy() {
 				break
@@ -179,8 +198,8 @@ func PopulateForMailCollection(
 		}
 		success++
 	}
-	close(edc.data)
-	attemptedItems += len(edc.jobs)
+	close(dataChannel)
+	attemptedItems += len(jobs)
 
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
