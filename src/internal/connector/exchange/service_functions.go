@@ -73,8 +73,8 @@ func CreateMailFolder(gs graph.Service, user, folder string) (models.MailFoldera
 
 // DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
-func DeleteMailFolder(cli *msgraphsdk.GraphServiceClient, user, folderID string) error {
-	return cli.UsersById(user).MailFoldersById(folderID).Delete()
+func DeleteMailFolder(gs graph.Service, user, folderID string) error {
+	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete()
 }
 
 type MailFolder struct {
@@ -85,11 +85,7 @@ type MailFolder struct {
 // GetAllMailFolders retrieves all mail folders for the specified user.
 // If nameContains is populated, only returns mail matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllMailFolders(
-	cli *msgraphsdk.GraphServiceClient,
-	adp *msgraphsdk.GraphRequestAdapter,
-	user, nameContains string,
-) ([]MailFolder, error) {
+func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolder, error) {
 	var (
 		mfs = []MailFolder{}
 		err error
@@ -100,12 +96,12 @@ func GetAllMailFolders(
 		return nil, err
 	}
 
-	resp, err := cli.UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(opts, nil)
+	resp, err := gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(opts, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(resp, adp, models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	iter, err := msgraphgocore.NewPageIterator(resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, err
 	}

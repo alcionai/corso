@@ -51,7 +51,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 	}
 
 	// get them folders
-	mfs, err := exchange.GetAllMailFolders(gc.Client(), gc.Adapter(), user, prefix)
+	mfs, err := exchange.GetAllMailFolders(gc.Service(), user, prefix)
 	if err != nil {
 		return Only(errors.Wrap(err, "retrieving mail folders"))
 	}
@@ -87,7 +87,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 		}
 
 		Info("Deleting folder: ", mf.DisplayName)
-		err = exchange.DeleteMailFolder(gc.Client(), user, mf.ID)
+		err = exchange.DeleteMailFolder(gc.Service(), user, mf.ID)
 		if err != nil {
 			Info(errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))
 		}
