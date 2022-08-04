@@ -69,7 +69,6 @@ type GraphIterateFunc func(
 	account.M365Config,
 	map[string]*Collection,
 	chan<- *support.ConnectorOperationStatus,
-	int,
 ) func(any) bool
 
 // IterateSelectAllMessageForCollection utility function for
@@ -84,7 +83,6 @@ func IterateSelectAllMessagesForCollections(
 	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
-	rounds int,
 ) func(any) bool {
 	return func(messageItem any) bool {
 		// Defines the type of collection being created within the function
@@ -126,8 +124,8 @@ func IterateAndFilterMessagesForCollections(
 	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
-	rounds int,
 ) func(any) bool {
+	var rounds int
 	return func(messageItem any) bool {
 		user := scope.Get(selectors.ExchangeUser)[0]
 		if rounds == 0 {
