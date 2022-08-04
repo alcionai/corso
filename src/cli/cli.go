@@ -55,6 +55,8 @@ func CorsoCommand() *cobra.Command {
 // BuildCommandTree builds out the command tree used by the Corso library.
 func BuildCommandTree(cmd *cobra.Command) {
 	cmd.Flags().BoolP("version", "v", version, "current version info")
+	cmd.PersistentPostRunE = config.InitFunc()
+	config.AddConfigFileFlag(cmd)
 	print.AddOutputFlag(cmd)
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
