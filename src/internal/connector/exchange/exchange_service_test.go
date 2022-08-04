@@ -117,7 +117,6 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 				assert.NotNil(t, iterFunc)
 
 			}
-
 		})
 
 	}
