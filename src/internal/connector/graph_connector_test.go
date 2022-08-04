@@ -139,6 +139,41 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolderCollectionQuery() {
+	userID := "TEST_GRAPH_USER" // user.GetId()
+	evs, err := tester.GetRequiredEnvVars(userID)
+	t := suite.T()
+	require.NoError(t, err)
+	user := evs[userID]
+	//suite.connector, err = NewGraphConnector(a)
+	sel := selectors.NewExchangeBackup()
+	//sel.Include(sel.Users([]string{user}))
+	sel.Include(sel.MailFolders([]string{user}, []string{"Inbox"}))
+	scopes := sel.Scopes()
+	for _, scope := range scopes {
+		t.Logf("%v\n", scope)
+		what := scope.Get(selectors.ExchangeMailFolder)
+		t.Logf("%v\nSize: %v\n", what, what[0] == selectors.AnyTgt)
+		collections, err := suite.connector.createCollections(context.Background(), scope)
+		require.NoError(t, err)
+		suite.Equal(len(collections), 1)
+		for _, edc := range collections {
+			streamChannel := edc.Items()
+			// Verify that each message can be restored
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
+
+			}
+		}
+	}
+}
+
 ///------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------
