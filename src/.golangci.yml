@@ -71,3 +71,7 @@ issues:
     - linters:
       - revive
       text: "unexported-return:.*unexported type.*kopia.conn"
+    - path: _test\.go
+      linters:
+      - revive
+      text: "import-shadowing:.*'suite' shadows"

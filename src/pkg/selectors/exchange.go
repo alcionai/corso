@@ -652,14 +652,14 @@ func exchangeIDPath(cat exchangeCategory, path []string) map[exchangeCategory]st
 
 // Reduce reduces the entries in a backupDetails struct to only
 // those that match the inclusions, filters, and exclusions in the selector.
-func (s *ExchangeRestore) Reduce(deets *details.Details) *details.Details {
+func (sr *ExchangeRestore) Reduce(deets *details.Details) *details.Details {
 	if deets == nil {
 		return nil
 	}
 
-	entExcs := exchangeScopesByCategory(s.Excludes)
-	entFilt := exchangeScopesByCategory(s.Filters)
-	entIncs := exchangeScopesByCategory(s.Includes)
+	entExcs := exchangeScopesByCategory(sr.Excludes)
+	entFilt := exchangeScopesByCategory(sr.Filters)
+	entIncs := exchangeScopesByCategory(sr.Includes)
 
 	ents := []details.DetailsEntry{}
 

@@ -78,11 +78,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 		return errors.Wrap(err, errConnect.Error())
 	}
 
-	if err := w.open(ctx, cfg.CorsoPassword); err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (w *conn) Connect(ctx context.Context) error {
@@ -108,11 +104,7 @@ func (w *conn) Connect(ctx context.Context) error {
 		return errors.Wrap(err, errConnect.Error())
 	}
 
-	if err := w.open(ctx, cfg.CorsoPassword); err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {

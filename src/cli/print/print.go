@@ -104,6 +104,7 @@ type Printable interface {
 	Values() []string
 }
 
+//revive:disable:redefines-builtin-id
 func print(p Printable) {
 	if outputAsJSON || outputAsJSONDebug {
 		outputJSON(p, outputAsJSONDebug)

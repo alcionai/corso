@@ -81,19 +81,19 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	// TODO: persist initial state of restoreOperation in modelstore
 
 	// persist operation results to the model store on exit
-	stats := restoreStats{}
-	defer op.persistResults(time.Now(), &stats)
+	opStats := restoreStats{}
+	defer op.persistResults(time.Now(), &opStats)
 
 	// retrieve the restore point details
 	d, b, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
 	if err != nil {
-		stats.readErr = errors.Wrap(err, "getting backup details for restore")
-		return stats.readErr
+		opStats.readErr = errors.Wrap(err, "getting backup details for restore")
+		return opStats.readErr
 	}
 
 	er, err := op.Selectors.ToExchangeRestore()
 	if err != nil {
-		stats.readErr = err
+		opStats.readErr = err
 		return err
 	}
 
@@ -111,23 +111,23 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	}
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths)
 	if err != nil {
-		stats.readErr = errors.Wrap(err, "retrieving service data")
-		return stats.readErr
+		opStats.readErr = errors.Wrap(err, "retrieving service data")
+		return opStats.readErr
 	}
-	stats.cs = dcs
+	opStats.cs = dcs
 
 	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
-		stats.writeErr = errors.Wrap(err, "connecting to graph api")
-		return stats.writeErr
+		opStats.writeErr = errors.Wrap(err, "connecting to graph api")
+		return opStats.writeErr
 	}
 
 	if err := gc.RestoreMessages(ctx, dcs); err != nil {
-		stats.writeErr = errors.Wrap(err, "restoring service data")
-		return stats.writeErr
+		opStats.writeErr = errors.Wrap(err, "restoring service data")
+		return opStats.writeErr
 	}
-	stats.gc = gc.AwaitStatus()
+	opStats.gc = gc.AwaitStatus()
 
 	return nil
 }
@@ -135,20 +135,20 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 // writes the restoreOperation outcome to the modelStore.
 func (op *RestoreOperation) persistResults(
 	started time.Time,
-	stats *restoreStats,
+	opStats *restoreStats,
 ) {
 	op.Status = Completed
-	if (stats.readErr != nil || stats.writeErr != nil) &&
-		(stats.gc == nil || stats.gc.Successful == 0) {
+	if (opStats.readErr != nil || opStats.writeErr != nil) &&
+		(opStats.gc == nil || opStats.gc.Successful == 0) {
 		op.Status = Failed
 	}
-	op.Results.ReadErrors = stats.readErr
-	op.Results.WriteErrors = stats.writeErr
+	op.Results.ReadErrors = opStats.readErr
+	op.Results.WriteErrors = opStats.writeErr
 
-	op.Results.ItemsRead = len(stats.cs) // TODO: file count, not collection count
+	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 
-	if stats.gc != nil {
-		op.Results.ItemsWritten = stats.gc.Successful
+	if opStats.gc != nil {
+		op.Results.ItemsWritten = opStats.gc.Successful
 	}
 
 	op.Results.StartedAt = started
