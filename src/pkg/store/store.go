@@ -27,6 +27,6 @@ type Wrapper struct {
 	Storer
 }
 
-func NewKopiaStore(kMS *kopia.ModelStore) *Wrapper {
-	return &Wrapper{kMS}
+func NewKopiaStore(kms *kopia.ModelStore) *Wrapper {
+	return &Wrapper{kms}
 }

@@ -19,6 +19,10 @@ const (
 	CorsoRepositoryTests     = "CORSO_REPOSITORY_TESTS"
 )
 
+// File needs to be a single message .json
+// Use: https://developer.microsoft.com/en-us/graph/graph-explorer for details
+const CorsoGraphConnectorTestSupportFile = "CORSO_TEST_SUPPORT_FILE"
+
 // RunOnAny takes in a list of env variable names and returns
 // an error if all of them are zero valued.  Implication being:
 // if any of those env vars are truthy, you should run the

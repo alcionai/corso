@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/internal/tester"
 )
 
+//revive:disable:context-as-argument
 func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
 	storage, err := tester.NewPrefixedS3Storage(t)
 	if err != nil {
