@@ -130,6 +130,7 @@ func PopulateFromCollection(
 			if service.ErrPolicy() {
 				break
 			}
+			continue
 		}
 		success++
 	}
