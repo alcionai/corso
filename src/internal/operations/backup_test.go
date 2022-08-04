@@ -178,3 +178,54 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	assert.Zero(t, bo.Results.ReadErrors)
 	assert.Zero(t, bo.Results.WriteErrors)
 }
+
+func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
+	t := suite.T()
+	ctx := context.Background()
+
+	m365UserID := "george.martinez@8qzvrj.onmicrosoft.com"
+	acct, err := tester.NewM365Account()
+	require.NoError(t, err)
+
+	// need to initialize the repository before we can test connecting to it.
+	st, err := tester.NewPrefixedS3Storage(t)
+	require.NoError(t, err)
+
+	k := kopia.NewConn(st)
+	require.NoError(t, k.Connect(ctx))
+
+	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
+	// to close here.
+	defer k.Close(ctx)
+
+	kw, err := kopia.NewWrapper(k)
+	require.NoError(t, err)
+	defer kw.Close(ctx)
+
+	ms, err := kopia.NewModelStore(k)
+	require.NoError(t, err)
+	defer ms.Close(ctx)
+
+	sw := store.NewKopiaStore(ms)
+
+	sel := selectors.NewOneDriveBackup()
+	sel.Include(sel.Users([]string{m365UserID}))
+
+	bo, err := NewBackupOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		sel.Selector)
+	require.NoError(t, err)
+
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results)
+	require.NotEmpty(t, bo.Results.BackupID)
+	assert.Equal(t, bo.Status, Completed)
+	// assert.Greater(t, bo.Results.ItemsRead, 0)
+	// assert.Greater(t, bo.Results.ItemsWritten, 0)
+	// assert.Zero(t, bo.Results.ReadErrors)
+	// assert.Zero(t, bo.Results.WriteErrors)
+}

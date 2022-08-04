@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"path/filepath"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -52,7 +53,7 @@ func (oc *Collection) Items() <-chan data.Stream {
 		if err != nil {
 			panic(err)
 		}
-		oc.data <- &Item{id: *item.GetId(), data: d}
+		oc.data <- &Item{id: *item.GetId(), data: d, info: &details.OnedriveInfo{Name: *item.GetName(), ParentPath: oc.folderPath}}
 	}
 	close(oc.data)
 
@@ -60,14 +61,14 @@ func (oc *Collection) Items() <-chan data.Stream {
 }
 
 func (oc *Collection) FullPath() []string {
-	return []string{}
+	return filepath.SplitList(oc.folderPath)
 }
 
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
 	data io.ReadCloser
-	info *details.OnedriveInfo //temporary change to bring populate function into directory
+	info *details.OnedriveInfo
 }
 
 func (od *Item) UUID() string {
@@ -75,6 +76,8 @@ func (od *Item) UUID() string {
 }
 
 func (od *Item) ToReader() io.ReadCloser {
+	// testFile := []byte("testFile")
+	// return io.NopCloser(bytes.NewReader(testFile))
 	return od.data
 }
 

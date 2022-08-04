@@ -2,8 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"crypto/md5"
-	"io"
 	"path"
 	"testing"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/graph"
+	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/tester"
 )
 
@@ -69,10 +68,13 @@ func (suite *OnedriveIntegrationSuite) TestOnedriveEnumeration() {
 		items := c.Items()
 		suite.T().Logf("Collection(%d) %s", len(items), path.Join(c.FullPath()...))
 		for item := range items {
-			h := md5.New()
-			_, err := io.Copy(h, item.ToReader())
-			require.NoError(suite.T(), err)
-			suite.T().Logf("Hash(%s) %s", item.UUID(), h.Sum(nil))
+			info := item.(data.StreamInfo)
+			suite.T().Logf("Name: %s, Path: %s", info.Info().Onedrive.Name, info.Info().Onedrive.ParentPath)
 		}
+		// 	h := md5.New()
+		// 	_, err := io.Copy(h, item.ToReader())
+		// 	require.NoError(suite.T(), err)
+		// 	suite.T().Logf("Hash(%s) %s", item.UUID(), h.Sum(nil))
+		// }
 	}
 }

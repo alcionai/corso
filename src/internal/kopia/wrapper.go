@@ -97,7 +97,7 @@ func getStreamItemFunc(
 				if !ok {
 					return errors.New("item does not implement DataStreamInfo")
 				}
-
+				logger.Ctx(ctx).Debug("Returning StreamingFile")
 				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
 				if err := cb(ctx, entry); err != nil {
 					return errors.Wrap(err, "executing callback")
