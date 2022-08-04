@@ -154,6 +154,22 @@ func appendIncludes[T baseScope](
 	}
 }
 
+// contains returns true if the provided scope is Any(), or contains the
+// target string.
+func contains(scope map[string]string, key, target string) bool {
+	compare := scope[key]
+	if len(compare) == 0 {
+		return false
+	}
+	if compare == NoneTgt {
+		return false
+	}
+	if compare == AnyTgt {
+		return true
+	}
+	return strings.Contains(compare, target)
+}
+
 // ---------------------------------------------------------------------------
 // Printing Selectors for Human Reading
 // ---------------------------------------------------------------------------

@@ -151,3 +151,13 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 		})
 	}
 }
+
+func (suite *SelectorSuite) TestContains() {
+	t := suite.T()
+	key := "key"
+	target := "fnords"
+	does := map[string]string{key: target}
+	doesNot := map[string]string{key: "smarf"}
+	assert.True(t, contains(does, key, target))
+	assert.False(t, contains(doesNot, key, target))
+}
