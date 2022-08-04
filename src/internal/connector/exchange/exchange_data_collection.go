@@ -139,10 +139,9 @@ func PopulateForContactCollection(
 		response, err := service.Client().UsersById(user).ContactsById(task).Get()
 		if err != nil {
 			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(user, errors.Wrapf(
-				err,
-				"unable to retrieve item %s; details: %s", task, details,
-			),
+			errs = support.WrapAndAppend(
+				user,
+				errors.Wrapf(err, "unable to retrieve item %s; details: %s", task, details),
 				errs,
 			)
 			continue
