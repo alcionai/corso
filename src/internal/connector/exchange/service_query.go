@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
@@ -37,10 +38,25 @@ type GraphQuery func(graph.Service, []string) (absser.Parsable, error)
 func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
 	options, err := optionsForMessages(selecting)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// GetAllFolderDisplayNamesForUser is a GraphQuery function for getting FolderId and display
+// names for Mail Folder. All other information for the MailFolder object is omitted.
+func GetAllFolderNamesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+	options, err := optionsForMailFolders([]string{"id", "displayName"})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return gs.Client().UsersById(identities[0]).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+
 }
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
@@ -129,7 +145,6 @@ func IterateAndFilterMessagesForCollections(
 				errs = support.WrapAndAppend(user, err, errs)
 				return false
 			}
-			fmt.Printf("Ran Create Folder on Round: %d\n", rounds)
 		}
 		rounds++
 
@@ -138,10 +153,10 @@ func IterateAndFilterMessagesForCollections(
 			errs = support.WrapAndAppend(user, errors.New("message iteration failure"), errs)
 			return true
 		}
-		// Saving only
+		// Saving only messages for the created directories
 		directory := *message.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
-			return true //
+			return true
 		}
 		collections[directory].AddJob(*message.GetId())
 		return true
@@ -160,29 +175,45 @@ func AddMailFolderSpecificCollections(
 ) error {
 	queryService, err := createService(credentials, failFast)
 	if err != nil {
-		return errors.New("unable to create service a folder query service for " + user)
+		return errors.New("unable to create a mail folder query service for " + user)
 	}
 	folderNames := scope.Get(selectors.ExchangeMailFolder)
-	options, err := optionsForMailFolders([]string{"id", "displayName"})
+	query, err := GetAllFolderNamesForUser(queryService, []string{user})
 	if err != nil {
-		return err
+		return fmt.Errorf(
+			"unable to query mail folder for %s: details: %s",
+			user,
+			support.ConnectorStackErrorTrace(err),
+		)
 	}
-	query, err := queryService.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	// Iterator required to ensure all potential folders are inspected
+	// when the breadth of the folder space is large
+	pageIterator, err := msgraphgocore.NewPageIterator(
+		query,
+		&queryService.adapter,
+		models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return fmt.Errorf("unable to query in AddMailFolderSpecificCollections: %s", support.ConnectorStackErrorTrace(err))
+		return errors.Wrap(err, "unable to create iterator during mail folder query service")
 	}
-	for _, folder := range query.GetValue() {
-		ptr := folder.GetDisplayName()
-		if ptr == nil {
-			continue
+	var service graph.Service
+	callbackFunc := func(pageItem any) bool {
+		folder, ok := pageItem.(models.MailFolderable)
+		if !ok {
+			err = support.WrapAndAppend(user, errors.New("unable to transform folderable item"), err)
+			return true
 		}
-		name := *ptr
+		name := *folder.GetDisplayName()
 		for _, permitted := range folderNames {
 			if name == permitted {
 				directory := *folder.GetId()
-				service, err := createService(credentials, failFast)
+				service, err = createService(credentials, failFast)
 				if err != nil {
-					return errors.New("unable to create service a folder query service for " + user)
+					err = support.WrapAndAppend(
+						name,
+						errors.New("unable to create service a folder query service for "+user),
+						err,
+					)
+					return true
 				}
 				temp := NewCollection(
 					user,
@@ -195,9 +226,13 @@ func AddMailFolderSpecificCollections(
 				break
 			}
 		}
-
+		return true
 	}
-	return nil
+	iterateFailure := pageIterator.Iterate(callbackFunc)
+	if iterateFailure != nil {
+		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
+	}
+	return err
 
 }
 
