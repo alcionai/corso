@@ -174,8 +174,37 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 
 // OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data for the specified user
 // TODO: Wire to selectors once Onedrive selectors are implemented
-func (gc *GraphConnector) OneDriveDataCollections(ctx context.Context, selector selectors.Selector, user string) ([]data.Collection, error) {
-	return onedrive.NewCollections(user, &gc.graphService).Get(ctx)
+func (gc *GraphConnector) OneDriveDataCollections(ctx context.Context, selector selectors.Selector) ([]data.Collection, error) {
+	odb, err := selector.ToOneDriveBackup()
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting onedrive data")
+	}
+
+	collections := []data.Collection{}
+	scopes := odb.Scopes()
+	var errs error
+
+	// for each scope that includes mail messages, get all
+	for _, scope := range scopes {
+		for _, user := range scope.Get(selectors.OneDriveUser) {
+			// TODO: handle "get drives for all users"
+			// this would probably no-op without this check,
+			// but we want it made obvious that we're punting.
+			if user == selectors.AnyTgt {
+				errs = support.WrapAndAppend(
+					"all-users",
+					errors.New("all users selector currently not handled"),
+					errs)
+				continue
+			}
+			odcs, err := onedrive.NewCollections(user, &gc.graphService).Get(ctx)
+			if err != nil {
+				return nil, support.WrapAndAppend(user, err, errs)
+			}
+			collections = append(collections, odcs...)
+		}
+	}
+	return collections, errs
 }
 
 // ExchangeDataStream returns a DataCollection which the caller can

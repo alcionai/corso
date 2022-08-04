@@ -101,10 +101,21 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}
 
 	var cs []data.Collection
-	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
-	if err != nil {
-		stats.readErr = err
-		return errors.Wrap(err, "retrieving service data")
+	switch op.Selectors.Service {
+	case selectors.ServiceExchange:
+		cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
+		if err != nil {
+			stats.readErr = err
+			return errors.Wrap(err, "retrieving exchange service data")
+		}
+	case selectors.ServiceOneDrive:
+		cs, err = gc.OneDriveDataCollections(ctx, op.Selectors)
+		if err != nil {
+			stats.readErr = err
+			return errors.Wrap(err, "retrieving onedrive service data")
+		}
+	default:
+		return errors.Errorf("Service %s not supported", op.Selectors.Service)
 	}
 
 	// hand the results to the consumer

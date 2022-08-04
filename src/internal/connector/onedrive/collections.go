@@ -15,6 +15,15 @@ import (
 	"github.com/alcionai/corso/pkg/logger"
 )
 
+const (
+	// nextLinkKey is used to find the next link in a paged
+	// graph response
+	nextLinkKey = "@odata.nextLink"
+	// downloadUrlKey is used to find the download URL in a
+	// DriveItem response
+	downloadUrlKey = "@microsoft.graph.downloadUrl"
+)
+
 type Collections struct {
 	user string
 	// collectionMap allows lookup of the data.Collection
@@ -90,13 +99,13 @@ func (c *Collections) enumerateDrive(ctx context.Context, driveID string) error 
 		logger.Ctx(ctx).Debugf("Found %d items", items)
 		c.totalItems += len(r.GetValue())
 
-		c.updateCollections(r.GetValue())
+		c.updateCollections(r.GetValue(), driveID)
 
-		if _, found := r.GetAdditionalData()["@odata.nextLink"]; !found {
+		if _, found := r.GetAdditionalData()[nextLinkKey]; !found {
 			logger.Ctx(ctx).Debugf("Done enumerating")
 			break
 		}
-		nextLink := r.GetAdditionalData()["@odata.nextLink"].(*string)
+		nextLink := r.GetAdditionalData()[nextLinkKey].(*string)
 		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
 		builder = delta.NewDeltaRequestBuilder(*nextLink, c.service.Adapter())
 	}
@@ -105,7 +114,7 @@ func (c *Collections) enumerateDrive(ctx context.Context, driveID string) error 
 	return nil
 }
 
-func (c *Collections) updateCollections(items []models.DriveItemable) {
+func (c *Collections) updateCollections(items []models.DriveItemable, driveID string) {
 	for _, item := range items {
 		c.stats(item)
 		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
@@ -116,15 +125,15 @@ func (c *Collections) updateCollections(items []models.DriveItemable) {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
 			itemPath := path.Join(*item.GetParentReference().GetPath(), *item.GetName())
 			if _, found := c.collectionMap[itemPath]; !found {
-				c.collectionMap[itemPath] = NewCollection(itemPath)
+				c.collectionMap[itemPath] = NewCollection(itemPath, driveID, c.service)
 			}
 		case item.GetFile() != nil:
 			collectionPath := *item.GetParentReference().GetPath()
 			if _, found := c.collectionMap[collectionPath]; !found {
-				c.collectionMap[collectionPath] = NewCollection(collectionPath)
+				c.collectionMap[collectionPath] = NewCollection(collectionPath, driveID, c.service)
 			}
 			collection := c.collectionMap[collectionPath].(*Collection)
-			collection.driveItems = append(collection.driveItems, *item.GetId())
+			collection.driveItems = append(collection.driveItems, item)
 		default:
 			// TODO: Handle this
 			fmt.Printf("%s\n", *item.GetName())

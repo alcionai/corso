@@ -2,6 +2,9 @@ package onedrive
 
 import (
 	"context"
+	"crypto/md5"
+	"io"
+	"path"
 	"testing"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -62,4 +65,14 @@ func (suite *OnedriveIntegrationSuite) TestOnedriveEnumeration() {
 	collections, err := NewCollections("george.martinez@8qzvrj.onmicrosoft.com", suite).Get(context.Background())
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), collections)
+	for _, c := range collections {
+		items := c.Items()
+		suite.T().Logf("Collection(%d) %s", len(items), path.Join(c.FullPath()...))
+		for item := range items {
+			h := md5.New()
+			_, err := io.Copy(h, item.ToReader())
+			require.NoError(suite.T(), err)
+			suite.T().Logf("Hash(%s) %s", item.UUID(), h.Sum(nil))
+		}
+	}
 }

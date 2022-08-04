@@ -14,6 +14,7 @@ type service int
 const (
 	ServiceUnknown  service = iota // Unknown Service
 	ServiceExchange                // Exchange
+	ServiceOneDrive                // OneDrive
 )
 
 var ErrorBadSelectorCast = errors.New("wrong selector service type")
