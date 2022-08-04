@@ -112,7 +112,8 @@ func SetEventMessageResponse(orig models.Messageable, adtl map[string]any) (mode
 			}
 			rType, ok := temp.(*models.ResponseType)
 			if !ok {
-				return nil, fmt.Errorf("%s : responseType not returned from models.ParseResponseType: %v\t%T", *orig.GetId(), temp, temp)
+				return nil, fmt.Errorf(
+					"%s : responseType not returned from models.ParseResponseType: %v\t%T", *orig.GetId(), temp, temp)
 			}
 			message.SetResponseType(rType)
 		default:
@@ -214,7 +215,10 @@ func setEventRequestableFields(
 }
 
 // SetAdditionalDataToEventMessage sets shared fields for 2 types of EventMessage: Response and Request
-func SetAdditionalDataToEventMessage(adtl map[string]any, newMessage models.EventMessageable) (models.EventMessageable, error) {
+func SetAdditionalDataToEventMessage(
+	adtl map[string]any,
+	newMessage models.EventMessageable,
+) (models.EventMessageable, error) {
 	for key, entry := range adtl {
 		if key == "endDateTime" {
 			dateTime := models.NewDateTimeTimeZone()

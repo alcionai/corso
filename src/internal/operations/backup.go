@@ -144,7 +144,11 @@ func (op *BackupOperation) persistResults(
 }
 
 // stores the operation details, results, and selectors in the backup manifest.
-func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, backupDetails *details.Details) error {
+func (op *BackupOperation) createBackupModels(
+	ctx context.Context,
+	snapID string,
+	backupDetails *details.Details,
+) error {
 	err := op.store.Put(ctx, model.BackupDetailsSchema, &backupDetails.DetailsModel)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")

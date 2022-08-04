@@ -99,8 +99,15 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 		status := support.CreateStatus(
 			context.Background(),
 			support.Restore,
-			12, 9, 8,
-			support.WrapAndAppend("tres", errors.New("three"), support.WrapAndAppend("arc376", errors.New("one"), errors.New("two"))))
+			12,
+			9,
+			8,
+			support.WrapAndAppend(
+				"tres",
+				errors.New("three"),
+				support.WrapAndAppend("arc376", errors.New("one"), errors.New("two")),
+			),
+		)
 		gc.statusCh <- status
 	}()
 	gc.AwaitStatus()

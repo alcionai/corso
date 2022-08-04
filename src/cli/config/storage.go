@@ -37,7 +37,11 @@ func s3Overrides(in map[string]string) map[string]string {
 
 // configureStorage builds a complete storage configuration from a mix of
 // viper properties and manual overrides.
-func configureStorage(vpr *viper.Viper, readConfigFromViper bool, overrides map[string]string) (storage.Storage, error) {
+func configureStorage(
+	vpr *viper.Viper,
+	readConfigFromViper bool,
+	overrides map[string]string,
+) (storage.Storage, error) {
 	var (
 		s3Cfg storage.S3Config
 		store storage.Storage
