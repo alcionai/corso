@@ -6,11 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/cli/backup"
+	"github.com/alcionai/corso/cli"
 	"github.com/alcionai/corso/cli/config"
-	"github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/cli/repo"
-	"github.com/alcionai/corso/cli/restore"
 	"github.com/alcionai/corso/internal/tester"
 )
 
@@ -62,14 +59,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 		"--config-file", configFP,
 		"--bucket", cfg.Bucket,
 		"--prefix", cfg.Prefix)
-	cmd.PersistentPostRunE = config.InitFunc()
-
-	// TODO: replace with Build() from in-flight PR #453
-	config.AddConfigFileFlag(cmd)
-	print.AddOutputFlag(cmd)
-	repo.AddCommands(cmd)
-	backup.AddCommands(cmd)
-	restore.AddCommands(cmd)
+	cli.BuildCommandTree(cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
