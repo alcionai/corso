@@ -77,8 +77,8 @@ func NewCollection(
 
 // getPopulateFunction is a function to set populate function field
 // with exchange-application specific functions
-func getPopulateFunction(optId optionIdentifier) populater {
-	switch optId {
+func getPopulateFunction(optID optionIdentifier) populater {
+	switch optID {
 	case messages:
 		return PopulateFromCollection
 	default:
@@ -101,40 +101,44 @@ func (eoc *Collection) Items() <-chan data.Stream {
 }
 
 // FullPath returns the Collection's fullPath []string
-func (edc *Collection) FullPath() []string {
-	return append([]string{}, edc.fullPath...)
+func (eoc *Collection) FullPath() []string {
+	return append([]string{}, eoc.fullPath...)
 }
 
 // PopulateFromCollection async call to fill DataCollection via channel implementation
 func PopulateFromCollection(
 	ctx context.Context,
 	service graph.Service,
-	edc *Collection,
+	eoc *Collection,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, task := range edc.jobs {
-		response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
+	for _, task := range eoc.jobs {
+		response, err := service.Client().UsersById(eoc.user).MessagesById(task).Get()
 		if err != nil {
-			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
+			errDetails := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(
+				eoc.user,
+				errors.Wrapf(err, "unable to retrieve item %s; details %s", task, errDetails),
+				errs,
+			)
 			continue
 		}
-		err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		err = messageToDataCollection(ctx, service.Client(), objectWriter, eoc.data, response, eoc.user)
 		success++
 		if err != nil {
-			errs = support.WrapAndAppendf(edc.user, err, errs)
+			errs = support.WrapAndAppendf(eoc.user, err, errs)
 			success--
 		}
 		if errs != nil && service.ErrPolicy() {
 			break
 		}
 	}
-	close(edc.data)
-	attemptedItems += len(edc.jobs)
+	close(eoc.data)
+	attemptedItems += len(eoc.jobs)
 
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
@@ -142,8 +146,8 @@ func PopulateFromCollection(
 }
 
 func messageToDataCollection(
-	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	message models.Messageable,
@@ -218,10 +222,10 @@ func (od *Stream) Info() details.ItemInfo {
 }
 
 // NewStream constructor for exchange.Stream object
-func NewStream(identifier string, bytes []byte, detail details.ExchangeInfo) Stream {
+func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo) Stream {
 	return Stream{
 		id:      identifier,
-		message: bytes,
+		message: dataBytes,
 		info:    &detail,
 	}
 
