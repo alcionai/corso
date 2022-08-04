@@ -115,7 +115,6 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 				assert.NotNil(t, discriminateFunc)
 				assert.NotNil(t, graphQuery)
 				assert.NotNil(t, iterFunc)
-
 			}
 		})
 	}
