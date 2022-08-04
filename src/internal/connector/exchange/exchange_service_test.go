@@ -118,6 +118,5 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 
 			}
 		})
-
 	}
 }
