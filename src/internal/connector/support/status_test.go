@@ -110,7 +110,7 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 			returned := MergeStatus(test.one, test.two)
 			suite.Equal(returned.folderCount, test.expected.folders)
 			suite.Equal(returned.ObjectCount, test.expected.objects)
-			suite.Equal(returned.lastOperation, test.expected.operationType)
+			suite.Equal(returned.LastOperation, test.expected.operationType)
 			suite.Equal(returned.Successful, test.expected.success)
 			test.isIncomplete(t, returned.incomplete)
 
