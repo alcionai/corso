@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  Run-All:
+  Test-Suite:
     environment: Testing
     runs-on: ubuntu-latest
     defaults:
