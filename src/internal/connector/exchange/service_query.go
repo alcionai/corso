@@ -86,7 +86,7 @@ func IterateSelectAllMessagesForCollections(
 ) func(any) bool {
 	return func(messageItem any) bool {
 		// Defines the type of collection being created within the function
-		collection_type := messages
+		collectionType := messages
 		user := scope.Get(selectors.ExchangeUser)[0]
 
 		message, ok := messageItem.(models.Messageable)
@@ -105,7 +105,7 @@ func IterateSelectAllMessagesForCollections(
 			edc := NewCollection(
 				user,
 				[]string{tenant, user, mailCategory, directory},
-				collection_type,
+				collectionType,
 				service,
 				statusCh,
 			)
@@ -295,7 +295,7 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
-func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
+func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
 
 	fieldsForFolders := map[string]int{
@@ -326,7 +326,7 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 	}
 	returnedOptions := []string{"id"}
 
-	switch optId {
+	switch optID {
 	case folders:
 		allowedOptions = fieldsForFolders
 	case users:
@@ -341,11 +341,11 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 
 	for _, entry := range options {
 		_, ok := allowedOptions[entry]
-		if ok {
-			returnedOptions = append(returnedOptions, entry)
-		} else {
+		if !ok {
 			return nil, errors.New("unsupported option")
 		}
+
+		returnedOptions = append(returnedOptions, entry)
 	}
 	return returnedOptions, nil
 }
