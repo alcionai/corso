@@ -119,9 +119,9 @@ func ConnectorStackErrorTrace(e error) string {
 		if inners != nil {
 			eMessage = eMessage + "\nConnector Section:"
 			client := inners.GetClientRequestId()
-			rId := inners.GetRequestId()
+			rID := inners.GetRequestId()
 			eMessage = concatenateStringFromPointers(eMessage,
-				[]*string{client, rId})
+				[]*string{client, rID})
 		}
 	}
 	return eMessage

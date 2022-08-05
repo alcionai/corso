@@ -84,8 +84,8 @@ func NewCollection(
 
 // getPopulateFunction is a function to set populate function field
 // with exchange-application specific functions
-func getPopulateFunction(optId optionIdentifier) populater {
-	switch optId {
+func getPopulateFunction(optID optionIdentifier) populater {
+	switch optID {
 	case messages:
 		return PopulateForMailCollection
 	case contacts:
@@ -117,8 +117,8 @@ func (eoc *Collection) Items() <-chan data.Stream {
 }
 
 // FullPath returns the Collection's fullPath []string
-func (edc *Collection) FullPath() []string {
-	return append([]string{}, edc.fullPath...)
+func (eoc *Collection) FullPath() []string {
+	return append([]string{}, eoc.fullPath...)
 }
 
 func PopulateForContactCollection(
@@ -305,10 +305,10 @@ func (od *Stream) Info() details.ItemInfo {
 }
 
 // NewStream constructor for exchange.Stream object
-func NewStream(identifier string, bytes []byte, detail details.ExchangeInfo) Stream {
+func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo) Stream {
 	return Stream{
 		id:      identifier,
-		message: bytes,
+		message: dataBytes,
 		info:    &detail,
 	}
 

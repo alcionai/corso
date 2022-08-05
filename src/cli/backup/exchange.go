@@ -126,7 +126,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}
@@ -195,7 +195,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 
 func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 	if len(users) == 0 && !all {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if len(data) > 0 && all {
 		return errors.New("--all does a backup on all data, and cannot be reduced with --data")
@@ -224,7 +224,7 @@ var exchangeListCmd = &cobra.Command{
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}
@@ -285,7 +285,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}
@@ -450,7 +450,7 @@ func validateExchangeBackupDetailFlags(
 		return nil
 	}
 	if lu == 0 {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if lc > 0 && lcf == 0 {
 		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")

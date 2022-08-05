@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/cli/backup"
 	"github.com/alcionai/corso/cli/config"
@@ -15,33 +14,24 @@ import (
 	"github.com/alcionai/corso/pkg/logger"
 )
 
+// ------------------------------------------------------------------------------------------
+// Corso Command
+// ------------------------------------------------------------------------------------------
+
 // The root-level command.
 // `corso <command> [<subcommand>] [<service>] [<flag>...]`
 var corsoCmd = &cobra.Command{
-	Use:   "corso",
-	Short: "Protect your Microsoft 365 data.",
-	Long:  `Reliable, secure, and efficient data protection for Microsoft 365.`,
-	RunE:  handleCorsoCmd,
+	Use:               "corso",
+	Short:             "Protect your Microsoft 365 data.",
+	Long:              `Reliable, secure, and efficient data protection for Microsoft 365.`,
+	RunE:              handleCorsoCmd,
+	PersistentPreRunE: config.InitFunc(),
 }
 
 // the root-level flags
 var (
-	cfgFile string
 	version bool
 )
-
-func init() {
-	cobra.OnInitialize(initConfig)
-}
-
-func initConfig() {
-	err := config.InitConfig(cfgFile)
-	cobra.CheckErr(err)
-
-	if err := viper.ReadInConfig(); err == nil {
-		print.Info("Using config file:", viper.ConfigFileUsed())
-	}
-}
 
 // Handler for flat calls to `corso`.
 // Produces the same output as `corso --help`.
@@ -53,20 +43,41 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
 
+// CorsoCommand produces a copy of the cobra command used by Corso.
+// The command tree is built and attached to the returned command.
+func CorsoCommand() *cobra.Command {
+	c := &cobra.Command{}
+	*c = *corsoCmd
+	BuildCommandTree(c)
+	return c
+}
+
+// BuildCommandTree builds out the command tree used by the Corso library.
+func BuildCommandTree(cmd *cobra.Command) {
+	cmd.Flags().BoolP("version", "v", version, "current version info")
+	cmd.PersistentPostRunE = config.InitFunc()
+	config.AddConfigFileFlag(cmd)
+	print.AddOutputFlag(cmd)
+
+	cmd.CompletionOptions.DisableDefaultCmd = true
+
+	repo.AddCommands(cmd)
+	backup.AddCommands(cmd)
+	restore.AddCommands(cmd)
+}
+
+// ------------------------------------------------------------------------------------------
+// Running Corso
+// ------------------------------------------------------------------------------------------
+
 // Handle builds and executes the cli processor.
 func Handle() {
-	corsoCmd.Flags().BoolP("version", "v", version, "current version info")
-	corsoCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "config file (default is $HOME/.corso)")
+	ctx := config.Seed(context.Background())
+
+	BuildCommandTree(corsoCmd)
 	print.SetRootCommand(corsoCmd)
-	print.AddOutputFlag(corsoCmd)
 
-	corsoCmd.CompletionOptions.DisableDefaultCmd = true
-
-	repo.AddCommands(corsoCmd)
-	backup.AddCommands(corsoCmd)
-	restore.AddCommands(corsoCmd)
-
-	ctx, log := logger.Seed(context.Background())
+	ctx, log := logger.Seed(ctx)
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()

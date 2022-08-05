@@ -46,8 +46,8 @@ func HasNoFlagsAndShownHelp(cmd *cobra.Command) bool {
 	return false
 }
 
-// AddCommand adds the subCommand to the parent, and returns
-// both the subCommand and its pflags.
+// AddCommand adds a clone of the subCommand to the parent,
+// and returns both the clone and its pflags.
 func AddCommand(parent, c *cobra.Command) (*cobra.Command, *pflag.FlagSet) {
 	parent.AddCommand(c)
 	return c, c.Flags()

@@ -14,14 +14,8 @@ type DataSupportSuite struct {
 	suite.Suite
 }
 
-const (
-	// File needs to be a single message .json
-	// Use: https://developer.microsoft.com/en-us/graph/graph-explorer for details
-	support_file = "CORSO_TEST_SUPPORT_FILE"
-)
-
 func TestDataSupportSuite(t *testing.T) {
-	err := tester.RunOnAny(support_file)
+	err := tester.RunOnAny(tester.CorsoGraphConnectorTestSupportFile)
 	if err != nil {
 		t.Skipf("Skipping: %v\n", err)
 	}
@@ -29,7 +23,7 @@ func TestDataSupportSuite(t *testing.T) {
 }
 
 func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
-	bytes, err := tester.LoadAFile(os.Getenv(SUPPORT_FILE))
+	bytes, err := tester.LoadAFile(os.Getenv(tester.CorsoGraphConnectorTestSupportFile))
 	if err != nil {
 		suite.T().Errorf("Failed with %v\n", err)
 	}

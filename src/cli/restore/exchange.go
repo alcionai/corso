@@ -105,7 +105,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, a, err := config.GetStorageAndAccount(true, nil)
+	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}

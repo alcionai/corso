@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -76,12 +77,66 @@ func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete()
 }
 
+type MailFolder struct {
+	ID          string
+	DisplayName string
+}
+
+// GetAllMailFolders retrieves all mail folders for the specified user.
+// If nameContains is populated, only returns mail matching that property.
+// Returns a slice of {ID, DisplayName} tuples.
+func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolder, error) {
+	var (
+		mfs = []MailFolder{}
+		err error
+	)
+
+	opts, err := optionsForMailFolders([]string{"id", "displayName"})
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(opts, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+
+	cb := func(folderItem any) bool {
+		folder, ok := folderItem.(models.MailFolderable)
+		if !ok {
+			err = errors.New("HasFolder() iteration failure")
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
+		if include {
+			mfs = append(mfs, MailFolder{
+				ID:          *folder.GetId(),
+				DisplayName: *folder.GetDisplayName(),
+			})
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(cb); err != nil {
+		return nil, err
+	}
+	return mfs, err
+}
+
 // GetMailFolderID query function to retrieve the M365 ID based on the folder's displayName.
 // @param folderName the target folder's display name. Case sensitive
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
 func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
 	var errs error
-	var folderId *string
+	var folderID *string
 	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
 		return nil, err
@@ -104,7 +159,7 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 			return true
 		}
 		if *folder.GetDisplayName() == folderName {
-			folderId = folder.GetId()
+			folderID = folder.GetId()
 			return false
 		}
 		return true
@@ -112,10 +167,10 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), iterateError, errs)
-	} else if folderId == nil {
+	} else if folderID == nil {
 		return nil, ErrFolderNotFound
 	}
-	return folderId, errs
+	return folderID, errs
 
 }
 
@@ -128,11 +183,19 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
+		folders := scope.Get(selectors.ExchangeMailFolder)
+		if folders[0] == selectors.AnyTgt {
 
+			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
+				GetAllMessagesForUser,
+				IterateSelectAllMessagesForCollections,
+				nil
+		}
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
-			IterateSelectAllMessagesForCollections,
+			IterateAndFilterMessagesForCollections,
 			nil
+
 	}
 	if scope.IncludesCategory(selectors.ExchangeContactFolder) {
 		return models.CreateContactFromDiscriminatorValue,
@@ -157,9 +220,9 @@ func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
 				return nil, support.WrapAndAppend(user, err, err)
 			}
 			return fold.GetId(), nil
-		} else {
-			return nil, err
 		}
+
+		return nil, err
 
 	}
 	return isFolder, nil
@@ -186,10 +249,10 @@ func RestoreMailMessage(
 	}
 	// Sets fields from original message from storage
 	clone := support.ToMessage(originalMessage)
-	valueId := RestorePropertyTag
+	valueID := RestorePropertyTag
 	enableValue := RestoreCanonicalEnableValue
 	sv := models.NewSingleValueLegacyExtendedProperty()
-	sv.SetId(&valueId)
+	sv.SetId(&valueID)
 	sv.SetValue(&enableValue)
 	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
 	clone.SetSingleValueExtendedProperties(svlep)

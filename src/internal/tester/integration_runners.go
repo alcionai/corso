@@ -11,12 +11,17 @@ import (
 const (
 	CorsoCITests             = "CORSO_CI_TESTS"
 	CorsoCLIConfigTests      = "CORSO_CLI_CONFIG_TESTS"
+	CorsoCLIRepoTests        = "CORSO_CLI_REPO_TESTS"
 	CorsoGraphConnectorTests = "CORSO_GRAPH_CONNECTOR_TESTS"
 	CorsoKopiaWrapperTests   = "CORSO_KOPIA_WRAPPER_TESTS"
 	CorsoModelStoreTests     = "CORSO_MODEL_STORE_TESTS"
 	CorsoOperationTests      = "CORSO_OPERATION_TESTS"
 	CorsoRepositoryTests     = "CORSO_REPOSITORY_TESTS"
 )
+
+// File needs to be a single message .json
+// Use: https://developer.microsoft.com/en-us/graph/graph-explorer for details
+const CorsoGraphConnectorTestSupportFile = "CORSO_TEST_SUPPORT_FILE"
 
 // RunOnAny takes in a list of env variable names and returns
 // an error if all of them are zero valued.  Implication being:

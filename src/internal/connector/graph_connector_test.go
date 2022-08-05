@@ -172,6 +172,34 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
+// TestGraphConnector_SingleMailFolderCollectionQuery verifies that single folder support
+// enabled createCollections
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolderCollectionQuery() {
+	t := suite.T()
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
+	scopes := sel.Scopes()
+	for _, scope := range scopes {
+		collections, err := suite.connector.createCollections(context.Background(), scope)
+		require.NoError(t, err)
+		suite.Equal(len(collections), 1)
+		for _, edc := range collections {
+			streamChannel := edc.Items()
+			// Verify that each message can be restored
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
+
+			}
+		}
+	}
+}
+
 ///------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------
@@ -186,7 +214,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, userID, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
-		err = exchange.DeleteMailFolder(&suite.connector.graphService, userID, *aFolder.GetId())
+		err = exchange.DeleteMailFolder(suite.connector.Service(), userID, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
 }
