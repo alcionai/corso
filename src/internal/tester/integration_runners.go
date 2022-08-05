@@ -3,6 +3,7 @@ package tester
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -10,8 +11,10 @@ import (
 
 const (
 	CorsoCITests             = "CORSO_CI_TESTS"
-	CorsoCLIConfigTests      = "CORSO_CLI_CONFIG_TESTS"
-	CorsoCLIRepoTests        = "CORSO_CLI_REPO_TESTS"
+	CorsoCLIBackupTests      = "CORSO_COMMAND_LINE_BACKUP_TESTS"
+	CorsoCLIConfigTests      = "CORSO_COMMAND_LINE_CONFIG_TESTS"
+	CorsoCLIRepoTests        = "CORSO_COMMAND_LINE_REPO_TESTS"
+	CorsoCLITests            = "CORSO_COMMAND_LINE_TESTS"
 	CorsoGraphConnectorTests = "CORSO_GRAPH_CONNECTOR_TESTS"
 	CorsoKopiaWrapperTests   = "CORSO_KOPIA_WRAPPER_TESTS"
 	CorsoModelStoreTests     = "CORSO_MODEL_STORE_TESTS"
@@ -42,7 +45,7 @@ func RunOnAny(tests ...string) error {
 
 // LogTimeOfTest logs the test name and the time that it was run.
 func LogTimeOfTest(t *testing.T) string {
-	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000")
+	now := time.Now().UTC().Format(time.RFC3339Nano)
 	name := t.Name()
 	if name == "" {
 		t.Logf("Test run at %s.", now)
@@ -50,4 +53,19 @@ func LogTimeOfTest(t *testing.T) string {
 	}
 	t.Logf("%s run at %s", name, now)
 	return now
+}
+
+// NameOfTest returns the name of the func which called this one.
+func NameOfTest() string {
+	pc, _, _, _ := runtime.Caller(1)
+	return runtime.FuncForPC(pc).Name()
+}
+
+// Returns a string with the format
+// "nameOfCallingTest-NowRFC3339Nano"
+// Logs the time of calling this func.
+func TestAndTime(t *testing.T) string {
+	ltot := LogTimeOfTest(t)
+	not := NameOfTest()
+	return not + "-" + ltot
 }
