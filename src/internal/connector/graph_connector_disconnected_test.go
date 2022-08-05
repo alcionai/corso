@@ -178,7 +178,8 @@ func (suite *DisconnectedGraphConnectorSuite) TestLaunchAsyncStatus() {
 		status := support.CreateStatus(
 			context.Background(),
 			support.Backup,
-			5, 5, 1, nil)
+			5, 5, 1,
+			nil)
 		gc.statusCh <- status
 	}()
 	// Status sent = 1
