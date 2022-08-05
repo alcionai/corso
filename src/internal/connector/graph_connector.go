@@ -354,6 +354,27 @@ func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	return gc.status
 }
 
+// LaunchAsyncStatusUpdate
+func (gc *GraphConnector) LaunchAsyncStatusUpdate() {
+	for {
+		status, ok := <-gc.statusCh
+		if !ok { //channel has been closed Exit
+			return
+		}
+		atomic.AddInt32(&gc.awaitingMessages, -1)
+		if gc.status == nil {
+			gc.status = status
+			continue
+		}
+		if status.LastOperation != gc.status.LastOperation {
+			gc.status = status
+			continue
+		}
+		gc.status = support.MergeStatus(gc.status, status)
+
+	}
+}
+
 // Status returns the current status of the graphConnector operaion.
 func (gc *GraphConnector) Status() *support.ConnectorOperationStatus {
 	return gc.status
