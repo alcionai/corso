@@ -202,27 +202,29 @@ func AddMailFolderSpecificCollections(
 		}
 		name := *folder.GetDisplayName()
 		for _, permitted := range folderNames {
-			if name == permitted {
-				directory := *folder.GetId()
-				service, err = createService(credentials, failFast)
-				if err != nil {
-					err = support.WrapAndAppend(
-						name,
-						errors.New("unable to create service a folder query service for "+user),
-						err,
-					)
-					return true
-				}
-				temp := NewCollection(
-					user,
-					[]string{tenant, user, mailCategory, directory},
-					messages,
-					service,
-					statusCh,
-				)
-				collections[directory] = &temp
-				break
+			if name != permitted {
+				continue
 			}
+			directory := *folder.GetId()
+			service, err = createService(credentials, failFast)
+			if err != nil {
+				err = support.WrapAndAppend(
+					name,
+					errors.New("unable to create service a folder query service for "+user),
+					err,
+				)
+				return true
+			}
+			temp := NewCollection(
+				user,
+				[]string{tenant, user, mailCategory, directory},
+				messages,
+				service,
+				statusCh,
+			)
+			collections[directory] = &temp
+			break
+
 		}
 		return true
 	}
