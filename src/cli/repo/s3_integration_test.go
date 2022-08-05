@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/cli"
-	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/repository"
@@ -50,9 +49,8 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
+	ctx, configFP, err := tester.MakeTempTestConfigClone(ctx, t, nil)
 	require.NoError(t, err)
-	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(
 		"repo", "init", "s3",
@@ -74,9 +72,8 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
+	ctx, configFP, err := tester.MakeTempTestConfigClone(ctx, t, nil)
 	require.NoError(t, err)
-	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(
 		"repo", "init", "s3",
@@ -102,9 +99,8 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 		tester.TestCfgStorageProvider: "S3",
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
+	ctx, configFP, err := tester.MakeTempTestConfigClone(ctx, t, force)
 	require.NoError(t, err)
-	ctx = config.SetViper(ctx, vpr)
 
 	// init the repo first
 	_, err = repository.Initialize(ctx, account.Account{}, st)
@@ -131,9 +127,8 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
+	ctx, configFP, err := tester.MakeTempTestConfigClone(ctx, t, nil)
 	require.NoError(t, err)
-	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(
 		"repo", "connect", "s3",
@@ -155,9 +150,8 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
+	ctx, configFP, err := tester.MakeTempTestConfigClone(ctx, t, nil)
 	require.NoError(t, err)
-	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(
 		"repo", "connect", "s3",
