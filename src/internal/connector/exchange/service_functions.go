@@ -182,10 +182,17 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	GraphIterateFunc,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
+		folders := scope.Get(selectors.ExchangeMailFolder)
+		if folders[0] == selectors.AnyTgt {
 
+			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
+				GetAllMessagesForUser,
+				IterateSelectAllMessagesForCollections
+		}
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
-			IterateSelectAllMessagesForCollections
+			IterateAndFilterMessagesForCollections
+
 	}
 	return nil, nil, nil
 
