@@ -179,22 +179,29 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
 	GraphQuery,
 	GraphIterateFunc,
+	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		folders := scope.Get(selectors.ExchangeMailFolder)
-		if folders[0] == selectors.AnyTgt {
+		if scope.IsAny(selectors.ExchangeMailFolder) {
 
 			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 				GetAllMessagesForUser,
-				IterateSelectAllMessagesForCollections
+				IterateSelectAllMessagesForCollections,
+				nil
 		}
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
-			IterateAndFilterMessagesForCollections
+			IterateAndFilterMessagesForCollections,
+			nil
 
 	}
-	return nil, nil, nil
-
+	if scope.IncludesCategory(selectors.ExchangeContactFolder) {
+		return models.CreateContactFromDiscriminatorValue,
+			GetAllContactsForUser,
+			IterateAllContactsForCollection,
+			nil
+	}
+	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
 // GetCopyRestoreFolder utility function to create an unique folder for the restore process

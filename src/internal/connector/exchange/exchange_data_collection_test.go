@@ -89,14 +89,16 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
 	expected := 5
 	testFunction := func(ctx context.Context,
 		service graph.Service,
-		eoc *Collection,
+		user string,
+		jobs []string,
+		dataChannel chan<- data.Stream,
 		notUsed chan<- *support.ConnectorOperationStatus) {
 		detail := &details.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}
 		for i := 0; i < expected; i++ {
 			temp := NewStream(uuid.NewString(), mockconnector.GetMockMessageBytes("Test_Items()"), *detail)
-			eoc.data <- &temp
+			dataChannel <- &temp
 		}
-		close(eoc.data)
+		close(dataChannel)
 	}
 
 	eoc := Collection{

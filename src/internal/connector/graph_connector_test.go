@@ -126,6 +126,44 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 	}
 }
 
+// TestGraphConnector_TestContactSequence verifies retrieval sequence
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSequence() {
+	userID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users([]string{userID}))
+	eb, err := sel.ToExchangeBackup()
+	require.NoError(suite.T(), err)
+	scopes := eb.Scopes()
+	var contactsOnly selectors.ExchangeScope
+	for _, scope := range scopes {
+		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
+			contactsOnly = scope
+		}
+	}
+	collections, err := suite.connector.createCollections(context.Background(), contactsOnly)
+	assert.NoError(suite.T(), err)
+	number := 0
+	for _, edc := range collections {
+		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath()[1], number)
+		suite.T().Run(testName, func(t *testing.T) {
+			streamChannel := edc.Items()
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
+
+			}
+			number++
+		})
+	}
+	suite.Greater(len(collections), 0)
+}
+
 //TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
 // is able to restore a messageable item to a Mailbox.
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
