@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -159,4 +160,52 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 			t.Logf("Is nil: %v", test.err == nil)
 		})
 	}
+}
+
+// TestLaunchAsyncStatus verifes status updates are populated asynchronously
+// and ensures that when status switches from backup to restore that the
+// status reflets the change.
+func (suite *DisconnectedGraphConnectorSuite) TestLaunchAsyncStatus() {
+	gc := GraphConnector{
+		statusCh: make(chan *support.ConnectorOperationStatus),
+	}
+	suite.Equal(len(gc.PrintableStatus()), 0)
+	// Launches async process for status update
+	go gc.LaunchAsyncStatusUpdate()
+	expected := 5
+
+	go func() {
+		status := support.CreateStatus(
+			context.Background(),
+			support.Backup,
+			5, 5, 1, nil)
+		gc.statusCh <- status
+	}()
+	// Status sent = 1
+	time.Sleep(1 * time.Second)
+	suite.Equal(gc.status.Successful, expected)
+	// Sending 3 more statuses
+	for i := 0; i < 3; i++ {
+		go func() {
+			status := support.CreateStatus(
+				context.Background(),
+				support.Backup,
+				5, 5, 1, nil)
+			gc.statusCh <- status
+		}()
+	}
+	time.Sleep(2 * time.Second)
+	suite.Equal(gc.status.Successful, expected*4)
+	// Switch from Backup to Restore status
+	go func() {
+		status := support.CreateStatus(
+			context.Background(),
+			support.Restore,
+			2, 2, 1, nil)
+		gc.statusCh <- status
+	}()
+	time.Sleep(1 * time.Second)
+	suite.Equal(gc.status.LastOperation, support.Restore)
+	suite.Equal(gc.status.Successful, 2)
+
 }
