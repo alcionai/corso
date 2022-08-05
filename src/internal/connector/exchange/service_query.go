@@ -145,7 +145,6 @@ func IterateAllContactsForCollection(
 ) func(any) bool {
 	return func(contactsItem any) bool {
 
-		collection_type := contacts
 		user := scope.Get(selectors.ExchangeUser)[0]
 
 		contact, ok := contactsItem.(models.Contactable)
@@ -163,7 +162,7 @@ func IterateAllContactsForCollection(
 			edc := NewCollection(
 				user,
 				[]string{tenant, user, contactsCategory, directory},
-				collection_type,
+				contacts,
 				service,
 				statusCh,
 			)
