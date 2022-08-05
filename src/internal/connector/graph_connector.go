@@ -371,7 +371,6 @@ func (gc *GraphConnector) LaunchAsyncStatusUpdate() {
 			continue
 		}
 		gc.status = support.MergeStatus(gc.status, status)
-
 	}
 }
 
