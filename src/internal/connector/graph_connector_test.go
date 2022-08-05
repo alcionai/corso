@@ -167,6 +167,22 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 	}
 }
 
+func (suite *GraphConnectorIntegrationSuite) Test_EventsCollection() {
+	t := suite.T()
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Events([]string{suite.user}, []string{selectors.AnyTgt}))
+	scopes := sel.Scopes()
+	assert.Greater(t, len(scopes), 0)
+	collections, err := suite.connector.createCollections(context.Background(), scopes[0])
+	require.NoError(t, err)
+	suite.Greater(len(collections), 0)
+	for _, edc := range collections {
+		streamChannel := edc.Items()
+		_ = len(streamChannel)
+	}
+
+}
+
 ///------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------
