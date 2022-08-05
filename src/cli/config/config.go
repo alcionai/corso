@@ -90,7 +90,7 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 		return errors.New("config file requires an extension e.g. `toml`")
 	}
 	fileName = strings.TrimSuffix(fileName, ext)
-	vpr.SetConfigType(ext[1:])
+	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
 	vpr.SetConfigName(fileName)
 
 	return nil

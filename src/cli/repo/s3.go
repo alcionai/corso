@@ -107,7 +107,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	Infof("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
+	Infof("Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
 		return Only(errors.Wrap(err, "Failed to write repository configuration"))
@@ -166,7 +166,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	Infof("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
+	Infof("Connected to S3 bucket %s.", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
 		return Only(errors.Wrap(err, "Failed to write repository configuration"))

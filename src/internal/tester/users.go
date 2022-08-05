@@ -14,5 +14,5 @@ func M365UserID() (string, error) {
 		return "", errors.Wrap(err, "retrieving m365 user id from test configuration")
 	}
 
-	return cfg[testCfgUserID], nil
+	return cfg[TestCfgUserID], nil
 }
