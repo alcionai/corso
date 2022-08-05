@@ -60,6 +60,64 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 	}
 }
 
+func (suite *GCStatusTestSuite) TestMergeStatus() {
+	simpleContext := context.Background()
+	table := []struct {
+		name         string
+		one          *ConnectorOperationStatus
+		two          *ConnectorOperationStatus
+		expected     statusParams
+		isIncomplete assert.BoolAssertionFunc
+	}{
+		{
+			name:         "Test:  Status + nil",
+			one:          CreateStatus(simpleContext, Backup, 1, 1, 1, nil),
+			two:          nil,
+			expected:     statusParams{Backup, 1, 1, 1, nil},
+			isIncomplete: assert.False,
+		},
+		{
+			name:         "Test: nil + Status",
+			one:          nil,
+			two:          CreateStatus(simpleContext, Backup, 1, 1, 1, nil),
+			expected:     statusParams{Backup, 1, 1, 1, nil},
+			isIncomplete: assert.False,
+		},
+		{
+			name:         "Test: Successful + Successful",
+			one:          CreateStatus(simpleContext, Backup, 1, 1, 1, nil),
+			two:          CreateStatus(simpleContext, Backup, 3, 3, 3, nil),
+			expected:     statusParams{Backup, 4, 4, 4, nil},
+			isIncomplete: assert.False,
+		},
+		{
+			name: "Test: Successful + Unsuccessful",
+			one:  CreateStatus(simpleContext, Backup, 17, 17, 13, nil),
+			two: CreateStatus(
+				simpleContext,
+				Backup,
+				12,
+				9,
+				8,
+				WrapAndAppend("tres", errors.New("three"), WrapAndAppend("arc376", errors.New("one"), errors.New("two"))),
+			),
+			expected:     statusParams{Backup, 29, 26, 21, nil},
+			isIncomplete: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			returned := MergeStatus(test.one, test.two)
+			suite.Equal(returned.folderCount, test.expected.folders)
+			suite.Equal(returned.ObjectCount, test.expected.objects)
+			suite.Equal(returned.lastOperation, test.expected.operationType)
+			suite.Equal(returned.Successful, test.expected.success)
+			test.isIncomplete(t, returned.incomplete)
+
+		})
+	}
+}
+
 func (suite *GCStatusTestSuite) TestCreateStatus_InvalidStatus() {
 	t := suite.T()
 	params := statusParams{Backup, 9, 3, 13, errors.New("invalidcl")}
