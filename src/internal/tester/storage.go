@@ -29,7 +29,7 @@ func NewPrefixedS3Storage(t *testing.T) (storage.Storage, error) {
 		storage.ProviderS3,
 		storage.S3Config{
 			AWS:    credentials.GetAWS(nil),
-			Bucket: cfg[testCfgBucket],
+			Bucket: cfg[TestCfgBucket],
 			Prefix: t.Name() + "-" + now,
 		},
 		storage.CommonConfig{

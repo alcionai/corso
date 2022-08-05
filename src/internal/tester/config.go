@@ -14,13 +14,15 @@ import (
 
 const (
 	// S3 config
-	testCfgBucket   = "bucket"
-	testCfgEndpoint = "endpoint"
-	testCfgPrefix   = "prefix"
+	TestCfgBucket          = "bucket"
+	TestCfgEndpoint        = "endpoint"
+	TestCfgPrefix          = "prefix"
+	TestCfgStorageProvider = "provider"
 
 	// M365 config
-	testCfgTenantID = "tenantid"
-	testCfgUserID   = "m365userid"
+	TestCfgTenantID        = "tenantid"
+	TestCfgUserID          = "m365userid"
+	TestCfgAccountProvider = "account_provider"
 )
 
 // test specific env vars
@@ -90,11 +92,13 @@ func readTestConfig() (map[string]string, error) {
 	}
 
 	testEnv := map[string]string{}
-	fallbackTo(testEnv, testCfgBucket, vpr.GetString(testCfgBucket), "test-corso-repo-init")
-	fallbackTo(testEnv, testCfgEndpoint, vpr.GetString(testCfgEndpoint), "s3.amazonaws.com")
-	fallbackTo(testEnv, testCfgPrefix, vpr.GetString(testCfgPrefix))
-	fallbackTo(testEnv, testCfgTenantID, os.Getenv(account.TenantID), vpr.GetString(testCfgTenantID))
-	fallbackTo(testEnv, testCfgUserID, os.Getenv(EnvCorsoM365TestUserID), vpr.GetString(testCfgTenantID), "lidiah@8qzvrj.onmicrosoft.com")
+	fallbackTo(testEnv, TestCfgStorageProvider, vpr.GetString(TestCfgStorageProvider))
+	fallbackTo(testEnv, TestCfgAccountProvider, vpr.GetString(TestCfgAccountProvider))
+	fallbackTo(testEnv, TestCfgBucket, vpr.GetString(TestCfgBucket), "test-corso-repo-init")
+	fallbackTo(testEnv, TestCfgEndpoint, vpr.GetString(TestCfgEndpoint), "s3.amazonaws.com")
+	fallbackTo(testEnv, TestCfgPrefix, vpr.GetString(TestCfgPrefix))
+	fallbackTo(testEnv, TestCfgTenantID, os.Getenv(account.TenantID), vpr.GetString(TestCfgTenantID))
+	fallbackTo(testEnv, TestCfgUserID, os.Getenv(EnvCorsoM365TestUserID), vpr.GetString(TestCfgTenantID), "lidiah@8qzvrj.onmicrosoft.com")
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 
 	testConfig = testEnv
@@ -106,8 +110,11 @@ func readTestConfig() (map[string]string, error) {
 // (such as the CLI) to safely manipulate file contents without amending the user's
 // original file.
 //
+// Attempts to copy values sourced from the caller's test config file.
+// The overrides prop replaces config values with the provided value.
+//
 // Returns a filepath string pointing to the location of the temp file.
-func MakeTempTestConfigClone(t *testing.T) (*viper.Viper, string, error) {
+func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.Viper, string, error) {
 	cfg, err := readTestConfig()
 	if err != nil {
 		return nil, "", err
@@ -125,12 +132,17 @@ func MakeTempTestConfigClone(t *testing.T) (*viper.Viper, string, error) {
 	}
 
 	vpr := viper.New()
+	ext := path.Ext(fName)
 	vpr.SetConfigFile(tDirFp)
 	vpr.AddConfigPath(tDir)
-	vpr.SetConfigType(path.Ext(fName))
-	vpr.SetConfigName(fName)
+	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
+	vpr.SetConfigName(strings.TrimSuffix(fName, ext))
 
 	for k, v := range cfg {
+		vpr.Set(k, v)
+	}
+
+	for k, v := range overrides {
 		vpr.Set(k, v)
 	}
 

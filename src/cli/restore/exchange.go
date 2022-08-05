@@ -38,7 +38,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 
 	switch parent.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(parent, exchangeRestoreCmd)
+		c, fs = utils.AddCommand(parent, exchangeRestoreCmd())
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
@@ -78,11 +78,13 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 const exchangeServiceCommand = "exchange"
 
 // `corso restore exchange [<flag>...]`
-var exchangeRestoreCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "Restore M365 Exchange service data",
-	RunE:  restoreExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeRestoreCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Restore M365 Exchange service data",
+		RunE:  restoreExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // processes an exchange service restore.
