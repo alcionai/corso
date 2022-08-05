@@ -183,8 +183,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		folders := scope.Get(selectors.ExchangeMailFolder)
-		if folders[0] == selectors.AnyTgt {
+		if scope.IsAny(selectors.ExchangeMailFolder) {
 
 			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 				GetAllMessagesForUser,
