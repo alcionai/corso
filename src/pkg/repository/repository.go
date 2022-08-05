@@ -42,9 +42,9 @@ type Repository struct {
 func Initialize(
 	ctx context.Context,
 	acct account.Account,
-	storage storage.Storage,
+	s storage.Storage,
 ) (*Repository, error) {
-	kopiaRef := kopia.NewConn(storage)
+	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func Initialize(
 		ID:         uuid.New(),
 		Version:    "v1",
 		Account:    acct,
-		Storage:    storage,
+		Storage:    s,
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -81,9 +81,9 @@ func Initialize(
 func Connect(
 	ctx context.Context,
 	acct account.Account,
-	storage storage.Storage,
+	s storage.Storage,
 ) (*Repository, error) {
-	kopiaRef := kopia.NewConn(storage)
+	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func Connect(
 	r := Repository{
 		Version:    "v1",
 		Account:    acct,
-		Storage:    storage,
+		Storage:    s,
 		dataLayer:  w,
 		modelStore: ms,
 	}

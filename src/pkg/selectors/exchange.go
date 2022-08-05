@@ -493,6 +493,24 @@ func (s ExchangeScope) IncludesCategory(cat exchangeCategory) bool {
 	return false
 }
 
+// Contains returns true if the category is included in the scope's
+// data type, and the target string is included in the scope.
+func (s ExchangeScope) Contains(cat exchangeCategory, target string) bool {
+	if !s.IncludesCategory(cat) {
+		return false
+	}
+	return contains(s, cat.String(), target)
+}
+
+// returns true if the category is included in the scope's data type,
+// and the value is set to Any().
+func (s ExchangeScope) IsAny(cat exchangeCategory) bool {
+	if !s.IncludesCategory(cat) {
+		return false
+	}
+	return s[cat.String()] == AnyTgt
+}
+
 // Get returns the data category in the scope.  If the scope
 // contains all data types for a user, it'll return the
 // ExchangeUser category.
@@ -587,22 +605,12 @@ func (s ExchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 		// all parts of the scope must match
 		isAny := target[0] == AnyTgt
 		if !isAny {
-			if !contains(target, id) {
+			if !common.ContainsString(target, id) {
 				return false
 			}
 		}
 	}
 	return true
-}
-
-// temporary helper until filters replace string values for scopes.
-func contains(super []string, sub string) bool {
-	for _, s := range super {
-		if s == sub {
-			return true
-		}
-	}
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -652,14 +660,14 @@ func exchangeIDPath(cat exchangeCategory, path []string) map[exchangeCategory]st
 
 // Reduce reduces the entries in a backupDetails struct to only
 // those that match the inclusions, filters, and exclusions in the selector.
-func (s *ExchangeRestore) Reduce(deets *details.Details) *details.Details {
+func (sr *ExchangeRestore) Reduce(deets *details.Details) *details.Details {
 	if deets == nil {
 		return nil
 	}
 
-	entExcs := exchangeScopesByCategory(s.Excludes)
-	entFilt := exchangeScopesByCategory(s.Filters)
-	entIncs := exchangeScopesByCategory(s.Includes)
+	entExcs := exchangeScopesByCategory(sr.Excludes)
+	entFilt := exchangeScopesByCategory(sr.Filters)
+	entIncs := exchangeScopesByCategory(sr.Includes)
 
 	ents := []details.DetailsEntry{}
 

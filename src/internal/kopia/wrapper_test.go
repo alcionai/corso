@@ -117,7 +117,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
-	details := &details.Details{}
+	snapshotDetails := &details.Details{}
 
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
@@ -138,7 +138,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//   - user2
 	//     - emails
 	//       - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, details)
+	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), tenant)
 
@@ -169,7 +169,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		totalFileCount += c
 	}
 
-	assert.Len(suite.T(), details.Entries, totalFileCount)
+	assert.Len(suite.T(), snapshotDetails.Entries, totalFileCount)
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
@@ -180,7 +180,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
-	details := &details.Details{}
+	snapshotDetails := &details.Details{}
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			[]string{emails},
@@ -191,7 +191,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 	// Returned directory structure should look like:
 	// - emails
 	//   - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, details)
+	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), emails)
 
@@ -259,8 +259,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			details := &details.Details{}
-			_, err := inflateDirTree(ctx, test.layout, details)
+			snapshotDetails := &details.Details{}
+			_, err := inflateDirTree(ctx, test.layout, snapshotDetails)
 			assert.Error(t, err)
 		})
 	}

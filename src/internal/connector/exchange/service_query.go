@@ -1,7 +1,10 @@
 package exchange
 
 import (
+	"fmt"
+
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
@@ -35,10 +38,25 @@ type GraphQuery func(graph.Service, []string) (absser.Parsable, error)
 func GetAllMessagesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
 	options, err := optionsForMessages(selecting)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return gs.Client().UsersById(identities[0]).Messages().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// GetAllFolderDisplayNamesForUser is a GraphQuery function for getting FolderId and display
+// names for Mail Folder. All other information for the MailFolder object is omitted.
+func GetAllFolderNamesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+	options, err := optionsForMailFolders([]string{"id", "displayName"})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return gs.Client().UsersById(identities[0]).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+
 }
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
@@ -68,7 +86,7 @@ func IterateSelectAllMessagesForCollections(
 ) func(any) bool {
 	return func(messageItem any) bool {
 		// Defines the type of collection being created within the function
-		collection_type := messages
+		collectionType := messages
 		user := scope.Get(selectors.ExchangeUser)[0]
 
 		message, ok := messageItem.(models.Messageable)
@@ -87,7 +105,7 @@ func IterateSelectAllMessagesForCollections(
 			edc := NewCollection(
 				user,
 				[]string{tenant, user, mailCategory, directory},
-				collection_type,
+				collectionType,
 				service,
 				statusCh,
 			)
@@ -96,6 +114,123 @@ func IterateSelectAllMessagesForCollections(
 		collections[directory].AddJob(*message.GetId())
 		return true
 	}
+}
+
+func IterateAndFilterMessagesForCollections(
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) func(any) bool {
+	var isFilterSet bool
+	return func(messageItem any) bool {
+		user := scope.Get(selectors.ExchangeUser)[0]
+		if !isFilterSet {
+
+			err := CollectMailFolders(
+				scope,
+				tenant,
+				user,
+				collections,
+				credentials,
+				failFast,
+				statusCh,
+			)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return false
+			}
+			isFilterSet = true
+		}
+
+		message, ok := messageItem.(models.Messageable)
+		if !ok {
+			errs = support.WrapAndAppend(user, errors.New("message iteration failure"), errs)
+			return true
+		}
+		// Saving only messages for the created directories
+		directory := *message.GetParentFolderId()
+		if _, ok = collections[directory]; !ok {
+			return true
+		}
+		collections[directory].AddJob(*message.GetId())
+		return true
+
+	}
+}
+
+func CollectMailFolders(
+	scope selectors.ExchangeScope,
+	tenant string,
+	user string,
+	collections map[string]*Collection,
+	credentials account.M365Config,
+	failFast bool,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) error {
+	queryService, err := createService(credentials, failFast)
+	if err != nil {
+		return errors.New("unable to create a mail folder query service for " + user)
+	}
+
+	query, err := GetAllFolderNamesForUser(queryService, []string{user})
+	if err != nil {
+		return fmt.Errorf(
+			"unable to query mail folder for %s: details: %s",
+			user,
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+	// Iterator required to ensure all potential folders are inspected
+	// when the breadth of the folder space is large
+	pageIterator, err := msgraphgocore.NewPageIterator(
+		query,
+		&queryService.adapter,
+		models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return errors.Wrap(err, "unable to create iterator during mail folder query service")
+	}
+	var service graph.Service
+	callbackFunc := func(pageItem any) bool {
+		folder, ok := pageItem.(models.MailFolderable)
+		if !ok {
+			err = support.WrapAndAppend(user, errors.New("unable to transform folderable item"), err)
+			return true
+		}
+		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+			return true
+		}
+		directory := *folder.GetId()
+		service, err = createService(credentials, failFast)
+		if err != nil {
+			err = support.WrapAndAppend(
+				*folder.GetDisplayName(),
+				errors.New("unable to create service a folder query service for "+user),
+				err,
+			)
+			return true
+		}
+		temp := NewCollection(
+			user,
+			[]string{tenant, user, mailCategory, directory},
+			messages,
+			service,
+			statusCh,
+		)
+		collections[directory] = &temp
+
+		return true
+	}
+
+	iterateFailure := pageIterator.Iterate(callbackFunc)
+	if iterateFailure != nil {
+		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
+	}
+	return err
+
 }
 
 //---------------------------------------------------
@@ -157,7 +292,7 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
-func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
+func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
 
 	fieldsForFolders := map[string]int{
@@ -188,7 +323,7 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 	}
 	returnedOptions := []string{"id"}
 
-	switch optId {
+	switch optID {
 	case folders:
 		allowedOptions = fieldsForFolders
 	case users:
@@ -203,11 +338,11 @@ func buildOptions(options []string, optId optionIdentifier) ([]string, error) {
 
 	for _, entry := range options {
 		_, ok := allowedOptions[entry]
-		if ok {
-			returnedOptions = append(returnedOptions, entry)
-		} else {
+		if !ok {
 			return nil, errors.New("unsupported option")
 		}
+
+		returnedOptions = append(returnedOptions, entry)
 	}
 	return returnedOptions, nil
 }

@@ -27,6 +27,15 @@ func (suite *PrintUnitSuite) TestOnly() {
 	assert.True(t, c.SilenceUsage)
 }
 
+func (suite *PrintUnitSuite) TestErr() {
+	t := suite.T()
+	var b bytes.Buffer
+	msg := "I have seen the fnords!"
+	err(&b, msg)
+	assert.Contains(t, b.String(), "Error: ")
+	assert.Contains(t, b.String(), msg)
+}
+
 func (suite *PrintUnitSuite) TestInfo() {
 	t := suite.T()
 	var b bytes.Buffer

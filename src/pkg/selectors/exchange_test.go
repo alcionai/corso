@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 type ExchangeSourceSuite struct {
@@ -867,6 +868,77 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			test.expect(t, matchExchangeEntry(cat, path, exchangeInfo, test.excludes, test.filters, test.includes))
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestContains() {
+	target := "fnords"
+	var (
+		es                  = NewExchangeRestore()
+		anyUser             = extendExchangeScopeValues(es.Users(Any()))
+		noMail              = extendExchangeScopeValues(es.Mails(None(), None(), None()))
+		does                = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{target}))
+		doesNot             = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
+		wrongType           = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
+		wrongTypeGoodTarget = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
+	)
+	table := []struct {
+		name   string
+		scopes []ExchangeScope
+		expect assert.BoolAssertionFunc
+	}{
+		{"any user", anyUser, assert.True},
+		{"no mail", noMail, assert.False},
+		{"does contain", does, assert.True},
+		{"does not contain", doesNot, assert.False},
+		{"wrong type", wrongType, assert.False},
+		{"wrong type but right target", wrongTypeGoodTarget, assert.False},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var result bool
+			for _, scope := range test.scopes {
+				if scope.Contains(ExchangeMail, target) {
+					result = true
+					break
+				}
+			}
+			test.expect(t, result)
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestIsAny() {
+	var (
+		es           = NewExchangeRestore()
+		anyUser      = extendExchangeScopeValues(es.Users(Any()))
+		noUser       = extendExchangeScopeValues(es.Users(None()))
+		specificMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"mail"}))
+		anyMail      = extendExchangeScopeValues(es.Mails(Any(), Any(), Any()))
+	)
+	table := []struct {
+		name   string
+		scopes []ExchangeScope
+		cat    exchangeCategory
+		expect assert.BoolAssertionFunc
+	}{
+		{"any user", anyUser, ExchangeUser, assert.True},
+		{"no user", noUser, ExchangeUser, assert.False},
+		{"specific mail", specificMail, ExchangeMail, assert.False},
+		{"any mail", anyMail, ExchangeMail, assert.True},
+		{"wrong category", anyMail, ExchangeEvent, assert.False},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var result bool
+			for _, scope := range test.scopes {
+				if scope.IsAny(test.cat) {
+					result = true
+					break
+				}
+			}
+			test.expect(t, result)
 		})
 	}
 }

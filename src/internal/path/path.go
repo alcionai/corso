@@ -33,7 +33,6 @@
 // 8.
 //   input path: `this/is/a/path\/`
 //   elements of path: `this`, `is`, `a`, `path/`
-
 package path
 
 import (

@@ -5,3 +5,73 @@ linters:
   enable:
     - gofmt
     - misspell
+    - gci
+    - revive
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/alcionai/corso)
+    skip-generated: true
+  revive:
+    max-open-files: 2048
+    # Don't know why, but false means ignore generated files.
+    ignore-generated-header: false
+    rules:
+      - name: blank-imports
+      - name: bool-literal-in-expr
+      - name: constant-logical-expr
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: duplicated-imports
+      - name: early-return
+      - name: empty-block
+      - name: errorf
+      - name: error-naming
+      - name: error-return
+      - name: error-strings
+      - name: exported
+      - name: identical-branches
+      - name: if-return
+      - name: import-shadowing
+      - name: increment-decrement
+      - name: indent-error-flow
+      - name: modifies-value-receiver
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: redefines-builtin-id
+      - name: superfluous-else
+      - name: time-equal
+      - name: time-naming
+      - name: unexported-return
+      - name: unreachable-code
+      - name: useless-break
+      - name: var-declaration
+      - name: var-naming
+
+issues:
+  # Limit on number of errors with identical text reported.
+  max-same-issues: 50
+  exclude-rules:
+    - linters:
+      - revive
+      text: "exported:.*details.DetailsModel by other packages, and that stutters"
+    - linters:
+      - revive
+      text: "exported:.*details.DetailsEntry by other packages, and that stutters"
+    - linters:
+      - revive
+      text: "exported:.*mock.MockModelStore by other packages, and that stutters"
+    - linters:
+      - revive
+      text: "unexported-return:.*unexported type selectors.exchangeCategory"
+    - linters:
+      - revive
+      text: "unexported-return:.*unexported type.*kopia.conn"
+    - path: _test\.go
+      linters:
+      - revive
+      text: "import-shadowing:.*'suite' shadows"

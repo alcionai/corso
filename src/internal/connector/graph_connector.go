@@ -42,21 +42,28 @@ type GraphConnector struct {
 	credentials      account.M365Config
 }
 
+// Service returns the GC's embedded graph.Service
+func (gc GraphConnector) Service() graph.Service {
+	return gc.graphService
+}
+
+var _ graph.Service = &graphService{}
+
 type graphService struct {
 	client   msgraphsdk.GraphServiceClient
 	adapter  msgraphsdk.GraphRequestAdapter
 	failFast bool // if true service will exit sequence upon encountering an error
 }
 
-func (gs *graphService) Client() *msgraphsdk.GraphServiceClient {
+func (gs graphService) Client() *msgraphsdk.GraphServiceClient {
 	return &gs.client
 }
 
-func (gs *graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (gs graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &gs.adapter
 }
 
-func (gs *graphService) ErrPolicy() bool {
+func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
@@ -227,7 +234,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
-		folderId            *string
+		folderID            *string
 	)
 	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
@@ -236,7 +243,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
 		if policy == control.Copy {
-			folderId, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
+			folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
 			if errs != nil {
 				return errs
 			}
@@ -247,7 +254,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 			select {
 			case <-ctx.Done():
 				return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
-			case data, ok := <-items:
+			case itemData, ok := <-items:
 				if !ok {
 					exit = true
 					break
@@ -255,19 +262,19 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 				attempts++
 
 				buf := &bytes.Buffer{}
-				_, err := buf.ReadFrom(data.ToReader())
+				_, err := buf.ReadFrom(itemData.ToReader())
 				if err != nil {
-					errs = support.WrapAndAppend(data.UUID(), err, errs)
+					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
 					continue
 				}
 				switch policy {
 				case control.Copy:
-					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, control.Copy, *folderId, user)
+					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, control.Copy, *folderID, user)
 					if err != nil {
-						errs = support.WrapAndAppend(data.UUID(), err, errs)
+						errs = support.WrapAndAppend(itemData.UUID(), err, errs)
 					}
 				default:
-					errs = support.WrapAndAppend(data.UUID(), errors.New("restore policy not supported"), errs)
+					errs = support.WrapAndAppend(itemData.UUID(), errors.New("restore policy not supported"), errs)
 					continue
 				}
 				successes++
