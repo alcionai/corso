@@ -3,6 +3,9 @@ package exchange
 import (
 	"testing"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -171,4 +174,74 @@ func (suite *ExchangeServiceSuite) TestExchangeService_GraphQueryFunctions() {
 			assert.NotNil(t, response)
 		})
 	}
+}
+
+// TestExchangeService_IterativeFunctions verifies that GraphQuery to Iterate
+// functions are valid for current versioning of msgraph-go-sdk
+func (suite *ExchangeServiceSuite) TestExchangeService_IterativeFunctions() {
+	userID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users([]string{userID}))
+	eb, err := sel.ToExchangeBackup()
+	require.NoError(suite.T(), err)
+	scopes := eb.Scopes()
+	var mailScope, contactScope selectors.ExchangeScope
+	for _, scope := range scopes {
+		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
+			contactScope = scope
+		}
+		if scope.IncludesCategory(selectors.ExchangeMail) {
+			mailScope = scope
+		}
+	}
+
+	tests := []struct {
+		name              string
+		queryFunction     GraphQuery
+		iterativeFunction GraphIterateFunc
+		scope             selectors.ExchangeScope
+		transformer       absser.ParsableFactory
+	}{
+		{
+			name:              "Mail Iterative Check",
+			queryFunction:     GetAllMessagesForUser,
+			iterativeFunction: IterateSelectAllMessagesForCollections,
+			scope:             mailScope,
+			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
+		}, {
+			name:              "Contacts Iterative Check",
+			queryFunction:     GetAllContactsForUser,
+			iterativeFunction: IterateAllContactsForCollection,
+			scope:             contactScope,
+			transformer:       models.CreateContactFromDiscriminatorValue,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			response, err := test.queryFunction(suite.es, userID)
+			require.NoError(t, err)
+			// Create Iterator
+			pageIterator, err := msgraphgocore.NewPageIterator(response,
+				&suite.es.adapter,
+				test.transformer)
+			require.NoError(t, err)
+			// Create collection for iterate test
+			collections := make(map[string]*Collection)
+			var errs error
+			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
+			// with corresponding item IDs. New collections are created for each directory
+			callbackFunc := test.iterativeFunction(
+				"testingTenant",
+				test.scope,
+				errs, false,
+				suite.es.credentials,
+				collections,
+				nil)
+
+			iterateError := pageIterator.Iterate(callbackFunc)
+			require.NoError(t, iterateError)
+		})
+	}
+
 }
