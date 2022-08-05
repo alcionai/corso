@@ -243,5 +243,4 @@ func (suite *ExchangeServiceSuite) TestExchangeService_IterativeFunctions() {
 			require.NoError(t, iterateError)
 		})
 	}
-
 }
