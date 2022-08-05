@@ -56,7 +56,6 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 				test.params.err)
 			test.expect(t, result.incomplete, "status is incomplete")
 		})
-
 	}
 }
 

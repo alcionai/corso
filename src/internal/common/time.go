@@ -6,13 +6,20 @@ import (
 )
 
 const (
+	StandardTimeFormat   = time.RFC3339Nano
 	SimpleDateTimeFormat = "02-Jan-2006_15:04:05"
 )
+
+// FormatNow produces the current time in UTC using the provided
+// time format.
+func FormatNow(fmt string) string {
+	return time.Now().UTC().Format(fmt)
+}
 
 // FormatTime produces the standard format for corso time values.
 // Always formats into the UTC timezone.
 func FormatTime(t time.Time) string {
-	return t.UTC().Format(time.RFC3339Nano)
+	return t.UTC().Format(StandardTimeFormat)
 }
 
 // FormatSimpleDateTime produces a simple datetime of the format
@@ -27,7 +34,7 @@ func ParseTime(s string) (time.Time, error) {
 	if len(s) == 0 {
 		return time.Time{}, errors.New("cannot interpret an empty string as time.Time")
 	}
-	t, err := time.Parse(time.RFC3339Nano, s)
+	t, err := time.Parse(StandardTimeFormat, s)
 	if err == nil {
 		return t.UTC(), nil
 	}

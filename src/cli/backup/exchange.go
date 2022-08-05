@@ -53,7 +53,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 
 	case createCommand:
-		c, fs = utils.AddCommand(parent, exchangeCreateCmd)
+		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 		fs.StringSliceVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
 		fs.BoolVar(&exchangeAll, "all", false, "Backup all Exchange data for all users")
 		fs.StringSliceVar(
@@ -64,10 +64,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, _ = utils.AddCommand(parent, exchangeListCmd)
+		c, _ = utils.AddCommand(parent, exchangeListCmd())
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
+		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
@@ -107,11 +107,13 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 // ------------------------------------------------------------------------------------------------
 
 // `corso backup create exchange [<flag>...]`
-var exchangeCreateCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "Backup M365 Exchange service data",
-	RunE:  createExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeCreateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Backup M365 Exchange service data",
+		RunE:  createExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // processes an exchange service backup.
@@ -213,11 +215,13 @@ func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 // ------------------------------------------------------------------------------------------------
 
 // `corso backup list exchange [<flag>...]`
-var exchangeListCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "List the history of M365 Exchange service backups",
-	RunE:  listExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "List the history of M365 Exchange service backups",
+		RunE:  listExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // lists the history of backup operations
@@ -258,11 +262,13 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 // ------------------------------------------------------------------------------------------------
 
 // `corso backup details exchange [<flag>...]`
-var exchangeDetailsCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "Shows the details of a M365 Exchange service backup",
-	RunE:  detailsExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeDetailsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Shows the details of a M365 Exchange service backup",
+		RunE:  detailsExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // lists the history of backup operations

@@ -24,7 +24,7 @@ func NewM365Account() (account.Account, error) {
 		account.ProviderM365,
 		account.M365Config{
 			M365:     credentials.GetM365(),
-			TenantID: cfg[testCfgTenantID],
+			TenantID: cfg[TestCfgTenantID],
 		},
 	)
 }

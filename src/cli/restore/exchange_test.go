@@ -30,7 +30,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"restore exchange", restoreCommand, expectUse, exchangeRestoreCmd.Short, restoreExchangeCmd},
+		{"restore exchange", restoreCommand, expectUse, exchangeRestoreCmd().Short, restoreExchangeCmd},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
