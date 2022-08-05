@@ -19,3 +19,20 @@ func GetRequiredEnvVars(evs ...string) (map[string]string, error) {
 	}
 	return vals, nil
 }
+
+// GetRequiredEnvSls retrieves the provided env vars from the os.
+// Retrieved values are populated into the resulting map.
+// If any of the env values are zero length, returns an error.
+func GetRequiredEnvSls(evs ...[]string) (map[string]string, error) {
+	vals := map[string]string{}
+	for _, ev := range evs {
+		r, err := GetRequiredEnvVars(ev...)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range r {
+			vals[k] = v
+		}
+	}
+	return vals, nil
+}
