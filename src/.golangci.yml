@@ -3,9 +3,10 @@ run:
 
 linters:
   enable:
-    - gofmt
-    - misspell
     - gci
+    - gofmt
+    - gofumpt
+    - misspell
     - revive
 
 linters-settings:

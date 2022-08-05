@@ -46,12 +46,10 @@ const (
 	pathSeparator   = '/'
 )
 
-var (
-	charactersToEscape = map[rune]struct{}{
-		pathSeparator:   {},
-		escapeCharacter: {},
-	}
-)
+var charactersToEscape = map[rune]struct{}{
+	pathSeparator:   {},
+	escapeCharacter: {},
+}
 
 var errMissingSegment = errors.New("missing required path segment")
 

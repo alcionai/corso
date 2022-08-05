@@ -20,9 +20,11 @@ import (
 	"github.com/alcionai/corso/pkg/logger"
 )
 
-var _ data.Collection = &Collection{}
-var _ data.Stream = &Stream{}
-var _ data.StreamInfo = &Stream{}
+var (
+	_ data.Collection = &Collection{}
+	_ data.Stream     = &Stream{}
+	_ data.StreamInfo = &Stream{}
+)
 
 const (
 	collectionChannelBufferSize = 1000
@@ -47,7 +49,7 @@ type Collection struct {
 	populate populater
 	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
-	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
 
@@ -288,12 +290,11 @@ type Stream struct {
 	// going forward. Using []byte for now but I assume we'll have
 	// some structured type in here (serialization to []byte can be done in `Read`)
 	message []byte
-	info    *details.ExchangeInfo //temporary change to bring populate function into directory
+	info    *details.ExchangeInfo // temporary change to bring populate function into directory
 }
 
 func (od *Stream) UUID() string {
 	return od.id
-
 }
 
 func (od *Stream) ToReader() io.ReadCloser {
@@ -311,5 +312,4 @@ func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo)
 		message: dataBytes,
 		info:    &detail,
 	}
-
 }

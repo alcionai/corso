@@ -164,7 +164,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 	suite.Greater(len(collections), 0)
 }
 
-//TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
+// TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
 // is able to restore a messageable item to a Mailbox.
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
 	user := "TEST_GRAPH_USER" // user.GetId()

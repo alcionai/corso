@@ -39,14 +39,12 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
 	t := suite.T()
 	mdc := mockconnector.NewMockExchangeCollection([]string{"foo", "bar"}, 3)
-	var (
-		byteArray []byte
-	)
 	buf := &bytes.Buffer{}
+
 	for stream := range mdc.Items() {
 		_, err := buf.ReadFrom(stream.ToReader())
 		assert.NoError(t, err)
-		byteArray = buf.Bytes()
+		byteArray := buf.Bytes()
 		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
 		assert.NoError(t, err)
 		assert.NotNil(t, something)

@@ -40,5 +40,4 @@ func (suite *SupportTestSuite) TestToMessage() {
 	suite.Equal(message.GetSender(), clone.GetSender())
 	suite.Equal(message.GetSentDateTime(), clone.GetSentDateTime())
 	suite.NotEqual(message.GetId(), clone.GetId())
-
 }

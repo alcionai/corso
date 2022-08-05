@@ -38,6 +38,7 @@ type ModelStoreUnitSuite struct {
 func TestModelStoreUnitSuite(t *testing.T) {
 	suite.Run(t, new(ModelStoreUnitSuite))
 }
+
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
 		m := &ModelStore{}
