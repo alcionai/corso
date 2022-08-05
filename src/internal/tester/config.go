@@ -1,7 +1,6 @@
 package tester
 
 import (
-	"context"
 	"os"
 	"path"
 	"strings"
@@ -10,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
-	"github.com/alcionai/corso/cli/config"
 	"github.com/alcionai/corso/pkg/account"
 )
 
@@ -115,16 +113,11 @@ func readTestConfig() (map[string]string, error) {
 // Attempts to copy values sourced from the caller's test config file.
 // The overrides prop replaces config values with the provided value.
 //
-// Returns a context containing the new viper instance,
-// and a filepath string pointing to the location of the temp file.
-func MakeTempTestConfigClone(
-	ctx context.Context,
-	t *testing.T,
-	overrides map[string]string,
-) (context.Context, string, error) {
+// Returns a filepath string pointing to the location of the temp file.
+func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.Viper, string, error) {
 	cfg, err := readTestConfig()
 	if err != nil {
-		return ctx, "", err
+		return nil, "", err
 	}
 
 	fName := path.Base(os.Getenv(EnvCorsoTestConfigFilePath))
@@ -135,7 +128,7 @@ func MakeTempTestConfigClone(
 	tDirFp := path.Join(tDir, fName)
 
 	if _, err := os.Create(tDirFp); err != nil {
-		return ctx, "", err
+		return nil, "", err
 	}
 
 	vpr := viper.New()
@@ -154,10 +147,10 @@ func MakeTempTestConfigClone(
 	}
 
 	if err := vpr.WriteConfig(); err != nil {
-		return ctx, "", err
+		return nil, "", err
 	}
 
-	return config.SetViper(ctx, vpr), tDirFp, nil
+	return vpr, tDirFp, nil
 }
 
 // writes the first non-zero valued string to the map at the key.
