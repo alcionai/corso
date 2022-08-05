@@ -4,7 +4,7 @@ on:
     branches: [main]
 
 jobs:
-  Run-All:
+  Generate-Markdown:
     environment: Testing
     runs-on: ubuntu-latest
     steps:
@@ -54,7 +54,7 @@ jobs:
           mkdir -p ./docs/docs/cli
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
-       
+
       # make a commit for any file changes
       - name: Commit the Auto-Generated Files
         uses: stefanzweifel/git-auto-commit-action@v4
