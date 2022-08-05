@@ -70,7 +70,7 @@ func tagsForModelWithID(
 	tags map[string]string,
 ) (map[string]string, error) {
 	if !s.Valid() {
-		return nil, errors.New("unrecognized model schema")
+		return nil, errors.WithStack(errUnrecognizedSchema)
 	}
 
 	if len(id) == 0 {
@@ -182,7 +182,7 @@ func (ms *ModelStore) GetIDsForType(
 	tags map[string]string,
 ) ([]*model.BaseModel, error) {
 	if !s.Valid() {
-		return nil, errors.New("unrecognized model schema")
+		return nil, errors.WithStack(errUnrecognizedSchema)
 	}
 
 	if _, ok := tags[stableIDKey]; ok {
@@ -222,7 +222,7 @@ func (ms *ModelStore) getModelStoreID(
 	id model.StableID,
 ) (manifest.ID, error) {
 	if !s.Valid() {
-		return "", errors.New("unrecognized model schema")
+		return "", errors.WithStack(errUnrecognizedSchema)
 	}
 
 	if len(id) == 0 {
