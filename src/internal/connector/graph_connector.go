@@ -311,6 +311,7 @@ func (gc *GraphConnector) createCollections(
 	if err != nil {
 		return nil, err
 	}
+
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err
