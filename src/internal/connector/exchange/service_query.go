@@ -130,7 +130,7 @@ func IterateAndFilterMessagesForCollections(
 		user := scope.Get(selectors.ExchangeUser)[0]
 		if !isFilterSet {
 
-			err := AddMailFolderSpecificCollections(
+			err := CollectMailFolders(
 				scope,
 				tenant,
 				user,
@@ -162,7 +162,7 @@ func IterateAndFilterMessagesForCollections(
 	}
 }
 
-func AddMailFolderSpecificCollections(
+func CollectMailFolders(
 	scope selectors.ExchangeScope,
 	tenant string,
 	user string,
@@ -175,7 +175,7 @@ func AddMailFolderSpecificCollections(
 	if err != nil {
 		return errors.New("unable to create a mail folder query service for " + user)
 	}
-	folderNames := scope.Get(selectors.ExchangeMailFolder)
+
 	query, err := GetAllFolderNamesForUser(queryService, []string{user})
 	if err != nil {
 		return fmt.Errorf(
@@ -200,34 +200,31 @@ func AddMailFolderSpecificCollections(
 			err = support.WrapAndAppend(user, errors.New("unable to transform folderable item"), err)
 			return true
 		}
-		name := *folder.GetDisplayName()
-		for _, permitted := range folderNames {
-			if name != permitted {
-				continue
-			}
-			directory := *folder.GetId()
-			service, err = createService(credentials, failFast)
-			if err != nil {
-				err = support.WrapAndAppend(
-					name,
-					errors.New("unable to create service a folder query service for "+user),
-					err,
-				)
-				return true
-			}
-			temp := NewCollection(
-				user,
-				[]string{tenant, user, mailCategory, directory},
-				messages,
-				service,
-				statusCh,
-			)
-			collections[directory] = &temp
-			break
-
+		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+			return true
 		}
+		directory := *folder.GetId()
+		service, err = createService(credentials, failFast)
+		if err != nil {
+			err = support.WrapAndAppend(
+				*folder.GetDisplayName(),
+				errors.New("unable to create service a folder query service for "+user),
+				err,
+			)
+			return true
+		}
+		temp := NewCollection(
+			user,
+			[]string{tenant, user, mailCategory, directory},
+			messages,
+			service,
+			statusCh,
+		)
+		collections[directory] = &temp
+
 		return true
 	}
+
 	iterateFailure := pageIterator.Iterate(callbackFunc)
 	if iterateFailure != nil {
 		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
