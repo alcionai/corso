@@ -8,7 +8,7 @@ import (
 )
 
 type ConnectorOperationStatus struct {
-	lastOperation    Operation
+	LastOperation    Operation
 	ObjectCount      int
 	folderCount      int
 	Successful       int
@@ -35,7 +35,7 @@ func CreateStatus(ctx context.Context, op Operation, objects, success, folders i
 	}
 	numErr := GetNumberOfErrors(err)
 	status := ConnectorOperationStatus{
-		lastOperation:    op,
+		LastOperation:    op,
 		ObjectCount:      objects,
 		folderCount:      folders,
 		Successful:       success,
@@ -53,8 +53,40 @@ func CreateStatus(ctx context.Context, op Operation, objects, success, folders i
 	return &status
 }
 
+// MergeStatus combines ConnectorOperationsStatus value into a single status
+func MergeStatus(one, two *ConnectorOperationStatus) *ConnectorOperationStatus {
+	if one == nil && two == nil {
+		return nil
+	}
+	if one != nil && two == nil {
+		return one
+
+	}
+	if one == nil && two != nil {
+		return two
+	}
+
+	var hasErrors bool
+	if one.incomplete || two.incomplete {
+		hasErrors = true
+	}
+
+	status := ConnectorOperationStatus{
+		LastOperation:    one.LastOperation,
+		ObjectCount:      one.ObjectCount + two.ObjectCount,
+		folderCount:      one.folderCount + two.folderCount,
+		Successful:       one.Successful + two.Successful,
+		errorCount:       one.errorCount + two.errorCount,
+		incomplete:       hasErrors,
+		incompleteReason: one.incompleteReason + " " + two.incompleteReason,
+	}
+	return &status
+}
+
 func (cos *ConnectorOperationStatus) String() string {
-	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
+	message := fmt.Sprintf(
+		"Action: %s performed on %d of %d objects within %d directories.",
+		cos.LastOperation.String(),
 		cos.Successful, cos.ObjectCount, cos.folderCount)
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
