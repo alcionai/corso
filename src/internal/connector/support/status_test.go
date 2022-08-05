@@ -113,7 +113,6 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 			suite.Equal(returned.LastOperation, test.expected.operationType)
 			suite.Equal(returned.Successful, test.expected.success)
 			test.isIncomplete(t, returned.incomplete)
-
 		})
 	}
 }
