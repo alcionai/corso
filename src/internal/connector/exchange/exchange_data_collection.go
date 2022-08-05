@@ -138,10 +138,10 @@ func PopulateForContactCollection(
 	for _, task := range jobs {
 		response, err := service.Client().UsersById(user).ContactsById(task).Get()
 		if err != nil {
-			details := support.ConnectorStackErrorTrace(err)
+			trace := support.ConnectorStackErrorTrace(err)
 			errs = support.WrapAndAppend(
 				user,
-				errors.Wrapf(err, "unable to retrieve item %s; details: %s", task, details),
+				errors.Wrapf(err, "unable to retrieve item %s; details: %s", task, trace),
 				errs,
 			)
 			continue
@@ -182,8 +182,8 @@ func PopulateForMailCollection(
 	for _, task := range jobs {
 		response, err := service.Client().UsersById(user).MessagesById(task).Get()
 		if err != nil {
-			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
+			trace := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, trace), errs)
 			continue
 		}
 		err = messageToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
