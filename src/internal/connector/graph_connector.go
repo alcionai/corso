@@ -339,8 +339,17 @@ func (gc *GraphConnector) createCollections(
 // AwaitStatus updates status field based on item within statusChannel.
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	if gc.awaitingMessages > 0 {
-		gc.status = <-gc.statusCh
 		atomic.AddInt32(&gc.awaitingMessages, -1)
+		newStatus := <-gc.statusCh
+		if gc.status == nil {
+			gc.status = newStatus
+			return gc.status
+		}
+		if newStatus.LastOperation != gc.status.LastOperation {
+			gc.status = newStatus
+			return gc.status
+		}
+		gc.status = support.MergeStatus(gc.status, newStatus)
 	}
 	return gc.status
 }
