@@ -188,11 +188,10 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 				GetAllMessagesForUser,
 				IterateSelectAllMessagesForCollections
-		} else {
-			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-				GetAllMessagesForUser,
-				IterateAndFilterMessagesForCollections
 		}
+		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
+			GetAllMessagesForUser,
+			IterateAndFilterMessagesForCollections
 
 	}
 	return nil, nil, nil
