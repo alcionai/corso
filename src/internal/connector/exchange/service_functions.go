@@ -194,6 +194,11 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 			IterateAndFilterMessagesForCollections
 
 	}
+	if scope.IncludesCategory(selectors.ExchangeEvent) {
+		return models.CreateEventCollectionResponseFromDiscriminatorValue,
+			GetAllEventsForUser,
+			IterateSelectAllEventsForCollections
+	}
 	return nil, nil, nil
 
 }
