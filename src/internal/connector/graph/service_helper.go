@@ -15,7 +15,9 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 		return nil, err
 	}
 	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
-		cred, []string{"https://graph.microsoft.com/.default"})
+		cred,
+		[]string{"https://graph.microsoft.com/.default"},
+	)
 	if err != nil {
 		return nil, err
 	}

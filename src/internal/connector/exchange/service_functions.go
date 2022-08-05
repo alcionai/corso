@@ -141,10 +141,11 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	if err != nil {
 		return nil, err
 	}
-	response, err := service.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(
-		options,
-		nil,
-	)
+	response, err := service.
+		Client().
+		UsersById(user).
+		MailFolders().
+		GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return nil, err
 	}

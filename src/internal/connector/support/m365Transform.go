@@ -113,7 +113,11 @@ func SetEventMessageResponse(orig models.Messageable, adtl map[string]any) (mode
 			rType, ok := temp.(*models.ResponseType)
 			if !ok {
 				return nil, fmt.Errorf(
-					"%s : responseType not returned from models.ParseResponseType: %v\t%T", *orig.GetId(), temp, temp)
+					"%s : responseType not returned from models.ParseResponseType: %v\t%T",
+					*orig.GetId(),
+					temp,
+					temp,
+				)
 			}
 			message.SetResponseType(rType)
 		default:
