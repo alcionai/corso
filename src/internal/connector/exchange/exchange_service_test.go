@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type ExchangeServiceSuite struct {
@@ -112,15 +113,37 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFoldersAndConta
 			if err == nil {
 				suite.Equal(test.expected, len(config.QueryParameters.Select))
 			}
-			options, err := optionsForMailContacts(test.params)
+			options, err := optionsForContacts(test.params)
 			test.checkError(t, err)
 			if err == nil {
 				suite.Equal(test.expected, len(options.QueryParameters.Select))
 			}
 		})
-
 	}
+}
 
+// NOTE the requirements are in PR 475
+func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection() {
+	userID, err := tester.M365UserID()
+	require.NoError(suite.T(), err)
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users([]string{userID}))
+	eb, err := sel.ToExchangeBackup()
+	require.NoError(suite.T(), err)
+	scopes := eb.Scopes()
+
+	for _, test := range scopes {
+		suite.T().Run(test.Category().String(), func(t *testing.T) {
+			discriminateFunc, graphQuery, iterFunc, err := SetupExchangeCollectionVars(test)
+			if test.Category() == selectors.ExchangeMailFolder ||
+				test.Category() == selectors.ExchangeContactFolder {
+				assert.NoError(t, err)
+				assert.NotNil(t, discriminateFunc)
+				assert.NotNil(t, graphQuery)
+				assert.NotNil(t, iterFunc)
+			}
+		})
+	}
 }
 
 // TestExchangeService_GraphQueryFunctions verifies if Query functions APIs
@@ -130,23 +153,20 @@ func (suite *ExchangeServiceSuite) TestExchangeService_GraphQueryFunctions() {
 	require.NoError(suite.T(), err)
 	tests := []struct {
 		name     string
-		params   []string
 		function GraphQuery
 	}{
 		{
 			name:     "GraphQuery: Get All Messages For User",
-			params:   []string{userID},
 			function: GetAllMessagesForUser,
 		},
 		{
 			name:     "GraphQuery: Get All Contacts For User",
-			params:   []string{userID},
 			function: GetAllContactsForUser,
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			response, err := test.function(suite.es, test.params)
+			response, err := test.function(suite.es, userID)
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
 		})

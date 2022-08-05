@@ -38,25 +38,25 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 
 	switch parent.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(parent, exchangeRestoreCmd)
+		c, fs = utils.AddCommand(parent, exchangeRestoreCmd())
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringArrayVar(&contact, "contact", nil, "Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
-		fs.StringArrayVar(
+		fs.StringSliceVar(&contact, "contact", nil, "Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder",
 			nil,
 			"Restore all contacts within the folder ID; accepts "+utils.Wildcard+" to select all contact folders")
-		fs.StringArrayVar(&email, "email", nil, "Restore emails by ID; accepts "+utils.Wildcard+" to select all emails")
-		fs.StringArrayVar(
+		fs.StringSliceVar(&email, "email", nil, "Restore emails by ID; accepts "+utils.Wildcard+" to select all emails")
+		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder",
 			nil,
 			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders")
-		fs.StringArrayVar(&event, "event", nil, "Restore events by ID; accepts "+utils.Wildcard+" to select all events")
-		fs.StringArrayVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.StringSliceVar(&event, "event", nil, "Restore events by ID; accepts "+utils.Wildcard+" to select all events")
+		fs.StringSliceVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
 
 		// TODO: reveal these flags when their production is supported in GC
 		cobra.CheckErr(fs.MarkHidden("contact"))
@@ -78,11 +78,13 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 const exchangeServiceCommand = "exchange"
 
 // `corso restore exchange [<flag>...]`
-var exchangeRestoreCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "Restore M365 Exchange service data",
-	RunE:  restoreExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeRestoreCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Restore M365 Exchange service data",
+		RunE:  restoreExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // processes an exchange service restore.
@@ -105,7 +107,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, a, err := config.GetStorageAndAccount(true, nil)
+	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}

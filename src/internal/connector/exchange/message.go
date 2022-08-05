@@ -3,8 +3,9 @@ package exchange
 import (
 	"time"
 
-	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 func MessageInfo(msg models.Messageable) *details.ExchangeInfo {

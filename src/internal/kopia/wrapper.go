@@ -26,10 +26,7 @@ const (
 	corsoUser = "corso"
 )
 
-var (
-	errNotConnected   = errors.New("not connected to repo")
-	errUnsupportedDir = errors.New("unsupported static children in streaming directory")
-)
+var errNotConnected = errors.New("not connected to repo")
 
 type BackupStats struct {
 	SnapshotID          string
@@ -80,19 +77,33 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // kopia callbacks on directory entries. It binds the directory to the given
 // DataCollection.
 func getStreamItemFunc(
-	collection data.Collection,
-	details *details.Details,
+	staticEnts []fs.Entry,
+	streamedEnts data.Collection,
+	snapshotDetails *details.Details,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
-		items := collection.Items()
+		// Return static entries in this directory first.
+		for _, d := range staticEnts {
+			if err := cb(ctx, d); err != nil {
+				return errors.Wrap(err, "executing callback on static directory")
+			}
+		}
+
+		if streamedEnts == nil {
+			return nil
+		}
+
+		items := streamedEnts.Items()
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
+
 			case e, ok := <-items:
 				if !ok {
 					return nil
 				}
+
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
 					return errors.New("item does not implement DataStreamInfo")
@@ -104,33 +115,22 @@ func getStreamItemFunc(
 				}
 
 				// Populate BackupDetails
-				ep := append(collection.FullPath(), e.UUID())
-				details.Add(path.Join(ep...), ei.Info())
+				ep := append(streamedEnts.FullPath(), e.UUID())
+				snapshotDetails.Add(path.Join(ep...), ei.Info())
 			}
 		}
 	}
 }
 
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
-// Returned directories are either virtualfs.StreamingDirectory or
-// virtualfs.staticDirectory.
-func buildKopiaDirs(dirName string, dir *treeMap, details *details.Details) (fs.Directory, error) {
-	// Don't support directories that have both a DataCollection and a set of
-	// static child directories.
-	if dir.collection != nil && len(dir.childDirs) > 0 {
-		return nil, errors.New(errUnsupportedDir.Error())
-	}
-
-	if dir.collection != nil {
-		return virtualfs.NewStreamingDirectory(dirName, getStreamItemFunc(dir.collection, details)), nil
-	}
-
+// Returned directories are virtualfs.StreamingDirectory.
+func buildKopiaDirs(dirName string, dir *treeMap, snapshotDetails *details.Details) (fs.Directory, error) {
 	// Need to build the directory tree from the leaves up because intermediate
 	// directories need to have all their entries at creation time.
-	childDirs := []fs.Entry{}
+	var childDirs []fs.Entry
 
 	for childName, childDir := range dir.childDirs {
-		child, err := buildKopiaDirs(childName, childDir, details)
+		child, err := buildKopiaDirs(childName, childDir, snapshotDetails)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +138,10 @@ func buildKopiaDirs(dirName string, dir *treeMap, details *details.Details) (fs.
 		childDirs = append(childDirs, child)
 	}
 
-	return virtualfs.NewStaticDirectory(dirName, childDirs), nil
+	return virtualfs.NewStreamingDirectory(
+		dirName,
+		getStreamItemFunc(childDirs, dir.collection, snapshotDetails),
+	), nil
 }
 
 type treeMap struct {
@@ -156,31 +159,31 @@ func newTreeMap() *treeMap {
 // ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
 // in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
 // DataCollections.
-func inflateDirTree(ctx context.Context, collections []data.Collection, details *details.Details) (fs.Directory, error) {
+func inflateDirTree(ctx context.Context, collections []data.Collection, snapshotDetails *details.Details) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
-		path := s.FullPath()
+		itemPath := s.FullPath()
 
-		if len(path) == 0 {
+		if len(itemPath) == 0 {
 			return nil, errors.New("no identifier for collection")
 		}
 
-		dir, ok := roots[path[0]]
+		dir, ok := roots[itemPath[0]]
 		if !ok {
 			dir = newTreeMap()
-			roots[path[0]] = dir
+			roots[itemPath[0]] = dir
 		}
 
 		// Single DataCollection with no ancestors.
-		if len(path) == 1 {
+		if len(itemPath) == 1 {
 			dir.collection = s
 			continue
 		}
 
-		for _, p := range path[1 : len(path)-1] {
-			newDir, ok := dir.childDirs[p]
-			if !ok {
+		for _, p := range itemPath[1 : len(itemPath)-1] {
+			newDir := dir.childDirs[p]
+			if newDir == nil {
 				newDir = newTreeMap()
 
 				if dir.childDirs == nil {
@@ -197,16 +200,16 @@ func inflateDirTree(ctx context.Context, collections []data.Collection, details 
 		// as treeMap objects and `dir` is the parent directory of this
 		// DataCollection.
 
-		end := len(path) - 1
+		end := len(itemPath) - 1
 
 		// Make sure this entry doesn't already exist.
-		if _, ok := dir.childDirs[path[end]]; ok {
-			return nil, errors.New(errUnsupportedDir.Error())
+		tmpDir := dir.childDirs[itemPath[end]]
+		if tmpDir == nil {
+			tmpDir = newTreeMap()
+			dir.childDirs[itemPath[end]] = tmpDir
 		}
 
-		sd := newTreeMap()
-		sd.collection = s
-		dir.childDirs[path[end]] = sd
+		tmpDir.collection = s
 	}
 
 	if len(roots) > 1 {
@@ -215,7 +218,7 @@ func inflateDirTree(ctx context.Context, collections []data.Collection, details 
 
 	var res fs.Directory
 	for dirName, dir := range roots {
-		tmp, err := buildKopiaDirs(dirName, dir, details)
+		tmp, err := buildKopiaDirs(dirName, dir, snapshotDetails)
 		if err != nil {
 			return nil, err
 		}
@@ -234,55 +237,73 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, errNotConnected
 	}
 
-	details := &details.Details{}
+	snapshotDetails := &details.Details{}
 
-	dirTree, err := inflateDirTree(ctx, collections, details)
+	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	stats, err := w.makeSnapshotWithRoot(ctx, dirTree, details)
+	stats, err := w.makeSnapshotWithRoot(ctx, dirTree, snapshotDetails)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return stats, details, nil
+	return stats, snapshotDetails, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
-	details *details.Details,
+	snapshotDetails *details.Details,
 ) (*BackupStats, error) {
-	si := snapshot.SourceInfo{
-		Host:     corsoHost,
-		UserName: corsoUser,
-		// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
-		Path: root.Name(),
-	}
-	ctx, rw, err := w.c.NewWriter(ctx, repo.WriteSessionOptions{})
+	var man *snapshot.Manifest
+
+	err := repo.WriteSession(
+		ctx,
+		w.c,
+		repo.WriteSessionOptions{
+			Purpose: "KopiaWrapperBackup",
+			// Always flush so we don't leak write sessions. Still uses reachability
+			// for consistency.
+			FlushOnFailure: true,
+		},
+		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+			si := snapshot.SourceInfo{
+				Host:     corsoHost,
+				UserName: corsoUser,
+				// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
+				Path: root.Name(),
+			}
+
+			policyTree, err := policy.TreeForSource(innerCtx, w.c, si)
+			if err != nil {
+				err = errors.Wrap(err, "get policy tree")
+				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				return err
+			}
+
+			u := snapshotfs.NewUploader(rw)
+			man, err = u.Upload(innerCtx, root, policyTree, si)
+			if err != nil {
+				err = errors.Wrap(err, "uploading data")
+				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				return err
+			}
+
+			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
+				err = errors.Wrap(err, "saving snapshot")
+				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				return err
+			}
+
+			return nil
+		},
+	)
+	// Telling kopia to always flush may hide other errors if it fails while
+	// flushing the write session (hence logging above).
 	if err != nil {
-		return nil, errors.Wrap(err, "get repo writer")
-	}
-
-	policyTree, err := policy.TreeForSource(ctx, w.c, si)
-	if err != nil {
-		return nil, errors.Wrap(err, "get policy tree")
-	}
-
-	u := snapshotfs.NewUploader(rw)
-
-	man, err := u.Upload(ctx, root, policyTree, si)
-	if err != nil {
-		return nil, errors.Wrap(err, "uploading data")
-	}
-
-	if _, err := snapshot.SaveSnapshot(ctx, rw, man); err != nil {
-		return nil, errors.Wrap(err, "saving snapshot")
-	}
-
-	if err := rw.Flush(ctx); err != nil {
-		return nil, errors.Wrap(err, "flushing writer")
+		return nil, errors.Wrap(err, "kopia backup")
 	}
 
 	res := manifestToStats(man)
@@ -302,12 +323,12 @@ func (w Wrapper) getEntry(
 		return nil, errors.New("no restore path given")
 	}
 
-	manifest, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
+	man, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
 	if err != nil {
 		return nil, errors.Wrap(err, "getting snapshot handle")
 	}
 
-	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, manifest)
+	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, man)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting root directory")
 	}
@@ -439,7 +460,6 @@ func walkDirectory(
 
 		return nil
 	})
-
 	if err != nil {
 		// If the iterator itself had an error add it to the list.
 		errs = multierror.Append(errs, errors.Wrap(err, "getting directory data"))
@@ -544,8 +564,8 @@ func (w Wrapper) RestoreMultipleItems(
 		dcs  = []data.Collection{}
 		errs *multierror.Error
 	)
-	for _, path := range paths {
-		dc, err := w.RestoreSingleItem(ctx, snapshotID, path)
+	for _, itemPath := range paths {
+		dc, err := w.RestoreSingleItem(ctx, snapshotID, itemPath)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		} else {

@@ -14,18 +14,12 @@ type SupportTestSuite struct {
 	suite.Suite
 }
 
-const (
-	// File needs to be a single message .json
-	// Use: https://developer.microsoft.com/en-us/graph/graph-explorer for details
-	SUPPORT_FILE = "CORSO_TEST_SUPPORT_FILE"
-)
-
 func TestSupportTestSuite(t *testing.T) {
-	evs, err := tester.GetRequiredEnvVars(SUPPORT_FILE)
+	evs, err := tester.GetRequiredEnvVars(tester.CorsoGraphConnectorTestSupportFile)
 	if err != nil {
 		t.Skipf("Env not configured: %v\n", err)
 	}
-	_, err = os.Stat(evs[SUPPORT_FILE])
+	_, err = os.Stat(evs[tester.CorsoGraphConnectorTestSupportFile])
 	if err != nil {
 		t.Skip("Test object not available: Module Skipped")
 	}
@@ -33,7 +27,7 @@ func TestSupportTestSuite(t *testing.T) {
 }
 
 func (suite *SupportTestSuite) TestToMessage() {
-	bytes, err := tester.LoadAFile(os.Getenv(SUPPORT_FILE))
+	bytes, err := tester.LoadAFile(os.Getenv(tester.CorsoGraphConnectorTestSupportFile))
 	if err != nil {
 		suite.T().Errorf("Failed with %v\n", err)
 	}
@@ -46,5 +40,4 @@ func (suite *SupportTestSuite) TestToMessage() {
 	suite.Equal(message.GetSender(), clone.GetSender())
 	suite.Equal(message.GetSentDateTime(), clone.GetSentDateTime())
 	suite.NotEqual(message.GetId(), clone.GetId())
-
 }

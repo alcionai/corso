@@ -53,10 +53,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 
 	case createCommand:
-		c, fs = utils.AddCommand(parent, exchangeCreateCmd)
-		fs.StringArrayVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
+		fs.StringSliceVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
 		fs.BoolVar(&exchangeAll, "all", false, "Backup all Exchange data for all users")
-		fs.StringArrayVar(
+		fs.StringSliceVar(
 			&exchangeData,
 			"data",
 			nil,
@@ -64,28 +64,28 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, _ = utils.AddCommand(parent, exchangeListCmd)
+		c, _ = utils.AddCommand(parent, exchangeListCmd())
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(parent, exchangeDetailsCmd)
+		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringArrayVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
-		fs.StringArrayVar(
+		fs.StringSliceVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder",
 			nil,
 			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders")
-		fs.StringArrayVar(&email, "email", nil, "Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
-		fs.StringArrayVar(
+		fs.StringSliceVar(&email, "email", nil, "Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
+		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder",
 			nil,
 			"Select backup details by email folder ID; accepts "+utils.Wildcard+" to select all email folderss")
-		fs.StringArrayVar(&event, "event", nil, "Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
-		fs.StringArrayVar(&user, "user", nil, "Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.StringSliceVar(&event, "event", nil, "Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
+		fs.StringSliceVar(&user, "user", nil, "Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
 
 		// TODO: reveal these flags when their production is supported in GC
 		cobra.CheckErr(fs.MarkHidden("contact"))
@@ -107,11 +107,13 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 // ------------------------------------------------------------------------------------------------
 
 // `corso backup create exchange [<flag>...]`
-var exchangeCreateCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "Backup M365 Exchange service data",
-	RunE:  createExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeCreateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Backup M365 Exchange service data",
+		RunE:  createExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // processes an exchange service backup.
@@ -126,7 +128,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}
@@ -195,7 +197,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 
 func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 	if len(users) == 0 && !all {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if len(data) > 0 && all {
 		return errors.New("--all does a backup on all data, and cannot be reduced with --data")
@@ -213,18 +215,20 @@ func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 // ------------------------------------------------------------------------------------------------
 
 // `corso backup list exchange [<flag>...]`
-var exchangeListCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "List the history of M365 Exchange service backups",
-	RunE:  listExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "List the history of M365 Exchange service backups",
+		RunE:  listExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // lists the history of backup operations
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}
@@ -258,11 +262,13 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 // ------------------------------------------------------------------------------------------------
 
 // `corso backup details exchange [<flag>...]`
-var exchangeDetailsCmd = &cobra.Command{
-	Use:   exchangeServiceCommand,
-	Short: "Shows the details of a M365 Exchange service backup",
-	RunE:  detailsExchangeCmd,
-	Args:  cobra.NoArgs,
+func exchangeDetailsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Shows the details of a M365 Exchange service backup",
+		RunE:  detailsExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // lists the history of backup operations
@@ -285,7 +291,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(err)
 	}
@@ -450,7 +456,7 @@ func validateExchangeBackupDetailFlags(
 		return nil
 	}
 	if lu == 0 {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag.")
+		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if lc > 0 && lcf == 0 {
 		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")

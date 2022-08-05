@@ -60,7 +60,6 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_Add3() {
 	suite.True(strings.Contains(combined.Error(), "unix36"))
 	suite.True(strings.Contains(combined.Error(), "user1"))
 	suite.True(strings.Contains(allErrors.Error(), "fxi92874"))
-
 }
 
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppendf() {

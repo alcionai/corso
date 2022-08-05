@@ -7,9 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/cli/backup"
-	"github.com/alcionai/corso/cli/repo"
-	"github.com/alcionai/corso/cli/restore"
+	"github.com/alcionai/corso/cli"
 )
 
 type CliSuite struct {
@@ -27,14 +25,12 @@ func TestCLISuite(t *testing.T) {
 func (suite *CLISuite) TestAddCommands_noPanics() {
 	t := suite.T()
 
-	var test = &cobra.Command{
+	test := &cobra.Command{
 		Use:   "test",
 		Short: "Protect your Microsoft 365 data.",
 		Long:  `Reliable, secure, and efficient data protection for Microsoft 365.`,
 		RunE:  func(c *cobra.Command, args []string) error { return nil },
 	}
 
-	assert.NotPanics(t, func() { repo.AddCommands(test) })
-	assert.NotPanics(t, func() { backup.AddCommands(test) })
-	assert.NotPanics(t, func() { restore.AddCommands(test) })
+	assert.NotPanics(t, func() { cli.BuildCommandTree(test) })
 }

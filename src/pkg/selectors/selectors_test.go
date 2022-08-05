@@ -12,9 +12,7 @@ const (
 	user = "me@my.onmicrosoft.com"
 )
 
-var (
-	dataType = ExchangeEvent.String()
-)
+var dataType = ExchangeEvent.String()
 
 func stubScope() map[string]string {
 	return map[string]string{
@@ -86,7 +84,8 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	sel.Includes = []map[string]string{
 		stubScope(),
 		{scopeKeyResource: "smarf", scopeKeyDataType: dataType},
-		{scopeKeyResource: "smurf", scopeKeyDataType: dataType}}
+		{scopeKeyResource: "smurf", scopeKeyDataType: dataType},
+	}
 	p = sel.Printable()
 	res = p.Resources()
 
@@ -150,4 +149,14 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			assert.Equal(t, test.expect, rtm)
 		})
 	}
+}
+
+func (suite *SelectorSuite) TestContains() {
+	t := suite.T()
+	key := "key"
+	target := "fnords"
+	does := map[string]string{key: target}
+	doesNot := map[string]string{key: "smarf"}
+	assert.True(t, contains(does, key, target))
+	assert.False(t, contains(doesNot, key, target))
 }

@@ -28,7 +28,6 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
-
 	table := []struct {
 		name string
 		acct func(t *testing.T) account.Account
@@ -81,7 +80,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	suite.Contains(last, "Bundy")
 	suite.Contains(last, "Ripley")
 	suite.Contains(last, "Foley")
-
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
@@ -89,7 +87,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	concrete := mockconnector.NewMockExchangeCollection([]string{"a", "path"}, 1)
 	dc = concrete
 	assert.NotNil(suite.T(), dc)
-
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
@@ -110,6 +107,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	suite.Greater(len(gc.PrintableStatus()), 0)
 	suite.Greater(gc.Status().ObjectCount, 0)
 }
+
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {
 	tests := []struct {
 		name                 string
@@ -129,7 +127,8 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 			returnRecoverable:    assert.True,
 			returnNonRecoverable: assert.False,
 		},
-		{name: "Validate NonRecoverable",
+		{
+			name:                 "Validate NonRecoverable",
 			err:                  support.SetNonRecoverableError(errors.New("Non-recoverable")),
 			returnRecoverable:    assert.False,
 			returnNonRecoverable: assert.True,

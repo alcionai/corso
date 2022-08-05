@@ -6,8 +6,10 @@ import (
 	"github.com/alcionai/corso/internal/data"
 )
 
-var _ data.Collection = &kopiaDataCollection{}
-var _ data.Stream = &kopiaDataStream{}
+var (
+	_ data.Collection = &kopiaDataCollection{}
+	_ data.Stream     = &kopiaDataStream{}
+)
 
 type kopiaDataCollection struct {
 	path    []string

@@ -1,9 +1,10 @@
 package tester
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/pkg/errors"
 )
 
 var M365AcctCredEnvs = []string{
@@ -23,7 +24,7 @@ func NewM365Account() (account.Account, error) {
 		account.ProviderM365,
 		account.M365Config{
 			M365:     credentials.GetM365(),
-			TenantID: cfg[testCfgTenantID],
+			TenantID: cfg[TestCfgTenantID],
 		},
 	)
 }

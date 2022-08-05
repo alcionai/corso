@@ -20,6 +20,7 @@ type fooModel struct {
 	Bar string
 }
 
+//revive:disable:context-as-argument
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
 	c, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
@@ -37,6 +38,7 @@ type ModelStoreUnitSuite struct {
 func TestModelStoreUnitSuite(t *testing.T) {
 	suite.Run(t, new(ModelStoreUnitSuite))
 }
+
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
 		m := &ModelStore{}
@@ -143,8 +145,7 @@ func (suite *ModelStoreIntegrationSuite) TestBadModelTypeErrors() {
 	require.NoError(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
 
 	_, err := suite.m.GetIDsForType(suite.ctx, model.UnknownSchema, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "schema")
+	assert.ErrorIs(t, err, errUnrecognizedSchema)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {

@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -34,12 +35,19 @@ const (
 type GraphConnector struct {
 	graphService
 	tenant           string
-	Users            map[string]string                 //key<email> value<id>
+	Users            map[string]string                 // key<email> value<id>
 	status           *support.ConnectorOperationStatus // contains the status of the last run status
 	statusCh         chan *support.ConnectorOperationStatus
 	awaitingMessages int32
 	credentials      account.M365Config
 }
+
+// Service returns the GC's embedded graph.Service
+func (gc GraphConnector) Service() graph.Service {
+	return gc.graphService
+}
+
+var _ graph.Service = &graphService{}
 
 type graphService struct {
 	client   msgraphsdk.GraphServiceClient
@@ -47,15 +55,15 @@ type graphService struct {
 	failFast bool // if true service will exit sequence upon encountering an error
 }
 
-func (gs *graphService) Client() *msgraphsdk.GraphServiceClient {
+func (gs graphService) Client() *msgraphsdk.GraphServiceClient {
 	return &gs.client
 }
 
-func (gs *graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (gs graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &gs.adapter
 }
 
-func (gs *graphService) ErrPolicy() bool {
+func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
@@ -116,7 +124,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
-	response, err := gc.graphService.client.Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return err
 	}
@@ -226,21 +234,27 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
+		folderID            *string
 	)
-	gc.incrementAwaitingMessages()
+	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
 	for _, dc := range dcs {
-		// must be user.GetId(), PrimaryName no longer works 6-15-2022
 		user := dc.FullPath()[1]
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
+		if policy == control.Copy {
+			folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
+			if errs != nil {
+				return errs
+			}
+		}
 
 		var exit bool
 		for !exit {
 			select {
 			case <-ctx.Done():
 				return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
-			case data, ok := <-items:
+			case itemData, ok := <-items:
 				if !ok {
 					exit = true
 					break
@@ -248,47 +262,26 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 				attempts++
 
 				buf := &bytes.Buffer{}
-				_, err := buf.ReadFrom(data.ToReader())
+				_, err := buf.ReadFrom(itemData.ToReader())
 				if err != nil {
-					errs = support.WrapAndAppend(data.UUID(), err, errs)
+					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
 					continue
 				}
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				if err != nil {
-					errs = support.WrapAndAppend(data.UUID(), err, errs)
+				switch policy {
+				case control.Copy:
+					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, control.Copy, *folderID, user)
+					if err != nil {
+						errs = support.WrapAndAppend(itemData.UUID(), err, errs)
+					}
+				default:
+					errs = support.WrapAndAppend(itemData.UUID(), errors.New("restore policy not supported"), errs)
 					continue
 				}
-				clone := support.ToMessage(message)
-				address := dc.FullPath()[3]
-				valueId := "Integer 0x0E07"
-				enableValue := "4"
-				sv := models.NewSingleValueLegacyExtendedProperty()
-				sv.SetId(&valueId)
-				sv.SetValue(&enableValue)
-				svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-				clone.SetSingleValueExtendedProperties(svlep)
-				draft := false
-				clone.SetIsDraft(&draft)
-				sentMessage, err := gc.graphService.client.UsersById(user).MailFoldersById(address).Messages().Post(clone)
-				if err != nil {
-					errs = support.WrapAndAppend(
-						data.UUID()+": "+support.ConnectorStackErrorTrace(err),
-						err, errs)
-					continue
-					// TODO: Add to retry Handler for the for failure
-				}
-
-				if sentMessage == nil {
-					errs = support.WrapAndAppend(data.UUID(), errors.New("Message not Sent: Blocked by server"), errs)
-					continue
-				}
-
 				successes++
-				// This completes the restore loop for a message..
 			}
 		}
 	}
-
+	gc.incrementAwaitingMessages()
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	// set the channel asynchronously so that this func doesn't block.
 	go func(cos *support.ConnectorOperationStatus) {
@@ -306,7 +299,6 @@ func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
 ) (map[string]*exchange.Collection, error) {
-
 	var (
 		transformer absser.ParsableFactory
 		query       exchange.GraphQuery
@@ -317,7 +309,7 @@ func (gc *GraphConnector) createCollections(
 	if err != nil {
 		return nil, support.WrapAndAppend(user, err, nil)
 	}
-	response, err := query(&gc.graphService, []string{user})
+	response, err := query(&gc.graphService, user)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +321,7 @@ func (gc *GraphConnector) createCollections(
 	collections := make(map[string]*exchange.Collection)
 	var errs error
 	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
-	// with corresponding messageIDs. New collections are created for each directory
+	// with corresponding item IDs. New collections are created for each directory
 	callbackFunc := gIter(gc.tenant, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {

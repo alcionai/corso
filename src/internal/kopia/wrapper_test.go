@@ -117,7 +117,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
-	details := &details.Details{}
+	snapshotDetails := &details.Details{}
 
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
@@ -138,7 +138,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//   - user2
 	//     - emails
 	//       - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, details)
+	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), tenant)
 
@@ -169,7 +169,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		totalFileCount += c
 	}
 
-	assert.Len(suite.T(), details.Entries, totalFileCount)
+	assert.Len(suite.T(), snapshotDetails.Entries, totalFileCount)
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
@@ -180,7 +180,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
-	details := &details.Details{}
+	snapshotDetails := &details.Details{}
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			[]string{emails},
@@ -191,13 +191,96 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 	// Returned directory structure should look like:
 	// - emails
 	//   - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, details)
+	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), emails)
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
 	require.NoError(suite.T(), err)
-	assert.Len(suite.T(), entries, 42)
+	assert.Len(suite.T(), entries, expectedFileCount)
+}
+
+func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
+	ctx := context.Background()
+	// Test multiple orders of items because right now order can matter. Both
+	// orders result in a directory structure like:
+	// - a-tenant
+	//   - user1
+	//     - emails
+	//       - 5 separate files
+	//     - 42 separate files
+	table := []struct {
+		name   string
+		layout []data.Collection
+	}{
+		{
+			name: "SubdirFirst",
+			layout: []data.Collection{
+				mockconnector.NewMockExchangeCollection(
+					[]string{testTenant, testUser, testEmailDir},
+					5,
+				),
+				mockconnector.NewMockExchangeCollection(
+					[]string{testTenant, testUser},
+					42,
+				),
+			},
+		},
+		{
+			name: "SubdirLast",
+			layout: []data.Collection{
+				mockconnector.NewMockExchangeCollection(
+					[]string{testTenant, testUser},
+					42,
+				),
+				mockconnector.NewMockExchangeCollection(
+					[]string{testTenant, testUser, testEmailDir},
+					5,
+				),
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			snapshotDetails := &details.Details{}
+
+			dirTree, err := inflateDirTree(ctx, test.layout, snapshotDetails)
+			require.NoError(t, err)
+			assert.Equal(t, testTenant, dirTree.Name())
+
+			entries, err := fs.GetAllEntries(ctx, dirTree)
+			require.NoError(t, err)
+			require.Len(t, entries, 1)
+			assert.Equal(t, testUser, entries[0].Name())
+
+			d, ok := entries[0].(fs.Directory)
+			require.True(t, ok, "returned entry is not a directory")
+
+			entries, err = fs.GetAllEntries(ctx, d)
+			require.NoError(t, err)
+			// 42 files and 1 subdirectory.
+			assert.Len(t, entries, 43)
+
+			// One of these entries should be a subdirectory with items in it.
+			subDirs := []fs.Directory(nil)
+			for _, e := range entries {
+				d, ok := e.(fs.Directory)
+				if !ok {
+					continue
+				}
+
+				subDirs = append(subDirs, d)
+				assert.Equal(t, testEmailDir, e.Name())
+			}
+
+			require.Len(t, subDirs, 1)
+
+			entries, err = fs.GetAllEntries(ctx, subDirs[0])
+			assert.NoError(t, err)
+			assert.Len(t, entries, 5)
+		})
+	}
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
@@ -234,33 +317,14 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 				),
 			},
 		},
-		{
-			"MixedDirectory",
-			// Directory structure would look like (but should return error):
-			// - a-tenant
-			//   - user1
-			//     - emails
-			//       - 5 separate files
-			//     - 42 separate files
-			[]data.Collection{
-				mockconnector.NewMockExchangeCollection(
-					[]string{"a-tenant", "user1", "emails"},
-					5,
-				),
-				mockconnector.NewMockExchangeCollection(
-					[]string{"a-tenant", "user1"},
-					42,
-				),
-			},
-		},
 	}
 
 	for _, test := range table {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			details := &details.Details{}
-			_, err := inflateDirTree(ctx, test.layout, details)
+			snapshotDetails := &details.Details{}
+			_, err := inflateDirTree(ctx, test.layout, snapshotDetails)
 			assert.Error(t, err)
 		})
 	}

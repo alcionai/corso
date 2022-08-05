@@ -1,13 +1,12 @@
 package options
 
 import (
-	"github.com/alcionai/corso/pkg/control"
 	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/pkg/control"
 )
 
-var (
-	fastFail bool
-)
+var fastFail bool
 
 // AddFlags adds the operation option flags
 func AddOperationFlags(parent *cobra.Command) {

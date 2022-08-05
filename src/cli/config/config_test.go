@@ -51,7 +51,7 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	// Generate test config file
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID)
 	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
-	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfigData), 0700)
+	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
 	require.NoError(t, err)
 
 	// Configure viper to read test config file
@@ -82,7 +82,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 
 	// Configure viper to read test config file
 	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
-	require.NoError(t, initConfigWithViper(vpr, testConfigFilePath), "initializing repo config")
+	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{Bucket: bkt}
 	m365 := account.M365Config{TenantID: tid}
@@ -112,7 +112,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 
 	// Configure viper to read test config file
 	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
-	require.NoError(t, initConfigWithViper(vpr, testConfigFilePath), "initializing repo config")
+	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{Bucket: bkt}
 	m365 := account.M365Config{TenantID: tid}
@@ -216,7 +216,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 
 	// Configure viper to read test config file
 	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
-	require.NoError(t, initConfigWithViper(vpr, testConfigFilePath), "initializing repo config")
+	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{
 		Bucket:   bkt,

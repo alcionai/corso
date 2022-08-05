@@ -5,13 +5,14 @@ import (
 	"strconv"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/pkg/errors"
-
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 )
 
-var eventResponsableFields = []string{"responseType"}
-var eventRequestableFields = []string{"allowNewTimeProposals", "meetingRequestType", "responseRequested"}
+var (
+	eventResponsableFields = []string{"responseType"}
+	eventRequestableFields = []string{"allowNewTimeProposals", "meetingRequestType", "responseRequested"}
+)
 
 func CloneMessageableFields(orig, message models.Messageable) models.Messageable {
 	message.SetSubject(orig.GetSubject())
@@ -93,7 +94,6 @@ func SetEventMessageResponse(orig models.Messageable, adtl map[string]any) (mode
 	newMessage, err := SetAdditionalDataToEventMessage(adtl, message)
 	if err != nil {
 		return nil, errors.Wrap(err, *orig.GetId()+" eventMessageResponse could not set additional data")
-
 	}
 	message, ok = newMessage.(models.EventMessageResponseable)
 	if !ok {
@@ -118,7 +118,6 @@ func SetEventMessageResponse(orig models.Messageable, adtl map[string]any) (mode
 		default:
 			return nil, errors.New(key + " not supported for setEventMessageResponse")
 		}
-
 	}
 	return message, nil
 }
@@ -181,8 +180,10 @@ func buildMapFromAdditional(list []string, adtl map[string]any) (map[string]*str
 	return returnMap, nil
 }
 
-func setEventRequestableFields(em models.EventMessageRequestable, adtl map[string]*string) (models.EventMessageRequestable, error) {
-
+func setEventRequestableFields(
+	em models.EventMessageRequestable,
+	adtl map[string]*string,
+) (models.EventMessageRequestable, error) {
 	for key, value := range adtl {
 		switch key {
 		case "meetingRequestType":
@@ -193,7 +194,6 @@ func setEventRequestableFields(em models.EventMessageRequestable, adtl map[strin
 			rType, ok := temp.(*models.MeetingRequestType)
 			if !ok {
 				return nil, errors.New(*em.GetId() + ": failed to set meeting request type")
-
 			}
 			em.SetMeetingRequestType(rType)
 		case "responseRequested":

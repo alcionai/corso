@@ -33,10 +33,11 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	)
 	switch parent.Use {
 	case initCommand:
-		c, fs = utils.AddCommand(parent, s3InitCmd)
+		c, fs = utils.AddCommand(parent, s3InitCmd())
 	case connectCommand:
-		c, fs = utils.AddCommand(parent, s3ConnectCmd)
+		c, fs = utils.AddCommand(parent, s3ConnectCmd())
 	}
+
 	fs.StringVar(&accessKey, "access-key", "", "Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).")
 	fs.StringVar(&bucket, "bucket", "", "Name of the S3 bucket (required).")
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
@@ -51,13 +52,19 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 
 const s3ProviderCommand = "s3"
 
+// ---------------------------------------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------------------------------------
+
 // `corso repo init s3 [<flag>...]`
-var s3InitCmd = &cobra.Command{
-	Use:   s3ProviderCommand,
-	Short: "Initialize a S3 repository",
-	Long:  `Bootstraps a new S3 repository and connects it to your m356 account.`,
-	RunE:  initS3Cmd,
-	Args:  cobra.NoArgs,
+func s3InitCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   s3ProviderCommand,
+		Short: "Initialize a S3 repository",
+		Long:  `Bootstraps a new S3 repository and connects it to your m356 account.`,
+		RunE:  initS3Cmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // initializes a s3 repo.
@@ -69,7 +76,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, err := config.GetStorageAndAccount(false, s3Overrides())
+	s, a, err := config.GetStorageAndAccount(ctx, false, s3Overrides())
 	if err != nil {
 		return Only(err)
 	}
@@ -100,21 +107,27 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	Infof("Initialized a S3 repository within bucket %s.\n", s3Cfg.Bucket)
+	Infof("Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(s3Cfg, m365); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
 		return Only(errors.Wrap(err, "Failed to write repository configuration"))
 	}
 	return nil
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// Connect
+// ---------------------------------------------------------------------------------------------------------
+
 // `corso repo connect s3 [<flag>...]`
-var s3ConnectCmd = &cobra.Command{
-	Use:   s3ProviderCommand,
-	Short: "Connect to a S3 repository",
-	Long:  `Ensures a connection to an existing S3 repository.`,
-	RunE:  connectS3Cmd,
-	Args:  cobra.NoArgs,
+func s3ConnectCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   s3ProviderCommand,
+		Short: "Connect to a S3 repository",
+		Long:  `Ensures a connection to an existing S3 repository.`,
+		RunE:  connectS3Cmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // connects to an existing s3 repo.
@@ -126,7 +139,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, err := config.GetStorageAndAccount(true, s3Overrides())
+	s, a, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
 	if err != nil {
 		return Only(err)
 	}
@@ -153,9 +166,9 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	Infof("Connected to S3 bucket %s.\n", s3Cfg.Bucket)
+	Infof("Connected to S3 bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(s3Cfg, m365); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
 		return Only(errors.Wrap(err, "Failed to write repository configuration"))
 	}
 	return nil

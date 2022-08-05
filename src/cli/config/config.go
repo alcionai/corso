@@ -1,13 +1,17 @@
 package config
 
 import (
+	"context"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -24,15 +28,43 @@ const (
 	TenantIDKey            = "tenantid"
 )
 
-func InitConfig(configFilePath string) error {
-	return initConfigWithViper(viper.GetViper(), configFilePath)
+var configFilePath string
+
+// adds the persistent flag --config-file to the provided command.
+func AddConfigFileFlag(cmd *cobra.Command) {
+	fs := cmd.PersistentFlags()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		Err("finding $HOME directory (default) for config file")
+	}
+	fs.StringVar(
+		&configFilePath,
+		"config-file",
+		filepath.Join(homeDir, ".corso.toml"),
+		"config file (default is $HOME/.corso)")
 }
 
-// initConfigWithViper implements InitConfig, but takes in a viper
+// ---------------------------------------------------------------------------------------------------------
+// Initialization & Storage
+// ---------------------------------------------------------------------------------------------------------
+
+// InitFunc provides a func that lazily initializes viper and
+// verifies that the configuration was able to read a file.
+func InitFunc() func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		err := initWithViper(GetViper(cmd.Context()), configFilePath)
+		if err != nil {
+			return err
+		}
+		return Read(cmd.Context())
+	}
+}
+
+// initWithViper implements InitConfig, but takes in a viper
 // struct for testing.
-func initConfigWithViper(vpr *viper.Viper, configFilePath string) error {
+func initWithViper(vpr *viper.Viper, configFP string) error {
 	// Configure default config file location
-	if configFilePath == "" {
+	if configFP == "" {
 		// Find home directory.
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -46,28 +78,71 @@ func initConfigWithViper(vpr *viper.Viper, configFilePath string) error {
 		return nil
 	}
 
-	vpr.SetConfigFile(configFilePath)
+	vpr.SetConfigFile(configFP)
 	// We also configure the path, type and filename
 	// because `vpr.SafeWriteConfig` needs these set to
 	// work correctly (it does not use the configured file)
-	vpr.AddConfigPath(path.Dir(configFilePath))
+	vpr.AddConfigPath(path.Dir(configFP))
 
-	fileName := path.Base(configFilePath)
-	ext := path.Ext(configFilePath)
+	fileName := path.Base(configFP)
+	ext := path.Ext(configFP)
 	if len(ext) == 0 {
 		return errors.New("config file requires an extension e.g. `toml`")
 	}
 	fileName = strings.TrimSuffix(fileName, ext)
-	vpr.SetConfigType(ext[1:])
+	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
 	vpr.SetConfigName(fileName)
 
 	return nil
 }
 
+type viperCtx struct{}
+
+// Seed embeds a viper instance in the context.
+func Seed(ctx context.Context) context.Context {
+	return SetViper(ctx, nil)
+}
+
+// Adds a viper instance to the context.
+// If vpr is nil, sets the default (global) viper.
+func SetViper(ctx context.Context, vpr *viper.Viper) context.Context {
+	if vpr == nil {
+		vpr = viper.GetViper()
+	}
+	return context.WithValue(ctx, viperCtx{}, vpr)
+}
+
+// Gets a viper instance from the context.
+// If no viper instance is found, returns the default
+// (global) viper instance.
+func GetViper(ctx context.Context) *viper.Viper {
+	vprIface := ctx.Value(viperCtx{})
+	vpr, ok := vprIface.(*viper.Viper)
+	if vpr == nil || !ok {
+		return viper.GetViper()
+	}
+	return vpr
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Reading & Writing the config
+// ---------------------------------------------------------------------------------------------------------
+
+// Read reads the config from the viper instance in the context.
+// Primarily used as a test-check to ensure the instance was
+// set up properly.
+func Read(ctx context.Context) error {
+	if err := viper.ReadInConfig(); err == nil {
+		Info("Using config file:", viper.ConfigFileUsed())
+		return err
+	}
+	return nil
+}
+
 // WriteRepoConfig currently just persists corso config to the config file
 // It does not check for conflicts or existing data.
-func WriteRepoConfig(s3Config storage.S3Config, m365Config account.M365Config) error {
-	return writeRepoConfigWithViper(viper.GetViper(), s3Config, m365Config)
+func WriteRepoConfig(ctx context.Context, s3Config storage.S3Config, m365Config account.M365Config) error {
+	return writeRepoConfigWithViper(GetViper(ctx), s3Config, m365Config)
 }
 
 // writeRepoConfigWithViper implements WriteRepoConfig, but takes in a viper
@@ -94,8 +169,12 @@ func writeRepoConfigWithViper(vpr *viper.Viper, s3Config storage.S3Config, m365C
 
 // GetStorageAndAccount creates a storage and account instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) and the config file.
-func GetStorageAndAccount(readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
-	return getStorageAndAccountWithViper(viper.GetViper(), readFromFile, overrides)
+func GetStorageAndAccount(
+	ctx context.Context,
+	readFromFile bool,
+	overrides map[string]string,
+) (storage.Storage, account.Account, error) {
+	return getStorageAndAccountWithViper(GetViper(ctx), readFromFile, overrides)
 }
 
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper

@@ -1,4 +1,4 @@
-name: CI
+name: CI Tests
 on:
   push:
     branches: [main]
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  Run-All:
+  Test-Suite:
     environment: Testing
     runs-on: ubuntu-latest
     defaults:
@@ -27,7 +27,6 @@ jobs:
         run: |
           echo "::set-output name=go-build::$(go env GOCACHE)"
           echo "::set-output name=go-mod::$(go env GOMODCACHE)"
-
 
       - name: Golang Setup
         uses: actions/setup-go@v3
@@ -60,7 +59,7 @@ jobs:
         if: steps.mybuild.outputs.cache-hit != 'true'
         run: go build -v ./...
 
-      # Alternatively, install using go install
+      # Install gotestfmt
       - name: Set up gotestfmt
         run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
 
@@ -81,6 +80,7 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_M356_TEST_USER_ID }}
         run: |
           set -euo pipefail
           go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests

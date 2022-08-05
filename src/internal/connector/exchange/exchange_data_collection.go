@@ -20,19 +20,22 @@ import (
 	"github.com/alcionai/corso/pkg/logger"
 )
 
-var _ data.Collection = &Collection{}
-var _ data.Stream = &Stream{}
-var _ data.StreamInfo = &Stream{}
+var (
+	_ data.Collection = &Collection{}
+	_ data.Stream     = &Stream{}
+	_ data.StreamInfo = &Stream{}
+)
 
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
+	// RestorePropertyTag defined: https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
+	RestorePropertyTag          = "Integer 0x0E07"
+	RestoreCanonicalEnableValue = "4"
 )
 
-// ExchangeDataCollection represents exchange mailbox
-// data for a single user.
-//
-// It implements the DataCollection interface
+// Collection implements the interface from data.Collection
+// Structure holds data for an Exchange application for a single user
 type Collection struct {
 	// M365 user
 	user string // M365 user
@@ -40,34 +43,61 @@ type Collection struct {
 	// jobs represents items from the inventory of M365 objectIds whose information
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
-
-	service  graph.Service
+	// service - client/adapter pair used to access M365 back store
+	service graph.Service
+	// populate - Utility function to populate collection based on the M365 application type and granularity
+	populate populater
 	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
-	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
 
+// Populater are a class of functions that can be used to fill exchange.Collections with
+// the corresponding information
+type populater func(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+)
+
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
-	aUser string,
-	pathRepresentation []string,
+	user string,
+	fullPath []string,
 	collectionType optionIdentifier,
-	aService graph.Service,
+	service graph.Service,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
-		user:     aUser,
+		user:     user,
 		data:     make(chan data.Stream, collectionChannelBufferSize),
 		jobs:     make([]string, 0),
-		service:  aService,
+		service:  service,
 		statusCh: statusCh,
-		fullPath: pathRepresentation,
+		fullPath: fullPath,
+		populate: getPopulateFunction(collectionType),
 	}
 	return collection
 }
 
-// AddJob appends additional objectID to job field job
+// getPopulateFunction is a function to set populate function field
+// with exchange-application specific functions
+func getPopulateFunction(optID optionIdentifier) populater {
+	switch optID {
+	case messages:
+		return PopulateForMailCollection
+	case contacts:
+		return PopulateForContactCollection
+	default:
+		return nil
+	}
+}
+
+// AddJob appends additional objectID to structure's jobs field
 func (eoc *Collection) AddJob(objID string) {
 	eoc.jobs = append(eoc.jobs, objID)
 }
@@ -75,17 +105,30 @@ func (eoc *Collection) AddJob(objID string) {
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
-	go eoc.PopulateFromCollection(context.TODO(), eoc.service, eoc.statusCh)
+	if eoc.populate != nil {
+		go eoc.populate(
+			context.TODO(),
+			eoc.service,
+			eoc.user,
+			eoc.jobs,
+			eoc.data,
+			eoc.statusCh,
+		)
+	}
 	return eoc.data
 }
 
-func (edc *Collection) FullPath() []string {
-	return append([]string{}, edc.fullPath...)
+// FullPath returns the Collection's fullPath []string
+func (eoc *Collection) FullPath() []string {
+	return append([]string{}, eoc.fullPath...)
 }
 
-func (edc *Collection) PopulateForContactCollection(
+func PopulateForContactCollection(
 	ctx context.Context,
 	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var (
@@ -94,66 +137,70 @@ func (edc *Collection) PopulateForContactCollection(
 	)
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, task := range edc.jobs {
-		response, err := service.Client().UsersById(edc.user).ContactsById(task).Get()
+	for _, task := range jobs {
+		response, err := service.Client().UsersById(user).ContactsById(task).Get()
 		if err != nil {
-			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(edc.user, errors.Wrapf(
-				err,
-				"unable to retrieve item %s; details: %s", task, details,
-			),
+			trace := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(
+				user,
+				errors.Wrapf(err, "unable to retrieve item %s; details: %s", task, trace),
 				errs,
 			)
 			continue
 		}
-		err = contactToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		err = contactToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
 		if err != nil {
-			errs = support.WrapAndAppendf(edc.user, err, errs)
+			errs = support.WrapAndAppendf(user, err, errs)
 
 			if service.ErrPolicy() {
 				break
 			}
+			continue
 		}
 
 		success++
 
 	}
-	close(edc.data)
-	attemptedItems := len(edc.jobs)
+	close(dataChannel)
+	attemptedItems := len(jobs)
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
 }
 
-// populateFromTaskList async call to fill DataCollection via channel implementation
-func (edc *Collection) PopulateFromCollection(
+// PopulateForMailCollection async call to fill DataCollection via channel implementation
+func PopulateForMailCollection(
 	ctx context.Context,
 	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, task := range edc.jobs {
-		response, err := service.Client().UsersById(edc.user).MessagesById(task).Get()
+	for _, task := range jobs {
+		response, err := service.Client().UsersById(user).MessagesById(task).Get()
 		if err != nil {
-			details := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(edc.user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, details), errs)
+			trace := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, trace), errs)
 			continue
 		}
-		err = messageToDataCollection(service.Client(), ctx, objectWriter, edc.data, response, edc.user)
+		err = messageToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
 		if err != nil {
-			errs = support.WrapAndAppendf(edc.user, err, errs)
+			errs = support.WrapAndAppendf(user, err, errs)
 
 			if service.ErrPolicy() {
 				break
 			}
+			continue
 		}
 		success++
 	}
-	close(edc.data)
-	attemptedItems += len(edc.jobs)
+	close(dataChannel)
+	attemptedItems += len(jobs)
 
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
@@ -161,8 +208,8 @@ func (edc *Collection) PopulateFromCollection(
 }
 
 func contactToDataCollection(
-	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	contact models.Contactable,
@@ -184,8 +231,8 @@ func contactToDataCollection(
 }
 
 func messageToDataCollection(
-	client *msgraphsdk.GraphServiceClient,
 	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	message models.Messageable,
@@ -243,12 +290,11 @@ type Stream struct {
 	// going forward. Using []byte for now but I assume we'll have
 	// some structured type in here (serialization to []byte can be done in `Read`)
 	message []byte
-	info    *details.ExchangeInfo //temporary change to bring populate function into directory
+	info    *details.ExchangeInfo // temporary change to bring populate function into directory
 }
 
 func (od *Stream) UUID() string {
 	return od.id
-
 }
 
 func (od *Stream) ToReader() io.ReadCloser {
@@ -260,11 +306,10 @@ func (od *Stream) Info() details.ItemInfo {
 }
 
 // NewStream constructor for exchange.Stream object
-func NewStream(identifier string, bytes []byte, detail details.ExchangeInfo) Stream {
+func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo) Stream {
 	return Stream{
 		id:      identifier,
-		message: bytes,
+		message: dataBytes,
 		info:    &detail,
 	}
-
 }
