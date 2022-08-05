@@ -6,6 +6,7 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
@@ -20,11 +21,13 @@ import (
 type optionIdentifier int
 
 const mailCategory = "mail"
+const eventsCategory = "events"
 
 //go:generate stringer -type=optionIdentifier
 const (
 	unknown optionIdentifier = iota
 	folders
+	events
 	messages
 	users
 )
@@ -57,6 +60,17 @@ func GetAllFolderNamesForUser(gs graph.Service, identities []string) (absser.Par
 
 	return gs.Client().UsersById(identities[0]).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 
+}
+
+// GetAllEvents for User. Default returns EventResponseCollection for events in the future
+// of the time that the call was made. There a
+func GetAllEventsForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+	options, err := optionsForEvents([]string{"id", "calendar"})
+	if err != nil {
+		return nil, err
+	}
+
+	return gs.Client().UsersById(identities[0]).Events().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
@@ -112,6 +126,51 @@ func IterateSelectAllMessagesForCollections(
 			collections[directory] = &edc
 		}
 		collections[directory].AddJob(*message.GetId())
+		return true
+	}
+}
+
+func IterateSelectAllEventsForCollections(
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) func(any) bool {
+	var isDirectorySet bool
+	return func(eventItem any) bool {
+		eventFolder := "Events"
+		user := scope.Get(selectors.ExchangeUser)[0]
+		if !isDirectorySet {
+			service, err := createService(credentials, failFast)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return true
+			}
+			edc := NewCollection(
+				user,
+				[]string{tenant, user, eventsCategory, eventFolder},
+				events,
+				service,
+				statusCh,
+			)
+			collections[eventFolder] = &edc
+			isDirectorySet = true
+
+		}
+		event, ok := eventItem.(models.Eventable)
+		if !ok {
+			errs = support.WrapAndAppend(
+				user,
+				errors.New("event iteration failure"),
+				errs,
+			)
+			return true
+		}
+
+		collections[eventFolder].AddJob(*event.GetId())
 		return true
 	}
 }
@@ -289,11 +348,39 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 	return options, nil
 }
 
+// optionsForEvents ensures valid option inputs for exchange.Events
+// @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
+func optionsForEvents(moreOps []string) (*msevents.EventsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, events)
+	if err != nil {
+		return nil, err
+	}
+	requestParameters := &msevents.EventsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msevents.EventsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	return options, nil
+}
+
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
 func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
+
+	fieldsForEvents := map[string]int{
+		"calendar":          0,
+		"end":               1,
+		"id":                2,
+		"isOnlineMeeting":   3,
+		"isReminderOn":      4,
+		"responseStatus":    5,
+		"responseRequested": 6,
+		"showAs":            7,
+		"subject":           8,
+	}
 
 	fieldsForFolders := map[string]int{
 		"displayName":    1,
@@ -324,6 +411,8 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	returnedOptions := []string{"id"}
 
 	switch optID {
+	case events:
+		allowedOptions = fieldsForEvents
 	case folders:
 		allowedOptions = fieldsForFolders
 	case users:
