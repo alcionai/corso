@@ -78,7 +78,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // DataCollection.
 func getStreamItemFunc(
 	staticEnts []fs.Entry,
-	collection data.Collection,
+	streamedEnts data.Collection,
 	snapshotDetails *details.Details,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -89,11 +89,11 @@ func getStreamItemFunc(
 			}
 		}
 
-		if collection == nil {
+		if streamedEnts == nil {
 			return nil
 		}
 
-		items := collection.Items()
+		items := streamedEnts.Items()
 		for {
 			select {
 			case <-ctx.Done():
@@ -115,7 +115,7 @@ func getStreamItemFunc(
 				}
 
 				// Populate BackupDetails
-				ep := append(collection.FullPath(), e.UUID())
+				ep := append(streamedEnts.FullPath(), e.UUID())
 				snapshotDetails.Add(path.Join(ep...), ei.Info())
 			}
 		}
@@ -127,7 +127,7 @@ func getStreamItemFunc(
 func buildKopiaDirs(dirName string, dir *treeMap, snapshotDetails *details.Details) (fs.Directory, error) {
 	// Need to build the directory tree from the leaves up because intermediate
 	// directories need to have all their entries at creation time.
-	childDirs := []fs.Entry(nil)
+	var childDirs []fs.Entry
 
 	for childName, childDir := range dir.childDirs {
 		child, err := buildKopiaDirs(childName, childDir, snapshotDetails)
