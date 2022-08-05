@@ -143,18 +143,23 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 	}
 	collections, err := suite.connector.createCollections(context.Background(), contactsOnly)
 	assert.NoError(suite.T(), err)
+	number := 0
 	for _, edc := range collections {
-		streamChannel := edc.Items()
-		for stream := range streamChannel {
-			buf := &bytes.Buffer{}
-			read, err := buf.ReadFrom(stream.ToReader())
-			suite.NoError(err)
-			suite.NotZero(read)
-			message, err := support.CreateMessageFromBytes(buf.Bytes())
-			suite.NotNil(message)
-			suite.NoError(err)
+		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath()[1], number)
+		suite.T().Run(testName, func(t *testing.T) {
+			streamChannel := edc.Items()
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
 
-		}
+			}
+			number++
+		})
 	}
 	suite.Greater(len(collections), 0)
 }
