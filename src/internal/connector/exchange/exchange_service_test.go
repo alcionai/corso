@@ -16,6 +16,12 @@ type ExchangeServiceSuite struct {
 }
 
 func TestExchangeServiceSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+	); err != nil {
+		t.Skip(err)
+	}
 	suite.Run(t, new(ExchangeServiceSuite))
 }
 
@@ -94,7 +100,11 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
 	}
 }
 
-// NOTE the requirements are in PR 475
+// TestExchangeService_SetupExchangeCollection verifies that Setup supports
+// the following selector types:
+// - Mail
+// - Contacts
+// - Events
 func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection() {
 	userID, err := tester.M365UserID()
 	require.NoError(suite.T(), err)
@@ -107,13 +117,10 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 	for _, test := range scopes {
 		suite.T().Run(test.Category().String(), func(t *testing.T) {
 			discriminateFunc, graphQuery, iterFunc, err := SetupExchangeCollectionVars(test)
-			if test.Category() == selectors.ExchangeMailFolder ||
-				test.Category() == selectors.ExchangeContactFolder {
-				assert.NoError(t, err)
-				assert.NotNil(t, discriminateFunc)
-				assert.NotNil(t, graphQuery)
-				assert.NotNil(t, iterFunc)
-			}
+			assert.NoError(t, err)
+			assert.NotNil(t, discriminateFunc)
+			assert.NotNil(t, graphQuery)
+			assert.NotNil(t, iterFunc)
 		})
 	}
 }
