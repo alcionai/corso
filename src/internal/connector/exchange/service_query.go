@@ -415,7 +415,6 @@ func optionsForEvents(moreOps []string) (*msevents.EventsRequestBuilderGetReques
 		QueryParameters: requestParameters,
 	}
 	return options, nil
-
 }
 
 // optionsForContacts transforms options into select query for MailContacts
