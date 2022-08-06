@@ -223,7 +223,6 @@ func (suite *GraphConnectorIntegrationSuite) Test_EventsCollection() {
 			suite.NotZero(read)
 		}
 	}
-
 }
 
 ///------------------------------------------------------------
