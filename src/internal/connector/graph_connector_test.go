@@ -216,7 +216,12 @@ func (suite *GraphConnectorIntegrationSuite) Test_EventsCollection() {
 	suite.Greater(len(collections), 0)
 	for _, edc := range collections {
 		streamChannel := edc.Items()
-		_ = len(streamChannel)
+		for stream := range streamChannel {
+			buf := &bytes.Buffer{}
+			read, err := buf.ReadFrom(stream.ToReader())
+			suite.NoError(err)
+			suite.NotZero(read)
+		}
 	}
 
 }
