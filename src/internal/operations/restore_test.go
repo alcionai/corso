@@ -94,8 +94,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	acct, err := tester.NewM365Account()
-	require.NoError(suite.T(), err)
+	acct := tester.NewM365Account(suite.T())
 
 	table := []struct {
 		name     string
@@ -129,14 +128,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365UserID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
-	acct, err := tester.NewM365Account()
-	require.NoError(t, err)
+	m365UserID := tester.M365UserID(t)
+	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))
@@ -165,7 +161,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NoError(t, err)
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results.BackupID)
-
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users([]string{m365UserID}))
 
@@ -193,14 +188,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365UserID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
-	acct, err := tester.NewM365Account()
-	require.NoError(t, err)
+	m365UserID := tester.M365UserID(t)
+	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))

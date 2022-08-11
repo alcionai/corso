@@ -97,8 +97,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	acct, err := tester.NewM365Account()
-	require.NoError(suite.T(), err)
+	acct := tester.NewM365Account(suite.T())
 
 	table := []struct {
 		name     string
@@ -131,14 +130,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365UserID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
-	acct, err := tester.NewM365Account()
-	require.NoError(t, err)
+	m365UserID := tester.M365UserID(t)
+	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))

@@ -3,10 +3,9 @@ package tester
 import (
 	"testing"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
+	"github.com/stretchr/testify/require"
 )
 
 var AWSStorageCredEnvs = []string{
@@ -18,14 +17,12 @@ var AWSStorageCredEnvs = []string{
 // NewPrefixedS3Storage returns a storage.Storage object initialized with environment
 // variables used for integration tests that use S3. The prefix for the storage
 // path will be unique.
-func NewPrefixedS3Storage(t *testing.T) (storage.Storage, error) {
+func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	now := LogTimeOfTest(t)
 	cfg, err := readTestConfig()
-	if err != nil {
-		return storage.Storage{}, errors.Wrap(err, "configuring storage from test file")
-	}
+	require.NoError(t, err, "configuring storage from test file")
 
-	return storage.NewStorage(
+	s, err := storage.NewStorage(
 		storage.ProviderS3,
 		storage.S3Config{
 			AWS:    credentials.GetAWS(nil),
@@ -36,4 +33,6 @@ func NewPrefixedS3Storage(t *testing.T) (storage.Storage, error) {
 			Corso: credentials.GetCorso(),
 		},
 	)
+	require.NoError(t, err, "creating storage")
+	return s
 }
