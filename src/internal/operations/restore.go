@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
@@ -72,23 +73,32 @@ func (op RestoreOperation) validate() error {
 type restoreStats struct {
 	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
+	started           bool
 	readErr, writeErr error
 }
 
 // Run begins a synchronous restore operation.
 // todo (keepers): return stats block in first param.
-func (op *RestoreOperation) Run(ctx context.Context) error {
+func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	// TODO: persist initial state of restoreOperation in modelstore
 
 	// persist operation results to the model store on exit
 	opStats := restoreStats{}
-	defer op.persistResults(time.Now(), &opStats)
+	defer func() {
+		err = op.persistResults(time.Now(), &opStats)
+		if err != nil {
+			return
+		}
+
+		// TODO: persist results?
+	}()
 
 	// retrieve the restore point details
 	d, b, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "getting backup details for restore")
-		return opStats.readErr
+		err = errors.Wrap(err, "getting backup details for restore")
+		opStats.readErr = err
+		return err
 	}
 
 	er, err := op.Selectors.ToExchangeRestore()
@@ -111,22 +121,26 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 	}
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "retrieving service data")
-		return opStats.readErr
+		err = errors.Wrap(err, "retrieving service data")
+		opStats.readErr = err
+		return err
 	}
 	opStats.cs = dcs
 
 	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
-		opStats.writeErr = errors.Wrap(err, "connecting to graph api")
-		return opStats.writeErr
+		err = errors.Wrap(err, "connecting to graph api")
+		opStats.writeErr = err
+		return err
 	}
 
 	if err := gc.RestoreMessages(ctx, dcs); err != nil {
-		opStats.writeErr = errors.Wrap(err, "restoring service data")
-		return opStats.writeErr
+		errors.Wrap(err, "restoring service data")
+		opStats.writeErr = err
+		return err
 	}
+	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
 	return nil
@@ -136,23 +150,24 @@ func (op *RestoreOperation) Run(ctx context.Context) error {
 func (op *RestoreOperation) persistResults(
 	started time.Time,
 	opStats *restoreStats,
-) {
-	op.Status = Completed
-	if (opStats.readErr != nil || opStats.writeErr != nil) &&
-		(opStats.gc == nil || opStats.gc.Successful == 0) {
-		op.Status = Failed
-	}
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
-
-	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
-
-	if opStats.gc != nil {
-		op.Results.ItemsWritten = opStats.gc.Successful
-	}
-
+) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
 
-	// TODO: persist operation to modelstore
+	op.Status = Completed
+	if !opStats.started {
+		op.Status = Failed
+		op.Status = Failed
+		return multierror.Append(
+			errors.New("errors prevented the operation from processing"),
+			opStats.readErr,
+			opStats.writeErr)
+	}
+
+	op.Results.ReadErrors = opStats.readErr
+	op.Results.WriteErrors = opStats.writeErr
+	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
+	op.Results.ItemsWritten = opStats.gc.Successful
+
+	return nil
 }
