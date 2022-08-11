@@ -43,9 +43,7 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 			name: "Test: Status Failed",
 			params: statusParams{
 				Restore,
-				12,
-				9,
-				8,
+				12, 9, 8,
 				WrapAndAppend("tres", errors.New("three"), WrapAndAppend("arc376", errors.New("one"), errors.New("two"))),
 			},
 			expect: assert.True,

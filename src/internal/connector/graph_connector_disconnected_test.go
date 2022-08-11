@@ -99,9 +99,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 		status := support.CreateStatus(
 			context.Background(),
 			support.Restore,
-			12,
-			9,
-			8,
+			12, 9, 8,
 			support.WrapAndAppend(
 				"tres",
 				errors.New("three"),
