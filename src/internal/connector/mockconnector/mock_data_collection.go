@@ -88,7 +88,6 @@ func (med *MockExchangeData) Info() details.ItemInfo {
 // GetMockMessageBytes returns bytes for Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 func GetMockMessageBytes(subject string) []byte {
-
 	userID, err := tester.M365UserID()
 	if err != nil {
 		userID = "lidiah@8qzvrj.onmicrosoft.com"

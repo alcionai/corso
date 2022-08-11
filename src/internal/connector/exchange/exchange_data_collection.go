@@ -20,9 +20,11 @@ import (
 	"github.com/alcionai/corso/pkg/logger"
 )
 
-var _ data.Collection = &Collection{}
-var _ data.Stream = &Stream{}
-var _ data.StreamInfo = &Stream{}
+var (
+	_ data.Collection = &Collection{}
+	_ data.Stream     = &Stream{}
+	_ data.StreamInfo = &Stream{}
+)
 
 const (
 	collectionChannelBufferSize = 1000
@@ -47,13 +49,20 @@ type Collection struct {
 	populate populater
 	statusCh chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
-	//The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
 
 // Populater are a class of functions that can be used to fill exchange.Collections with
 // the corresponding information
-type populater func(context.Context, graph.Service, *Collection, chan<- *support.ConnectorOperationStatus)
+type populater func(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+)
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
@@ -80,7 +89,9 @@ func NewCollection(
 func getPopulateFunction(optID optionIdentifier) populater {
 	switch optID {
 	case messages:
-		return PopulateFromCollection
+		return PopulateForMailCollection
+	case contacts:
+		return PopulateForContactCollection
 	default:
 		return nil
 	}
@@ -95,7 +106,14 @@ func (eoc *Collection) AddJob(objID string) {
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
 	if eoc.populate != nil {
-		go eoc.populate(context.TODO(), eoc.service, eoc, eoc.statusCh)
+		go eoc.populate(
+			context.TODO(),
+			eoc.service,
+			eoc.user,
+			eoc.jobs,
+			eoc.data,
+			eoc.statusCh,
+		)
 	}
 	return eoc.data
 }
@@ -105,44 +123,111 @@ func (eoc *Collection) FullPath() []string {
 	return append([]string{}, eoc.fullPath...)
 }
 
-// PopulateFromCollection async call to fill DataCollection via channel implementation
-func PopulateFromCollection(
+func PopulateForContactCollection(
 	ctx context.Context,
 	service graph.Service,
-	eoc *Collection,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+) {
+	var (
+		errs    error
+		success int
+	)
+	objectWriter := kw.NewJsonSerializationWriter()
+
+	for _, task := range jobs {
+		response, err := service.Client().UsersById(user).ContactsById(task).Get()
+		if err != nil {
+			trace := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(
+				user,
+				errors.Wrapf(err, "unable to retrieve item %s; details: %s", task, trace),
+				errs,
+			)
+			continue
+		}
+		err = contactToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
+		if err != nil {
+			errs = support.WrapAndAppendf(user, err, errs)
+
+			if service.ErrPolicy() {
+				break
+			}
+			continue
+		}
+
+		success++
+
+	}
+	close(dataChannel)
+	attemptedItems := len(jobs)
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
+	logger.Ctx(ctx).Debug(status.String())
+	statusChannel <- status
+}
+
+// PopulateForMailCollection async call to fill DataCollection via channel implementation
+func PopulateForMailCollection(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var errs error
 	var attemptedItems, success int
 	objectWriter := kw.NewJsonSerializationWriter()
 
-	for _, task := range eoc.jobs {
-		response, err := service.Client().UsersById(eoc.user).MessagesById(task).Get()
+	for _, task := range jobs {
+		response, err := service.Client().UsersById(user).MessagesById(task).Get()
 		if err != nil {
-			errDetails := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(
-				eoc.user,
-				errors.Wrapf(err, "unable to retrieve item %s; details %s", task, errDetails),
-				errs,
-			)
+			trace := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, trace), errs)
 			continue
 		}
-		err = messageToDataCollection(ctx, service.Client(), objectWriter, eoc.data, response, eoc.user)
-		success++
+		err = messageToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
 		if err != nil {
-			errs = support.WrapAndAppendf(eoc.user, err, errs)
-			success--
+			errs = support.WrapAndAppendf(user, err, errs)
+
+			if service.ErrPolicy() {
+				break
+			}
+			continue
 		}
-		if errs != nil && service.ErrPolicy() {
-			break
-		}
+		success++
 	}
-	close(eoc.data)
-	attemptedItems += len(eoc.jobs)
+	close(dataChannel)
+	attemptedItems += len(jobs)
 
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
+}
+
+func contactToDataCollection(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	objectWriter *kw.JsonSerializationWriter,
+	dataChannel chan<- data.Stream,
+	contact models.Contactable,
+	user string,
+) error {
+	defer objectWriter.Close()
+	err := objectWriter.WriteObjectValue("", contact)
+	if err != nil {
+		return support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
+	}
+	byteArray, err := objectWriter.GetSerializedContent()
+	if err != nil {
+		return support.WrapAndAppend(*contact.GetId(), err, nil)
+	}
+	if byteArray != nil {
+		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: nil}
+	}
+	return nil
 }
 
 func messageToDataCollection(
@@ -205,12 +290,11 @@ type Stream struct {
 	// going forward. Using []byte for now but I assume we'll have
 	// some structured type in here (serialization to []byte can be done in `Read`)
 	message []byte
-	info    *details.ExchangeInfo //temporary change to bring populate function into directory
+	info    *details.ExchangeInfo // temporary change to bring populate function into directory
 }
 
 func (od *Stream) UUID() string {
 	return od.id
-
 }
 
 func (od *Stream) ToReader() io.ReadCloser {
@@ -228,5 +312,4 @@ func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo)
 		message: dataBytes,
 		info:    &detail,
 	}
-
 }

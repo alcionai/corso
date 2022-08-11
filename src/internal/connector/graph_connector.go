@@ -35,7 +35,7 @@ const (
 type GraphConnector struct {
 	graphService
 	tenant           string
-	Users            map[string]string                 //key<email> value<id>
+	Users            map[string]string                 // key<email> value<id>
 	status           *support.ConnectorOperationStatus // contains the status of the last run status
 	statusCh         chan *support.ConnectorOperationStatus
 	awaitingMessages int32
@@ -299,15 +299,17 @@ func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
 ) (map[string]*exchange.Collection, error) {
-
 	var (
 		transformer absser.ParsableFactory
 		query       exchange.GraphQuery
 		gIter       exchange.GraphIterateFunc
 	)
 	user := scope.Get(selectors.ExchangeUser)[0]
-	transformer, query, gIter = exchange.SetupExchangeCollectionVars(scope)
-	response, err := query(&gc.graphService, []string{user})
+	transformer, query, gIter, err := exchange.SetupExchangeCollectionVars(scope)
+	if err != nil {
+		return nil, support.WrapAndAppend(user, err, nil)
+	}
+	response, err := query(&gc.graphService, user)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +321,7 @@ func (gc *GraphConnector) createCollections(
 	collections := make(map[string]*exchange.Collection)
 	var errs error
 	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
-	// with corresponding messageIDs. New collections are created for each directory
+	// with corresponding item IDs. New collections are created for each directory
 	callbackFunc := gIter(gc.tenant, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
