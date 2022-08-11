@@ -160,7 +160,7 @@ func (op *BackupOperation) createBackupModels(
 	backupDetails *details.Details,
 ) error {
 	if backupDetails == nil {
-		return errors.New("nil backupDetails")
+		return errors.New("no backup details to record")
 	}
 
 	err := op.store.Put(ctx, model.BackupDetailsSchema, &backupDetails.DetailsModel)
