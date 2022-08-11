@@ -3,7 +3,6 @@ package tester
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -53,19 +52,4 @@ func LogTimeOfTest(t *testing.T) string {
 	}
 	t.Logf("%s run at %s", name, now)
 	return now
-}
-
-// NameOfTest returns the name of the func which called this one.
-func NameOfTest() string {
-	pc, _, _, _ := runtime.Caller(1)
-	return runtime.FuncForPC(pc).Name()
-}
-
-// Returns a string with the format
-// "nameOfCallingTest-NowRFC3339Nano"
-// Logs the time of calling this func.
-func TestAndTime(t *testing.T) string {
-	ltot := LogTimeOfTest(t)
-	not := NameOfTest()
-	return not + "-" + ltot
 }
