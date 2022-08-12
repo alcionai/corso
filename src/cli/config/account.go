@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 )
@@ -63,7 +64,7 @@ func configureAccount(
 
 	m365Cfg = account.M365Config{
 		M365:     m365,
-		TenantID: first(overrides[account.TenantID], m365Cfg.TenantID, os.Getenv(account.TenantID)),
+		TenantID: common.First(overrides[account.TenantID], m365Cfg.TenantID, os.Getenv(account.TenantID)),
 	}
 
 	// ensure required properties are present
