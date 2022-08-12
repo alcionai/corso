@@ -42,8 +42,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 	ctx := tester.NewContext()
 	t := suite.T()
 
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
@@ -66,8 +65,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 	ctx := tester.NewContext()
 	t := suite.T()
 
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
@@ -89,8 +87,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 	ctx := tester.NewContext()
 	t := suite.T()
 
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
@@ -123,8 +120,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 	ctx := tester.NewContext()
 	t := suite.T()
 
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
@@ -147,8 +143,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
 	ctx := tester.NewContext()
 	t := suite.T()
 
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
