@@ -13,10 +13,6 @@ import (
 	"github.com/alcionai/corso/pkg/repository"
 )
 
-// ---------------------------------------------------------------------------------------------------------
-// Integration
-// ---------------------------------------------------------------------------------------------------------
-
 type S3IntegrationSuite struct {
 	suite.Suite
 }
@@ -24,6 +20,7 @@ type S3IntegrationSuite struct {
 func TestS3IntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
+		tester.CorsoCLITests,
 		tester.CorsoCLIRepoTests,
 	); err != nil {
 		t.Skip(err)
@@ -104,7 +101,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 	_, err = repository.Initialize(ctx, account.Account{}, st)
 	require.NoError(t, err)
 
-	// then connect to it
+	// then test it
 	cmd := tester.StubRootCmd(
 		"repo", "connect", "s3",
 		"--config-file", configFP,

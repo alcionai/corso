@@ -78,7 +78,6 @@ type restoreStats struct {
 }
 
 // Run begins a synchronous restore operation.
-// todo (keepers): return stats block in first param.
 func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	// TODO: persist initial state of restoreOperation in modelstore
 
@@ -157,7 +156,6 @@ func (op *RestoreOperation) persistResults(
 
 	op.Status = Completed
 	if !opStats.started {
-		op.Status = Failed
 		op.Status = Failed
 		return multierror.Append(
 			errors.New("errors prevented the operation from processing"),
