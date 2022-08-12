@@ -159,7 +159,11 @@ func newTreeMap() *treeMap {
 // ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
 // in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
 // DataCollections.
-func inflateDirTree(ctx context.Context, collections []data.Collection, snapshotDetails *details.Details) (fs.Directory, error) {
+func inflateDirTree(
+	ctx context.Context,
+	collections []data.Collection,
+	snapshotDetails *details.Details,
+) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {

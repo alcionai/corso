@@ -132,7 +132,11 @@ func (gc *GraphConnector) setTenantUsers() error {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
 		return err
 	}
-	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
+	userIterator, err := msgraphgocore.NewPageIterator(
+		response,
+		&gc.graphService.adapter,
+		models.CreateUserCollectionResponseFromDiscriminatorValue,
+	)
 	if err != nil {
 		return err
 	}
@@ -183,7 +187,10 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // use to read mailbox data out for the specified user
 // Assumption: User exists
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]data.Collection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(
+	ctx context.Context,
+	selector selectors.Selector,
+) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting exchange data")

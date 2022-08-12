@@ -43,7 +43,12 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringSliceVar(&contact, "contact", nil, "Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringSliceVar(
+			&contact,
+			"contact",
+			nil,
+			"Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts",
+		)
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder",
@@ -54,7 +59,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			&emailFolder,
 			"email-folder",
 			nil,
-			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders")
+			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders",
+		)
 		fs.StringSliceVar(&event, "event", nil, "Restore events by ID; accepts "+utils.Wildcard+" to select all events")
 		fs.StringSliceVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
 
@@ -64,8 +70,18 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden("event"))
 
 		// exchange-info flags
-		fs.StringVar(&emailReceivedAfter, "email-received-after", "", "Restore mail where the email was received after this datetime")
-		fs.StringVar(&emailReceivedBefore, "email-received-before", "", "Restore mail where the email was received before this datetime")
+		fs.StringVar(
+			&emailReceivedAfter,
+			"email-received-after",
+			"",
+			"Restore mail where the email was received after this datetime",
+		)
+		fs.StringVar(
+			&emailReceivedBefore,
+			"email-received-before",
+			"",
+			"Restore mail where the email was received before this datetime",
+		)
 		fs.StringVar(&emailSender, "email-sender", "", "Restore mail where the email sender matches this user id")
 		fs.StringVar(&emailSubject, "email-subject", "", "Restore mail where the email subject lines contain this value")
 
@@ -278,10 +294,12 @@ func validateExchangeRestoreFlags(
 		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if lc > 0 && lcf == 0 {
-		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
+		return errors.New(
+			"one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
 	}
 	if le > 0 && lef == 0 {
-		return errors.New("one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
+		return errors.New(
+			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
 	}
 	return nil
 }
