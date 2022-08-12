@@ -41,6 +41,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = backupStats{
+			started:  true,
 			readErr:  multierror.Append(nil, assert.AnError),
 			writeErr: assert.AnError,
 			k: &kopia.BackupStats{
@@ -55,9 +56,9 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	op, err := NewBackupOperation(ctx, control.Options{}, kw, sw, acct, selectors.Selector{})
 	require.NoError(t, err)
 
-	op.persistResults(now, &stats)
+	require.NoError(t, op.persistResults(now, &stats))
 
-	assert.Equal(t, op.Status, Completed, "status")
+	assert.Equal(t, op.Status.String(), Completed.String(), "status")
 	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
