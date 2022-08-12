@@ -3,9 +3,10 @@ package tester
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/alcionai/corso/pkg/credentials"
 	"github.com/alcionai/corso/pkg/storage"
-	"github.com/stretchr/testify/require"
 )
 
 var AWSStorageCredEnvs = []string{
@@ -22,7 +23,7 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "configuring storage from test file")
 
-	s, err := storage.NewStorage(
+	st, err := storage.NewStorage(
 		storage.ProviderS3,
 		storage.S3Config{
 			AWS:    credentials.GetAWS(nil),
@@ -34,5 +35,5 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 		},
 	)
 	require.NoError(t, err, "creating storage")
-	return s
+	return st
 }

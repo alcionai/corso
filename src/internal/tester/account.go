@@ -3,9 +3,10 @@ package tester
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/stretchr/testify/require"
 )
 
 var M365AcctCredEnvs = []string{
@@ -19,7 +20,7 @@ func NewM365Account(t *testing.T) account.Account {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "configuring m365 account from test configuration")
 
-	a, err := account.NewAccount(
+	acc, err := account.NewAccount(
 		account.ProviderM365,
 		account.M365Config{
 			M365:     credentials.GetM365(),
@@ -27,5 +28,5 @@ func NewM365Account(t *testing.T) account.Account {
 		},
 	)
 	require.NoError(t, err, "initializing account")
-	return a
+	return acc
 }
