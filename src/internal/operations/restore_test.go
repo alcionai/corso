@@ -76,10 +76,12 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 type RestoreOpIntegrationSuite struct {
 	suite.Suite
 
-	backupID model.StableID
-	numItems int
-	kw       *kopia.Wrapper
-	sw       *store.Wrapper
+	backupID    model.StableID
+	numItems    int
+	kopiaCloser func(ctx context.Context)
+	kw          *kopia.Wrapper
+	sw          *store.Wrapper
+	ms          *kopia.ModelStore
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
@@ -107,17 +109,20 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))
-	defer k.Close(ctx)
+	suite.kopiaCloser = func(ctx context.Context) {
+		k.Close(ctx)
+	}
 
 	kw, err := kopia.NewWrapper(k)
 	require.NoError(t, err)
-	defer kw.Close(ctx)
+	suite.kw = kw
 
 	ms, err := kopia.NewModelStore(k)
 	require.NoError(t, err)
-	defer ms.Close(ctx)
+	suite.ms = ms
 
 	sw := store.NewKopiaStore(ms)
+	suite.sw = sw
 
 	bsel := selectors.NewExchangeBackup()
 	bsel.Include(bsel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
@@ -135,8 +140,20 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	suite.backupID = bo.Results.BackupID
 	suite.numItems = bo.Results.ItemsWritten
-	suite.kw = kw
-	suite.sw = sw
+}
+
+func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
+	ctx := context.Background()
+	if suite.ms != nil {
+		suite.ms.Close(ctx)
+	}
+	if suite.kw != nil {
+		suite.kw.Close(ctx)
+	}
+	if suite.kopiaCloser != nil {
+		suite.kopiaCloser(ctx)
+	}
+
 }
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
