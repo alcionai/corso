@@ -37,7 +37,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 	// get account info
 	m365Cfg := account.M365Config{
 		M365:     credentials.GetM365(),
-		TenantID: first(tenant, os.Getenv(account.TenantID)),
+		TenantID: common.First(tenant, os.Getenv(account.TenantID)),
 	}
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
@@ -109,14 +109,4 @@ func main() {
 		Info("Error: ", err.Error())
 		os.Exit(1)
 	}
-}
-
-// returns the first non-zero valued string
-func first(vs ...string) string {
-	for _, v := range vs {
-		if len(v) > 0 {
-			return v
-		}
-	}
-	return ""
 }
