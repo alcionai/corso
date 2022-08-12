@@ -32,12 +32,9 @@ func TestS3IntegrationSuite(t *testing.T) {
 }
 
 func (suite *S3IntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(
-		append(
-			tester.AWSStorageCredEnvs,
-			tester.M365AcctCredEnvs...,
-		)...,
-	)
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs)
 	require.NoError(suite.T(), err)
 }
 
