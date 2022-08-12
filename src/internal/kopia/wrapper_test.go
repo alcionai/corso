@@ -486,6 +486,47 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	assert.Len(t, rp.Entries, 47)
 }
 
+func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
+	t := suite.T()
+	ctx := context.Background()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, k.Compression(ctx, "s2-default"))
+
+	w := &Wrapper{k}
+
+	tid := uuid.NewString()
+	p1 := []string{tid, "uid", "emails", "fid"}
+	p2 := []string{tid, "uid2", "emails", "fid"}
+	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
+	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
+
+	fp1 := append(p1, dc1.Names[0])
+	fp2 := append(p2, dc2.Names[0])
+
+	stats, _, err := w.BackupCollections(ctx, []data.Collection{dc1, dc2})
+	require.NoError(t, err)
+
+	require.NoError(t, k.Compression(ctx, "gzip"))
+
+	expected := map[string][]byte{
+		path.Join(fp1...): dc1.Data[0],
+		path.Join(fp2...): dc2.Data[0],
+	}
+
+	result, err := w.RestoreMultipleItems(
+		ctx,
+		string(stats.SnapshotID),
+		[][]string{fp1, fp2})
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(result))
+
+	testForFiles(t, expected, result)
+}
+
 type KopiaSimpleRepoIntegrationSuite struct {
 	suite.Suite
 	w                    *Wrapper
