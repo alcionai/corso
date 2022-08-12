@@ -30,9 +30,6 @@ func TestExchangeServiceSuite(t *testing.T) {
 }
 
 func (suite *ExchangeServiceSuite) SetupSuite() {
-	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
-		suite.T().Skip(err)
-	}
 	t := suite.T()
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(t, err)
@@ -82,10 +79,10 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForMessages() {
 	}
 }
 
-// TestExchangeService_optionsForFoldersAndContacts ensures that approved query options
+// TestExchangeService_optionsForFolders ensures that approved query options
 // are added to the RequestBuildConfiguration. Expected will always be +1
 // on than the input as "id" are always included within the select parameters
-func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFoldersAndContacts() {
+func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
 	tests := []struct {
 		name       string
 		params     []string
@@ -126,7 +123,47 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFoldersAndConta
 	}
 }
 
-// NOTE the requirements are in PR 475
+// TestExchangeService_optionsForContacts similar to TestExchangeService_optionsForFolders
+func (suite *ExchangeServiceSuite) TestExchangeService_optionsForContacts() {
+	tests := []struct {
+		name       string
+		params     []string
+		checkError assert.ErrorAssertionFunc
+		expected   int
+	}{
+		{
+			name:       "Accepted",
+			params:     []string{"displayName"},
+			checkError: assert.NoError,
+			expected:   2,
+		},
+		{
+			name:       "Multiple Accepted",
+			params:     []string{"displayName", "parentFolderId"},
+			checkError: assert.NoError,
+			expected:   3,
+		},
+		{
+			name:       "Incorrect param",
+			params:     []string{"status"},
+			checkError: assert.Error,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+
+			options, err := optionsForContacts(test.params)
+			test.checkError(t, err)
+			if err == nil {
+				suite.Equal(test.expected, len(options.QueryParameters.Select))
+			}
+		})
+	}
+}
+
+// TestExchangeService_SetupExchangeCollection ensures that the helper
+// function SetupExchangeCollectionVars returns a non-nil variable for returns
+// in regards to the selector.ExchangeScope.
 func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
