@@ -48,7 +48,8 @@ jobs:
       # The additional 10 minutes is just to be good citizens.
       - name: Set purge boundary
         run: |
-          echo "HALF_HOUR_AGO=${date -u -v-30M --iso-8601=seconds}" >> $GITHUB_ENV
+          echo 'HALF_HOUR_AGO=${date -u -v-30M --iso-8601=seconds}' >> $GITHUB_ENV
+          echo "set half hour ago to: ${{ env.HALF_HOUR_AGO }}"
 
       # run the folder purge
       - name: Purge folders
