@@ -102,12 +102,9 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 
 // ensure all required env values are populated
 func (suite *RepositoryIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(
-		append(
-			tester.AWSStorageCredEnvs,
-			tester.M365AcctCredEnvs...,
-		)...,
-	)
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs)
 	require.NoError(suite.T(), err)
 }
 
@@ -117,7 +114,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	table := []struct {
 		name     string
 		account  account.Account
-		storage  func(*testing.T) (storage.Storage, error)
+		storage  func(*testing.T) storage.Storage
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
@@ -128,8 +125,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			st, err := test.storage(t)
-			assert.NoError(t, err)
+			st := test.storage(t)
 			r, err := repository.Initialize(ctx, test.account, st)
 			if err == nil {
 				defer func() {
@@ -147,10 +143,9 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	ctx := context.Background()
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 
-	_, err = repository.Initialize(ctx, account.Account{}, st)
+	_, err := repository.Initialize(ctx, account.Account{}, st)
 	require.NoError(t, err)
 
 	// now re-connect
@@ -162,12 +157,10 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	t := suite.T()
 	ctx := context.Background()
 
-	acct, err := tester.NewM365Account()
-	require.NoError(t, err)
+	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 
 	r, err := repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)
@@ -181,12 +174,10 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	t := suite.T()
 	ctx := context.Background()
 
-	acct, err := tester.NewM365Account()
-	require.NoError(t, err)
+	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	st := tester.NewPrefixedS3Storage(t)
 
 	r, err := repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)

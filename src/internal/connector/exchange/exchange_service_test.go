@@ -127,8 +127,7 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFoldersAndConta
 
 // NOTE the requirements are in PR 475
 func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
