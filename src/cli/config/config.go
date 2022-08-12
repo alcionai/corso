@@ -179,7 +179,11 @@ func GetStorageAndAccount(
 
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper
 // struct for testing.
-func getStorageAndAccountWithViper(vpr *viper.Viper, readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
+func getStorageAndAccountWithViper(
+	vpr *viper.Viper,
+	readFromFile bool,
+	overrides map[string]string,
+) (storage.Storage, account.Account, error) {
 	var (
 		store storage.Storage
 		acct  account.Account

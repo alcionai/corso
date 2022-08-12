@@ -27,7 +27,12 @@ const (
 )
 
 // Constructor for ConnectorOperationStatus. If the counts do not agree, an error is returned.
-func CreateStatus(ctx context.Context, op Operation, objects, success, folders int, err error) *ConnectorOperationStatus {
+func CreateStatus(
+	ctx context.Context,
+	op Operation,
+	objects, success, folders int,
+	err error,
+) *ConnectorOperationStatus {
 	hasErrors := err != nil
 	var reason string
 	if err != nil {
