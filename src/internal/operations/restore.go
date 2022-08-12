@@ -135,8 +135,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	if err := gc.RestoreMessages(ctx, dcs); err != nil {
-		errors.Wrap(err, "restoring service data")
+	err = gc.RestoreMessages(ctx, dcs)
+	if err != nil {
+		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err
 		return err
 	}
