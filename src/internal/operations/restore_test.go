@@ -46,6 +46,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = restoreStats{
+			started:  true,
 			readErr:  multierror.Append(nil, assert.AnError),
 			writeErr: assert.AnError,
 			cs:       []data.Collection{&exchange.Collection{}},
@@ -58,9 +59,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	op, err := NewRestoreOperation(ctx, control.Options{}, kw, sw, acct, "foo", selectors.Selector{})
 	require.NoError(t, err)
 
-	op.persistResults(now, &stats)
+	require.NoError(t, op.persistResults(now, &stats))
 
-	assert.Equal(t, op.Status, Failed, "status")
+	assert.Equal(t, op.Status.String(), Completed.String(), "status")
 	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.gc.Successful, "items written")
