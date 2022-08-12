@@ -151,7 +151,6 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForContacts() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-
 			options, err := optionsForContacts(test.params)
 			test.checkError(t, err)
 			if err == nil {
