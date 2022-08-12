@@ -19,6 +19,52 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
+var (
+	fieldsForEvents = map[string]int{
+		"calendar":          1,
+		"end":               2,
+		"id":                3,
+		"isOnlineMeeting":   4,
+		"isReminderOn":      5,
+		"responseStatus":    6,
+		"responseRequested": 7,
+		"showAs":            8,
+		"subject":           9,
+	}
+
+	fieldsForFolders = map[string]int{
+		"displayName":    1,
+		"isHidden":       2,
+		"parentFolderId": 3,
+		"id":             4,
+	}
+
+	fieldsForUsers = map[string]int{
+		"birthday":       1,
+		"businessPhones": 2,
+		"city":           3,
+		"companyName":    4,
+		"department":     5,
+		"displayName":    6,
+		"employeeId":     7,
+		"id":             8,
+	}
+
+	fieldsForMessages = map[string]int{
+		"conservationId":    1,
+		"conversationIndex": 2,
+		"parentFolderId":    3,
+		"subject":           4,
+		"webLink":           5,
+		"id":                6,
+	}
+
+	fieldsForContacts = map[string]int{
+		"id":             1,
+		"parentFolderId": 2,
+	}
+)
+
 type optionIdentifier int
 
 const (
@@ -438,51 +484,7 @@ func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGet
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
 func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
-
-	fieldsForEvents := map[string]int{
-		"calendar":          0,
-		"end":               1,
-		"id":                2,
-		"isOnlineMeeting":   3,
-		"isReminderOn":      4,
-		"responseStatus":    5,
-		"responseRequested": 6,
-		"showAs":            7,
-		"subject":           8,
-	}
-
-	fieldsForFolders := map[string]int{
-		"displayName":    1,
-		"isHidden":       2,
-		"parentFolderId": 3,
-		"id":             4,
-	}
-
-	fieldsForUsers := map[string]int{
-		"birthday":       1,
-		"businessPhones": 2,
-		"city":           3,
-		"companyName":    4,
-		"department":     5,
-		"displayName":    6,
-		"employeeId":     7,
-		"id":             8,
-	}
-
-	fieldsForMessages := map[string]int{
-		"conservationId":    1,
-		"conversationIndex": 2,
-		"parentFolderId":    3,
-		"subject":           4,
-		"webLink":           5,
-		"id":                6,
-	}
-
-	fieldsForContacts := map[string]int{
-		"id":             1,
-		"parentFolderId": 2,
-	}
-	returnedOptions := []string{"id"}
+	returnedOptions := []string{"id"} // All M365 objects have an associated id
 
 	switch optID {
 	case events:
