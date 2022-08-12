@@ -24,6 +24,7 @@ func TestExchangeIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(ExchangeIntegrationSuite))
 }
 
@@ -53,6 +54,7 @@ func (suite *ExchangeIntegrationSuite) TestExchangeBackupCmd() {
 	}
 	vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
+
 	ctx = config.SetViper(ctx, vpr)
 
 	// init the repo first

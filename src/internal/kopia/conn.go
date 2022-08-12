@@ -64,6 +64,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 		if errors.Is(err, repo.ErrAlreadyInitialized) {
 			return RepoAlreadyExistsError(err)
 		}
+
 		return errors.Wrap(err, errInit.Error())
 	}
 
@@ -155,6 +156,7 @@ func (w *conn) open(ctx context.Context, password string) error {
 	}
 
 	w.Repository = rep
+
 	return nil
 }
 
@@ -167,5 +169,6 @@ func (w *conn) wrap() error {
 	}
 
 	w.refCount++
+
 	return nil
 }

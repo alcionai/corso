@@ -52,14 +52,17 @@ func singleton(level logLevel) *zap.SugaredLogger {
 		lgr *zap.Logger
 		err error
 	)
+
 	if level != Production {
 		cfg := zap.NewDevelopmentConfig()
+
 		switch level {
 		case Info:
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 		case Warn:
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.WarnLevel)
 		}
+
 		lgr, err = cfg.Build()
 	} else {
 		lgr, err = zap.NewProduction()
@@ -71,6 +74,7 @@ func singleton(level logLevel) *zap.SugaredLogger {
 	}
 
 	loggerton = lgr.Sugar()
+
 	return loggerton
 }
 
@@ -90,5 +94,6 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 	if l == nil {
 		return singleton(0)
 	}
+
 	return l.(*zap.SugaredLogger)
 }

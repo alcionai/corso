@@ -29,6 +29,7 @@ func (suite *OperationSuite) TestNewOperation() {
 func (suite *OperationSuite) TestOperation_Validate() {
 	kwStub := &kopia.Wrapper{}
 	swStub := &store.Wrapper{}
+
 	table := []struct {
 		name     string
 		kw       *kopia.Wrapper

@@ -80,16 +80,14 @@ type restoreStats struct {
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	// TODO: persist initial state of restoreOperation in modelstore
-
 	// persist operation results to the model store on exit
 	opStats := restoreStats{}
+	// TODO: persist results?
 	defer func() {
 		err = op.persistResults(time.Now(), &opStats)
 		if err != nil {
 			return
 		}
-
-		// TODO: persist results?
 	}()
 
 	// retrieve the restore point details
@@ -97,6 +95,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	if err != nil {
 		err = errors.Wrap(err, "getting backup details for restore")
 		opStats.readErr = err
+
 		return err
 	}
 
@@ -115,15 +114,19 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	// todo: use path pkg for this
 	fdsPaths := fds.Paths()
 	paths := make([][]string, len(fdsPaths))
+
 	for i := range fdsPaths {
 		paths[i] = strings.Split(fdsPaths[i], "/")
 	}
+
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
 		opStats.readErr = err
+
 		return err
 	}
+
 	opStats.cs = dcs
 
 	// restore those collections using graph
@@ -131,6 +134,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	if err != nil {
 		err = errors.Wrap(err, "connecting to graph api")
 		opStats.writeErr = err
+
 		return err
 	}
 
@@ -138,8 +142,10 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err
+
 		return err
 	}
+
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
@@ -155,8 +161,10 @@ func (op *RestoreOperation) persistResults(
 	op.Results.CompletedAt = time.Now()
 
 	op.Status = Completed
+
 	if !opStats.started {
 		op.Status = Failed
+
 		return multierror.Append(
 			errors.New("errors prevented the operation from processing"),
 			opStats.readErr,

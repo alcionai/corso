@@ -19,6 +19,7 @@ func TestDataSupportSuite(t *testing.T) {
 	if err != nil {
 		t.Skipf("Skipping: %v\n", err)
 	}
+
 	suite.Run(t, new(DataSupportSuite))
 }
 

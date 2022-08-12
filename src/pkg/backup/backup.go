@@ -93,6 +93,7 @@ func (b Backup) Headers() []string {
 func (b Backup) Values() []string {
 	errCount := support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
 	status := fmt.Sprintf("%s (%d errors)", b.Status, errCount)
+
 	return []string{
 		common.FormatTime(b.StartedAt),
 		string(b.ID),

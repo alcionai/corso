@@ -50,12 +50,14 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 	if err != nil {
 		return nil, err
 	}
+
 	service := exchangeService{
 		adapter:     *adapter,
 		client:      *msgraphsdk.NewGraphServiceClient(adapter),
 		failFast:    shouldFailFast,
 		credentials: credentials,
 	}
+
 	return &service, err
 }
 
@@ -64,6 +66,7 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 func CreateMailFolder(gs graph.Service, user, folder string) (models.MailFolderable, error) {
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
+
 	isHidden := false
 	requestBody.SetIsHidden(&isHidden)
 
@@ -128,6 +131,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 	if err := iter.Iterate(cb); err != nil {
 		return nil, err
 	}
+
 	return mfs, err
 }
 
@@ -135,12 +139,16 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 // @param folderName the target folder's display name. Case sensitive
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
 func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
-	var errs error
-	var folderID *string
+	var (
+		errs     error
+		folderID *string
+	)
+
 	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
 		return nil, err
 	}
+
 	response, err := service.
 		Client().
 		UsersById(user).
@@ -149,9 +157,11 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	if err != nil {
 		return nil, err
 	}
+
 	if response == nil {
 		return nil, errors.New("mail folder query to m365 back store returned nil")
 	}
+
 	pageIterator, err := msgraphgocore.NewPageIterator(
 		response,
 		service.Adapter(),
@@ -160,18 +170,22 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	if err != nil {
 		return nil, err
 	}
+
 	callbackFunc := func(folderItem any) bool {
 		folder, ok := folderItem.(models.MailFolderable)
 		if !ok {
 			errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), errors.New("HasFolder() iteration failure"), errs)
 			return true
 		}
+
 		if *folder.GetDisplayName() == folderName {
 			folderID = folder.GetId()
 			return false
 		}
+
 		return true
 	}
+
 	iterateError := pageIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), iterateError, errs)
@@ -217,15 +231,16 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 // GetCopyRestoreFolder utility function to create an unique folder for the restore process
 func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
 	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
+
 	isFolder, err := GetMailFolderID(service, newFolder, user)
 	if err != nil {
 		// Verify unique folder was not found
 		if errors.Is(err, ErrFolderNotFound) {
-
 			fold, err := CreateMailFolder(service, user, newFolder)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, err)
 			}
+
 			return fold.GetId(), nil
 		}
 
@@ -263,6 +278,7 @@ func RestoreMailMessage(
 	sv.SetValue(&enableValue)
 	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
 	clone.SetSingleValueExtendedProperties(svlep)
+
 	draft := false
 	clone.SetIsDraft(&draft)
 
@@ -286,8 +302,10 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
+
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
 	}
+
 	return nil
 }

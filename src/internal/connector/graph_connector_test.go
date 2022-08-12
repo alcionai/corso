@@ -34,6 +34,7 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(GraphConnectorIntegrationSuite))
 }
 
@@ -79,6 +80,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 		_, err := buf.ReadFrom(object.ToReader())
 		assert.Nil(suite.T(), err, "received a buf.Read error")
 	}
+
 	status := suite.connector.AwaitStatus()
 	assert.NotNil(suite.T(), status, "status not blocking on async call")
 
@@ -93,10 +95,13 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 	sel.Include(sel.Users([]string{user}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
+
 	var mailScope selectors.ExchangeScope
+
 	all := eb.Scopes()
 	for _, scope := range all {
 		fmt.Printf("%v\n", scope)
+
 		if scope.IncludesCategory(selectors.ExchangeMail) {
 			mailScope = scope
 		}
@@ -104,6 +109,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 
 	collection, err := suite.connector.createCollections(context.Background(), mailScope)
 	require.NoError(t, err)
+
 	for _, edc := range collection {
 		testName := strings.Join(edc.FullPath(), " ")
 		suite.T().Run(testName, func(t *testing.T) {
@@ -117,7 +123,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
 				suite.NotNil(message)
 				suite.NoError(err)
-
 			}
 		})
 	}
@@ -130,15 +135,19 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
-	scopes := eb.Scopes()
+
 	var contactsOnly selectors.ExchangeScope
+
+	scopes := eb.Scopes()
 	for _, scope := range scopes {
 		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
 			contactsOnly = scope
 		}
 	}
+
 	collections, err := suite.connector.createCollections(context.Background(), contactsOnly)
 	assert.NoError(suite.T(), err)
+
 	number := 0
 	for _, edc := range collections {
 		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath()[1], number)
@@ -157,6 +166,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 			number++
 		})
 	}
+
 	suite.Greater(len(collections), 0)
 }
 
@@ -167,6 +177,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	if len(user) == 0 {
 		suite.T().Skip("Environment not configured: missing m365 test user")
 	}
+
 	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", user, mailCategory, "Inbox"}, 1)
 	err := suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
 	assert.NoError(suite.T(), err)
@@ -178,11 +189,13 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 	t := suite.T()
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
+
 	scopes := sel.Scopes()
 	for _, scope := range scopes {
 		collections, err := suite.connector.createCollections(context.Background(), scope)
 		require.NoError(t, err)
 		suite.Equal(len(collections), 1)
+
 		for _, edc := range collections {
 			streamChannel := edc.Items()
 			// Verify that each message can be restored
@@ -191,10 +204,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 				read, err := buf.ReadFrom(stream.ToReader())
 				suite.NoError(err)
 				suite.NotZero(read)
+
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
 				suite.NotNil(message)
 				suite.NoError(err)
-
 			}
 		}
 	}
@@ -210,8 +223,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 	userID := tester.M365UserID(suite.T())
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
+
 	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, userID, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+
 	if aFolder != nil {
 		err = exchange.DeleteMailFolder(suite.connector.Service(), userID, *aFolder.GetId())
 		assert.NoError(suite.T(), err)

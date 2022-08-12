@@ -102,6 +102,7 @@ func (s Selector) String() string {
 	if err != nil {
 		return "error"
 	}
+
 	return string(bs)
 }
 
@@ -117,10 +118,13 @@ func appendExcludes[T baseScope](
 	if s.Excludes == nil {
 		s.Excludes = []map[string]string{}
 	}
+
 	concat := []T{}
+
 	for _, scopeSl := range scopes {
 		concat = append(concat, tform(scopeSl)...)
 	}
+
 	for _, sc := range concat {
 		s.Excludes = append(s.Excludes, map[string]string(sc))
 	}
@@ -134,10 +138,13 @@ func appendFilters[T baseScope](
 	if s.Filters == nil {
 		s.Filters = []map[string]string{}
 	}
+
 	concat := []T{}
+
 	for _, scopeSl := range scopes {
 		concat = append(concat, tform(scopeSl)...)
 	}
+
 	for _, sc := range concat {
 		s.Filters = append(s.Filters, map[string]string(sc))
 	}
@@ -151,10 +158,13 @@ func appendIncludes[T baseScope](
 	if s.Includes == nil {
 		s.Includes = []map[string]string{}
 	}
+
 	concat := []T{}
+
 	for _, scopeSl := range scopes {
 		concat = append(concat, tform(scopeSl)...)
 	}
+
 	for _, sc := range concat {
 		s.Includes = append(s.Includes, map[string]string(sc))
 	}
@@ -167,12 +177,15 @@ func contains(scope map[string]string, key, target string) bool {
 	if len(compare) == 0 {
 		return false
 	}
+
 	if compare == NoneTgt {
 		return false
 	}
+
 	if compare == AnyTgt {
 		return true
 	}
+
 	return strings.Contains(compare, target)
 }
 
@@ -211,9 +224,11 @@ func (p Printable) Resources() string {
 	if len(s) == 0 {
 		s = resourcesShortFormat(p.Filters)
 	}
+
 	if len(s) == 0 {
 		s = "All"
 	}
+
 	return s
 }
 
@@ -221,13 +236,16 @@ func (p Printable) Resources() string {
 // plus, if more exist, " (len-1 more)"
 func resourcesShortFormat(m map[string][]string) string {
 	var s string
+
 	for k := range m {
 		s = k
 		break
 	}
+
 	if len(s) > 0 && len(m) > 1 {
 		s = fmt.Sprintf("%s (%d more)", s, len(m)-1)
 	}
+
 	return s
 }
 
@@ -238,14 +256,18 @@ func toResourceTypeMap(ms []map[string]string) map[string][]string {
 	if len(ms) == 0 {
 		return nil
 	}
+
 	r := make(map[string][]string)
+
 	for _, m := range ms {
 		res := m[scopeKeyResource]
 		if res == AnyTgt {
 			res = All
 		}
+
 		r[res] = addToSet(r[res], m[scopeKeyDataType])
 	}
+
 	return r
 }
 
@@ -256,11 +278,13 @@ func addToSet(set []string, v string) []string {
 	if len(set) == 0 {
 		return []string{v}
 	}
+
 	for _, s := range set {
 		if s == v {
 			return set
 		}
 	}
+
 	return append(set, v)
 }
 
@@ -301,13 +325,16 @@ func normalize(s []string) []string {
 	if len(s) == 0 {
 		return None()
 	}
+
 	for _, e := range s {
 		if e == AnyTgt {
 			return Any()
 		}
+
 		if e == NoneTgt {
 			return None()
 		}
 	}
+
 	return s
 }

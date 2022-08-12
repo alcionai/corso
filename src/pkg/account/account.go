@@ -29,6 +29,7 @@ type Account struct {
 // NewAccount aggregates all the supplied configurations into a single configuration
 func NewAccount(p accountProvider, cfgs ...common.StringConfigurer) (Account, error) {
 	cs, err := common.UnionStringConfigs(cfgs...)
+
 	return Account{
 		Provider: p,
 		Config:   cs,

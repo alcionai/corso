@@ -31,6 +31,7 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
+
 	switch parent.Use {
 	case initCommand:
 		c, fs = utils.AddCommand(parent, s3InitCmd())
@@ -47,6 +48,7 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
 	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
+
 	return c
 }
 
@@ -80,6 +82,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(err)
 	}
+
 	s3Cfg, err := s.S3Config()
 	if err != nil {
 		return Only(errors.Wrap(err, "Retrieving s3 configuration"))
@@ -103,8 +106,10 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		if succeedIfExists && kopia.IsRepoAlreadyExistsError(err) {
 			return nil
 		}
+
 		return Only(errors.Wrap(err, "Failed to initialize a new S3 repository"))
 	}
+
 	defer utils.CloseRepo(ctx, r)
 
 	Infof("Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
@@ -112,6 +117,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
 		return Only(errors.Wrap(err, "Failed to write repository configuration"))
 	}
+
 	return nil
 }
 
@@ -143,10 +149,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(err)
 	}
+
 	s3Cfg, err := s.S3Config()
 	if err != nil {
 		return Only(errors.Wrap(err, "Retrieving s3 configuration"))
 	}
+
 	m365, err := a.M365Config()
 	if err != nil {
 		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
@@ -164,6 +172,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(errors.Wrap(err, "Failed to connect to the S3 repository"))
 	}
+
 	defer utils.CloseRepo(ctx, r)
 
 	Infof("Connected to S3 bucket %s.", s3Cfg.Bucket)
@@ -171,6 +180,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
 		return Only(errors.Wrap(err, "Failed to write repository configuration"))
 	}
+
 	return nil
 }
 

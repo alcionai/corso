@@ -33,10 +33,12 @@ var configFilePath string
 // adds the persistent flag --config-file to the provided command.
 func AddConfigFileFlag(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		Err("finding $HOME directory (default) for config file")
 	}
+
 	fs.StringVar(
 		&configFilePath,
 		"config-file",
@@ -56,6 +58,7 @@ func InitFunc() func(*cobra.Command, []string) error {
 		if err != nil {
 			return err
 		}
+
 		return Read(cmd.Context())
 	}
 }
@@ -75,6 +78,7 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 		vpr.AddConfigPath(home)
 		vpr.SetConfigType("toml")
 		vpr.SetConfigName(".corso")
+
 		return nil
 	}
 
@@ -84,11 +88,12 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 	// work correctly (it does not use the configured file)
 	vpr.AddConfigPath(path.Dir(configFP))
 
-	fileName := path.Base(configFP)
 	ext := path.Ext(configFP)
 	if len(ext) == 0 {
 		return errors.New("config file requires an extension e.g. `toml`")
 	}
+
+	fileName := path.Base(configFP)
 	fileName = strings.TrimSuffix(fileName, ext)
 	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
 	vpr.SetConfigName(fileName)
@@ -109,6 +114,7 @@ func SetViper(ctx context.Context, vpr *viper.Viper) context.Context {
 	if vpr == nil {
 		vpr = viper.GetViper()
 	}
+
 	return context.WithValue(ctx, viperCtx{}, vpr)
 }
 
@@ -117,10 +123,12 @@ func SetViper(ctx context.Context, vpr *viper.Viper) context.Context {
 // (global) viper instance.
 func GetViper(ctx context.Context) *viper.Viper {
 	vprIface := ctx.Value(viperCtx{})
+
 	vpr, ok := vprIface.(*viper.Viper)
 	if vpr == nil || !ok {
 		return viper.GetViper()
 	}
+
 	return vpr
 }
 
@@ -136,6 +144,7 @@ func Read(ctx context.Context) error {
 		Info("Using config file:", viper.ConfigFileUsed())
 		return err
 	}
+
 	return nil
 }
 
@@ -162,8 +171,10 @@ func writeRepoConfigWithViper(vpr *viper.Viper, s3Config storage.S3Config, m365C
 		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
 			return vpr.WriteConfig()
 		}
+
 		return err
 	}
+
 	return nil
 }
 
@@ -199,6 +210,7 @@ func getStorageAndAccountWithViper(
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 				return store, acct, errors.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
+
 			readConfigFromViper = false
 		}
 	}
@@ -237,14 +249,17 @@ func mustMatchConfig(vpr *viper.Viper, m map[string]string) error {
 		if len(v) == 0 {
 			continue // empty variables will get caught by configuration validators, if necessary
 		}
+
 		tomlK, ok := constToTomlKeyMap[k]
 		if !ok {
 			continue // m may declare values which aren't stored in the config file
 		}
+
 		vv := vpr.GetString(tomlK)
 		if v != vv {
 			return errors.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
 		}
 	}
+
 	return nil
 }

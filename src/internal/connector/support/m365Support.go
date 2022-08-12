@@ -18,6 +18,7 @@ func CreateFromBytes(bytes []byte, createFunc absser.ParsableFactory) (absser.Pa
 	if err != nil {
 		return nil, err
 	}
+
 	return anObject, nil
 }
 
@@ -27,6 +28,8 @@ func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	message := aMessage.(models.Messageable)
+
 	return message, nil
 }

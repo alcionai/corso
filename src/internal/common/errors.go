@@ -43,6 +43,7 @@ func (e Err) Format(s fmt.State, verb rune) {
 		f.Format(s, verb)
 		return
 	}
+
 	// Formatting magic courtesy of github.com/pkg/errors.
 	switch verb {
 	case 'v':
@@ -50,6 +51,7 @@ func (e Err) Format(s fmt.State, verb rune) {
 			fmt.Fprintf(s, "%+v\n", e.Cause())
 			return
 		}
+
 		fallthrough
 	case 's', 'q':
 		// nolint:errcheck

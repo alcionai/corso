@@ -84,6 +84,7 @@ func newPath(segments [][]string) Base {
 
 	res := Base{segmentIdx: make([]int, 0, len(segments))}
 	idx := 0
+
 	for _, s := range segments {
 		sIdx := idx
 
@@ -198,13 +199,14 @@ func escapeElement(element string) string {
 		return element
 	}
 
+	startIdx := 0
 	b := strings.Builder{}
 	b.Grow(len(element) + len(escapeIdx))
-	startIdx := 0
 
 	for _, idx := range escapeIdx {
 		b.WriteString(element[startIdx:idx])
 		b.WriteRune(escapeCharacter)
+
 		startIdx = idx
 	}
 
@@ -220,9 +222,9 @@ func escapeElement(element string) string {
 // separators will result in an ambiguous or incorrect segment.
 func unescape(element string) string {
 	b := strings.Builder{}
-
 	startIdx := 0
 	prevWasEscape := false
+
 	for i, c := range element {
 		if c != escapeCharacter || prevWasEscape {
 			prevWasEscape = false
@@ -284,6 +286,7 @@ func trimTrailingSlash(element string) string {
 	}
 
 	numSlashes := 0
+
 	for i := lastIdx - 1; i >= 0; i-- {
 		if element[i] != escapeCharacter {
 			break
@@ -318,14 +321,16 @@ func split(segment string) []string {
 
 	for i, c := range segment {
 		if c == escapeCharacter {
-			numEscapes++
 			prevWasSeparator = false
+			numEscapes++
+
 			continue
 		}
 
 		if c != pathSeparator {
 			prevWasSeparator = false
 			numEscapes = 0
+
 			continue
 		}
 
@@ -334,6 +339,7 @@ func split(segment string) []string {
 			// This is an escaped separator.
 			prevWasSeparator = false
 			numEscapes = 0
+
 			continue
 		}
 

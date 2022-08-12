@@ -82,6 +82,7 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(BackupOpIntegrationSuite))
 }
 
@@ -143,10 +144,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	kw, err := kopia.NewWrapper(k)
 	require.NoError(t, err)
+
 	defer kw.Close(ctx)
 
 	ms, err := kopia.NewModelStore(k)
 	require.NoError(t, err)
+
 	defer ms.Close(ctx)
 
 	sw := store.NewKopiaStore(ms)

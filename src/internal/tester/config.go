@@ -39,10 +39,12 @@ func cloneTestConfig() map[string]string {
 	if testConfig == nil {
 		return map[string]string{}
 	}
+
 	clone := map[string]string{}
 	for k, v := range testConfig {
 		clone[k] = v
 	}
+
 	return clone
 }
 
@@ -55,7 +57,6 @@ func NewTestViper() (*viper.Viper, error) {
 	}
 
 	// Or use a custom file location
-	fileName := path.Base(configFilePath)
 	ext := path.Ext(configFilePath)
 	if len(ext) == 0 {
 		return nil, errors.New("corso_test requires an extension")
@@ -64,6 +65,8 @@ func NewTestViper() (*viper.Viper, error) {
 	vpr.SetConfigFile(configFilePath)
 	vpr.AddConfigPath(path.Dir(configFilePath))
 	vpr.SetConfigType(ext[1:])
+
+	fileName := path.Base(configFilePath)
 	fileName = strings.TrimSuffix(fileName, ext)
 	vpr.SetConfigName(fileName)
 
@@ -105,9 +108,10 @@ func readTestConfig() (map[string]string, error) {
 		vpr.GetString(TestCfgTenantID),
 		"lidiah@8qzvrj.onmicrosoft.com",
 	)
-	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 
+	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 	testConfig = testEnv
+
 	return cloneTestConfig(), nil
 }
 
@@ -130,6 +134,7 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 	if len(fName) == 0 || fName == "." || fName == "/" {
 		fName = ".corso_test.toml"
 	}
+
 	tDir := t.TempDir()
 	tDirFp := path.Join(tDir, fName)
 
@@ -137,8 +142,8 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 		return nil, "", err
 	}
 
-	vpr := viper.New()
 	ext := path.Ext(fName)
+	vpr := viper.New()
 	vpr.SetConfigFile(tDirFp)
 	vpr.AddConfigPath(tDir)
 	vpr.SetConfigType(strings.TrimPrefix(ext, "."))

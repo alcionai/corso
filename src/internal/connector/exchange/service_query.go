@@ -54,6 +54,7 @@ func GetAllMessagesForUser(gs graph.Service, user string) (absser.Parsable, erro
 // GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
 func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"id", "parentFolderId"}
+
 	options, err := optionsForContacts(selecting)
 	if err != nil {
 		return nil, err
@@ -116,6 +117,7 @@ func IterateSelectAllMessagesForCollections(
 				errs = support.WrapAndAppend(user, err, errs)
 				return true
 			}
+
 			edc := NewCollection(
 				user,
 				[]string{tenant, user, mailCategory, directory},
@@ -125,7 +127,9 @@ func IterateSelectAllMessagesForCollections(
 			)
 			collections[directory] = &edc
 		}
+
 		collections[directory].AddJob(*message.GetId())
+
 		return true
 	}
 }
@@ -150,6 +154,7 @@ func IterateAllContactsForCollection(
 			errs = support.WrapAndAppend(user, errors.New("contact iteration failure"), errs)
 			return true
 		}
+
 		directory := *contact.GetParentFolderId()
 		if _, ok := collections[directory]; !ok {
 			service, err := createService(credentials, failFast)
@@ -157,6 +162,7 @@ func IterateAllContactsForCollection(
 				errs = support.WrapAndAppend(user, err, errs)
 				return true
 			}
+
 			edc := NewCollection(
 				user,
 				[]string{tenant, user, contactsCategory, directory},
@@ -166,7 +172,9 @@ func IterateAllContactsForCollection(
 			)
 			collections[directory] = &edc
 		}
+
 		collections[directory].AddJob(*contact.GetId())
+
 		return true
 	}
 }
@@ -181,10 +189,10 @@ func IterateAndFilterMessagesForCollections(
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
 	var isFilterSet bool
+
 	return func(messageItem any) bool {
 		user := scope.Get(selectors.ExchangeUser)[0]
 		if !isFilterSet {
-
 			err := CollectMailFolders(
 				scope,
 				tenant,
@@ -198,6 +206,7 @@ func IterateAndFilterMessagesForCollections(
 				errs = support.WrapAndAppend(user, err, errs)
 				return false
 			}
+
 			isFilterSet = true
 		}
 
@@ -211,7 +220,9 @@ func IterateAndFilterMessagesForCollections(
 		if _, ok = collections[directory]; !ok {
 			return true
 		}
+
 		collections[directory].AddJob(*message.GetId())
+
 		return true
 	}
 }
@@ -247,17 +258,22 @@ func CollectMailFolders(
 	if err != nil {
 		return errors.Wrap(err, "unable to create iterator during mail folder query service")
 	}
+
 	var service graph.Service
+
 	callbackFunc := func(pageItem any) bool {
 		folder, ok := pageItem.(models.MailFolderable)
 		if !ok {
 			err = support.WrapAndAppend(user, errors.New("unable to transform folderable item"), err)
 			return true
 		}
+
 		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
 			return true
 		}
+
 		directory := *folder.GetId()
+
 		service, err = createService(credentials, failFast)
 		if err != nil {
 			err = support.WrapAndAppend(
@@ -265,8 +281,10 @@ func CollectMailFolders(
 				errors.New("unable to create service a folder query service for "+user),
 				err,
 			)
+
 			return true
 		}
+
 		temp := NewCollection(
 			user,
 			[]string{tenant, user, mailCategory, directory},
@@ -283,6 +301,7 @@ func CollectMailFolders(
 	if iterateFailure != nil {
 		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
 	}
+
 	return err
 }
 
@@ -298,12 +317,14 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 	if err != nil {
 		return nil, err
 	}
+
 	requestParameters := &msmessage.MessagesRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &msmessage.MessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -315,12 +336,14 @@ func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilde
 	if err != nil {
 		return nil, err
 	}
+
 	requestParams := &msitem.MessageItemRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &msitem.MessageItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
+
 	return options, nil
 }
 
@@ -339,6 +362,7 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 	options := &msfolder.MailFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -349,12 +373,14 @@ func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGet
 	if err != nil {
 		return nil, err
 	}
+
 	requestParameters := &mscontacts.ContactsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &mscontacts.ContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -420,5 +446,6 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 
 		returnedOptions = append(returnedOptions, entry)
 	}
+
 	return returnedOptions, nil
 }

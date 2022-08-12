@@ -36,8 +36,8 @@ func TestWrapperUnitSuite(t *testing.T) {
 
 func (suite *WrapperUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
 	ctx := context.Background()
-
 	k := conn{}
+
 	assert.NotPanics(suite.T(), func() {
 		k.Close(ctx)
 	})

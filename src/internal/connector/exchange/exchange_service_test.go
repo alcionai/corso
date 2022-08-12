@@ -101,8 +101,8 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
-	scopes := eb.Scopes()
 
+	scopes := eb.Scopes()
 	for _, test := range scopes {
 		suite.T().Run(test.Category().String(), func(t *testing.T) {
 			discriminateFunc, graphQuery, iterFunc, err := SetupExchangeCollectionVars(test)

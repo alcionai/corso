@@ -27,6 +27,7 @@ func StubRootCmd(args ...string) *cobra.Command {
 		},
 	}
 	c.SetArgs(args)
+
 	return c
 }
 

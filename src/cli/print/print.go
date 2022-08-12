@@ -55,6 +55,7 @@ func err(w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
 	}
+
 	msg := append([]any{"Error: "}, s...)
 	fmt.Fprint(w, msg...)
 }
@@ -70,6 +71,7 @@ func info(w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
 	}
+
 	fmt.Fprint(w, s...)
 	fmt.Fprintf(w, "\n")
 }
@@ -85,6 +87,7 @@ func infof(w io.Writer, t string, s ...any) {
 	if len(t) == 0 {
 		return
 	}
+
 	fmt.Fprintf(w, t, s...)
 	fmt.Fprintf(w, "\n")
 }
@@ -110,6 +113,7 @@ func print(p Printable) {
 		outputJSON(p, outputAsJSONDebug)
 		return
 	}
+
 	outputTable([]Printable{p})
 }
 
@@ -119,10 +123,12 @@ func printAll(ps []Printable) {
 	if len(ps) == 0 {
 		return
 	}
+
 	if outputAsJSON || outputAsJSONDebug {
 		outputJSONArr(ps, outputAsJSONDebug)
 		return
 	}
+
 	outputTable(ps)
 }
 
@@ -141,6 +147,7 @@ func OutputBackups(bs []backup.Backup) {
 	for _, b := range bs {
 		ps = append(ps, b)
 	}
+
 	printAll(ps)
 }
 
@@ -150,6 +157,7 @@ func OutputEntries(des []details.DetailsEntry) {
 	for _, de := range des {
 		ps = append(ps, de)
 	}
+
 	printAll(ps)
 }
 
@@ -163,9 +171,11 @@ func outputTable(ps []Printable) {
 		Headers: ps[0].Headers(),
 		Rows:    [][]string{},
 	}
+
 	for _, p := range ps {
 		t.Rows = append(t.Rows, p.Values())
 	}
+
 	_ = t.WriteTable(
 		rootCmd.OutOrStdout(),
 		&table.Config{
@@ -184,11 +194,13 @@ func outputJSON(p Printable, debug bool) {
 		printJSON(p)
 		return
 	}
+
 	printJSON(p.MinimumPrintable())
 }
 
 func outputJSONArr(ps []Printable, debug bool) {
 	sl := make([]any, 0, len(ps))
+
 	for _, p := range ps {
 		if debug {
 			sl = append(sl, p)
@@ -196,6 +208,7 @@ func outputJSONArr(ps []Printable, debug bool) {
 			sl = append(sl, p.MinimumPrintable())
 		}
 	}
+
 	printJSON(sl)
 }
 
@@ -206,6 +219,7 @@ func printJSON(a any) {
 		fmt.Fprintf(rootCmd.OutOrStderr(), "error formatting results to json: %v\n", err)
 		return
 	}
+
 	fmt.Fprintln(
 		rootCmd.OutOrStdout(),
 		string(pretty.Pretty(bs)))

@@ -39,6 +39,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 		M365:     credentials.GetM365(),
 		TenantID: common.First(tenant, os.Getenv(account.TenantID)),
 	}
+
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
 		return Only(errors.Wrap(err, "finding m365 account details"))
@@ -64,21 +65,24 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 			return Only(errors.Wrap(err, "parsing before flag to time"))
 		}
 	}
+
 	stLen := len(common.SimpleDateTimeFormat)
 
 	// delete files
 	for _, mf := range mfs {
-
 		// compare the folder time to the deletion boundary time first
-		var delete bool
+		delete := false
 		dnLen := len(mf.DisplayName)
+
 		if dnLen > stLen {
 			dnSuff := mf.DisplayName[dnLen-stLen:]
+
 			dnTime, err := common.ParseTime(dnSuff)
 			if err != nil {
 				Info(errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))
 				continue
 			}
+
 			delete = dnTime.Before(beforeTime)
 		}
 
@@ -87,6 +91,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 		}
 
 		Info("Deleting folder: ", mf.DisplayName)
+
 		err = exchange.DeleteMailFolder(gc.Service(), user, mf.ID)
 		if err != nil {
 			Info(errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))

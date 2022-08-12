@@ -41,6 +41,7 @@ func NewMockExchangeCollection(pathRepresentation []string, numMessagesToReturn 
 		c.Data = append(c.Data, GetMockMessageBytes("From: NewMockExchangeCollection"))
 		c.Names = append(c.Names, uuid.NewString())
 	}
+
 	return c
 }
 
@@ -55,6 +56,7 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 
 	go func() {
 		defer close(res)
+
 		for i := 0; i < medc.messageCount; i++ {
 			res <- &MockExchangeData{
 				medc.Names[i],

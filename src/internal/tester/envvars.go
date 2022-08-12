@@ -10,13 +10,16 @@ import (
 // If any of the env values are zero length, returns an error.
 func GetRequiredEnvVars(evs ...string) (map[string]string, error) {
 	vals := map[string]string{}
+
 	for _, ev := range evs {
 		ge := os.Getenv(ev)
 		if len(ge) == 0 {
 			return nil, errors.New(ev + " env var required for test suite")
 		}
+
 		vals[ev] = ge
 	}
+
 	return vals, nil
 }
 
@@ -25,14 +28,17 @@ func GetRequiredEnvVars(evs ...string) (map[string]string, error) {
 // If any of the env values are zero length, returns an error.
 func GetRequiredEnvSls(evs ...[]string) (map[string]string, error) {
 	vals := map[string]string{}
+
 	for _, ev := range evs {
 		r, err := GetRequiredEnvVars(ev...)
 		if err != nil {
 			return nil, err
 		}
+
 		for k, v := range r {
 			vals[k] = v
 		}
 	}
+
 	return vals, nil
 }

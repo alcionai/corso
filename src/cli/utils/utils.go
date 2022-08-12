@@ -23,6 +23,7 @@ func RequireProps(props map[string]string) error {
 			return errors.New(name + " is required to perform this command")
 		}
 	}
+
 	return nil
 }
 
@@ -43,6 +44,7 @@ func HasNoFlagsAndShownHelp(cmd *cobra.Command) bool {
 		cobra.CheckErr(cmd.Help())
 		return true
 	}
+
 	return false
 }
 

@@ -19,10 +19,12 @@ func TestSupportTestSuite(t *testing.T) {
 	if err != nil {
 		t.Skipf("Env not configured: %v\n", err)
 	}
+
 	_, err = os.Stat(evs[tester.CorsoGraphConnectorTestSupportFile])
 	if err != nil {
 		t.Skip("Test object not available: Module Skipped")
 	}
+
 	suite.Run(t, new(SupportTestSuite))
 }
 
@@ -31,9 +33,11 @@ func (suite *SupportTestSuite) TestToMessage() {
 	if err != nil {
 		suite.T().Errorf("Failed with %v\n", err)
 	}
+
 	require.NoError(suite.T(), err)
 	message, err := CreateMessageFromBytes(bytes)
 	require.NoError(suite.T(), err)
+
 	clone := ToMessage(message)
 	suite.Equal(message.GetBccRecipients(), clone.GetBccRecipients())
 	suite.Equal(message.GetSubject(), clone.GetSubject())

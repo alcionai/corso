@@ -82,6 +82,7 @@ func NewCollection(
 		fullPath: fullPath,
 		populate: getPopulateFunction(collectionType),
 	}
+
 	return collection
 }
 
@@ -116,6 +117,7 @@ func (eoc *Collection) Items() <-chan data.Stream {
 			eoc.statusCh,
 		)
 	}
+
 	return eoc.data
 }
 
@@ -136,6 +138,7 @@ func PopulateForContactCollection(
 		errs    error
 		success int
 	)
+
 	objectWriter := kw.NewJsonSerializationWriter()
 
 	for _, task := range jobs {
@@ -147,8 +150,10 @@ func PopulateForContactCollection(
 				errors.Wrapf(err, "unable to retrieve item %s; details: %s", task, trace),
 				errs,
 			)
+
 			continue
 		}
+
 		err = contactToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
@@ -156,13 +161,15 @@ func PopulateForContactCollection(
 			if service.ErrPolicy() {
 				break
 			}
+
 			continue
 		}
 
 		success++
-
 	}
+
 	close(dataChannel)
+
 	attemptedItems := len(jobs)
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
@@ -178,8 +185,11 @@ func PopulateForMailCollection(
 	dataChannel chan<- data.Stream,
 	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
-	var errs error
-	var attemptedItems, success int
+	var (
+		errs                    error
+		attemptedItems, success int
+	)
+
 	objectWriter := kw.NewJsonSerializationWriter()
 
 	for _, task := range jobs {
@@ -187,8 +197,10 @@ func PopulateForMailCollection(
 		if err != nil {
 			trace := support.ConnectorStackErrorTrace(err)
 			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, trace), errs)
+
 			continue
 		}
+
 		err = messageToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
@@ -196,13 +208,16 @@ func PopulateForMailCollection(
 			if service.ErrPolicy() {
 				break
 			}
+
 			continue
 		}
+
 		success++
 	}
-	close(dataChannel)
-	attemptedItems += len(jobs)
 
+	close(dataChannel)
+
+	attemptedItems += len(jobs)
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
@@ -217,17 +232,21 @@ func contactToDataCollection(
 	user string,
 ) error {
 	defer objectWriter.Close()
+
 	err := objectWriter.WriteObjectValue("", contact)
 	if err != nil {
 		return support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
 	}
+
 	byteArray, err := objectWriter.GetSerializedContent()
 	if err != nil {
 		return support.WrapAndAppend(*contact.GetId(), err, nil)
 	}
+
 	if byteArray != nil {
 		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: nil}
 	}
+
 	return nil
 }
 
@@ -240,17 +259,21 @@ func messageToDataCollection(
 	user string,
 ) error {
 	var err error
+
 	aMessage := message
 	adtl := message.GetAdditionalData()
+
 	if len(adtl) > 2 {
 		aMessage, err = support.ConvertFromMessageable(adtl, message)
 		if err != nil {
 			return err
 		}
 	}
+
 	if *aMessage.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
+
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := client.
 				UsersById(user).
@@ -258,16 +281,19 @@ func messageToDataCollection(
 				Attachments().
 				Get()
 			retriesErr = err
+
 			if err == nil && attached != nil {
 				aMessage.SetAttachments(attached.GetValue())
 				break
 			}
 		}
+
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
 			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
 		}
 	}
+
 	err = objectWriter.WriteObjectValue("", aMessage)
 	if err != nil {
 		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
@@ -275,12 +301,15 @@ func messageToDataCollection(
 
 	byteArray, err := objectWriter.GetSerializedContent()
 	objectWriter.Close()
+
 	if err != nil {
 		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 	}
+
 	if byteArray != nil {
 		dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage)}
 	}
+
 	return nil
 }
 

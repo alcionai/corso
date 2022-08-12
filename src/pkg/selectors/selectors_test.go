@@ -157,6 +157,7 @@ func (suite *SelectorSuite) TestContains() {
 	target := "fnords"
 	does := map[string]string{key: target}
 	doesNot := map[string]string{key: "smarf"}
+
 	assert.True(t, contains(does, key, target))
 	assert.False(t, contains(doesNot, key, target))
 }

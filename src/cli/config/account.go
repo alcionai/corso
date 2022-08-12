@@ -22,6 +22,7 @@ func m365ConfigsFromViper(vpr *viper.Viper) (account.M365Config, error) {
 	}
 
 	m365.TenantID = vpr.GetString(TenantIDKey)
+
 	return m365, nil
 }
 

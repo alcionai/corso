@@ -66,6 +66,7 @@ func testForFiles(
 	collections []data.Collection,
 ) {
 	count := 0
+
 	for _, c := range collections {
 		for s := range c.Items() {
 			count++
@@ -144,6 +145,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
 	require.NoError(suite.T(), err)
+
 	names := entriesToNames(entries)
 	assert.Len(suite.T(), names, 2)
 	assert.Contains(suite.T(), names, user1)
@@ -177,9 +179,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	ctx := context.Background()
 	emails := "emails"
-
 	expectedFileCount := 42
-
 	snapshotDetails := &details.Details{}
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
@@ -584,6 +584,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	for k, v := range suite.inboxExpectedFiles {
 		suite.allExpectedFiles[k] = v
 	}
+
 	for k, v := range suite.archiveExpectedFiles {
 		suite.allExpectedFiles[k] = v
 	}
@@ -606,6 +607,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	assert.Equal(t, c.FullPath(), testPath)
 
 	count := 0
+
 	for resultStream := range c.Items() {
 		buf, err := ioutil.ReadAll(resultStream.ToReader())
 		require.NoError(t, err)
@@ -749,6 +751,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	p2 := []string{tid, "uid2", "emails", "fid"}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
+
 	fp1 := append(p1, dc1.Names[0])
 	fp2 := append(p2, dc2.Names[0])
 

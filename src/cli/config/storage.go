@@ -24,6 +24,7 @@ func s3ConfigsFromViper(vpr *viper.Viper) (storage.S3Config, error) {
 	s3Config.Bucket = vpr.GetString(BucketNameKey)
 	s3Config.Endpoint = vpr.GetString(EndpointKey)
 	s3Config.Prefix = vpr.GetString(PrefixKey)
+
 	return s3Config, nil
 }
 
@@ -77,6 +78,7 @@ func configureStorage(
 	if err := corso.Validate(); err != nil {
 		return store, errors.Wrap(err, "validating corso credentials")
 	}
+
 	cCfg := storage.CommonConfig{
 		Corso: corso,
 	}

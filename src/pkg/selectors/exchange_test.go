@@ -281,13 +281,16 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Users() {
 
 	for _, scope := range scopes {
 		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+
 		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
 			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
 			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
 		}
+
 		if scope[scopeKeyCategory] == ExchangeEvent.String() {
 			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
 		}
+
 		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
 			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
 			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
@@ -310,13 +313,16 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
 
 	for _, scope := range scopes {
 		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+
 		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
 			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
 			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
 		}
+
 		if scope[scopeKeyCategory] == ExchangeEvent.String() {
 			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
 		}
+
 		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
 			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
 			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
@@ -482,6 +488,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 		scope.Get(ExchangeCategoryUnknown))
 
 	expect := Any()
+
 	for _, test := range table {
 		suite.T().Run(test.String(), func(t *testing.T) {
 			assert.Equal(t, expect, scope.Get(test))
@@ -491,10 +498,12 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 
 func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesInfo() {
 	es := NewExchangeRestore()
+
 	const (
 		sender  = "smarf@2many.cooks"
 		subject = "I have seen the fnords!"
 	)
+
 	var (
 		epoch = time.Time{}
 		now   = time.Now()
@@ -543,6 +552,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesPath() {
 		fld  = "mailFolder"
 		mail = "mailID"
 	)
+
 	var (
 		path = []string{"tid", usr, "mail", fld, mail}
 		es   = NewExchangeRestore()
@@ -636,21 +646,26 @@ func (suite *ExchangeSourceSuite) TestExchangeRestore_Reduce() {
 				Entries: []details.DetailsEntry{},
 			},
 		}
+
 		for _, r := range refs {
 			deets.Entries = append(deets.Entries, details.DetailsEntry{
 				RepoRef: r,
 			})
 		}
+
 		return deets
 	}
+
 	const (
 		contact = "tid/uid/contact/cfld/cid"
 		event   = "tid/uid/event/eid"
 		mail    = "tid/uid/mail/mfld/mid"
 	)
+
 	arr := func(s ...string) []string {
 		return s
 	}
+
 	table := []struct {
 		name         string
 		deets        *details.Details
@@ -789,21 +804,27 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 		events   = es.Events(Any(), Any())
 		mail     = es.MailFolders(Any(), Any())
 	)
+
 	type expect struct {
 		contact int
 		event   int
 		mail    int
 	}
+
 	type input []map[string]string
+
 	makeInput := func(es ...[]ExchangeScope) []map[string]string {
 		mss := []map[string]string{}
+
 		for _, sl := range es {
 			for _, s := range sl {
 				mss = append(mss, map[string]string(s))
 			}
 		}
+
 		return mss
 	}
+
 	table := []struct {
 		name   string
 		scopes input
@@ -826,12 +847,14 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 }
 
 func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
-	var exchangeInfo *details.ExchangeInfo
 	const (
 		mid = "mailID"
 		cat = ExchangeMail
 	)
+
 	var (
+		exchangeInfo *details.ExchangeInfo
+
 		es        = NewExchangeRestore()
 		anyUser   = extendExchangeScopeValues(es.Users(Any()))
 		noUser    = extendExchangeScopeValues(es.Users(None()))
@@ -874,6 +897,7 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 
 func (suite *ExchangeSourceSuite) TestContains() {
 	target := "fnords"
+
 	var (
 		es                  = NewExchangeRestore()
 		anyUser             = extendExchangeScopeValues(es.Users(Any()))
@@ -883,6 +907,7 @@ func (suite *ExchangeSourceSuite) TestContains() {
 		wrongType           = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
 		wrongTypeGoodTarget = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
 	)
+
 	table := []struct {
 		name   string
 		scopes []ExchangeScope
@@ -917,6 +942,7 @@ func (suite *ExchangeSourceSuite) TestIsAny() {
 		specificMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"mail"}))
 		anyMail      = extendExchangeScopeValues(es.Mails(Any(), Any(), Any()))
 	)
+
 	table := []struct {
 		name   string
 		scopes []ExchangeScope
