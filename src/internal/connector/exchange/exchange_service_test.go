@@ -33,15 +33,16 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
+	t := suite.T()
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
-	a, err := tester.NewM365Account()
-	require.NoError(suite.T(), err)
+	a := tester.NewM365Account(t)
+	require.NoError(t, err)
 	m365, err := a.M365Config()
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 	service, err := createService(m365, false)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 	suite.es = service
 }
 
@@ -151,8 +152,7 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 // TestExchangeService_GraphQueryFunctions verifies if Query functions APIs
 // through Microsoft Graph are functional
 func (suite *ExchangeServiceSuite) TestExchangeService_GraphQueryFunctions() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	tests := []struct {
 		name     string
 		function GraphQuery
@@ -178,8 +178,7 @@ func (suite *ExchangeServiceSuite) TestExchangeService_GraphQueryFunctions() {
 // TestExchangeService_IterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeServiceSuite) TestExchangeService_IterativeFunctions() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
