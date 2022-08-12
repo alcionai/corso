@@ -29,7 +29,8 @@ var (
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
-	// RestorePropertyTag defined: https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
+	// RestorePropertyTag defined:
+	// https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
 	RestorePropertyTag          = "Integer 0x0E07"
 	RestoreCanonicalEnableValue = "4"
 )

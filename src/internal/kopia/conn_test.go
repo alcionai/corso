@@ -13,13 +13,10 @@ import (
 
 //revive:disable:context-as-argument
 func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
-	storage, err := tester.NewPrefixedS3Storage(t)
-	if err != nil {
-		return nil, err
-	}
+	storage := tester.NewPrefixedS3Storage(t)
 
 	k := NewConn(storage)
-	if err = k.Initialize(ctx); err != nil {
+	if err := k.Initialize(ctx); err != nil {
 		return nil, err
 	}
 

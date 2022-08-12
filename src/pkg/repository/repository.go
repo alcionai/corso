@@ -130,7 +130,11 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
-func (r Repository) NewBackup(ctx context.Context, selector selectors.Selector, opts control.Options) (operations.BackupOperation, error) {
+func (r Repository) NewBackup(
+	ctx context.Context,
+	selector selectors.Selector,
+	opts control.Options,
+) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
 		opts,

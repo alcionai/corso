@@ -100,7 +100,8 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		return nil, err
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, err
 	}
@@ -140,14 +141,22 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	if err != nil {
 		return nil, err
 	}
-	response, err := service.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := service.
+		Client().
+		UsersById(user).
+		MailFolders().
+		GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return nil, err
 	}
 	if response == nil {
 		return nil, errors.New("mail folder query to m365 back store returned nil")
 	}
-	pageIterator, err := msgraphgocore.NewPageIterator(response, service.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	pageIterator, err := msgraphgocore.NewPageIterator(
+		response,
+		service.Adapter(),
+		models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
+	)
 	if err != nil {
 		return nil, err
 	}
