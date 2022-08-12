@@ -153,7 +153,6 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 	if suite.kopiaCloser != nil {
 		suite.kopiaCloser(ctx)
 	}
-
 }
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
