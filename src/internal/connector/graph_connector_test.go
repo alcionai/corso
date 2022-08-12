@@ -189,17 +189,22 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 		require.NoError(t, err)
 		suite.Equal(len(collections), 1)
 		for _, edc := range collections {
+			number := 0
 			streamChannel := edc.Items()
 			// Verify that each message can be restored
 			for stream := range streamChannel {
-				buf := &bytes.Buffer{}
-				read, err := buf.ReadFrom(stream.ToReader())
-				suite.NoError(err)
-				suite.NotZero(read)
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				suite.NotNil(message)
-				suite.NoError(err)
+				testName := fmt.Sprintf("%s_InboxMessage_%d", edc.FullPath()[1], number)
+				suite.T().Run(testName, func(t *testing.T) {
+					buf := &bytes.Buffer{}
+					read, err := buf.ReadFrom(stream.ToReader())
+					suite.NoError(err)
+					suite.NotZero(read)
+					message, err := support.CreateMessageFromBytes(buf.Bytes())
+					suite.NotNil(message)
+					suite.NoError(err)
+					number++
 
+				})
 			}
 		}
 	}
@@ -216,11 +221,15 @@ func (suite *GraphConnectorIntegrationSuite) Test_EventsCollection() {
 	suite.Greater(len(collections), 0)
 	for _, edc := range collections {
 		streamChannel := edc.Items()
+		number := 0
 		for stream := range streamChannel {
-			buf := &bytes.Buffer{}
-			read, err := buf.ReadFrom(stream.ToReader())
-			suite.NoError(err)
-			suite.NotZero(read)
+			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath()[1], number)
+			suite.T().Run(testName, func(t *testing.T) {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+			})
 		}
 	}
 }
