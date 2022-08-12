@@ -163,13 +163,12 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 // TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
 // is able to restore a messageable item to a Mailbox.
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
-	user := "TEST_GRAPH_USER" // user.GetId()
-	evs, err := tester.GetRequiredEnvVars(user)
-	if err != nil {
-		suite.T().Skipf("Environment not configured: %v\n", err)
+	user := tester.M365UserID(suite.T())
+	if len(user) == 0 {
+		suite.T().Skip("Environment not configured: missing m365 test user")
 	}
-	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", evs[user], mailCategory, "Inbox"}, 1)
-	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
+	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", user, mailCategory, "Inbox"}, 1)
+	err := suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
 	assert.NoError(suite.T(), err)
 }
 
