@@ -194,12 +194,9 @@ func TestConfigIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ConfigIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(
-		append(
-			tester.AWSStorageCredEnvs,
-			tester.M365AcctCredEnvs...,
-		)...,
-	)
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs)
 	require.NoError(suite.T(), err)
 }
 

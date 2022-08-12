@@ -33,7 +33,11 @@ func m365Overrides(in map[string]string) map[string]string {
 
 // configureAccount builds a complete account configuration from a mix of
 // viper properties and manual overrides.
-func configureAccount(vpr *viper.Viper, readConfigFromViper bool, overrides map[string]string) (account.Account, error) {
+func configureAccount(
+	vpr *viper.Viper,
+	readConfigFromViper bool,
+	overrides map[string]string,
+) (account.Account, error) {
 	var (
 		m365Cfg account.M365Config
 		acct    account.Account

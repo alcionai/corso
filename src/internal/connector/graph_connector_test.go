@@ -45,8 +45,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
-	a, err := tester.NewM365Account()
-	require.NoError(suite.T(), err)
+	a := tester.NewM365Account(suite.T())
 
 	suite.connector, err = NewGraphConnector(a)
 	suite.NoError(err)
@@ -65,8 +64,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
@@ -90,8 +88,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTest() {
 	t := suite.T()
-	user, err := tester.M365UserID()
-	require.NoError(t, err)
+	user := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{user}))
 	eb, err := sel.ToExchangeBackup()
@@ -128,8 +125,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 
 // TestGraphConnector_TestContactSequence verifies retrieval sequence
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSequence() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
@@ -212,8 +208,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 //  TestGraphConnector_CreateAndDeleteFolder ensures msgraph application has the ability
 //  to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, userID, folderName)
@@ -227,8 +222,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 // TestGraphConnector_GetMailFolderID verifies the ability to retrieve folder ID of folders
 // at the top level of the file tree
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_GetMailFolderID() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	folderName := "Inbox"
 	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, userID)
 	assert.NoError(suite.T(), err)

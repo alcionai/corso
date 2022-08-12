@@ -8,6 +8,8 @@ jobs:
   Test-User-Data-Cleanup:
     runs-on: ubuntu-latest
 
+    steps:
+
       # check out the repo
       - name: Repo Code Checkout
         uses: actions/checkout@v3

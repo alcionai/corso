@@ -63,10 +63,16 @@ const All = "All"
 // The core selector.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific selector instances.
 type Selector struct {
-	Service  service             `json:"service,omitempty"`    // The service scope of the data.  Exchange, Teams, Sharepoint, etc.
-	Excludes []map[string]string `json:"exclusions,omitempty"` // A slice of exclusion scopes.  Exclusions apply globally to all inclusions/filters, with any-match behavior.
-	Filters  []map[string]string `json:"filters,omitempty"`    // A slice of filter scopes.  All inclusions must also match ALL filters.
-	Includes []map[string]string `json:"includes,omitempty"`   // A slice of inclusion scopes.  Comparators must match either one of these, or all filters, to be included.
+	// The service scope of the data.  Exchange, Teams, Sharepoint, etc.
+	Service service `json:"service,omitempty"`
+	// A slice of exclusion scopes.  Exclusions apply globally to all
+	// inclusions/filters, with any-match behavior.
+	Excludes []map[string]string `json:"exclusions,omitempty"`
+	// A slice of filter scopes.  All inclusions must also match ALL filters.
+	Filters []map[string]string `json:"filters,omitempty"`
+	// A slice of inclusion scopes.  Comparators must match either one of these,
+	// or all filters, to be included.
+	Includes []map[string]string `json:"includes,omitempty"`
 }
 
 // helper for specific selector instance constructors.

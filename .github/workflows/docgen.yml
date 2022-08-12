@@ -55,12 +55,12 @@ jobs:
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
 
-      # make a commit for any file changes
-      - name: Commit the Auto-Generated Files
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: Documentation Auto-generation
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
-          commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+      # # make a commit for any file changes
+      # - name: Commit the Auto-Generated Files
+      #   uses: stefanzweifel/git-auto-commit-action@v4
+      #   with:
+      #     commit_message: Documentation Auto-generation
+      #     commit_user_name: github-actions[bot]
+      #     commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+      #     commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
 
