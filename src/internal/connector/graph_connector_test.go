@@ -203,7 +203,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 					suite.NotNil(message)
 					suite.NoError(err)
 					number++
-
 				})
 			}
 		}
