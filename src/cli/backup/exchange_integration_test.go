@@ -1,7 +1,6 @@
 package backup_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,10 +41,8 @@ func (suite *ExchangeIntegrationSuite) TestExchangeBackupCmd() {
 	ctx := tester.NewContext()
 	t := suite.T()
 
-	acct, err := tester.NewM365Account()
-	require.NoError(t, err)
-	st, err := tester.NewPrefixedS3Storage(t)
-	require.NoError(t, err)
+	acct := tester.NewM365Account(t)
+	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
@@ -62,10 +59,7 @@ func (suite *ExchangeIntegrationSuite) TestExchangeBackupCmd() {
 	_, err = repository.Initialize(ctx, acct, st)
 	require.NoError(t, err)
 
-	m365UserID, err := tester.M365UserID()
-	require.NoError(t, err)
-
-	fmt.Printf("\n-----\ntesting with %v %v\n-----\n", m365UserID, configFP)
+	m365UserID := tester.M365UserID(t)
 
 	// then test it
 	cmd := tester.StubRootCmd(
