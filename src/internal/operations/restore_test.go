@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
@@ -74,6 +75,11 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 type RestoreOpIntegrationSuite struct {
 	suite.Suite
+
+	backupID model.StableID
+	numItems int
+	kw       *kopia.Wrapper
+	sw       *store.Wrapper
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
@@ -89,6 +95,48 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
+
+	t := suite.T()
+	ctx := context.Background()
+
+	m365UserID := tester.M365UserID(t)
+	acct := tester.NewM365Account(t)
+
+	// need to initialize the repository before we can test connecting to it.
+	st := tester.NewPrefixedS3Storage(t)
+
+	k := kopia.NewConn(st)
+	require.NoError(t, k.Initialize(ctx))
+	defer k.Close(ctx)
+
+	kw, err := kopia.NewWrapper(k)
+	require.NoError(t, err)
+	defer kw.Close(ctx)
+
+	ms, err := kopia.NewModelStore(k)
+	require.NoError(t, err)
+	defer ms.Close(ctx)
+
+	sw := store.NewKopiaStore(ms)
+
+	bsel := selectors.NewExchangeBackup()
+	bsel.Include(bsel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
+
+	bo, err := NewBackupOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		bsel.Selector)
+	require.NoError(t, err)
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results.BackupID)
+
+	suite.backupID = bo.Results.BackupID
+	suite.numItems = bo.Results.ItemsWritten
+	suite.kw = kw
+	suite.sw = sw
 }
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
@@ -128,49 +176,16 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	t := suite.T()
 	ctx := context.Background()
 
-	m365UserID := tester.M365UserID(t)
-	acct := tester.NewM365Account(t)
-
-	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
-
-	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
-	defer k.Close(ctx)
-
-	w, err := kopia.NewWrapper(k)
-	require.NoError(t, err)
-	defer w.Close(ctx)
-
-	ms, err := kopia.NewModelStore(k)
-	require.NoError(t, err)
-	defer ms.Close(ctx)
-
-	sw := store.NewKopiaStore(ms)
-
-	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m365UserID}))
-
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Options{},
-		w,
-		sw,
-		acct,
-		bsel.Selector)
-	require.NoError(t, err)
-	require.NoError(t, bo.Run(ctx))
-	require.NotEmpty(t, bo.Results.BackupID)
 	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users([]string{m365UserID}))
+	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
 
 	ro, err := NewRestoreOperation(
 		ctx,
 		control.Options{},
-		w,
-		sw,
-		acct,
-		bo.Results.BackupID,
+		suite.kw,
+		suite.sw,
+		tester.NewM365Account(t),
+		suite.backupID,
 		rsel.Selector)
 	require.NoError(t, err)
 
@@ -181,46 +196,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
-	assert.Equal(t, bo.Results.ItemsWritten, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
+	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	t := suite.T()
 	ctx := context.Background()
-
-	m365UserID := tester.M365UserID(t)
-	acct := tester.NewM365Account(t)
-
-	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
-
-	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
-	defer k.Close(ctx)
-
-	w, err := kopia.NewWrapper(k)
-	require.NoError(t, err)
-	defer w.Close(ctx)
-
-	ms, err := kopia.NewModelStore(k)
-	require.NoError(t, err)
-	defer ms.Close(ctx)
-
-	sw := store.NewKopiaStore(ms)
-
-	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m365UserID}))
-
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Options{},
-		w,
-		sw,
-		acct,
-		bsel.Selector)
-	require.NoError(t, err)
-	require.NoError(t, bo.Run(ctx))
-	require.NotEmpty(t, bo.Results.BackupID)
 
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(selectors.None()))
@@ -228,10 +209,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	ro, err := NewRestoreOperation(
 		ctx,
 		control.Options{},
-		w,
-		sw,
-		acct,
-		bo.Results.BackupID,
+		suite.kw,
+		suite.sw,
+		tester.NewM365Account(t),
+		suite.backupID,
 		rsel.Selector)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
