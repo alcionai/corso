@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -41,6 +42,36 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	service, err := createService(m365, false)
 	require.NoError(t, err)
 	suite.es = service
+}
+
+func (suite *ExchangeServiceSuite) TestCreateService() {
+
+	creds := suite.es.credentials
+	invalidCredentials := suite.es.credentials
+	invalidCredentials.ClientSecret = "Invalid"
+
+	tests := []struct {
+		name        string
+		credentials account.M365Config
+		checkErr    assert.ErrorAssertionFunc
+	}{
+		{
+			name:        "Valid Service Creation",
+			credentials: creds,
+			checkErr:    assert.NoError,
+		},
+		{
+			name:        "Invalid Service Creation",
+			credentials: invalidCredentials,
+			checkErr:    assert.Error,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := createService(test.credentials, false)
+			test.checkErr(t, err)
+		})
+	}
 }
 
 // TestOptionsForMessages checks to ensure approved query
@@ -200,6 +231,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 		{
 			name:     "GraphQuery: Get All Contacts For User",
 			function: GetAllContactsForUser,
+		},
+		{
+			name:     "GraphQuery: Get All Folders",
+			function: GetAllFolderNamesForUser,
 		},
 	}
 	for _, test := range tests {
