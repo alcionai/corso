@@ -44,11 +44,15 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	suite.es = service
 }
 
+// TestCreateService verifies that services are created
+// when called with the correct range of paramters. NOTE:
+// incorrect tenant or password information will NOT generate
+// an error.
 func (suite *ExchangeServiceSuite) TestCreateService() {
 
 	creds := suite.es.credentials
 	invalidCredentials := suite.es.credentials
-	invalidCredentials.ClientSecret = "Invalid"
+	invalidCredentials.ClientSecret = ""
 
 	tests := []struct {
 		name        string
@@ -68,6 +72,7 @@ func (suite *ExchangeServiceSuite) TestCreateService() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			t.Log(test.credentials.ClientSecret)
 			_, err := createService(test.credentials, false)
 			test.checkErr(t, err)
 		})
