@@ -30,3 +30,12 @@ func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
 	message := aMessage.(models.Messageable)
 	return message, nil
 }
+
+func CreateContactFromBytes(bytes []byte) (models.Contactable, error) {
+	parsable, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+	contact := parsable.(models.Contactable)
+	return contact, nil
+}
