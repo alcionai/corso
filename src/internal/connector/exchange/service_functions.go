@@ -44,7 +44,9 @@ func (es *exchangeService) ErrPolicy() bool {
 	return es.failFast
 }
 
-// createService internal constructor for exchangeService struct
+// createService internal constructor for exchangeService struct returns an error
+// iff the paramters for the entry are incorrect (e.g. len(TenantID) == 0, etc.)
+// NOTE: Incorrect account information will result in errors on subsequent queries.
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
 		credentials.TenantID,
