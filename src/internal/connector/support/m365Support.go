@@ -31,6 +31,8 @@ func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
 	return message, nil
 }
 
+// CreateContactFromBytes function to transform bytes into Contactable object
+// Error returned if ParsableFactory function does not accept given bytes
 func CreateContactFromBytes(bytes []byte) (models.Contactable, error) {
 	parsable, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
 	if err != nil {
