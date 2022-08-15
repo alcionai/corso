@@ -45,11 +45,10 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 }
 
 // TestCreateService verifies that services are created
-// when called with the correct range of paramters. NOTE:
+// when called with the correct range of params. NOTE:
 // incorrect tenant or password information will NOT generate
 // an error.
 func (suite *ExchangeServiceSuite) TestCreateService() {
-
 	creds := suite.es.credentials
 	invalidCredentials := suite.es.credentials
 	invalidCredentials.ClientSecret = ""
