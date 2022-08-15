@@ -212,5 +212,4 @@ func (suite *DisconnectedGraphConnectorSuite) TestLaunchAsyncStatus() {
 	time.Sleep(1 * time.Second)
 	suite.Equal(gc.status.LastOperation, support.Restore)
 	suite.Equal(gc.status.Successful, 2)
-
 }
