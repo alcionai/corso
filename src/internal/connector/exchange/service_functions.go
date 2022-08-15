@@ -95,13 +95,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		mfs = []MailFolder{}
 		err error
 	)
-
-	opts, err := optionsForMailFolders([]string{"id", "displayName"})
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(opts, nil)
+	resp, err := GetAllFolderNamesForUser(gs, user)
 	if err != nil {
 		return nil, err
 	}
@@ -143,21 +137,12 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
 	var errs error
 	var folderID *string
-	options, err := optionsForMailFolders([]string{"displayName"})
+
+	response, err := GetAllFolderNamesForUser(service, user)
 	if err != nil {
 		return nil, err
 	}
-	response, err := service.
-		Client().
-		UsersById(user).
-		MailFolders().
-		GetWithRequestConfigurationAndResponseHandler(options, nil)
-	if err != nil {
-		return nil, err
-	}
-	if response == nil {
-		return nil, errors.New("mail folder query to m365 back store returned nil")
-	}
+
 	pageIterator, err := msgraphgocore.NewPageIterator(
 		response,
 		service.Adapter(),
