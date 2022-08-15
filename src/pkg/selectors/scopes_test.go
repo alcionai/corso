@@ -3,12 +3,20 @@ package selectors
 import (
 	"testing"
 
+	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/pkg/backup/details"
 )
+
+func stubPathValues() map[categorizer]string {
+	return map[categorizer]string{
+		rootCatStub: rootCatStub.String(),
+		leafCatStub: leafCatStub.String(),
+	}
+}
 
 // ---------------------------------------------------------------------------
 // tests
