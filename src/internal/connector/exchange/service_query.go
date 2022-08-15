@@ -229,6 +229,7 @@ func IterateSelectAllEventsForCollections(
 			isDirectorySet = true
 
 		}
+
 		event, ok := eventItem.(models.Eventable)
 		if !ok {
 			errs = support.WrapAndAppend(
