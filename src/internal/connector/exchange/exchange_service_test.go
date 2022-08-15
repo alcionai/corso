@@ -127,13 +127,13 @@ func (suite *ExchangeServiceSuite) TestOptionsForFolders() {
 	}{
 		{
 			name:       "Valid Folder Option",
-			params:     []string{"displayName"},
+			params:     []string{"parentFolderId"},
 			checkError: assert.NoError,
 			expected:   2,
 		},
 		{
 			name:       "Multiple Folder Options: Valid",
-			params:     []string{"displayName", "parentFolderId"},
+			params:     []string{"displayName", "isHidden"},
 			checkError: assert.NoError,
 			expected:   3,
 		},
