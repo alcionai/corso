@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector"
@@ -71,6 +72,7 @@ func (op BackupOperation) validate() error {
 type backupStats struct {
 	k                 *kopia.BackupStats
 	gc                *support.ConnectorOperationStatus
+	started           bool
 	readErr, writeErr error
 }
 
@@ -84,7 +86,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		backupDetails *details.Details
 	)
 	defer func() {
-		op.persistResults(time.Now(), &opStats)
+		err = op.persistResults(time.Now(), &opStats)
+		if err != nil {
+			return
+		}
 
 		err = op.createBackupModels(ctx, opStats.k.SnapshotID, backupDetails)
 		if err != nil {
@@ -96,23 +101,27 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// retrieve data from the producer
 	gc, err := connector.NewGraphConnector(op.account)
 	if err != nil {
+		err = errors.Wrap(err, "connecting to graph api")
 		opStats.readErr = err
-		return errors.Wrap(err, "connecting to graph api")
+		return err
 	}
 
 	var cs []data.Collection
 	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
 	if err != nil {
+		err = errors.Wrap(err, "retrieving service data")
 		opStats.readErr = err
-		return errors.Wrap(err, "retrieving service data")
+		return err
 	}
 
 	// hand the results to the consumer
 	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs)
 	if err != nil {
+		err = errors.Wrap(err, "backing up service data")
 		opStats.writeErr = err
-		return errors.Wrap(err, "backing up service data")
+		return err
 	}
+	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
 	return err
@@ -123,28 +132,37 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 func (op *BackupOperation) persistResults(
 	started time.Time,
 	opStats *backupStats,
-) {
+) error {
+	op.Results.StartedAt = started
+	op.Results.CompletedAt = time.Now()
+
 	op.Status = Completed
-	if opStats.k.TotalFileCount == 0 && (opStats.readErr != nil || opStats.writeErr != nil) {
+	if !opStats.started {
 		op.Status = Failed
+		return multierror.Append(
+			errors.New("errors prevented the operation from processing"),
+			opStats.readErr,
+			opStats.writeErr)
 	}
 
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
+	op.Results.ItemsRead = opStats.gc.Successful
+	op.Results.ItemsWritten = opStats.k.TotalFileCount
 
-	if opStats.gc != nil {
-		op.Results.ItemsRead = opStats.gc.Successful
-	}
-	if opStats.k != nil {
-		op.Results.ItemsWritten = opStats.k.TotalFileCount
-	}
-
-	op.Results.StartedAt = started
-	op.Results.CompletedAt = time.Now()
+	return nil
 }
 
 // stores the operation details, results, and selectors in the backup manifest.
-func (op *BackupOperation) createBackupModels(ctx context.Context, snapID string, backupDetails *details.Details) error {
+func (op *BackupOperation) createBackupModels(
+	ctx context.Context,
+	snapID string,
+	backupDetails *details.Details,
+) error {
+	if backupDetails == nil {
+		return errors.New("no backup details to record")
+	}
+
 	err := op.store.Put(ctx, model.BackupDetailsSchema, &backupDetails.DetailsModel)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")

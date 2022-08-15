@@ -47,6 +47,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
 	suite.Equal(expected, received)
 	assert.Nil(suite.T(), err, "received buf.Readfrom error ")
 }
+
 func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 	user := "a-user"
 	fullPath := []string{"a-tenant", user, "emails"}
@@ -80,7 +81,6 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 		eoc.AddJob(item)
 	}
 	suite.Equal(len(shopping), len(eoc.jobs))
-
 }
 
 // TestExchangeCollection_Items() tests for the Collection.Items() ability
@@ -89,14 +89,17 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Items() {
 	expected := 5
 	testFunction := func(ctx context.Context,
 		service graph.Service,
-		eoc *Collection,
-		notUsed chan<- *support.ConnectorOperationStatus) {
+		user string,
+		jobs []string,
+		dataChannel chan<- data.Stream,
+		notUsed chan<- *support.ConnectorOperationStatus,
+	) {
 		detail := &details.ExchangeInfo{Sender: "foo@bar.com", Subject: "Hello world!", Received: time.Now()}
 		for i := 0; i < expected; i++ {
 			temp := NewStream(uuid.NewString(), mockconnector.GetMockMessageBytes("Test_Items()"), *detail)
-			eoc.data <- &temp
+			dataChannel <- &temp
 		}
-		close(eoc.data)
+		close(dataChannel)
 	}
 
 	eoc := Collection{

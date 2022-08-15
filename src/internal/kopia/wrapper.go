@@ -26,10 +26,7 @@ const (
 	corsoUser = "corso"
 )
 
-var (
-	errNotConnected   = errors.New("not connected to repo")
-	errUnsupportedDir = errors.New("unsupported static children in streaming directory")
-)
+var errNotConnected = errors.New("not connected to repo")
 
 type BackupStats struct {
 	SnapshotID          string
@@ -80,19 +77,33 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // kopia callbacks on directory entries. It binds the directory to the given
 // DataCollection.
 func getStreamItemFunc(
-	collection data.Collection,
+	staticEnts []fs.Entry,
+	streamedEnts data.Collection,
 	snapshotDetails *details.Details,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
-		items := collection.Items()
+		// Return static entries in this directory first.
+		for _, d := range staticEnts {
+			if err := cb(ctx, d); err != nil {
+				return errors.Wrap(err, "executing callback on static directory")
+			}
+		}
+
+		if streamedEnts == nil {
+			return nil
+		}
+
+		items := streamedEnts.Items()
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
+
 			case e, ok := <-items:
 				if !ok {
 					return nil
 				}
+
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
 					return errors.New("item does not implement DataStreamInfo")
@@ -104,7 +115,7 @@ func getStreamItemFunc(
 				}
 
 				// Populate BackupDetails
-				ep := append(collection.FullPath(), e.UUID())
+				ep := append(streamedEnts.FullPath(), e.UUID())
 				snapshotDetails.Add(path.Join(ep...), ei.Info())
 			}
 		}
@@ -112,22 +123,11 @@ func getStreamItemFunc(
 }
 
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
-// Returned directories are either virtualfs.StreamingDirectory or
-// virtualfs.staticDirectory.
+// Returned directories are virtualfs.StreamingDirectory.
 func buildKopiaDirs(dirName string, dir *treeMap, snapshotDetails *details.Details) (fs.Directory, error) {
-	// Don't support directories that have both a DataCollection and a set of
-	// static child directories.
-	if dir.collection != nil && len(dir.childDirs) > 0 {
-		return nil, errors.New(errUnsupportedDir.Error())
-	}
-
-	if dir.collection != nil {
-		return virtualfs.NewStreamingDirectory(dirName, getStreamItemFunc(dir.collection, snapshotDetails)), nil
-	}
-
 	// Need to build the directory tree from the leaves up because intermediate
 	// directories need to have all their entries at creation time.
-	childDirs := []fs.Entry{}
+	var childDirs []fs.Entry
 
 	for childName, childDir := range dir.childDirs {
 		child, err := buildKopiaDirs(childName, childDir, snapshotDetails)
@@ -138,7 +138,10 @@ func buildKopiaDirs(dirName string, dir *treeMap, snapshotDetails *details.Detai
 		childDirs = append(childDirs, child)
 	}
 
-	return virtualfs.NewStaticDirectory(dirName, childDirs), nil
+	return virtualfs.NewStreamingDirectory(
+		dirName,
+		getStreamItemFunc(childDirs, dir.collection, snapshotDetails),
+	), nil
 }
 
 type treeMap struct {
@@ -156,7 +159,11 @@ func newTreeMap() *treeMap {
 // ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
 // in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
 // DataCollections.
-func inflateDirTree(ctx context.Context, collections []data.Collection, snapshotDetails *details.Details) (fs.Directory, error) {
+func inflateDirTree(
+	ctx context.Context,
+	collections []data.Collection,
+	snapshotDetails *details.Details,
+) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
@@ -179,8 +186,8 @@ func inflateDirTree(ctx context.Context, collections []data.Collection, snapshot
 		}
 
 		for _, p := range itemPath[1 : len(itemPath)-1] {
-			newDir, ok := dir.childDirs[p]
-			if !ok {
+			newDir := dir.childDirs[p]
+			if newDir == nil {
 				newDir = newTreeMap()
 
 				if dir.childDirs == nil {
@@ -200,13 +207,13 @@ func inflateDirTree(ctx context.Context, collections []data.Collection, snapshot
 		end := len(itemPath) - 1
 
 		// Make sure this entry doesn't already exist.
-		if _, ok := dir.childDirs[itemPath[end]]; ok {
-			return nil, errors.New(errUnsupportedDir.Error())
+		tmpDir := dir.childDirs[itemPath[end]]
+		if tmpDir == nil {
+			tmpDir = newTreeMap()
+			dir.childDirs[itemPath[end]] = tmpDir
 		}
 
-		sd := newTreeMap()
-		sd.collection = s
-		dir.childDirs[itemPath[end]] = sd
+		tmpDir.collection = s
 	}
 
 	if len(roots) > 1 {
@@ -297,7 +304,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 			return nil
 		},
 	)
-
 	// Telling kopia to always flush may hide other errors if it fails while
 	// flushing the write session (hence logging above).
 	if err != nil {
@@ -458,7 +464,6 @@ func walkDirectory(
 
 		return nil
 	})
-
 	if err != nil {
 		// If the iterator itself had an error add it to the list.
 		errs = multierror.Append(errs, errors.Wrap(err, "getting directory data"))

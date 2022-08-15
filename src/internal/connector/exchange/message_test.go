@@ -76,7 +76,8 @@ func (suite *MessageSuite) TestMessageInfo() {
 				msg.SetReceivedDateTime(&now)
 				return msg, &details.ExchangeInfo{Sender: sender, Subject: subject, Received: now}
 			},
-		}}
+		},
+	}
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			msg, expected := tt.msgAndRP()

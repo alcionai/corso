@@ -25,7 +25,7 @@ func TestCLISuite(t *testing.T) {
 func (suite *CLISuite) TestAddCommands_noPanics() {
 	t := suite.T()
 
-	var test = &cobra.Command{
+	test := &cobra.Command{
 		Use:   "test",
 		Short: "Protect your Microsoft 365 data.",
 		Long:  `Reliable, secure, and efficient data protection for Microsoft 365.`,

@@ -90,7 +90,7 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 		return errors.New("config file requires an extension e.g. `toml`")
 	}
 	fileName = strings.TrimSuffix(fileName, ext)
-	vpr.SetConfigType(ext[1:])
+	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
 	vpr.SetConfigName(fileName)
 
 	return nil
@@ -179,7 +179,11 @@ func GetStorageAndAccount(
 
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper
 // struct for testing.
-func getStorageAndAccountWithViper(vpr *viper.Viper, readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
+func getStorageAndAccountWithViper(
+	vpr *viper.Viper,
+	readFromFile bool,
+	overrides map[string]string,
+) (storage.Storage, account.Account, error) {
 	var (
 		store storage.Storage
 		acct  account.Account
@@ -215,16 +219,6 @@ func getStorageAndAccountWithViper(vpr *viper.Viper, readFromFile bool, override
 // ---------------------------------------------------------------------------
 // Helper funcs
 // ---------------------------------------------------------------------------
-
-// returns the first non-zero valued string
-func first(vs ...string) string {
-	for _, v := range vs {
-		if len(v) > 0 {
-			return v
-		}
-	}
-	return ""
-}
 
 var constToTomlKeyMap = map[string]string{
 	account.TenantID:       TenantIDKey,

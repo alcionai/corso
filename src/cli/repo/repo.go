@@ -38,14 +38,16 @@ func handleRepoCmd(cmd *cobra.Command, args []string) error {
 
 // The repo init subcommand.
 // `corso repo init <repository> [<flag>...]`
-var initCommand = "init"
-var initCmd = &cobra.Command{
-	Use:   initCommand,
-	Short: "Initialize a repository.",
-	Long:  `Create a new repository to store your backups.`,
-	RunE:  handleInitCmd,
-	Args:  cobra.NoArgs,
-}
+var (
+	initCommand = "init"
+	initCmd     = &cobra.Command{
+		Use:   initCommand,
+		Short: "Initialize a repository.",
+		Long:  `Create a new repository to store your backups.`,
+		RunE:  handleInitCmd,
+		Args:  cobra.NoArgs,
+	}
+)
 
 // Handler for calls to `corso repo init`.
 func handleInitCmd(cmd *cobra.Command, args []string) error {
@@ -54,14 +56,16 @@ func handleInitCmd(cmd *cobra.Command, args []string) error {
 
 // The repo connect subcommand.
 // `corso repo connect <repository> [<flag>...]`
-var connectCommand = "connect"
-var connectCmd = &cobra.Command{
-	Use:   connectCommand,
-	Short: "Connect to a repository.",
-	Long:  `Connect to an existing repository.`,
-	RunE:  handleConnectCmd,
-	Args:  cobra.NoArgs,
-}
+var (
+	connectCommand = "connect"
+	connectCmd     = &cobra.Command{
+		Use:   connectCommand,
+		Short: "Connect to a repository.",
+		Long:  `Connect to an existing repository.`,
+		RunE:  handleConnectCmd,
+		Args:  cobra.NoArgs,
+	}
+)
 
 // Handler for calls to `corso repo connect`.
 func handleConnectCmd(cmd *cobra.Command, args []string) error {

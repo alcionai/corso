@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 )
@@ -33,7 +34,11 @@ func m365Overrides(in map[string]string) map[string]string {
 
 // configureAccount builds a complete account configuration from a mix of
 // viper properties and manual overrides.
-func configureAccount(vpr *viper.Viper, readConfigFromViper bool, overrides map[string]string) (account.Account, error) {
+func configureAccount(
+	vpr *viper.Viper,
+	readConfigFromViper bool,
+	overrides map[string]string,
+) (account.Account, error) {
 	var (
 		m365Cfg account.M365Config
 		acct    account.Account
@@ -59,7 +64,7 @@ func configureAccount(vpr *viper.Viper, readConfigFromViper bool, overrides map[
 
 	m365Cfg = account.M365Config{
 		M365:     m365,
-		TenantID: first(overrides[account.TenantID], m365Cfg.TenantID, os.Getenv(account.TenantID)),
+		TenantID: common.First(overrides[account.TenantID], m365Cfg.TenantID, os.Getenv(account.TenantID)),
 	}
 
 	// ensure required properties are present

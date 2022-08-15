@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -30,6 +29,9 @@ type exchangeService struct {
 	credentials account.M365Config
 }
 
+///------------------------------------------------------------
+// Functions to comply with graph.Service Interface
+//-------------------------------------------------------
 func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
 	return &es.client
 }
@@ -42,6 +44,9 @@ func (es *exchangeService) ErrPolicy() bool {
 	return es.failFast
 }
 
+// createService internal constructor for exchangeService struct returns an error
+// iff the params for the entry are incorrect (e.g. len(TenantID) == 0, etc.)
+// NOTE: Incorrect account information will result in errors on subsequent queries.
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
 		credentials.TenantID,
@@ -90,18 +95,13 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		mfs = []MailFolder{}
 		err error
 	)
-
-	opts, err := optionsForMailFolders([]string{"id", "displayName"})
+	resp, err := GetAllFolderNamesForUser(gs, user)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(opts, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, err
 	}
@@ -137,18 +137,17 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
 	var errs error
 	var folderID *string
-	options, err := optionsForMailFolders([]string{"displayName"})
+
+	response, err := GetAllFolderNamesForUser(service, user)
 	if err != nil {
 		return nil, err
 	}
-	response, err := service.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
-	if err != nil {
-		return nil, err
-	}
-	if response == nil {
-		return nil, errors.New("mail folder query to m365 back store returned nil")
-	}
-	pageIterator, err := msgraphgocore.NewPageIterator(response, service.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+
+	pageIterator, err := msgraphgocore.NewPageIterator(
+		response,
+		service.Adapter(),
+		models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -170,8 +169,8 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	} else if folderID == nil {
 		return nil, ErrFolderNotFound
 	}
-	return folderID, errs
 
+	return folderID, errs
 }
 
 // SetupExchangeCollectionVars is a helper function returns a sets
@@ -180,21 +179,35 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
 	GraphQuery,
 	GraphIterateFunc,
+	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
+		if scope.IsAny(selectors.ExchangeMailFolder) {
+			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
+				GetAllMessagesForUser,
+				IterateSelectAllMessagesForCollections,
+				nil
+		}
 
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
-			IterateSelectAllMessagesForCollections
+			IterateAndFilterMessagesForCollections,
+			nil
 	}
-	return nil, nil, nil
 
+	if scope.IncludesCategory(selectors.ExchangeContactFolder) {
+		return models.CreateContactFromDiscriminatorValue,
+			GetAllContactsForUser,
+			IterateAllContactsForCollection,
+			nil
+	}
+
+	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
 // GetCopyRestoreFolder utility function to create an unique folder for the restore process
 func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
-	now := time.Now().UTC()
-	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatSimpleDateTime(now))
+	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	isFolder, err := GetMailFolderID(service, newFolder, user)
 	if err != nil {
 		// Verify unique folder was not found
@@ -208,8 +221,8 @@ func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
 		}
 
 		return nil, err
-
 	}
+
 	return isFolder, nil
 }
 
@@ -252,7 +265,6 @@ func RestoreMailMessage(
 		fallthrough
 	case control.Copy:
 		return SendMailToBackStore(service, user, destination, clone)
-
 	}
 }
 
@@ -269,5 +281,4 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 		return errors.New("message not Sent: blocked by server")
 	}
 	return nil
-
 }

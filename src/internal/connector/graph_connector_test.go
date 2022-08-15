@@ -45,8 +45,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
-	a, err := tester.NewM365Account()
-	require.NoError(suite.T(), err)
+	a := tester.NewM365Account(suite.T())
 
 	suite.connector, err = NewGraphConnector(a)
 	suite.NoError(err)
@@ -65,8 +64,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
 	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
@@ -90,8 +88,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTest() {
 	t := suite.T()
-	user, err := tester.M365UserID()
-	require.NoError(t, err)
+	user := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{user}))
 	eb, err := sel.ToExchangeBackup()
@@ -126,17 +123,81 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 	}
 }
 
-//TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
+// TestGraphConnector_TestContactSequence verifies retrieval sequence
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSequence() {
+	userID := tester.M365UserID(suite.T())
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users([]string{userID}))
+	eb, err := sel.ToExchangeBackup()
+	require.NoError(suite.T(), err)
+	scopes := eb.Scopes()
+	var contactsOnly selectors.ExchangeScope
+	for _, scope := range scopes {
+		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
+			contactsOnly = scope
+		}
+	}
+	collections, err := suite.connector.createCollections(context.Background(), contactsOnly)
+	assert.NoError(suite.T(), err)
+	number := 0
+	for _, edc := range collections {
+		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath()[1], number)
+		suite.T().Run(testName, func(t *testing.T) {
+			streamChannel := edc.Items()
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
+
+			}
+			number++
+		})
+	}
+	suite.Greater(len(collections), 0)
+}
+
+// TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
 // is able to restore a messageable item to a Mailbox.
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
-	user := "TEST_GRAPH_USER" // user.GetId()
-	evs, err := tester.GetRequiredEnvVars(user)
-	if err != nil {
-		suite.T().Skipf("Environment not configured: %v\n", err)
+	user := tester.M365UserID(suite.T())
+	if len(user) == 0 {
+		suite.T().Skip("Environment not configured: missing m365 test user")
 	}
-	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", evs[user], mailCategory, "Inbox"}, 1)
-	err = suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
+	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", user, mailCategory, "Inbox"}, 1)
+	err := suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
 	assert.NoError(suite.T(), err)
+}
+
+// TestGraphConnector_SingleMailFolderCollectionQuery verifies that single folder support
+// enabled createCollections
+func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolderCollectionQuery() {
+	t := suite.T()
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
+	scopes := sel.Scopes()
+	for _, scope := range scopes {
+		collections, err := suite.connector.createCollections(context.Background(), scope)
+		require.NoError(t, err)
+		suite.Equal(len(collections), 1)
+		for _, edc := range collections {
+			streamChannel := edc.Items()
+			// Verify that each message can be restored
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				suite.NotNil(message)
+				suite.NoError(err)
+
+			}
+		}
+	}
 }
 
 ///------------------------------------------------------------
@@ -146,8 +207,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 //  TestGraphConnector_CreateAndDeleteFolder ensures msgraph application has the ability
 //  to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, userID, folderName)
@@ -161,8 +221,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 // TestGraphConnector_GetMailFolderID verifies the ability to retrieve folder ID of folders
 // at the top level of the file tree
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_GetMailFolderID() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+	userID := tester.M365UserID(suite.T())
 	folderName := "Inbox"
 	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, userID)
 	assert.NoError(suite.T(), err)
