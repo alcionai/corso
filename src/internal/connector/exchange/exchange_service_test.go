@@ -149,11 +149,6 @@ func (suite *ExchangeServiceSuite) TestOptionsForFolders() {
 			if err == nil {
 				suite.Equal(test.expected, len(config.QueryParameters.Select))
 			}
-			options, err := optionsForContacts(test.params)
-			test.checkError(t, err)
-			if err == nil {
-				suite.Equal(test.expected, len(options.QueryParameters.Select))
-			}
 		})
 	}
 }
