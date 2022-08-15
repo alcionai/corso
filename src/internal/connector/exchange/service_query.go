@@ -267,7 +267,6 @@ func IterateFilterFolderDirectoriesForCollections(
 		collections[directory] = &temp
 
 		return true
-
 	}
 }
 
