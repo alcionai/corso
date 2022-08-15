@@ -50,17 +50,27 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	suite.connector, err = NewGraphConnector(a)
 	suite.NoError(err)
 	suite.user = "lidiah@8qzvrj.onmicrosoft.com"
-}
-
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	tester.LogTimeOfTest(suite.T())
-	suite.NotNil(suite.connector)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers() {
-	err := suite.connector.setTenantUsers()
+// TestSetTenantUsers verifies GraphConnector's ability to query
+// the users associated with the credentials
+func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
+	newConnector := GraphConnector{
+		tenant:      "test_tenant",
+		Users:       make(map[string]string, 0),
+		status:      nil,
+		statusCh:    make(chan *support.ConnectorOperationStatus),
+		credentials: suite.connector.credentials,
+	}
+	service, err := newConnector.createService(false)
+	require.NoError(suite.T(), err)
+	newConnector.graphService = *service
+
+	suite.Equal(len(newConnector.Users), 0)
+	err = newConnector.setTenantUsers()
 	assert.NoError(suite.T(), err)
-	suite.Greater(len(suite.connector.Users), 0)
+	suite.Greater(len(newConnector.Users), 0)
 }
 
 // TestExchangeDataCollection verifies interface between operation and
