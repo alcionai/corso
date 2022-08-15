@@ -220,16 +220,6 @@ func getStorageAndAccountWithViper(
 // Helper funcs
 // ---------------------------------------------------------------------------
 
-// returns the first non-zero valued string
-func first(vs ...string) string {
-	for _, v := range vs {
-		if len(v) > 0 {
-			return v
-		}
-	}
-	return ""
-}
-
 var constToTomlKeyMap = map[string]string{
 	account.TenantID:       TenantIDKey,
 	AccountProviderTypeKey: AccountProviderTypeKey,
