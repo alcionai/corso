@@ -266,8 +266,8 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					exit = true
 					break
 				}
-				attempts++
 
+				attempts++
 				buf := &bytes.Buffer{}
 				_, err := buf.ReadFrom(itemData.ToReader())
 				if err != nil {
@@ -368,7 +368,7 @@ func (gc *GraphConnector) LaunchAsyncStatusUpdate() {
 	for {
 		status, ok := <-gc.statusCh
 		if !ok { //channel has been closed Exit
-			return
+			break
 		}
 		atomic.AddInt32(&gc.awaitingMessages, -1)
 		if gc.status == nil {
