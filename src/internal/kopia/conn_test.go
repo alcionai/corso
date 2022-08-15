@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/kopia/kopia/snapshot"
+	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -106,4 +108,56 @@ func (suite *WrapperIntegrationSuite) TestOpenAfterClose() {
 
 	assert.NoError(t, k.Close(ctx))
 	assert.Error(t, k.wrap())
+}
+
+func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
+	ctx := context.Background()
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	assert.Error(t, k.Compression(ctx, "not-a-compressor"))
+}
+
+func (suite *WrapperIntegrationSuite) TestSetCompressor() {
+	ctx := context.Background()
+	t := suite.T()
+	compressor := "s2-default"
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	assert.NoError(t, k.Compression(ctx, compressor))
+
+	// Check the policy was actually created and has the right compressor.
+	p, err := policy.GetDefinedPolicy(ctx, k.Repository, policy.GlobalPolicySourceInfo)
+	require.NoError(t, err)
+
+	assert.Equal(t, compressor, string(p.CompressionPolicy.CompressorName))
+
+	// Check the global policy will be the effective policy in future snapshots
+	// for some source info.
+	si := snapshot.SourceInfo{
+		Host:     corsoHost,
+		UserName: corsoUser,
+		Path:     "test-path-root",
+	}
+
+	policyTree, err := policy.TreeForSource(ctx, k, si)
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		compressor,
+		string(policyTree.EffectivePolicy().CompressionPolicy.CompressorName),
+	)
 }
