@@ -43,27 +43,27 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	suite.es = service
 }
 
-// TestExchangeService_optionsForMessages checks to ensure approved query
+// TestOptionsForMessages checks to ensure approved query
 // options are added to the type specific RequestBuildConfiguration. Expected
 // will be +1 on all select parameters
-func (suite *ExchangeServiceSuite) TestExchangeService_optionsForMessages() {
+func (suite *ExchangeServiceSuite) TestOptionsForMessages() {
 	tests := []struct {
 		name       string
 		params     []string
 		checkError assert.ErrorAssertionFunc
 	}{
 		{
-			name:       "Accepted",
+			name:       "Valid Message Option",
 			params:     []string{"subject"},
 			checkError: assert.NoError,
 		},
 		{
-			name:       "Multiple Accepted",
+			name:       "Multiple Message Options: Accepted",
 			params:     []string{"webLink", "parentFolderId"},
 			checkError: assert.NoError,
 		},
 		{
-			name:       "Incorrect param",
+			name:       "Invalid Message Parameter",
 			params:     []string{"status"},
 			checkError: assert.Error,
 		},
@@ -79,10 +79,10 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForMessages() {
 	}
 }
 
-// TestExchangeService_optionsForFolders ensures that approved query options
+// TestOptionsForFolders ensures that approved query options
 // are added to the RequestBuildConfiguration. Expected will always be +1
 // on than the input as "id" are always included within the select parameters
-func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
+func (suite *ExchangeServiceSuite) TestOptionsForFolders() {
 	tests := []struct {
 		name       string
 		params     []string
@@ -90,19 +90,19 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
 		expected   int
 	}{
 		{
-			name:       "Accepted",
+			name:       "Valid Folder Option",
 			params:     []string{"displayName"},
 			checkError: assert.NoError,
 			expected:   2,
 		},
 		{
-			name:       "Multiple Accepted",
+			name:       "Multiple Folder Options: Valid",
 			params:     []string{"displayName", "parentFolderId"},
 			checkError: assert.NoError,
 			expected:   3,
 		},
 		{
-			name:       "Incorrect param",
+			name:       "Invalid Folder option param",
 			params:     []string{"status"},
 			checkError: assert.Error,
 		},
@@ -123,8 +123,8 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
 	}
 }
 
-// TestExchangeService_optionsForContacts similar to TestExchangeService_optionsForFolders
-func (suite *ExchangeServiceSuite) TestExchangeService_optionsForContacts() {
+// TestOptionsForContacts similar to TestExchangeService_optionsForFolders
+func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
 	tests := []struct {
 		name       string
 		params     []string
@@ -132,19 +132,19 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForContacts() {
 		expected   int
 	}{
 		{
-			name:       "Accepted",
+			name:       "Valid Contact Option",
 			params:     []string{"displayName"},
 			checkError: assert.NoError,
 			expected:   2,
 		},
 		{
-			name:       "Multiple Accepted",
+			name:       "Multiple Contact Options: Valid",
 			params:     []string{"displayName", "parentFolderId"},
 			checkError: assert.NoError,
 			expected:   3,
 		},
 		{
-			name:       "Incorrect param",
+			name:       "Invalid Contact Option param",
 			params:     []string{"status"},
 			checkError: assert.Error,
 		},
@@ -160,10 +160,10 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForContacts() {
 	}
 }
 
-// TestExchangeService_SetupExchangeCollection ensures that the helper
+// TestSetupExchangeCollection ensures that the helper
 // function SetupExchangeCollectionVars returns a non-nil variable for returns
 // in regards to the selector.ExchangeScope.
-func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection() {
+func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
@@ -185,9 +185,9 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 	}
 }
 
-// TestExchangeService_GraphQueryFunctions verifies if Query functions APIs
+// TestGraphQueryFunctions verifies if Query functions APIs
 // through Microsoft Graph are functional
-func (suite *ExchangeServiceSuite) TestExchangeService_GraphQueryFunctions() {
+func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 	userID := tester.M365UserID(suite.T())
 	tests := []struct {
 		name     string
@@ -211,9 +211,9 @@ func (suite *ExchangeServiceSuite) TestExchangeService_GraphQueryFunctions() {
 	}
 }
 
-// TestExchangeService_IterativeFunctions verifies that GraphQuery to Iterate
+// TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
-func (suite *ExchangeServiceSuite) TestExchangeService_IterativeFunctions() {
+func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
