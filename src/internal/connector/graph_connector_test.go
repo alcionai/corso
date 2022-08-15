@@ -131,8 +131,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 }
 
 // TestContactBackupSequence verifies ability to query contact items
-// and to store contact within Collection. Downloaded contacts are verified
-// TODO: Contact Regression Test functionality: Add CreateContactsFromBytes PR #553
+// and to store contact within Collection. Downloaded contacts are run through
+// a regression test to ensure that downloaded items can be uploaded.
 func (suite *GraphConnectorIntegrationSuite) TestContactBackupSequence() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
@@ -158,6 +158,9 @@ func (suite *GraphConnectorIntegrationSuite) TestContactBackupSequence() {
 				read, err := buf.ReadFrom(stream.ToReader())
 				suite.NoError(err)
 				suite.NotZero(read)
+				contact, err := support.CreateContactFromBytes(buf.Bytes())
+				assert.NotNil(t, contact)
+				assert.NoError(t, err)
 
 			}
 			number++
@@ -166,9 +169,9 @@ func (suite *GraphConnectorIntegrationSuite) TestContactBackupSequence() {
 	suite.Greater(len(collections), 0)
 }
 
-// TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
-// is able to restore a messageable item to a Mailbox.
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
+// TestRestoreMessages uses mock data to ensure GraphConnector
+// is able to restore a single messageable item to a Mailbox.
+func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	user := tester.M365UserID(suite.T())
 	if len(user) == 0 {
 		suite.T().Skip("Environment not configured: missing m365 test user")
@@ -178,8 +181,8 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
-// TestGraphConnector_SingleMailFolderCollectionQuery verifies that single folder support
-// enabled createCollections
+// TestGraphConnector_SingleMailFolderCollectionQuery verifies single folder support
+// for Backup operation
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolderCollectionQuery() {
 	t := suite.T()
 	sel := selectors.NewExchangeBackup()
@@ -210,7 +213,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 	}
 }
 
-func (suite *GraphConnectorIntegrationSuite) Test_EventsCollection() {
+// TestEventsBackupSequence ensures functionality of createCollections
+// to be able to successfully query, download and restore event objects
+func (suite *GraphConnectorIntegrationSuite) TestEventsBackupSequence() {
 	t := suite.T()
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Events([]string{suite.user}, []string{selectors.AnyTgt}))
@@ -229,6 +234,9 @@ func (suite *GraphConnectorIntegrationSuite) Test_EventsCollection() {
 				read, err := buf.ReadFrom(stream.ToReader())
 				suite.NoError(err)
 				suite.NotZero(read)
+				event, err := support.CreateEventFromBytes(buf.Bytes())
+				assert.NotNil(t, event)
+				assert.NoError(t, err)
 			})
 		}
 	}
@@ -238,9 +246,9 @@ func (suite *GraphConnectorIntegrationSuite) Test_EventsCollection() {
 // Exchange Functions
 //-------------------------------------------------------
 
-//  TestGraphConnector_CreateAndDeleteFolder ensures msgraph application has the ability
+//  TestCreateAndDeleteFolder ensures GraphConnector has the ability
 //  to create and remove folders within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
+func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteFolder() {
 	userID := tester.M365UserID(suite.T())
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
@@ -252,9 +260,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 	}
 }
 
-// TestGraphConnector_GetMailFolderID verifies the ability to retrieve folder ID of folders
+// TestGetMailFolderID verifies the ability to retrieve folder ID of folders
 // at the top level of the file tree
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_GetMailFolderID() {
+func (suite *GraphConnectorIntegrationSuite) TestGetMailFolderID() {
 	userID := tester.M365UserID(suite.T())
 	folderName := "Inbox"
 	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, userID)
