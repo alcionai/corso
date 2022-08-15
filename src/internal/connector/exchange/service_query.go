@@ -33,10 +33,13 @@ var (
 	}
 
 	fieldsForFolders = map[string]int{
-		"displayName":    1,
-		"isHidden":       2,
-		"parentFolderId": 3,
-		"id":             4,
+		"childFolderCount": 1,
+		"displayName":      2,
+		"id":               3,
+		"isHidden":         4,
+		"parentFolderId":   5,
+		"totalItemCount":   6,
+		"unreadItemCount":  7,
 	}
 
 	fieldsForUsers = map[string]int{
@@ -113,13 +116,13 @@ func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, erro
 
 // GetAllFolderDisplayNamesForUser is a GraphQuery function for getting FolderId and display
 // names for Mail Folder. All other information for the MailFolder object is omitted.
-func GetAllFolderNamesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
 	options, err := optionsForMailFolders([]string{"id", "displayName"})
 	if err != nil {
 		return nil, err
 	}
 
-	return gs.Client().UsersById(identities[0]).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	return gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GetAllEvents for User. Default returns EventResponseCollection for events in the future
@@ -321,6 +324,60 @@ func IterateAndFilterMessagesForCollections(
 	}
 }
 
+func IterateFilterFolderDirectoriesForCollections(
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) func(any) bool {
+	var (
+		service graph.Service
+		err     error
+	)
+	return func(folderItem any) bool {
+		user := scope.Get(selectors.ExchangeUser)[0]
+		folder, ok := folderItem.(models.MailFolderable)
+		if !ok {
+			errs = support.WrapAndAppend(
+				user,
+				errors.New("unable to transform folderable item"),
+				errs,
+			)
+
+			return true
+		}
+		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+			return true
+		}
+		directory := *folder.GetId()
+		service, err = createService(credentials, failFast)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				*folder.GetDisplayName(),
+				errors.Wrap(
+					err,
+					"unable to create service a folder query service for "+user,
+				),
+				errs,
+			)
+			return true
+		}
+		temp := NewCollection(
+			user,
+			[]string{tenant, user, mailCategory, directory},
+			messages,
+			service,
+			statusCh,
+		)
+		collections[directory] = &temp
+
+		return true
+	}
+}
+
 func CollectMailFolders(
 	scope selectors.ExchangeScope,
 	tenant string,
@@ -335,7 +392,7 @@ func CollectMailFolders(
 		return errors.New("unable to create a mail folder query service for " + user)
 	}
 
-	query, err := GetAllFolderNamesForUser(queryService, []string{user})
+	query, err := GetAllFolderNamesForUser(queryService, user)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to query mail folder for %s: details: %s",
@@ -352,37 +409,16 @@ func CollectMailFolders(
 	if err != nil {
 		return errors.Wrap(err, "unable to create iterator during mail folder query service")
 	}
-	var service graph.Service
-	callbackFunc := func(pageItem any) bool {
-		folder, ok := pageItem.(models.MailFolderable)
-		if !ok {
-			err = support.WrapAndAppend(user, errors.New("unable to transform folderable item"), err)
-			return true
-		}
-		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
-			return true
-		}
-		directory := *folder.GetId()
-		service, err = createService(credentials, failFast)
-		if err != nil {
-			err = support.WrapAndAppend(
-				*folder.GetDisplayName(),
-				errors.New("unable to create service a folder query service for "+user),
-				err,
-			)
-			return true
-		}
-		temp := NewCollection(
-			user,
-			[]string{tenant, user, mailCategory, directory},
-			messages,
-			service,
-			statusCh,
-		)
-		collections[directory] = &temp
 
-		return true
-	}
+	callbackFunc := IterateFilterFolderDirectoriesForCollections(
+		tenant,
+		scope,
+		err,
+		failFast,
+		credentials,
+		collections,
+		statusCh,
+	)
 
 	iterateFailure := pageIterator.Iterate(callbackFunc)
 	if iterateFailure != nil {
@@ -484,7 +520,7 @@ func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGet
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
 func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
-	returnedOptions := []string{"id"} // All M365 objects have an associated id
+	returnedOptions := []string{"id"}
 
 	switch optID {
 	case events:
