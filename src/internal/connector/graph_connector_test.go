@@ -63,7 +63,11 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers()
 	suite.Greater(len(suite.connector.Users), 0)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
+// TestExchangeDataCollection verifies interface between operation and
+// GraphConnector remains stable to receive a non-zero amount of Collections
+// for the Exchange Package. Enabled exchange applications:
+// - mail
+func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
@@ -86,7 +90,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTest() {
+// TestMailSerializationRegression verifies that all mail data stored in the
+// test account can be successfully downloaded into bytes and restored into
+// M365 mail objects
+func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	t := suite.T()
 	user := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
@@ -123,8 +130,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 	}
 }
 
-// TestGraphConnector_TestContactSequence verifies retrieval sequence
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSequence() {
+// TestContactBackupSequence verifies ability to query contact items
+// and to store contact within Collection. Downloaded contacts are verified
+// TODO: Contact Regression Test functionality: Add CreateContactsFromBytes PR #553
+func (suite *GraphConnectorIntegrationSuite) TestContactBackupSequence() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
@@ -149,9 +158,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 				read, err := buf.ReadFrom(stream.ToReader())
 				suite.NoError(err)
 				suite.NotZero(read)
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				suite.NotNil(message)
-				suite.NoError(err)
 
 			}
 			number++
