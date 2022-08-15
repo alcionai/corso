@@ -64,7 +64,13 @@ var (
 
 	fieldsForContacts = map[string]int{
 		"id":             1,
-		"parentFolderId": 2,
+		"companyName":    2,
+		"department":     3,
+		"displayName":    4,
+		"fileAs":         5,
+		"givenName":      6,
+		"manager":        7,
+		"parentFolderId": 8,
 	}
 )
 
