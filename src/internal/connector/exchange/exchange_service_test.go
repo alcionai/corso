@@ -249,6 +249,12 @@ func (suite *ExchangeServiceSuite) TestExchangeService_IterativeFunctions() {
 			iterativeFunction: IterateAllContactsForCollection,
 			scope:             contactScope,
 			transformer:       models.CreateContactFromDiscriminatorValue,
+		}, {
+			name:              "Folder Iterative Check",
+			queryFunction:     GetAllFolderNamesForUser,
+			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			scope:             mailScope,
+			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 		},
 	}
 	for _, test := range tests {
