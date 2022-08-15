@@ -8,3 +8,13 @@ func ContainsString(super []string, sub string) bool {
 	}
 	return false
 }
+
+// First returns the first non-zero valued string
+func First(vs ...string) string {
+	for _, v := range vs {
+		if len(v) > 0 {
+			return v
+		}
+	}
+	return ""
+}
