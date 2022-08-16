@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -90,7 +91,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	assert.NotNil(suite.T(), dc)
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
+func (suite *DisconnectedGraphConnectorSuite) TestStatus() {
 	gc := GraphConnector{
 		statusCh: make(chan *support.ConnectorOperationStatus),
 	}
@@ -114,7 +115,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	suite.Greater(gc.Status().ObjectCount, 0)
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {
+func (suite *DisconnectedGraphConnectorSuite) TestErrorChecking() {
 	tests := []struct {
 		name                 string
 		err                  error
@@ -168,7 +169,8 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 
 // TestLaunchAsyncStatus verifes status updates are populated asynchronously
 // and ensures that when status switches from backup to restore that the
-// status reflets the change.
+// status reflets the change. NOTE: time.Sleep required to allow
+// async status update to perform operations.
 func (suite *DisconnectedGraphConnectorSuite) TestLaunchAsyncStatus() {
 	gc := GraphConnector{
 		statusCh: make(chan *support.ConnectorOperationStatus),
@@ -194,11 +196,13 @@ func (suite *DisconnectedGraphConnectorSuite) TestLaunchAsyncStatus() {
 	}
 	suite.Equal(len(gc.PrintableStatus()), 0)
 	// Launches async process for status update
-	go gc.LaunchAsyncStatusUpdate()
-	expected := 5
 	wg.Add(1)
+	go gc.LaunchAsyncStatusUpdate()
 	go testStatusCreate(5, 5, 1, support.Backup, gc.statusCh, &wg)
 	wg.Wait()
+	time.Sleep(1 * time.Second)
+	expected := 5
+
 	suite.Equal(gc.status.Successful, expected)
 	// Sending 3 more statuses
 	additional := 3
@@ -207,11 +211,13 @@ func (suite *DisconnectedGraphConnectorSuite) TestLaunchAsyncStatus() {
 		go testStatusCreate(5, 5, 1, support.Backup, gc.statusCh, &wg)
 	}
 	wg.Wait()
+	time.Sleep(1 * time.Second)
 	suite.Equal(gc.status.Successful, expected*4)
 	// Switch from Backup to Restore status
 	wg.Add(1)
 	go testStatusCreate(2, 2, 1, support.Restore, gc.statusCh, &wg)
 	wg.Wait()
+	time.Sleep(1 * time.Second)
 	suite.Equal(gc.status.LastOperation, support.Restore)
 	suite.Equal(gc.status.Successful, 2)
 }
