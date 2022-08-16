@@ -19,6 +19,8 @@ func TestEventSuite(t *testing.T) {
 	suite.Run(t, &EventSuite{})
 }
 
+// TestEventInfo verifies that searchable event metadata
+// can be properly retrieved from a models.Eventable object
 func (suite *EventSuite) TestEventInfo() {
 	initial := time.Now()
 	now := initial.Format(common.StandardTimeFormat)
@@ -35,7 +37,6 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Received only",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-
 				event := models.NewEvent()
 				dateTime := models.NewDateTimeTimeZone()
 				dateTime.SetDateTime(&now)
@@ -43,7 +44,6 @@ func (suite *EventSuite) TestEventInfo() {
 				full, err := time.Parse(common.StandardTimeFormat, now)
 				require.NoError(suite.T(), err)
 				return event, &details.ExchangeInfo{Received: full}
-
 			},
 		},
 		{
