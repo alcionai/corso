@@ -1,19 +1,15 @@
-package backup_test
+package restore_test
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/cli"
 	"github.com/alcionai/corso/cli/config"
-	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
@@ -75,7 +71,7 @@ func (suite *ExchangeIntegrationSuite) SetupSuite() {
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
 	require.NoError(t, err)
 
-	// some tests require an existing backup
+	// restoration requires an existing backup
 	sel := selectors.NewExchangeBackup()
 	// TODO: only backup the inbox
 	sel.Include(sel.Users([]string{suite.m365UserID}))
@@ -90,75 +86,16 @@ func (suite *ExchangeIntegrationSuite) SetupSuite() {
 	time.Sleep(3 * time.Second)
 }
 
-func (suite *ExchangeIntegrationSuite) TestExchangeBackupCmd() {
+func (suite *ExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	t := suite.T()
 
 	cmd := tester.StubRootCmd(
-		"backup", "create", "exchange",
-		"--config-file", suite.cfgFP,
-		"--user", suite.m365UserID,
-		"--data", "email")
-	cli.BuildCommandTree(cmd)
-	var recorder strings.Builder
-	cmd.SetOut(&recorder)
-	ctx = print.SetRootCmd(ctx, cmd)
-
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
-
-	// as an offhand check: the result should contain a string with the current hour
-	result := recorder.String()
-	assert.Contains(t, result, time.Now().UTC().Format("2006-01-02T15"))
-	// and the m365 user id
-	assert.Contains(t, result, suite.m365UserID)
-}
-
-func (suite *ExchangeIntegrationSuite) TestExchangeListCmd() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
-	t := suite.T()
-
-	cmd := tester.StubRootCmd(
-		"backup", "list", "exchange",
-		"--config-file", suite.cfgFP)
-	cli.BuildCommandTree(cmd)
-	var recorder strings.Builder
-	cmd.SetOut(&recorder)
-	ctx = print.SetRootCmd(ctx, cmd)
-
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
-
-	// compare the output
-	result := recorder.String()
-	assert.Contains(t, result, suite.backupOp.Results.BackupID)
-}
-
-func (suite *ExchangeIntegrationSuite) TestExchangeDetailsCmd() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
-	t := suite.T()
-
-	// fetch the details from the repo first
-	deets, _, err := suite.repo.BackupDetails(ctx, string(suite.backupOp.Results.BackupID))
-	require.NoError(t, err)
-
-	cmd := tester.StubRootCmd(
-		"backup", "details", "exchange",
+		"restore", "exchange",
 		"--config-file", suite.cfgFP,
 		"--backup", string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
-	var recorder strings.Builder
-	cmd.SetOut(&recorder)
-	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
-
-	// compare the output
-	result := recorder.String()
-	for i, ent := range deets.Entries {
-		t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
-			assert.Contains(t, result, ent.RepoRef)
-		})
-	}
 }

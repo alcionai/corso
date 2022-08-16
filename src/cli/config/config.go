@@ -35,7 +35,7 @@ func AddConfigFileFlag(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		Err("finding $HOME directory (default) for config file")
+		Err(cmd.Context(), "finding $HOME directory (default) for config file")
 	}
 	fs.StringVar(
 		&configFilePath,
@@ -133,7 +133,7 @@ func GetViper(ctx context.Context) *viper.Viper {
 // set up properly.
 func Read(ctx context.Context) error {
 	if err := viper.ReadInConfig(); err == nil {
-		Info("Using config file:", viper.ConfigFileUsed())
+		Info(ctx, "Using config file:", viper.ConfigFileUsed())
 		return err
 	}
 	return nil
