@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
+// EventInfo searchable metadata for stored event objects.
 func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	organizer := ""
 	subject := ""
@@ -37,5 +38,4 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		Subject:  subject,
 		Received: received,
 	}
-
 }
