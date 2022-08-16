@@ -7,6 +7,7 @@ import (
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/compression"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/pkg/errors"
 
@@ -183,13 +184,13 @@ func (w *conn) Compression(ctx context.Context, compressor string) error {
 
 	si := policy.GlobalPolicySourceInfo
 
-	p, err := policy.GetDefinedPolicy(ctx, w.Repository, si)
+	p, err := w.getPolicyOrEmpty(ctx, si)
 	if err != nil {
-		if !errors.Is(err, policy.ErrPolicyNotFound) {
-			return errors.Wrap(err, "getting global compression policy")
-		}
+		return err
+	}
 
-		p = &policy.Policy{}
+	if compressor == string(p.CompressionPolicy.CompressorName) {
+		return nil
 	}
 
 	p.CompressionPolicy = policy.CompressionPolicy{
@@ -199,13 +200,26 @@ func (w *conn) Compression(ctx context.Context, compressor string) error {
 	err = repo.WriteSession(
 		ctx,
 		w.Repository,
-		repo.WriteSessionOptions{Purpose: "UpdateGlobalCompression"},
+		repo.WriteSessionOptions{Purpose: "UpdateGlobalCompressionPolicy"},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
 			return policy.SetPolicy(ctx, rw, si, p)
 		},
 	)
 
 	return errors.Wrap(err, "updating global compression policy")
+}
+
+func (w *conn) getPolicyOrEmpty(ctx context.Context, si snapshot.SourceInfo) (*policy.Policy, error) {
+	p, err := policy.GetDefinedPolicy(ctx, w.Repository, si)
+	if err != nil {
+		if errors.Is(err, policy.ErrPolicyNotFound) {
+			return &policy.Policy{}, nil
+		}
+
+		return nil, errors.Wrap(err, "getting global backup policy")
+	}
+
+	return p, nil
 }
 
 func checkCompressor(compressor compression.Name) error {
