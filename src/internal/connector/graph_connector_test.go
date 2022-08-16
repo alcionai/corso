@@ -72,8 +72,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	assert.Nil(suite.T(), err)
 	assert.True(suite.T(), suite.connector.awaitingMessages > 0)
 	assert.Nil(suite.T(), suite.connector.status)
-	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
-	//channel := collectionList[0].Items()
+
 	for _, connection := range collectionList {
 		suite.T().Run(connection.FullPath()[2], func(t *testing.T) {
 			channel := connection.Items()
