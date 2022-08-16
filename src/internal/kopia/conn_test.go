@@ -150,7 +150,7 @@ func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
 func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	ctx := context.Background()
 	t := suite.T()
-	compressor := "s2-default"
+	compressor := "pgzip"
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
@@ -162,7 +162,7 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	assert.NoError(t, k.Compression(ctx, compressor))
 
 	// Check the policy was actually created and has the right compressor.
-	p, err := policy.GetDefinedPolicy(ctx, k.Repository, policy.GlobalPolicySourceInfo)
+	p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
 	require.NoError(t, err)
 
 	assert.Equal(t, compressor, string(p.CompressionPolicy.CompressorName))
