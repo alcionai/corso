@@ -26,11 +26,12 @@ type (
 		// so that the two can be compared.
 		pathKeys() []categorizer
 	}
+	// TODO: Uncomment when reducer func is added
 	// categoryT is the generic type interface of a categorizer
-	categoryT interface {
-		~int
-		categorizer
-	}
+	// categoryT interface {
+	// 	~int
+	// 	categorizer
+	// }
 )
 
 type (

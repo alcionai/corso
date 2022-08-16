@@ -52,12 +52,13 @@ func (sc mockCategorizer) pathKeys() []categorizer {
 	return []categorizer{rootCatStub, leafCatStub}
 }
 
-func stubPathValues() map[categorizer]string {
-	return map[categorizer]string{
-		rootCatStub: rootCatStub.String(),
-		leafCatStub: leafCatStub.String(),
-	}
-}
+// TODO: Uncomment when reducer func is added
+// func stubPathValues() map[categorizer]string {
+// 	return map[categorizer]string{
+// 		rootCatStub: rootCatStub.String(),
+// 		leafCatStub: leafCatStub.String(),
+// 	}
+// }
 
 // scoper
 type mockScope scope
