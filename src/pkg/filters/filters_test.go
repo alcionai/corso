@@ -18,9 +18,9 @@ func TestFiltersSuite(t *testing.T) {
 }
 
 func (suite *FiltersSuite) TestEquals() {
-	make := filters.NewEquals
-	f := make(false, "", "foo")
-	nf := make(true, "", "foo")
+	filterFunc := filters.NewEquals
+	f := filterFunc(false, "", "foo")
+	nf := filterFunc(true, "", "foo")
 
 	table := []struct {
 		input    string
@@ -39,9 +39,9 @@ func (suite *FiltersSuite) TestEquals() {
 }
 
 func (suite *FiltersSuite) TestGreater() {
-	make := filters.NewGreater
-	f := make(false, "", "5")
-	nf := make(true, "", "5")
+	filterFunc := filters.NewGreater
+	f := filterFunc(false, "", "5")
+	nf := filterFunc(true, "", "5")
 
 	table := []struct {
 		input    string
@@ -61,9 +61,9 @@ func (suite *FiltersSuite) TestGreater() {
 }
 
 func (suite *FiltersSuite) TestLess() {
-	make := filters.NewLess
-	f := make(false, "", "5")
-	nf := make(true, "", "5")
+	filterFunc := filters.NewLess
+	f := filterFunc(false, "", "5")
+	nf := filterFunc(true, "", "5")
 
 	table := []struct {
 		input    string
@@ -83,9 +83,9 @@ func (suite *FiltersSuite) TestLess() {
 }
 
 func (suite *FiltersSuite) TestBetween() {
-	make := filters.NewBetween
-	f := make(false, "", "abc", "def")
-	nf := make(true, "", "abc", "def")
+	filterFunc := filters.NewBetween
+	f := filterFunc(false, "", "abc", "def")
+	nf := filterFunc(true, "", "abc", "def")
 
 	table := []struct {
 		input    string
@@ -106,9 +106,9 @@ func (suite *FiltersSuite) TestBetween() {
 }
 
 func (suite *FiltersSuite) TestContains() {
-	make := filters.NewContains
-	f := make(false, "", "smurfs")
-	nf := make(true, "", "smurfs")
+	filterFunc := filters.NewContains
+	f := filterFunc(false, "", "smurfs")
+	nf := filterFunc(true, "", "smurfs")
 
 	table := []struct {
 		input    string
@@ -127,9 +127,9 @@ func (suite *FiltersSuite) TestContains() {
 }
 
 func (suite *FiltersSuite) TestIn() {
-	make := filters.NewIn
-	f := make(false, "", "murf")
-	nf := make(true, "", "murf")
+	filterFunc := filters.NewIn
+	f := filterFunc(false, "", "murf")
+	nf := filterFunc(true, "", "murf")
 
 	table := []struct {
 		input    string

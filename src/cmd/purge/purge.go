@@ -70,7 +70,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 	for _, mf := range mfs {
 
 		// compare the folder time to the deletion boundary time first
-		var delete bool
+		var shouldDelete bool
 		dnLen := len(mf.DisplayName)
 		if dnLen > stLen {
 			dnSuff := mf.DisplayName[dnLen-stLen:]
@@ -79,10 +79,10 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 				Info(errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))
 				continue
 			}
-			delete = dnTime.Before(beforeTime)
+			shouldDelete = dnTime.Before(beforeTime)
 		}
 
-		if !delete {
+		if !shouldDelete {
 			continue
 		}
 
