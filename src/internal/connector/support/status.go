@@ -63,10 +63,10 @@ func MergeStatus(one, two *ConnectorOperationStatus) *ConnectorOperationStatus {
 	if one == nil && two == nil {
 		return nil
 	}
-	if one != nil && two == nil {
+	if two == nil {
 		return one
 	}
-	if one == nil && two != nil {
+	if one == nil {
 		return two
 	}
 

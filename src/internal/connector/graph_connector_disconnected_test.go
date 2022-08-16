@@ -2,8 +2,8 @@ package connector
 
 import (
 	"context"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -173,43 +173,45 @@ func (suite *DisconnectedGraphConnectorSuite) TestLaunchAsyncStatus() {
 	gc := GraphConnector{
 		statusCh: make(chan *support.ConnectorOperationStatus),
 	}
+	var wg sync.WaitGroup
+
+	testStatusCreate := func(
+		objects, success, folders int,
+		operation support.Operation,
+		statusChannel chan *support.ConnectorOperationStatus,
+		wg *sync.WaitGroup,
+	) {
+		status := support.CreateStatus(
+			context.Background(),
+			operation,
+			objects,
+			success,
+			folders,
+			nil,
+		)
+		statusChannel <- status
+		wg.Done()
+	}
 	suite.Equal(len(gc.PrintableStatus()), 0)
 	// Launches async process for status update
 	go gc.LaunchAsyncStatusUpdate()
 	expected := 5
-
-	go func() {
-		status := support.CreateStatus(
-			context.Background(),
-			support.Backup,
-			5, 5, 1,
-			nil)
-		gc.statusCh <- status
-	}()
-	// Status sent = 1
-	time.Sleep(1 * time.Second)
+	wg.Add(1)
+	go testStatusCreate(5, 5, 1, support.Backup, gc.statusCh, &wg)
+	wg.Wait()
 	suite.Equal(gc.status.Successful, expected)
 	// Sending 3 more statuses
-	for i := 0; i < 3; i++ {
-		go func() {
-			status := support.CreateStatus(
-				context.Background(),
-				support.Backup,
-				5, 5, 1, nil)
-			gc.statusCh <- status
-		}()
+	additional := 3
+	wg.Add(additional)
+	for i := 0; i < additional; i++ {
+		go testStatusCreate(5, 5, 1, support.Backup, gc.statusCh, &wg)
 	}
-	time.Sleep(2 * time.Second)
+	wg.Wait()
 	suite.Equal(gc.status.Successful, expected*4)
 	// Switch from Backup to Restore status
-	go func() {
-		status := support.CreateStatus(
-			context.Background(),
-			support.Restore,
-			2, 2, 1, nil)
-		gc.statusCh <- status
-	}()
-	time.Sleep(1 * time.Second)
+	wg.Add(1)
+	go testStatusCreate(2, 2, 1, support.Restore, gc.statusCh, &wg)
+	wg.Wait()
 	suite.Equal(gc.status.LastOperation, support.Restore)
 	suite.Equal(gc.status.Successful, 2)
 }
