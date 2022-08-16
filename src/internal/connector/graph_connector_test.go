@@ -172,7 +172,7 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	if len(user) == 0 {
 		suite.T().Skip("Environment not configured: missing m365 test user")
 	}
-	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", user, mailCategory, "Inbox"}, 1)
+	mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", user, "mail", "Inbox"}, 1)
 	err := suite.connector.RestoreMessages(context.Background(), []data.Collection{mdc})
 	assert.NoError(suite.T(), err)
 }
