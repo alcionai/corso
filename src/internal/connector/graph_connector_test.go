@@ -73,11 +73,16 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	assert.True(suite.T(), suite.connector.awaitingMessages > 0)
 	assert.Nil(suite.T(), suite.connector.status)
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
-	channel := collectionList[0].Items()
-	for object := range channel {
-		buf := &bytes.Buffer{}
-		_, err := buf.ReadFrom(object.ToReader())
-		assert.Nil(suite.T(), err, "received a buf.Read error")
+	//channel := collectionList[0].Items()
+	for _, connection := range collectionList {
+		suite.T().Run(connection.FullPath()[2], func(t *testing.T) {
+			channel := connection.Items()
+			for object := range channel {
+				buf := &bytes.Buffer{}
+				_, err := buf.ReadFrom(object.ToReader())
+				assert.Nil(suite.T(), err, "received a buf.Read error")
+			}
+		})
 	}
 	status := suite.connector.AwaitStatus()
 	assert.NotNil(suite.T(), status, "status not blocking on async call")
