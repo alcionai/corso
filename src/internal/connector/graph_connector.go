@@ -27,10 +27,6 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
-const (
-	mailCategory = "mail"
-)
-
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
@@ -112,6 +108,8 @@ func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, err
 	return &connector, err
 }
 
+// EnableFailFast allows for the FailFast option to
+// be set to true.
 func (gs *graphService) EnableFailFast() {
 	gs.failFast = true
 }
@@ -348,7 +346,8 @@ func (gc *GraphConnector) createCollections(
 	return collections, errs
 }
 
-// AwaitStatus is a call that
+// AwaitStatus polls until all outgoing statuses are received. When awaiting status reaches zero,
+// the current gc.status is returned.
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	for {
 		if gc.awaitingMessages > 0 {
@@ -360,7 +359,9 @@ func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	return gc.status
 }
 
-// LaunchAsyncStatusUpdate
+// LaunchAsyncStatusUpdate is intended to be an asynchronous
+// consumer function launched in the background to keep the status
+// of the connector current.
 func (gc *GraphConnector) LaunchAsyncStatusUpdate() {
 	var m sync.Mutex
 	for {
