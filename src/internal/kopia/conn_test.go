@@ -184,3 +184,34 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 		string(policyTree.EffectivePolicy().CompressionPolicy.CompressorName),
 	)
 }
+
+func (suite *WrapperIntegrationSuite) TestCompressorSetOnInitAndConnect() {
+	ctx := context.Background()
+	t := suite.T()
+	tmpComp := "pgzip"
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+
+	// Check the policy was actually created and has the right compressor.
+	p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
+	require.NoError(t, err)
+
+	require.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+
+	// Change the compressor to something else.
+	require.NoError(t, k.Compression(ctx, tmpComp))
+	require.NoError(t, k.Close(ctx))
+
+	// Re-open with Connect to see if the compressor changed back.
+	require.NoError(t, k.Connect(ctx))
+
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	p, err = k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
+	require.NoError(t, err)
+
+	assert.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+}
