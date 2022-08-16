@@ -17,6 +17,7 @@ import (
 
 const (
 	defaultKopiaConfigFilePath = "/tmp/repository.config"
+	defaultCompressor          = "s2-default"
 )
 
 var (
@@ -107,7 +108,11 @@ func (w *conn) Connect(ctx context.Context) error {
 		return errors.Wrap(err, errConnect.Error())
 	}
 
-	return w.open(ctx, cfg.CorsoPassword)
+	if err := w.open(ctx, cfg.CorsoPassword); err != nil {
+		return err
+	}
+
+	return w.Compression(ctx, defaultCompressor)
 }
 
 func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
