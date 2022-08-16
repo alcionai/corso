@@ -118,7 +118,7 @@ func (w *conn) commonConnect(
 		return errors.Wrap(err, errConnect.Error())
 	}
 
-	if err := w.open(ctx, cfg.CorsoPassword); err != nil {
+	if err := w.open(ctx, configPath, password); err != nil {
 		return err
 	}
 
@@ -160,14 +160,14 @@ func (w *conn) close(ctx context.Context) error {
 	return errors.Wrap(err, "closing repository connection")
 }
 
-func (w *conn) open(ctx context.Context, password string) error {
+func (w *conn) open(ctx context.Context, configPath, password string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	w.refCount++
 
 	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
-	rep, err := repo.Open(ctx, defaultKopiaConfigFilePath, password, nil)
+	rep, err := repo.Open(ctx, configPath, password, nil)
 	if err != nil {
 		return errors.Wrap(err, "opening repository connection")
 	}
