@@ -6,6 +6,8 @@ import (
 
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/repo/compression"
+	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/common"
@@ -168,4 +170,50 @@ func (w *conn) wrap() error {
 
 	w.refCount++
 	return nil
+}
+
+// Compression attempts to set the global compression policy for the kopia repo
+// to the given compressor.
+func (w *conn) Compression(ctx context.Context, compressor string) error {
+	comp := compression.Name(compressor)
+
+	if err := checkCompressor(comp); err != nil {
+		return err
+	}
+
+	si := policy.GlobalPolicySourceInfo
+
+	p, err := policy.GetDefinedPolicy(ctx, w.Repository, si)
+	if err != nil {
+		if !errors.Is(err, policy.ErrPolicyNotFound) {
+			return errors.Wrap(err, "getting global compression policy")
+		}
+
+		p = &policy.Policy{}
+	}
+
+	p.CompressionPolicy = policy.CompressionPolicy{
+		CompressorName: compression.Name(comp),
+	}
+
+	err = repo.WriteSession(
+		ctx,
+		w.Repository,
+		repo.WriteSessionOptions{Purpose: "UpdateGlobalCompression"},
+		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+			return policy.SetPolicy(ctx, rw, si, p)
+		},
+	)
+
+	return errors.Wrap(err, "updating global compression policy")
+}
+
+func checkCompressor(compressor compression.Name) error {
+	for c := range compression.ByName {
+		if c == compressor {
+			return nil
+		}
+	}
+
+	return errors.Errorf("unknown compressor type %s", compressor)
 }
