@@ -71,18 +71,13 @@ func (w *conn) Initialize(ctx context.Context) error {
 		return errors.Wrap(err, errInit.Error())
 	}
 
-	// todo - issue #75: nil here should be a storage.ConnectOptions()
-	if err := repo.Connect(
+	return w.commonConnect(
 		ctx,
 		defaultKopiaConfigFilePath,
 		bst,
 		cfg.CorsoPassword,
-		nil,
-	); err != nil {
-		return errors.Wrap(err, errConnect.Error())
-	}
-
-	return w.open(ctx, cfg.CorsoPassword)
+		defaultCompressor,
+	)
 }
 
 func (w *conn) Connect(ctx context.Context) error {
@@ -97,12 +92,27 @@ func (w *conn) Connect(ctx context.Context) error {
 		return err
 	}
 
-	// todo - issue #75: nil here should be storage.ConnectOptions()
-	if err := repo.Connect(
+	return w.commonConnect(
 		ctx,
 		defaultKopiaConfigFilePath,
 		bst,
 		cfg.CorsoPassword,
+		defaultCompressor,
+	)
+}
+
+func (w *conn) commonConnect(
+	ctx context.Context,
+	configPath string,
+	bst blob.Storage,
+	password, compressor string,
+) error {
+	// todo - issue #75: nil here should be storage.ConnectOptions()
+	if err := repo.Connect(
+		ctx,
+		configPath,
+		bst,
+		password,
 		nil,
 	); err != nil {
 		return errors.Wrap(err, errConnect.Error())
@@ -112,7 +122,7 @@ func (w *conn) Connect(ctx context.Context) error {
 		return err
 	}
 
-	return w.Compression(ctx, defaultCompressor)
+	return w.Compression(ctx, compressor)
 }
 
 func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
