@@ -366,7 +366,8 @@ func (gc *GraphConnector) LaunchAsyncStatusUpdate() {
 	var m sync.Mutex
 	for {
 		status, ok := <-gc.statusCh
-		if !ok { //channel has been closed Exit
+		// channel has been closed -> exit loop
+		if !ok {
 			break
 		}
 
