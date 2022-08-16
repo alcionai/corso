@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -88,6 +90,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	if err != nil {
 		return nil, err
 	}
+	go gc.LaunchAsyncStatusUpdate()
 	return &gc, nil
 }
 
@@ -345,41 +348,43 @@ func (gc *GraphConnector) createCollections(
 	return collections, errs
 }
 
-// AwaitStatus updates status field based on item within statusChannel.
+// AwaitStatus is a call that
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
-	if gc.awaitingMessages > 0 {
-		atomic.AddInt32(&gc.awaitingMessages, -1)
-		newStatus := <-gc.statusCh
-		if gc.status == nil {
-			gc.status = newStatus
-			return gc.status
+	for {
+		if gc.awaitingMessages > 0 {
+			time.Sleep(3 * time.Second)
+			continue
 		}
-		if newStatus.LastOperation != gc.status.LastOperation {
-			gc.status = newStatus
-			return gc.status
-		}
-		gc.status = support.MergeStatus(gc.status, newStatus)
+		break
 	}
 	return gc.status
 }
 
 // LaunchAsyncStatusUpdate
 func (gc *GraphConnector) LaunchAsyncStatusUpdate() {
+	var m sync.Mutex
 	for {
 		status, ok := <-gc.statusCh
 		if !ok { //channel has been closed Exit
 			break
 		}
+
 		atomic.AddInt32(&gc.awaitingMessages, -1)
 		if gc.status == nil {
+			m.Lock()
 			gc.status = status
+			m.Unlock()
 			continue
 		}
 		if status.LastOperation != gc.status.LastOperation {
+			m.Lock()
 			gc.status = status
+			m.Unlock()
 			continue
 		}
+		m.Lock()
 		gc.status = support.MergeStatus(gc.status, status)
+		m.Unlock()
 	}
 }
 
