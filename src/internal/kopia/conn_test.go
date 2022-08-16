@@ -124,6 +124,29 @@ func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
 	assert.Error(t, k.Compression(ctx, "not-a-compressor"))
 }
 
+func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
+	ctx := context.Background()
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	si := snapshot.SourceInfo{
+		Host:     corsoHost,
+		UserName: corsoUser,
+		Path:     "test-path-root",
+	}
+
+	p, err := k.getPolicyOrEmpty(ctx, si)
+	require.NoError(t, err)
+
+	assert.Equal(t, policy.Policy{}, *p)
+}
+
 func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	ctx := context.Background()
 	t := suite.T()
