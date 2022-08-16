@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 type EventSuite struct {
