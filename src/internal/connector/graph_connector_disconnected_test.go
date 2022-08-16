@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -91,6 +92,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	assert.NotNil(suite.T(), dc)
 }
 
+// TestStatus to verify status pipeline connectivity
 func (suite *DisconnectedGraphConnectorSuite) TestStatus() {
 	gc := GraphConnector{
 		statusCh: make(chan *support.ConnectorOperationStatus),
@@ -110,6 +112,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestStatus() {
 		)
 		gc.statusCh <- status
 	}()
+	temp := <-gc.statusCh
+	gc.status = temp
+	atomic.AddInt32(&gc.awaitingMessages, -1)
 	gc.AwaitStatus()
 	suite.Greater(len(gc.PrintableStatus()), 0)
 	suite.Greater(gc.Status().ObjectCount, 0)
