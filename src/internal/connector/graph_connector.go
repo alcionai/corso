@@ -320,7 +320,7 @@ func (gc *GraphConnector) createCollections(
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
-			"query for %s experienced the following error querying M365: %s",
+			"user %s M365 query: %s",
 			user, support.ConnectorStackErrorTrace(err))
 	}
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
