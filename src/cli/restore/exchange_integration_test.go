@@ -19,7 +19,7 @@ import (
 	"github.com/alcionai/corso/pkg/storage"
 )
 
-type ExchangeIntegrationSuite struct {
+type BackupExchangeIntegrationSuite struct {
 	suite.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -30,7 +30,7 @@ type ExchangeIntegrationSuite struct {
 	backupOp   operations.BackupOperation
 }
 
-func TestExchangeIntegrationSuite(t *testing.T) {
+func TestBackupExchangeIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
@@ -38,10 +38,10 @@ func TestExchangeIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
-	suite.Run(t, new(ExchangeIntegrationSuite))
+	suite.Run(t, new(BackupExchangeIntegrationSuite))
 }
 
-func (suite *ExchangeIntegrationSuite) SetupSuite() {
+func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
@@ -82,11 +82,14 @@ func (suite *ExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
 
-	// it's hacky, but we run into race conditions otherwise
+	require.NoError(t, suite.repo.Close(ctx))
 	time.Sleep(3 * time.Second)
+
+	suite.repo, err = repository.Connect(ctx, suite.acct, suite.st)
+	require.NoError(t, err)
 }
 
-func (suite *ExchangeIntegrationSuite) TestExchangeRestoreCmd() {
+func (suite *BackupExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	t := suite.T()
 
