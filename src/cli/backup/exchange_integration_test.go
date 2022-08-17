@@ -1,22 +1,43 @@
 package backup_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/cli"
 	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/cli/print"
+	"github.com/alcionai/corso/internal/operations"
 	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/pkg/storage"
 )
 
-type ExchangeIntegrationSuite struct {
+// ---------------------------------------------------------------------------
+// tests with no prior backup
+// ---------------------------------------------------------------------------
+
+type BackupExchangeIntegrationSuite struct {
 	suite.Suite
+	acct       account.Account
+	st         storage.Storage
+	vpr        *viper.Viper
+	cfgFP      string
+	repo       *repository.Repository
+	m365UserID string
 }
 
-func TestExchangeIntegrationSuite(t *testing.T) {
+func TestBackupExchangeIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
@@ -24,26 +45,21 @@ func TestExchangeIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
-	suite.Run(t, new(ExchangeIntegrationSuite))
+	suite.Run(t, new(BackupExchangeIntegrationSuite))
 }
 
-func (suite *ExchangeIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(
-		append(
-			tester.AWSStorageCredEnvs,
-			tester.M365AcctCredEnvs...,
-		)...,
-	)
-	require.NoError(suite.T(), err)
-}
-
-func (suite *ExchangeIntegrationSuite) TestExchangeBackupCmd() {
-	ctx := tester.NewContext()
+func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs)
+	require.NoError(t, err)
 
-	acct := tester.NewM365Account(t)
-	st := tester.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+	// prepare common details
+	suite.acct = tester.NewM365Account(t)
+	suite.st = tester.NewPrefixedS3Storage(t)
+
+	cfg, err := suite.st.S3Config()
 	require.NoError(t, err)
 
 	force := map[string]string{
@@ -51,25 +67,155 @@ func (suite *ExchangeIntegrationSuite) TestExchangeBackupCmd() {
 		tester.TestCfgStorageProvider: "S3",
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
+	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
-	ctx = config.SetViper(ctx, vpr)
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+
+	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
-	_, err = repository.Initialize(ctx, acct, st)
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
 	require.NoError(t, err)
+}
 
-	m365UserID := tester.M365UserID(t)
+func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	t := suite.T()
 
-	// then test it
 	cmd := tester.StubRootCmd(
 		"backup", "create", "exchange",
-		"--config-file", configFP,
-		"--user", m365UserID,
-		"--data", "email",
-	)
+		"--config-file", suite.cfgFP,
+		"--user", suite.m365UserID,
+		"--data", "email")
 	cli.BuildCommandTree(cmd)
+	var recorder strings.Builder
+	cmd.SetOut(&recorder)
+	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
+
+	// as an offhand check: the result should contain a string with the current hour
+	result := recorder.String()
+	assert.Contains(t, result, time.Now().UTC().Format("2006-01-02T15"))
+	// and the m365 user id
+	assert.Contains(t, result, suite.m365UserID)
+}
+
+// ---------------------------------------------------------------------------
+// tests prepared with a previous backup
+// ---------------------------------------------------------------------------
+
+type PreparedBackupExchangeIntegrationSuite struct {
+	suite.Suite
+	acct       account.Account
+	st         storage.Storage
+	vpr        *viper.Viper
+	cfgFP      string
+	repo       *repository.Repository
+	m365UserID string
+	backupOp   operations.BackupOperation
+}
+
+func TestPreparedBackupExchangeIntegrationSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoCLITests,
+		tester.CorsoCLIBackupTests,
+	); err != nil {
+		t.Skip(err)
+	}
+	suite.Run(t, new(PreparedBackupExchangeIntegrationSuite))
+}
+
+func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
+	t := suite.T()
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs)
+	require.NoError(t, err)
+
+	// prepare common details
+	suite.acct = tester.NewM365Account(t)
+	suite.st = tester.NewPrefixedS3Storage(t)
+
+	cfg, err := suite.st.S3Config()
+	require.NoError(t, err)
+
+	force := map[string]string{
+		tester.TestCfgAccountProvider: "M365",
+		tester.TestCfgStorageProvider: "S3",
+		tester.TestCfgPrefix:          cfg.Prefix,
+	}
+	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
+	require.NoError(t, err)
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+
+	suite.m365UserID = tester.M365UserID(t)
+
+	// init the repo first
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
+	require.NoError(t, err)
+
+	// some tests require an existing backup
+	sel := selectors.NewExchangeBackup()
+	// TODO: only backup the inbox
+	sel.Include(sel.Users([]string{suite.m365UserID}))
+	suite.backupOp, err = suite.repo.NewBackup(
+		ctx,
+		sel.Selector,
+		control.NewOptions(false))
+	require.NoError(t, suite.backupOp.Run(ctx))
+	require.NoError(t, err)
+
+	time.Sleep(3 * time.Second)
+}
+
+func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	t := suite.T()
+
+	cmd := tester.StubRootCmd(
+		"backup", "list", "exchange",
+		"--config-file", suite.cfgFP)
+	cli.BuildCommandTree(cmd)
+	var recorder strings.Builder
+	cmd.SetOut(&recorder)
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	require.NoError(t, cmd.ExecuteContext(ctx))
+
+	// compare the output
+	result := recorder.String()
+	assert.Contains(t, result, suite.backupOp.Results.BackupID)
+}
+
+func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	t := suite.T()
+
+	// fetch the details from the repo first
+	deets, _, err := suite.repo.BackupDetails(ctx, string(suite.backupOp.Results.BackupID))
+	require.NoError(t, err)
+
+	cmd := tester.StubRootCmd(
+		"backup", "details", "exchange",
+		"--config-file", suite.cfgFP,
+		"--backup", string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+	var recorder strings.Builder
+	cmd.SetOut(&recorder)
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	require.NoError(t, cmd.ExecuteContext(ctx))
+
+	// compare the output
+	result := recorder.String()
+	for i, ent := range deets.Entries {
+		t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
+			assert.Contains(t, result, ent.RepoRef)
+		})
+	}
 }
