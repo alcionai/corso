@@ -126,7 +126,12 @@ func (gc *GraphConnector) setTenantUsers() error {
 	}
 	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return errors.Wrapf(
+			err,
+			"tenant %s M365 query: %s",
+			gc.tenant,
+			support.ConnectorStackErrorTrace(err),
+		)
 	}
 	if response == nil {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
