@@ -159,6 +159,20 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 			expectHs: []string{"Repo Ref"},
 			expectVs: []string{"reporef"},
 		},
+		{
+			name: "onedrive info",
+			entry: details.DetailsEntry{
+				RepoRef: "reporef",
+				ItemInfo: details.ItemInfo{
+					Onedrive: &details.OnedriveInfo{
+						ItemName:   "itemName",
+						ParentPath: "parentPath",
+					},
+				},
+			},
+			expectHs: []string{"Repo Ref", "ItemName", "ParentPath"},
+			expectVs: []string{"reporef", "itemName", "parentPath"},
+		},
 	}
 
 	for _, test := range table {
