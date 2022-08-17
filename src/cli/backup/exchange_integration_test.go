@@ -168,11 +168,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
 
-	require.NoError(t, suite.repo.Close(ctx))
 	time.Sleep(3 * time.Second)
-
-	suite.repo, err = repository.Connect(ctx, suite.acct, suite.st)
-	require.NoError(t, err)
 }
 
 func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
