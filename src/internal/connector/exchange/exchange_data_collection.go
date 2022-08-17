@@ -99,10 +99,10 @@ func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, Graph
 		return RetrieveEventDataForUser, eventToDataCollection
 	case messages:
 		return RetrieveMessageDataForUser, messageToDataCollection
+	// Unsupported options returns nil, nil
 	default:
 		return nil, nil
 	}
-
 }
 
 // FullPath returns the Collection's fullPath []string
@@ -110,6 +110,8 @@ func (eoc *Collection) FullPath() []string {
 	return append([]string{}, eoc.fullPath...)
 }
 
+// populateByOptionIdentifier is a utility function that uses eoc.collectionType to be able to serialize
+// all the M365IDs defined in the jobs field. data channel is closed by this function
 func (eoc *Collection) populateByOptionIdentifier(
 	ctx context.Context,
 ) {
@@ -124,7 +126,7 @@ func (eoc *Collection) populateByOptionIdentifier(
 	// serializationFunction
 	query, serializeFunc := GetQueryAndSerializeFunc(eoc.collectionType)
 	if query == nil {
-		eoc.TerminatePopulateSequence(ctx, 0, fmt.Errorf("option identifer %s not supported for population", eoc.collectionType.String()))
+		eoc.terminatePopulateSequence(ctx, 0, fmt.Errorf("option identifer %s not supported for population", eoc.collectionType.String()))
 		return // Not supported option
 	}
 
@@ -150,10 +152,12 @@ func (eoc *Collection) populateByOptionIdentifier(
 
 		success++
 	}
-	eoc.TerminatePopulateSequence(ctx, success, errs)
+	eoc.terminatePopulateSequence(ctx, success, errs)
 }
 
-func (eoc *Collection) TerminatePopulateSequence(ctx context.Context, success int, errs error) {
+// terminatePopulateSequence is a utility function used to close a Collection's data channel
+// and to send the status update through the channel.
+func (eoc *Collection) terminatePopulateSequence(ctx context.Context, success int, errs error) {
 	close(eoc.data)
 	attempted := len(eoc.jobs)
 	status := support.CreateStatus(ctx, support.Backup, attempted, success, 1, errs)
@@ -161,6 +165,8 @@ func (eoc *Collection) TerminatePopulateSequence(ctx context.Context, success in
 	eoc.statusCh <- status
 }
 
+// GraphSerializeFunc are class of functions that are used by Collections to transform GraphRetrievalFunc
+// responses into data.Stream items contained within the Collection
 type GraphSerializeFunc func(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
@@ -170,6 +176,8 @@ type GraphSerializeFunc func(
 	user string,
 ) error
 
+// eventToDataCollection is a GraphSerializeFunc used to serialize models.Eventable objects into
+// data.Stream objects. Returns an error the process finishes unsuccessfully.
 func eventToDataCollection(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
@@ -221,6 +229,7 @@ func eventToDataCollection(
 	return nil
 }
 
+// contactToDataCollection is a GraphSerializeFunc for models.Contactable
 func contactToDataCollection(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
@@ -248,6 +257,7 @@ func contactToDataCollection(
 	return nil
 }
 
+// messageToDataCollection is the GraphSerializeFunc for models.Messageable
 func messageToDataCollection(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
@@ -257,6 +267,7 @@ func messageToDataCollection(
 	user string,
 ) error {
 	var err error
+	defer objectWriter.Close()
 	aMessage, ok := parsable.(models.Messageable)
 	if !ok {
 		return errors.New("message data not returned from graph query")
@@ -278,7 +289,7 @@ func messageToDataCollection(
 				Attachments().
 				Get()
 			retriesErr = err
-			if err == nil && attached != nil {
+			if err == nil {
 				aMessage.SetAttachments(attached.GetValue())
 				break
 			}
@@ -288,19 +299,19 @@ func messageToDataCollection(
 			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
 		}
 	}
+
 	err = objectWriter.WriteObjectValue("", aMessage)
 	if err != nil {
 		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
 	}
 
 	byteArray, err := objectWriter.GetSerializedContent()
-	objectWriter.Close()
 	if err != nil {
-		return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
+		err = support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
+		return support.SetNonRecoverableError(err)
 	}
-	if byteArray != nil {
-		dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage)}
-	}
+
+	dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage)}
 	return nil
 }
 
