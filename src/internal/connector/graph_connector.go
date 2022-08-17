@@ -126,7 +126,12 @@ func (gc *GraphConnector) setTenantUsers() error {
 	}
 	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
-		return err
+		return errors.Wrapf(
+			err,
+			"tenant %s M365 query: %s",
+			gc.tenant,
+			support.ConnectorStackErrorTrace(err),
+		)
 	}
 	if response == nil {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
@@ -138,7 +143,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		models.CreateUserCollectionResponseFromDiscriminatorValue,
 	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 	var iterateError error
 	callbackFunc := func(userItem interface{}) bool {
@@ -318,8 +323,12 @@ func (gc *GraphConnector) createCollections(
 	}
 	response, err := query(&gc.graphService, user)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(
+			err,
+			"user %s M365 query: %s",
+			user, support.ConnectorStackErrorTrace(err))
 	}
+
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err
