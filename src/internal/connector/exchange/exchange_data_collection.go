@@ -126,8 +126,8 @@ func (eoc *Collection) populateByOptionIdentifier(
 	// serializationFunction
 	query, serializeFunc := GetQueryAndSerializeFunc(eoc.collectionType)
 	if query == nil {
-		eoc.terminatePopulateSequence(ctx, 0, fmt.Errorf("option identifer %s not supported for population", eoc.collectionType.String()))
-		return // Not supported option
+		eoc.TerminatePopulateSequence(ctx, 0, fmt.Errorf("unrecognized collection type: %s", eoc.collectionType.String()))
+		return
 	}
 
 	for _, identifier := range eoc.jobs {
