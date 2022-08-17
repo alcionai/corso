@@ -190,9 +190,11 @@ func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
 	}
 }
 
-// TestSetupExchangeCollection ensures that the helper
-// function SetupExchangeCollectionVars returns a non-nil variable for returns
-// in regards to the selector.ExchangeScope.
+// TestSetupExchangeCollection ensures SetupExchangeCollectionVars returns a non-nil variable for
+// the following selector types:
+// - Mail
+// - Contacts
+// - Events
 func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
@@ -204,13 +206,10 @@ func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 	for _, test := range scopes {
 		suite.T().Run(test.Category().String(), func(t *testing.T) {
 			discriminateFunc, graphQuery, iterFunc, err := SetupExchangeCollectionVars(test)
-			if test.Category() == selectors.ExchangeMailFolder ||
-				test.Category() == selectors.ExchangeContactFolder {
-				assert.NoError(t, err)
-				assert.NotNil(t, discriminateFunc)
-				assert.NotNil(t, graphQuery)
-				assert.NotNil(t, iterFunc)
-			}
+			assert.NoError(t, err)
+			assert.NotNil(t, discriminateFunc)
+			assert.NotNil(t, graphQuery)
+			assert.NotNil(t, iterFunc)
 		})
 	}
 }
