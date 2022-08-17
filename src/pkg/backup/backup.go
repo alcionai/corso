@@ -62,7 +62,7 @@ func New(
 
 // Print writes the Backup to StdOut, in the format requested by the caller.
 func (b Backup) Print(ctx context.Context) {
-	print.It(ctx, b)
+	print.Item(ctx, b)
 }
 
 // PrintAll writes the slice of Backups to StdOut, in the format requested by the caller.
@@ -71,7 +71,7 @@ func PrintAll(ctx context.Context, bs []Backup) {
 	for _, b := range bs {
 		ps = append(ps, print.Printable(b))
 	}
-	print.All(ctx, ps)
+	print.All(ctx, ps...)
 }
 
 type Printable struct {
@@ -85,7 +85,6 @@ type Printable struct {
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
 func (b Backup) MinimumPrintable() any {
-	// todo: implement printable backup struct
 	return Printable{
 		ID:         b.ID,
 		ErrorCount: support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors),

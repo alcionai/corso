@@ -26,7 +26,7 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 	for _, de := range dm.Entries {
 		ps = append(ps, de)
 	}
-	print.All(ctx, ps)
+	print.All(ctx, ps...)
 }
 
 // Paths returns the list of Paths extracted from the Entries slice.

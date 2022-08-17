@@ -4,11 +4,12 @@ import (
 	"context"
 	"os"
 
-	"github.com/alcionai/corso/cli/print"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/alcionai/corso/cli/print"
 )
 
 var (
@@ -94,7 +95,7 @@ type loggingKey string
 const ctxKey loggingKey = "corsoLogger"
 
 // Seed embeds a logger into the context for later retrieval.
-// It also parses the command line for flag values pior to executing
+// It also parses the command line for flag values prior to executing
 // cobra.  This early parsing is necessary since logging depends on
 // a seeded context prior to cobra evaluating flags.
 func Seed(ctx context.Context) (ctxOut context.Context, zsl *zap.SugaredLogger) {
@@ -112,7 +113,6 @@ func Seed(ctx context.Context) (ctxOut context.Context, zsl *zap.SugaredLogger) 
 
 	// parse the os args list to find the log level flag
 	if err := fs.Parse(os.Args[1:]); err != nil {
-		// TODO: Move Backup refs out of Print
 		print.Err(ctx, err.Error())
 		return
 	}

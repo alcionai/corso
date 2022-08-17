@@ -116,13 +116,12 @@ type Printable interface {
 	Values() []string
 }
 
-// It prints the printable items,
-// according to the caller's requested format.
-func It(ctx context.Context, p Printable) {
+// Item prints the printable, according to the caller's requested format.
+func Item(ctx context.Context, p Printable) {
 	print(getRootCmd(ctx).OutOrStdout(), p)
 }
 
-// printAll prints the printable items,
+// print prints the printable items,
 // according to the caller's requested format.
 //revive:disable:redefines-builtin-id
 func print(w io.Writer, p Printable) {
@@ -135,7 +134,7 @@ func print(w io.Writer, p Printable) {
 
 // All prints the slice of printable items,
 // according to the caller's requested format.
-func All(ctx context.Context, ps []Printable) {
+func All(ctx context.Context, ps ...Printable) {
 	printAll(getRootCmd(ctx).OutOrStdout(), ps)
 }
 
