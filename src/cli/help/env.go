@@ -81,7 +81,8 @@ var (
 func envGuide(cmd *cobra.Command, args []string) {
 	guide := []any{
 		"\n--- Environment Variable Guide ---\n",
-		"In order to keep your information secure, Corso retrieves credentials and other secrets from environment variables.\n ",
+		"In order to keep your information secure, Corso retrieves" +
+			"credentials and other secrets from environment variables.\n ",
 	}
 	guide = append(guide, corsoEVs.Strings()...)
 	guide = append(guide, azureEVs.Strings()...)
