@@ -10,13 +10,14 @@ func _() {
 	var x [1]struct{}
 	_ = x[unknown-0]
 	_ = x[folders-1]
-	_ = x[messages-2]
-	_ = x[users-3]
+	_ = x[events-2]
+	_ = x[messages-3]
+	_ = x[users-4]
 }
 
-const _optionIdentifier_name = "unknownfoldersmessagesusers"
+const _optionIdentifier_name = "unknownfolderseventsmessagesusers"
 
-var _optionIdentifier_index = [...]uint8{0, 7, 14, 22, 27}
+var _optionIdentifier_index = [...]uint8{0, 7, 14, 20, 28, 33}
 
 func (i optionIdentifier) String() string {
 	if i < 0 || i >= optionIdentifier(len(_optionIdentifier_index)-1) {
