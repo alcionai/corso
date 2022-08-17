@@ -89,7 +89,13 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file
-	require.NotEmpty(suite.T(), driveItemID, "no file item found for user %s drive %s", user, driveID)
+	require.NotEmpty(
+		suite.T(),
+		driveItemID,
+		"no file item found for user %s drive %s",
+		user,
+		driveID,
+	)
 
 	// Read data for the file
 

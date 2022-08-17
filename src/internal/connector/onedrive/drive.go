@@ -35,7 +35,12 @@ type itemCollector func(ctx context.Context, driveID string, items []models.Driv
 
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
-func collectItems(ctx context.Context, service graph.Service, driveID string, collector itemCollector) error {
+func collectItems(
+	ctx context.Context,
+	service graph.Service,
+	driveID string,
+	collector itemCollector,
+) error {
 	// TODO: Specify a timestamp in the delta query
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
@@ -43,7 +48,11 @@ func collectItems(ctx context.Context, service graph.Service, driveID string, co
 	for {
 		r, err := builder.Get()
 		if err != nil {
-			return errors.Wrapf(err, "failed to query drive items. details: %s", support.ConnectorStackErrorTrace(err))
+			return errors.Wrapf(
+				err,
+				"failed to query drive items. details: %s",
+				support.ConnectorStackErrorTrace(err),
+			)
 		}
 
 		err = collector(ctx, driveID, r.GetValue())
