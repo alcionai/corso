@@ -165,12 +165,12 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef: "reporef",
 				ItemInfo: details.ItemInfo{
 					Onedrive: &details.OnedriveInfo{
-						Name:       "itemName",
+						ItemName:   "itemName",
 						ParentPath: "parentPath",
 					},
 				},
 			},
-			expectHs: []string{"Repo Ref", "Name", "ParentPath"},
+			expectHs: []string{"Repo Ref", "ItemName", "ParentPath"},
 			expectVs: []string{"reporef", "itemName", "parentPath"},
 		},
 	}

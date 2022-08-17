@@ -76,7 +76,7 @@ func (suite *OnedriveCollectionSuite) TestOnedriveCollection() {
 	assert.Equal(suite.T(), testItemData, readData)
 	require.NotNil(suite.T(), readItemInfo.Info())
 	require.NotNil(suite.T(), readItemInfo.Info().Onedrive)
-	assert.Equal(suite.T(), testItemName, readItemInfo.Info().Onedrive.Name)
+	assert.Equal(suite.T(), testItemName, readItemInfo.Info().Onedrive.ItemName)
 	assert.Equal(suite.T(), folderPath, readItemInfo.Info().Onedrive.ParentPath)
 }
 

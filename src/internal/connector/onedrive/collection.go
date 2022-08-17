@@ -31,12 +31,13 @@ type Collection struct {
 	// folderPath indicates what level in the hierarchy this collection
 	// represents
 	folderPath string
-	// file items within this collection
+	// M365 IDs of file items within this collection
 	driveItemIDs []string
-	driveID      string
-	service      graph.Service
-	statusCh     chan<- *support.ConnectorOperationStatus
-	itemReader   itemReaderFunc
+	// M365 ID of the drive this collection was created from
+	driveID    string
+	service    graph.Service
+	statusCh   chan<- *support.ConnectorOperationStatus
+	itemReader itemReaderFunc
 }
 
 // itemReadFunc returns a reader for the specified item
@@ -60,7 +61,8 @@ func NewCollection(folderPath, driveID string, service graph.Service,
 }
 
 // TODO: Implement drive item reader
-func (oc *Collection) driveItemReader(ctx context.Context,
+func (oc *Collection) driveItemReader(
+	ctx context.Context,
 	itemID string,
 ) (name string, itemData io.ReadCloser, err error) {
 	return "", nil, nil
@@ -118,7 +120,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 		// Item read successfully, add to collection
 		itemsRead++
-		oc.data <- &Item{id: itemID, data: itemData, info: &details.OnedriveInfo{Name: itemName, ParentPath: oc.folderPath}}
+		oc.data <- &Item{
+			id:   itemID,
+			data: itemData,
+			info: &details.OnedriveInfo{ItemName: itemName, ParentPath: oc.folderPath},
+		}
 	}
 	close(oc.data)
 	status := support.CreateStatus(ctx, support.Backup,

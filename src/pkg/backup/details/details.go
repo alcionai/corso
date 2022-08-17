@@ -131,17 +131,17 @@ func (s SharepointInfo) Values() []string {
 // OnedriveInfo describes a onedrive item
 type OnedriveInfo struct {
 	ParentPath string `json:"parentPath"`
-	Name       string `json:"name"`
+	ItemName   string `json:"itemName"`
 }
 
 // Headers returns the human-readable names of properties in a OnedriveInfo
 // for printing out to a terminal in a columnar display.
 func (oi OnedriveInfo) Headers() []string {
-	return []string{"Name", "ParentPath"}
+	return []string{"ItemName", "ParentPath"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (oi OnedriveInfo) Values() []string {
-	return []string{oi.Name, oi.ParentPath}
+	return []string{oi.ItemName, oi.ParentPath}
 }
