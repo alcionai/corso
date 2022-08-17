@@ -6,8 +6,10 @@ package exchange
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -46,24 +48,13 @@ type Collection struct {
 	jobs []string
 	// service - client/adapter pair used to access M365 back store
 	service graph.Service
-	// populate - Utility function to populate collection based on the M365 application type and granularity
-	populate populater
-	statusCh chan<- *support.ConnectorOperationStatus
+
+	collectionType optionIdentifier
+	statusCh       chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
 }
-
-// Populater are a class of functions that can be used to fill exchange.Collections with
-// the corresponding information
-type populater func(
-	ctx context.Context,
-	service graph.Service,
-	user string,
-	jobs []string,
-	dataChannel chan<- data.Stream,
-	statusChannel chan<- *support.ConnectorOperationStatus,
-)
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
@@ -74,30 +65,15 @@ func NewCollection(
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
 	collection := Collection{
-		user:     user,
-		data:     make(chan data.Stream, collectionChannelBufferSize),
-		jobs:     make([]string, 0),
-		service:  service,
-		statusCh: statusCh,
-		fullPath: fullPath,
-		populate: getPopulateFunction(collectionType),
+		user:           user,
+		data:           make(chan data.Stream, collectionChannelBufferSize),
+		jobs:           make([]string, 0),
+		service:        service,
+		statusCh:       statusCh,
+		fullPath:       fullPath,
+		collectionType: collectionType,
 	}
 	return collection
-}
-
-// getPopulateFunction is a function to set populate function field
-// with exchange-application specific functions
-func getPopulateFunction(optID optionIdentifier) populater {
-	switch optID {
-	case messages:
-		return PopulateForMailCollection
-	case contacts:
-		return PopulateForContactCollection
-	case events:
-		return PopulateForEventCollection
-	default:
-		return nil
-	}
 }
 
 // AddJob appends additional objectID to structure's jobs field
@@ -108,17 +84,25 @@ func (eoc *Collection) AddJob(objID string) {
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (eoc *Collection) Items() <-chan data.Stream {
-	if eoc.populate != nil {
-		go eoc.populate(
-			context.TODO(),
-			eoc.service,
-			eoc.user,
-			eoc.jobs,
-			eoc.data,
-			eoc.statusCh,
-		)
-	}
+
+	go eoc.populateByOptionIdentifier(context.TODO())
 	return eoc.data
+}
+
+// GetQueryAndSerializeFunc helper function that returns the two functions functions
+// required to convert M365 identifier into a byte array filled with the serialized data
+func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
+	switch optID {
+	case contacts:
+		return RetrieveContactDataForUser, contactToDataCollection
+	case events:
+		return RetrieveEventDataForUser, eventToDataCollection
+	case messages:
+		return RetrieveMessageDataForUser, messageToDataCollection
+	default:
+		return nil, nil
+	}
+
 }
 
 // FullPath returns the Collection's fullPath []string
@@ -126,143 +110,81 @@ func (eoc *Collection) FullPath() []string {
 	return append([]string{}, eoc.fullPath...)
 }
 
-func PopulateForContactCollection(
+func (eoc *Collection) populateByOptionIdentifier(
 	ctx context.Context,
-	service graph.Service,
-	user string,
-	jobs []string,
-	dataChannel chan<- data.Stream,
-	statusChannel chan<- *support.ConnectorOperationStatus,
 ) {
 	var (
 		errs    error
 		success int
 	)
+	user := eoc.user
 	objectWriter := kw.NewJsonSerializationWriter()
+	// get QueryBasedonIdentifier
+	// verify that it is the correct type in called function
+	// serializationFunction
+	query, serializeFunc := GetQueryAndSerializeFunc(eoc.collectionType)
+	if query == nil {
+		eoc.TerminatePopulateSequence(ctx, 0, fmt.Errorf("option identifer %s not supported for population", eoc.collectionType.String()))
+		return // Not supported option
+	}
 
-	for _, task := range jobs {
-		response, err := service.Client().UsersById(user).ContactsById(task).Get()
-		if err != nil {
-			trace := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(
-				user,
-				errors.Wrapf(err, "unable to retrieve item %s; details: %s", task, trace),
-				errs,
-			)
-			continue
-		}
-		err = contactToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
+	for _, identifier := range eoc.jobs {
+		response, err := query(eoc.service, user, identifier)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
-			if service.ErrPolicy() {
+			if eoc.service.ErrPolicy() {
 				break
 			}
 			continue
 		}
-
-		success++
-
-	}
-	close(dataChannel)
-	attemptedItems := len(jobs)
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
-	logger.Ctx(ctx).Debug(status.String())
-	statusChannel <- status
-}
-
-// PopulateForMailCollection async call to fill DataCollection via channel implementation
-func PopulateForMailCollection(
-	ctx context.Context,
-	service graph.Service,
-	user string,
-	jobs []string,
-	dataChannel chan<- data.Stream,
-	statusChannel chan<- *support.ConnectorOperationStatus,
-) {
-	var errs error
-	var attemptedItems, success int
-	objectWriter := kw.NewJsonSerializationWriter()
-
-	for _, task := range jobs {
-		response, err := service.Client().UsersById(user).MessagesById(task).Get()
-		if err != nil {
-			trace := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(user, errors.Wrapf(err, "unable to retrieve item %s; details %s", task, trace), errs)
-			continue
-		}
-		err = messageToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
+		err = serializeFunc(ctx, eoc.service.Client(), objectWriter, eoc.data, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
-			if service.ErrPolicy() {
+			if eoc.service.ErrPolicy() {
 				break
 			}
 			continue
 		}
+
 		success++
 	}
-	close(dataChannel)
-	attemptedItems += len(jobs)
-
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
-	logger.Ctx(ctx).Debug(status.String())
-	statusChannel <- status
+	eoc.TerminatePopulateSequence(ctx, success, errs)
 }
 
-func PopulateForEventCollection(
+func (eoc *Collection) TerminatePopulateSequence(ctx context.Context, success int, errs error) {
+	close(eoc.data)
+	attempted := len(eoc.jobs)
+	status := support.CreateStatus(ctx, support.Backup, attempted, success, 1, errs)
+	logger.Ctx(ctx).Debug(status.String())
+	eoc.statusCh <- status
+}
+
+type GraphSerializeFunc func(
 	ctx context.Context,
-	service graph.Service,
-	user string,
-	jobs []string,
+	client *msgraphsdk.GraphServiceClient,
+	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
-	statusChannel chan<- *support.ConnectorOperationStatus,
-) {
-	var (
-		errs                    error
-		attemptedItems, success int
-	)
-	objectWriter := kw.NewJsonSerializationWriter()
-
-	for _, task := range jobs {
-		response, err := service.Client().UsersById(user).EventsById(task).Get()
-		if err != nil {
-			trace := support.ConnectorStackErrorTrace(err)
-			errs = support.WrapAndAppend(
-				user,
-				errors.Wrapf(err, "unable to retrieve items %s; details: %s", task, trace),
-				errs,
-			)
-			continue
-		}
-		err = eventToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
-		if err != nil {
-			errs = support.WrapAndAppend(user, err, errs)
-
-			if service.ErrPolicy() {
-				break
-			}
-			continue
-		}
-		success++
-	}
-	close(dataChannel)
-	attemptedItems += len(jobs)
-	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
-	logger.Ctx(ctx).Debug(status.String())
-	statusChannel <- status
-}
+	parsable absser.Parsable,
+	user string,
+) error
 
 func eventToDataCollection(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
-	event models.Eventable,
+	parsable absser.Parsable,
 	user string,
 ) error {
 	var err error
 	defer objectWriter.Close()
+	event, ok := parsable.(models.Eventable)
+	if !ok {
+		return errors.New("event data not returned from graph query")
+	}
+
 	if *event.GetHasAttachments() {
 		var retriesErr error
 		for count := 0; count < numberOfRetries; count++ {
@@ -304,10 +226,14 @@ func contactToDataCollection(
 	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
-	contact models.Contactable,
+	parsable absser.Parsable,
 	user string,
 ) error {
 	defer objectWriter.Close()
+	contact, ok := parsable.(models.Contactable)
+	if !ok {
+		return errors.New("contact data not returned from graph query")
+	}
 	err := objectWriter.WriteObjectValue("", contact)
 	if err != nil {
 		return support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
@@ -317,7 +243,7 @@ func contactToDataCollection(
 		return support.WrapAndAppend(*contact.GetId(), err, nil)
 	}
 	if byteArray != nil {
-		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: nil}
+		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: ContactInfo(contact)}
 	}
 	return nil
 }
@@ -327,14 +253,17 @@ func messageToDataCollection(
 	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kw.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
-	message models.Messageable,
+	parsable absser.Parsable,
 	user string,
 ) error {
 	var err error
-	aMessage := message
-	adtl := message.GetAdditionalData()
+	aMessage, ok := parsable.(models.Messageable)
+	if !ok {
+		return errors.New("message data not returned from graph query")
+	}
+	adtl := aMessage.GetAdditionalData()
 	if len(adtl) > 2 {
-		aMessage, err = support.ConvertFromMessageable(adtl, message)
+		aMessage, err = support.ConvertFromMessageable(adtl, aMessage)
 		if err != nil {
 			return err
 		}
