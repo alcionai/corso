@@ -36,7 +36,7 @@ func (suite *EventSuite) TestEventInfo() {
 			},
 		},
 		{
-			name: "Received only",
+			name: "Start time only",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
 				event := models.NewEvent()
 				dateTime := models.NewDateTimeTimeZone()
