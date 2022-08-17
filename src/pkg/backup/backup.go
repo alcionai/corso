@@ -1,9 +1,11 @@
 package backup
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/model"
@@ -34,6 +36,9 @@ type Backup struct {
 	stats.StartAndEndTime
 }
 
+// interface compliance checks
+var _ print.Printable = &Backup{}
+
 func New(
 	snapshotID, detailsID, status string,
 	selector selectors.Selector,
@@ -54,6 +59,20 @@ func New(
 // --------------------------------------------------------------------------------
 // CLI Output
 // --------------------------------------------------------------------------------
+
+// Print writes the Backup to StdOut, in the format requested by the caller.
+func (b Backup) Print(ctx context.Context) {
+	print.It(ctx, b)
+}
+
+// PrintAll writes the slice of Backups to StdOut, in the format requested by the caller.
+func PrintAll(ctx context.Context, bs []Backup) {
+	ps := []print.Printable{}
+	for _, b := range bs {
+		ps = append(ps, print.Printable(b))
+	}
+	print.All(ctx, ps)
+}
 
 type Printable struct {
 	ID         model.StableID      `json:"id"`
