@@ -227,7 +227,6 @@ func IterateSelectAllEventsForCollections(
 			)
 			collections[eventFolder] = &edc
 			isDirectorySet = true
-
 		}
 
 		event, ok := eventItem.(models.Eventable)
