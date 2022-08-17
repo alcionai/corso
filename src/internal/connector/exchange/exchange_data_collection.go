@@ -77,16 +77,16 @@ func NewCollection(
 }
 
 // AddJob appends additional objectID to structure's jobs field
-func (eoc *Collection) AddJob(objID string) {
-	eoc.jobs = append(eoc.jobs, objID)
+func (col *Collection) AddJob(objID string) {
+	col.jobs = append(col.jobs, objID)
 }
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (eoc *Collection) Items() <-chan data.Stream {
+func (col *Collection) Items() <-chan data.Stream {
 
-	go eoc.populateByOptionIdentifier(context.TODO())
-	return eoc.data
+	go col.populateByOptionIdentifier(context.TODO())
+	return col.data
 }
 
 // GetQueryAndSerializeFunc helper function that returns the two functions functions
@@ -106,45 +106,46 @@ func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, Graph
 }
 
 // FullPath returns the Collection's fullPath []string
-func (eoc *Collection) FullPath() []string {
-	return append([]string{}, eoc.fullPath...)
+func (col *Collection) FullPath() []string {
+	return append([]string{}, col.fullPath...)
 }
 
-// populateByOptionIdentifier is a utility function that uses eoc.collectionType to be able to serialize
+// populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the jobs field. data channel is closed by this function
-func (eoc *Collection) populateByOptionIdentifier(
+func (col *Collection) populateByOptionIdentifier(
 	ctx context.Context,
 ) {
 	var (
 		errs    error
 		success int
 	)
-	user := eoc.user
+	defer col.finishPopulation(ctx, success, errs)
+	user := col.user
 	objectWriter := kw.NewJsonSerializationWriter()
 	// get QueryBasedonIdentifier
 	// verify that it is the correct type in called function
 	// serializationFunction
-	query, serializeFunc := GetQueryAndSerializeFunc(eoc.collectionType)
+	query, serializeFunc := GetQueryAndSerializeFunc(col.collectionType)
 	if query == nil {
-		eoc.TerminatePopulateSequence(ctx, 0, fmt.Errorf("unrecognized collection type: %s", eoc.collectionType.String()))
+		errs = fmt.Errorf("unrecognized collection type: %s", col.collectionType.String())
 		return
 	}
 
-	for _, identifier := range eoc.jobs {
-		response, err := query(eoc.service, user, identifier)
+	for _, identifier := range col.jobs {
+		response, err := query(col.service, user, identifier)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
-			if eoc.service.ErrPolicy() {
+			if col.service.ErrPolicy() {
 				break
 			}
 			continue
 		}
-		err = serializeFunc(ctx, eoc.service.Client(), objectWriter, eoc.data, response, user)
+		err = serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
-			if eoc.service.ErrPolicy() {
+			if col.service.ErrPolicy() {
 				break
 			}
 			continue
@@ -152,17 +153,16 @@ func (eoc *Collection) populateByOptionIdentifier(
 
 		success++
 	}
-	eoc.terminatePopulateSequence(ctx, success, errs)
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
-func (eoc *Collection) terminatePopulateSequence(ctx context.Context, success int, errs error) {
-	close(eoc.data)
-	attempted := len(eoc.jobs)
+func (col *Collection) finishPopulation(ctx context.Context, success int, errs error) {
+	close(col.data)
+	attempted := len(col.jobs)
 	status := support.CreateStatus(ctx, support.Backup, attempted, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
-	eoc.statusCh <- status
+	col.statusCh <- status
 }
 
 // GraphSerializeFunc are class of functions that are used by Collections to transform GraphRetrievalFunc
@@ -190,7 +190,7 @@ func eventToDataCollection(
 	defer objectWriter.Close()
 	event, ok := parsable.(models.Eventable)
 	if !ok {
-		return errors.New("event data not returned from graph query")
+		return fmt.Errorf("expected Eventable, got %T", parsable)
 	}
 
 	if *event.GetHasAttachments() {
@@ -241,7 +241,7 @@ func contactToDataCollection(
 	defer objectWriter.Close()
 	contact, ok := parsable.(models.Contactable)
 	if !ok {
-		return errors.New("contact data not returned from graph query")
+		return fmt.Errorf("expected Contactable, got %T", parsable)
 	}
 	err := objectWriter.WriteObjectValue("", contact)
 	if err != nil {
@@ -270,7 +270,7 @@ func messageToDataCollection(
 	defer objectWriter.Close()
 	aMessage, ok := parsable.(models.Messageable)
 	if !ok {
-		return errors.New("message data not returned from graph query")
+		return fmt.Errorf("expected Messageable, got %T", parsable)
 	}
 	adtl := aMessage.GetAdditionalData()
 	if len(adtl) > 2 {
