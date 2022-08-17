@@ -125,12 +125,12 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := a.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -142,7 +142,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
-		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
@@ -169,14 +169,14 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, options.Control())
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to initialize Exchange restore"))
+		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange restore"))
 	}
 
 	if err := ro.Run(ctx); err != nil {
-		return Only(errors.Wrap(err, "Failed to run Exchange restore"))
+		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))
 	}
 
-	Infof("Restored Exchange in %s for user %s.\n", s.Provider, user)
+	Infof(ctx, "Restored Exchange in %s for user %s.\n", s.Provider, user)
 	return nil
 }
 

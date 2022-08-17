@@ -50,20 +50,34 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	suite.connector, err = NewGraphConnector(a)
 	suite.NoError(err)
 	suite.user = "lidiah@8qzvrj.onmicrosoft.com"
-}
-
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector() {
 	tester.LogTimeOfTest(suite.T())
-	suite.NotNil(suite.connector)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_setTenantUsers() {
-	err := suite.connector.setTenantUsers()
+// TestSetTenantUsers verifies GraphConnector's ability to query
+// the users associated with the credentials
+func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
+	newConnector := GraphConnector{
+		tenant:      "test_tenant",
+		Users:       make(map[string]string, 0),
+		status:      nil,
+		statusCh:    make(chan *support.ConnectorOperationStatus),
+		credentials: suite.connector.credentials,
+	}
+	service, err := newConnector.createService(false)
+	require.NoError(suite.T(), err)
+	newConnector.graphService = *service
+
+	suite.Equal(len(newConnector.Users), 0)
+	err = newConnector.setTenantUsers()
 	assert.NoError(suite.T(), err)
-	suite.Greater(len(suite.connector.Users), 0)
+	suite.Greater(len(newConnector.Users), 0)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataCollection() {
+// TestExchangeDataCollection verifies interface between operation and
+// GraphConnector remains stable to receive a non-zero amount of Collections
+// for the Exchange Package. Enabled exchange applications:
+// - mail
+func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
@@ -86,7 +100,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_ExchangeDataColl
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTest() {
+// TestMailSerializationRegression verifies that all mail data stored in the
+// test account can be successfully downloaded into bytes and restored into
+// M365 mail objects
+func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	t := suite.T()
 	user := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
@@ -123,8 +140,10 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_MailRegressionTe
 	}
 }
 
-// TestGraphConnector_TestContactSequence verifies retrieval sequence
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSequence() {
+// TestContactBackupSequence verifies ability to query contact items
+// and to store contact within Collection. Downloaded contacts are run through
+// a regression test to ensure that downloaded items can be uploaded.
+func (suite *GraphConnectorIntegrationSuite) TestContactBackupSequence() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
@@ -149,9 +168,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 				read, err := buf.ReadFrom(stream.ToReader())
 				suite.NoError(err)
 				suite.NotZero(read)
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				suite.NotNil(message)
-				suite.NoError(err)
+				contact, err := support.CreateContactFromBytes(buf.Bytes())
+				assert.NotNil(t, contact)
+				assert.NoError(t, err)
 
 			}
 			number++
@@ -160,9 +179,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_TestContactSeque
 	suite.Greater(len(collections), 0)
 }
 
-// TestGraphConnector_restoreMessages uses mock data to ensure GraphConnector
-// is able to restore a messageable item to a Mailbox.
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages() {
+// TestRestoreMessages uses mock data to ensure GraphConnector
+// is able to restore a single messageable item to a Mailbox.
+func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	user := tester.M365UserID(suite.T())
 	if len(user) == 0 {
 		suite.T().Skip("Environment not configured: missing m365 test user")
@@ -172,8 +191,8 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_restoreMessages(
 	assert.NoError(suite.T(), err)
 }
 
-// TestGraphConnector_SingleMailFolderCollectionQuery verifies that single folder support
-// enabled createCollections
+// TestGraphConnector_SingleMailFolderCollectionQuery verifies single folder support
+// for Backup operation
 func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolderCollectionQuery() {
 	t := suite.T()
 	sel := selectors.NewExchangeBackup()
@@ -184,18 +203,51 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 		require.NoError(t, err)
 		suite.Equal(len(collections), 1)
 		for _, edc := range collections {
+			number := 0
 			streamChannel := edc.Items()
 			// Verify that each message can be restored
 			for stream := range streamChannel {
+				testName := fmt.Sprintf("%s_InboxMessage_%d", edc.FullPath()[1], number)
+				suite.T().Run(testName, func(t *testing.T) {
+					buf := &bytes.Buffer{}
+					read, err := buf.ReadFrom(stream.ToReader())
+					suite.NoError(err)
+					suite.NotZero(read)
+					message, err := support.CreateMessageFromBytes(buf.Bytes())
+					suite.NotNil(message)
+					suite.NoError(err)
+					number++
+				})
+			}
+		}
+	}
+}
+
+// TestEventsBackupSequence ensures functionality of createCollections
+// to be able to successfully query, download and restore event objects
+func (suite *GraphConnectorIntegrationSuite) TestEventsBackupSequence() {
+	t := suite.T()
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Events([]string{suite.user}, []string{selectors.AnyTgt}))
+	scopes := sel.Scopes()
+	assert.Greater(t, len(scopes), 0)
+	collections, err := suite.connector.createCollections(context.Background(), scopes[0])
+	require.NoError(t, err)
+	suite.Greater(len(collections), 0)
+	for _, edc := range collections {
+		streamChannel := edc.Items()
+		number := 0
+		for stream := range streamChannel {
+			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath()[1], number)
+			suite.T().Run(testName, func(t *testing.T) {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
 				suite.NoError(err)
 				suite.NotZero(read)
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				suite.NotNil(message)
-				suite.NoError(err)
-
-			}
+				event, err := support.CreateEventFromBytes(buf.Bytes())
+				assert.NotNil(t, event)
+				assert.NoError(t, err)
+			})
 		}
 	}
 }
@@ -204,9 +256,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 // Exchange Functions
 //-------------------------------------------------------
 
-//  TestGraphConnector_CreateAndDeleteFolder ensures msgraph application has the ability
+//  TestCreateAndDeleteFolder ensures GraphConnector has the ability
 //  to create and remove folders within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteFolder() {
+func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteFolder() {
 	userID := tester.M365UserID(suite.T())
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
@@ -218,9 +270,9 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_CreateAndDeleteF
 	}
 }
 
-// TestGraphConnector_GetMailFolderID verifies the ability to retrieve folder ID of folders
+// TestGetMailFolderID verifies the ability to retrieve folder ID of folders
 // at the top level of the file tree
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_GetMailFolderID() {
+func (suite *GraphConnectorIntegrationSuite) TestGetMailFolderID() {
 	userID := tester.M365UserID(suite.T())
 	folderName := "Inbox"
 	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, userID)

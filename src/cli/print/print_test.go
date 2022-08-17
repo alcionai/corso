@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/internal/tester"
 )
 
 type PrintUnitSuite struct {
@@ -18,12 +20,11 @@ func TestPrintUnitSuite(t *testing.T) {
 }
 
 func (suite *PrintUnitSuite) TestOnly() {
+	ctx := tester.NewContext()
 	t := suite.T()
 	c := &cobra.Command{}
-	oldRoot := rootCmd
-	defer SetRootCommand(oldRoot)
-	SetRootCommand(c)
-	assert.NoError(t, Only(nil))
+	ctx = SetRootCmd(ctx, c)
+	assert.NoError(t, Only(ctx, nil))
 	assert.True(t, c.SilenceUsage)
 }
 

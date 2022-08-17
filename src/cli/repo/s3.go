@@ -78,16 +78,16 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	s, a, err := config.GetStorageAndAccount(ctx, false, s3Overrides())
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 	s3Cfg, err := s.S3Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Retrieving s3 configuration"))
+		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
 	}
 
 	m365, err := a.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	log.Debugw(
@@ -103,14 +103,14 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		if succeedIfExists && kopia.IsRepoAlreadyExistsError(err) {
 			return nil
 		}
-		return Only(errors.Wrap(err, "Failed to initialize a new S3 repository"))
+		return Only(ctx, errors.Wrap(err, "Failed to initialize a new S3 repository"))
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	Infof("Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
+	Infof(ctx, "Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
-		return Only(errors.Wrap(err, "Failed to write repository configuration"))
+		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
 	}
 	return nil
 }
@@ -141,15 +141,15 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	s, a, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 	s3Cfg, err := s.S3Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Retrieving s3 configuration"))
+		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
 	}
 	m365, err := a.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	log.Debugw(
@@ -162,14 +162,14 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to connect to the S3 repository"))
+		return Only(ctx, errors.Wrap(err, "Failed to connect to the S3 repository"))
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	Infof("Connected to S3 bucket %s.", s3Cfg.Bucket)
+	Infof(ctx, "Connected to S3 bucket %s.", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
-		return Only(errors.Wrap(err, "Failed to write repository configuration"))
+		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
 	}
 	return nil
 }
