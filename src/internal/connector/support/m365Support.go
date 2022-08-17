@@ -41,13 +41,3 @@ func CreateContactFromBytes(bytes []byte) (models.Contactable, error) {
 	contact := parsable.(models.Contactable)
 	return contact, nil
 }
-
-// CreateEventFromBytes transforms given bytes into models.Eventable object
-func CreateEventFromBytes(bytes []byte) (models.Eventable, error) {
-	parsable, err := CreateFromBytes(bytes, models.CreateEventFromDiscriminatorValue)
-	if err != nil {
-		return nil, err
-	}
-	event := parsable.(models.Eventable)
-	return event, nil
-}
