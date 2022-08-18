@@ -294,7 +294,7 @@ func eventToDataCollection(
 		return support.WrapAndAppend(*event.GetId(), errors.Wrap(err, "serializing content"), nil)
 	}
 	if byteArray != nil {
-		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: nil}
+		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: EventInfo(event)}
 	}
 	return nil
 }
