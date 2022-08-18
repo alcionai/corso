@@ -1,17 +1,47 @@
 package details
 
 import (
+	"context"
 	"sync"
 	"time"
 
+	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/internal/model"
 )
+
+// --------------------------------------------------------------------------------
+// Model
+// --------------------------------------------------------------------------------
 
 // DetailsModel describes what was stored in a Backup
 type DetailsModel struct {
 	model.BaseModel
 	Entries []DetailsEntry `json:"entries"`
 }
+
+// Print writes the DetailModel Entries to StdOut, in the format
+// requested by the caller.
+func (dm DetailsModel) PrintEntries(ctx context.Context) {
+	ps := []print.Printable{}
+	for _, de := range dm.Entries {
+		ps = append(ps, de)
+	}
+	print.All(ctx, ps...)
+}
+
+// Paths returns the list of Paths extracted from the Entries slice.
+func (dm DetailsModel) Paths() []string {
+	ents := dm.Entries
+	r := make([]string, len(ents))
+	for i := range ents {
+		r[i] = ents[i].RepoRef
+	}
+	return r
+}
+
+// --------------------------------------------------------------------------------
+// Details
+// --------------------------------------------------------------------------------
 
 // Details augments the core with a mutex for processing.
 // Should be sliced back to d.DetailsModel for storage and
@@ -29,6 +59,10 @@ func (d *Details) Add(repoRef string, info ItemInfo) {
 	d.Entries = append(d.Entries, DetailsEntry{RepoRef: repoRef, ItemInfo: info})
 }
 
+// --------------------------------------------------------------------------------
+// Entry
+// --------------------------------------------------------------------------------
+
 // DetailsEntry describes a single item stored in a Backup
 type DetailsEntry struct {
 	// TODO: `RepoRef` is currently the full path to the item in Kopia
@@ -37,15 +71,12 @@ type DetailsEntry struct {
 	ItemInfo
 }
 
-// Paths returns the list of Paths extracted from the Entries slice.
-func (dm DetailsModel) Paths() []string {
-	ents := dm.Entries
-	r := make([]string, len(ents))
-	for i := range ents {
-		r[i] = ents[i].RepoRef
-	}
-	return r
-}
+// --------------------------------------------------------------------------------
+// CLI Output
+// --------------------------------------------------------------------------------
+
+// interface compliance checks
+var _ print.Printable = &DetailsEntry{}
 
 // MinimumPrintable DetailsEntries is a passthrough func, because no
 // reduction is needed for the json output.

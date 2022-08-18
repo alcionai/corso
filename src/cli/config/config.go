@@ -13,6 +13,7 @@ import (
 
 	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -133,7 +134,7 @@ func GetViper(ctx context.Context) *viper.Viper {
 // set up properly.
 func Read(ctx context.Context) error {
 	if err := viper.ReadInConfig(); err == nil {
-		Info(ctx, "Using config file:", viper.ConfigFileUsed())
+		logger.Ctx(ctx).Debugw("found config file", "configFile", viper.ConfigFileUsed())
 		return err
 	}
 	return nil
