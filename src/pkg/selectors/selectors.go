@@ -67,20 +67,20 @@ type Selector struct {
 	Service service `json:"service,omitempty"`
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.
-	Excludes []map[string]string `json:"exclusions,omitempty"`
+	Excludes []scope `json:"exclusions,omitempty"`
 	// A slice of filter scopes.  All inclusions must also match ALL filters.
-	Filters []map[string]string `json:"filters,omitempty"`
+	Filters []scope `json:"filters,omitempty"`
 	// A slice of inclusion scopes.  Comparators must match either one of these,
 	// or all filters, to be included.
-	Includes []map[string]string `json:"includes,omitempty"`
+	Includes []scope `json:"includes,omitempty"`
 }
 
 // helper for specific selector instance constructors.
 func newSelector(s service) Selector {
 	return Selector{
 		Service:  s,
-		Excludes: []map[string]string{},
-		Includes: []map[string]string{},
+		Excludes: []scope{},
+		Includes: []scope{},
 	}
 }
 
@@ -115,14 +115,14 @@ func appendExcludes[T baseScope](
 	scopes ...[]T,
 ) {
 	if s.Excludes == nil {
-		s.Excludes = []map[string]string{}
+		s.Excludes = []scope{}
 	}
 	concat := []T{}
 	for _, scopeSl := range scopes {
 		concat = append(concat, tform(scopeSl)...)
 	}
 	for _, sc := range concat {
-		s.Excludes = append(s.Excludes, map[string]string(sc))
+		s.Excludes = append(s.Excludes, scope(sc))
 	}
 }
 
@@ -132,14 +132,14 @@ func appendFilters[T baseScope](
 	scopes ...[]T,
 ) {
 	if s.Filters == nil {
-		s.Filters = []map[string]string{}
+		s.Filters = []scope{}
 	}
 	concat := []T{}
 	for _, scopeSl := range scopes {
 		concat = append(concat, tform(scopeSl)...)
 	}
 	for _, sc := range concat {
-		s.Filters = append(s.Filters, map[string]string(sc))
+		s.Filters = append(s.Filters, scope(sc))
 	}
 }
 
@@ -149,21 +149,21 @@ func appendIncludes[T baseScope](
 	scopes ...[]T,
 ) {
 	if s.Includes == nil {
-		s.Includes = []map[string]string{}
+		s.Includes = []scope{}
 	}
 	concat := []T{}
 	for _, scopeSl := range scopes {
 		concat = append(concat, tform(scopeSl)...)
 	}
 	for _, sc := range concat {
-		s.Includes = append(s.Includes, map[string]string(sc))
+		s.Includes = append(s.Includes, scope(sc))
 	}
 }
 
 // contains returns true if the provided scope is Any(), or contains the
 // target string.
-func contains(scope map[string]string, key, target string) bool {
-	compare := scope[key]
+func contains(sc scope, key, target string) bool {
+	compare := sc[key]
 	if len(compare) == 0 {
 		return false
 	}
@@ -234,7 +234,7 @@ func resourcesShortFormat(m map[string][]string) string {
 // Transforms the slice to a single map.
 // Keys are each map's scopeKeyResource value.
 // Values are the set of all scopeKeyDataTypes for a given resource.
-func toResourceTypeMap(ms []map[string]string) map[string][]string {
+func toResourceTypeMap(ms []scope) map[string][]string {
 	if len(ms) == 0 {
 		return nil
 	}
@@ -268,7 +268,7 @@ func addToSet(set []string, v string) []string {
 // Destination
 // ---------------------------------------------------------------------------
 
-type Destination map[string]string
+type Destination scope
 
 var ErrorDestinationAlreadySet = errors.New("destination is already declared")
 

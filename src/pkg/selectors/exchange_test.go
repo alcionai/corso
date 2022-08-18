@@ -373,7 +373,7 @@ func (suite *ExchangeSourceSuite) TestExchangeDestination_GetOrDefault() {
 	}
 }
 
-var allScopesExceptUnknown = map[string]string{
+var allScopesExceptUnknown = scope{
 	ExchangeContact.String():       AnyTgt,
 	ExchangeContactFolder.String(): AnyTgt,
 	ExchangeEvent.String():         AnyTgt,
@@ -384,7 +384,7 @@ var allScopesExceptUnknown = map[string]string{
 
 func (suite *ExchangeSourceSuite) TestExchangeBackup_Scopes() {
 	eb := NewExchangeBackup()
-	eb.Includes = []map[string]string{allScopesExceptUnknown}
+	eb.Includes = []scope{allScopesExceptUnknown}
 	// todo: swap the above for this
 	// eb := NewExchangeBackup().IncludeUsers(AnyTgt)
 
@@ -393,7 +393,7 @@ func (suite *ExchangeSourceSuite) TestExchangeBackup_Scopes() {
 	assert.Equal(
 		suite.T(),
 		allScopesExceptUnknown,
-		map[string]string(scopes[0]))
+		scope(scopes[0]))
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeScope_Category() {
@@ -420,7 +420,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Category() {
 	for _, test := range table {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
 			eb := NewExchangeBackup()
-			eb.Includes = []map[string]string{{scopeKeyCategory: test.is.String()}}
+			eb.Includes = []scope{{scopeKeyCategory: test.is.String()}}
 			scope := eb.Scopes()[0]
 			test.check(t, test.expect, scope.Category())
 		})
@@ -452,7 +452,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesCategory() {
 	for _, test := range table {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
 			eb := NewExchangeBackup()
-			eb.Includes = []map[string]string{{scopeKeyCategory: test.is.String()}}
+			eb.Includes = []scope{{scopeKeyCategory: test.is.String()}}
 			scope := eb.Scopes()[0]
 			test.check(t, scope.IncludesCategory(test.expect))
 		})
@@ -461,7 +461,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesCategory() {
 
 func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 	eb := NewExchangeBackup()
-	eb.Includes = []map[string]string{allScopesExceptUnknown}
+	eb.Includes = []scope{allScopesExceptUnknown}
 	// todo: swap the above for this
 	// eb := NewExchangeBackup().IncludeUsers(AnyTgt)
 
@@ -794,12 +794,12 @@ func (suite *ExchangeSourceSuite) TestExchangeScopesByCategory() {
 		event   int
 		mail    int
 	}
-	type input []map[string]string
-	makeInput := func(es ...[]ExchangeScope) []map[string]string {
-		mss := []map[string]string{}
+	type input []scope
+	makeInput := func(es ...[]ExchangeScope) []scope {
+		mss := []scope{}
 		for _, sl := range es {
 			for _, s := range sl {
-				mss = append(mss, map[string]string(s))
+				mss = append(mss, scope(s))
 			}
 		}
 		return mss
