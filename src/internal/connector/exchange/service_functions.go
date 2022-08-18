@@ -140,7 +140,11 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 
 	response, err := GetAllFolderNamesForUser(service, user)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(
+			err,
+			"user %s M365 query: %s",
+			user, support.ConnectorStackErrorTrace(err),
+		)
 	}
 
 	pageIterator, err := msgraphgocore.NewPageIterator(
