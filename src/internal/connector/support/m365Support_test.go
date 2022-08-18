@@ -89,3 +89,38 @@ func (suite *DataSupportSuite) TestCreateContactFromBytes() {
 		})
 	}
 }
+
+func (suite *DataSupportSuite) TestCreateEventFromBytes() {
+	tests := []struct {
+		name       string
+		byteArray  []byte
+		checkError assert.ErrorAssertionFunc
+		isNil      assert.ValueAssertionFunc
+	}{
+		{
+			name:       "Empty Byes",
+			byteArray:  make([]byte, 0),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "Invalid Bytes",
+			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "Valid Event",
+			byteArray:  mockconnector.GetMockEventBytes("Event Test"),
+			checkError: assert.NoError,
+			isNil:      assert.NotNil,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result, err := CreateEventFromBytes(test.byteArray)
+			test.checkError(t, err)
+			test.isNil(t, result)
+		})
+	}
+}

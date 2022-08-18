@@ -102,7 +102,7 @@ func readTestConfig() (map[string]string, error) {
 		testEnv,
 		TestCfgUserID,
 		os.Getenv(EnvCorsoM365TestUserID),
-		vpr.GetString(TestCfgTenantID),
+		vpr.GetString(TestCfgUserID),
 		"lidiah@8qzvrj.onmicrosoft.com",
 	)
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)

@@ -171,12 +171,12 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -187,7 +187,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
@@ -195,20 +195,20 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	bo, err := r.NewBackup(ctx, sel, options.Control())
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to initialize Exchange backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange backup"))
 	}
 
 	err = bo.Run(ctx)
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to run Exchange backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to run Exchange backup"))
 	}
 
 	bu, err := r.Backup(ctx, bo.Results.BackupID)
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve backup results from storage")
+		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}
 
-	OutputBackup(*bu)
+	OutputBackup(ctx, *bu)
 	return nil
 }
 
@@ -272,12 +272,12 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -286,16 +286,16 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
 	rps, err := r.Backups(ctx)
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to list backups in the repository"))
+		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
 
-	OutputBackups(rps)
+	OutputBackups(ctx, rps)
 	return nil
 }
 
@@ -335,12 +335,12 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -349,13 +349,13 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to get backup details in the repository"))
+		return Only(ctx, errors.Wrap(err, "Failed to get backup details in the repository"))
 	}
 
 	sel := selectors.NewExchangeRestore()
@@ -381,10 +381,10 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ds := sel.Reduce(d)
 	if len(ds.Entries) == 0 {
-		return Only(errors.New("nothing to display: no items in the backup match the provided selectors"))
+		return Only(ctx, errors.New("nothing to display: no items in the backup match the provided selectors"))
 	}
 
-	OutputEntries(ds.Entries)
+	OutputEntries(ctx, ds.Entries)
 	return nil
 }
 
