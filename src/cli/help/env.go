@@ -1,8 +1,6 @@
 package help
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/cli/print"
@@ -19,7 +17,7 @@ func envCmd() *cobra.Command {
 	envCmd := &cobra.Command{
 		Use:   "env",
 		Short: "env var guide",
-		Long:  `A guide to using env variables in Corso.`,
+		Long:  `A guide to using environment variables in Corso.`,
 		RunE:  handleEnvCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -34,59 +32,68 @@ func handleEnvCmd(cmd *cobra.Command, args []string) error {
 }
 
 type envVar struct {
+	category    string
 	name        string
 	description string
 }
 
-func (ev envVar) String() string {
-	return fmt.Sprintf("%s\t%s", ev.name, ev.description)
+// interface compliance check
+var _ Printable = &envVar{}
+
+// no modifications needed, just passthrough.
+func (ev envVar) MinimumPrintable() any {
+	return ev
 }
 
-type envVarSet struct {
-	name string
-	vars []envVar
+func (ev envVar) Headers() []string {
+	return []string{ev.category, " "}
 }
 
-func (evs envVarSet) Strings() []any {
-	s := []any{"\n", "- " + evs.name + "\n"}
-	for _, ev := range evs.vars {
-		s = append(s, ev.String()+"\n")
-	}
-	return s
+func (ev envVar) Values() []string {
+	return []string{ev.name, ev.description}
 }
+
+// headers
+const (
+	corso = "Corso"
+	azure = "Azure AD App Credentials"
+	aws   = "AWS Credentials"
+)
 
 var (
-	corsoEVs = envVarSet{
-		"Corso",
-		[]envVar{{"CORSO_PASSWORD", "Protects repository encryption keys."}},
+	corsoEVs = []envVar{
+		{corso, "CORSO_PASSWORD", "Passphrase to protect repository encryption material.  It is impossible to use the repository or recover any backups without this key."},
 	}
-	azureEVs = envVarSet{
-		"Azure",
-		[]envVar{
-			{"CLIENT_ID", "Azure client ID for your m365 Tenant."},
-			{"CLIENT_SECRET", "Azure secret for your m365 Tenant."},
-		},
+	azureEVs = []envVar{
+		{azure, "CLIENT_ID", "Client ID for your Azure AD application used to access your M365 tenant."},
+		{azure, "CLIENT_SECRET", "Azure secret for your Azure AD application used to access your M365 tenant."},
 	}
-	awsEVs = envVarSet{
-		"AWS",
-		[]envVar{
-			{"AWS_ACCESS_KEY_ID", "Access Key to communicate to your s3 bucket."},
-			{"AWS_SECRET_ACCESS_KEY", "Secret Key to communicate to your s3 bucket."},
-			{"AWS_SESSION_TOKEN", "Temporary session token for AWS communication."},
-		},
+	awsEVs = []envVar{
+		{aws, "AWS_ACCESS_KEY_ID", "zure secret for your Azure AD application used to access your M365 tenant."},
+		{aws, "AWS_SECRET_ACCESS_KEY", "Secret key associated with the access key."},
+		{aws, "AWS_SESSION_TOKEN", "Session token required when using temporary credentials."},
 	}
 )
 
+func toPrintable(evs []envVar) []Printable {
+	ps := []Printable{}
+	for _, ev := range evs {
+		ps = append(ps, ev)
+	}
+	return ps
+}
+
 // envGuide outputs a help menu for setting env vars in Corso.
 func envGuide(cmd *cobra.Command, args []string) {
-	guide := []any{
+	ctx := cmd.Context()
+	Info(ctx,
 		"\n--- Environment Variable Guide ---\n",
-		"In order to keep your information secure, Corso retrieves" +
-			"credentials and other secrets from environment variables.\n ",
-	}
-	guide = append(guide, corsoEVs.Strings()...)
-	guide = append(guide, azureEVs.Strings()...)
-	guide = append(guide, awsEVs.Strings()...)
-
-	Info(cmd.Context(), guide...)
+		"As a best practice, Corso retrieves credentials and sensitive information from environment variables.\n ",
+		"\n",
+	)
+	Table(ctx, toPrintable(corsoEVs))
+	Info(ctx, "\n")
+	Table(ctx, toPrintable(azureEVs))
+	Info(ctx, "\n")
+	Table(ctx, toPrintable(awsEVs))
 }
