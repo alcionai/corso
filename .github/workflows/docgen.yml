@@ -70,11 +70,11 @@ jobs:
       - name: Make a New PR With the Auto-Generated Docs
         uses: EndBug/add-and-commit@v9
         with:
-          push: true
+          # pull: '--rebase'
+          new_branch: docs_autogen
+          push: 'origin docs_autogen --set-upstream --force'
+          message: 'Documentation Auto-generation'
           committer_name: github-actions[bot]
           committer_email: 41898282+github-actions[bot]@users.noreply.github.com
           default_author: github_actor
-          message: 'Documentation Auto-generation'
-          new_branch: docs_autogen
-          pull: '--rebase'
 
