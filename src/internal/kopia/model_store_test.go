@@ -21,8 +21,8 @@ type fooModel struct {
 }
 
 //revive:disable:context-as-argument
-func getModelStore(t *testing.T, ctx context.Context, cfgDir string) *ModelStore {
-	c, err := openKopiaRepo(t, ctx, cfgDir)
+func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
+	c, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
 	return &ModelStore{c}
@@ -74,8 +74,7 @@ func (suite *ModelStoreIntegrationSuite) SetupSuite() {
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
 	suite.ctx = context.Background()
-	suite.cfgDir = suite.T().TempDir()
-	suite.m = getModelStore(suite.T(), suite.ctx, suite.cfgDir)
+	suite.m = getModelStore(suite.T(), suite.ctx)
 }
 
 func (suite *ModelStoreIntegrationSuite) TearDownTest() {
@@ -327,7 +326,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			ctx := context.Background()
 			theModelType := model.BackupOpSchema
 
-			m := getModelStore(t, ctx, suite.cfgDir)
+			m := getModelStore(t, ctx)
 			defer func() {
 				assert.NoError(t, m.c.Close(ctx))
 			}()
@@ -394,7 +393,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			m := getModelStore(t, ctx, suite.cfgDir)
+			m := getModelStore(t, ctx)
 			defer func() {
 				assert.NoError(t, m.c.Close(ctx))
 			}()
@@ -464,7 +463,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	ctx := context.Background()
 	t := suite.T()
 
-	m := getModelStore(t, ctx, t.TempDir())
+	m := getModelStore(t, ctx)
 	defer func() {
 		assert.NoError(t, m.c.Close(ctx))
 	}()

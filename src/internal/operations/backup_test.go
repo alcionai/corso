@@ -132,7 +132,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t, t.TempDir())
+	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))

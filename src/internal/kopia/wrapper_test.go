@@ -431,9 +431,8 @@ func (suite *KopiaUnitSuite) TestRestoreDirectory_FailWrongItemType() {
 // ---------------
 type KopiaIntegrationSuite struct {
 	suite.Suite
-	w      *Wrapper
-	ctx    context.Context
-	cfgDir string
+	w   *Wrapper
+	ctx context.Context
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
@@ -453,10 +452,10 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 }
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
+	t := suite.T()
 	suite.ctx = context.Background()
-	suite.cfgDir = suite.T().TempDir()
-	c, err := openKopiaRepo(suite.T(), suite.ctx, suite.cfgDir)
-	require.NoError(suite.T(), err)
+	c, err := openKopiaRepo(t, suite.ctx)
+	require.NoError(t, err)
 	suite.w = &Wrapper{c}
 }
 
@@ -492,7 +491,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	t := suite.T()
 	ctx := context.Background()
 
-	k, err := openKopiaRepo(t, ctx, suite.cfgDir)
+	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
 	require.NoError(t, k.Compression(ctx, "s2-default"))
@@ -537,7 +536,6 @@ type KopiaSimpleRepoIntegrationSuite struct {
 	inboxExpectedFiles   map[string][]byte
 	archiveExpectedFiles map[string][]byte
 	allExpectedFiles     map[string][]byte
-	cfgDir               string
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
@@ -559,8 +557,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	t := suite.T()
 	suite.ctx = context.Background()
-	suite.cfgDir = t.TempDir()
-	c, err := openKopiaRepo(t, suite.ctx, suite.cfgDir)
+	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
 
 	suite.w = &Wrapper{c}
@@ -784,7 +781,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	t := suite.T()
 	ctx := context.Background()
 
-	k, err := openKopiaRepo(t, ctx, suite.cfgDir)
+	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
 	w := &Wrapper{k}

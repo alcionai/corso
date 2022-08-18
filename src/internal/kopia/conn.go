@@ -66,11 +66,6 @@ func (w *conn) Initialize(ctx context.Context) error {
 		return err
 	}
 
-	cfgDir := defaultKopiaConfigDir
-	if len(cfg.KopiaCfgDir) > 0 {
-		cfgDir = cfg.KopiaCfgDir
-	}
-
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
 	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassword); err != nil {
 		if errors.Is(err, repo.ErrAlreadyInitialized) {
@@ -81,7 +76,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 
 	return w.commonConnect(
 		ctx,
-		cfgDir,
+		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassword,
 		defaultCompressor,
@@ -100,14 +95,9 @@ func (w *conn) Connect(ctx context.Context) error {
 		return err
 	}
 
-	cfgDir := defaultKopiaConfigDir
-	if len(cfg.KopiaCfgDir) > 0 {
-		cfgDir = cfg.KopiaCfgDir
-	}
-
 	return w.commonConnect(
 		ctx,
-		cfgDir,
+		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassword,
 		defaultCompressor,
@@ -116,17 +106,22 @@ func (w *conn) Connect(ctx context.Context) error {
 
 func (w *conn) commonConnect(
 	ctx context.Context,
-	configPath string,
+	configDir string,
 	bst blob.Storage,
 	password, compressor string,
 ) error {
-	opts := &repo.ConnectOptions{
-		CachingOptions: content.CachingOptions{
-			CacheDirectory: configPath,
-		},
+	var opts *repo.ConnectOptions
+	if len(configDir) > 0 {
+		opts = &repo.ConnectOptions{
+			CachingOptions: content.CachingOptions{
+				CacheDirectory: configDir,
+			},
+		}
+	} else {
+		configDir = defaultKopiaConfigDir
 	}
 
-	cfgFile := filepath.Join(configPath, defaultKopiaConfigFile)
+	cfgFile := filepath.Join(configDir, defaultKopiaConfigFile)
 
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
