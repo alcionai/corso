@@ -30,3 +30,24 @@ func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
 	message := aMessage.(models.Messageable)
 	return message, nil
 }
+
+// CreateContactFromBytes function to transform bytes into Contactable object
+// Error returned if ParsableFactory function does not accept given bytes
+func CreateContactFromBytes(bytes []byte) (models.Contactable, error) {
+	parsable, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+	contact := parsable.(models.Contactable)
+	return contact, nil
+}
+
+// CreateEventFromBytes transforms given bytes into models.Eventable object
+func CreateEventFromBytes(bytes []byte) (models.Eventable, error) {
+	parsable, err := CreateFromBytes(bytes, models.CreateEventFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+	event := parsable.(models.Eventable)
+	return event, nil
+}

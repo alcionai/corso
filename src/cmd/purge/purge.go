@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"time"
 
@@ -30,6 +31,8 @@ var (
 )
 
 func doFolderPurge(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
@@ -37,23 +40,23 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 	// get account info
 	m365Cfg := account.M365Config{
 		M365:     credentials.GetM365(),
-		TenantID: first(tenant, os.Getenv(account.TenantID)),
+		TenantID: common.First(tenant, os.Getenv(account.TenantID)),
 	}
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return Only(errors.Wrap(err, "finding m365 account details"))
+		return Only(ctx, errors.Wrap(err, "finding m365 account details"))
 	}
 
 	// build a graph connector
 	gc, err := connector.NewGraphConnector(acct)
 	if err != nil {
-		return Only(errors.Wrap(err, "connecting to graph api"))
+		return Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}
 
 	// get them folders
 	mfs, err := exchange.GetAllMailFolders(gc.Service(), user, prefix)
 	if err != nil {
-		return Only(errors.Wrap(err, "retrieving mail folders"))
+		return Only(ctx, errors.Wrap(err, "retrieving mail folders"))
 	}
 
 	// format the time input
@@ -61,7 +64,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 	if len(before) > 0 {
 		beforeTime, err = common.ParseTime(before)
 		if err != nil {
-			return Only(errors.Wrap(err, "parsing before flag to time"))
+			return Only(ctx, errors.Wrap(err, "parsing before flag to time"))
 		}
 	}
 	stLen := len(common.SimpleDateTimeFormat)
@@ -76,7 +79,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 			dnSuff := mf.DisplayName[dnLen-stLen:]
 			dnTime, err := common.ParseTime(dnSuff)
 			if err != nil {
-				Info(errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))
+				Info(ctx, errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))
 				continue
 			}
 			delete = dnTime.Before(beforeTime)
@@ -86,10 +89,10 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		Info("Deleting folder: ", mf.DisplayName)
+		Info(ctx, "Deleting folder: ", mf.DisplayName)
 		err = exchange.DeleteMailFolder(gc.Service(), user, mf.ID)
 		if err != nil {
-			Info(errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))
+			Info(ctx, errors.Wrapf(err, "Error: deleting folder [%s]", mf.DisplayName))
 		}
 	}
 
@@ -97,6 +100,7 @@ func doFolderPurge(cmd *cobra.Command, args []string) error {
 }
 
 func main() {
+	ctx := SetRootCmd(context.Background(), purgeCmd)
 	fs := purgeCmd.Flags()
 	fs.StringVar(&before, "before", "", "folders older than this date are deleted.  (default: now in UTC)")
 	fs.StringVar(&user, "user", "", "m365 user id whose folders will be deleted")
@@ -105,18 +109,8 @@ func main() {
 	fs.StringVar(&prefix, "prefix", "", "filters mail folders by displayName prefix")
 	cobra.CheckErr(purgeCmd.MarkFlagRequired("prefix"))
 
-	if err := purgeCmd.Execute(); err != nil {
-		Info("Error: ", err.Error())
+	if err := purgeCmd.ExecuteContext(ctx); err != nil {
+		Info(purgeCmd.Context(), "Error: ", err.Error())
 		os.Exit(1)
 	}
-}
-
-// returns the first non-zero valued string
-func first(vs ...string) string {
-	for _, v := range vs {
-		if len(v) > 0 {
-			return v
-		}
-	}
-	return ""
 }

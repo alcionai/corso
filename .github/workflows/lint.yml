@@ -55,6 +55,8 @@ jobs:
           version: v1.45.2
           working-directory: ./src
           skip-pkg-cache: true
+          skip-build-cache: true
+          skip-go-installation: true
 
       # check licenses
       - name: Get go-licenses

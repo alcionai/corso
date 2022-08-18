@@ -21,7 +21,6 @@ import (
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -126,15 +125,24 @@ func (gc *GraphConnector) setTenantUsers() error {
 	}
 	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
-		return err
+		return errors.Wrapf(
+			err,
+			"tenant %s M365 query: %s",
+			gc.tenant,
+			support.ConnectorStackErrorTrace(err),
+		)
 	}
 	if response == nil {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
 		return err
 	}
-	userIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, models.CreateUserCollectionResponseFromDiscriminatorValue)
+	userIterator, err := msgraphgocore.NewPageIterator(
+		response,
+		&gc.graphService.adapter,
+		models.CreateUserCollectionResponseFromDiscriminatorValue,
+	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 	var iterateError error
 	callbackFunc := func(userItem interface{}) bool {
@@ -183,7 +191,10 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // use to read mailbox data out for the specified user
 // Assumption: User exists
 //  Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(ctx context.Context, selector selectors.Selector) ([]data.Collection, error) {
+func (gc *GraphConnector) ExchangeDataCollection(
+	ctx context.Context,
+	selector selectors.Selector,
+) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting exchange data")
@@ -287,7 +298,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	go func(cos *support.ConnectorOperationStatus) {
 		gc.statusCh <- cos
 	}(status)
-	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
 }
 
@@ -311,8 +321,12 @@ func (gc *GraphConnector) createCollections(
 	}
 	response, err := query(&gc.graphService, user)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(
+			err,
+			"user %s M365 query: %s",
+			user, support.ConnectorStackErrorTrace(err))
 	}
+
 	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
 	if err != nil {
 		return nil, err

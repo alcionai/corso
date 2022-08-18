@@ -7,6 +7,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
+	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
@@ -18,17 +19,74 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
+var (
+	fieldsForEvents = map[string]int{
+		"calendar":          1,
+		"end":               2,
+		"id":                3,
+		"isOnlineMeeting":   4,
+		"isReminderOn":      5,
+		"responseStatus":    6,
+		"responseRequested": 7,
+		"showAs":            8,
+		"subject":           9,
+	}
+
+	fieldsForFolders = map[string]int{
+		"childFolderCount": 1,
+		"displayName":      2,
+		"id":               3,
+		"isHidden":         4,
+		"parentFolderId":   5,
+		"totalItemCount":   6,
+		"unreadItemCount":  7,
+	}
+
+	fieldsForUsers = map[string]int{
+		"birthday":       1,
+		"businessPhones": 2,
+		"city":           3,
+		"companyName":    4,
+		"department":     5,
+		"displayName":    6,
+		"employeeId":     7,
+		"id":             8,
+	}
+
+	fieldsForMessages = map[string]int{
+		"conservationId":    1,
+		"conversationIndex": 2,
+		"parentFolderId":    3,
+		"subject":           4,
+		"webLink":           5,
+		"id":                6,
+	}
+
+	fieldsForContacts = map[string]int{
+		"id":             1,
+		"companyName":    2,
+		"department":     3,
+		"displayName":    4,
+		"fileAs":         5,
+		"givenName":      6,
+		"manager":        7,
+		"parentFolderId": 8,
+	}
+)
+
 type optionIdentifier int
 
 const (
 	mailCategory     = "mail"
 	contactsCategory = "contacts"
+	eventsCategory   = "events"
 )
 
 //go:generate stringer -type=optionIdentifier
 const (
 	unknown optionIdentifier = iota
 	folders
+	events
 	messages
 	users
 	contacts
@@ -64,13 +122,24 @@ func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, erro
 
 // GetAllFolderDisplayNamesForUser is a GraphQuery function for getting FolderId and display
 // names for Mail Folder. All other information for the MailFolder object is omitted.
-func GetAllFolderNamesForUser(gs graph.Service, identities []string) (absser.Parsable, error) {
+func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
 	options, err := optionsForMailFolders([]string{"id", "displayName"})
 	if err != nil {
 		return nil, err
 	}
 
-	return gs.Client().UsersById(identities[0]).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	return gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// GetAllEvents for User. Default returns EventResponseCollection for events in the future
+// of the time that the call was made. There a
+func GetAllEventsForUser(gs graph.Service, user string) (absser.Parsable, error) {
+	options, err := optionsForEvents([]string{"id", "calendar"})
+	if err != nil {
+		return nil, err
+	}
+
+	return gs.Client().UsersById(user).Events().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
@@ -126,6 +195,51 @@ func IterateSelectAllMessagesForCollections(
 			collections[directory] = &edc
 		}
 		collections[directory].AddJob(*message.GetId())
+		return true
+	}
+}
+
+func IterateSelectAllEventsForCollections(
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) func(any) bool {
+	var isDirectorySet bool
+	return func(eventItem any) bool {
+		eventFolder := "Events"
+		user := scope.Get(selectors.ExchangeUser)[0]
+		if !isDirectorySet {
+			service, err := createService(credentials, failFast)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return true
+			}
+			edc := NewCollection(
+				user,
+				[]string{tenant, user, eventsCategory, eventFolder},
+				events,
+				service,
+				statusCh,
+			)
+			collections[eventFolder] = &edc
+			isDirectorySet = true
+		}
+
+		event, ok := eventItem.(models.Eventable)
+		if !ok {
+			errs = support.WrapAndAppend(
+				user,
+				errors.New("event iteration failure"),
+				errs,
+			)
+			return true
+		}
+
+		collections[eventFolder].AddJob(*event.GetId())
 		return true
 	}
 }
@@ -216,6 +330,60 @@ func IterateAndFilterMessagesForCollections(
 	}
 }
 
+func IterateFilterFolderDirectoriesForCollections(
+	tenant string,
+	scope selectors.ExchangeScope,
+	errs error,
+	failFast bool,
+	credentials account.M365Config,
+	collections map[string]*Collection,
+	statusCh chan<- *support.ConnectorOperationStatus,
+) func(any) bool {
+	var (
+		service graph.Service
+		err     error
+	)
+	return func(folderItem any) bool {
+		user := scope.Get(selectors.ExchangeUser)[0]
+		folder, ok := folderItem.(models.MailFolderable)
+		if !ok {
+			errs = support.WrapAndAppend(
+				user,
+				errors.New("unable to transform folderable item"),
+				errs,
+			)
+
+			return true
+		}
+		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+			return true
+		}
+		directory := *folder.GetId()
+		service, err = createService(credentials, failFast)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				*folder.GetDisplayName(),
+				errors.Wrap(
+					err,
+					"unable to create service a folder query service for "+user,
+				),
+				errs,
+			)
+			return true
+		}
+		temp := NewCollection(
+			user,
+			[]string{tenant, user, mailCategory, directory},
+			messages,
+			service,
+			statusCh,
+		)
+		collections[directory] = &temp
+
+		return true
+	}
+}
+
 func CollectMailFolders(
 	scope selectors.ExchangeScope,
 	tenant string,
@@ -230,7 +398,7 @@ func CollectMailFolders(
 		return errors.New("unable to create a mail folder query service for " + user)
 	}
 
-	query, err := GetAllFolderNamesForUser(queryService, []string{user})
+	query, err := GetAllFolderNamesForUser(queryService, user)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to query mail folder for %s: details: %s",
@@ -247,37 +415,16 @@ func CollectMailFolders(
 	if err != nil {
 		return errors.Wrap(err, "unable to create iterator during mail folder query service")
 	}
-	var service graph.Service
-	callbackFunc := func(pageItem any) bool {
-		folder, ok := pageItem.(models.MailFolderable)
-		if !ok {
-			err = support.WrapAndAppend(user, errors.New("unable to transform folderable item"), err)
-			return true
-		}
-		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
-			return true
-		}
-		directory := *folder.GetId()
-		service, err = createService(credentials, failFast)
-		if err != nil {
-			err = support.WrapAndAppend(
-				*folder.GetDisplayName(),
-				errors.New("unable to create service a folder query service for "+user),
-				err,
-			)
-			return true
-		}
-		temp := NewCollection(
-			user,
-			[]string{tenant, user, mailCategory, directory},
-			messages,
-			service,
-			statusCh,
-		)
-		collections[directory] = &temp
 
-		return true
-	}
+	callbackFunc := IterateFilterFolderDirectoriesForCollections(
+		tenant,
+		scope,
+		err,
+		failFast,
+		credentials,
+		collections,
+		statusCh,
+	)
 
 	iterateFailure := pageIterator.Iterate(callbackFunc)
 	if iterateFailure != nil {
@@ -342,6 +489,22 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 	return options, nil
 }
 
+// optionsForEvents ensures valid option inputs for exchange.Events
+// @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
+func optionsForEvents(moreOps []string) (*msevents.EventsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, events)
+	if err != nil {
+		return nil, err
+	}
+	requestParameters := &msevents.EventsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msevents.EventsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	return options, nil
+}
+
 // optionsForContacts transforms options into select query for MailContacts
 // @return is the first call in Contacts().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGetRequestConfiguration, error) {
@@ -363,41 +526,11 @@ func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGet
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
 func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
-
-	fieldsForFolders := map[string]int{
-		"displayName":    1,
-		"isHidden":       2,
-		"parentFolderId": 3,
-		"id":             4,
-	}
-
-	fieldsForUsers := map[string]int{
-		"birthday":       1,
-		"businessPhones": 2,
-		"city":           3,
-		"companyName":    4,
-		"department":     5,
-		"displayName":    6,
-		"employeeId":     7,
-		"id":             8,
-	}
-
-	fieldsForMessages := map[string]int{
-		"conservationId":    1,
-		"conversationIndex": 2,
-		"parentFolderId":    3,
-		"subject":           4,
-		"webLink":           5,
-		"id":                6,
-	}
-
-	fieldsForContacts := map[string]int{
-		"id":             1,
-		"parentFolderId": 2,
-	}
 	returnedOptions := []string{"id"}
 
 	switch optID {
+	case events:
+		allowedOptions = fieldsForEvents
 	case contacts:
 		allowedOptions = fieldsForContacts
 	case folders:

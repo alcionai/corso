@@ -3,43 +3,102 @@ package exchange
 import (
 	"testing"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
 type ExchangeServiceSuite struct {
 	suite.Suite
+	es *exchangeService
 }
 
 func TestExchangeServiceSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+	); err != nil {
+		t.Skip(err)
+	}
 	suite.Run(t, new(ExchangeServiceSuite))
 }
 
-// TestExchangeService_optionsForMessages checks to ensure approved query
+func (suite *ExchangeServiceSuite) SetupSuite() {
+	t := suite.T()
+	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
+	require.NoError(t, err)
+
+	a := tester.NewM365Account(t)
+	require.NoError(t, err)
+	m365, err := a.M365Config()
+	require.NoError(t, err)
+	service, err := createService(m365, false)
+	require.NoError(t, err)
+	suite.es = service
+}
+
+// TestCreateService verifies that services are created
+// when called with the correct range of params. NOTE:
+// incorrect tenant or password information will NOT generate
+// an error.
+func (suite *ExchangeServiceSuite) TestCreateService() {
+	creds := suite.es.credentials
+	invalidCredentials := suite.es.credentials
+	invalidCredentials.ClientSecret = ""
+
+	tests := []struct {
+		name        string
+		credentials account.M365Config
+		checkErr    assert.ErrorAssertionFunc
+	}{
+		{
+			name:        "Valid Service Creation",
+			credentials: creds,
+			checkErr:    assert.NoError,
+		},
+		{
+			name:        "Invalid Service Creation",
+			credentials: invalidCredentials,
+			checkErr:    assert.Error,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			t.Log(test.credentials.ClientSecret)
+			_, err := createService(test.credentials, false)
+			test.checkErr(t, err)
+		})
+	}
+}
+
+// TestOptionsForMessages checks to ensure approved query
 // options are added to the type specific RequestBuildConfiguration. Expected
 // will be +1 on all select parameters
-func (suite *ExchangeServiceSuite) TestExchangeService_optionsForMessages() {
+func (suite *ExchangeServiceSuite) TestOptionsForMessages() {
 	tests := []struct {
 		name       string
 		params     []string
 		checkError assert.ErrorAssertionFunc
 	}{
 		{
-			name:       "Accepted",
+			name:       "Valid Message Option",
 			params:     []string{"subject"},
 			checkError: assert.NoError,
 		},
 		{
-			name:       "Multiple Accepted",
+			name:       "Multiple Message Options: Accepted",
 			params:     []string{"webLink", "parentFolderId"},
 			checkError: assert.NoError,
 		},
 		{
-			name:       "Incorrect param",
+			name:       "Invalid Message Parameter",
 			params:     []string{"status"},
 			checkError: assert.Error,
 		},
@@ -55,10 +114,10 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForMessages() {
 	}
 }
 
-// TestExchangeService_optionsForFolders ensures that approved query options
+// TestOptionsForFolders ensures that approved query options
 // are added to the RequestBuildConfiguration. Expected will always be +1
 // on than the input as "id" are always included within the select parameters
-func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
+func (suite *ExchangeServiceSuite) TestOptionsForFolders() {
 	tests := []struct {
 		name       string
 		params     []string
@@ -66,19 +125,19 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
 		expected   int
 	}{
 		{
-			name:       "Accepted",
-			params:     []string{"displayName"},
+			name:       "Valid Folder Option",
+			params:     []string{"parentFolderId"},
 			checkError: assert.NoError,
 			expected:   2,
 		},
 		{
-			name:       "Multiple Accepted",
-			params:     []string{"displayName", "parentFolderId"},
+			name:       "Multiple Folder Options: Valid",
+			params:     []string{"displayName", "isHidden"},
 			checkError: assert.NoError,
 			expected:   3,
 		},
 		{
-			name:       "Incorrect param",
+			name:       "Invalid Folder option param",
 			params:     []string{"status"},
 			checkError: assert.Error,
 		},
@@ -94,10 +153,50 @@ func (suite *ExchangeServiceSuite) TestExchangeService_optionsForFolders() {
 	}
 }
 
-// NOTE the requirements are in PR 475
-func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection() {
-	userID, err := tester.M365UserID()
-	require.NoError(suite.T(), err)
+// TestOptionsForContacts similar to TestExchangeService_optionsForFolders
+func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
+	tests := []struct {
+		name       string
+		params     []string
+		checkError assert.ErrorAssertionFunc
+		expected   int
+	}{
+		{
+			name:       "Valid Contact Option",
+			params:     []string{"displayName"},
+			checkError: assert.NoError,
+			expected:   2,
+		},
+		{
+			name:       "Multiple Contact Options: Valid",
+			params:     []string{"displayName", "parentFolderId"},
+			checkError: assert.NoError,
+			expected:   3,
+		},
+		{
+			name:       "Invalid Contact Option param",
+			params:     []string{"status"},
+			checkError: assert.Error,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			options, err := optionsForContacts(test.params)
+			test.checkError(t, err)
+			if err == nil {
+				suite.Equal(test.expected, len(options.QueryParameters.Select))
+			}
+		})
+	}
+}
+
+// TestSetupExchangeCollection ensures SetupExchangeCollectionVars returns a non-nil variable for
+// the following selector types:
+// - Mail
+// - Contacts
+// - Events
+func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
+	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
@@ -107,13 +206,114 @@ func (suite *ExchangeServiceSuite) TestExchangeService_SetupExchangeCollection()
 	for _, test := range scopes {
 		suite.T().Run(test.Category().String(), func(t *testing.T) {
 			discriminateFunc, graphQuery, iterFunc, err := SetupExchangeCollectionVars(test)
-			if test.Category() == selectors.ExchangeMailFolder ||
-				test.Category() == selectors.ExchangeContactFolder {
-				assert.NoError(t, err)
-				assert.NotNil(t, discriminateFunc)
-				assert.NotNil(t, graphQuery)
-				assert.NotNil(t, iterFunc)
-			}
+			assert.NoError(t, err)
+			assert.NotNil(t, discriminateFunc)
+			assert.NotNil(t, graphQuery)
+			assert.NotNil(t, iterFunc)
+		})
+	}
+}
+
+// TestGraphQueryFunctions verifies if Query functions APIs
+// through Microsoft Graph are functional
+func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
+	userID := tester.M365UserID(suite.T())
+	tests := []struct {
+		name     string
+		function GraphQuery
+	}{
+		{
+			name:     "GraphQuery: Get All Messages For User",
+			function: GetAllMessagesForUser,
+		},
+		{
+			name:     "GraphQuery: Get All Contacts For User",
+			function: GetAllContactsForUser,
+		},
+		{
+			name:     "GraphQuery: Get All Folders",
+			function: GetAllFolderNamesForUser,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			response, err := test.function(suite.es, userID)
+			assert.NoError(t, err)
+			assert.NotNil(t, response)
+		})
+	}
+}
+
+// TestIterativeFunctions verifies that GraphQuery to Iterate
+// functions are valid for current versioning of msgraph-go-sdk
+func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
+	userID := tester.M365UserID(suite.T())
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Users([]string{userID}))
+	eb, err := sel.ToExchangeBackup()
+	require.NoError(suite.T(), err)
+	scopes := eb.Scopes()
+	var mailScope, contactScope selectors.ExchangeScope
+	for _, scope := range scopes {
+		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
+			contactScope = scope
+		}
+		if scope.IncludesCategory(selectors.ExchangeMail) {
+			mailScope = scope
+		}
+	}
+
+	tests := []struct {
+		name              string
+		queryFunction     GraphQuery
+		iterativeFunction GraphIterateFunc
+		scope             selectors.ExchangeScope
+		transformer       absser.ParsableFactory
+	}{
+		{
+			name:              "Mail Iterative Check",
+			queryFunction:     GetAllMessagesForUser,
+			iterativeFunction: IterateSelectAllMessagesForCollections,
+			scope:             mailScope,
+			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
+		}, {
+			name:              "Contacts Iterative Check",
+			queryFunction:     GetAllContactsForUser,
+			iterativeFunction: IterateAllContactsForCollection,
+			scope:             contactScope,
+			transformer:       models.CreateContactFromDiscriminatorValue,
+		}, {
+			name:              "Folder Iterative Check",
+			queryFunction:     GetAllFolderNamesForUser,
+			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			scope:             mailScope,
+			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			response, err := test.queryFunction(suite.es, userID)
+			require.NoError(t, err)
+			// Create Iterator
+			pageIterator, err := msgraphgocore.NewPageIterator(response,
+				&suite.es.adapter,
+				test.transformer)
+			require.NoError(t, err)
+			// Create collection for iterate test
+			collections := make(map[string]*Collection)
+			var errs error
+			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
+			// with corresponding item IDs. New collections are created for each directory
+			callbackFunc := test.iterativeFunction(
+				"testingTenant",
+				test.scope,
+				errs, false,
+				suite.es.credentials,
+				collections,
+				nil)
+
+			iterateError := pageIterator.Iterate(callbackFunc)
+			require.NoError(t, iterateError)
 		})
 	}
 }

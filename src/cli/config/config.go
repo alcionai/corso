@@ -13,6 +13,7 @@ import (
 
 	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/storage"
 )
 
@@ -35,7 +36,7 @@ func AddConfigFileFlag(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		Err("finding $HOME directory (default) for config file")
+		Err(cmd.Context(), "finding $HOME directory (default) for config file")
 	}
 	fs.StringVar(
 		&configFilePath,
@@ -133,7 +134,7 @@ func GetViper(ctx context.Context) *viper.Viper {
 // set up properly.
 func Read(ctx context.Context) error {
 	if err := viper.ReadInConfig(); err == nil {
-		Info("Using config file:", viper.ConfigFileUsed())
+		logger.Ctx(ctx).Debugw("found config file", "configFile", viper.ConfigFileUsed())
 		return err
 	}
 	return nil
@@ -179,7 +180,11 @@ func GetStorageAndAccount(
 
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper
 // struct for testing.
-func getStorageAndAccountWithViper(vpr *viper.Viper, readFromFile bool, overrides map[string]string) (storage.Storage, account.Account, error) {
+func getStorageAndAccountWithViper(
+	vpr *viper.Viper,
+	readFromFile bool,
+	overrides map[string]string,
+) (storage.Storage, account.Account, error) {
 	var (
 		store storage.Storage
 		acct  account.Account
@@ -215,16 +220,6 @@ func getStorageAndAccountWithViper(vpr *viper.Viper, readFromFile bool, override
 // ---------------------------------------------------------------------------
 // Helper funcs
 // ---------------------------------------------------------------------------
-
-// returns the first non-zero valued string
-func first(vs ...string) string {
-	for _, v := range vs {
-		if len(v) > 0 {
-			return v
-		}
-	}
-	return ""
-}
 
 var constToTomlKeyMap = map[string]string{
 	account.TenantID:       TenantIDKey,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/cli/backup"
 	"github.com/alcionai/corso/cli/config"
+	"github.com/alcionai/corso/cli/help"
 	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/repo"
 	"github.com/alcionai/corso/cli/restore"
@@ -37,7 +38,7 @@ var (
 // Produces the same output as `corso --help`.
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	if version {
-		print.Infof("Corso\nversion:\tpre-alpha\n")
+		print.Infof(cmd.Context(), "Corso\nversion:\tpre-alpha\n")
 		return nil
 	}
 	return cmd.Help()
@@ -58,12 +59,14 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.PersistentPostRunE = config.InitFunc()
 	config.AddConfigFileFlag(cmd)
 	print.AddOutputFlag(cmd)
+	logger.AddLogLevelFlag(cmd)
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
 
 	repo.AddCommands(cmd)
 	backup.AddCommands(cmd)
 	restore.AddCommands(cmd)
+	help.AddCommands(cmd)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -73,9 +76,9 @@ func BuildCommandTree(cmd *cobra.Command) {
 // Handle builds and executes the cli processor.
 func Handle() {
 	ctx := config.Seed(context.Background())
+	ctx = print.SetRootCmd(ctx, corsoCmd)
 
 	BuildCommandTree(corsoCmd)
-	print.SetRootCommand(corsoCmd)
 
 	ctx, log := logger.Seed(ctx)
 	defer func() {

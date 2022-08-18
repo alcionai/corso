@@ -98,7 +98,13 @@ func readTestConfig() (map[string]string, error) {
 	fallbackTo(testEnv, TestCfgEndpoint, vpr.GetString(TestCfgEndpoint), "s3.amazonaws.com")
 	fallbackTo(testEnv, TestCfgPrefix, vpr.GetString(TestCfgPrefix))
 	fallbackTo(testEnv, TestCfgTenantID, os.Getenv(account.TenantID), vpr.GetString(TestCfgTenantID))
-	fallbackTo(testEnv, TestCfgUserID, os.Getenv(EnvCorsoM365TestUserID), vpr.GetString(TestCfgTenantID), "lidiah@8qzvrj.onmicrosoft.com")
+	fallbackTo(
+		testEnv,
+		TestCfgUserID,
+		os.Getenv(EnvCorsoM365TestUserID),
+		vpr.GetString(TestCfgUserID),
+		"lidiah@8qzvrj.onmicrosoft.com",
+	)
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 
 	testConfig = testEnv

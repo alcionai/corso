@@ -1,11 +1,17 @@
 package details
 
 import (
+	"context"
 	"sync"
 	"time"
 
+	"github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/internal/model"
 )
+
+// --------------------------------------------------------------------------------
+// Model
+// --------------------------------------------------------------------------------
 
 // DetailsModel describes what was stored in a Backup
 type DetailsModel struct {
@@ -13,22 +19,14 @@ type DetailsModel struct {
 	Entries []DetailsEntry `json:"entries"`
 }
 
-// Details augments the core with a mutex for processing.
-// Should be sliced back to d.DetailsModel for storage and
-// printing.
-type Details struct {
-	DetailsModel
-
-	// internal
-	mu sync.Mutex `json:"-"`
-}
-
-// DetailsEntry describes a single item stored in a Backup
-type DetailsEntry struct {
-	// TODO: `RepoRef` is currently the full path to the item in Kopia
-	// This can be optimized.
-	RepoRef string `json:"repoRef"`
-	ItemInfo
+// Print writes the DetailModel Entries to StdOut, in the format
+// requested by the caller.
+func (dm DetailsModel) PrintEntries(ctx context.Context) {
+	ps := []print.Printable{}
+	for _, de := range dm.Entries {
+		ps = append(ps, de)
+	}
+	print.All(ctx, ps...)
 }
 
 // Paths returns the list of Paths extracted from the Entries slice.
@@ -40,6 +38,45 @@ func (dm DetailsModel) Paths() []string {
 	}
 	return r
 }
+
+// --------------------------------------------------------------------------------
+// Details
+// --------------------------------------------------------------------------------
+
+// Details augments the core with a mutex for processing.
+// Should be sliced back to d.DetailsModel for storage and
+// printing.
+type Details struct {
+	DetailsModel
+
+	// internal
+	mu sync.Mutex `json:"-"`
+}
+
+func (d *Details) Add(repoRef string, info ItemInfo) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.Entries = append(d.Entries, DetailsEntry{RepoRef: repoRef, ItemInfo: info})
+}
+
+// --------------------------------------------------------------------------------
+// Entry
+// --------------------------------------------------------------------------------
+
+// DetailsEntry describes a single item stored in a Backup
+type DetailsEntry struct {
+	// TODO: `RepoRef` is currently the full path to the item in Kopia
+	// This can be optimized.
+	RepoRef string `json:"repoRef"`
+	ItemInfo
+}
+
+// --------------------------------------------------------------------------------
+// CLI Output
+// --------------------------------------------------------------------------------
+
+// interface compliance checks
+var _ print.Printable = &DetailsEntry{}
 
 // MinimumPrintable DetailsEntries is a passthrough func, because no
 // reduction is needed for the json output.
@@ -57,6 +94,9 @@ func (de DetailsEntry) Headers() []string {
 	if de.ItemInfo.Sharepoint != nil {
 		hs = append(hs, de.ItemInfo.Sharepoint.Headers()...)
 	}
+	if de.ItemInfo.Onedrive != nil {
+		hs = append(hs, de.ItemInfo.Onedrive.Headers()...)
+	}
 	return hs
 }
 
@@ -69,6 +109,9 @@ func (de DetailsEntry) Values() []string {
 	if de.ItemInfo.Sharepoint != nil {
 		vs = append(vs, de.ItemInfo.Sharepoint.Values()...)
 	}
+	if de.ItemInfo.Onedrive != nil {
+		vs = append(vs, de.ItemInfo.Onedrive.Values()...)
+	}
 	return vs
 }
 
@@ -77,13 +120,15 @@ func (de DetailsEntry) Values() []string {
 type ItemInfo struct {
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
 	Sharepoint *SharepointInfo `json:"sharepoint,omitempty"`
+	Onedrive   *OnedriveInfo   `json:"onedrive,omitempty"`
 }
 
 // ExchangeInfo describes an exchange item
 type ExchangeInfo struct {
-	Sender   string    `json:"sender"`
-	Subject  string    `json:"subject"`
-	Received time.Time `json:"received"`
+	Sender      string    `json:"sender,omitempty"`
+	Subject     string    `json:"subject,omitempty"`
+	Received    time.Time `json:"received,omitempty"`
+	ContactName string    `json:"contactName,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in an ExchangeInfo
@@ -103,12 +148,6 @@ func (e ExchangeInfo) Values() []string {
 // just to illustrate usage
 type SharepointInfo struct{}
 
-func (d *Details) Add(repoRef string, info ItemInfo) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.Entries = append(d.Entries, DetailsEntry{RepoRef: repoRef, ItemInfo: info})
-}
-
 // Headers returns the human-readable names of properties in a SharepointInfo
 // for printing out to a terminal in a columnar display.
 func (s SharepointInfo) Headers() []string {
@@ -119,4 +158,22 @@ func (s SharepointInfo) Headers() []string {
 // out to a terminal in a columnar display.
 func (s SharepointInfo) Values() []string {
 	return []string{}
+}
+
+// OnedriveInfo describes a onedrive item
+type OnedriveInfo struct {
+	ParentPath string `json:"parentPath"`
+	ItemName   string `json:"itemName"`
+}
+
+// Headers returns the human-readable names of properties in a OnedriveInfo
+// for printing out to a terminal in a columnar display.
+func (oi OnedriveInfo) Headers() []string {
+	return []string{"ItemName", "ParentPath"}
+}
+
+// Values returns the values matching the Headers list for printing
+// out to a terminal in a columnar display.
+func (oi OnedriveInfo) Values() []string {
+	return []string{oi.ItemName, oi.ParentPath}
 }

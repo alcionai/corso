@@ -43,7 +43,12 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringSliceVar(&contact, "contact", nil, "Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringSliceVar(
+			&contact,
+			"contact",
+			nil,
+			"Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts",
+		)
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder",
@@ -54,7 +59,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			&emailFolder,
 			"email-folder",
 			nil,
-			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders")
+			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders",
+		)
 		fs.StringSliceVar(&event, "event", nil, "Restore events by ID; accepts "+utils.Wildcard+" to select all events")
 		fs.StringSliceVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
 
@@ -64,8 +70,18 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden("event"))
 
 		// exchange-info flags
-		fs.StringVar(&emailReceivedAfter, "email-received-after", "", "Restore mail where the email was received after this datetime")
-		fs.StringVar(&emailReceivedBefore, "email-received-before", "", "Restore mail where the email was received before this datetime")
+		fs.StringVar(
+			&emailReceivedAfter,
+			"email-received-after",
+			"",
+			"Restore mail where the email was received after this datetime",
+		)
+		fs.StringVar(
+			&emailReceivedBefore,
+			"email-received-before",
+			"",
+			"Restore mail where the email was received before this datetime",
+		)
 		fs.StringVar(&emailSender, "email-sender", "", "Restore mail where the email sender matches this user id")
 		fs.StringVar(&emailSubject, "email-subject", "", "Restore mail where the email subject lines contain this value")
 
@@ -109,12 +125,12 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := a.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -126,7 +142,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
-		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
@@ -153,14 +169,14 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, options.Control())
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to initialize Exchange restore"))
+		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange restore"))
 	}
 
 	if err := ro.Run(ctx); err != nil {
-		return Only(errors.Wrap(err, "Failed to run Exchange restore"))
+		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))
 	}
 
-	Infof("Restored Exchange in %s for user %s.\n", s.Provider, user)
+	Infof(ctx, "Restored Exchange in %s for user %s.\n", s.Provider, user)
 	return nil
 }
 
@@ -278,10 +294,12 @@ func validateExchangeRestoreFlags(
 		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if lc > 0 && lcf == 0 {
-		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
+		return errors.New(
+			"one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
 	}
 	if le > 0 && lef == 0 {
-		return errors.New("one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
+		return errors.New(
+			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
 	}
 	return nil
 }

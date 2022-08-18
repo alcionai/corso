@@ -29,7 +29,8 @@ var (
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
-	// RestorePropertyTag defined: https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
+	// RestorePropertyTag defined:
+	// https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
 	RestorePropertyTag          = "Integer 0x0E07"
 	RestoreCanonicalEnableValue = "4"
 )
@@ -92,6 +93,8 @@ func getPopulateFunction(optID optionIdentifier) populater {
 		return PopulateForMailCollection
 	case contacts:
 		return PopulateForContactCollection
+	case events:
+		return PopulateForEventCollection
 	default:
 		return nil
 	}
@@ -205,6 +208,95 @@ func PopulateForMailCollection(
 	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
 	statusChannel <- status
+}
+
+func PopulateForEventCollection(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+	jobs []string,
+	dataChannel chan<- data.Stream,
+	statusChannel chan<- *support.ConnectorOperationStatus,
+) {
+	var (
+		errs                    error
+		attemptedItems, success int
+	)
+	objectWriter := kw.NewJsonSerializationWriter()
+
+	for _, task := range jobs {
+		response, err := service.Client().UsersById(user).EventsById(task).Get()
+		if err != nil {
+			trace := support.ConnectorStackErrorTrace(err)
+			errs = support.WrapAndAppend(
+				user,
+				errors.Wrapf(err, "unable to retrieve items %s; details: %s", task, trace),
+				errs,
+			)
+			continue
+		}
+		err = eventToDataCollection(ctx, service.Client(), objectWriter, dataChannel, response, user)
+		if err != nil {
+			errs = support.WrapAndAppend(user, err, errs)
+
+			if service.ErrPolicy() {
+				break
+			}
+			continue
+		}
+		success++
+	}
+	close(dataChannel)
+	attemptedItems += len(jobs)
+	status := support.CreateStatus(ctx, support.Backup, attemptedItems, success, 1, errs)
+	logger.Ctx(ctx).Debug(status.String())
+	statusChannel <- status
+}
+
+func eventToDataCollection(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	objectWriter *kw.JsonSerializationWriter,
+	dataChannel chan<- data.Stream,
+	event models.Eventable,
+	user string,
+) error {
+	var err error
+	defer objectWriter.Close()
+	if *event.GetHasAttachments() {
+		var retriesErr error
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := client.
+				UsersById(user).
+				EventsById(*event.GetId()).
+				Attachments().
+				Get()
+			retriesErr = err
+			if err == nil && attached != nil {
+				event.SetAttachments(attached.GetValue())
+				break
+			}
+		}
+		if retriesErr != nil {
+			logger.Ctx(ctx).Debug("exceeded maximum retries")
+			return support.WrapAndAppend(
+				*event.GetId(),
+				errors.Wrap(retriesErr, "attachment failed"),
+				nil)
+		}
+	}
+	err = objectWriter.WriteObjectValue("", event)
+	if err != nil {
+		return support.SetNonRecoverableError(errors.Wrap(err, *event.GetId()))
+	}
+	byteArray, err := objectWriter.GetSerializedContent()
+	if err != nil {
+		return support.WrapAndAppend(*event.GetId(), errors.Wrap(err, "serializing content"), nil)
+	}
+	if byteArray != nil {
+		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: nil}
+	}
+	return nil
 }
 
 func contactToDataCollection(

@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/cli/options"
 	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -54,7 +55,12 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
-		fs.StringSliceVar(&user, "user", nil, "Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.StringSliceVar(
+			&user,
+			"user",
+			nil,
+			"Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users",
+		)
 		fs.BoolVar(&exchangeAll, "all", false, "Backup all Exchange data for all users")
 		fs.StringSliceVar(
 			&exchangeData,
@@ -72,20 +78,41 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
-		fs.StringSliceVar(&contact, "contact", nil, "Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringSliceVar(
+			&contact,
+			"contact",
+			nil,
+			"Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts",
+		)
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder",
 			nil,
-			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders")
-		fs.StringSliceVar(&email, "email", nil, "Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
+			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders",
+		)
+		fs.StringSliceVar(
+			&email,
+			"email",
+			nil,
+			"Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails",
+		)
 		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder",
 			nil,
 			"Select backup details by email folder ID; accepts "+utils.Wildcard+" to select all email folderss")
-		fs.StringSliceVar(&event, "event", nil, "Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
-		fs.StringSliceVar(&user, "user", nil, "Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.StringSliceVar(
+			&event,
+			"event",
+			nil,
+			"Select backup details by event ID; accepts "+utils.Wildcard+" to select all events",
+		)
+		fs.StringSliceVar(
+			&user,
+			"user",
+			nil,
+			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users",
+		)
 
 		// TODO: reveal these flags when their production is supported in GC
 		cobra.CheckErr(fs.MarkHidden("contact"))
@@ -93,10 +120,25 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden("event"))
 
 		// exchange-info flags
-		fs.StringVar(&emailReceivedAfter, "email-received-after", "", "Select backup details where the email was received after this datetime")
-		fs.StringVar(&emailReceivedBefore, "email-received-before", "", "Select backup details where the email was received before this datetime")
+		fs.StringVar(
+			&emailReceivedAfter,
+			"email-received-after",
+			"",
+			"Select backup details where the email was received after this datetime",
+		)
+		fs.StringVar(
+			&emailReceivedBefore,
+			"email-received-before",
+			"",
+			"Select backup details where the email was received before this datetime",
+		)
 		fs.StringVar(&emailSender, "email-sender", "", "Select backup details where the email sender matches this user id")
-		fs.StringVar(&emailSubject, "email-subject", "", "Select backup details where the email subject lines contain this value")
+		fs.StringVar(
+			&emailSubject,
+			"email-subject",
+			"",
+			"Select backup details where the email subject lines contain this value",
+		)
 	}
 
 	return c
@@ -130,12 +172,12 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -146,7 +188,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
@@ -154,20 +196,20 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	bo, err := r.NewBackup(ctx, sel, options.Control())
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to initialize Exchange backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange backup"))
 	}
 
 	err = bo.Run(ctx)
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to run Exchange backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to run Exchange backup"))
 	}
 
 	bu, err := r.Backup(ctx, bo.Results.BackupID)
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve backup results from storage")
+		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}
 
-	OutputBackup(*bu)
+	bu.Print(ctx)
 	return nil
 }
 
@@ -204,7 +246,8 @@ func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 	}
 	for _, d := range data {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
-			return errors.New(d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
+			return errors.New(
+				d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
 		}
 	}
 	return nil
@@ -230,12 +273,12 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -244,16 +287,16 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
-	rps, err := r.Backups(ctx)
+	bs, err := r.Backups(ctx)
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to list backups in the repository"))
+		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
 
-	OutputBackups(rps)
+	backup.PrintAll(ctx, bs)
 	return nil
 }
 
@@ -293,12 +336,12 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
-		return Only(err)
+		return Only(ctx, err)
 	}
 
 	m365, err := acct.M365Config()
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	logger.Ctx(ctx).Debugw(
@@ -307,13 +350,13 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
-		return Only(errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 	defer utils.CloseRepo(ctx, r)
 
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
-		return Only(errors.Wrap(err, "Failed to get backup details in the repository"))
+		return Only(ctx, errors.Wrap(err, "Failed to get backup details in the repository"))
 	}
 
 	sel := selectors.NewExchangeRestore()
@@ -339,10 +382,10 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ds := sel.Reduce(d)
 	if len(ds.Entries) == 0 {
-		return Only(errors.New("nothing to display: no items in the backup match the provided selectors"))
+		return Only(ctx, errors.New("nothing to display: no items in the backup match the provided selectors"))
 	}
 
-	OutputEntries(ds.Entries)
+	ds.PrintEntries(ctx)
 	return nil
 }
 
@@ -459,10 +502,12 @@ func validateExchangeBackupDetailFlags(
 		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
 	if lc > 0 && lcf == 0 {
-		return errors.New("one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
+		return errors.New(
+			"one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
 	}
 	if le > 0 && lef == 0 {
-		return errors.New("one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
+		return errors.New(
+			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
 	}
 	return nil
 }

@@ -14,9 +14,9 @@ IMAGE_NAME=alcionai/corso:${IMAGE_TAG}
 ${SCRIPT_ROOT}/build.sh
 
 echo "building container"
-docker buildx --tag ${IMAGE_NAME}         \
-       --platform ${OS}/${ARCH}           \
-       --file ${PROJECT_ROOT}/Dockerfile  \
+docker buildx build --tag ${IMAGE_NAME}          \
+       --platform ${OS}/${ARCH}                  \
+       --file ${PROJECT_ROOT}/docker/Dockerfile  \
        ${PROJECT_ROOT}
 
 echo "container built successfully ${IMAGE_NAME}"

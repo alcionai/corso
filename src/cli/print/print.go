@@ -1,6 +1,7 @@
 package print
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,9 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
-
-	"github.com/alcionai/corso/pkg/backup"
-	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 var (
@@ -18,10 +16,24 @@ var (
 	outputAsJSONDebug bool
 )
 
-var rootCmd = &cobra.Command{}
+type rootCmdCtx struct{}
 
-func SetRootCommand(root *cobra.Command) {
-	rootCmd = root
+// Adds a root cobra command to the context.
+// Used to amend output controls like SilenceUsage or to retrieve
+// the command's output writer.
+func SetRootCmd(ctx context.Context, root *cobra.Command) context.Context {
+	return context.WithValue(ctx, rootCmdCtx{}, root)
+}
+
+// Gets the root cobra command from the context.
+// If no command is found, returns a new, blank command.
+func getRootCmd(ctx context.Context) *cobra.Command {
+	cmdIface := ctx.Value(rootCmdCtx{})
+	cmd, ok := cmdIface.(*cobra.Command)
+	if cmd == nil || !ok {
+		return &cobra.Command{}
+	}
+	return cmd
 }
 
 // adds the persistent flag --output to the provided command.
@@ -38,16 +50,16 @@ func AddOutputFlag(parent *cobra.Command) {
 
 // Only tells the CLI to only display this error, preventing the usage
 // (ie, help) menu from displaying as well.
-func Only(e error) error {
-	rootCmd.SilenceUsage = true
+func Only(ctx context.Context, e error) error {
+	getRootCmd(ctx).SilenceUsage = true
 	return e
 }
 
 // Err prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
 // Prepends the message with "Error: "
-func Err(s ...any) {
-	err(rootCmd.ErrOrStderr(), s...)
+func Err(ctx context.Context, s ...any) {
+	err(getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // err is the testable core of Err()
@@ -61,8 +73,8 @@ func err(w io.Writer, s ...any) {
 
 // Info prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-func Info(s ...any) {
-	info(rootCmd.ErrOrStderr(), s...)
+func Info(ctx context.Context, s ...any) {
+	info(getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // info is the testable core of Info()
@@ -76,8 +88,8 @@ func info(w io.Writer, s ...any) {
 
 // Info prints the formatted strings to cobra's error writer (stdErr by default)
 // if t is empty, prints nothing.
-func Infof(t string, s ...any) {
-	infof(rootCmd.ErrOrStderr(), t, s...)
+func Infof(ctx context.Context, t string, s ...any) {
+	infof(getRootCmd(ctx).ErrOrStderr(), t, s...)
 }
 
 // infof is the testable core of Infof()
@@ -104,61 +116,53 @@ type Printable interface {
 	Values() []string
 }
 
+// Item prints the printable, according to the caller's requested format.
+func Item(ctx context.Context, p Printable) {
+	print(getRootCmd(ctx).OutOrStdout(), p)
+}
+
+// print prints the printable items,
+// according to the caller's requested format.
 //revive:disable:redefines-builtin-id
-func print(p Printable) {
+func print(w io.Writer, p Printable) {
 	if outputAsJSON || outputAsJSONDebug {
-		outputJSON(p, outputAsJSONDebug)
+		outputJSON(w, p, outputAsJSONDebug)
 		return
 	}
-	outputTable([]Printable{p})
+	outputTable(w, []Printable{p})
+}
+
+// All prints the slice of printable items,
+// according to the caller's requested format.
+func All(ctx context.Context, ps ...Printable) {
+	printAll(getRootCmd(ctx).OutOrStdout(), ps)
 }
 
 // printAll prints the slice of printable items,
 // according to the caller's requested format.
-func printAll(ps []Printable) {
+func printAll(w io.Writer, ps []Printable) {
 	if len(ps) == 0 {
 		return
 	}
 	if outputAsJSON || outputAsJSONDebug {
-		outputJSONArr(ps, outputAsJSONDebug)
+		outputJSONArr(w, ps, outputAsJSONDebug)
 		return
 	}
-	outputTable(ps)
-}
-
-// ------------------------------------------------------------------------------------------
-// Type Formatters (TODO: migrate to owning packages)
-// ------------------------------------------------------------------------------------------
-
-// Prints the backup to the terminal with stdout.
-func OutputBackup(b backup.Backup) {
-	print(b)
-}
-
-// Prints the backups to the terminal with stdout.
-func OutputBackups(bs []backup.Backup) {
-	ps := []Printable{}
-	for _, b := range bs {
-		ps = append(ps, b)
-	}
-	printAll(ps)
-}
-
-// Prints the entries to the terminal with stdout.
-func OutputEntries(des []details.DetailsEntry) {
-	ps := []Printable{}
-	for _, de := range des {
-		ps = append(ps, de)
-	}
-	printAll(ps)
+	outputTable(w, ps)
 }
 
 // ------------------------------------------------------------------------------------------
 // Tabular
 // ------------------------------------------------------------------------------------------
 
+// Table writes the printables in a tabular format.  Takes headers from
+// the 0th printable only.
+func Table(ctx context.Context, ps []Printable) {
+	outputTable(getRootCmd(ctx).OutOrStdout(), ps)
+}
+
 // output to stdout the list of printable structs in a table
-func outputTable(ps []Printable) {
+func outputTable(w io.Writer, ps []Printable) {
 	t := table.Table{
 		Headers: ps[0].Headers(),
 		Rows:    [][]string{},
@@ -167,7 +171,7 @@ func outputTable(ps []Printable) {
 		t.Rows = append(t.Rows, p.Values())
 	}
 	_ = t.WriteTable(
-		rootCmd.OutOrStdout(),
+		w,
 		&table.Config{
 			ShowIndex:       false,
 			Color:           false,
@@ -179,15 +183,15 @@ func outputTable(ps []Printable) {
 // JSON
 // ------------------------------------------------------------------------------------------
 
-func outputJSON(p Printable, debug bool) {
+func outputJSON(w io.Writer, p Printable, debug bool) {
 	if debug {
-		printJSON(p)
+		printJSON(w, p)
 		return
 	}
-	printJSON(p.MinimumPrintable())
+	printJSON(w, p.MinimumPrintable())
 }
 
-func outputJSONArr(ps []Printable, debug bool) {
+func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
 	sl := make([]any, 0, len(ps))
 	for _, p := range ps {
 		if debug {
@@ -196,17 +200,15 @@ func outputJSONArr(ps []Printable, debug bool) {
 			sl = append(sl, p.MinimumPrintable())
 		}
 	}
-	printJSON(sl)
+	printJSON(w, sl)
 }
 
 // output to stdout the list of printable structs as json.
-func printJSON(a any) {
+func printJSON(w io.Writer, a any) {
 	bs, err := json.Marshal(a)
 	if err != nil {
-		fmt.Fprintf(rootCmd.OutOrStderr(), "error formatting results to json: %v\n", err)
+		fmt.Fprintf(w, "error formatting results to json: %v\n", err)
 		return
 	}
-	fmt.Fprintln(
-		rootCmd.OutOrStdout(),
-		string(pretty.Pretty(bs)))
+	fmt.Fprintln(w, string(pretty.Pretty(bs)))
 }
