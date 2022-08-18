@@ -179,7 +179,7 @@ func makeExchangeScope(granularity string, cat exchangeCategory, vs []string) Ex
 func makeExchangeUserScope(user, granularity string, cat exchangeCategory, vs []string) ExchangeScope {
 	es := makeExchangeScope(granularity, cat, vs).set(ExchangeUser, user)
 	es[scopeKeyResource] = user
-	es[scopeKeyDataType] = cat.dataType()
+	es[scopeKeyDataType] = cat.leafType().String()
 	return es
 }
 
@@ -301,7 +301,7 @@ func makeExchangeFilterScope(cat, filterCat exchangeCategory, vs []string) Excha
 		scopeKeyCategory:    cat.String(),
 		scopeKeyInfoFilter:  filterCat.String(),
 		scopeKeyResource:    Filter,
-		scopeKeyDataType:    cat.dataType(),
+		scopeKeyDataType:    cat.leafType().String(),
 		filterCat.String():  join(vs...),
 	}
 }
@@ -383,17 +383,15 @@ func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
 }
 
 // ---------------------------------------------------------------------------
-// Scopes
+// Categories
 // ---------------------------------------------------------------------------
 
-type (
-	// ExchangeScope specifies the data available
-	// when interfacing with the Exchange service.
-	ExchangeScope scope
-	// exchangeCategory enumerates the type of the lowest level
-	// of data () in a scope.
-	exchangeCategory int
-)
+// exchangeCategory enumerates the type of the lowest level
+// of data () in a scope.
+type exchangeCategory int
+
+// interface compliance checks
+var _ categorizer = ExchangeCategoryUnknown
 
 //go:generate stringer -type=exchangeCategory
 const (
@@ -441,33 +439,137 @@ func exchangeCatAtoI(s string) exchangeCategory {
 	}
 }
 
-// exchangeDataType returns the human-readable name of the core data type.
-// Ex: ExchangeContactFolder.dataType() => ExchangeContact.String()
-// Ex: ExchangeEvent.dataType() => ExchangeEvent.String().
-func (ec exchangeCategory) dataType() string {
-	switch ec {
-	case ExchangeContact, ExchangeContactFolder:
-		return ExchangeContact.String()
-	case ExchangeMail, ExchangeMailFolder:
-		return ExchangeMail.String()
-	}
-	return ec.String()
+// exchangePathTypes describes the category type keys used in Exchange paths.
+// The order of each slice is important, and should match the order in which
+// these types appear in the canonical Path for each type.
+var categoryPathSet = map[categorizer][]categorizer{
+	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
+	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
+	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
+	ExchangeUser:    {ExchangeUser}, // the root category must be represented
 }
 
-// Granularity describes the granularity (directory || item)
-// of the data in scope
-func (s ExchangeScope) Granularity() string {
-	return s[scopeKeyGranularity]
+// leafType returns the leaf category of the receiver.
+// If the receiver category has multiple leaves (ex: User) or no leaves,
+// (ex: Unknown), the receiver itself is returned.
+// Ex: ExchangeContactFolder.leafType() => ExchangeContact
+// Ex: ExchangeEvent.leafType() => ExchangeEvent
+// Ex: ExchangeUser.leafType() => ExchangeUser
+func (ec exchangeCategory) leafType() exchangeCategory {
+	switch ec {
+	case ExchangeContact, ExchangeContactFolder:
+		return ExchangeContact
+	case ExchangeMail, ExchangeMailFolder:
+		return ExchangeMail
+	}
+	return ec
 }
+
+// isType checks if either the receiver is a supertype of the parameter,
+// or if the parameter is a supertype of the receiver.
+// if either value is an unknown types, the comparison is always false.
+// if either value is the root type (user), the comparison is always true.
+func (ec exchangeCategory) isType(cat exchangeCategory) bool {
+	if cat == ExchangeCategoryUnknown || ec == ExchangeCategoryUnknown {
+		return false
+	}
+	if cat == ExchangeUser || ec == ExchangeUser {
+		return true
+	}
+	return ec.leafType() == cat.leafType()
+}
+
+// includesType returns true if it matches the isType check for
+// the receiver's service category.
+func (ec exchangeCategory) includesType(cat categorizer) bool {
+	c, ok := cat.(exchangeCategory)
+	if !ok {
+		return false
+	}
+	return ec.isType(c)
+}
+
+// transforms a path to a map of identified properties.
+// TODO: this should use service-specific funcs in the Paths pkg.  Instead of
+// peeking at the path directly, the caller should compare against values like
+// path.UserID() and path.Folders().
+//
+// Malformed (ie, short len) paths will return incomplete results.
+// Example:
+// [tenantID, userID, "mail", mailFolder, mailID]
+// => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
+func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
+	m := map[categorizer]string{}
+	if len(path) < 4 {
+		return m
+	}
+	m[ExchangeUser] = path[1]
+	/*
+		TODO/Notice:
+		Mail and Contacts contain folder structures, identified
+		in this code as being at index 3.  This assumes a single
+		folder, while in reality users can express subfolder
+		hierarchies of arbirary depth.  Subfolder handling is coming
+		at a later time.
+	*/
+	switch ec {
+	case ExchangeContact:
+		if len(path) < 5 {
+			return m
+		}
+		m[ExchangeContactFolder] = path[3]
+		m[ExchangeContact] = path[4]
+	case ExchangeEvent:
+		if len(path) < 4 {
+			return m
+		}
+		m[ExchangeEvent] = path[3]
+	case ExchangeMail:
+		if len(path) < 5 {
+			return m
+		}
+		m[ExchangeMailFolder] = path[3]
+		m[ExchangeMail] = path[4]
+	}
+	return m
+}
+
+// paths returns a map of the path types, keyed by their leaf type,
+func (ec exchangeCategory) pathKeys() []categorizer {
+	return categoryPathSet[ec.leafType()]
+}
+
+// ---------------------------------------------------------------------------
+// Scopes
+// ---------------------------------------------------------------------------
+
+// ExchangeScope specifies the data available
+// when interfacing with the Exchange service.
+type ExchangeScope scope
+
+// interface compliance checks
+// var _ scoper = &ExchangeScope{}
 
 // Category describes the type of the data in scope.
 func (s ExchangeScope) Category() exchangeCategory {
 	return exchangeCatAtoI(s[scopeKeyCategory])
 }
 
+// categorizer type is a generic wrapper around Category.
+// Primarily used by scopes.go to for abstract comparisons.
+func (s ExchangeScope) categorizer() categorizer {
+	return s.Category()
+}
+
 // Filer describes the specific filter, and its target values.
 func (s ExchangeScope) Filter() exchangeCategory {
 	return exchangeCatAtoI(s[scopeKeyInfoFilter])
+}
+
+// Granularity describes the granularity (directory || item)
+// of the data in scope
+func (s ExchangeScope) Granularity() string {
+	return s[scopeKeyGranularity]
 }
 
 // IncludeCategory checks whether the scope includes a
@@ -528,13 +630,6 @@ func (s ExchangeScope) set(cat exchangeCategory, v string) ExchangeScope {
 	return s
 }
 
-var categoryPathSet = map[exchangeCategory][]exchangeCategory{
-	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
-	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
-	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
-	ExchangeUser:    {ExchangeUser},
-}
-
 // matches returns true if either the path or the info matches the scope details.
 func (s ExchangeScope) matches(cat exchangeCategory, path []string, info *details.ExchangeInfo) bool {
 	return s.matchesPath(cat, path) || s.matchesInfo(cat, info)
@@ -586,9 +681,9 @@ func (s ExchangeScope) matchesInfo(cat exchangeCategory, info *details.ExchangeI
 // matchesPath handles the standard behavior when comparing a scope and a path
 // returns true if the scope and path match for the provided category.
 func (s ExchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
-	pathIDs := exchangeIDPath(cat, path)
+	pathIDs := cat.pathValues(path)
 	for _, c := range categoryPathSet[cat] {
-		target := s.Get(c)
+		target := s.Get(c.(exchangeCategory))
 		// the scope must define the targets to match on
 		if len(target) == 0 {
 			return false
@@ -616,47 +711,6 @@ func (s ExchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
 // ---------------------------------------------------------------------------
 // Restore Point Filtering
 // ---------------------------------------------------------------------------
-
-// transforms a path to a map of identified properties.
-// Malformed (ie, short len) paths will return incomplete results.
-// Example:
-// [tenantID, userID, "mail", mailFolder, mailID]
-// => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
-func exchangeIDPath(cat exchangeCategory, path []string) map[exchangeCategory]string {
-	m := map[exchangeCategory]string{}
-	if len(path) == 0 {
-		return m
-	}
-	m[ExchangeUser] = path[1]
-	/*
-		TODO/Notice:
-		Mail and Contacts contain folder structures, identified
-		in this code as being at index 3.  This assumes a single
-		folder, while in reality users can express subfolder
-		hierarchies of arbirary depth.  Subfolder handling is coming
-		at a later time.
-	*/
-	switch cat {
-	case ExchangeContact:
-		if len(path) < 5 {
-			return m
-		}
-		m[ExchangeContactFolder] = path[3]
-		m[ExchangeContact] = path[4]
-	case ExchangeEvent:
-		if len(path) < 4 {
-			return m
-		}
-		m[ExchangeEvent] = path[3]
-	case ExchangeMail:
-		if len(path) < 5 {
-			return m
-		}
-		m[ExchangeMailFolder] = path[3]
-		m[ExchangeMail] = path[4]
-	}
-	return m
-}
 
 // Reduce reduces the entries in a backupDetails struct to only
 // those that match the inclusions, filters, and exclusions in the selector.

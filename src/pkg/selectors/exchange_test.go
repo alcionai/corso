@@ -942,3 +942,144 @@ func (suite *ExchangeSourceSuite) TestIsAny() {
 		})
 	}
 }
+
+func (suite *ExchangeSourceSuite) TestExchangeCategory_LeafType() {
+	table := []struct {
+		cat    exchangeCategory
+		expect exchangeCategory
+	}{
+		{exchangeCategory(-1), exchangeCategory(-1)},
+		{ExchangeCategoryUnknown, ExchangeCategoryUnknown},
+		{ExchangeUser, ExchangeUser},
+		{ExchangeMailFolder, ExchangeMail},
+		{ExchangeMail, ExchangeMail},
+		{ExchangeContactFolder, ExchangeContact},
+		{ExchangeEvent, ExchangeEvent},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			assert.Equal(t, test.expect, test.cat.leafType(), test.cat.String())
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestExchangeCategory_IsType() {
+	table := []struct {
+		cat    exchangeCategory
+		input  exchangeCategory
+		expect assert.BoolAssertionFunc
+	}{
+		// techincally this should be false, but we're not reducing fabricated
+		// exchange category values to unknown. Since the type is unexported,
+		// that transformation would be unnecessary.
+		{exchangeCategory(-1), exchangeCategory(-1), assert.True},
+		{ExchangeCategoryUnknown, ExchangeCategoryUnknown, assert.False},
+		{ExchangeUser, ExchangeCategoryUnknown, assert.False},
+		{ExchangeCategoryUnknown, ExchangeUser, assert.False},
+		{ExchangeUser, ExchangeUser, assert.True},
+		{ExchangeMailFolder, ExchangeMail, assert.True},
+		{ExchangeMailFolder, ExchangeContact, assert.False},
+		{ExchangeContactFolder, ExchangeMail, assert.False},
+		{ExchangeMail, ExchangeMail, assert.True},
+		{ExchangeContactFolder, ExchangeContact, assert.True},
+		{ExchangeContactFolder, ExchangeEvent, assert.False},
+		{ExchangeEvent, ExchangeContact, assert.False},
+		{ExchangeEvent, ExchangeEvent, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			test.expect(t, test.cat.isType(test.input))
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestExchangeCategory_IncludesType() {
+	table := []struct {
+		cat    categorizer
+		input  categorizer
+		expect assert.BoolAssertionFunc
+	}{
+		// techincally this should be false, but we're not reducing fabricated
+		// exchange category values to unknown. Since the type is unexported,
+		// that transformation would be unnecessary.
+		{exchangeCategory(-1), exchangeCategory(-1), assert.True},
+		{ExchangeCategoryUnknown, ExchangeCategoryUnknown, assert.False},
+		{ExchangeUser, ExchangeCategoryUnknown, assert.False},
+		{ExchangeCategoryUnknown, ExchangeUser, assert.False},
+		{ExchangeUser, ExchangeUser, assert.True},
+		{ExchangeMailFolder, ExchangeMail, assert.True},
+		{ExchangeMailFolder, ExchangeContact, assert.False},
+		{ExchangeContactFolder, ExchangeMail, assert.False},
+		{ExchangeMail, ExchangeMail, assert.True},
+		{ExchangeContactFolder, ExchangeContact, assert.True},
+		{ExchangeContactFolder, ExchangeEvent, assert.False},
+		{ExchangeEvent, ExchangeContact, assert.False},
+		{ExchangeEvent, ExchangeEvent, assert.True},
+		{ExchangeUser, rootCatStub, assert.False},
+		{rootCatStub, ExchangeUser, assert.False},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			test.expect(t, test.cat.includesType(test.input))
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestExchangeCategory_PathValues() {
+	contactPath := []string{"ten", "user", "contact", "cfolder", "contactitem"}
+	contactMap := map[categorizer]string{
+		ExchangeUser:          contactPath[1],
+		ExchangeContactFolder: contactPath[3],
+		ExchangeContact:       contactPath[4],
+	}
+	eventPath := []string{"ten", "user", "event", "eventitem"}
+	eventMap := map[categorizer]string{
+		ExchangeUser:  eventPath[1],
+		ExchangeEvent: eventPath[3],
+	}
+	mailPath := []string{"ten", "user", "mail", "mfolder", "mailitem"}
+	mailMap := map[categorizer]string{
+		ExchangeUser:       contactPath[1],
+		ExchangeMailFolder: mailPath[3],
+		ExchangeMail:       mailPath[4],
+	}
+	table := []struct {
+		cat    exchangeCategory
+		path   []string
+		expect map[categorizer]string
+	}{
+		{ExchangeCategoryUnknown, nil, map[categorizer]string{}},
+		{ExchangeCategoryUnknown, []string{"a", "b", "c"}, map[categorizer]string{}},
+		{ExchangeContact, contactPath, contactMap},
+		{ExchangeEvent, eventPath, eventMap},
+		{ExchangeMail, mailPath, mailMap},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			assert.Equal(t, test.cat.pathValues(test.path), test.expect)
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestExchangeCategory_PathKeys() {
+	contact := []categorizer{ExchangeUser, ExchangeContactFolder, ExchangeContact}
+	event := []categorizer{ExchangeUser, ExchangeEvent}
+	mail := []categorizer{ExchangeUser, ExchangeMailFolder, ExchangeMail}
+	user := []categorizer{ExchangeUser}
+	var empty []categorizer
+	table := []struct {
+		cat    exchangeCategory
+		expect []categorizer
+	}{
+		{ExchangeCategoryUnknown, empty},
+		{ExchangeContact, contact},
+		{ExchangeEvent, event},
+		{ExchangeMail, mail},
+		{ExchangeUser, user},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			assert.Equal(t, test.cat.pathKeys(), test.expect)
+		})
+	}
+}
