@@ -2,11 +2,13 @@ package kopia
 
 import (
 	"context"
+	"path/filepath"
 	"sync"
 
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/compression"
+	"github.com/kopia/kopia/repo/content"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/pkg/errors"
@@ -16,8 +18,9 @@ import (
 )
 
 const (
-	defaultKopiaConfigFilePath = "/tmp/repository.config"
-	defaultCompressor          = "s2-default"
+	defaultKopiaConfigDir  = "/tmp/"
+	defaultKopiaConfigFile = "repository.config"
+	defaultCompressor      = "s2-default"
 )
 
 var (
@@ -63,6 +66,11 @@ func (w *conn) Initialize(ctx context.Context) error {
 		return err
 	}
 
+	cfgDir := defaultKopiaConfigDir
+	if len(cfg.KopiaCfgDir) > 0 {
+		cfgDir = cfg.KopiaCfgDir
+	}
+
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
 	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassword); err != nil {
 		if errors.Is(err, repo.ErrAlreadyInitialized) {
@@ -73,7 +81,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 
 	return w.commonConnect(
 		ctx,
-		defaultKopiaConfigFilePath,
+		cfgDir,
 		bst,
 		cfg.CorsoPassword,
 		defaultCompressor,
@@ -92,9 +100,14 @@ func (w *conn) Connect(ctx context.Context) error {
 		return err
 	}
 
+	cfgDir := defaultKopiaConfigDir
+	if len(cfg.KopiaCfgDir) > 0 {
+		cfgDir = cfg.KopiaCfgDir
+	}
+
 	return w.commonConnect(
 		ctx,
-		defaultKopiaConfigFilePath,
+		cfgDir,
 		bst,
 		cfg.CorsoPassword,
 		defaultCompressor,
@@ -107,13 +120,19 @@ func (w *conn) commonConnect(
 	bst blob.Storage,
 	password, compressor string,
 ) error {
+	opts := &repo.ConnectOptions{
+		CachingOptions: content.CachingOptions{
+			CacheDirectory: configPath,
+		},
+	}
+
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
 		ctx,
-		configPath,
+		filepath.Join(configPath, defaultKopiaConfigFile),
 		bst,
 		password,
-		nil,
+		opts,
 	); err != nil {
 		return errors.Wrap(err, errConnect.Error())
 	}

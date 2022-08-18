@@ -21,8 +21,8 @@ type fooModel struct {
 }
 
 //revive:disable:context-as-argument
-func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
-	c, err := openKopiaRepo(t, ctx)
+func getModelStore(t *testing.T, ctx context.Context, cfgDir string) *ModelStore {
+	c, err := openKopiaRepo(t, ctx, cfgDir)
 	require.NoError(t, err)
 
 	return &ModelStore{c}
@@ -51,8 +51,9 @@ func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 // ---------------
 type ModelStoreIntegrationSuite struct {
 	suite.Suite
-	ctx context.Context
-	m   *ModelStore
+	ctx    context.Context
+	m      *ModelStore
+	cfgDir string
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
@@ -73,7 +74,8 @@ func (suite *ModelStoreIntegrationSuite) SetupSuite() {
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
 	suite.ctx = context.Background()
-	suite.m = getModelStore(suite.T(), suite.ctx)
+	suite.cfgDir = suite.T().TempDir()
+	suite.m = getModelStore(suite.T(), suite.ctx, suite.cfgDir)
 }
 
 func (suite *ModelStoreIntegrationSuite) TearDownTest() {
@@ -325,7 +327,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			ctx := context.Background()
 			theModelType := model.BackupOpSchema
 
-			m := getModelStore(t, ctx)
+			m := getModelStore(t, ctx, suite.cfgDir)
 			defer func() {
 				assert.NoError(t, m.c.Close(ctx))
 			}()
@@ -392,7 +394,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			m := getModelStore(t, ctx)
+			m := getModelStore(t, ctx, suite.cfgDir)
 			defer func() {
 				assert.NoError(t, m.c.Close(ctx))
 			}()
@@ -462,7 +464,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	ctx := context.Background()
 	t := suite.T()
 
-	m := getModelStore(t, ctx)
+	m := getModelStore(t, ctx, t.TempDir())
 	defer func() {
 		assert.NoError(t, m.c.Close(ctx))
 	}()

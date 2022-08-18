@@ -33,6 +33,7 @@ type BackupExchangeIntegrationSuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
+	kopiaCfgFP string
 	repo       *repository.Repository
 	m365UserID string
 }
@@ -56,8 +57,9 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	// prepare common details
+	suite.kopiaCfgFP = t.TempDir()
 	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
+	suite.st = tester.NewPrefixedS3Storage(t, suite.kopiaCfgFP)
 
 	cfg, err := suite.st.S3Config()
 	require.NoError(t, err)
@@ -112,6 +114,7 @@ type PreparedBackupExchangeIntegrationSuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
+	kopiaCfgFP string
 	repo       *repository.Repository
 	m365UserID string
 	backupOp   operations.BackupOperation
@@ -136,8 +139,9 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	// prepare common details
+	suite.kopiaCfgFP = t.TempDir()
 	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
+	suite.st = tester.NewPrefixedS3Storage(t, suite.kopiaCfgFP)
 
 	cfg, err := suite.st.S3Config()
 	require.NoError(t, err)

@@ -83,6 +83,7 @@ type RestoreOpIntegrationSuite struct {
 	kw          *kopia.Wrapper
 	sw          *store.Wrapper
 	ms          *kopia.ModelStore
+	kopiaCfgDir string
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
@@ -106,7 +107,8 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	suite.kopiaCfgDir = t.TempDir()
+	st := tester.NewPrefixedS3Storage(t, suite.kopiaCfgDir)
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))

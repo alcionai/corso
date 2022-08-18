@@ -8,11 +8,14 @@ import (
 
 type CommonConfig struct {
 	credentials.Corso // requires: CorsoPassword
+
+	KopiaCfgDir string
 }
 
 // config key consts
 const (
 	keyCommonCorsoPassword = "common_corsoPassword"
+	keyCommonKopiaCfgDir   = "common_kopiaCfgDir"
 )
 
 // StringConfig transforms a commonConfig struct into a plain
@@ -21,6 +24,7 @@ const (
 func (c CommonConfig) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
 		keyCommonCorsoPassword: c.CorsoPassword,
+		keyCommonKopiaCfgDir:   c.KopiaCfgDir,
 	}
 	return cfg, c.validate()
 }
@@ -30,6 +34,7 @@ func (s Storage) CommonConfig() (CommonConfig, error) {
 	c := CommonConfig{}
 	if len(s.Config) > 0 {
 		c.CorsoPassword = orEmptyString(s.Config[keyCommonCorsoPassword])
+		c.KopiaCfgDir = orEmptyString(s.Config[keyCommonKopiaCfgDir])
 	}
 	return c, c.validate()
 }
@@ -39,5 +44,6 @@ func (c CommonConfig) validate() error {
 	if len(c.CorsoPassword) == 0 {
 		return errors.Wrap(errMissingRequired, credentials.CorsoPassword)
 	}
+	// kopiaCfgFilePath is not required
 	return nil
 }

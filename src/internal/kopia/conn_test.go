@@ -14,8 +14,8 @@ import (
 )
 
 //revive:disable:context-as-argument
-func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
-	storage := tester.NewPrefixedS3Storage(t)
+func openKopiaRepo(t *testing.T, ctx context.Context, cfgDir string) (*conn, error) {
+	storage := tester.NewPrefixedS3Storage(t, cfgDir)
 
 	k := NewConn(storage)
 	if err := k.Initialize(ctx); err != nil {
@@ -72,7 +72,7 @@ func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 	ctx := context.Background()
 	t := suite.T()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openKopiaRepo(t, ctx, t.TempDir())
 	require.NoError(t, err)
 	assert.NoError(t, k.Close(ctx))
 	assert.Nil(t, k.Repository)
@@ -83,7 +83,7 @@ func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
 	ctx := context.Background()
 	t := suite.T()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openKopiaRepo(t, ctx, t.TempDir())
 	require.NoError(t, err)
 
 	require.NoError(t, k.wrap())
@@ -103,7 +103,7 @@ func (suite *WrapperIntegrationSuite) TestOpenAfterClose() {
 	ctx := context.Background()
 	t := suite.T()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openKopiaRepo(t, ctx, t.TempDir())
 	require.NoError(t, err)
 
 	assert.NoError(t, k.Close(ctx))
@@ -114,7 +114,7 @@ func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
 	ctx := context.Background()
 	t := suite.T()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openKopiaRepo(t, ctx, t.TempDir())
 	require.NoError(t, err)
 
 	defer func() {
@@ -128,7 +128,7 @@ func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
 	ctx := context.Background()
 	t := suite.T()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openKopiaRepo(t, ctx, t.TempDir())
 	require.NoError(t, err)
 
 	defer func() {
@@ -152,7 +152,7 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	t := suite.T()
 	compressor := "pgzip"
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openKopiaRepo(t, ctx, t.TempDir())
 	require.NoError(t, err)
 
 	defer func() {
@@ -190,7 +190,7 @@ func (suite *WrapperIntegrationSuite) TestCompressorSetOnInitAndConnect() {
 	t := suite.T()
 	tmpComp := "pgzip"
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openKopiaRepo(t, ctx, t.TempDir())
 	require.NoError(t, err)
 
 	// Check the policy was actually created and has the right compressor.
@@ -214,4 +214,31 @@ func (suite *WrapperIntegrationSuite) TestCompressorSetOnInitAndConnect() {
 	require.NoError(t, err)
 
 	assert.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+}
+
+func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
+	ctx := context.Background()
+	t := suite.T()
+	dir := t.TempDir()
+
+	k, err := openKopiaRepo(t, ctx, dir)
+	require.NoError(t, err)
+	require.NoError(t, k.Close(ctx))
+
+	// Re-open with Connect.
+	require.NoError(t, k.Connect(ctx))
+	defer func() {
+		assert.NoError(t, k.Close(ctx))
+	}()
+
+	// Check the global policy will be the effective policy in future snapshots
+	// for some source info.
+	si := snapshot.SourceInfo{
+		Host:     corsoHost,
+		UserName: corsoUser,
+		Path:     "test-path-root",
+	}
+
+	_, err = policy.TreeForSource(ctx, k, si)
+	require.NoError(t, err)
 }
