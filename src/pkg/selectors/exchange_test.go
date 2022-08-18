@@ -969,7 +969,7 @@ func (suite *ExchangeSourceSuite) TestExchangeCategory_IsType() {
 		input  exchangeCategory
 		expect assert.BoolAssertionFunc
 	}{
-		// techincally this should be false, but we're not reducing fabricated
+		// technically this should be false, but we're not reducing fabricated
 		// exchange category values to unknown. Since the type is unexported,
 		// that transformation would be unnecessary.
 		{exchangeCategory(-1), exchangeCategory(-1), assert.True},
@@ -999,7 +999,7 @@ func (suite *ExchangeSourceSuite) TestExchangeCategory_IncludesType() {
 		input  categorizer
 		expect assert.BoolAssertionFunc
 	}{
-		// techincally this should be false, but we're not reducing fabricated
+		// technically this should be false, but we're not reducing fabricated
 		// exchange category values to unknown. Since the type is unexported,
 		// that transformation would be unnecessary.
 		{exchangeCategory(-1), exchangeCategory(-1), assert.True},
