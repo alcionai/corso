@@ -46,7 +46,7 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 type (
 	// OneDriveScope specifies the data available
 	// when interfacing with the OneDrive service.
-	OneDriveScope map[string]string
+	OneDriveScope scope
 	// onedriveCategory enumerates the type of the lowest level
 	// of data () in a scope.
 	onedriveCategory int

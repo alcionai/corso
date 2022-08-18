@@ -54,7 +54,7 @@ func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
 
 	table := []struct {
 		name          string
-		scopesToCheck []map[string]string
+		scopesToCheck []scope
 	}{
 		{"Include Scopes", sel.Includes},
 		{"Exclude Scopes", sel.Excludes},
