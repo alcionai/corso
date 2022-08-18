@@ -59,6 +59,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.PersistentPostRunE = config.InitFunc()
 	config.AddConfigFileFlag(cmd)
 	print.AddOutputFlag(cmd)
+	logger.AddLogLevelFlag(cmd)
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
 

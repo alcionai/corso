@@ -9,9 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
-
-	"github.com/alcionai/corso/pkg/backup"
-	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 var (
@@ -119,6 +116,13 @@ type Printable interface {
 	Values() []string
 }
 
+// Item prints the printable, according to the caller's requested format.
+func Item(ctx context.Context, p Printable) {
+	print(getRootCmd(ctx).OutOrStdout(), p)
+}
+
+// print prints the printable items,
+// according to the caller's requested format.
 //revive:disable:redefines-builtin-id
 func print(w io.Writer, p Printable) {
 	if outputAsJSON || outputAsJSONDebug {
@@ -126,6 +130,12 @@ func print(w io.Writer, p Printable) {
 		return
 	}
 	outputTable(w, []Printable{p})
+}
+
+// All prints the slice of printable items,
+// according to the caller's requested format.
+func All(ctx context.Context, ps ...Printable) {
+	printAll(getRootCmd(ctx).OutOrStdout(), ps)
 }
 
 // printAll prints the slice of printable items,
@@ -139,33 +149,6 @@ func printAll(w io.Writer, ps []Printable) {
 		return
 	}
 	outputTable(w, ps)
-}
-
-// ------------------------------------------------------------------------------------------
-// Type Formatters (TODO: migrate to owning packages)
-// ------------------------------------------------------------------------------------------
-
-// Prints the backup to the terminal with stdout.
-func OutputBackup(ctx context.Context, b backup.Backup) {
-	print(getRootCmd(ctx).OutOrStdout(), b)
-}
-
-// Prints the backups to the terminal with stdout.
-func OutputBackups(ctx context.Context, bs []backup.Backup) {
-	ps := []Printable{}
-	for _, b := range bs {
-		ps = append(ps, b)
-	}
-	printAll(getRootCmd(ctx).OutOrStdout(), ps)
-}
-
-// Prints the entries to the terminal with stdout.
-func OutputEntries(ctx context.Context, des []details.DetailsEntry) {
-	ps := []Printable{}
-	for _, de := range des {
-		ps = append(ps, de)
-	}
-	printAll(getRootCmd(ctx).OutOrStdout(), ps)
 }
 
 // ------------------------------------------------------------------------------------------
