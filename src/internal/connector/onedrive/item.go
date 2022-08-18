@@ -21,8 +21,10 @@ const (
 // itemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
-func driveItemReader(ctx context.Context, service graph.Service, driveID,
-	itemID string,
+func driveItemReader(
+	ctx context.Context,
+	service graph.Service,
+	driveID, itemID string,
 ) (string, io.ReadCloser, error) {
 	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
 

@@ -53,7 +53,7 @@ func (suite *OnedriveCollectionSuite) TestOnedriveCollection() {
 	// Set a item reader, add an item and validate we get the item back
 	coll.Add(testItemID)
 
-	coll.itemReader = func(context.Context, graph.Service, string, string) (name string, data io.ReadCloser, err error) {
+	coll.itemReader = func(context.Context, graph.Service, string, string) (string, io.ReadCloser, error) {
 		return testItemName, io.NopCloser(bytes.NewReader(testItemData)), nil
 	}
 

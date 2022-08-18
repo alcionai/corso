@@ -41,8 +41,11 @@ type Collection struct {
 }
 
 // itemReadFunc returns a reader for the specified item
-type itemReaderFunc func(ctx context.Context,
-	service graph.Service, driveID, itemID string) (name string, itemData io.ReadCloser, err error)
+type itemReaderFunc func(
+	ctx context.Context,
+	service graph.Service,
+	driveID, itemID string,
+) (name string, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
 func NewCollection(folderPath, driveID string, service graph.Service,
