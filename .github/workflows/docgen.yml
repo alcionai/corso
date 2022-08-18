@@ -67,12 +67,14 @@ jobs:
       #     commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
 
       # make a new PR for the changes
-      - uses: EndBug/add-and-commit@v9
-        push: true
-        committer_name: github-actions[bot]
-        committer_email: 41898282+github-actions[bot]@users.noreply.github.com
-        default_author: github_actor
-        message: 'Documentation Auto-generation'
-        new_branch: docs_autogen
-        pull: '--rebase'
+      - name: Make a New PR With the Auto-Generated Docs
+        uses: EndBug/add-and-commit@v9
+        with:
+          push: true
+          committer_name: github-actions[bot]
+          committer_email: 41898282+github-actions[bot]@users.noreply.github.com
+          default_author: github_actor
+          message: 'Documentation Auto-generation'
+          new_branch: docs_autogen
+          pull: '--rebase'
 
