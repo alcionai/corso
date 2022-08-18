@@ -8,29 +8,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	user = "me@my.onmicrosoft.com"
-)
-
-var dataType = ExchangeEvent.String()
-
-func stubScope() map[string]string {
-	return map[string]string{
-		ExchangeEvent.String(): AnyTgt,
-		ExchangeUser.String():  user,
-		scopeKeyCategory:       dataType,
-		scopeKeyGranularity:    Group,
-		scopeKeyResource:       user,
-		scopeKeyDataType:       dataType,
-	}
-}
-
 func stubSelector() Selector {
 	return Selector{
 		Service:  ServiceExchange,
-		Excludes: []map[string]string{stubScope()},
-		Filters:  []map[string]string{stubScope()},
-		Includes: []map[string]string{stubScope()},
+		Excludes: []scope{scope(stubScope(""))},
+		Filters:  []scope{scope(stubScope(""))},
+		Includes: []scope{scope(stubScope(""))},
 	}
 }
 
@@ -79,12 +62,12 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p := sel.Printable()
 	res := p.Resources()
 
-	assert.Equal(t, user, res, "resource should state only the user")
+	assert.Equal(t, stubResource, res, "resource should state only the user")
 
-	sel.Includes = []map[string]string{
-		stubScope(),
-		{scopeKeyResource: "smarf", scopeKeyDataType: dataType},
-		{scopeKeyResource: "smurf", scopeKeyDataType: dataType},
+	sel.Includes = []scope{
+		scope(stubScope("")),
+		{scopeKeyResource: "smarf", scopeKeyDataType: unknownCatStub.String()},
+		{scopeKeyResource: "smurf", scopeKeyDataType: unknownCatStub.String()},
 	}
 	p = sel.Printable()
 	res = p.Resources()
@@ -94,7 +77,7 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p.Includes = nil
 	res = p.Resources()
 
-	assert.Equal(t, user, res, "resource on filters should state only the user")
+	assert.Equal(t, stubResource, res, "resource on filters should state only the user")
 
 	p.Filters = nil
 	res = p.Resources()
@@ -105,41 +88,41 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 func (suite *SelectorSuite) TestToResourceTypeMap() {
 	table := []struct {
 		name   string
-		input  []map[string]string
+		input  []scope
 		expect map[string][]string
 	}{
 		{
 			name:  "single scope",
-			input: []map[string]string{stubScope()},
+			input: []scope{scope(stubScope(""))},
 			expect: map[string][]string{
-				user: {dataType},
+				stubResource: {rootCatStub.String()},
 			},
 		},
 		{
 			name: "disjoint resources",
-			input: []map[string]string{
-				stubScope(),
+			input: []scope{
+				scope(stubScope("")),
 				{
 					scopeKeyResource: "smarf",
-					scopeKeyDataType: dataType,
+					scopeKeyDataType: unknownCatStub.String(),
 				},
 			},
 			expect: map[string][]string{
-				user:    {dataType},
-				"smarf": {dataType},
+				stubResource: {rootCatStub.String()},
+				"smarf":      {unknownCatStub.String()},
 			},
 		},
 		{
 			name: "disjoint types",
-			input: []map[string]string{
-				stubScope(),
+			input: []scope{
+				scope(stubScope("")),
 				{
-					scopeKeyResource: user,
+					scopeKeyResource: stubResource,
 					scopeKeyDataType: "other",
 				},
 			},
 			expect: map[string][]string{
-				user: {dataType, "other"},
+				stubResource: {rootCatStub.String(), "other"},
 			},
 		},
 	}
@@ -153,10 +136,10 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 
 func (suite *SelectorSuite) TestContains() {
 	t := suite.T()
-	key := "key"
+	key := unknownCatStub.String()
 	target := "fnords"
-	does := map[string]string{key: target}
-	doesNot := map[string]string{key: "smarf"}
+	does := scope{key: target}
+	doesNot := scope{key: "smarf"}
 	assert.True(t, contains(does, key, target))
 	assert.False(t, contains(doesNot, key, target))
 }
