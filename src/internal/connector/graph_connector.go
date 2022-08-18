@@ -294,7 +294,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 			}
 		}
 	}
-	fmt.Printf("Attempts: %d\t Success: %d\nPathCounter:%d\nErrors: %v\n", attempts, successes, len(pathCounter), errs)
 	gc.incrementAwaitingMessages()
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	// set the channel asynchronously so that this func doesn't block.
