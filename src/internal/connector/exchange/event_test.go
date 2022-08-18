@@ -74,7 +74,6 @@ func (suite *EventSuite) TestEventInfo() {
 					Sender:     sender,
 					EventStart: eventTime,
 				}
-
 			},
 		},
 	}
