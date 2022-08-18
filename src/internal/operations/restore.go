@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/internal/stats"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
+	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
 	"github.com/alcionai/corso/pkg/store"
 )
@@ -142,6 +143,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	}
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
+	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
 	return nil
 }
