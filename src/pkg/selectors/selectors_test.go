@@ -11,9 +11,9 @@ import (
 func stubSelector() Selector {
 	return Selector{
 		Service:  ServiceExchange,
-		Excludes: []map[string]string{stubScope("")},
-		Filters:  []map[string]string{stubScope("")},
-		Includes: []map[string]string{stubScope("")},
+		Excludes: []scope{scope(stubScope(""))},
+		Filters:  []scope{scope(stubScope(""))},
+		Includes: []scope{scope(stubScope(""))},
 	}
 }
 
@@ -64,8 +64,8 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 
 	assert.Equal(t, stubResource, res, "resource should state only the user")
 
-	sel.Includes = []map[string]string{
-		stubScope(""),
+	sel.Includes = []scope{
+		scope(stubScope("")),
 		{scopeKeyResource: "smarf", scopeKeyDataType: unknownCatStub.String()},
 		{scopeKeyResource: "smurf", scopeKeyDataType: unknownCatStub.String()},
 	}
@@ -88,20 +88,20 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 func (suite *SelectorSuite) TestToResourceTypeMap() {
 	table := []struct {
 		name   string
-		input  []map[string]string
+		input  []scope
 		expect map[string][]string
 	}{
 		{
 			name:  "single scope",
-			input: []map[string]string{stubScope("")},
+			input: []scope{scope(stubScope(""))},
 			expect: map[string][]string{
 				stubResource: {rootCatStub.String()},
 			},
 		},
 		{
 			name: "disjoint resources",
-			input: []map[string]string{
-				stubScope(""),
+			input: []scope{
+				scope(stubScope("")),
 				{
 					scopeKeyResource: "smarf",
 					scopeKeyDataType: unknownCatStub.String(),
@@ -114,8 +114,8 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 		},
 		{
 			name: "disjoint types",
-			input: []map[string]string{
-				stubScope(""),
+			input: []scope{
+				scope(stubScope("")),
 				{
 					scopeKeyResource: stubResource,
 					scopeKeyDataType: "other",
@@ -138,8 +138,8 @@ func (suite *SelectorSuite) TestContains() {
 	t := suite.T()
 	key := unknownCatStub.String()
 	target := "fnords"
-	does := map[string]string{key: target}
-	doesNot := map[string]string{key: "smarf"}
+	does := scope{key: target}
+	doesNot := scope{key: "smarf"}
 	assert.True(t, contains(does, key, target))
 	assert.False(t, contains(doesNot, key, target))
 }
