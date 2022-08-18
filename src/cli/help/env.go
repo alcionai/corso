@@ -62,7 +62,8 @@ const (
 
 var (
 	corsoEVs = []envVar{
-		{corso, "CORSO_PASSWORD", "Passphrase to protect repository encryption material.  It is impossible to use the repository or recover any backups without this key."},
+		{corso, "CORSO_PASSWORD", "Passphrase to protect repository encryption material." +
+			"It is impossible to use the repository or recover any backups without this key."},
 	}
 	azureEVs = []envVar{
 		{azure, "CLIENT_ID", "Client ID for your Azure AD application used to access your M365 tenant."},
