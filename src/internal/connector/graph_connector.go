@@ -5,7 +5,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -251,7 +250,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
 	for _, dc := range dcs {
-		fmt.Println(dc.FullPath())
 		user := dc.FullPath()[1]
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
