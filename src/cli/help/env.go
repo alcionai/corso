@@ -70,7 +70,7 @@ var (
 		{azure, "CLIENT_SECRET", "Azure secret for your Azure AD application used to access your M365 tenant."},
 	}
 	awsEVs = []envVar{
-		{aws, "AWS_ACCESS_KEY_ID", "zure secret for your Azure AD application used to access your M365 tenant."},
+		{aws, "AWS_ACCESS_KEY_ID", "AWS access key for an IAM user or role for accessing S3 bucket repository."},
 		{aws, "AWS_SECRET_ACCESS_KEY", "Secret key associated with the access key."},
 		{aws, "AWS_SESSION_TOKEN", "Session token required when using temporary credentials."},
 	}
