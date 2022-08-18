@@ -13,6 +13,7 @@ const (
 	CorsoCLIBackupTests      = "CORSO_COMMAND_LINE_BACKUP_TESTS"
 	CorsoCLIConfigTests      = "CORSO_COMMAND_LINE_CONFIG_TESTS"
 	CorsoCLIRepoTests        = "CORSO_COMMAND_LINE_REPO_TESTS"
+	CorsoCLIRestoreTests     = "CORSO_COMMAND_LINE_RESTORE_TESTS"
 	CorsoCLITests            = "CORSO_COMMAND_LINE_TESTS"
 	CorsoGraphConnectorTests = "CORSO_GRAPH_CONNECTOR_TESTS"
 	CorsoKopiaWrapperTests   = "CORSO_KOPIA_WRAPPER_TESTS"
