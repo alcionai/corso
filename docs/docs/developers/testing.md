@@ -36,3 +36,11 @@ appropriate ENV variable.
 e.g. `CORSO_CI_TESTS=true go test ./...`
 
 The complete list of enviroment constants is [here](../../../src/internal/tester/integration_runners.go)
+
+## Advanced Options
+
+- Use `CORSO_M356_TEST_USER_ID` to override the M365 user tests are run against
+
+    ```bash
+    export CORSO_M356_TEST_USER_ID="..."
+    ```
