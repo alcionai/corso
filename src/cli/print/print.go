@@ -155,6 +155,12 @@ func printAll(w io.Writer, ps []Printable) {
 // Tabular
 // ------------------------------------------------------------------------------------------
 
+// Table writes the printables in a tabular format.  Takes headers from
+// the 0th printable only.
+func Table(ctx context.Context, ps []Printable) {
+	outputTable(getRootCmd(ctx).OutOrStdout(), ps)
+}
+
 // output to stdout the list of printable structs in a table
 func outputTable(w io.Writer, ps []Printable) {
 	t := table.Table{
