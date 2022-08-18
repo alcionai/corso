@@ -185,7 +185,6 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	GraphIterateFunc,
 	error,
 ) {
-
 	if scope.IncludesCategory(selectors.ExchangeMail) {
 		fmt.Println("Mail selectors")
 		if scope.IsAny(selectors.ExchangeMailFolder) {
