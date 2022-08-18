@@ -237,7 +237,6 @@ func (gc *GraphConnector) ExchangeDataCollection(
 		}
 	}
 	return collections, errs
-
 }
 
 // RestoreMessages: Utility function to connect to M365 backstore
