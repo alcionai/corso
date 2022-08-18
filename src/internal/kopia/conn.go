@@ -126,10 +126,12 @@ func (w *conn) commonConnect(
 		},
 	}
 
+	cfgFile := filepath.Join(configPath, defaultKopiaConfigFile)
+
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
 		ctx,
-		filepath.Join(configPath, defaultKopiaConfigFile),
+		cfgFile,
 		bst,
 		password,
 		opts,
@@ -137,7 +139,7 @@ func (w *conn) commonConnect(
 		return errors.Wrap(err, errConnect.Error())
 	}
 
-	if err := w.open(ctx, configPath, password); err != nil {
+	if err := w.open(ctx, cfgFile, password); err != nil {
 		return err
 	}
 
