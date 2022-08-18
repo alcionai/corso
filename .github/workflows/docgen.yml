@@ -1,5 +1,8 @@
 name: Document Generation
 on:
+  push:
+    branches: [main]
+  # remove the PR part of this once the MR creation is settled
   pull_request:
     branches: [main]
 
@@ -55,22 +58,11 @@ jobs:
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
 
-      # make a commit for any file changes
-      # - name: Commit the Auto-Generated Files
-      #   uses: stefanzweifel/git-auto-commit-action@v4
-      #   with:
-      #     branch: docs_autogen
-      #     create_branch: true
-      #     commit_message: Documentation Auto-generation
-      #     commit_user_name: github-actions[bot]
-      #     commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
-      #     commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-
       # make a new PR for the changes
       - name: Make a New PR With the Auto-Generated Docs
         uses: EndBug/add-and-commit@v9
         with:
-          # pull: '--rebase'
+          add: '-A'
           new_branch: docs_autogen
           push: 'origin docs_autogen --set-upstream --force'
           message: 'Documentation Auto-generation'
