@@ -5,6 +5,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -251,6 +252,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
 	for _, dc := range dcs {
+		fmt.Println(dc.FullPath())
 		user := dc.FullPath()[1]
 		items := dc.Items()
 		pathCounter[strings.Join(dc.FullPath(), "")] = true
@@ -293,6 +295,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 			}
 		}
 	}
+	fmt.Printf("Attempts: %d\t Success: %d\nPathCounter:%d\nErrors: %v\n", attempts, successes, len(pathCounter), errs)
 	gc.incrementAwaitingMessages()
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	// set the channel asynchronously so that this func doesn't block.
