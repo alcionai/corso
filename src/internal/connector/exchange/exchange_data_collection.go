@@ -119,7 +119,9 @@ func (col *Collection) populateByOptionIdentifier(
 		errs    error
 		success int
 	)
-	defer col.finishPopulation(ctx, success, errs)
+	defer func() {
+		col.finishPopulation(ctx, success, errs)
+	}()
 	user := col.user
 	objectWriter := kw.NewJsonSerializationWriter()
 	// get QueryBasedonIdentifier
