@@ -65,21 +65,22 @@ jobs:
           rm -R ./src/cmd/mdgen/cli_markdown/
 
       # make a new branch for the changes
-      - name: Make a New Branch With the Auto-Generated Docs
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: '-A'
-          new_branch: docs_autogen
-          push: 'origin docs_autogen --set-upstream --force'
-          message: 'Documentation Auto-generation'
-          committer_name: github-actions[bot]
-          committer_email: 41898282+github-actions[bot]@users.noreply.github.com
-          default_author: github_actor
+      # - name: Make a New Branch With the Auto-Generated Docs
+      #   uses: EndBug/add-and-commit@v9
+      #   with:
+      #     add: '-A'
+      #     new_branch: docs_autogen
+      #     push: 'origin docs_autogen --set-upstream --force'
+      #     message: 'Documentation Auto-generation'
+      #     committer_name: github-actions[bot]
+      #     committer_email: 41898282+github-actions[bot]@users.noreply.github.com
+      #     default_author: github_actor
 
       # make a PR for the docs_autogen branch
       - name: Make a PR For the `docs_autogen` Branch
         uses: peter-evans/create-pull-request@v4
         with:
+          commit-message: "Documentation Auto-Generation"
           branch: docs_autogen
           delete-branch: true
           base: main
@@ -103,15 +104,3 @@ jobs:
       #     token: ${{ secrets.PAT }}
       #     pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
       #     merge-method: squash
-
-      # # make a PR for the docs_autogen branch
-      # - name: Make a PR For the `docs_autogen` Branch
-      #   uses: gr2m/create-or-update-pull-request-action@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     title: "Docs Auto-Generation"
-      #     body: "Auto-generated documentation update from merge to main."
-      #     branch: "docs_autogen"
-      #     auto-merge: squash
-      #     update-pull-request-title-and-body: false
