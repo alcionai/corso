@@ -203,8 +203,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			assert.Greater(t, bo.Results.ItemsWritten, 0)
 			assert.Zero(t, bo.Results.ReadErrors)
 			assert.Zero(t, bo.Results.WriteErrors)
-
 		})
 	}
-
 }
