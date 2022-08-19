@@ -5,7 +5,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -207,12 +206,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 
 	// for each scope that includes mail messages, get all
 	for _, scope := range scopes {
-		// if !scope.IncludesCategory(selectors.ExchangeMail) {
-		// 	continue
-		// }
-
 		for _, user := range scope.Get(selectors.ExchangeUser) {
-			fmt.Println(scope)
 			// TODO: handle "get mail for all users"
 			// this would probably no-op without this check,
 			// but we want it made obvious that we're punting.
