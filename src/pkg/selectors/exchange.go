@@ -91,7 +91,7 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // therefore it is the same as selecting all of the following:
 // Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
 func (s *exchange) Exclude(scopes ...[]ExchangeScope) {
-	appendExcludes(&s.Selector, extendExchangeScopeValues, scopes...)
+	s.Excludes = appendScopes(s.Excludes, scopes...)
 }
 
 // Filter appends the provided scopes to the selector's filters set.
@@ -112,7 +112,7 @@ func (s *exchange) Exclude(scopes ...[]ExchangeScope) {
 // therefore it is the same as selecting all of the following:
 // Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
 func (s *exchange) Filter(scopes ...[]ExchangeScope) {
-	appendFilters(&s.Selector, extendExchangeScopeValues, scopes...)
+	s.Filters = appendScopes(s.Filters, scopes...)
 }
 
 // Include appends the provided scopes to the selector's inclusion set.
@@ -132,37 +132,17 @@ func (s *exchange) Filter(scopes ...[]ExchangeScope) {
 // therefore it is the same as selecting all of the following:
 // Mail(u1, Any(), Any()), Event(u1, Any()), Contacts(u1, Any(), Any())
 func (s *exchange) Include(scopes ...[]ExchangeScope) {
-	appendIncludes(&s.Selector, extendExchangeScopeValues, scopes...)
-}
-
-// completes population for certain scope properties, according to the
-// expecations of Include and Exclude behavior.
-func extendExchangeScopeValues(es []ExchangeScope) []ExchangeScope {
-	v := join(Any()...)
-	for i := range es {
-		switch es[i].Category() {
-		case ExchangeContactFolder:
-			es[i][ExchangeContact.String()] = v
-		case ExchangeMailFolder:
-			es[i][ExchangeMail.String()] = v
-		case ExchangeUser:
-			es[i][ExchangeContactFolder.String()] = v
-			es[i][ExchangeContact.String()] = v
-			es[i][ExchangeEvent.String()] = v
-			es[i][ExchangeMailFolder.String()] = v
-			es[i][ExchangeMail.String()] = v
-		}
-	}
-	return es
+	s.Includes = appendScopes(s.Includes, scopes...)
 }
 
 // Scopes retrieves the list of exchangeScopes in the selector.
 func (s *exchange) Scopes() []ExchangeScope {
-	scopes := []ExchangeScope{}
-	for _, v := range s.Includes {
-		scopes = append(scopes, ExchangeScope(v))
+	scopes := s.scopes()
+	es := make([]ExchangeScope, len(scopes))
+	for i := range scopes {
+		es[i] = ExchangeScope(scopes[i])
 	}
-	return scopes
+	return es
 }
 
 // -------------------
@@ -534,7 +514,7 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	return m
 }
 
-// pathKeys returns a map of the path types, keyed by their leaf type,
+// pathKeys returns the path keys recognized by the receiver's leaf type.
 func (ec exchangeCategory) pathKeys() []categorizer {
 	return categoryPathSet[ec.leafType()]
 }
@@ -567,7 +547,7 @@ func (s ExchangeScope) Filter() exchangeCategory {
 }
 
 // Granularity describes the granularity (directory || item)
-// of the data in scope
+// of the data in scope.
 func (s ExchangeScope) Granularity() string {
 	return s[scopeKeyGranularity]
 }
@@ -577,57 +557,64 @@ func (s ExchangeScope) Granularity() string {
 // Ex: to check if the scope includes mail data:
 // s.IncludesCategory(selector.ExchangeMail)
 func (s ExchangeScope) IncludesCategory(cat exchangeCategory) bool {
-	sCat := s.Category()
-	if cat == ExchangeCategoryUnknown || sCat == ExchangeCategoryUnknown {
-		return false
-	}
-	if cat == ExchangeUser || sCat == ExchangeUser {
-		return true
-	}
-	switch sCat {
-	case ExchangeContact, ExchangeContactFolder:
-		return cat == ExchangeContact || cat == ExchangeContactFolder
-	case ExchangeEvent:
-		return cat == ExchangeEvent
-	case ExchangeMail, ExchangeMailFolder:
-		return cat == ExchangeMail || cat == ExchangeMailFolder
-	}
-	return false
+	return s.Category().isType(cat)
 }
 
 // Contains returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
 func (s ExchangeScope) Contains(cat exchangeCategory, target string) bool {
-	if !s.IncludesCategory(cat) {
-		return false
-	}
-	return contains(scope(s), cat.String(), target)
+	return contains(s, cat, target)
 }
 
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s ExchangeScope) IsAny(cat exchangeCategory) bool {
-	if !s.IncludesCategory(cat) {
-		return false
-	}
-	return s[cat.String()] == AnyTgt
+	return isAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope
 // contains all data types for a user, it'll return the
 // ExchangeUser category.
 func (s ExchangeScope) Get(cat exchangeCategory) []string {
-	v, ok := s[cat.String()]
-	if !ok {
-		return None()
-	}
-	return split(v)
+	return getCatValue(s, cat)
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
 func (s ExchangeScope) set(cat exchangeCategory, v string) ExchangeScope {
 	s[cat.String()] = v
 	return s
+}
+
+// setDefaults ensures that contact folder, mail folder, and user category
+// scopes all express `AnyTgt` for their child category types.
+func (s ExchangeScope) setDefaults() {
+	switch s.Category() {
+	case ExchangeContactFolder:
+		s[ExchangeContact.String()] = AnyTgt
+	case ExchangeMailFolder:
+		s[ExchangeMail.String()] = AnyTgt
+	case ExchangeUser:
+		s[ExchangeContactFolder.String()] = AnyTgt
+		s[ExchangeContact.String()] = AnyTgt
+		s[ExchangeEvent.String()] = AnyTgt
+		s[ExchangeMailFolder.String()] = AnyTgt
+		s[ExchangeMail.String()] = AnyTgt
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Backup Details Filtering
+// ---------------------------------------------------------------------------
+
+// matchesEntry returns true if either the path or the info in the exchangeEntry matches the scope details.
+func (s ExchangeScope) matchesEntry(
+	cat categorizer,
+	pathValues map[categorizer]string,
+	entry details.DetailsEntry,
+) bool {
+	return false
+	// TODO: uncomment when reducer is added.
+	// return matchesPathValues(s, cat, pathValues) || s.matchesInfo(entry.Exchange)
 }
 
 // matches returns true if either the path or the info matches the scope details.

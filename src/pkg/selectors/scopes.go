@@ -1,6 +1,8 @@
 package selectors
 
 import (
+	"strings"
+
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
@@ -91,6 +93,11 @@ type (
 		// entry - the details entry containing extended service info for the item that a filter may
 		//   compare.  Identification of the correct entry Info service is left up to the scope.
 		matchesEntry(cat categorizer, pathValues map[categorizer]string, entry details.DetailsEntry) bool
+
+		// setDefaults populates default values for certain scope categories.
+		// Primarily to ensure that root- or mid-tier scopes (such as folders)
+		// cascade 'Any' matching to more granular categories.
+		setDefaults()
 	}
 	// scopeT is the generic type interface of a scoper.
 	scopeT interface {
@@ -103,26 +110,24 @@ type (
 // funcs
 // ---------------------------------------------------------------------------
 
-// TODO: Uncomment when selectors.go/contains() can be removed.
-//
 // contains returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
-// func contains[T scopeT](s T, cat categorizer, target string) bool {
-// 	if !s.categorizer().includesType(cat) {
-// 		return false
-// 	}
-// 	compare := s[cat.String()]
-// 	if len(compare) == 0 {
-// 		return false
-// 	}
-// 	if compare == NoneTgt {
-// 		return false
-// 	}
-// 	if compare == AnyTgt {
-// 		return true
-// 	}
-// 	return strings.Contains(compare, target)
-// }
+func contains[T scopeT](s T, cat categorizer, target string) bool {
+	if !s.categorizer().includesType(cat) {
+		return false
+	}
+	compare := s[cat.String()]
+	if len(compare) == 0 {
+		return false
+	}
+	if compare == NoneTgt {
+		return false
+	}
+	if compare == AnyTgt {
+		return true
+	}
+	return strings.Contains(compare, target)
+}
 
 // getCatValue takes the value of s[cat], split it by the standard
 // delimiter, and returns the slice.  If s[cat] is nil, returns
