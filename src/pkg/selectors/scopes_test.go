@@ -11,13 +11,6 @@ import (
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
-func stubPathValues() map[categorizer]string {
-	return map[categorizer]string{
-		rootCatStub: rootCatStub.String(),
-		leafCatStub: leafCatStub.String(),
-	}
-}
-
 // ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
