@@ -186,7 +186,6 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		fmt.Println("Mail selectors")
 		if scope.IsAny(selectors.ExchangeMailFolder) {
 			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 				GetAllMessagesForUser,
@@ -200,7 +199,6 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 			nil
 	}
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
-		fmt.Println("Events")
 		return models.CreateEventCollectionResponseFromDiscriminatorValue,
 			GetAllEventsForUser,
 			IterateSelectAllEventsForCollections,
@@ -208,7 +206,6 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContactFolder) {
-		fmt.Println("Contacts")
 		return models.CreateContactFromDiscriminatorValue,
 			GetAllContactsForUser,
 			IterateAllContactsForCollection,
