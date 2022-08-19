@@ -9,13 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func stubPathValues() map[categorizer]string {
-	return map[categorizer]string{
-		rootCatStub: rootCatStub.String(),
-		leafCatStub: leafCatStub.String(),
-	}
-}
-
 // ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
