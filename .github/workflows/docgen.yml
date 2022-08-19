@@ -75,10 +75,9 @@ jobs:
         uses: gr2m/create-or-update-pull-request-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CURRENT_TIME: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
         with:
           title: "Docs Auto-Generation"
-          body: "Auto-generated Documentation update from merge to main at ${{ env.CURRENT_TIME }}."
+          body: "Auto-generated documentation update from merge to main."
           branch: "docs_autogen"
           auto-merge: squash
           update-pull-request-title-and-body: false
