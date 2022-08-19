@@ -15,8 +15,9 @@ jobs:
       # check out the repo
       - name: Repo Code Checkout
         uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
+        - uses: actions/checkout@v2
+          with:
+            ref: ${{ github.event.pull_request.head.ref }}
 
       # Get values for cache paths to be used in later steps
       - id: go-cache-paths
@@ -58,8 +59,8 @@ jobs:
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
 
-      # make a new PR for the changes
-      - name: Make a New PR With the Auto-Generated Docs
+      # make a new branch for the changes
+      - name: Make a New Branch With the Auto-Generated Docs
         uses: EndBug/add-and-commit@v9
         with:
           add: '-A'
@@ -70,3 +71,15 @@ jobs:
           committer_email: 41898282+github-actions[bot]@users.noreply.github.com
           default_author: github_actor
 
+      # make a PR for the docs_autogen branch
+      - name: Make a PR For the `docs_autogen` Branch
+        uses: gr2m/create-or-update-pull-request-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT_TIME: date -u +"%Y-%m-%dT%H:%M:%SZ"
+        with:
+          title: "Docs Auto-Generation"
+          body: "Auto-generated Documentation update from merge to main at ${{ CURRENT_TIME }}."
+          branch: "docs_autogen"
+          auto-merge: squash
+          update-pull-request-title-and-body: false
