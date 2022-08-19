@@ -93,7 +93,8 @@ const (
 )
 
 // GraphQuery represents functions which perform exchange-specific queries
-// into M365 backstore.
+// into M365 backstore. Responses -> returned items will only contain the information
+// that is included in the options
 // TODO: use selector or path for granularity into specific folders or specific date ranges
 type GraphQuery func(graph.Service, string) (absser.Parsable, error)
 
@@ -131,15 +132,37 @@ func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, e
 	return gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
-// GetAllEvents for User. Default returns EventResponseCollection for events in the future
+// GetAllEvents for User. Default returns EventResponseCollection for future events.
 // of the time that the call was made. There a
 func GetAllEventsForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	options, err := optionsForEvents([]string{"id", "calendar"})
+	options, err := optionsForEvents([]string{"id"})
 	if err != nil {
 		return nil, err
 	}
 
 	return gs.Client().UsersById(user).Events().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// GraphRetrievalFunctions are functions from the Microsoft Graph API that retrieve
+// the default associated data of a M365 object. This varies by object. Additional
+// Queries must be run to obtain the omitted fields.
+type GraphRetrievalFunc func(gs graph.Service, user, m365ID string) (absser.Parsable, error)
+
+// RetrieveContactDataForUser is a GraphRetrievalFun that returns all associated fields.
+func RetrieveContactDataForUser(gs graph.Service, user, m365ID string) (absser.Parsable, error) {
+	return gs.Client().UsersById(user).ContactsById(m365ID).Get()
+}
+
+// RetrieveEventDataForUser is a GraphRetrievalFunc that returns event data.
+// Calendarable and attachment fields are omitted due to size
+func RetrieveEventDataForUser(gs graph.Service, user, m365ID string) (absser.Parsable, error) {
+	return gs.Client().UsersById(user).EventsById(m365ID).Get()
+}
+
+// RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
+// Attachment field is omitted due to size.
+func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.Parsable, error) {
+	return gs.Client().UsersById(user).MessagesById(m365ID).Get()
 }
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
