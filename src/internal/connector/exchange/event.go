@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -31,14 +30,13 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		// timeString has 'Z' literal added to ensure the stored
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		timeString := *evt.GetStart().GetDateTime() + "Z"
-		fmt.Println(timeString)
-		output, err := time.Parse(common.StandardTimeFormat, timeString)
+		output, err := common.ParseTime(timeString)
 		if err == nil {
 			start = output
 		}
 	}
 	return &details.ExchangeInfo{
-		Organizer:     organizer,
+		Organizer:  organizer,
 		Subject:    subject,
 		EventStart: start,
 	}
