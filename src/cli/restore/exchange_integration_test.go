@@ -2,7 +2,6 @@ package restore_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -45,11 +44,11 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
+		tester.M365AcctCredEnvs,
+	)
 	require.NoError(t, err)
 
 	// aggregate required details
-
 	suite.acct = tester.NewM365Account(t)
 	suite.st = tester.NewPrefixedS3Storage(t)
 
@@ -80,8 +79,6 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 		control.NewOptions(false))
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
-
-	time.Sleep(3 * time.Second)
 }
 
 func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {

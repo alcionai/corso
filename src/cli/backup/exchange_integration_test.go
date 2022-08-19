@@ -167,8 +167,6 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 		control.NewOptions(false))
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
-
-	time.Sleep(3 * time.Second)
 }
 
 func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
