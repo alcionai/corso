@@ -20,10 +20,10 @@ var cliMarkdownDir string
 // The root-level command.
 // `corso <command> [<subcommand>] [<service>] [<flag>...]`
 var cmd = &cobra.Command{
-	Use:   "generate",
-	Short: "Autogenerate Corso documentation.",
-	// DisableAutoGenTag: true,
-	Run: genDocs,
+	Use:               "generate",
+	Short:             "Autogenerate Corso documentation.",
+	DisableAutoGenTag: true,
+	Run:               genDocs,
 }
 
 func main() {
