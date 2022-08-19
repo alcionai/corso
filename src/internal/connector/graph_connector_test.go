@@ -90,7 +90,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	assert.Nil(t, err)
 	assert.True(t, connector.awaitingMessages > 0)
 	assert.Nil(t, connector.status)
-	var streams map[string]<-chan data.Stream
+	streams := make(map[string]<-chan data.Stream)
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
 	for _, collection := range collectionList {
 		temp := collection.Items()
