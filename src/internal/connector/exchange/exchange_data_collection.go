@@ -84,7 +84,6 @@ func (col *Collection) AddJob(objID string) {
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (col *Collection) Items() <-chan data.Stream {
-
 	go col.populateByOptionIdentifier(context.TODO())
 	return col.data
 }
