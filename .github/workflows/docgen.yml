@@ -9,6 +9,14 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # actions: write
+  # checks: write
+  deployments: write
+  # id-token: read|write|none
+  # packages: write
+  # issues: read|write|none
+  # discussions: read|write|none
+  # pages: read|write|none
 
 
 jobs:
