@@ -35,7 +35,8 @@ appropriate ENV variable.
 
 e.g. `CORSO_CI_TESTS=true go test ./...`
 
-The complete list of enviroment constants is [here](../../../src/internal/tester/integration_runners.go)
+The complete list of environment constants is available at
+`.../src/internal/tester/integration_runners.go`.
 
 ## Advanced Options
 
