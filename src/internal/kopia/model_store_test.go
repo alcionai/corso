@@ -51,8 +51,9 @@ func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 // ---------------
 type ModelStoreIntegrationSuite struct {
 	suite.Suite
-	ctx context.Context
-	m   *ModelStore
+	ctx    context.Context
+	m      *ModelStore
+	cfgDir string
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
