@@ -2,7 +2,6 @@ package restore_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -80,8 +79,6 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 		control.NewOptions(false))
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
-
-	time.Sleep(3 * time.Second)
 }
 
 func (suite *BackupExchangeIntegrationSuite) TestExchangeRestoreCmd() {

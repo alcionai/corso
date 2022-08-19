@@ -226,18 +226,5 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 
 	// Re-open with Connect.
 	require.NoError(t, k.Connect(ctx))
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
-
-	// Check the global policy will be the effective policy in future snapshots
-	// for some source info.
-	si := snapshot.SourceInfo{
-		Host:     corsoHost,
-		UserName: corsoUser,
-		Path:     "test-path-root",
-	}
-
-	_, err = policy.TreeForSource(ctx, k, si)
-	require.NoError(t, err)
+	assert.NoError(t, k.Close(ctx))
 }
