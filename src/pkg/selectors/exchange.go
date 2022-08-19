@@ -156,8 +156,17 @@ func extendExchangeScopeValues(es []ExchangeScope) []ExchangeScope {
 	return es
 }
 
+// Scopes retrieves the list of exchangeScopes in the selector.
+func (s *exchange) Scopes() []ExchangeScope {
+	scopes := []ExchangeScope{}
+	for _, v := range s.Includes {
+		scopes = append(scopes, ExchangeScope(v))
+	}
+	return scopes
+}
+
 // -------------------
-// Scope Factory
+// Scope Factories
 
 func makeExchangeScope(granularity string, cat exchangeCategory, vs []string) ExchangeScope {
 	return ExchangeScope{
@@ -380,20 +389,11 @@ func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
 type (
 	// ExchangeScope specifies the data available
 	// when interfacing with the Exchange service.
-	ExchangeScope map[string]string
+	ExchangeScope scope
 	// exchangeCategory enumerates the type of the lowest level
 	// of data () in a scope.
 	exchangeCategory int
 )
-
-// Scopes retrieves the list of exchangeScopes in the selector.
-func (s *exchange) Scopes() []ExchangeScope {
-	scopes := []ExchangeScope{}
-	for _, v := range s.Includes {
-		scopes = append(scopes, ExchangeScope(v))
-	}
-	return scopes
-}
 
 //go:generate stringer -type=exchangeCategory
 const (
@@ -499,7 +499,7 @@ func (s ExchangeScope) Contains(cat exchangeCategory, target string) bool {
 	if !s.IncludesCategory(cat) {
 		return false
 	}
-	return contains(s, cat.String(), target)
+	return contains(scope(s), cat.String(), target)
 }
 
 // returns true if the category is included in the scope's data type,
@@ -706,7 +706,7 @@ func (sr *ExchangeRestore) Reduce(deets *details.Details) *details.Details {
 
 // groups each scope by its category of data (contact, event, or mail).
 // user-level scopes will duplicate to all three categories.
-func exchangeScopesByCategory(scopes []map[string]string) map[string][]ExchangeScope {
+func exchangeScopesByCategory(scopes []scope) map[string][]ExchangeScope {
 	m := map[string][]ExchangeScope{
 		ExchangeContact.String(): {},
 		ExchangeEvent.String():   {},

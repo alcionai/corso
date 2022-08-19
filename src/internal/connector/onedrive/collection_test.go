@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/data"
 )
 
@@ -52,7 +53,7 @@ func (suite *OnedriveCollectionSuite) TestOnedriveCollection() {
 	// Set a item reader, add an item and validate we get the item back
 	coll.Add(testItemID)
 
-	coll.itemReader = func(ctx context.Context, itemID string) (name string, data io.ReadCloser, err error) {
+	coll.itemReader = func(context.Context, graph.Service, string, string) (string, io.ReadCloser, error) {
 		return testItemName, io.NopCloser(bytes.NewReader(testItemData)), nil
 	}
 
@@ -86,7 +87,7 @@ func (suite *OnedriveCollectionSuite) TestOnedriveCollectionReadError() {
 
 	readError := errors.New("Test error")
 
-	coll.itemReader = func(ctx context.Context, itemID string) (name string, data io.ReadCloser, err error) {
+	coll.itemReader = func(context.Context, graph.Service, string, string) (name string, data io.ReadCloser, err error) {
 		return "", nil, readError
 	}
 

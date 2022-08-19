@@ -41,7 +41,11 @@ type Collection struct {
 }
 
 // itemReadFunc returns a reader for the specified item
-type itemReaderFunc func(ctx context.Context, itemID string) (name string, itemData io.ReadCloser, err error)
+type itemReaderFunc func(
+	ctx context.Context,
+	service graph.Service,
+	driveID, itemID string,
+) (name string, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
 func NewCollection(folderPath, driveID string, service graph.Service,
@@ -56,16 +60,8 @@ func NewCollection(folderPath, driveID string, service graph.Service,
 		statusCh:     statusCh,
 	}
 	// Allows tests to set a mock populator
-	c.itemReader = c.driveItemReader
+	c.itemReader = driveItemReader
 	return c
-}
-
-// TODO: Implement drive item reader
-func (oc *Collection) driveItemReader(
-	ctx context.Context,
-	itemID string,
-) (name string, itemData io.ReadCloser, err error) {
-	return "", nil, nil
 }
 
 // Adds an itemID to the collection
@@ -110,7 +106,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	itemsRead := 0
 	for _, itemID := range oc.driveItemIDs {
 		// Read the item
-		itemName, itemData, err := oc.itemReader(ctx, itemID)
+		itemName, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
 		if err != nil {
 			errs = support.WrapAndAppendf(itemID, err, errs)
 			if oc.service.ErrPolicy() {
