@@ -79,8 +79,8 @@ jobs:
       # make a PR for the docs_autogen branch
       - name: Make a PR For the `docs_autogen` Branch
         uses: peter-evans/create-pull-request@v4
-        branch: docs_autogen
         with:
+          branch: docs_autogen
           delete-branch: true
           base: main
           title: "Docs Auto-Generation"
