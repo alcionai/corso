@@ -97,7 +97,7 @@ func (s *onedrive) Users(users []string) []OneDriveScope {
 }
 
 // nop-transform method
-func nopTransform(sl []OneDriveScope) []OneDriveScope { return sl }
+// func nopTransform(sl []OneDriveScope) []OneDriveScope { return sl }
 
 func (s *onedrive) Include(scopes ...[]OneDriveScope) {
 	// appendIncludes(&s.Selector, nopTransform, scopes...)
