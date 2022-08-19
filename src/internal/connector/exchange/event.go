@@ -38,7 +38,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		}
 	}
 	return &details.ExchangeInfo{
-		Sender:     organizer,
+		Organizer:     organizer,
 		Subject:    subject,
 		EventStart: start,
 	}
