@@ -106,75 +106,30 @@ func (s Selector) String() string {
 	return string(bs)
 }
 
-type baseScope interface {
-	~map[string]string
-}
-
-func appendExcludes[T baseScope](
-	s *Selector,
-	tform func([]T) []T,
-	scopes ...[]T,
-) {
-	if s.Excludes == nil {
-		s.Excludes = []scope{}
+// appendScopes iterates through each scope in the list of scope slices,
+// calling setDefaults() to ensure it is completely populated, and appends
+// those scopes to the `to` slice.
+func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
+	if len(to) == 0 {
+		to = []scope{}
 	}
-	concat := []T{}
 	for _, scopeSl := range scopes {
-		concat = append(concat, tform(scopeSl)...)
+		for _, s := range scopeSl {
+			s.setDefaults()
+			to = append(to, scope(s))
+		}
 	}
-	for _, sc := range concat {
-		s.Excludes = append(s.Excludes, scope(sc))
-	}
+	return to
 }
 
-func appendFilters[T baseScope](
-	s *Selector,
-	tform func([]T) []T,
-	scopes ...[]T,
-) {
-	if s.Filters == nil {
-		s.Filters = []scope{}
+// scopes retrieves the list of scopes in the selector.
+// future TODO: if Inclues is nil, return filters.
+func (s *Selector) scopes() []scope {
+	scopes := []scope{}
+	for _, v := range s.Includes {
+		scopes = append(scopes, v)
 	}
-	concat := []T{}
-	for _, scopeSl := range scopes {
-		concat = append(concat, tform(scopeSl)...)
-	}
-	for _, sc := range concat {
-		s.Filters = append(s.Filters, scope(sc))
-	}
-}
-
-func appendIncludes[T baseScope](
-	s *Selector,
-	tform func([]T) []T,
-	scopes ...[]T,
-) {
-	if s.Includes == nil {
-		s.Includes = []scope{}
-	}
-	concat := []T{}
-	for _, scopeSl := range scopes {
-		concat = append(concat, tform(scopeSl)...)
-	}
-	for _, sc := range concat {
-		s.Includes = append(s.Includes, scope(sc))
-	}
-}
-
-// contains returns true if the provided scope is Any(), or contains the
-// target string.
-func contains(sc scope, key, target string) bool {
-	compare := sc[key]
-	if len(compare) == 0 {
-		return false
-	}
-	if compare == NoneTgt {
-		return false
-	}
-	if compare == AnyTgt {
-		return true
-	}
-	return strings.Contains(compare, target)
+	return scopes
 }
 
 // ---------------------------------------------------------------------------
