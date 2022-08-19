@@ -116,6 +116,9 @@ func contains[T scopeT](s T, cat categorizer, target string) bool {
 	if !s.categorizer().includesType(cat) {
 		return false
 	}
+	if len(target) == 0 {
+		return false
+	}
 	compare := s[cat.String()]
 	if len(compare) == 0 {
 		return false
