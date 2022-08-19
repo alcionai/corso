@@ -18,6 +18,9 @@ var AWSStorageCredEnvs = []string{
 // NewPrefixedS3Storage returns a storage.Storage object initialized with environment
 // variables used for integration tests that use S3. The prefix for the storage
 // path will be unique.
+// Uses t.TempDir() to generate a unique config storage and caching directory for this
+// test.  Suites that need to identify this value can retrieve it again from the common
+// configs.
 func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	now := LogTimeOfTest(t)
 	cfg, err := readTestConfig()
@@ -31,7 +34,8 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 			Prefix: t.Name() + "-" + now,
 		},
 		storage.CommonConfig{
-			Corso: credentials.GetCorso(),
+			Corso:       credentials.GetCorso(),
+			KopiaCfgDir: t.TempDir(),
 		},
 	)
 	require.NoError(t, err, "creating storage")

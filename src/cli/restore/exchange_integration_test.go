@@ -2,7 +2,6 @@ package restore_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -19,7 +18,7 @@ import (
 	"github.com/alcionai/corso/pkg/storage"
 )
 
-type BackupExchangeIntegrationSuite struct {
+type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -30,26 +29,26 @@ type BackupExchangeIntegrationSuite struct {
 	backupOp   operations.BackupOperation
 }
 
-func TestBackupExchangeIntegrationSuite(t *testing.T) {
+func TestRestoreExchangeIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
+		tester.CorsoCLIRestoreTests,
 	); err != nil {
 		t.Skip(err)
 	}
-	suite.Run(t, new(BackupExchangeIntegrationSuite))
+	suite.Run(t, new(RestoreExchangeIntegrationSuite))
 }
 
-func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
+func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
+		tester.M365AcctCredEnvs,
+	)
 	require.NoError(t, err)
 
 	// aggregate required details
-
 	suite.acct = tester.NewM365Account(t)
 	suite.st = tester.NewPrefixedS3Storage(t)
 
@@ -73,19 +72,16 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 
 	// restoration requires an existing backup
 	sel := selectors.NewExchangeBackup()
-	// TODO: only backup the inbox
-	sel.Include(sel.Users([]string{suite.m365UserID}))
+	sel.Include(sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"}))
 	suite.backupOp, err = suite.repo.NewBackup(
 		ctx,
 		sel.Selector,
 		control.NewOptions(false))
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
-
-	time.Sleep(3 * time.Second)
 }
 
-func (suite *BackupExchangeIntegrationSuite) TestExchangeRestoreCmd() {
+func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	t := suite.T()
 

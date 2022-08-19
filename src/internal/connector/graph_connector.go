@@ -21,7 +21,6 @@ import (
 	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -299,7 +298,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	go func(cos *support.ConnectorOperationStatus) {
 		gc.statusCh <- cos
 	}(status)
-	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 	return errs
 }
 

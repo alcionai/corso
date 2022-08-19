@@ -452,9 +452,10 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 }
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
+	t := suite.T()
 	suite.ctx = context.Background()
-	c, err := openKopiaRepo(suite.T(), suite.ctx)
-	require.NoError(suite.T(), err)
+	c, err := openKopiaRepo(t, suite.ctx)
+	require.NoError(t, err)
 	suite.w = &Wrapper{c}
 }
 
