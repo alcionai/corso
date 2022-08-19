@@ -27,6 +27,13 @@ type GraphConnectorIntegrationSuite struct {
 	user      string
 }
 
+func loadConnector(t *testing.T) *GraphConnector {
+	a := tester.NewM365Account(t)
+	connector, err := NewGraphConnector(a)
+	require.NoError(t, err)
+	return connector
+}
+
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
@@ -44,12 +51,8 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
-
-	a := tester.NewM365Account(suite.T())
-
-	suite.connector, err = NewGraphConnector(a)
-	suite.NoError(err)
-	suite.user = "lidiah@8qzvrj.onmicrosoft.com"
+	suite.connector = loadConnector(suite.T())
+	suite.user = tester.M365UserID(suite.T())
 	tester.LogTimeOfTest(suite.T())
 }
 
@@ -78,14 +81,15 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 // for the Exchange Package. Enabled exchange applications:
 // - mail
 func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
-	userID := tester.M365UserID(suite.T())
+	t := suite.T()
+	connector := loadConnector(t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{userID}))
-	collectionList, err := suite.connector.ExchangeDataCollection(context.Background(), sel.Selector)
-	assert.NotNil(suite.T(), collectionList, "collection list")
-	assert.Nil(suite.T(), err)
-	assert.True(suite.T(), suite.connector.awaitingMessages > 0)
-	assert.Nil(suite.T(), suite.connector.status)
+	sel.Include(sel.Users([]string{suite.user}))
+	collectionList, err := connector.ExchangeDataCollection(context.Background(), sel.Selector)
+	assert.NotNil(t, collectionList, "collection list")
+	assert.Nil(t, err)
+	assert.True(t, connector.awaitingMessages > 0)
+	assert.Nil(t, connector.status)
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
 	channel := collectionList[0].Items()
 	for object := range channel {
@@ -93,9 +97,8 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 		_, err := buf.ReadFrom(object.ToReader())
 		assert.Nil(suite.T(), err, "received a buf.Read error")
 	}
-	status := suite.connector.AwaitStatus()
-	assert.NotNil(suite.T(), status, "status not blocking on async call")
-
+	status := connector.AwaitStatus()
+	assert.NotNil(t, status, "status not blocking on async call")
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
@@ -105,21 +108,15 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 // M365 mail objects
 func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	t := suite.T()
-	user := tester.M365UserID(suite.T())
+	connector := loadConnector(t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{user}))
+	sel.Include(sel.MailFolders([]string{suite.user}, []string{selectors.AnyTgt}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
-	var mailScope selectors.ExchangeScope
-	all := eb.Scopes()
-	for _, scope := range all {
-		fmt.Printf("%v\n", scope)
-		if scope.IncludesCategory(selectors.ExchangeMail) {
-			mailScope = scope
-		}
-	}
-
-	collection, err := suite.connector.createCollections(context.Background(), mailScope)
+	scopes := eb.Scopes()
+	suite.Equal(1, len(scopes))
+	mailScope := scopes[0]
+	collection, err := connector.createCollections(context.Background(), mailScope)
 	require.NoError(t, err)
 	for _, edc := range collection {
 		testName := strings.Join(edc.FullPath(), " ")
@@ -134,30 +131,29 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
 				suite.NotNil(message)
 				suite.NoError(err)
-
 			}
 		})
 	}
+	status := connector.AwaitStatus()
+	suite.NotNil(status)
+	suite.Equal(status.ObjectCount, status.Successful)
 }
 
-// TestContactBackupSequence verifies ability to query contact items
+// TestContactSerializationRegression verifies ability to query contact items
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
-func (suite *GraphConnectorIntegrationSuite) TestContactBackupSequence() {
-	userID := tester.M365UserID(suite.T())
+func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression() {
+	t := suite.T()
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{userID}))
+	sel.Include(sel.ContactFolders([]string{suite.user}, []string{selectors.AnyTgt}))
 	eb, err := sel.ToExchangeBackup()
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 	scopes := eb.Scopes()
-	var contactsOnly selectors.ExchangeScope
-	for _, scope := range scopes {
-		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
-			contactsOnly = scope
-		}
-	}
-	collections, err := suite.connector.createCollections(context.Background(), contactsOnly)
-	assert.NoError(suite.T(), err)
+	connector := loadConnector(t)
+	suite.Equal(1, len(scopes))
+	contactsOnly := scopes[0]
+	collections, err := connector.createCollections(context.Background(), contactsOnly)
+	assert.NoError(t, err)
 	number := 0
 	for _, edc := range collections {
 		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath()[1], number)
@@ -176,7 +172,41 @@ func (suite *GraphConnectorIntegrationSuite) TestContactBackupSequence() {
 			number++
 		})
 	}
-	suite.Greater(len(collections), 0)
+	status := connector.AwaitStatus()
+	suite.NotNil(status)
+	suite.Equal(status.ObjectCount, status.Successful)
+}
+
+// TestEventsSerializationRegression ensures functionality of createCollections
+// to be able to successfully query, download and restore event objects
+func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression() {
+	t := suite.T()
+	connector := loadConnector(t)
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.Events([]string{suite.user}, []string{selectors.AnyTgt}))
+	scopes := sel.Scopes()
+	suite.Equal(len(scopes), 1)
+	collections, err := connector.createCollections(context.Background(), scopes[0])
+	require.NoError(t, err)
+	for _, edc := range collections {
+		streamChannel := edc.Items()
+		number := 0
+		for stream := range streamChannel {
+			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath()[2], number)
+			suite.T().Run(testName, func(t *testing.T) {
+				buf := &bytes.Buffer{}
+				read, err := buf.ReadFrom(stream.ToReader())
+				suite.NoError(err)
+				suite.NotZero(read)
+				event, err := support.CreateEventFromBytes(buf.Bytes())
+				assert.NotNil(t, event)
+				assert.NoError(t, err)
+			})
+		}
+	}
+	status := connector.AwaitStatus()
+	suite.NotNil(status)
+	suite.Equal(status.ObjectCount, status.Successful)
 }
 
 // TestRestoreMessages uses mock data to ensure GraphConnector
@@ -219,35 +249,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 					number++
 				})
 			}
-		}
-	}
-}
-
-// TestEventsBackupSequence ensures functionality of createCollections
-// to be able to successfully query, download and restore event objects
-func (suite *GraphConnectorIntegrationSuite) TestEventsBackupSequence() {
-	t := suite.T()
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Events([]string{suite.user}, []string{selectors.AnyTgt}))
-	scopes := sel.Scopes()
-	assert.Greater(t, len(scopes), 0)
-	collections, err := suite.connector.createCollections(context.Background(), scopes[0])
-	require.NoError(t, err)
-	suite.Greater(len(collections), 0)
-	for _, edc := range collections {
-		streamChannel := edc.Items()
-		number := 0
-		for stream := range streamChannel {
-			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath()[1], number)
-			suite.T().Run(testName, func(t *testing.T) {
-				buf := &bytes.Buffer{}
-				read, err := buf.ReadFrom(stream.ToReader())
-				suite.NoError(err)
-				suite.NotZero(read)
-				event, err := support.CreateEventFromBytes(buf.Bytes())
-				assert.NotNil(t, event)
-				assert.NoError(t, err)
-			})
 		}
 	}
 }
