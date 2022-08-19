@@ -18,7 +18,7 @@ import (
 	"github.com/alcionai/corso/pkg/storage"
 )
 
-type BackupExchangeIntegrationSuite struct {
+type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -29,18 +29,18 @@ type BackupExchangeIntegrationSuite struct {
 	backupOp   operations.BackupOperation
 }
 
-func TestBackupExchangeIntegrationSuite(t *testing.T) {
+func TestRestoreExchangeIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
+		tester.CorsoCLIRestoreTests,
 	); err != nil {
 		t.Skip(err)
 	}
-	suite.Run(t, new(BackupExchangeIntegrationSuite))
+	suite.Run(t, new(RestoreExchangeIntegrationSuite))
 }
 
-func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
+func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
@@ -81,7 +81,7 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupExchangeIntegrationSuite) TestExchangeRestoreCmd() {
+func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	t := suite.T()
 
