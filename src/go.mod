@@ -9,11 +9,11 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.11.1
-	github.com/microsoft/kiota-abstractions-go v0.8.1
+	github.com/microsoft/kiota-abstractions-go v0.8.2
 	github.com/microsoft/kiota-authentication-azure-go v0.3.0
 	github.com/microsoft/kiota-serialization-json-go v0.5.5
-	github.com/microsoftgraph/msgraph-sdk-go v0.28.0
-	github.com/microsoftgraph/msgraph-sdk-go-core v0.26.1
+	github.com/microsoftgraph/msgraph-sdk-go v0.34.0
+	github.com/microsoftgraph/msgraph-sdk-go-core v0.27.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
@@ -46,7 +46,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chmduquesne/rollinghash v4.0.0+incompatible // indirect
-	github.com/cjlapao/common-go v0.0.22 // indirect
+	github.com/cjlapao/common-go v0.0.25 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
@@ -68,7 +68,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/microsoft/kiota-http-go v0.5.2 // indirect
+	github.com/microsoft/kiota-http-go v0.6.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v0.4.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.34 // indirect
