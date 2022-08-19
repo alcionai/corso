@@ -387,7 +387,7 @@ func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
 // ---------------------------------------------------------------------------
 
 // exchangeCategory enumerates the type of the lowest level
-// of data () in a scope.
+// of data specified by the scope.
 type exchangeCategory int
 
 // interface compliance checks
@@ -439,7 +439,7 @@ func exchangeCatAtoI(s string) exchangeCategory {
 	}
 }
 
-// exchangePathTypes describes the category type keys used in Exchange paths.
+// exchangePathSet describes the category type keys used in Exchange paths.
 // The order of each slice is important, and should match the order in which
 // these types appear in the canonical Path for each type.
 var categoryPathSet = map[categorizer][]categorizer{
@@ -534,7 +534,7 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	return m
 }
 
-// paths returns a map of the path types, keyed by their leaf type,
+// pathKeys returns a map of the path types, keyed by their leaf type,
 func (ec exchangeCategory) pathKeys() []categorizer {
 	return categoryPathSet[ec.leafType()]
 }
