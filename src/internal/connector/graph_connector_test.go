@@ -96,8 +96,8 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
 	for _, collection := range collectionList {
 		temp := collection.Items()
-		test_name := collection.FullPath()[2]
-		streams[test_name] = temp
+		testName := collection.FullPath()[2]
+		streams[testName] = temp
 	}
 
 	for i := 0; i < int(connector.awaitingMessages); i++ {
@@ -105,7 +105,6 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 		if status != nil {
 			suite.T().Logf("Status: " + status.String())
 		}
-		//assert.NotNil(suite.T(), status, "status not blocking on async call")
 	}
 
 	for name, channel := range streams {
