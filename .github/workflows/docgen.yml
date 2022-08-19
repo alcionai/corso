@@ -1,11 +1,15 @@
 name: Document Generation
 on:
-  pull_request:
+  push:
     branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  deployments: write
 
 jobs:
   Generate-Markdown:
-    environment: Testing
     runs-on: ubuntu-latest
     steps:
 
@@ -13,7 +17,8 @@ jobs:
       - name: Repo Code Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          # persist-credentials: false
 
       # Get values for cache paths to be used in later steps
       - id: go-cache-paths
@@ -55,26 +60,32 @@ jobs:
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
 
-      # make a commit for any file changes
-      # - name: Commit the Auto-Generated Files
-      #   uses: stefanzweifel/git-auto-commit-action@v4
-      #   with:
-      #     branch: docs_autogen
-      #     create_branch: true
-      #     commit_message: Documentation Auto-generation
-      #     commit_user_name: github-actions[bot]
-      #     commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
-      #     commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-
-      # make a new PR for the changes
-      - name: Make a New PR With the Auto-Generated Docs
-        uses: EndBug/add-and-commit@v9
+      # make a PR for the docs_autogen branch
+      - name: Make a PR For the `docs_autogen` Branch
+        uses: peter-evans/create-pull-request@v4
         with:
-          # pull: '--rebase'
-          new_branch: docs_autogen
-          push: 'origin docs_autogen --set-upstream --force'
-          message: 'Documentation Auto-generation'
-          committer_name: github-actions[bot]
-          committer_email: 41898282+github-actions[bot]@users.noreply.github.com
-          default_author: github_actor
+          commit-message: "Documentation Auto-Generation"
+          branch: docs_autogen
+          delete-branch: true
+          base: main
+          title: "Docs Auto-Generation"
 
+      # make sure it gets approved
+      - name: Auto approve
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        uses: juliangruber/approve-pull-request-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          number: ${{ steps.cpr.outputs.pull-request-number }}
+
+      # for the future, if we create a PAT
+      # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
+      # # make the PR auto-merge
+      # - name: Enable Pull Request Automerge
+      #   if: steps.cpr.outputs.pull-request-operation == 'created'
+      #   uses: peter-evans/enable-pull-request-automerge@v2
+      #   with:
+      #     token: ${{ secrets.PAT }}
+      #     pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+      #     merge-method: squash

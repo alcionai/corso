@@ -128,6 +128,8 @@ type ExchangeInfo struct {
 	Sender      string    `json:"sender,omitempty"`
 	Subject     string    `json:"subject,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
+	EventStart  time.Time `json:"eventStart,omitempty"`
+	Organizer   string    `json:"organizer,omitempty"`
 	ContactName string    `json:"contactName,omitempty"`
 }
 
