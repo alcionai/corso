@@ -86,6 +86,7 @@ jobs:
           base: main
           title: "Docs Auto-Generation"
 
+      # make sure it gets approved
       - name: Auto approve
         if: steps.cpr.outputs.pull-request-operation == 'created'
         uses: juliangruber/approve-pull-request-action@v1
