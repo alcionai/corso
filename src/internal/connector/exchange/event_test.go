@@ -67,11 +67,11 @@ func (suite *EventSuite) TestEventInfo() {
 				event, err := support.CreateEventFromBytes(bytes)
 				require.NoError(suite.T(), err)
 				subject := " Test MockReview + Lunch"
-				sender := "foobar3@8qzvrj.onmicrosoft.com"
+				organizer := "foobar3@8qzvrj.onmicrosoft.com"
 				eventTime := time.Date(2022, time.April, 28, 3, 41, 58, 0, time.UTC)
 				return event, &details.ExchangeInfo{
 					Subject:    subject,
-					Sender:     sender,
+					Organizer:  organizer,
 					EventStart: eventTime,
 				}
 			},
