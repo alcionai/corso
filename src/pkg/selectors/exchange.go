@@ -419,7 +419,7 @@ func exchangeCatAtoI(s string) exchangeCategory {
 	}
 }
 
-// exchangePathTypes describes the category type keys used in Exchange paths.
+// exchangePathSet describes the category type keys used in Exchange paths.
 // The order of each slice is important, and should match the order in which
 // these types appear in the canonical Path for each type.
 var categoryPathSet = map[categorizer][]categorizer{
@@ -480,7 +480,7 @@ func (ec exchangeCategory) includesType(cat categorizer) bool {
 // => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) == 0 {
+	if len(path) > 4 {
 		return m
 	}
 	m[ExchangeUser] = path[1]
@@ -514,7 +514,7 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	return m
 }
 
-// pathKeys returns the path keys recognized by the receiver's leaf type,
+// pathKeys returns the path keys recognized by the receiver's leaf type.
 func (ec exchangeCategory) pathKeys() []categorizer {
 	return categoryPathSet[ec.leafType()]
 }
