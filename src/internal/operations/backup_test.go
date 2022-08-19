@@ -124,6 +124,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	}
 }
 
+// TestBackup_Run ensures that Integration Testing works
+// for the following scopes: Contacts, Events, and Mail
 func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	t := suite.T()
 	ctx := context.Background()
@@ -131,44 +133,78 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	m365UserID := tester.M365UserID(t)
 	acct := tester.NewM365Account(t)
 
-	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	tests := []struct {
+		name       string
+		selectFunc func() *selectors.ExchangeBackup
+	}{
+		{
+			name: "Integration Exchange.Mail",
+			selectFunc: func() *selectors.ExchangeBackup {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{m365UserID}, []string{selectors.AnyTgt}))
+				return sel
+			},
+		},
 
-	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
+		{
+			name: "Integration Exchange.Contacts",
+			selectFunc: func() *selectors.ExchangeBackup {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.ContactFolders([]string{m365UserID}, []string{selectors.AnyTgt}))
+				return sel
+			},
+		},
+		{
+			name: "Integration Exchange.Events",
+			selectFunc: func() *selectors.ExchangeBackup {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.Events([]string{m365UserID}, []string{selectors.AnyTgt}))
+				return sel
+			},
+		},
+	}
 
-	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
-	// to close here.
-	defer k.Close(ctx)
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			// need to initialize the repository before we can test connecting to it.
+			st := tester.NewPrefixedS3Storage(t)
+			k := kopia.NewConn(st)
+			require.NoError(t, k.Initialize(ctx))
 
-	kw, err := kopia.NewWrapper(k)
-	require.NoError(t, err)
-	defer kw.Close(ctx)
+			// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
+			// to close here.
+			defer k.Close(ctx)
 
-	ms, err := kopia.NewModelStore(k)
-	require.NoError(t, err)
-	defer ms.Close(ctx)
+			kw, err := kopia.NewWrapper(k)
+			require.NoError(t, err)
+			defer kw.Close(ctx)
 
-	sw := store.NewKopiaStore(ms)
+			ms, err := kopia.NewModelStore(k)
+			require.NoError(t, err)
+			defer ms.Close(ctx)
 
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{m365UserID}))
+			sw := store.NewKopiaStore(ms)
+			selected := test.selectFunc()
+			bo, err := NewBackupOperation(
+				ctx,
+				control.Options{},
+				kw,
+				sw,
+				acct,
+				selected.Selector,
+			)
+			require.NoError(t, err)
 
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Options{},
-		kw,
-		sw,
-		acct,
-		sel.Selector)
-	require.NoError(t, err)
+			require.NoError(t, bo.Run(ctx))
+			require.NotEmpty(t, bo.Results)
+			require.NotEmpty(t, bo.Results.BackupID)
+			assert.Equal(t, bo.Status, Completed)
+			assert.Greater(t, bo.Results.ItemsRead, 0)
+			assert.Greater(t, bo.Results.ItemsWritten, 0)
+			assert.Zero(t, bo.Results.ReadErrors)
+			assert.Zero(t, bo.Results.WriteErrors)
 
-	require.NoError(t, bo.Run(ctx))
-	require.NotEmpty(t, bo.Results)
-	require.NotEmpty(t, bo.Results.BackupID)
-	assert.Equal(t, bo.Status, Completed)
-	assert.Greater(t, bo.Results.ItemsRead, 0)
-	assert.Greater(t, bo.Results.ItemsWritten, 0)
-	assert.Zero(t, bo.Results.ReadErrors)
-	assert.Zero(t, bo.Results.WriteErrors)
+		})
+	}
+
 }
