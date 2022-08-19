@@ -109,10 +109,11 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 
 // ExchangeData represents a single item retrieved from exchange
 type MockExchangeData struct {
-	ID      string
-	Reader  io.ReadCloser
-	ReadErr error
-	size    int64
+	ID           string
+	Reader       io.ReadCloser
+	ReadErr      error
+	size         int64
+	ModifiedTime time.Time
 }
 
 func (med *MockExchangeData) UUID() string {
@@ -139,6 +140,10 @@ func (med *MockExchangeData) Info() details.ItemInfo {
 
 func (med *MockExchangeData) Size() int64 {
 	return med.size
+}
+
+func (med *MockExchangeData) ModTime() time.Time {
+	return med.ModifiedTime
 }
 
 type errReader struct {

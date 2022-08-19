@@ -7,6 +7,7 @@ import (
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/hashicorp/go-multierror"
@@ -340,8 +341,14 @@ func getStreamItemFunc(
 				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
-				entry := virtualfs.StreamingFileFromReader(
+				modTime := time.Now()
+				if smt, ok := e.(data.StreamModTime); ok {
+					modTime = smt.ModTime()
+				}
+
+				entry := virtualfs.StreamingFileWithModTimeFromReader(
 					encodeAsPath(e.UUID()),
+					modTime,
 					&backupStreamReader{
 						version:    serializationVersion,
 						ReadCloser: e.ToReader(),
