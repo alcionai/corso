@@ -167,12 +167,12 @@ func (c onedriveCategory) leafCat() categorizer {
 }
 
 // rootCat returns the root category type.
-func (ec onedriveCategory) rootCat() categorizer {
+func (c onedriveCategory) rootCat() categorizer {
 	return OneDriveUser
 }
 
 // unknownCat returns the unknown category type.
-func (ec onedriveCategory) unknownCat() categorizer {
+func (c onedriveCategory) unknownCat() categorizer {
 	return OneDriveCategoryUnknown
 }
 
