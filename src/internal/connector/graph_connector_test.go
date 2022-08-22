@@ -99,7 +99,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	}
 
 	for i := 0; i < int(connector.awaitingMessages); i++ {
-		status := suite.connector.AwaitStatus()
+		status := connector.AwaitStatus()
 		assert.NotNil(t, status)
 	}
 
