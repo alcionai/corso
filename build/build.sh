@@ -11,7 +11,18 @@ CORSO_BUILD_CONTAINER_DIR=/go/src/github.com/alcionai/corso
 CORSO_BUILD_CONTAINER_SRC_DIR=${CORSO_BUILD_CONTAINER_DIR}/src
 
 GOOS=linux
-GOARCH=arm64
+GOARCH=amd64
+
+while [ "$#" -gt 0 ]
+do
+  case "$1" in
+  --arch)
+    GOARCH=$2
+    shift
+    ;;
+  esac
+  shift
+done
 
 # temporary directory for caching go build
 mkdir -p /tmp/.corsobuild/cache
@@ -33,7 +44,7 @@ docker run --rm --mount type=bind,src=${SRC_DIR},dst=${CORSO_BUILD_CONTAINER_DIR
        build ${CORSO_BUILD_ARGS}
 
 mkdir -p ${PROJECT_ROOT}/bin
-unset -x
+set +x
 
 echo "creating binary image in bin/corso"
 mv ${PROJECT_ROOT}/src/corso ${PROJECT_ROOT}/bin/corso

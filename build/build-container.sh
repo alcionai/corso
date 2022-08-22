@@ -43,7 +43,7 @@ do
   *)
     echo "Invalid option '$1'. Use -h|--help to see the valid options" >&2
     return 1
-  ;;
+    ;;
   esac
   shift
 done
@@ -51,7 +51,7 @@ done
 IMAGE_TAG=${OS}-${ARCH}-$(git describe --tags --always --dirty)
 IMAGE_NAME=alcionai/corso:${IMAGE_TAG}
 
-${SCRIPT_ROOT}/build.sh
+${SCRIPT_ROOT}/build.sh --arch ${ARCH}
 
 echo "building container"
 set -x
@@ -59,5 +59,5 @@ docker buildx build --tag ${IMAGE_NAME}     \
   --platform ${OS}/${ARCH}                  \
   --file ${PROJECT_ROOT}/docker/Dockerfile  \
   ${PROJECT_ROOT}
-unset -x
+set +x
 echo "container built successfully ${IMAGE_NAME}"
