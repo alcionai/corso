@@ -131,8 +131,8 @@ func makeScope[T scopeT](
 	return s
 }
 
-// makeScope produces a well formatted, typed scope, with properties specifically oriented towards
-// identifying filter-type scopes, that ensures all base values are populated.
+// makeFilterScope produces a well formatted, typed scope, with properties specifically oriented
+// towards identifying filter-type scopes, that ensures all base values are populated.
 func makeFilterScope[T scopeT](
 	cat, filterCat categorizer,
 	vs []string,
