@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -79,6 +80,13 @@ func configureStorage(
 	}
 	cCfg := storage.CommonConfig{
 		Corso: corso,
+	}
+	// the following is a hack purely for integration testing.
+	// the value is not required, and if empty, kopia will default
+	// to its routine behavior
+	if vpr.Get("corso-testing") == true {
+		dir, _ := filepath.Split(vpr.ConfigFileUsed())
+		cCfg.KopiaCfgDir = dir
 	}
 
 	// ensure required properties are present

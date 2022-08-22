@@ -32,7 +32,7 @@ const (
 var configFilePath string
 
 // adds the persistent flag --config-file to the provided command.
-func AddConfigFileFlag(cmd *cobra.Command) {
+func AddConfigFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

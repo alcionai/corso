@@ -143,6 +143,7 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 	vpr.AddConfigPath(tDir)
 	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
 	vpr.SetConfigName(strings.TrimSuffix(fName, ext))
+	vpr.Set("corso-testing", true)
 
 	for k, v := range cfg {
 		vpr.Set(k, v)
