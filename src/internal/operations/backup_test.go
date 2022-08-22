@@ -141,7 +141,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			name: "Integration Exchange.Mail",
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{m365UserID}, selectors.Any()))
+				sel.Include(sel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
 				return &sel.Selector
 			},
 		},
