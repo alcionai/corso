@@ -13,7 +13,6 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/internal/connector/exchange"
@@ -117,14 +116,7 @@ func (gs *graphService) EnableFailFast() {
 // workspace. The users field is updated during this method
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers() error {
-	selecting := []string{"id, mail"}
-	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParams,
-	}
-	response, err := gc.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
+	response, err := exchange.GetAllUsersForTenant(gc.graphService, "")
 	if err != nil {
 		return errors.Wrapf(
 			err,
@@ -152,9 +144,20 @@ func (gc *GraphConnector) setTenantUsers() error {
 			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
-		gc.Users[*user.GetMail()] = *user.GetId()
+		if user.GetUserPrincipalName() == nil {
+			err = support.WrapAndAppend(
+				gc.graphService.adapter.GetBaseUrl(),
+				fmt.Errorf("no email address for User: %s", *user.GetId()),
+				err,
+			)
+			return true
+		}
+
+		// *user.GetId() is populated for every M365 entityable object by M365 backstore
+		gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
 		return true
 	}
+
 	iterateError = userIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
