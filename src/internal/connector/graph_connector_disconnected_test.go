@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,8 +13,10 @@ import (
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // ---------------------------------------------------------------
@@ -24,6 +27,7 @@ type DisconnectedGraphConnectorSuite struct {
 }
 
 func TestDisconnectedGraphSuite(t *testing.T) {
+	tester.LogTimeOfTest(t)
 	suite.Run(t, new(DisconnectedGraphConnectorSuite))
 }
 
@@ -161,6 +165,70 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 			test.returnRecoverable(suite.T(), recoverable, "Test: %s Recoverable-received %v", test.name, recoverable)
 			test.returnNonRecoverable(suite.T(), nonRecoverable, "Test: %s non-recoverable: %v", test.name, nonRecoverable)
 			t.Logf("Is nil: %v", test.err == nil)
+		})
+	}
+}
+
+func (suite *DisconnectedGraphConnectorSuite) TestDigest() {
+	t := suite.T()
+
+	users := []string{"foobar2@something.com", "foobar@run.com"}
+	UserMap := make(map[string]string, 0)
+	for _, user := range users {
+		UserMap[user] = uuid.NewString()
+	}
+	gc := GraphConnector{
+		Users: UserMap,
+	}
+	tables := []struct {
+		name     string
+		input    func() selectors.Selector
+		expected int
+	}{
+		{
+			name: "Mail Only for One",
+			input: func() selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{users[0]}, []string{"Inbox"}))
+				return sel.Selector
+			},
+			expected: 1,
+		},
+		{
+			name: "Mail for 2 Selected",
+			input: func() selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders(users, []string{"Inbox"}))
+				return sel.Selector
+			},
+			expected: 2,
+		},
+		{
+			name: "One User: All Items",
+			input: func() selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.Users([]string{users[0]}))
+				return sel.Selector
+			},
+			expected: 3,
+		},
+		{
+			name: "Select All Option",
+			input: func() selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.Users(selectors.Any()))
+				return sel.Selector
+			},
+			expected: 6,
+		},
+	}
+	for _, test := range tables {
+		t.Run(test.name, func(t *testing.T) {
+			aSelect := test.input()
+			scopes, err := gc.DigestBackupSelector(aSelect)
+			require.NoError(t, err)
+			assert.Equal(t, len(scopes), test.expected)
+
 		})
 	}
 }
