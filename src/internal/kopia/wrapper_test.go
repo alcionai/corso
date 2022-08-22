@@ -98,32 +98,78 @@ func TestCorsoProgressUnitSuite(t *testing.T) {
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
-	t := suite.T()
-	deets := &itemDetails{details.ItemInfo{}, testFileName}
-	deets2 := &itemDetails{details.ItemInfo{}, testFileName3}
-	bd := &details.Details{}
-	cp := corsoProgress{
-		UploadProgress: &snapshotfs.NullUploadProgress{},
-		deets:          bd,
-		pending:        map[string]*itemDetails{},
+	type testInfo struct {
+		info *itemDetails
+		err  error
 	}
 
-	cp.put(testFileName, deets)
-	cp.put(testFileName2, nil)
-	cp.put(testFileName3, deets2)
-	require.Len(t, cp.pending, 3)
+	targetFileName := "testFile"
+	deets := &itemDetails{details.ItemInfo{}, targetFileName}
 
-	// Details exist.
-	cp.FinishedFile(testFileName, nil)
-	// No details but pending.
-	cp.FinishedFile(testFileName2, nil)
-	// Had error.
-	cp.FinishedFile(testFileName3, assert.AnError)
-	// Not pending.
-	cp.FinishedFile(testFileName4, nil)
+	table := []struct {
+		name        string
+		cachedItems map[string]testInfo
+		expectedLen int
+		err         error
+	}{
+		{
+			name: "DetailsExist",
+			cachedItems: map[string]testInfo{
+				targetFileName: {
+					info: deets,
+					err:  nil,
+				},
+			},
+			expectedLen: 1,
+		},
+		{
+			name: "PendingNoDetails",
+			cachedItems: map[string]testInfo{
+				targetFileName: {
+					info: nil,
+					err:  nil,
+				},
+			},
+			expectedLen: 0,
+		},
+		{
+			name: "HadError",
+			cachedItems: map[string]testInfo{
+				targetFileName: {
+					info: deets,
+					err:  assert.AnError,
+				},
+			},
+			expectedLen: 0,
+		},
+		{
+			name:        "NotPending",
+			expectedLen: 0,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			bd := &details.Details{}
+			cp := corsoProgress{
+				UploadProgress: &snapshotfs.NullUploadProgress{},
+				deets:          bd,
+				pending:        map[string]*itemDetails{},
+			}
 
-	assert.Empty(t, cp.pending)
-	assert.Len(t, bd.Entries, 1)
+			for k, v := range test.cachedItems {
+				cp.put(k, v.info)
+			}
+
+			require.Len(t, cp.pending, len(test.cachedItems))
+
+			for k, v := range test.cachedItems {
+				cp.FinishedFile(k, v.err)
+			}
+
+			assert.Empty(t, cp.pending)
+			assert.Len(t, bd.Entries, test.expectedLen)
+		})
+	}
 }
 
 type KopiaUnitSuite struct {

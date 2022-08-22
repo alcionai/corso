@@ -63,7 +63,7 @@ type corsoProgress struct {
 	mu      sync.RWMutex
 }
 
-// Kopia interface function letting us hook into when it's done processing a
+// Kopia interface function used as a callback when kopia finishes processing a
 // file.
 func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// Pass the call through as well so we don't break expected functionality.
