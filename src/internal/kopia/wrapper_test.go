@@ -99,13 +99,13 @@ func TestCorsoProgressUnitSuite(t *testing.T) {
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	t := suite.T()
-	deets := &details{backup.ItemInfo{}, testFileName}
-	deets2 := &details{backup.ItemInfo{}, testFileName3}
-	bd := &backup.Details{}
+	deets := &itemDetails{details.ItemInfo{}, testFileName}
+	deets2 := &itemDetails{details.ItemInfo{}, testFileName3}
+	bd := &details.Details{}
 	cp := corsoProgress{
 		UploadProgress: &snapshotfs.NullUploadProgress{},
-		details:        bd,
-		pending:        map[string]*details{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
 	}
 
 	cp.put(testFileName, deets)
@@ -114,13 +114,13 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	require.Len(t, cp.pending, 3)
 
 	// Details exist.
-	cp.FinishedFile(testFileName, false)
+	cp.FinishedFile(testFileName, nil)
 	// No details but pending.
-	cp.FinishedFile(testFileName2, false)
+	cp.FinishedFile(testFileName2, nil)
 	// Had error.
-	cp.FinishedFile(testFileName3, true)
+	cp.FinishedFile(testFileName3, assert.AnError)
 	// Not pending.
-	cp.FinishedFile(testFileName4, false)
+	cp.FinishedFile(testFileName4, nil)
 
 	assert.Empty(t, cp.pending)
 	assert.Len(t, bd.Entries, 1)
@@ -155,7 +155,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
-	progress := &corsoProgress{pending: map[string]*details{}}
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
@@ -218,8 +218,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
-	snapshotDetails := &details.Details{}
-	progress := &corsoProgress{pending: map[string]*details{}}
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			[]string{emails},
@@ -282,9 +281,9 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			snapshotDetails := &details.Details{}
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, err := inflateDirTree(ctx, test.layout, snapshotDetails)
+			dirTree, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
 			assert.Equal(t, testTenant, dirTree.Name())
 
@@ -569,10 +568,10 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
-	collections := []connector.DataCollection{
+	collections := []data.Collection{
 		&kopiaDataCollection{
 			path: testPath,
-			streams: []connector.DataStream{
+			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
 					Reader: io.NopCloser(bytes.NewReader(testFileData)),
@@ -585,7 +584,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 		&kopiaDataCollection{
 			path: testPath2,
-			streams: []connector.DataStream{
+			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
 					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
@@ -608,10 +607,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
 	require.NoError(t, err)
-	assert.Equal(t, 1, stats.ErrorCount)
+
+	assert.Equal(t, 0, stats.ErrorCount)
 	assert.Equal(t, 5, stats.TotalFileCount)
 	assert.Equal(t, 5, stats.TotalDirectoryCount)
-	assert.Equal(t, 0, stats.IgnoredErrorCount)
+	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
 	assert.Len(t, rp.Entries, 5)
 }

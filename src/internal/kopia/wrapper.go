@@ -51,15 +51,15 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 	}
 }
 
-type details struct {
-	info    backup.ItemInfo
+type itemDetails struct {
+	info    details.ItemInfo
 	repoRef string
 }
 
 type corsoProgress struct {
 	snapshotfs.UploadProgress
-	pending map[string]*details
-	details *backup.Details
+	pending map[string]*itemDetails
+	deets   *details.Details
 	mu      sync.RWMutex
 }
 
@@ -86,17 +86,17 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	cp.details.Add(d.repoRef, d.info)
+	cp.deets.Add(d.repoRef, d.info)
 }
 
-func (cp *corsoProgress) put(k string, v *details) {
+func (cp *corsoProgress) put(k string, v *itemDetails) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 
 	cp.pending[k] = v
 }
 
-func (cp *corsoProgress) get(k string) *details {
+func (cp *corsoProgress) get(k string) *itemDetails {
 	cp.mu.RLock()
 	defer cp.mu.RUnlock()
 
@@ -158,25 +158,28 @@ func getStreamItemFunc(
 
 			case e, ok := <-items:
 				if !ok {
-					return nil
+					return errs.ErrorOrNil()
 				}
 
-				itemPath := path.Join(append(collection.FullPath(), e.UUID())...)
+				itemPath := path.Join(append(streamedEnts.FullPath(), e.UUID())...)
 
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
 					errs = multierror.Append(
 						errs, errors.Errorf("item %q does not implement DataStreamInfo", itemPath))
+
 					logger.Ctx(ctx).Errorw(
 						"item does not implement DataStreamInfo; skipping", "path", itemPath)
+
 					continue
 				}
 
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				p := path.Join(append(collection.FullPath()[1:], e.UUID())...)
-				d := &details{info: ei.Info(), repoRef: itemPath}
+				p := path.Join(append(streamedEnts.FullPath()[1:], e.UUID())...)
+				d := &itemDetails{info: ei.Info(), repoRef: itemPath}
+
 				progress.put(p, d)
 
 				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
@@ -188,8 +191,6 @@ func getStreamItemFunc(
 				}
 			}
 		}
-
-		return errs.ErrorOrNil()
 	}
 }
 
@@ -211,7 +212,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 
 	return virtualfs.NewStreamingDirectory(
 		dirName,
-		getStreamItemFunc(childDirs, dir.collection, snapshotDetails),
+		getStreamItemFunc(childDirs, dir.collection, progress),
 	), nil
 }
 
@@ -313,8 +314,8 @@ func (w Wrapper) BackupCollections(
 	}
 
 	progress := &corsoProgress{
-		pending: map[string]*details{},
-		details: &backup.Details{},
+		pending: map[string]*itemDetails{},
+		deets:   &details.Details{},
 	}
 
 	dirTree, err := inflateDirTree(ctx, collections, progress)
@@ -327,7 +328,7 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, err
 	}
 
-	return stats, progress.details, nil
+	return stats, progress.deets, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
@@ -354,7 +355,14 @@ func (w Wrapper) makeSnapshotWithRoot(
 				Path: root.Name(),
 			}
 
-			policyTree, err := policy.TreeForSource(innerCtx, w.c, si)
+			trueVal := policy.OptionalBool(true)
+			errPolicy := &policy.Policy{
+				ErrorHandlingPolicy: policy.ErrorHandlingPolicy{
+					IgnoreFileErrors:      &trueVal,
+					IgnoreDirectoryErrors: &trueVal,
+				},
+			}
+			policyTree, err := policy.TreeForSourceWithOverride(innerCtx, w.c, si, errPolicy)
 			if err != nil {
 				err = errors.Wrap(err, "get policy tree")
 				logger.Ctx(innerCtx).Errorw("kopia backup", err)
