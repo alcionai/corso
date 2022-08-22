@@ -135,31 +135,32 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 
 	tests := []struct {
 		name       string
-		selectFunc func() *selectors.ExchangeBackup
+		selectFunc func() *selectors.Selector
 	}{
 		{
 			name: "Integration Exchange.Mail",
-			selectFunc: func() *selectors.ExchangeBackup {
+			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.MailFolders([]string{m365UserID}, selectors.Any()))
-				return sel
+				return &sel.Selector
 			},
 		},
 
 		{
 			name: "Integration Exchange.Contacts",
-			selectFunc: func() *selectors.ExchangeBackup {
+			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.ContactFolders([]string{m365UserID}, selectors.Any()))
-				return sel
+				return &sel.Selector
 			},
 		},
 		{
 			name: "Integration Exchange.Events",
-			selectFunc: func() *selectors.ExchangeBackup {
+			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.Events([]string{m365UserID}, selectors.Any()))
-				return sel
+
+				return &sel.Selector
 			},
 		},
 	}
@@ -191,7 +192,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 				kw,
 				sw,
 				acct,
-				selected.Selector,
+				*selected,
 			)
 			require.NoError(t, err)
 
