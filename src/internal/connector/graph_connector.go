@@ -210,10 +210,6 @@ func (gc *GraphConnector) ExchangeDataCollection(
 
 	// for each scope that includes mail messages, get all
 	for _, scope := range scopes {
-		if !scope.IncludesCategory(selectors.ExchangeMail) {
-			continue
-		}
-
 		for _, user := range scope.Get(selectors.ExchangeUser) {
 			// TODO: handle "get mail for all users"
 			// this would probably no-op without this check,
@@ -359,8 +355,8 @@ func (gc *GraphConnector) createCollections(
 // AwaitStatus updates status field based on item within statusChannel.
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	if gc.awaitingMessages > 0 {
-		gc.status = <-gc.statusCh
 		atomic.AddInt32(&gc.awaitingMessages, -1)
+		gc.status = <-gc.statusCh
 	}
 	return gc.status
 }
