@@ -102,21 +102,6 @@ func (s *onedrive) Filter(scopes ...[]OneDriveScope) {
 	s.Filters = appendScopes(s.Filters, scopes...)
 }
 
-func makeOnedriveScope(granularity string, cat onedriveCategory, vs []string) OneDriveScope {
-	return OneDriveScope{
-		scopeKeyGranularity: granularity,
-		scopeKeyCategory:    cat.String(),
-		cat.String():        join(vs...),
-	}
-}
-
-func makeOnedriveUserScope(user, granularity string, cat onedriveCategory, vs []string) OneDriveScope {
-	s := makeOnedriveScope(granularity, cat, vs).set(OneDriveUser, user)
-	s[scopeKeyResource] = user
-	s[scopeKeyDataType] = cat.String() // TODO: use leafType() instead of base cat.
-	return s
-}
-
 // Produces one or more onedrive user scopes.
 // One scope is created per user entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -126,19 +111,14 @@ func (s *onedrive) Users(users []string) []OneDriveScope {
 	users = normalize(users)
 	scopes := []OneDriveScope{}
 	for _, u := range users {
-		scopes = append(scopes, makeOnedriveUserScope(u, Group, OneDriveUser, users))
+		scopes = append(scopes, makeScope[OneDriveScope](u, Group, OneDriveUser, users))
 	}
 	return scopes
 }
 
 // Scopes retrieves the list of onedriveScopes in the selector.
 func (s *onedrive) Scopes() []OneDriveScope {
-	scopes := s.scopes()
-	ss := make([]OneDriveScope, len(scopes))
-	for i := range scopes {
-		ss[i] = OneDriveScope(scopes[i])
-	}
-	return ss
+	return scopes[OneDriveScope](s.Selector)
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +130,7 @@ func (s *onedrive) Scopes() []OneDriveScope {
 type onedriveCategory int
 
 // interface compliance checks
-// var _ categorizer = OneDriveCategoryUnknown
+var _ categorizer = OneDriveCategoryUnknown
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type=onedriveCategory
 const (
@@ -177,37 +157,23 @@ var oneDrivePathSet = map[categorizer][]categorizer{
 	OneDriveUser: {OneDriveUser}, // the root category must be represented
 }
 
-// leafType returns the leaf category of the receiver.
+// leafCat returns the leaf category of the receiver.
 // If the receiver category has multiple leaves (ex: User) or no leaves,
 // (ex: Unknown), the receiver itself is returned.
-// Ex: ServiceTypeFolder.leafType() => ServiceTypeItem
-// Ex: ServiceUser.leafType() => ServiceUser
-func (c onedriveCategory) leafType() onedriveCategory {
+// Ex: ServiceTypeFolder.leafCat() => ServiceTypeItem
+// Ex: ServiceUser.leafCat() => ServiceUser
+func (c onedriveCategory) leafCat() categorizer {
 	return c
 }
 
-// isType checks if either the receiver is a supertype of the parameter,
-// or if the parameter is a supertype of the receiver.
-// if either value is an unknown types, the comparison is always false.
-// if either value is the root type (user), the comparison is always true.
-func (c onedriveCategory) isType(cat onedriveCategory) bool {
-	if cat == OneDriveCategoryUnknown || c == OneDriveCategoryUnknown {
-		return false
-	}
-	if cat == OneDriveUser || c == OneDriveUser {
-		return true
-	}
-	return c.leafType() == cat.leafType()
+// rootCat returns the root category type.
+func (ec onedriveCategory) rootCat() categorizer {
+	return OneDriveUser
 }
 
-// includesType returns true if it matches the isType check for
-// the receiver's service category.
-func (c onedriveCategory) includesType(cat categorizer) bool {
-	cc, ok := cat.(onedriveCategory)
-	if !ok {
-		return false
-	}
-	return c.isType(cc)
+// unknownCat returns the unknown category type.
+func (ec onedriveCategory) unknownCat() categorizer {
+	return OneDriveCategoryUnknown
 }
 
 // pathValues transforms a path to a map of identified properties.
@@ -239,7 +205,7 @@ func (c onedriveCategory) pathValues(path []string) map[categorizer]string {
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
 func (c onedriveCategory) pathKeys() []categorizer {
-	return oneDrivePathSet[c.leafType()]
+	return oneDrivePathSet[c.leafCat()]
 }
 
 // ---------------------------------------------------------------------------
@@ -281,7 +247,7 @@ func (s OneDriveScope) Granularity() string {
 // Ex: to check if the scope includes file data:
 // s.IncludesCategory(selector.OneDriveFile)
 func (s OneDriveScope) IncludesCategory(cat onedriveCategory) bool {
-	return s.Category().isType(cat)
+	return categoryMatches(s.Category(), cat)
 }
 
 // Contains returns true if the category is included in the scope's
@@ -321,7 +287,7 @@ func (s OneDriveScope) matchesEntry(
 	entry details.DetailsEntry,
 ) bool {
 	// matchesPathValues can be handled generically, thanks to SCIENCE.
-	return matchesPathValues(s, cat, pathValues) || s.matchesInfo(entry.Onedrive)
+	return matchesPathValues(s, cat.(onedriveCategory), pathValues) || s.matchesInfo(entry.Onedrive)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an onedriveInfo

@@ -17,8 +17,8 @@ const (
 
 var _ categorizer = unknownCatStub
 
-func (sc mockCategorizer) String() string {
-	switch sc {
+func (mc mockCategorizer) String() string {
+	switch mc {
 	case leafCatStub:
 		return "leaf"
 	case rootCatStub:
@@ -27,21 +27,23 @@ func (sc mockCategorizer) String() string {
 	return "unknown"
 }
 
-func (sc mockCategorizer) includesType(cat categorizer) bool {
-	switch sc {
-	case rootCatStub:
-		return cat == rootCatStub
-	case leafCatStub:
-		return true
-	}
-	return false
+func (mc mockCategorizer) leafCat() categorizer {
+	return mc
 }
 
-func (sc mockCategorizer) pathValues(path []string) map[categorizer]string {
+func (mc mockCategorizer) rootCat() categorizer {
+	return rootCatStub
+}
+
+func (mc mockCategorizer) unknownCat() categorizer {
+	return unknownCatStub
+}
+
+func (mc mockCategorizer) pathValues(path []string) map[categorizer]string {
 	return map[categorizer]string{rootCatStub: "stub"}
 }
 
-func (sc mockCategorizer) pathKeys() []categorizer {
+func (mc mockCategorizer) pathKeys() []categorizer {
 	return []categorizer{rootCatStub, leafCatStub}
 }
 

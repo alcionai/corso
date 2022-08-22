@@ -956,7 +956,7 @@ func (suite *ExchangeSourceSuite) TestIsAny() {
 	}
 }
 
-func (suite *ExchangeSourceSuite) TestExchangeCategory_LeafType() {
+func (suite *ExchangeSourceSuite) TestExchangeCategory_leafCat() {
 	table := []struct {
 		cat    exchangeCategory
 		expect exchangeCategory
@@ -971,69 +971,7 @@ func (suite *ExchangeSourceSuite) TestExchangeCategory_LeafType() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			assert.Equal(t, test.expect, test.cat.leafType(), test.cat.String())
-		})
-	}
-}
-
-func (suite *ExchangeSourceSuite) TestExchangeCategory_IsType() {
-	table := []struct {
-		cat    exchangeCategory
-		input  exchangeCategory
-		expect assert.BoolAssertionFunc
-	}{
-		// technically this should be false, but we're not reducing fabricated
-		// exchange category values to unknown. Since the type is unexported,
-		// that transformation would be unnecessary.
-		{exchangeCategory(-1), exchangeCategory(-1), assert.True},
-		{ExchangeCategoryUnknown, ExchangeCategoryUnknown, assert.False},
-		{ExchangeUser, ExchangeCategoryUnknown, assert.False},
-		{ExchangeCategoryUnknown, ExchangeUser, assert.False},
-		{ExchangeUser, ExchangeUser, assert.True},
-		{ExchangeMailFolder, ExchangeMail, assert.True},
-		{ExchangeMailFolder, ExchangeContact, assert.False},
-		{ExchangeContactFolder, ExchangeMail, assert.False},
-		{ExchangeMail, ExchangeMail, assert.True},
-		{ExchangeContactFolder, ExchangeContact, assert.True},
-		{ExchangeContactFolder, ExchangeEvent, assert.False},
-		{ExchangeEvent, ExchangeContact, assert.False},
-		{ExchangeEvent, ExchangeEvent, assert.True},
-	}
-	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			test.expect(t, test.cat.isType(test.input))
-		})
-	}
-}
-
-func (suite *ExchangeSourceSuite) TestExchangeCategory_IncludesType() {
-	table := []struct {
-		cat    categorizer
-		input  categorizer
-		expect assert.BoolAssertionFunc
-	}{
-		// technically this should be false, but we're not reducing fabricated
-		// exchange category values to unknown. Since the type is unexported,
-		// that transformation would be unnecessary.
-		{exchangeCategory(-1), exchangeCategory(-1), assert.True},
-		{ExchangeCategoryUnknown, ExchangeCategoryUnknown, assert.False},
-		{ExchangeUser, ExchangeCategoryUnknown, assert.False},
-		{ExchangeCategoryUnknown, ExchangeUser, assert.False},
-		{ExchangeUser, ExchangeUser, assert.True},
-		{ExchangeMailFolder, ExchangeMail, assert.True},
-		{ExchangeMailFolder, ExchangeContact, assert.False},
-		{ExchangeContactFolder, ExchangeMail, assert.False},
-		{ExchangeMail, ExchangeMail, assert.True},
-		{ExchangeContactFolder, ExchangeContact, assert.True},
-		{ExchangeContactFolder, ExchangeEvent, assert.False},
-		{ExchangeEvent, ExchangeContact, assert.False},
-		{ExchangeEvent, ExchangeEvent, assert.True},
-		{ExchangeUser, rootCatStub, assert.False},
-		{rootCatStub, ExchangeUser, assert.False},
-	}
-	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			test.expect(t, test.cat.includesType(test.input))
+			assert.Equal(t, test.expect, test.cat.leafCat(), test.cat.String())
 		})
 	}
 }
