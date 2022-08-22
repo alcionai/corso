@@ -228,7 +228,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestDigest() {
 			scopes, err := gc.DigestBackupSelector(aSelect)
 			require.NoError(t, err)
 			assert.Equal(t, len(scopes), test.expected)
-
 		})
 	}
 }
