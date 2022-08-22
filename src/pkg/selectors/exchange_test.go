@@ -529,7 +529,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesInfo() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			scopes := extendExchangeScopeValues(test.scope)
+			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {
 				test.expect(t, scope.matchesInfo(scope.Category(), info))
 			}
@@ -571,7 +571,7 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_MatchesPath() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			scopes := extendExchangeScopeValues(test.scope)
+			scopes := setScopesToDefault(test.scope)
 			var aMatch bool
 			for _, scope := range scopes {
 				if scope.matchesPath(ExchangeMail, path) {
@@ -833,11 +833,11 @@ func (suite *ExchangeSourceSuite) TestMatchExchangeEntry() {
 	)
 	var (
 		es        = NewExchangeRestore()
-		anyUser   = extendExchangeScopeValues(es.Users(Any()))
-		noUser    = extendExchangeScopeValues(es.Users(None()))
-		mail      = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{mid}))
-		otherMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
-		noMail    = extendExchangeScopeValues(es.Mails(Any(), Any(), None()))
+		anyUser   = setScopesToDefault(es.Users(Any()))
+		noUser    = setScopesToDefault(es.Users(None()))
+		mail      = setScopesToDefault(es.Mails(Any(), Any(), []string{mid}))
+		otherMail = setScopesToDefault(es.Mails(Any(), Any(), []string{"smarf"}))
+		noMail    = setScopesToDefault(es.Mails(Any(), Any(), None()))
 		path      = []string{"tid", "user", "mail", "folder", mid}
 	)
 
@@ -876,12 +876,12 @@ func (suite *ExchangeSourceSuite) TestContains() {
 	target := "fnords"
 	var (
 		es                  = NewExchangeRestore()
-		anyUser             = extendExchangeScopeValues(es.Users(Any()))
-		noMail              = extendExchangeScopeValues(es.Mails(None(), None(), None()))
-		does                = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{target}))
-		doesNot             = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"smarf"}))
-		wrongType           = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
-		wrongTypeGoodTarget = extendExchangeScopeValues(es.Contacts(Any(), Any(), Any()))
+		anyUser             = setScopesToDefault(es.Users(Any()))
+		noMail              = setScopesToDefault(es.Mails(None(), None(), None()))
+		does                = setScopesToDefault(es.Mails(Any(), Any(), []string{target}))
+		doesNot             = setScopesToDefault(es.Mails(Any(), Any(), []string{"smarf"}))
+		wrongType           = setScopesToDefault(es.Contacts(Any(), Any(), Any()))
+		wrongTypeGoodTarget = setScopesToDefault(es.Contacts(Any(), Any(), Any()))
 	)
 	table := []struct {
 		name   string
@@ -912,10 +912,10 @@ func (suite *ExchangeSourceSuite) TestContains() {
 func (suite *ExchangeSourceSuite) TestIsAny() {
 	var (
 		es           = NewExchangeRestore()
-		anyUser      = extendExchangeScopeValues(es.Users(Any()))
-		noUser       = extendExchangeScopeValues(es.Users(None()))
-		specificMail = extendExchangeScopeValues(es.Mails(Any(), Any(), []string{"mail"}))
-		anyMail      = extendExchangeScopeValues(es.Mails(Any(), Any(), Any()))
+		anyUser      = setScopesToDefault(es.Users(Any()))
+		noUser       = setScopesToDefault(es.Users(None()))
+		specificMail = setScopesToDefault(es.Mails(Any(), Any(), []string{"mail"}))
+		anyMail      = setScopesToDefault(es.Mails(Any(), Any(), Any()))
 	)
 	table := []struct {
 		name   string

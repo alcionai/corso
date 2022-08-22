@@ -8,15 +8,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func stubSelector() Selector {
-	return Selector{
-		Service:  ServiceExchange,
-		Excludes: []scope{scope(stubScope(""))},
-		Filters:  []scope{scope(stubScope(""))},
-		Includes: []scope{scope(stubScope(""))},
-	}
-}
-
 type SelectorSuite struct {
 	suite.Suite
 }
@@ -136,10 +127,12 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 
 func (suite *SelectorSuite) TestContains() {
 	t := suite.T()
-	key := unknownCatStub.String()
+	key := rootCatStub
 	target := "fnords"
-	does := scope{key: target}
-	doesNot := scope{key: "smarf"}
-	assert.True(t, contains(does, key, target))
-	assert.False(t, contains(doesNot, key, target))
+	does := stubScope("")
+	does[key.String()] = target
+	doesNot := stubScope("")
+	doesNot[key.String()] = "smarf"
+	assert.True(t, contains(does, key, target), "does contain")
+	assert.False(t, contains(doesNot, key, target), "does not contain")
 }

@@ -97,16 +97,16 @@ func (s *onedrive) Users(users []string) []OneDriveScope {
 }
 
 // nop-transform method
-func nopTransform(sl []OneDriveScope) []OneDriveScope { return sl }
+// func nopTransform(sl []OneDriveScope) []OneDriveScope { return sl }
 
 func (s *onedrive) Include(scopes ...[]OneDriveScope) {
-	appendIncludes(&s.Selector, nopTransform, scopes...)
+	// appendIncludes(&s.Selector, nopTransform, scopes...)
 }
 
 func (s *onedrive) Exclude(scopes ...[]OneDriveScope) {
-	appendExcludes(&s.Selector, nopTransform, scopes...)
+	// appendExcludes(&s.Selector, nopTransform, scopes...)
 }
 
 func (s *onedrive) Filter(scopes ...[]OneDriveScope) {
-	appendFilters(&s.Selector, nopTransform, scopes...)
+	// appendFilters(&s.Selector, nopTransform, scopes...)
 }
