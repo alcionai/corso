@@ -238,8 +238,8 @@ func (c onedriveCategory) pathValues(path []string) map[categorizer]string {
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
-func (ec onedriveCategory) pathKeys() []categorizer {
-	return oneDrivePathSet[ec.leafType()]
+func (c onedriveCategory) pathKeys() []categorizer {
+	return oneDrivePathSet[c.leafType()]
 }
 
 // ---------------------------------------------------------------------------
