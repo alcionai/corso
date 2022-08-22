@@ -480,7 +480,7 @@ func (ec exchangeCategory) includesType(cat categorizer) bool {
 // => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) < 4 {
+	if len(path) < 2 {
 		return m
 	}
 	m[ExchangeUser] = path[1]
@@ -528,7 +528,7 @@ func (ec exchangeCategory) pathKeys() []categorizer {
 type ExchangeScope scope
 
 // interface compliance checks
-// var _ scoper = &ExchangeScope{}
+var _ scoper = &ExchangeScope{}
 
 // Category describes the type of the data in scope.
 func (s ExchangeScope) Category() exchangeCategory {
@@ -541,8 +541,15 @@ func (s ExchangeScope) categorizer() categorizer {
 	return s.Category()
 }
 
-// Filer describes the specific filter, and its target values.
-func (s ExchangeScope) Filter() exchangeCategory {
+// Contains returns true if the category is included in the scope's
+// data type, and the target string is included in the scope.
+func (s ExchangeScope) Contains(cat exchangeCategory, target string) bool {
+	return contains(s, cat, target)
+}
+
+// FilterCategory returns the category enum of the scope filter.
+// If the scope is not a filter type, returns ExchangeUnknownCategory.
+func (s ExchangeScope) FilterCategory() exchangeCategory {
 	return exchangeCatAtoI(s[scopeKeyInfoFilter])
 }
 
@@ -552,18 +559,11 @@ func (s ExchangeScope) Granularity() string {
 	return s[scopeKeyGranularity]
 }
 
-// IncludeCategory checks whether the scope includes a
-// certain category of data.
+// IncludeCategory checks whether the scope includes a certain category of data.
 // Ex: to check if the scope includes mail data:
 // s.IncludesCategory(selector.ExchangeMail)
 func (s ExchangeScope) IncludesCategory(cat exchangeCategory) bool {
 	return s.Category().isType(cat)
-}
-
-// Contains returns true if the category is included in the scope's
-// data type, and the target string is included in the scope.
-func (s ExchangeScope) Contains(cat exchangeCategory, target string) bool {
-	return contains(s, cat, target)
 }
 
 // returns true if the category is included in the scope's data type,
@@ -606,31 +606,39 @@ func (s ExchangeScope) setDefaults() {
 // Backup Details Filtering
 // ---------------------------------------------------------------------------
 
+// Reduce filters the entries in a details struct to only those that match the
+// inclusions, filters, and exclusions in the selector.
+func (s exchange) Reduce(deets *details.Details) *details.Details {
+	return reduce[ExchangeScope](
+		deets,
+		s.Selector,
+		map[pathType]exchangeCategory{
+			exchangeContactPath: ExchangeContact,
+			exchangeEventPath:   ExchangeEvent,
+			exchangeMailPath:    ExchangeMail,
+		},
+	)
+}
+
 // matchesEntry returns true if either the path or the info in the exchangeEntry matches the scope details.
 func (s ExchangeScope) matchesEntry(
 	cat categorizer,
 	pathValues map[categorizer]string,
 	entry details.DetailsEntry,
 ) bool {
-	return false
-	// TODO: uncomment when reducer is added.
-	// return matchesPathValues(s, cat, pathValues) || s.matchesInfo(entry.Exchange)
-}
-
-// matches returns true if either the path or the info matches the scope details.
-func (s ExchangeScope) matches(cat exchangeCategory, path []string, info *details.ExchangeInfo) bool {
-	return s.matchesPath(cat, path) || s.matchesInfo(cat, info)
+	// matchesPathValues can be handled generically, thanks to SCIENCE.
+	return matchesPathValues(s, cat, pathValues) || s.matchesInfo(entry.Exchange)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an exchangeInfo
 // returns true if the scope and info match for the provided category.
-func (s ExchangeScope) matchesInfo(cat exchangeCategory, info *details.ExchangeInfo) bool {
+func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	// we need values to match against
 	if info == nil {
 		return false
 	}
 	// the scope must define targets to match on
-	filterCat := s.Filter()
+	filterCat := s.FilterCategory()
 	targets := s.Get(filterCat)
 	if len(targets) == 0 {
 		return false
@@ -663,153 +671,4 @@ func (s ExchangeScope) matchesInfo(cat exchangeCategory, info *details.ExchangeI
 		}
 	}
 	return false
-}
-
-// matchesPath handles the standard behavior when comparing a scope and a path
-// returns true if the scope and path match for the provided category.
-func (s ExchangeScope) matchesPath(cat exchangeCategory, path []string) bool {
-	pathIDs := cat.pathValues(path)
-	for _, c := range categoryPathSet[cat] {
-		target := s.Get(c.(exchangeCategory))
-		// the scope must define the targets to match on
-		if len(target) == 0 {
-			return false
-		}
-		// None() fails all matches
-		if target[0] == NoneTgt {
-			return false
-		}
-		// the path must contain a value to match against
-		id, ok := pathIDs[c]
-		if !ok {
-			return false
-		}
-		// all parts of the scope must match
-		isAny := target[0] == AnyTgt
-		if !isAny {
-			if !common.ContainsString(target, id) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// ---------------------------------------------------------------------------
-// Restore Point Filtering
-// ---------------------------------------------------------------------------
-
-// Reduce reduces the entries in a backupDetails struct to only
-// those that match the inclusions, filters, and exclusions in the selector.
-func (sr *ExchangeRestore) Reduce(deets *details.Details) *details.Details {
-	if deets == nil {
-		return nil
-	}
-
-	entExcs := exchangeScopesByCategory(sr.Excludes)
-	entFilt := exchangeScopesByCategory(sr.Filters)
-	entIncs := exchangeScopesByCategory(sr.Includes)
-
-	ents := []details.DetailsEntry{}
-
-	for _, ent := range deets.Entries {
-		// todo: use Path pkg for this
-		path := strings.Split(ent.RepoRef, "/")
-		// not all paths will be len=3.  Most should be longer.
-		// This just protects us from panicing four lines later.
-		if len(path) < 3 {
-			continue
-		}
-		var cat exchangeCategory
-		switch path[2] {
-		case "contact":
-			cat = ExchangeContact
-		case "event":
-			cat = ExchangeEvent
-		case "mail":
-			cat = ExchangeMail
-		}
-		matched := matchExchangeEntry(
-			cat,
-			path,
-			ent.Exchange,
-			entExcs[cat.String()],
-			entFilt[cat.String()],
-			entIncs[cat.String()])
-		if matched {
-			ents = append(ents, ent)
-		}
-	}
-
-	deets.Entries = ents
-	return deets
-}
-
-// groups each scope by its category of data (contact, event, or mail).
-// user-level scopes will duplicate to all three categories.
-func exchangeScopesByCategory(scopes []scope) map[string][]ExchangeScope {
-	m := map[string][]ExchangeScope{
-		ExchangeContact.String(): {},
-		ExchangeEvent.String():   {},
-		ExchangeMail.String():    {},
-	}
-	for _, msc := range scopes {
-		sc := ExchangeScope(msc)
-		if sc.IncludesCategory(ExchangeContact) {
-			m[ExchangeContact.String()] = append(m[ExchangeContact.String()], sc)
-		}
-		if sc.IncludesCategory(ExchangeEvent) {
-			m[ExchangeEvent.String()] = append(m[ExchangeEvent.String()], sc)
-		}
-		if sc.IncludesCategory(ExchangeMail) {
-			m[ExchangeMail.String()] = append(m[ExchangeMail.String()], sc)
-		}
-	}
-	return m
-}
-
-// compare each path to the included and excluded exchange scopes.  Returns true
-// if the path is included, passes filters, and not excluded.
-func matchExchangeEntry(
-	cat exchangeCategory,
-	path []string,
-	info *details.ExchangeInfo,
-	excs, filts, incs []ExchangeScope,
-) bool {
-	// a passing match requires either a filter or an inclusion
-	if len(incs)+len(filts) == 0 {
-		return false
-	}
-
-	// skip this check if 0 inclusions were populated
-	// since filters act as the inclusion check in that case
-	if len(incs) > 0 {
-		// at least one inclusion must apply.
-		var included bool
-		for _, inc := range incs {
-			if inc.matches(cat, path, info) {
-				included = true
-				break
-			}
-		}
-		if !included {
-			return false
-		}
-	}
-
-	// all filters must pass
-	for _, filt := range filts {
-		if !filt.matches(cat, path, info) {
-			return false
-		}
-	}
-
-	// any matching exclusion means failure
-	for _, exc := range excs {
-		if exc.matches(cat, path, info) {
-			return false
-		}
-	}
-
-	return true
 }
