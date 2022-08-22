@@ -221,7 +221,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	return collections, errs
 }
 
-// DigestBackupSelector utility funciton to break an incoming selector into ExchangeScope
+// DigestBackupSelector utility function to break an incoming selector into ExchangeScope
 // Scopes are created for the all user. The newly created scopes have granularity changed from group --> item
 // resource: * --> user email. These variables are not used during backup or restore operations
 func (gc *GraphConnector) DigestBackupSelector(sel selectors.Selector) ([]selectors.ExchangeScope, error) {
@@ -263,7 +263,7 @@ func (gc *GraphConnector) DigestBackupSelector(sel selectors.Selector) ([]select
 					continue
 				}
 			}
-			//otherwise append the existing scope to the return
+			// Scope appended if all.Users not selected
 			returnScopes = append(returnScopes, scope)
 		}
 	}
