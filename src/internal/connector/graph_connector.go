@@ -5,6 +5,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -195,46 +196,81 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	ctx context.Context,
 	selector selectors.Selector,
 ) ([]data.Collection, error) {
-	eb, err := selector.ToExchangeBackup()
+	scopes, err := gc.DigestBackupSelector(selector)
 	if err != nil {
-		return nil, errors.Wrap(err, "collecting exchange data")
+		return nil, err
 	}
-
 	collections := []data.Collection{}
-	scopes := eb.Scopes()
 	var errs error
 
 	// for each scope that includes mail messages, get all
 	for _, scope := range scopes {
-		if !scope.IncludesCategory(selectors.ExchangeMail) {
-			continue
+		// Creates a map of collections based on scope
+		dcs, err := gc.createCollections(ctx, scope)
+		if err != nil {
+			user := scope.Get(selectors.ExchangeUser)
+			return nil, support.WrapAndAppend(user[0], err, errs)
 		}
 
+		if len(dcs) > 0 {
+			for _, collection := range dcs {
+				collections = append(collections, collection)
+			}
+		}
+	}
+	return collections, errs
+}
+
+// DigestBackupSelector utility funciton to break an incoming selector into ExchangeScope
+// Scopes are created for the all user. The newly created scopes have granularity changed from group --> item
+// resource: * --> user email. These variables are not used during backup or restore operations
+func (gc *GraphConnector) DigestBackupSelector(sel selectors.Selector) ([]selectors.ExchangeScope, error) {
+	returnScopes := make([]selectors.ExchangeScope, 0)
+	eb, err := sel.ToExchangeBackup()
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting exchange data")
+	}
+	scopes := eb.Scopes()
+	for _, scope := range scopes {
+		fmt.Println(scope)
 		for _, user := range scope.Get(selectors.ExchangeUser) {
 			// TODO: handle "get mail for all users"
 			// this would probably no-op without this check,
 			// but we want it made obvious that we're punting.
 			if user == selectors.AnyTgt {
-				errs = support.WrapAndAppend(
-					"all-users",
-					errors.New("all users selector currently not handled"),
-					errs)
-				continue
-			}
-			// Creates a map of collections based on scope
-			dcs, err := gc.createCollections(ctx, scope)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, errs)
-			}
-
-			if len(dcs) > 0 {
-				for _, collection := range dcs {
-					collections = append(collections, collection)
+				// Mail
+				if scope.IncludesCategory(selectors.ExchangeMail) {
+					temp := selectors.NewExchangeBackup().Mails(
+						gc.GetUsers(),
+						scope.Get(selectors.ExchangeMailFolder),
+						scope.Get(selectors.ExchangeMail),
+					)
+					returnScopes = append(returnScopes, temp...)
+					continue
+				}
+				if scope.IncludesCategory(selectors.ExchangeContact) {
+					temp := selectors.NewExchangeBackup().Contacts(
+						gc.GetUsers(),
+						scope.Get(selectors.ExchangeContactFolder),
+						scope.Get(selectors.ExchangeContact),
+					)
+					returnScopes = append(returnScopes, temp...)
+					continue
+				}
+				if scope.IncludesCategory(selectors.ExchangeEvent) {
+					temp := selectors.NewExchangeBackup().Events(
+						gc.GetUsers(),
+						scope.Get(selectors.ExchangeEvent),
+					)
+					returnScopes = append(returnScopes, temp...)
+					continue
 				}
 			}
+			//otherwise
+			returnScopes = append(returnScopes, scope)
 		}
 	}
-	return collections, errs
+	return returnScopes, nil
 }
 
 // RestoreMessages: Utility function to connect to M365 backstore
