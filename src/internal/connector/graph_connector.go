@@ -144,7 +144,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
-		if user.GetMail() == nil {
+		if user.GetUserPrincipalName() == nil {
 			err = support.WrapAndAppend(
 				gc.graphService.adapter.GetBaseUrl(),
 				fmt.Errorf("no email address for User: %s", *user.GetId()),
@@ -154,7 +154,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		}
 
 		// *user.GetId() is populated for every M365 entityable object by M365 backstore
-		gc.Users[*user.GetMail()] = *user.GetId()
+		gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
 		return true
 	}
 
