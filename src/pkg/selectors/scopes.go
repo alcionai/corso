@@ -3,6 +3,7 @@ package selectors
 import (
 	"strings"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
@@ -40,12 +41,11 @@ type (
 		// so that the two can be compared.
 		pathKeys() []categorizer
 	}
-	// TODO: Uncomment when reducer func is added
 	// categoryT is the generic type interface of a categorizer
-	// categoryT interface {
-	// 	~int
-	// 	categorizer
-	// }
+	categoryT interface {
+		~int
+		categorizer
+	}
 )
 
 type (
@@ -156,4 +156,189 @@ func isAnyTarget[T scopeT](s T, cat categorizer) bool {
 		return false
 	}
 	return s[cat.String()] == AnyTgt
+}
+
+// reduce filters the entries in the details to only those that match the
+// inclusions, filters, and exclusions in the selector.
+//
+func reduce[T scopeT, C categoryT](
+	deets *details.Details,
+	s Selector,
+	dataCategories map[pathType]C,
+) *details.Details {
+	if deets == nil {
+		return nil
+	}
+
+	// aggregate each scope type by category for easier isolation in future processing.
+	excludes := scopesByCategory[T](s.Excludes, dataCategories)
+	filters := scopesByCategory[T](s.Filters, dataCategories)
+	includes := scopesByCategory[T](s.Includes, dataCategories)
+
+	ents := []details.DetailsEntry{}
+
+	// for each entry, compare that entry against the scopes of the same data type
+	for _, ent := range deets.Entries {
+		// todo: use Path pkg for this
+		path := strings.Split(ent.RepoRef, "/")
+		dc, ok := dataCategories[pathTypeIn(path)]
+		if !ok {
+			continue
+		}
+
+		passed := passes(
+			dc,
+			dc.pathValues(path),
+			ent,
+			excludes[dc],
+			filters[dc],
+			includes[dc],
+		)
+		if passed {
+			ents = append(ents, ent)
+		}
+	}
+
+	reduced := &details.Details{DetailsModel: deets.DetailsModel}
+	reduced.Entries = ents
+	return reduced
+}
+
+// TODO: this is a hack.  We don't want these values declared here- it will get
+// unwieldy to have all of them for all services.  They should be declared in
+// paths, since that's where service- and data-type-specific assertions are owned.
+type pathType int
+
+const (
+	unknownPathType pathType = iota
+	exchangeEventPath
+	exchangeContactPath
+	exchangeMailPath
+)
+
+// return the service data type of the path.
+// TODO: this is a hack.  We don't want this identification to occur in this
+// package.  It should get handled in paths, since that's where service- and
+// data-type-specific assertions are owned.
+// Ideally, we'd use something like path.DataType() instead of this func.
+func pathTypeIn(path []string) pathType {
+	// not all paths will be len=3.  Most should be longer.
+	// This just protects us from panicing below.
+	if len(path) < 3 {
+		return unknownPathType
+	}
+	switch path[2] {
+	case "mail":
+		return exchangeMailPath
+	case "contact":
+		return exchangeContactPath
+	case "event":
+		return exchangeEventPath
+	}
+	return unknownPathType
+}
+
+// groups each scope by its category of data (specified by the service-selector).
+// ex: a slice containing the scopes [mail1, mail2, event1]
+// would produce a map like { mail: [1, 2], event: [1] }
+// so long as "mail" and "event" are contained in cats.
+func scopesByCategory[T scopeT, C categoryT](
+	scopes []scope,
+	cats map[pathType]C,
+) map[C][]T {
+	m := map[C][]T{}
+	for _, cat := range cats {
+		m[cat] = []T{}
+	}
+
+	for _, sc := range scopes {
+		for _, cat := range cats {
+			t := T(sc)
+			if t.categorizer().includesType(cat) {
+				m[cat] = append(m[cat], t)
+			}
+		}
+	}
+	return m
+}
+
+// passes compares each path to the included and excluded exchange scopes.  Returns true
+// if the path is included, passes filters, and not excluded.
+func passes[T scopeT](
+	cat categorizer,
+	pathValues map[categorizer]string,
+	entry details.DetailsEntry,
+	excs, filts, incs []T,
+) bool {
+	// a passing match requires either a filter or an inclusion
+	if len(incs)+len(filts) == 0 {
+		return false
+	}
+
+	// skip this check if 0 inclusions were populated
+	// since filters act as the inclusion check in that case
+	if len(incs) > 0 {
+		// at least one inclusion must apply.
+		var included bool
+		for _, inc := range incs {
+			if inc.matchesEntry(cat, pathValues, entry) {
+				included = true
+				break
+			}
+		}
+		if !included {
+			return false
+		}
+	}
+
+	// all filters must pass
+	for _, filt := range filts {
+		if !filt.matchesEntry(cat, pathValues, entry) {
+			return false
+		}
+	}
+
+	// any matching exclusion means failure
+	for _, exc := range excs {
+		if exc.matchesEntry(cat, pathValues, entry) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// matchesPathValues will check whether the pathValues have matching entries
+// in the scope.  The keys of the values to match against are identified by
+// the categorizer.
+// Standard expectations apply: None() or missing values always fail, Any()
+// always succeeds.
+func matchesPathValues[T scopeT](
+	sc T,
+	cat categorizer,
+	pathValues map[categorizer]string,
+) bool {
+	for _, c := range cat.pathKeys() {
+		target := getCatValue(sc, c)
+		// the scope must define the targets to match on
+		if len(target) == 0 {
+			return false
+		}
+		// None() fails all matches
+		if target[0] == NoneTgt {
+			return false
+		}
+		// the path must contain a value to match against
+		pv, ok := pathValues[c]
+		if !ok {
+			return false
+		}
+		// all parts of the scope must match
+		if !isAnyTarget(sc, c) {
+			if !common.ContainsString(target, pv) {
+				return false
+			}
+		}
+	}
+	return true
 }
