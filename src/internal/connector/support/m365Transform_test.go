@@ -1,13 +1,12 @@
 package support
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/internal/connector/mockconnector"
 )
 
 type SupportTestSuite struct {
@@ -15,23 +14,11 @@ type SupportTestSuite struct {
 }
 
 func TestSupportTestSuite(t *testing.T) {
-	evs, err := tester.GetRequiredEnvVars(tester.CorsoGraphConnectorTestSupportFile)
-	if err != nil {
-		t.Skipf("Env not configured: %v\n", err)
-	}
-	_, err = os.Stat(evs[tester.CorsoGraphConnectorTestSupportFile])
-	if err != nil {
-		t.Skip("Test object not available: Module Skipped")
-	}
 	suite.Run(t, new(SupportTestSuite))
 }
 
 func (suite *SupportTestSuite) TestToMessage() {
-	bytes, err := tester.LoadAFile(os.Getenv(tester.CorsoGraphConnectorTestSupportFile))
-	if err != nil {
-		suite.T().Errorf("Failed with %v\n", err)
-	}
-	require.NoError(suite.T(), err)
+	bytes := mockconnector.GetMockMessageBytes("m365 mail support test")
 	message, err := CreateMessageFromBytes(bytes)
 	require.NoError(suite.T(), err)
 	clone := ToMessage(message)

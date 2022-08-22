@@ -234,9 +234,6 @@ func (gc *GraphConnector) DigestBackupSelector(sel selectors.Selector) ([]select
 	for _, scope := range scopes {
 		fmt.Println(scope)
 		for _, user := range scope.Get(selectors.ExchangeUser) {
-			// TODO: handle "get mail for all users"
-			// this would probably no-op without this check,
-			// but we want it made obvious that we're punting.
 			if user == selectors.AnyTgt {
 				// Mail
 				if scope.IncludesCategory(selectors.ExchangeMail) {
@@ -266,7 +263,7 @@ func (gc *GraphConnector) DigestBackupSelector(sel selectors.Selector) ([]select
 					continue
 				}
 			}
-			//otherwise
+			//otherwise append the existing scope to the return
 			returnScopes = append(returnScopes, scope)
 		}
 	}
@@ -391,8 +388,8 @@ func (gc *GraphConnector) createCollections(
 // AwaitStatus updates status field based on item within statusChannel.
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	if gc.awaitingMessages > 0 {
-		gc.status = <-gc.statusCh
 		atomic.AddInt32(&gc.awaitingMessages, -1)
+		gc.status = <-gc.statusCh
 	}
 	return gc.status
 }
