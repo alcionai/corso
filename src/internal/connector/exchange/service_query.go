@@ -44,15 +44,16 @@ var (
 	}
 
 	fieldsForUsers = map[string]int{
-		"birthday":       1,
-		"businessPhones": 2,
-		"city":           3,
-		"companyName":    4,
-		"department":     5,
-		"displayName":    6,
-		"employeeId":     7,
-		"id":             8,
-		"mail":           9,
+		"birthday":          1,
+		"businessPhones":    2,
+		"city":              3,
+		"companyName":       4,
+		"department":        5,
+		"displayName":       6,
+		"employeeId":        7,
+		"id":                8,
+		"mail":              9,
+		"userPrincipalName": 10,
 	}
 
 	fieldsForMessages = map[string]int{
@@ -137,7 +138,7 @@ func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, e
 // GetAllUsersForTenant is a GraphQuery for retrieving all the UserCollectionResponse with
 // that contains the UserID and email for each user. All other information is omitted
 func GetAllUsersForTenant(gs graph.Service, user string) (absser.Parsable, error) {
-	selecting := []string{"mail"}
+	selecting := []string{"userPrincipalName"}
 	options, err := optionsForUsers(selecting)
 	if err != nil {
 		return nil, err
