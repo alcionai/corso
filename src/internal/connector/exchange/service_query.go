@@ -6,6 +6,7 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -134,7 +135,7 @@ func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, e
 }
 
 // GetAllUsersForTenant is a GraphQuery for retrieving all the UserCollectionResponse with
-// that contains the UserID and email for each user. All other infomation is omitted
+// that contains the UserID and email for each user. All other information is omitted
 func GetAllUsersForTenant(gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"mail"}
 	options, err := optionsForUsers(selecting)
