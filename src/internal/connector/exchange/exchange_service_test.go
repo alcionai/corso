@@ -234,6 +234,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			name:     "GraphQuery: Get All Folders",
 			function: GetAllFolderNamesForUser,
 		},
+		{
+			name:     "GraphQuery: Get All Users",
+			function: GetAllUsersForTenant,
+		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
