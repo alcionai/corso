@@ -210,7 +210,7 @@ func (c onedriveCategory) includesType(cat categorizer) bool {
 	return c.isType(cc)
 }
 
-// transforms a path to a map of identified properties.
+// pathValues transforms a path to a map of identified properties.
 // TODO: this should use service-specific funcs in the Paths pkg.  Instead of
 // peeking at the path directly, the caller should compare against values like
 // path.UserID() and path.Folders().
@@ -219,7 +219,7 @@ func (c onedriveCategory) includesType(cat categorizer) bool {
 // Example:
 // [tenantID, userID, "files", folder, fileID]
 // => {odUser: userID, odFolder: folder, odFileID: fileID}
-func (ec onedriveCategory) pathValues(path []string) map[categorizer]string {
+func (c onedriveCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
 	if len(path) < 2 {
 		return m
@@ -348,7 +348,7 @@ func (s OneDriveScope) matchesInfo(info *details.OnedriveInfo) bool {
 		switch filterCat {
 		// TODO: populate onedrive filter checks
 		default:
-			return target == target
+			return target != NoneTgt
 		}
 	}
 	return false
