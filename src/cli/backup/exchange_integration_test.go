@@ -159,7 +159,6 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewExchangeBackup()
-	// TODO: only backup the inbox
 	sel.Include(sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"}))
 
 	suite.backupOp, err = suite.repo.NewBackup(
