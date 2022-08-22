@@ -6,6 +6,7 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -43,14 +44,16 @@ var (
 	}
 
 	fieldsForUsers = map[string]int{
-		"birthday":       1,
-		"businessPhones": 2,
-		"city":           3,
-		"companyName":    4,
-		"department":     5,
-		"displayName":    6,
-		"employeeId":     7,
-		"id":             8,
+		"birthday":          1,
+		"businessPhones":    2,
+		"city":              3,
+		"companyName":       4,
+		"department":        5,
+		"displayName":       6,
+		"employeeId":        7,
+		"id":                8,
+		"mail":              9,
+		"userPrincipalName": 10,
 	}
 
 	fieldsForMessages = map[string]int{
@@ -130,6 +133,17 @@ func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, e
 	}
 
 	return gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// GetAllUsersForTenant is a GraphQuery for retrieving all the UserCollectionResponse with
+// that contains the UserID and email for each user. All other information is omitted
+func GetAllUsersForTenant(gs graph.Service, user string) (absser.Parsable, error) {
+	selecting := []string{"userPrincipalName"}
+	options, err := optionsForUsers(selecting)
+	if err != nil {
+		return nil, err
+	}
+	return gs.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GetAllEvents for User. Default returns EventResponseCollection for future events.
@@ -540,6 +554,20 @@ func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGet
 	}
 	options := &mscontacts.ContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
+	}
+	return options, nil
+}
+
+func optionsForUsers(moreOps []string) (*msuser.UsersRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, users)
+	if err != nil {
+		return nil, err
+	}
+	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParams,
 	}
 	return options, nil
 }
