@@ -53,7 +53,7 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p := sel.Printable()
 	res := p.Resources()
 
-	assert.Equal(t, stubResource, res, "resource should state only the user")
+	assert.Equal(t, stubResource, res, "resource should state only the stub")
 
 	sel.Includes = []scope{
 		scope(stubScope("")),
@@ -68,7 +68,7 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p.Includes = nil
 	res = p.Resources()
 
-	assert.Equal(t, stubResource, res, "resource on filters should state only the user")
+	assert.Equal(t, stubResource, res, "resource on filters should state only the stub")
 
 	p.Filters = nil
 	res = p.Resources()
