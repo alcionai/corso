@@ -87,7 +87,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	sel.Include(sel.Users([]string{suite.user}))
 	collectionList, err := connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(t, collectionList, "collection list")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, connector.awaitingMessages > 0)
 	assert.Nil(t, connector.status)
 	streams := make(map[string]<-chan data.Stream)
@@ -100,9 +100,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 
 	for i := 0; i < int(connector.awaitingMessages); i++ {
 		status := suite.connector.AwaitStatus()
-		if status != nil {
-			suite.T().Logf("Status: " + status.String())
-		}
+		assert.NotNil(t, status)
 	}
 
 	for name, channel := range streams {
@@ -111,12 +109,10 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 			for object := range channel {
 				buf := &bytes.Buffer{}
 				_, err := buf.ReadFrom(object.ToReader())
-				assert.Nil(suite.T(), err, "received a buf.Read error")
+				assert.NoError(t, err, "received a buf.Read error")
 			}
 		})
 	}
-	status := connector.AwaitStatus()
-	assert.NotNil(t, status, "status not blocking on async call")
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
@@ -132,7 +128,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
 	scopes := eb.Scopes()
-	suite.Equal(len(scopes), 1)
+	suite.Len(scopes, 1)
 	mailScope := scopes[0]
 	collection, err := connector.createCollections(context.Background(), mailScope)
 	require.NoError(t, err)
@@ -144,11 +140,11 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
-				suite.NoError(err)
-				suite.NotZero(read)
+				assert.NoError(t, err)
+				assert.NotZero(t, read)
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
-				suite.NotNil(message)
-				suite.NoError(err)
+				assert.NotNil(t, message)
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -168,7 +164,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	require.NoError(t, err)
 	scopes := eb.Scopes()
 	connector := loadConnector(t)
-	suite.Equal(1, len(scopes))
+	suite.Len(scopes, 1)
 	contactsOnly := scopes[0]
 	collections, err := connector.createCollections(context.Background(), contactsOnly)
 	assert.NoError(t, err)
@@ -180,8 +176,8 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
-				suite.NoError(err)
-				suite.NotZero(read)
+				assert.NoError(t, err)
+				assert.NotZero(t, read)
 				contact, err := support.CreateContactFromBytes(buf.Bytes())
 				assert.NotNil(t, contact)
 				assert.NoError(t, err)
@@ -214,8 +210,8 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			suite.T().Run(testName, func(t *testing.T) {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
-				suite.NoError(err)
-				suite.NotZero(read)
+				assert.NoError(t, err)
+				assert.NotZero(t, read)
 				event, err := support.CreateEventFromBytes(buf.Bytes())
 				assert.NotNil(t, event)
 				assert.NoError(t, err)
@@ -259,11 +255,11 @@ func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolder
 				suite.T().Run(testName, func(t *testing.T) {
 					buf := &bytes.Buffer{}
 					read, err := buf.ReadFrom(stream.ToReader())
-					suite.NoError(err)
-					suite.NotZero(read)
+					assert.NoError(t, err)
+					assert.NotZero(t, read)
 					message, err := support.CreateMessageFromBytes(buf.Bytes())
-					suite.NotNil(message)
-					suite.NoError(err)
+					assert.NotNil(t, message)
+					assert.NoError(t, err)
 					number++
 				})
 			}
