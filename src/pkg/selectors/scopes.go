@@ -110,7 +110,7 @@ type (
 // funcs
 // ---------------------------------------------------------------------------
 
-// Contains returns true if the category is included in the scope's
+// contains returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
 func contains[T scopeT](s T, cat categorizer, target string) bool {
 	if !s.categorizer().includesType(cat) {
@@ -158,8 +158,9 @@ func isAnyTarget[T scopeT](s T, cat categorizer) bool {
 	return s[cat.String()] == AnyTgt
 }
 
-// Reduce filters the entries in the details to only those that match the
+// reduce filters the entries in the details to only those that match the
 // inclusions, filters, and exclusions in the selector.
+//
 func reduce[T scopeT, C categoryT](
 	deets *details.Details,
 	s Selector,
@@ -198,8 +199,9 @@ func reduce[T scopeT, C categoryT](
 		}
 	}
 
-	deets.Entries = ents
-	return deets
+	reduced := &details.Details{DetailsModel: deets.DetailsModel}
+	reduced.Entries = ents
+	return reduced
 }
 
 // TODO: this is a hack.  We don't want these values declared here- it will get

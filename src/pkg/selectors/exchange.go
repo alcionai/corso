@@ -480,7 +480,7 @@ func (ec exchangeCategory) includesType(cat categorizer) bool {
 // => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) > 4 {
+	if len(path) < 2 {
 		return m
 	}
 	m[ExchangeUser] = path[1]
@@ -626,7 +626,7 @@ func (s ExchangeScope) matchesEntry(
 	pathValues map[categorizer]string,
 	entry details.DetailsEntry,
 ) bool {
-	// matchesPathValues can be handled generically, thanks to the
+	// matchesPathValues can be handled generically, thanks to SCIENCE.
 	return matchesPathValues(s, cat, pathValues) || s.matchesInfo(entry.Exchange)
 }
 

@@ -231,7 +231,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 			ds := deets()
 			result := reduce[mockScope](&ds, test.sel(), dataCats)
 			require.NotNil(t, result)
-			require.Len(t, result.Entries, test.expectLen)
+			assert.Len(t, result.Entries, test.expectLen)
 		})
 	}
 }

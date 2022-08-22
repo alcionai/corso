@@ -67,7 +67,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Contacts() {
 
 	sel.Exclude(sel.Contacts([]string{user}, []string{folder}, []string{c1, c2}))
 	scopes := sel.Excludes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -88,7 +88,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Contacts() {
 
 	sel.Include(sel.Contacts([]string{user}, []string{folder}, []string{c1, c2}))
 	scopes := sel.Includes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -110,7 +110,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_ContactFolders() 
 
 	sel.Exclude(sel.ContactFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Excludes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -130,7 +130,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_ContactFolders() 
 
 	sel.Include(sel.ContactFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Includes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -152,7 +152,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Events() {
 
 	sel.Exclude(sel.Events([]string{user}, []string{e1, e2}))
 	scopes := sel.Excludes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -171,7 +171,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Events() {
 
 	sel.Include(sel.Events([]string{user}, []string{e1, e2}))
 	scopes := sel.Includes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -193,7 +193,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Mails() {
 
 	sel.Exclude(sel.Mails([]string{user}, []string{folder}, []string{m1, m2}))
 	scopes := sel.Excludes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -214,7 +214,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Mails() {
 
 	sel.Include(sel.Mails([]string{user}, []string{folder}, []string{m1, m2}))
 	scopes := sel.Includes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -236,7 +236,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_MailFolders() {
 
 	sel.Exclude(sel.MailFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Excludes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -256,7 +256,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_MailFolders() {
 
 	sel.Include(sel.MailFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Includes
-	require.Equal(t, 1, len(scopes))
+	require.Len(t, scopes, 1)
 
 	scope := scopes[0]
 	assert.Equal(t, scope[ExchangeUser.String()], user)
@@ -277,7 +277,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Exclude_Users() {
 
 	sel.Exclude(sel.Users([]string{u1, u2}))
 	scopes := sel.Excludes
-	require.Equal(t, 6, len(scopes))
+	require.Len(t, scopes, 6)
 
 	for _, scope := range scopes {
 		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
@@ -306,7 +306,7 @@ func (suite *ExchangeSourceSuite) TestExchangeSelector_Include_Users() {
 
 	sel.Include(sel.Users([]string{u1, u2}))
 	scopes := sel.Includes
-	require.Equal(t, 6, len(scopes))
+	require.Len(t, scopes, 6)
 
 	for _, scope := range scopes {
 		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
@@ -824,9 +824,9 @@ func (suite *ExchangeSourceSuite) TestScopesByCategory() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			result := scopesByCategory[ExchangeScope](test.scopes, cats)
-			assert.Equal(t, test.expect.contact, len(result[ExchangeContact]))
-			assert.Equal(t, test.expect.event, len(result[ExchangeEvent]))
-			assert.Equal(t, test.expect.mail, len(result[ExchangeMail]))
+			assert.Len(t, result[ExchangeContact], test.expect.contact)
+			assert.Len(t, result[ExchangeEvent], test.expect.event)
+			assert.Len(t, result[ExchangeMail], test.expect.mail)
 		})
 	}
 }
@@ -1062,7 +1062,7 @@ func (suite *ExchangeSourceSuite) TestExchangeCategory_PathValues() {
 		expect map[categorizer]string
 	}{
 		{ExchangeCategoryUnknown, nil, map[categorizer]string{}},
-		{ExchangeCategoryUnknown, []string{"a", "b", "c"}, map[categorizer]string{}},
+		{ExchangeCategoryUnknown, []string{"a"}, map[categorizer]string{}},
 		{ExchangeContact, contactPath, contactMap},
 		{ExchangeEvent, eventPath, eventMap},
 		{ExchangeMail, mailPath, mailMap},
