@@ -414,7 +414,7 @@ func categoryMatches[C categoryT](a, b C) bool {
 	return a.leafCat() == b.leafCat()
 }
 
-// categoryIncludes returns true if:
+// typeAndCategoryMatches returns true if:
 // - both parameters are the same categoryT type
 // - the category matches for both types
 func typeAndCategoryMatches[C categoryT](a C, b categorizer) bool {
