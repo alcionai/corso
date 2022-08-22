@@ -78,6 +78,7 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 
 // Exclude appends the provided scopes to the selector's exclusion set.
 // Every Exclusion scope applies globally, affecting all inclusion scopes.
+// Data is excluded if it matches ANY exclusion (of the same data category).
 //
 // All parts of the scope must match for data to be exclucded.
 // Ex: Mail(u1, f1, m1) => only excludes mail if it is owned by user u1,
@@ -99,6 +100,7 @@ func (s *exchange) Exclude(scopes ...[]ExchangeScope) {
 // that passes all filters.
 // A selector with >0 filters and >0 inclusions will reduce the
 // inclusion set to only the data that passes all filters.
+// Data is retained if it passes ALL filters (of the same data category).
 //
 // All parts of the scope must match for data to pass the filter.
 // Ex: Mail(u1, f1, m1) => only passes mail that is owned by user u1,
@@ -119,6 +121,7 @@ func (s *exchange) Filter(scopes ...[]ExchangeScope) {
 // Data is included if it matches ANY inclusion.
 // The inclusion set is later filtered (all included data must pass ALL
 // filters) and excluded (all included data must not match ANY exclusion).
+// Data is included if it matches ANY inclusion (of the same data category).
 //
 // All parts of the scope must match for data to be included.
 // Ex: Mail(u1, f1, m1) => only includes mail if it is owned by user u1,
@@ -422,7 +425,7 @@ func exchangeCatAtoI(s string) exchangeCategory {
 // exchangePathSet describes the category type keys used in Exchange paths.
 // The order of each slice is important, and should match the order in which
 // these types appear in the canonical Path for each type.
-var categoryPathSet = map[categorizer][]categorizer{
+var exchangePathSet = map[categorizer][]categorizer{
 	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
 	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
 	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
@@ -516,7 +519,7 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
 func (ec exchangeCategory) pathKeys() []categorizer {
-	return categoryPathSet[ec.leafType()]
+	return exchangePathSet[ec.leafType()]
 }
 
 // ---------------------------------------------------------------------------

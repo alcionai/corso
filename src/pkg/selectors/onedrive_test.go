@@ -34,7 +34,6 @@ func (suite *OnedriveSourceSuite) TestToOnedriveBackup() {
 }
 
 func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
-	suite.T().Skip("TODO: update onedrive selectors to new interface compliance")
 	t := suite.T()
 	sel := NewOneDriveBackup()
 
@@ -65,9 +64,45 @@ func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			require.Equal(t, 2, len(test.scopesToCheck))
 			for _, scope := range test.scopesToCheck {
-				// Scope value is either u1 or u2
-				assert.Contains(t, []string{u1, u2}, scope[OneDriveUser.String()])
+				// Scope value is u1,u2
+				assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()])
 			}
 		})
+	}
+}
+
+func (suite *OnedriveSourceSuite) TestOneDriveSelector_Include_Users() {
+	t := suite.T()
+	sel := NewOneDriveBackup()
+
+	const (
+		u1 = "u1"
+		u2 = "u2"
+	)
+
+	sel.Include(sel.Users([]string{u1, u2}))
+	scopes := sel.Includes
+	require.Len(t, scopes, 2)
+
+	for _, scope := range scopes {
+		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()])
+	}
+}
+
+func (suite *OnedriveSourceSuite) TestOneDriveSelector_Exclude_Users() {
+	t := suite.T()
+	sel := NewOneDriveBackup()
+
+	const (
+		u1 = "u1"
+		u2 = "u2"
+	)
+
+	sel.Exclude(sel.Users([]string{u1, u2}))
+	scopes := sel.Excludes
+	require.Len(t, scopes, 2)
+
+	for _, scope := range scopes {
+		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()])
 	}
 }

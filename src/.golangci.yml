@@ -50,7 +50,6 @@ linters-settings:
       - name: superfluous-else
       - name: time-equal
       - name: time-naming
-      - name: unexported-return
       - name: unreachable-code
       - name: useless-break
       - name: var-declaration
