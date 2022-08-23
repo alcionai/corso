@@ -986,3 +986,55 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 		})
 	}
 }
+
+func (suite *KopiaIntegrationSuite) TestDeleteSnapshot() {
+	t := suite.T()
+
+	collections := []data.Collection{
+		mockconnector.NewMockExchangeCollection(
+			[]string{"a-tenant", "user1", "emails"},
+			5,
+		),
+		mockconnector.NewMockExchangeCollection(
+			[]string{"a-tenant", "user2", "emails"},
+			42,
+		),
+	}
+
+	bs, _, err := suite.w.BackupCollections(suite.ctx, collections)
+	require.NoError(t, err)
+
+	snapshotID := bs.SnapshotID
+
+	table := []struct {
+		name       string
+		snapshotID string
+		expect     assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "no id",
+			snapshotID: "",
+			expect:     assert.Error,
+		},
+		{
+			name:       "unknown id",
+			snapshotID: uuid.NewString(),
+			expect:     assert.NoError,
+		},
+		{
+			name:       "existing id",
+			snapshotID: snapshotID,
+			expect:     assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			test.expect(t, suite.w.DeleteSnapshot(suite.ctx, test.snapshotID))
+		})
+	}
+
+	// finally, assert the deletion worked
+	dirPath := []string{testTenant, testUser}
+	_, err = suite.w.RestoreDirectory(suite.ctx, snapshotID, dirPath)
+	assert.Error(t, err, "snapshot should be deleted")
+}

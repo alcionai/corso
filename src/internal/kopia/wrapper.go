@@ -666,3 +666,40 @@ func (w Wrapper) RestoreMultipleItems(
 	}
 	return dcs, errs.ErrorOrNil()
 }
+
+// DeleteSnapshot removes the provided manifest from kopia.
+func (w Wrapper) DeleteSnapshot(
+	ctx context.Context,
+	snapshotID string,
+) error {
+	mid := manifest.ID(snapshotID)
+
+	if len(mid) == 0 {
+		return errors.New("attempt to delete unidentified snapshot")
+	}
+
+	err := repo.WriteSession(
+		ctx,
+		w.c,
+		repo.WriteSessionOptions{
+			Purpose: "KopiaWrapperBackupDeletion",
+			// Always flush so we don't leak write sessions. Still uses reachability
+			// for consistency.
+			FlushOnFailure: true,
+		},
+		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+			if err := rw.DeleteManifest(ctx, mid); err != nil {
+				return errors.Wrap(err, "deleting snapshot")
+			}
+
+			return nil
+		},
+	)
+	// Telling kopia to always flush may hide other errors if it fails while
+	// flushing the write session (hence logging above).
+	if err != nil {
+		return errors.Wrap(err, "kopia deleting backup manifest")
+	}
+
+	return nil
+}
