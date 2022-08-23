@@ -1,4 +1,4 @@
-// Package onedrive provides support for retrieving M365 OneDrive objects
+// Package oneDrive provides support for retrieving M365 OneDrive objects
 package onedrive
 
 import (
@@ -84,7 +84,7 @@ func (oc *Collection) FullPath() []string {
 type Item struct {
 	id   string
 	data io.ReadCloser
-	info *details.OnedriveInfo
+	info *details.OneDriveInfo
 }
 
 func (od *Item) UUID() string {
@@ -96,7 +96,7 @@ func (od *Item) ToReader() io.ReadCloser {
 }
 
 func (od *Item) Info() details.ItemInfo {
-	return details.ItemInfo{Onedrive: od.info}
+	return details.ItemInfo{OneDrive: od.info}
 }
 
 // populateItems iterates through items added to the collection
@@ -119,7 +119,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		oc.data <- &Item{
 			id:   itemID,
 			data: itemData,
-			info: &details.OnedriveInfo{ItemName: itemName, ParentPath: oc.folderPath},
+			info: &details.OneDriveInfo{ItemName: itemName, ParentPath: oc.folderPath},
 		}
 	}
 	close(oc.data)

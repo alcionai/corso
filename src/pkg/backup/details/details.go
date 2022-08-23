@@ -94,8 +94,8 @@ func (de DetailsEntry) Headers() []string {
 	if de.ItemInfo.Sharepoint != nil {
 		hs = append(hs, de.ItemInfo.Sharepoint.Headers()...)
 	}
-	if de.ItemInfo.Onedrive != nil {
-		hs = append(hs, de.ItemInfo.Onedrive.Headers()...)
+	if de.ItemInfo.OneDrive != nil {
+		hs = append(hs, de.ItemInfo.OneDrive.Headers()...)
 	}
 	return hs
 }
@@ -109,8 +109,8 @@ func (de DetailsEntry) Values() []string {
 	if de.ItemInfo.Sharepoint != nil {
 		vs = append(vs, de.ItemInfo.Sharepoint.Values()...)
 	}
-	if de.ItemInfo.Onedrive != nil {
-		vs = append(vs, de.ItemInfo.Onedrive.Values()...)
+	if de.ItemInfo.OneDrive != nil {
+		vs = append(vs, de.ItemInfo.OneDrive.Values()...)
 	}
 	return vs
 }
@@ -120,7 +120,7 @@ func (de DetailsEntry) Values() []string {
 type ItemInfo struct {
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
 	Sharepoint *SharepointInfo `json:"sharepoint,omitempty"`
-	Onedrive   *OnedriveInfo   `json:"onedrive,omitempty"`
+	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
 }
 
 // ExchangeInfo describes an exchange item
@@ -162,20 +162,20 @@ func (s SharepointInfo) Values() []string {
 	return []string{}
 }
 
-// OnedriveInfo describes a onedrive item
-type OnedriveInfo struct {
+// OneDriveInfo describes a oneDrive item
+type OneDriveInfo struct {
 	ParentPath string `json:"parentPath"`
 	ItemName   string `json:"itemName"`
 }
 
-// Headers returns the human-readable names of properties in a OnedriveInfo
+// Headers returns the human-readable names of properties in a OneDriveInfo
 // for printing out to a terminal in a columnar display.
-func (oi OnedriveInfo) Headers() []string {
+func (oi OneDriveInfo) Headers() []string {
 	return []string{"ItemName", "ParentPath"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (oi OnedriveInfo) Values() []string {
+func (oi OneDriveInfo) Values() []string {
 	return []string{oi.ItemName, oi.ParentPath}
 }

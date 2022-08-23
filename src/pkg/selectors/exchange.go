@@ -145,9 +145,9 @@ func (s *exchange) Scopes() []ExchangeScope {
 
 // DiscreteScopes retrieves the list of exchangeScopes in the selector.
 // If any Include scope's User category is set to Any, replaces that
-// scope's value with the list of userIDs instead.
-func (s *exchange) DiscreteScopes(userIDs []string) []ExchangeScope {
-	return discreteScopes[ExchangeScope](s.Selector, ExchangeUser, userIDs)
+// scope's value with the list of userPNs instead.
+func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
+	return discreteScopes[ExchangeScope](s.Selector, ExchangeUser, userPNs)
 }
 
 // -------------------
@@ -440,12 +440,12 @@ func (ec exchangeCategory) unknownCat() categorizer {
 // transforms a path to a map of identified properties.
 // TODO: this should use service-specific funcs in the Paths pkg.  Instead of
 // peeking at the path directly, the caller should compare against values like
-// path.UserID() and path.Folders().
+// path.UserPN() and path.Folders().
 //
 // Malformed (ie, short len) paths will return incomplete results.
 // Example:
-// [tenantID, userID, "mail", mailFolder, mailID]
-// => {exchUser: userID, exchMailFolder: mailFolder, exchMail: mailID}
+// [tenantID, userPN, "mail", mailFolder, mailID]
+// => {exchUser: userPN, exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
 	if len(path) < 2 {

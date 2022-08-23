@@ -9,9 +9,9 @@ import (
 // ---------------------------------------------------------------------------
 
 type (
-	// onedrive provides an api for selecting
+	// oneDrive provides an api for selecting
 	// data scopes applicable to the OneDrive service.
-	onedrive struct {
+	oneDrive struct {
 		Selector
 	}
 
@@ -19,14 +19,14 @@ type (
 	// data scopes applicable to the OneDrive service,
 	// plus backup-specific methods.
 	OneDriveBackup struct {
-		onedrive
+		oneDrive
 	}
 )
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
 func NewOneDriveBackup() *OneDriveBackup {
 	src := OneDriveBackup{
-		onedrive{
+		oneDrive{
 			newSelector(ServiceOneDrive),
 		},
 	}
@@ -39,7 +39,7 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 	if s.Service != ServiceOneDrive {
 		return nil, badCastErr(ServiceOneDrive, s.Service)
 	}
-	src := OneDriveBackup{onedrive{s}}
+	src := OneDriveBackup{oneDrive{s}}
 	return &src, nil
 }
 
@@ -61,7 +61,7 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 // child properties.
 // ex: User(u1) automatically cascades to all folders and files owned
 // by u1.
-func (s *onedrive) Include(scopes ...[]OneDriveScope) {
+func (s *oneDrive) Include(scopes ...[]OneDriveScope) {
 	s.Includes = appendScopes(s.Includes, scopes...)
 }
 
@@ -78,7 +78,7 @@ func (s *onedrive) Include(scopes ...[]OneDriveScope) {
 // child properties.
 // ex: User(u1) automatically cascades to all folders and files owned
 // by u1.
-func (s *onedrive) Exclude(scopes ...[]OneDriveScope) {
+func (s *oneDrive) Exclude(scopes ...[]OneDriveScope) {
 	s.Excludes = appendScopes(s.Excludes, scopes...)
 }
 
@@ -98,16 +98,16 @@ func (s *onedrive) Exclude(scopes ...[]OneDriveScope) {
 // child properties.
 // ex: User(u1) automatically cascades to all folders and files owned
 // by u1.
-func (s *onedrive) Filter(scopes ...[]OneDriveScope) {
+func (s *oneDrive) Filter(scopes ...[]OneDriveScope) {
 	s.Filters = appendScopes(s.Filters, scopes...)
 }
 
-// Produces one or more onedrive user scopes.
+// Produces one or more oneDrive user scopes.
 // One scope is created per user entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *onedrive) Users(users []string) []OneDriveScope {
+func (s *oneDrive) Users(users []string) []OneDriveScope {
 	users = normalize(users)
 	scopes := []OneDriveScope{}
 	for _, u := range users {
@@ -116,37 +116,37 @@ func (s *onedrive) Users(users []string) []OneDriveScope {
 	return scopes
 }
 
-// Scopes retrieves the list of onedriveScopes in the selector.
-func (s *onedrive) Scopes() []OneDriveScope {
+// Scopes retrieves the list of oneDriveScopes in the selector.
+func (s *oneDrive) Scopes() []OneDriveScope {
 	return scopes[OneDriveScope](s.Selector)
 }
 
-// DiscreteScopes retrieves the list of onedriveScopes in the selector.
+// DiscreteScopes retrieves the list of oneDriveScopes in the selector.
 // If any Include scope's User category is set to Any, replaces that
-// scope's value with the list of userIDs instead.
-func (s *onedrive) DiscreteScopes(userIDs []string) []OneDriveScope {
-	return discreteScopes[OneDriveScope](s.Selector, OneDriveUser, userIDs)
+// scope's value with the list of userPNs instead.
+func (s *oneDrive) DiscreteScopes(userPNs []string) []OneDriveScope {
+	return discreteScopes[OneDriveScope](s.Selector, OneDriveUser, userPNs)
 }
 
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
 
-// onedriveCategory enumerates the type of the lowest level
+// oneDriveCategory enumerates the type of the lowest level
 // of data () in a scope.
-type onedriveCategory int
+type oneDriveCategory int
 
 // interface compliance checks
 var _ categorizer = OneDriveCategoryUnknown
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=onedriveCategory
+//go:generate go run golang.org/x/tools/cmd/stringer -type=oneDriveCategory
 const (
-	OneDriveCategoryUnknown onedriveCategory = iota
+	OneDriveCategoryUnknown oneDriveCategory = iota
 	// types of data identified by OneDrive
 	OneDriveUser
 )
 
-func onedriveCatAtoI(s string) onedriveCategory {
+func oneDriveCatAtoI(s string) oneDriveCategory {
 	switch s {
 	// data types
 	case OneDriveUser.String():
@@ -169,30 +169,30 @@ var oneDrivePathSet = map[categorizer][]categorizer{
 // (ex: Unknown), the receiver itself is returned.
 // Ex: ServiceTypeFolder.leafCat() => ServiceTypeItem
 // Ex: ServiceUser.leafCat() => ServiceUser
-func (c onedriveCategory) leafCat() categorizer {
+func (c oneDriveCategory) leafCat() categorizer {
 	return c
 }
 
 // rootCat returns the root category type.
-func (c onedriveCategory) rootCat() categorizer {
+func (c oneDriveCategory) rootCat() categorizer {
 	return OneDriveUser
 }
 
 // unknownCat returns the unknown category type.
-func (c onedriveCategory) unknownCat() categorizer {
+func (c oneDriveCategory) unknownCat() categorizer {
 	return OneDriveCategoryUnknown
 }
 
 // pathValues transforms a path to a map of identified properties.
 // TODO: this should use service-specific funcs in the Paths pkg.  Instead of
 // peeking at the path directly, the caller should compare against values like
-// path.UserID() and path.Folders().
+// path.UserPN() and path.Folders().
 //
 // Malformed (ie, short len) paths will return incomplete results.
 // Example:
-// [tenantID, userID, "files", folder, fileID]
-// => {odUser: userID, odFolder: folder, odFileID: fileID}
-func (c onedriveCategory) pathValues(path []string) map[categorizer]string {
+// [tenantID, userPN, "files", folder, fileID]
+// => {odUser: userPN, odFolder: folder, odFileID: fileID}
+func (c oneDriveCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
 	if len(path) < 2 {
 		return m
@@ -211,7 +211,7 @@ func (c onedriveCategory) pathValues(path []string) map[categorizer]string {
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
-func (c onedriveCategory) pathKeys() []categorizer {
+func (c oneDriveCategory) pathKeys() []categorizer {
 	return oneDrivePathSet[c.leafCat()]
 }
 
@@ -227,8 +227,8 @@ type OneDriveScope scope
 var _ scoper = &OneDriveScope{}
 
 // Category describes the type of the data in scope.
-func (s OneDriveScope) Category() onedriveCategory {
-	return onedriveCatAtoI(s[scopeKeyCategory])
+func (s OneDriveScope) Category() oneDriveCategory {
+	return oneDriveCatAtoI(s[scopeKeyCategory])
 }
 
 // categorizer type is a generic wrapper around Category.
@@ -239,8 +239,8 @@ func (s OneDriveScope) categorizer() categorizer {
 
 // FilterCategory returns the category enum of the scope filter.
 // If the scope is not a filter type, returns OneDriveUnknownCategory.
-func (s OneDriveScope) FilterCategory() onedriveCategory {
-	return onedriveCatAtoI(s[scopeKeyInfoFilter])
+func (s OneDriveScope) FilterCategory() oneDriveCategory {
+	return oneDriveCatAtoI(s[scopeKeyInfoFilter])
 }
 
 // Granularity describes the granularity (directory || item)
@@ -253,31 +253,31 @@ func (s OneDriveScope) Granularity() string {
 // certain category of data.
 // Ex: to check if the scope includes file data:
 // s.IncludesCategory(selector.OneDriveFile)
-func (s OneDriveScope) IncludesCategory(cat onedriveCategory) bool {
+func (s OneDriveScope) IncludesCategory(cat oneDriveCategory) bool {
 	return categoryMatches(s.Category(), cat)
 }
 
 // Contains returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
-func (s OneDriveScope) Contains(cat onedriveCategory, target string) bool {
+func (s OneDriveScope) Contains(cat oneDriveCategory, target string) bool {
 	return contains(s, cat, target)
 }
 
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
-func (s OneDriveScope) IsAny(cat onedriveCategory) bool {
+func (s OneDriveScope) IsAny(cat oneDriveCategory) bool {
 	return isAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope
 // contains all data types for a user, it'll return the
 // OneDriveUser category.
-func (s OneDriveScope) Get(cat onedriveCategory) []string {
+func (s OneDriveScope) Get(cat oneDriveCategory) []string {
 	return getCatValue(s, cat)
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
-// func (s OneDriveScope) set(cat onedriveCategory, v string) OneDriveScope {
+// func (s OneDriveScope) set(cat oneDriveCategory, v string) OneDriveScope {
 // 	return set(s, cat, v)
 // }
 
@@ -286,19 +286,19 @@ func (s OneDriveScope) setDefaults() {
 	// no-op while no child scope types below user are identified
 }
 
-// matchesEntry returns true if either the path or the info in the onedriveEntry matches the scope details.
+// matchesEntry returns true if either the path or the info in the oneDriveEntry matches the scope details.
 func (s OneDriveScope) matchesEntry(
 	cat categorizer,
 	pathValues map[categorizer]string,
 	entry details.DetailsEntry,
 ) bool {
 	// matchesPathValues can be handled generically, thanks to SCIENCE.
-	return matchesPathValues(s, cat.(onedriveCategory), pathValues) || s.matchesInfo(entry.Onedrive)
+	return matchesPathValues(s, cat.(oneDriveCategory), pathValues) || s.matchesInfo(entry.OneDrive)
 }
 
-// matchesInfo handles the standard behavior when comparing a scope and an onedriveInfo
+// matchesInfo handles the standard behavior when comparing a scope and an oneDriveInfo
 // returns true if the scope and info match for the provided category.
-func (s OneDriveScope) matchesInfo(info *details.OnedriveInfo) bool {
+func (s OneDriveScope) matchesInfo(info *details.OneDriveInfo) bool {
 	// we need values to match against
 	if info == nil {
 		return false
@@ -318,7 +318,7 @@ func (s OneDriveScope) matchesInfo(info *details.OnedriveInfo) bool {
 	// any of the targets for a given info filter may succeed.
 	for _, target := range targets {
 		switch filterCat {
-		// TODO: populate onedrive filter checks
+		// TODO: populate oneDrive filter checks
 		default:
 			return target != NoneTgt
 		}

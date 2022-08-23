@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[ServiceUnknown-0]
 	_ = x[ServiceExchange-1]
+	_ = x[ServiceOneDrive-2]
 }
 
-const _service_name = "Unknown ServiceExchange"
+const _service_name = "Unknown ServiceExchangeOneDrive"
 
-var _service_index = [...]uint8{0, 15, 23}
+var _service_index = [...]uint8{0, 15, 23, 31}
 
 func (i service) String() string {
 	if i < 0 || i >= service(len(_service_index)-1) {
