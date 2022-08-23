@@ -21,6 +21,12 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
+const (
+	mailCategory     = "mail"
+	contactsCategory = "contacts"
+	eventsCategory   = "events"
+)
+
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
@@ -229,23 +235,34 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	t := suite.T()
 	connector := loadConnector(t)
-	user := tester.M365UserID(t)
-	if len(user) == 0 {
-		suite.T().Skip("Environment not configured: missing m365 test user")
-	}
-
 	collection := make([]data.Collection, 0)
 	for i := 0; i < 3; i++ {
-		mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", user, mailCategory, "Inbox"}, 1)
+		mdc := mockconnector.NewMockExchangeCollection(
+			[]string{"tenant", suite.user, mailCategory, "Inbox"},
+			1)
 		collection = append(collection, mdc)
 	}
 
-	err := connector.RestoreMessages(context.Background(), collection)
+	err := connector.RestoreExchangeDataCollection(context.Background(), collection)
 	assert.NoError(suite.T(), err)
 	status := connector.AwaitStatus()
 	assert.NotNil(t, status)
 	assert.Equal(t, status.ObjectCount, status.Successful)
 	assert.Equal(t, status.FolderCount, 1)
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
+	t := suite.T()
+	connector := loadConnector(t)
+	path := []string{"tenant", suite.user, contactsCategory, "Top"}
+	mdc := mockconnector.NewMockExchangeCollection(path, 1)
+	mdc.Data = make([][]byte, 0)
+	mdc.Data = append(mdc.Data, mockconnector.GetMockContactBytes("testing"))
+	err := connector.RestoreExchangeDataCollection(
+		context.Background(),
+		[]data.Collection{mdc})
+	t.Logf("%v\n", err)
+
 }
 
 // TestGraphConnector_SingleMailFolderCollectionQuery verifies single folder support
