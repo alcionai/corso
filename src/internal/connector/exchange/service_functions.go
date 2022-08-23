@@ -289,6 +289,23 @@ func RestoreExchangeObject(
 	}
 }
 
+func RestoreExchangeContact(
+	ctx context.Context,
+	bits []byte,
+	service graph.Service,
+	cp control.CollisionPolicy,
+	destination, user string,
+) error {
+	contact, err := support.CreateContactFromBytes(bits)
+	if err != nil {
+		return err
+	}
+	// swap Contact
+
+	// Post
+	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(clone)
+}
+
 // RestoreMailMessage utility function to place an exchange.Mail
 // message into the user's M365 Exchange account.
 // @param bits - byte array representation of exchange.Message from Corso backstore
