@@ -4,32 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 // ------------------------------------------------------------
 // unit tests
 // ------------------------------------------------------------
-
-var (
-	detailsID = uuid.NewString()
-	bu        = backup.Backup{
-		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
-		},
-		CreationTime: time.Now(),
-		SnapshotID:   uuid.NewString(),
-		DetailsID:    detailsID,
-	}
-)
 
 type DetailsUnitSuite struct {
 	suite.Suite
