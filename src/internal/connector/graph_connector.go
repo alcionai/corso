@@ -24,10 +24,6 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
-const (
-	mailCategory = "mail"
-)
-
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
@@ -237,10 +233,13 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	return collections, errs
 }
 
-// RestoreMessages: Utility function to connect to M365 backstore
+// RestoreExchangeDataCollection: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
-// FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collection) error {
+// FullPath: tenantId, userId, <collectionCategory>, FolderId
+func (gc *GraphConnector) RestoreExchangeDataCollection(
+	ctx context.Context,
+	dcs []data.Collection,
+) error {
 	var (
 		pathCounter         = map[string]bool{}
 		attempts, successes int
