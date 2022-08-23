@@ -235,7 +235,6 @@ func (gc *GraphConnector) DigestBackupSelector(sel selectors.Selector) ([]select
 	}
 	scopes := eb.Scopes()
 	for _, scope := range scopes {
-		fmt.Println(scope)
 		for _, user := range scope.Get(selectors.ExchangeUser) {
 			if user == selectors.AnyTgt {
 				// Mail
