@@ -250,16 +250,18 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
 	for _, dc := range dcs {
+		directory := strings.Join(dc.FullPath(), "")
 		user := dc.FullPath()[1]
 		items := dc.Items()
-		pathCounter[strings.Join(dc.FullPath(), "")] = true
-		if policy == control.Copy {
-			folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
-			if errs != nil {
-				return errs
+		if _, ok := pathCounter[directory]; !ok {
+			pathCounter[directory] = true
+			if policy == control.Copy {
+				folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
+				if errs != nil {
+					return errs
+				}
 			}
 		}
-
 		var exit bool
 		for !exit {
 			select {
@@ -278,14 +280,11 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
 					continue
 				}
-				switch policy {
-				case control.Copy:
-					err = exchange.RestoreMailMessage(ctx, buf.Bytes(), &gc.graphService, control.Copy, *folderID, user)
-					if err != nil {
-						errs = support.WrapAndAppend(itemData.UUID(), err, errs)
-					}
-				default:
-					errs = support.WrapAndAppend(itemData.UUID(), errors.New("restore policy not supported"), errs)
+				category := dc.FullPath()[2]
+				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, *folderID, user)
+
+				if err != nil {
+					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
 					continue
 				}
 				successes++

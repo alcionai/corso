@@ -277,10 +277,9 @@ func (s OneDriveScope) Get(cat onedriveCategory) []string {
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
-func (s OneDriveScope) set(cat onedriveCategory, v string) OneDriveScope {
-	s[cat.String()] = v
-	return s
-}
+// func (s OneDriveScope) set(cat onedriveCategory, v string) OneDriveScope {
+// 	return set(s, cat, v)
+// }
 
 // setDefaults ensures that user scopes express `AnyTgt` for their child category types.
 func (s OneDriveScope) setDefaults() {

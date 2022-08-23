@@ -258,6 +258,37 @@ func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
 	return isFolder, nil
 }
 
+func RestoreExchangeObject(
+	ctx context.Context,
+	bits []byte,
+	category string,
+	policy control.CollisionPolicy,
+	service graph.Service,
+	destination, user string,
+) error {
+	var setting optionIdentifier
+	switch category {
+	case mailCategory:
+		setting = messages
+	case contactsCategory:
+		setting = contacts
+	default:
+		return fmt.Errorf("type: %s not supported for exchange restore", category)
+	}
+
+	switch setting {
+	case messages:
+		switch policy {
+		case control.Copy:
+			return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
+		default:
+			return fmt.Errorf("restore policy: %s not supported", policy)
+		}
+	default:
+		return fmt.Errorf("type: %s not supported for exchange restore", category)
+	}
+}
+
 // RestoreMailMessage utility function to place an exchange.Mail
 // message into the user's M365 Exchange account.
 // @param bits - byte array representation of exchange.Message from Corso backstore
