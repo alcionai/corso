@@ -417,6 +417,12 @@ func (suite *ExchangeSourceSuite) TestExchangeBackup_DiscreteScopes() {
 			discrete: usrs,
 			expect:   []string{"u3"},
 		},
+		{
+			name:     "nil discrete slice",
+			include:  Any(),
+			discrete: nil,
+			expect:   Any(),
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
