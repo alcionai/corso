@@ -237,6 +237,10 @@ func IterateSelectAllMessagesForCollections(
 	}
 }
 
+// IterateSelectAllEventsForCollections
+// utility function for iterating through events
+// and storing events in collections based on
+// the calendarID which originates from M365.
 func IterateSelectAllEventsForCollections(
 	tenant string,
 	scope selectors.ExchangeScope,
