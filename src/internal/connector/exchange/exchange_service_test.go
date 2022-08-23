@@ -251,7 +251,7 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 // TestParseCalendarIDFromEvent verifies that parse function
 // works on the current accepted reference format of
 // additional data["calendar@odata.associationLink"]
-func (suite *ExchangeServiceSuite) TestParseCalendarFromEvent() {
+func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
 	tests := []struct {
 		name       string
 		input      string
@@ -268,9 +268,16 @@ func (suite *ExchangeServiceSuite) TestParseCalendarFromEvent() {
 			checkError: assert.Error,
 		},
 		{
+			name: "Missing calendarID not found",
+			input: "https://graph.microsoft.com/v1.0/users" +
+				"('invalid@onmicrosoft.com')/calendars(" +
+				"'')/$ref",
+			checkError: assert.Error,
+		},
+		{
 			name: "Valid string",
 			input: "https://graph.microsoft.com/v1.0/users" +
-				"('lidiah@8qzvrj.onmicrosoft.com')/calendars(" +
+				"('valid@onmicrosoft.com')/calendars(" +
 				"'AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAA" +
 				"DCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEGAADSEBNbUIB9RL6ePDeF3FIYAAAZkDq1AAA=')/$ref",
 			checkError: assert.NoError,
