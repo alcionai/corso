@@ -245,7 +245,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	status := connector.AwaitStatus()
 	assert.NotNil(t, status)
 	assert.Equal(t, status.ObjectCount, status.Successful)
-	suite.Contains(status.String(), "1 directories")
+	assert.Equal(t, status.FolderCount, 1)
 }
 
 // TestGraphConnector_SingleMailFolderCollectionQuery verifies single folder support
