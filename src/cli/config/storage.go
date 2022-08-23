@@ -84,8 +84,7 @@ func configureStorage(
 	// the following is a hack purely for integration testing.
 	// the value is not required, and if empty, kopia will default
 	// to its routine behavior
-	//nolint:bool-literal-in-expr
-	if vpr.Get("corso-testing") == true {
+	if t, ok := vpr.Get("corso-testing").(bool); t && ok {
 		dir, _ := filepath.Split(vpr.ConfigFileUsed())
 		cCfg.KopiaCfgDir = dir
 	}
