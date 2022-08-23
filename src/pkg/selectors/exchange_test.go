@@ -373,27 +373,69 @@ func (suite *ExchangeSourceSuite) TestExchangeDestination_GetOrDefault() {
 	}
 }
 
-var allScopesExceptUnknown = scope{
-	ExchangeContact.String():       AnyTgt,
-	ExchangeContactFolder.String(): AnyTgt,
-	ExchangeEvent.String():         AnyTgt,
-	ExchangeMail.String():          AnyTgt,
-	ExchangeMailFolder.String():    AnyTgt,
-	ExchangeUser.String():          AnyTgt,
-}
-
 func (suite *ExchangeSourceSuite) TestExchangeBackup_Scopes() {
 	eb := NewExchangeBackup()
-	eb.Includes = []scope{allScopesExceptUnknown}
-	// todo: swap the above for this
-	// eb := NewExchangeBackup().IncludeUsers(AnyTgt)
+	eb.Include(eb.Users(Any()))
 
 	scopes := eb.Scopes()
-	assert.Len(suite.T(), scopes, 1)
-	assert.Equal(
-		suite.T(),
-		allScopesExceptUnknown,
-		scope(scopes[0]))
+	assert.Len(suite.T(), scopes, 3)
+	for _, sc := range scopes {
+		cat := sc.Category()
+		suite.T().Run(cat.String(), func(t *testing.T) {
+			assert.True(t, sc.IsAny(ExchangeUser))
+			switch sc.Category() {
+			case ExchangeContactFolder:
+				assert.True(t, sc.IsAny(ExchangeContact))
+				assert.True(t, sc.IsAny(ExchangeContactFolder))
+			case ExchangeEvent:
+				assert.True(t, sc.IsAny(ExchangeEvent))
+			case ExchangeMailFolder:
+				assert.True(t, sc.IsAny(ExchangeMail))
+				assert.True(t, sc.IsAny(ExchangeMailFolder))
+			}
+		})
+	}
+}
+
+func (suite *ExchangeSourceSuite) TestExchangeBackup_DiscreteScopes() {
+	usrs := []string{"u1", "u2"}
+	table := []struct {
+		name     string
+		include  []string
+		discrete []string
+		expect   []string
+	}{
+		{
+			name:     "any user",
+			include:  Any(),
+			discrete: usrs,
+			expect:   usrs,
+		},
+		{
+			name:     "discrete user",
+			include:  []string{"u3"},
+			discrete: usrs,
+			expect:   []string{"u3"},
+		},
+		{
+			name:     "nil discrete slice",
+			include:  Any(),
+			discrete: nil,
+			expect:   Any(),
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			eb := NewExchangeBackup()
+			eb.Include(eb.Users(test.include))
+
+			scopes := eb.DiscreteScopes(test.discrete)
+			for _, sc := range scopes {
+				users := sc.Get(ExchangeUser)
+				assert.Equal(t, test.expect, users)
+			}
+		})
+	}
 }
 
 func (suite *ExchangeSourceSuite) TestExchangeScope_Category() {
@@ -461,11 +503,9 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_IncludesCategory() {
 
 func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 	eb := NewExchangeBackup()
-	eb.Includes = []scope{allScopesExceptUnknown}
-	// todo: swap the above for this
-	// eb := NewExchangeBackup().IncludeUsers(AnyTgt)
+	eb.Include(eb.Users(Any()))
 
-	scope := eb.Scopes()[0]
+	scopes := eb.Scopes()
 
 	table := []exchangeCategory{
 		ExchangeContact,
@@ -476,15 +516,22 @@ func (suite *ExchangeSourceSuite) TestExchangeScope_Get() {
 		ExchangeUser,
 	}
 
-	assert.Equal(
-		suite.T(),
-		None(),
-		scope.Get(ExchangeCategoryUnknown))
-
-	expect := Any()
 	for _, test := range table {
 		suite.T().Run(test.String(), func(t *testing.T) {
-			assert.Equal(t, expect, scope.Get(test))
+			for _, sc := range scopes {
+				assert.Equal(t, Any(), sc.Get(ExchangeUser))
+				switch sc.Category() {
+				case ExchangeContactFolder:
+					assert.Equal(t, Any(), sc.Get(ExchangeContact))
+					assert.Equal(t, Any(), sc.Get(ExchangeContactFolder))
+				case ExchangeEvent:
+					assert.Equal(t, Any(), sc.Get(ExchangeEvent))
+				case ExchangeMailFolder:
+					assert.Equal(t, Any(), sc.Get(ExchangeMail))
+					assert.Equal(t, Any(), sc.Get(ExchangeMailFolder))
+				}
+				assert.Equal(t, None(), sc.Get(ExchangeCategoryUnknown))
+			}
 		})
 	}
 }
