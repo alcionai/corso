@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -216,4 +217,107 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 			assert.Contains(t, result, ent.RepoRef)
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// tests for deleting backups
+// ---------------------------------------------------------------------------
+
+type BackupDeleteExchangeIntegrationSuite struct {
+	suite.Suite
+	acct     account.Account
+	st       storage.Storage
+	vpr      *viper.Viper
+	cfgFP    string
+	repo     *repository.Repository
+	backupOp operations.BackupOperation
+}
+
+func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoCLITests,
+		tester.CorsoCLIBackupTests,
+	); err != nil {
+		t.Skip(err)
+	}
+	suite.Run(t, new(BackupDeleteExchangeIntegrationSuite))
+}
+
+func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
+	t := suite.T()
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs)
+	require.NoError(t, err)
+
+	// prepare common details
+	suite.acct = tester.NewM365Account(t)
+	suite.st = tester.NewPrefixedS3Storage(t)
+
+	cfg, err := suite.st.S3Config()
+	require.NoError(t, err)
+
+	force := map[string]string{
+		tester.TestCfgAccountProvider: "M365",
+		tester.TestCfgStorageProvider: "S3",
+		tester.TestCfgPrefix:          cfg.Prefix,
+	}
+	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
+	require.NoError(t, err)
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+
+	// init the repo first
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
+	require.NoError(t, err)
+
+	m365UserID := tester.M365UserID(t)
+
+	// some tests require an existing backup
+	sel := selectors.NewExchangeBackup()
+	sel.Include(sel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
+
+	suite.backupOp, err = suite.repo.NewBackup(
+		ctx,
+		sel.Selector,
+		control.NewOptions(false))
+	require.NoError(t, suite.backupOp.Run(ctx))
+	require.NoError(t, err)
+}
+
+func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd() {
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	t := suite.T()
+
+	cmd := tester.StubRootCmd(
+		"backup", "delete", "exchange",
+		"--config-file", suite.cfgFP,
+		"--backup", string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	require.NoError(t, cmd.ExecuteContext(ctx))
+
+	// a follow-up details call should fail, due to the backup ID being deleted
+	cmd = tester.StubRootCmd(
+		"backup", "details", "exchange",
+		"--config-file", suite.cfgFP,
+		"--backup", string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	require.Error(t, cmd.ExecuteContext(ctx))
+}
+
+func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_UnknownID() {
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	t := suite.T()
+
+	cmd := tester.StubRootCmd(
+		"backup", "delete", "exchange",
+		"--config-file", suite.cfgFP,
+		"--backup", uuid.NewString())
+	cli.BuildCommandTree(cmd)
+
+	// unknown backupIDs should error since the modelStore can't find the backup
+	require.Error(t, cmd.ExecuteContext(ctx))
 }
