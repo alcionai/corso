@@ -147,9 +147,10 @@ func GetAllUsersForTenant(gs graph.Service, user string) (absser.Parsable, error
 }
 
 // GetAllEvents for User. Default returns EventResponseCollection for future events.
-// of the time that the call was made. There a
+// of the time that the call was made. 'calendar' option must be present to gain
+// access to additional data map in future calls.
 func GetAllEventsForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	options, err := optionsForEvents([]string{"id"})
+	options, err := optionsForEvents([]string{"id", "calendar"})
 	if err != nil {
 		return nil, err
 	}
@@ -245,26 +246,8 @@ func IterateSelectAllEventsForCollections(
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
-	var isDirectorySet bool
 	return func(eventItem any) bool {
-		eventFolder := "Events"
 		user := scope.Get(selectors.ExchangeUser)[0]
-		if !isDirectorySet {
-			service, err := createService(credentials, failFast)
-			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
-				return true
-			}
-			edc := NewCollection(
-				user,
-				[]string{tenant, user, eventsCategory, eventFolder},
-				events,
-				service,
-				statusCh,
-			)
-			collections[eventFolder] = &edc
-			isDirectorySet = true
-		}
 
 		event, ok := eventItem.(models.Eventable)
 		if !ok {
@@ -276,7 +259,47 @@ func IterateSelectAllEventsForCollections(
 			return true
 		}
 
-		collections[eventFolder].AddJob(*event.GetId())
+		adtl := event.GetAdditionalData()
+		value := adtl["calendar@odata.associationLink"]
+		link, ok := value.(*string)
+		if !ok || link == nil {
+			errs = support.WrapAndAppend(
+				user,
+				fmt.Errorf("%s: unable to obtain event data", *event.GetId()),
+				errs,
+			)
+			return true
+		}
+		// calendars and events are not easily correlated
+		// helper function retrieves calendarID from url
+		directory, err := parseCalendarIDFromEvent(*link)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				user,
+				errors.Wrap(err, *event.GetId()),
+				errs,
+			)
+			return true
+		}
+
+		if _, ok := collections[directory]; !ok {
+
+			service, err := createService(credentials, failFast)
+			if err != nil {
+				errs = support.WrapAndAppend(user, err, errs)
+				return true
+			}
+			edc := NewCollection(
+				user,
+				[]string{tenant, user, eventsCategory, directory},
+				events,
+				service,
+				statusCh,
+			)
+			collections[directory] = &edc
+		}
+
+		collections[directory].AddJob(*event.GetId())
 		return true
 	}
 }
