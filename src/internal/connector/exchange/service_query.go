@@ -264,12 +264,20 @@ func IterateSelectAllEventsForCollections(
 		}
 
 		adtl := event.GetAdditionalData()
-		value := adtl["calendar@odata.associationLink"]
+		value, ok := adtl["calendar@odata.associationLink"]
+		if !ok {
+			errs = support.WrapAndAppend(
+				user,
+				fmt.Errorf("%s: does not support calendar look up", *event.GetId()),
+				errs,
+			)
+			return true
+		}
 		link, ok := value.(*string)
 		if !ok || link == nil {
 			errs = support.WrapAndAppend(
 				user,
-				fmt.Errorf("%s: unable to obtain event data", *event.GetId()),
+				fmt.Errorf("%s: unable to obtain calendar event data", *event.GetId()),
 				errs,
 			)
 			return true
