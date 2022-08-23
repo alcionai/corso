@@ -143,7 +143,7 @@ func (s *exchange) Scopes() []ExchangeScope {
 	return scopes[ExchangeScope](s.Selector)
 }
 
-// Discrete retrieves the list of exchangeScopes in the selector.
+// DiscreteScopes retrieves the list of exchangeScopes in the selector.
 // If any Include scope's User category is set to Any, replaces that
 // scope's value with the list of userIDs instead.
 func (s *exchange) DiscreteScopes(userIDs []string) []ExchangeScope {

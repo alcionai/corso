@@ -121,7 +121,7 @@ func (s *onedrive) Scopes() []OneDriveScope {
 	return scopes[OneDriveScope](s.Selector)
 }
 
-// Discrete retrieves the list of onedriveScopes in the selector.
+// DiscreteScopes retrieves the list of onedriveScopes in the selector.
 // If any Include scope's User category is set to Any, replaces that
 // scope's value with the list of userIDs instead.
 func (s *onedrive) DiscreteScopes(userIDs []string) []OneDriveScope {
