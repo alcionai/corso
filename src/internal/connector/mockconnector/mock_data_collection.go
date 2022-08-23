@@ -57,8 +57,8 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 		defer close(res)
 		for i := 0; i < medc.messageCount; i++ {
 			res <- &MockExchangeData{
-				medc.Names[i],
-				io.NopCloser(bytes.NewReader(medc.Data[i])),
+				ID:     medc.Names[i],
+				Reader: io.NopCloser(bytes.NewReader(medc.Data[i])),
 			}
 		}
 	}()
@@ -68,8 +68,9 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 
 // ExchangeData represents a single item retrieved from exchange
 type MockExchangeData struct {
-	ID     string
-	Reader io.ReadCloser
+	ID      string
+	Reader  io.ReadCloser
+	ReadErr error
 }
 
 func (med *MockExchangeData) UUID() string {
@@ -77,6 +78,10 @@ func (med *MockExchangeData) UUID() string {
 }
 
 func (med *MockExchangeData) ToReader() io.ReadCloser {
+	if med.ReadErr != nil {
+		return io.NopCloser(errReader{med.ReadErr})
+	}
+
 	return med.Reader
 }
 
@@ -126,4 +131,12 @@ func GetMockEventBytes(subject string) []byte {
 		"\"subject\":\" " + subject +
 		"Review + Lunch\",\"type\":\"singleInstance\",\"webLink\":\"https://outlook.office365.com/owa/?itemid=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA%3D&exvsurl=1&path=/calendar/item\"}"
 	return []byte(event)
+}
+
+type errReader struct {
+	readErr error
+}
+
+func (er errReader) Read([]byte) (int, error) {
+	return 0, er.readErr
 }
