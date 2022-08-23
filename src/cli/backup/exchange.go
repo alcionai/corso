@@ -114,11 +114,6 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users",
 		)
 
-		// TODO: reveal these flags when their production is supported in GC
-		cobra.CheckErr(fs.MarkHidden("contact"))
-		cobra.CheckErr(fs.MarkHidden("contact-folder"))
-		cobra.CheckErr(fs.MarkHidden("event"))
-
 		// exchange-info flags
 		fs.StringVar(
 			&emailReceivedAfter,

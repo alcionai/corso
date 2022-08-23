@@ -2,11 +2,13 @@ package mockconnector_test
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/mockconnector"
@@ -48,5 +50,55 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchange
 		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
 		assert.NoError(t, err)
 		assert.NotNil(t, something)
+	}
+}
+
+type MockExchangeDataSuite struct {
+	suite.Suite
+}
+
+func TestMockExchangeDataSuite(t *testing.T) {
+	suite.Run(t, new(MockExchangeDataSuite))
+}
+
+func (suite *MockExchangeDataSuite) TestMockExchangeData() {
+	data := []byte("foo")
+	id := "bar"
+
+	table := []struct {
+		name   string
+		reader *mockconnector.MockExchangeData
+		check  require.ErrorAssertionFunc
+	}{
+		{
+			name: "NoError",
+			reader: &mockconnector.MockExchangeData{
+				ID:     id,
+				Reader: io.NopCloser(bytes.NewReader(data)),
+			},
+			check: require.NoError,
+		},
+		{
+			name: "Error",
+			reader: &mockconnector.MockExchangeData{
+				ID:      id,
+				ReadErr: assert.AnError,
+			},
+			check: require.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			assert.Equal(t, id, test.reader.UUID())
+			buf, err := ioutil.ReadAll(test.reader.ToReader())
+
+			test.check(t, err)
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, data, buf)
+		})
 	}
 }
