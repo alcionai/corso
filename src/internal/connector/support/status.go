@@ -10,7 +10,7 @@ import (
 type ConnectorOperationStatus struct {
 	lastOperation    Operation
 	ObjectCount      int
-	folderCount      int
+	FolderCount      int
 	Successful       int
 	errorCount       int
 	incomplete       bool
@@ -42,7 +42,7 @@ func CreateStatus(
 	status := ConnectorOperationStatus{
 		lastOperation:    op,
 		ObjectCount:      objects,
-		folderCount:      folders,
+		FolderCount:      folders,
 		Successful:       success,
 		errorCount:       numErr,
 		incomplete:       hasErrors,
@@ -60,7 +60,7 @@ func CreateStatus(
 
 func (cos *ConnectorOperationStatus) String() string {
 	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
-		cos.Successful, cos.ObjectCount, cos.folderCount)
+		cos.Successful, cos.ObjectCount, cos.FolderCount)
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
 	}
