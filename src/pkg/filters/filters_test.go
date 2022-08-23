@@ -18,9 +18,9 @@ func TestFiltersSuite(t *testing.T) {
 }
 
 func (suite *FiltersSuite) TestEquals() {
-	make := filters.NewEquals
-	f := make(false, "", "foo")
-	nf := make(true, "", "foo")
+	makeFilt := filters.NewEquals
+	f := makeFilt(false, "", "foo")
+	nf := makeFilt(true, "", "foo")
 
 	table := []struct {
 		input    string
@@ -39,9 +39,9 @@ func (suite *FiltersSuite) TestEquals() {
 }
 
 func (suite *FiltersSuite) TestGreater() {
-	make := filters.NewGreater
-	f := make(false, "", "5")
-	nf := make(true, "", "5")
+	makeFilt := filters.NewGreater
+	f := makeFilt(false, "", "5")
+	nf := makeFilt(true, "", "5")
 
 	table := []struct {
 		input    string
@@ -61,9 +61,9 @@ func (suite *FiltersSuite) TestGreater() {
 }
 
 func (suite *FiltersSuite) TestLess() {
-	make := filters.NewLess
-	f := make(false, "", "5")
-	nf := make(true, "", "5")
+	makeFilt := filters.NewLess
+	f := makeFilt(false, "", "5")
+	nf := makeFilt(true, "", "5")
 
 	table := []struct {
 		input    string
@@ -83,9 +83,9 @@ func (suite *FiltersSuite) TestLess() {
 }
 
 func (suite *FiltersSuite) TestBetween() {
-	make := filters.NewBetween
-	f := make(false, "", "abc", "def")
-	nf := make(true, "", "abc", "def")
+	makeFilt := filters.NewBetween
+	f := makeFilt(false, "", "abc", "def")
+	nf := makeFilt(true, "", "abc", "def")
 
 	table := []struct {
 		input    string
@@ -106,9 +106,9 @@ func (suite *FiltersSuite) TestBetween() {
 }
 
 func (suite *FiltersSuite) TestContains() {
-	make := filters.NewContains
-	f := make(false, "", "smurfs")
-	nf := make(true, "", "smurfs")
+	makeFilt := filters.NewContains
+	f := makeFilt(false, "", "smurfs")
+	nf := makeFilt(true, "", "smurfs")
 
 	table := []struct {
 		input    string
@@ -127,9 +127,9 @@ func (suite *FiltersSuite) TestContains() {
 }
 
 func (suite *FiltersSuite) TestIn() {
-	make := filters.NewIn
-	f := make(false, "", "murf")
-	nf := make(true, "", "murf")
+	makeFilt := filters.NewIn
+	f := makeFilt(false, "", "murf")
+	nf := makeFilt(true, "", "murf")
 
 	table := []struct {
 		input    string
