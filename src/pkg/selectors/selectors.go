@@ -132,6 +132,33 @@ func scopes[T scopeT](s Selector) []T {
 	return scopes
 }
 
+// discreteScopes retrieves the list of scopes in the selector.
+// for any scope in the `Includes` set, if scope.IsAny(rootCat),
+// then that category's value is replaced with the provided set of
+// discrete identifiers.
+// future TODO: if Inclues is nil, return filters.
+func discreteScopes[T scopeT, C categoryT](
+	s Selector,
+	rootCat C,
+	discreteIDs []string,
+) []T {
+	scopes := []T{}
+	jdid := join(discreteIDs...)
+	for _, v := range s.Includes {
+		t := T(v)
+		if isAnyTarget(t, rootCat) {
+			w := T{}
+			for k, v := range t {
+				w[k] = v
+			}
+			set(w, rootCat, jdid)
+			t = w
+		}
+		scopes = append(scopes, t)
+	}
+	return scopes
+}
+
 // ---------------------------------------------------------------------------
 // Printing Selectors for Human Reading
 // ---------------------------------------------------------------------------
