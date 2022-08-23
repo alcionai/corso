@@ -124,10 +124,10 @@ func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
 
 // scopes retrieves the list of scopes in the selector.
 // future TODO: if Inclues is nil, return filters.
-func (s *Selector) scopes() []scope {
-	scopes := []scope{}
+func scopes[T scopeT](s Selector) []T {
+	scopes := []T{}
 	for _, v := range s.Includes {
-		scopes = append(scopes, v)
+		scopes = append(scopes, T(v))
 	}
 	return scopes
 }

@@ -17,10 +17,18 @@ type (
 		// String should return the human readable name of the category.
 		String() string
 
-		// includesType should return true if the parameterized category is, contextually
-		// within the service, a subset of the receiver category.  Ex: a Mail category
-		// is a subset of a MailFolder category.
-		includesType(categorizer) bool
+		// leafCat should return the lowest level type matching the category.  If the type
+		// has multiple leaf types (ex: the root category) or no leaves (ex: unknown values),
+		// the same value is returned.  Otherwise, if the receiver is an intermediary type,
+		// such as a folder, then the child value should be returned.
+		// Ex: fooFolder.leafCat() => foo.
+		leafCat() categorizer
+
+		// rootCat returns the root category for the categorizer
+		rootCat() categorizer
+
+		// unknownType returns the unknown category value
+		unknownCat() categorizer
 
 		// pathValues should produce a map of category:string pairs populated by extracting
 		// values out of the path that match the given categorizer.
@@ -106,14 +114,47 @@ type (
 	}
 )
 
+// makeScope produces a well formatted, typed scope that ensures all base values are populated.
+func makeScope[T scopeT](
+	resource, granularity string,
+	cat categorizer,
+	vs []string,
+) T {
+	s := T{
+		scopeKeyCategory:       cat.String(),
+		scopeKeyDataType:       cat.leafCat().String(),
+		scopeKeyGranularity:    granularity,
+		scopeKeyResource:       resource,
+		cat.String():           join(vs...),
+		cat.rootCat().String(): resource,
+	}
+	return s
+}
+
+// makeFilterScope produces a well formatted, typed scope, with properties specifically oriented
+// towards identifying filter-type scopes, that ensures all base values are populated.
+func makeFilterScope[T scopeT](
+	cat, filterCat categorizer,
+	vs []string,
+) T {
+	return T{
+		scopeKeyCategory:    cat.String(),
+		scopeKeyDataType:    cat.leafCat().String(),
+		scopeKeyGranularity: Filter,
+		scopeKeyInfoFilter:  filterCat.String(),
+		scopeKeyResource:    Filter,
+		filterCat.String():  join(vs...),
+	}
+}
+
 // ---------------------------------------------------------------------------
-// funcs
+// scope funcs
 // ---------------------------------------------------------------------------
 
 // contains returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
-func contains[T scopeT](s T, cat categorizer, target string) bool {
-	if !s.categorizer().includesType(cat) {
+func contains[T scopeT, C categoryT](s T, cat C, target string) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}
 	if len(target) == 0 {
@@ -143,6 +184,13 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 	return split(v)
 }
 
+// set sets a value by category to the scope.  Only intended for internal
+// use, not for exporting to callers.
+func set[T scopeT](s T, cat categorizer, v string) T {
+	s[cat.String()] = v
+	return s
+}
+
 // granularity describes the granularity (directory || item)
 // of the data in scope.
 func granularity[T scopeT](s T) string {
@@ -151,8 +199,8 @@ func granularity[T scopeT](s T) string {
 
 // returns true if the category is included in the scope's category type,
 // and the value is set to Any().
-func isAnyTarget[T scopeT](s T, cat categorizer) bool {
-	if !s.categorizer().includesType(cat) {
+func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}
 	return s[cat.String()] == AnyTgt
@@ -254,7 +302,7 @@ func scopesByCategory[T scopeT, C categoryT](
 	for _, sc := range scopes {
 		for _, cat := range cats {
 			t := T(sc)
-			if t.categorizer().includesType(cat) {
+			if typeAndCategoryMatches(cat, t.categorizer()) {
 				m[cat] = append(m[cat], t)
 			}
 		}
@@ -313,9 +361,9 @@ func passes[T scopeT](
 // the categorizer.
 // Standard expectations apply: None() or missing values always fail, Any()
 // always succeeds.
-func matchesPathValues[T scopeT](
+func matchesPathValues[T scopeT, C categoryT](
 	sc T,
-	cat categorizer,
+	cat C,
 	pathValues map[categorizer]string,
 ) bool {
 	for _, c := range cat.pathKeys() {
@@ -334,11 +382,45 @@ func matchesPathValues[T scopeT](
 			return false
 		}
 		// all parts of the scope must match
-		if !isAnyTarget(sc, c) {
+		cc := c.(C)
+		if !isAnyTarget(sc, cc) {
 			if !common.ContainsString(target, pv) {
 				return false
 			}
 		}
 	}
 	return true
+}
+
+// ---------------------------------------------------------------------------
+// categorizer funcs
+// ---------------------------------------------------------------------------
+
+// categoryMatches returns true if:
+// - neither type is 'unknown'
+// - either type is the root type
+// - the leaf types match
+func categoryMatches[C categoryT](a, b C) bool {
+	u := a.unknownCat()
+	if a == u || b == u {
+		return false
+	}
+
+	r := a.rootCat()
+	if a == r || b == r {
+		return true
+	}
+
+	return a.leafCat() == b.leafCat()
+}
+
+// typeAndCategoryMatches returns true if:
+// - both parameters are the same categoryT type
+// - the category matches for both types
+func typeAndCategoryMatches[C categoryT](a C, b categorizer) bool {
+	bb, ok := b.(C)
+	if !ok {
+		return false
+	}
+	return categoryMatches(a, bb)
 }
