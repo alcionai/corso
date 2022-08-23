@@ -57,7 +57,7 @@ func CorsoCommand() *cobra.Command {
 func BuildCommandTree(cmd *cobra.Command) {
 	cmd.Flags().BoolP("version", "v", version, "current version info")
 	cmd.PersistentPostRunE = config.InitFunc()
-	config.AddConfigFileFlag(cmd)
+	config.AddConfigFlags(cmd)
 	print.AddOutputFlag(cmd)
 	logger.AddLogLevelFlag(cmd)
 
