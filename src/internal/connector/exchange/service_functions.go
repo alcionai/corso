@@ -192,6 +192,9 @@ func parseCalendarIDFromEvent(reference string) (string, error) {
 		return "", errors.New("calendarID not found")
 	}
 	calendarID := stringArray[0]
+	if len(calendarID) == 0 {
+		return "", errors.New("calendarID empty")
+	}
 
 	return calendarID, nil
 }
