@@ -282,7 +282,7 @@ func RestoreExchangeObject(
 		case control.Copy:
 			return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
 		default:
-			return fmt.Errorf("restore policy: %s not supported", policy.String())
+			return fmt.Errorf("restore policy: %s not supported", policy)
 		}
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
