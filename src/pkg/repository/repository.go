@@ -181,10 +181,19 @@ func (r Repository) BackupDetails(ctx context.Context, backupID string) (*detail
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
 func (r Repository) DeleteBackup(ctx context.Context, id model.StableID) error {
-	sw := store.NewKopiaStore(r.modelStore)
-	snapshotID, err := sw.DeleteBackup(ctx, id)
+	bu, err := r.Backup(ctx, id)
 	if err != nil {
 		return err
 	}
-	return r.dataLayer.DeleteSnapshot(ctx, snapshotID)
+
+	if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
+		return err
+	}
+
+	sw := store.NewKopiaStore(r.modelStore)
+	if err := sw.DeleteBackup(ctx, id); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -137,12 +137,8 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sm := &store.Wrapper{Storer: test.mock}
-			result, err := sm.DeleteBackup(ctx, model.StableID(uuid.NewString()))
+			err := sm.DeleteBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err)
-			if err != nil {
-				return
-			}
-			assert.Equal(t, bu.SnapshotID, result)
 		})
 	}
 }

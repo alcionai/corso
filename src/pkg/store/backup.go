@@ -41,18 +41,18 @@ func (w Wrapper) GetBackups(ctx context.Context) ([]backup.Backup, error) {
 
 // DeleteBackup deletes the backup and its details entry from the model store.
 // it returns the backup's snapshot ID so that kopia can remove that snapshot.
-func (w Wrapper) DeleteBackup(ctx context.Context, backupID model.StableID) (string, error) {
-	deets, bu, err := w.GetDetailsFromBackupID(ctx, backupID)
+func (w Wrapper) DeleteBackup(ctx context.Context, backupID model.StableID) error {
+	deets, _, err := w.GetDetailsFromBackupID(ctx, backupID)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if err := w.Delete(ctx, model.BackupSchema, backupID); err != nil {
-		return "", err
+		return err
 	}
 	if err := w.Delete(ctx, model.BackupDetailsSchema, deets.ID); err != nil {
-		return "", err
+		return err
 	}
-	return bu.SnapshotID, nil
+	return nil
 }
 
 // GetDetails gets the backup details by ID.
