@@ -46,10 +46,10 @@ func (w Wrapper) DeleteBackup(ctx context.Context, backupID model.StableID) erro
 	if err != nil {
 		return err
 	}
-	if err := w.Delete(ctx, model.BackupSchema, backupID); err != nil {
+	if err := w.Delete(ctx, model.BackupDetailsSchema, deets.ID); err != nil {
 		return err
 	}
-	if err := w.Delete(ctx, model.BackupDetailsSchema, deets.ID); err != nil {
+	if err := w.Delete(ctx, model.BackupSchema, backupID); err != nil {
 		return err
 	}
 	return nil
