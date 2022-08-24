@@ -1,11 +1,29 @@
 # syntax=docker/dockerfile:1
 
+# This dockerfile is able to make a quick, local image of corso.
+# It is not used for deployments.
+
+## Build
+FROM golang:1.18 AS base
+
+WORKDIR /src
+
+COPY ./src/go.mod .
+COPY ./src/go.sum .
+RUN go mod download
+
+COPY ./src .
+
+FROM base AS build
+ARG TARGETOS
+ARG TARGETARCH
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /corso .
+
+## Deploy
 FROM gcr.io/distroless/base-debian10
 
-WORKDIR /
+COPY --from=build /corso /
 
-COPY ./bin/corso ./
-    
 USER nonroot:nonroot
 
-ENTRYPOINT ["/corso"] 
+ENTRYPOINT ["/corso"]
