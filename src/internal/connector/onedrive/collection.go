@@ -1,4 +1,4 @@
-// Package oneDrive provides support for retrieving M365 OneDrive objects
+// Package onedrive provides support for retrieving M365 OneDrive objects
 package onedrive
 
 import (
