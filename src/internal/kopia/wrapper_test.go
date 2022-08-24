@@ -1005,7 +1005,15 @@ func (suite *KopiaIntegrationSuite) TestDeleteSnapshot() {
 	require.NoError(t, err)
 
 	snapshotID := bs.SnapshotID
+	assert.NoError(t, suite.w.DeleteSnapshot(suite.ctx, snapshotID))
 
+	// assert the deletion worked
+	dirPath := []string{testTenant, testUser}
+	_, err = suite.w.RestoreDirectory(suite.ctx, snapshotID, dirPath)
+	assert.Error(t, err, "snapshot should be deleted")
+}
+
+func (suite *KopiaIntegrationSuite) TestDeleteSnapshot_BadIDs() {
 	table := []struct {
 		name       string
 		snapshotID string
@@ -1021,20 +1029,10 @@ func (suite *KopiaIntegrationSuite) TestDeleteSnapshot() {
 			snapshotID: uuid.NewString(),
 			expect:     assert.NoError,
 		},
-		{
-			name:       "existing id",
-			snapshotID: snapshotID,
-			expect:     assert.NoError,
-		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			test.expect(t, suite.w.DeleteSnapshot(suite.ctx, test.snapshotID))
 		})
 	}
-
-	// finally, assert the deletion worked
-	dirPath := []string{testTenant, testUser}
-	_, err = suite.w.RestoreDirectory(suite.ctx, snapshotID, dirPath)
-	assert.Error(t, err, "snapshot should be deleted")
 }

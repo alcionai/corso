@@ -681,12 +681,7 @@ func (w Wrapper) DeleteSnapshot(
 	err := repo.WriteSession(
 		ctx,
 		w.c,
-		repo.WriteSessionOptions{
-			Purpose: "KopiaWrapperBackupDeletion",
-			// Always flush so we don't leak write sessions. Still uses reachability
-			// for consistency.
-			FlushOnFailure: true,
-		},
+		repo.WriteSessionOptions{Purpose: "KopiaWrapperBackupDeletion"},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
 			if err := rw.DeleteManifest(ctx, mid); err != nil {
 				return errors.Wrap(err, "deleting snapshot")
