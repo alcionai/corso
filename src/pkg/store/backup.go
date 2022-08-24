@@ -39,6 +39,18 @@ func (w Wrapper) GetBackups(ctx context.Context) ([]backup.Backup, error) {
 	return bs, nil
 }
 
+// DeleteBackup deletes the backup and its details entry from the model store.
+func (w Wrapper) DeleteBackup(ctx context.Context, backupID model.StableID) error {
+	deets, _, err := w.GetDetailsFromBackupID(ctx, backupID)
+	if err != nil {
+		return err
+	}
+	if err := w.Delete(ctx, model.BackupDetailsSchema, deets.ID); err != nil {
+		return err
+	}
+	return w.Delete(ctx, model.BackupSchema, backupID)
+}
+
 // GetDetails gets the backup details by ID.
 func (w Wrapper) GetDetails(ctx context.Context, detailsID manifest.ID) (*details.Details, error) {
 	d := details.Details{}
