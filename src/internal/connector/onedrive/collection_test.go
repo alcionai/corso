@@ -17,30 +17,30 @@ import (
 	"github.com/alcionai/corso/internal/data"
 )
 
-type OnedriveCollectionSuite struct {
+type OneDriveCollectionSuite struct {
 	suite.Suite
 }
 
-// Allows `*OnedriveCollectionSuite` to be used as a graph.Service
+// Allows `*OneDriveCollectionSuite` to be used as a graph.Service
 // TODO: Implement these methods
 
-func (suite *OnedriveCollectionSuite) Client() *msgraphsdk.GraphServiceClient {
+func (suite *OneDriveCollectionSuite) Client() *msgraphsdk.GraphServiceClient {
 	return nil
 }
 
-func (suite *OnedriveCollectionSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (suite *OneDriveCollectionSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (suite *OnedriveCollectionSuite) ErrPolicy() bool {
+func (suite *OneDriveCollectionSuite) ErrPolicy() bool {
 	return false
 }
 
-func TestOnedriveCollectionSuite(t *testing.T) {
-	suite.Run(t, new(OnedriveCollectionSuite))
+func TestOneDriveCollectionSuite(t *testing.T) {
+	suite.Run(t, new(OneDriveCollectionSuite))
 }
 
-func (suite *OnedriveCollectionSuite) TestOnedriveCollection() {
+func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	folderPath := "dir1/dir2/dir3"
 	coll := NewCollection(folderPath, "fakeDriveID", suite, nil)
 	require.NotNil(suite.T(), coll)
@@ -76,12 +76,12 @@ func (suite *OnedriveCollectionSuite) TestOnedriveCollection() {
 
 	assert.Equal(suite.T(), testItemData, readData)
 	require.NotNil(suite.T(), readItemInfo.Info())
-	require.NotNil(suite.T(), readItemInfo.Info().Onedrive)
-	assert.Equal(suite.T(), testItemName, readItemInfo.Info().Onedrive.ItemName)
-	assert.Equal(suite.T(), folderPath, readItemInfo.Info().Onedrive.ParentPath)
+	require.NotNil(suite.T(), readItemInfo.Info().OneDrive)
+	assert.Equal(suite.T(), testItemName, readItemInfo.Info().OneDrive.ItemName)
+	assert.Equal(suite.T(), folderPath, readItemInfo.Info().OneDrive.ParentPath)
 }
 
-func (suite *OnedriveCollectionSuite) TestOnedriveCollectionReadError() {
+func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 	coll := NewCollection("folderPath", "fakeDriveID", suite, nil)
 	coll.Add("testItemID")
 
