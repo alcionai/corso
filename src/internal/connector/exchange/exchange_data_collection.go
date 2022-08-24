@@ -49,7 +49,7 @@ type Collection struct {
 	// service - client/adapter pair used to access M365 back store
 	service graph.Service
 
-	collectionType optionIdentifier
+	collectionType OptionIdentifier
 	statusCh       chan<- *support.ConnectorOperationStatus
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
@@ -60,7 +60,7 @@ type Collection struct {
 func NewCollection(
 	user string,
 	fullPath []string,
-	collectionType optionIdentifier,
+	collectionType OptionIdentifier,
 	service graph.Service,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) Collection {
@@ -90,7 +90,7 @@ func (col *Collection) Items() <-chan data.Stream {
 
 // GetQueryAndSerializeFunc helper function that returns the two functions functions
 // required to convert M365 identifier into a byte array filled with the serialized data
-func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
+func GetQueryAndSerializeFunc(optID OptionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
 	switch optID {
 	case contacts:
 		return RetrieveContactDataForUser, contactToDataCollection
