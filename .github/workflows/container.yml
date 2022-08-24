@@ -1,7 +1,9 @@
 name: Publish Docker Container Images
-on:
-  push:
-    branches: [main]
+on: push
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 env:
   REGISTRY: ghcr.io
@@ -12,21 +14,6 @@ permissions:
   packages: write
 
 jobs:
-
-  # ------------------------------------------------------------------------------------------
-  # To be decided: Script-Deploy or Dockerfile-Deploy:
-  # Script:
-  #   + Separates the golang build from the corso build.
-  #   - Haven't figured out multiplatform builds yet.
-  #   - Doesn't cache, always takes 10-15 minutes per build in the matrix.
-  # Dockerfile:
-  #   + Once cached, takes <1m to deploy.
-  #   + Multiplatform.
-  #   + Extended features (such as tagging) can be handled by more github actions.
-  #   - When not cached, can take >2 hours to build (at least initially).
-  #   - Currently includes the complete golang:1.18 image.
-  # ------------------------------------------------------------------------------------------
-
   Script-Deploy:
     runs-on: ubuntu-latest
     defaults:
