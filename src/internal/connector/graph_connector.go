@@ -245,7 +245,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
-		folderID            *string
+		folderID            string
 	)
 	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
@@ -253,10 +253,11 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		directory := strings.Join(dc.FullPath(), "")
 		user := dc.FullPath()[1]
 		items := dc.Items()
+		category := dc.FullPath()[2]
 		if _, ok := pathCounter[directory]; !ok {
 			pathCounter[directory] = true
 			if policy == control.Copy {
-				folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
+				folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user, category)
 				if errs != nil {
 					return errs
 				}
@@ -281,7 +282,7 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					continue
 				}
 				category := dc.FullPath()[2]
-				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, *folderID, user)
+				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
 
 				if err != nil {
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
