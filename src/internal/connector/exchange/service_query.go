@@ -7,6 +7,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
+	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -77,7 +78,7 @@ var (
 	}
 )
 
-type optionIdentifier int
+type OptionIdentifier int
 
 const (
 	mailCategory     = "mail"
@@ -85,9 +86,9 @@ const (
 	eventsCategory   = "events"
 )
 
-//go:generate stringer -type=optionIdentifier
+//go:generate stringer -type=OptionIdentifier
 const (
-	unknown optionIdentifier = iota
+	unknown OptionIdentifier = iota
 	folders
 	events
 	messages
@@ -115,7 +116,7 @@ func GetAllMessagesForUser(gs graph.Service, user string) (absser.Parsable, erro
 
 // GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
 func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	selecting := []string{"id", "parentFolderId"}
+	selecting := []string{"parentFolderId"}
 	options, err := optionsForContacts(selecting)
 	if err != nil {
 		return nil, err
@@ -127,12 +128,23 @@ func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, erro
 // GetAllFolderDisplayNamesForUser is a GraphQuery function for getting FolderId and display
 // names for Mail Folder. All other information for the MailFolder object is omitted.
 func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	options, err := optionsForMailFolders([]string{"id", "displayName"})
+	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
 		return nil, err
 	}
 
 	return gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// GetAllContactFolderNamesForUser is a GraphQuery function for getting ContactFolderId
+// and display names for contacts. All other information is omitted.
+// Does not return the primary Contact Folder
+func GetAllContactFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
+	options, err := optionsForContactFolders([]string{"displayName"})
+	if err != nil {
+		return nil, err
+	}
+	return gs.Client().UsersById(user).ContactFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GetAllUsersForTenant is a GraphQuery for retrieving all the UserCollectionResponse with
@@ -357,6 +369,60 @@ func IterateAllContactsForCollection(
 	}
 }
 
+// FoundID necessary to return the M365ID from iteration
+func iterateSelectFoldersByCategory(
+	category OptionIdentifier,
+	idList []*string,
+	folderID *string,
+	folderName, errorIdentifier string,
+	errs error) func(any) bool {
+	return func(entry any) bool {
+		switch category {
+		case messages:
+			folder, ok := entry.(models.MailFolderable)
+			if !ok {
+				errs = support.WrapAndAppend(errorIdentifier, errors.New("invalid return on HasFolder.mail iteration failure"), errs)
+				return true
+			}
+			// Display name not set on folder
+			if folder.GetDisplayName() == nil {
+				return true
+			}
+			name := *folder.GetDisplayName()
+			if folderName == name {
+				if folder.GetId() == nil {
+					return true // invalid folder
+				}
+				folderID = folder.GetId()
+				idList = append(idList, folderID)
+			}
+		case contacts:
+			fmt.Println("This is switch contact")
+			folder, ok := entry.(models.ContactFolderable)
+			if !ok {
+				errs = support.WrapAndAppend(errorIdentifier, errors.New("invalid return on HasFolder.contacts iteration failure"), errs)
+				return true
+			}
+			// Display name not set on Contact Folder
+			if folder.GetDisplayName() == nil {
+				fmt.Printf("Empty Display Name %s\n", *folder.GetId())
+				return true
+			}
+			fmt.Println(*folder.GetDisplayName())
+			if folderName == *folder.GetDisplayName() {
+				if folder.GetId() == nil {
+					return true // invalid folder
+				}
+				folderID = folder.GetId()
+				idList = append(idList, folderID)
+			}
+		default:
+			return true
+		}
+		// Iterate iff folderID has not been populated
+		return folderID == nil
+	}
+}
 func IterateAndFilterMessagesForCollections(
 	tenant string,
 	scope selectors.ExchangeScope,
@@ -543,6 +609,20 @@ func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilde
 	return options, nil
 }
 
+func optionsForContactFolders(moreOps []string) (*mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, folders)
+	if err != nil {
+		return nil, err
+	}
+	requestParameters := &mscontactfolder.ContactFoldersRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	return options, nil
+}
+
 // optionsForMailFolders transforms the options into a more dynamic call for MailFolders.
 // @param moreOps is a []string of options(e.g. "displayName", "isHidden")
 // @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
@@ -610,7 +690,7 @@ func optionsForUsers(moreOps []string) (*msuser.UsersRequestBuilderGetRequestCon
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
-func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
+func buildOptions(options []string, optID OptionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
 	returnedOptions := []string{"id"}
 
@@ -639,5 +719,6 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 
 		returnedOptions = append(returnedOptions, entry)
 	}
+	fmt.Println(returnedOptions)
 	return returnedOptions, nil
 }
