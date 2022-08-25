@@ -44,12 +44,18 @@ import (
 const (
 	escapeCharacter = '\\'
 	pathSeparator   = '/'
+
+	emailCategory = "email"
+
+	exchangeService = "exchange"
 )
 
 var charactersToEscape = map[rune]struct{}{
 	pathSeparator:   {},
 	escapeCharacter: {},
 }
+
+var errMissingSegment = errors.New("missing required path element")
 
 // TODO(ashmrtn): Getting the category should either be through type-switches or
 // through a function, but if it's a function it should re-use existing enums
@@ -148,6 +154,58 @@ func (pb Builder) String() string {
 //nolint:unused
 func (pb Builder) join(start, end int) string {
 	return join(pb.elements[start:end])
+}
+
+func (pb Builder) verifyPrefix(tenant, user string) error {
+	if len(tenant) == 0 {
+		return errors.Wrap(errMissingSegment, "tenant")
+	}
+
+	if len(user) == 0 {
+		return errors.Wrap(errMissingSegment, "user")
+	}
+
+	if len(pb.elements) == 0 {
+		return errors.New("missing path beyond prefix")
+	}
+
+	return nil
+}
+
+func (pb Builder) withPrefix(elements ...string) *Builder {
+	res := Builder{}.Append(elements...)
+	res.elements = append(res.elements, pb.elements...)
+
+	return res
+}
+
+// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail folder
+// resource with information useful to the data layer. This includes prefix
+// elements of the path such as the tenant ID, user ID, service, and service
+// category.
+func (pb Builder) ToDataLayerExchangeMailFolder(tenant, user string) (Path, error) {
+	if err := pb.verifyPrefix(tenant, user); err != nil {
+		return nil, err
+	}
+
+	return &ExchangeMail{
+		Builder: *pb.withPrefix(tenant, exchangeService, user, emailCategory),
+	}, nil
+}
+
+// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail item
+// resource with information useful to the data layer. This includes prefix
+// elements of the path such as the tenant ID, user ID, service, and service
+// category.
+func (pb Builder) ToDataLayerExchangeMailItem(tenant, user string) (Path, error) {
+	if err := pb.verifyPrefix(tenant, user); err != nil {
+		return nil, err
+	}
+
+	return &ExchangeMail{
+		Builder: *pb.withPrefix(tenant, exchangeService, user, emailCategory),
+		hasItem: true,
+	}, nil
 }
 
 // escapeElement takes a single path element and escapes all characters that
