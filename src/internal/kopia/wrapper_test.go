@@ -12,6 +12,7 @@ import (
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
+	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -88,6 +89,89 @@ func testForFiles(
 // ---------------
 // unit tests
 // ---------------
+type CorsoProgressUnitSuite struct {
+	suite.Suite
+}
+
+func TestCorsoProgressUnitSuite(t *testing.T) {
+	suite.Run(t, new(CorsoProgressUnitSuite))
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
+	type testInfo struct {
+		info *itemDetails
+		err  error
+	}
+
+	targetFileName := "testFile"
+	deets := &itemDetails{details.ItemInfo{}, targetFileName}
+
+	table := []struct {
+		name        string
+		cachedItems map[string]testInfo
+		expectedLen int
+		err         error
+	}{
+		{
+			name: "DetailsExist",
+			cachedItems: map[string]testInfo{
+				targetFileName: {
+					info: deets,
+					err:  nil,
+				},
+			},
+			expectedLen: 1,
+		},
+		{
+			name: "PendingNoDetails",
+			cachedItems: map[string]testInfo{
+				targetFileName: {
+					info: nil,
+					err:  nil,
+				},
+			},
+			expectedLen: 0,
+		},
+		{
+			name: "HadError",
+			cachedItems: map[string]testInfo{
+				targetFileName: {
+					info: deets,
+					err:  assert.AnError,
+				},
+			},
+			expectedLen: 0,
+		},
+		{
+			name:        "NotPending",
+			expectedLen: 0,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			bd := &details.Details{}
+			cp := corsoProgress{
+				UploadProgress: &snapshotfs.NullUploadProgress{},
+				deets:          bd,
+				pending:        map[string]*itemDetails{},
+			}
+
+			for k, v := range test.cachedItems {
+				cp.put(k, v.info)
+			}
+
+			require.Len(t, cp.pending, len(test.cachedItems))
+
+			for k, v := range test.cachedItems {
+				cp.FinishedFile(k, v.err)
+			}
+
+			assert.Empty(t, cp.pending)
+			assert.Len(t, bd.Entries, test.expectedLen)
+		})
+	}
+}
+
 type KopiaUnitSuite struct {
 	suite.Suite
 }
@@ -117,7 +201,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2: 42,
 	}
 
-	snapshotDetails := &details.Details{}
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
@@ -138,7 +222,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//   - user2
 	//     - emails
 	//       - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), tenant)
 
@@ -169,7 +253,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		totalFileCount += c
 	}
 
-	assert.Len(suite.T(), snapshotDetails.Entries, totalFileCount)
+	assert.Len(suite.T(), progress.pending, totalFileCount)
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
@@ -180,7 +264,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	expectedFileCount := 42
 
-	snapshotDetails := &details.Details{}
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			[]string{emails},
@@ -191,7 +275,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 	// Returned directory structure should look like:
 	// - emails
 	//   - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), dirTree.Name(), emails)
 
@@ -243,9 +327,9 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			snapshotDetails := &details.Details{}
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, err := inflateDirTree(ctx, test.layout, snapshotDetails)
+			dirTree, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
 			assert.Equal(t, testTenant, dirTree.Name())
 
@@ -323,8 +407,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx := context.Background()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			snapshotDetails := &details.Details{}
-			_, err := inflateDirTree(ctx, test.layout, snapshotDetails)
+			_, err := inflateDirTree(ctx, test.layout, nil)
 			assert.Error(t, err)
 		})
 	}
@@ -526,6 +609,57 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	assert.Equal(t, 2, len(result))
 
 	testForFiles(t, expected, result)
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
+	t := suite.T()
+
+	collections := []data.Collection{
+		&kopiaDataCollection{
+			path: testPath,
+			streams: []data.Stream{
+				&mockconnector.MockExchangeData{
+					ID:     testFileName,
+					Reader: io.NopCloser(bytes.NewReader(testFileData)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName2,
+					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
+				},
+			},
+		},
+		&kopiaDataCollection{
+			path: testPath2,
+			streams: []data.Stream{
+				&mockconnector.MockExchangeData{
+					ID:     testFileName3,
+					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:      testFileName4,
+					ReadErr: assert.AnError,
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName5,
+					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
+				},
+				&mockconnector.MockExchangeData{
+					ID:     testFileName6,
+					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
+				},
+			},
+		},
+	}
+
+	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, stats.ErrorCount)
+	assert.Equal(t, 5, stats.TotalFileCount)
+	assert.Equal(t, 5, stats.TotalDirectoryCount)
+	assert.Equal(t, 1, stats.IgnoredErrorCount)
+	assert.False(t, stats.Incomplete)
+	assert.Len(t, rp.Entries, 5)
 }
 
 type KopiaSimpleRepoIntegrationSuite struct {
@@ -849,6 +983,56 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 				test.paths,
 			)
 			require.Error(t, err)
+		})
+	}
+}
+
+func (suite *KopiaIntegrationSuite) TestDeleteSnapshot() {
+	t := suite.T()
+
+	collections := []data.Collection{
+		mockconnector.NewMockExchangeCollection(
+			[]string{"a-tenant", "user1", "emails"},
+			5,
+		),
+		mockconnector.NewMockExchangeCollection(
+			[]string{"a-tenant", "user2", "emails"},
+			42,
+		),
+	}
+
+	bs, _, err := suite.w.BackupCollections(suite.ctx, collections)
+	require.NoError(t, err)
+
+	snapshotID := bs.SnapshotID
+	assert.NoError(t, suite.w.DeleteSnapshot(suite.ctx, snapshotID))
+
+	// assert the deletion worked
+	dirPath := []string{testTenant, testUser}
+	_, err = suite.w.RestoreDirectory(suite.ctx, snapshotID, dirPath)
+	assert.Error(t, err, "snapshot should be deleted")
+}
+
+func (suite *KopiaIntegrationSuite) TestDeleteSnapshot_BadIDs() {
+	table := []struct {
+		name       string
+		snapshotID string
+		expect     assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "no id",
+			snapshotID: "",
+			expect:     assert.Error,
+		},
+		{
+			name:       "unknown id",
+			snapshotID: uuid.NewString(),
+			expect:     assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			test.expect(t, suite.w.DeleteSnapshot(suite.ctx, test.snapshotID))
 		})
 	}
 }

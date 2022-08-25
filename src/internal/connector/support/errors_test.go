@@ -39,10 +39,10 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_OnVar() {
 
 func (suite *GraphConnectorErrorSuite) TestAsRecoverableError() {
 	err := assert.AnError
-	var recover RecoverableGCError
-	suite.False(errors.As(err, &recover))
+	var rcv RecoverableGCError
+	suite.False(errors.As(err, &rcv))
 	aRecoverable := SetRecoverableError(err)
-	suite.True(errors.As(aRecoverable, &recover))
+	suite.True(errors.As(aRecoverable, &rcv))
 }
 
 func (suite *GraphConnectorErrorSuite) TestAsNonRecoverableError() {

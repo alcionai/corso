@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/cli/options"
 	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -114,11 +115,6 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users",
 		)
 
-		// TODO: reveal these flags when their production is supported in GC
-		cobra.CheckErr(fs.MarkHidden("contact"))
-		cobra.CheckErr(fs.MarkHidden("contact-folder"))
-		cobra.CheckErr(fs.MarkHidden("event"))
-
 		// exchange-info flags
 		fs.StringVar(
 			&emailReceivedAfter,
@@ -139,6 +135,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"",
 			"Select backup details where the email subject lines contain this value",
 		)
+
+	case deleteCommand:
+		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
+		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+		cobra.CheckErr(c.MarkFlagRequired("backup"))
 	}
 
 	return c
@@ -509,5 +510,56 @@ func validateExchangeBackupDetailFlags(
 		return errors.New(
 			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
 	}
+	return nil
+}
+
+// ------------------------------------------------------------------------------------------------
+// backup delete
+// ------------------------------------------------------------------------------------------------
+
+// `corso backup delete exchange [<flag>...]`
+func exchangeDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Delete backed-up M365 Exchange service data",
+		RunE:  deleteExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
+}
+
+// deletes an exchange service backup.
+func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	m365, err := acct.M365Config()
+	if err != nil {
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
+	}
+
+	logger.Ctx(ctx).Debugw(
+		"Called - "+cmd.CommandPath(),
+		"tenantID", m365.TenantID,
+		"clientID", m365.ClientID,
+		"hasClientSecret", len(m365.ClientSecret) > 0)
+
+	r, err := repository.Connect(ctx, acct, s)
+	if err != nil {
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+	}
+	defer utils.CloseRepo(ctx, r)
+
+	if err := r.DeleteBackup(ctx, model.StableID(backupID)); err != nil {
+		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
+	}
+
 	return nil
 }

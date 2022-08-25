@@ -124,12 +124,48 @@ func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
 
 // scopes retrieves the list of scopes in the selector.
 // future TODO: if Inclues is nil, return filters.
-func (s *Selector) scopes() []scope {
-	scopes := []scope{}
+func scopes[T scopeT](s Selector) []T {
+	scopes := []T{}
 	for _, v := range s.Includes {
-		scopes = append(scopes, v)
+		scopes = append(scopes, T(v))
 	}
 	return scopes
+}
+
+// discreteScopes retrieves the list of scopes in the selector.
+// for any scope in the `Includes` set, if scope.IsAny(rootCat),
+// then that category's value is replaced with the provided set of
+// discrete identifiers.
+// If discreteIDs is an empty slice, returns the normal scopes(s).
+// future TODO: if Includes is nil, return filters.
+func discreteScopes[T scopeT, C categoryT](
+	s Selector,
+	rootCat C,
+	discreteIDs []string,
+) []T {
+	sl := []T{}
+	jdid := join(discreteIDs...)
+
+	if len(jdid) == 0 {
+		return scopes[T](s)
+	}
+
+	for _, v := range s.Includes {
+		t := T(v)
+
+		if isAnyTarget(t, rootCat) {
+			w := T{}
+			for k, v := range t {
+				w[k] = v
+			}
+			set(w, rootCat, jdid)
+			t = w
+
+		}
+		sl = append(sl, t)
+	}
+
+	return sl
 }
 
 // ---------------------------------------------------------------------------
