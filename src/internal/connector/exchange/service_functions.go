@@ -262,8 +262,10 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 //  an unique folder for the restore process
 // @param category: input from fullPath()[2]
 // that defines the application the folder is created in.
-func GetCopyRestoreFolder(service graph.Service,
-	user, category string) (string, error) {
+func GetCopyRestoreFolder(
+	service graph.Service,
+	user, category string,
+) (string, error) {
 	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	switch category {
 	case mailCategory:
