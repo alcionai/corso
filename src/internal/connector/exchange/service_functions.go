@@ -180,7 +180,6 @@ func GetFolderID(service graph.Service, folderName, user string, category Option
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Searching for category: %v\t%s\n", category, folderName)
 	callbackFunc := iterateSelectFoldersByCategory(category,
 		&folderID,
 		folderName,
@@ -279,7 +278,6 @@ func establishMailFolder(
 	folderName, user string,
 ) (string, error) {
 	isFolder, err := GetFolderID(service, folderName, user, messages)
-	fmt.Println("Not even right?")
 	if err != nil {
 		// Verify unique folder was not found
 		if errors.Is(err, ErrFolderNotFound) {
