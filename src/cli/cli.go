@@ -41,6 +41,7 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 		print.Infof(cmd.Context(), "Corso\nversion:\tpre-alpha\n")
 		return nil
 	}
+
 	return cmd.Help()
 }
 
@@ -50,6 +51,7 @@ func CorsoCommand() *cobra.Command {
 	c := &cobra.Command{}
 	*c = *corsoCmd
 	BuildCommandTree(c)
+
 	return c
 }
 
