@@ -51,8 +51,6 @@ var charactersToEscape = map[rune]struct{}{
 	escapeCharacter: {},
 }
 
-var errMissingSegment = errors.New("missing required path segment")
-
 // TODO(ashmrtn): Getting the category should either be through type-switches or
 // through a function, but if it's a function it should re-use existing enums
 // for resource types.
@@ -67,119 +65,108 @@ type Path interface {
 	Item() string
 }
 
-type Base struct {
-	// Escaped path elements.
-	elements []string
-	// Contains starting index in elements of each segment.
-	segmentIdx []int
+func NewBuilderFromEscaped(elements ...string) (*Builder, error) {
+	res := &Builder{}
+
+	if err := res.appendElements(true, elements); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
-// newPath takes a path that is broken into segments and elements in the segment
-// and returns a Base. Each element in the input will get escaped.
-// Example: [this, is\, a, path] will transform into [this, is\\, a, path].
-func newPath(segments [][]string) Base {
-	if len(segments) == 0 {
-		return Base{}
-	}
+func NewBuilderFromUnescaped(elements ...string) *Builder {
+	res := &Builder{}
 
-	res := Base{segmentIdx: make([]int, 0, len(segments))}
-	idx := 0
-	for _, s := range segments {
-		sIdx := idx
-
-		for _, e := range s {
-			if len(e) == 0 {
-				continue
-			}
-
-			res.elements = append(res.elements, escapeElement(e))
-			idx++
-		}
-
-		if sIdx != idx {
-			res.segmentIdx = append(res.segmentIdx, sIdx)
-		}
-	}
+	// Unescaped elements can't fail validation.
+	//nolint:errcheck
+	res.appendElements(false, elements)
 
 	return res
 }
 
-// NewPathFromEscapedSegments takes already escaped segments of a path, verifies
-// the segments are escaped properly, and returns a new Base struct. If there is
-// an unescaped trailing '/' it is removed. This function is safe to use with
-// escaped user input where each chunk is a segment. For example, the input
-// [this, is\//a, path] will produce:
-// segments: [this, is\//a, path]
-// elements: [this, is\/, a, path].
-func newPathFromEscapedSegments(segments []string) (Base, error) {
-	b := Base{}
+// Builder is a simple path representation that only tracks path elements. It
+// can join, escape, and unescape elements. To turn it into a Path useful for
+// other components, use functions like ToDataLayerExchangeMailFolder.
+// Resource-specific paths allow access to more information like segments in the
+// path. Builders that are turned into resource paths later on do not need to
+// manually add prefixes for items that normally appear in the data layer (ex.
+// tenant ID, service, user ID, etc).
+type Builder struct {
+	// Unescaped version of elements.
+	elements []string
+}
 
-	if err := validateSegments(segments); err != nil {
-		return b, errors.Wrap(err, "validating escaped path")
+// AppendEscaped creates a copy of this Builder and adds one or more already
+// escaped path elements to the end of the new Builder. Elements are added in
+// the order they are passed.
+func (pb Builder) AppendEscaped(elements ...string) (*Builder, error) {
+	res := &Builder{elements: make([]string, 0, len(pb.elements))}
+	copy(res.elements, pb.elements)
+
+	if err := res.appendElements(true, elements); err != nil {
+		return nil, err
 	}
 
-	// Make a copy of the input so we don't modify the original slice.
-	tmpSegments := make([]string, len(segments))
-	copy(tmpSegments, segments)
-	tmpSegments[len(tmpSegments)-1] = trimTrailingSlash(tmpSegments[len(tmpSegments)-1])
+	return res, nil
+}
 
-	for _, s := range tmpSegments {
-		newElems := split(s)
+// AppendUnescaped creates a copy of this Builder, escapes the given path
+// elements, and adds them to the end of the new Builder. Elements are added in
+// the order they are passed.
+func (pb Builder) AppendUnescaped(elements ...string) *Builder {
+	res := &Builder{elements: make([]string, len(pb.elements))}
+	copy(res.elements, pb.elements)
 
-		if len(newElems) == 0 {
+	// Unescaped elements can't fail validation.
+	//nolint:errcheck
+	res.appendElements(false, elements)
+
+	return res
+}
+
+func (pb *Builder) appendElements(escaped bool, elements []string) error {
+	for _, e := range elements {
+		if len(e) == 0 {
 			continue
 		}
 
-		b.segmentIdx = append(b.segmentIdx, len(b.elements))
-		b.elements = append(b.elements, newElems...)
+		tmp := e
+
+		if escaped {
+			tmp = trimTrailingSlash(tmp)
+			// If tmp was just the path separator then it will be empty now.
+			if len(tmp) == 0 {
+				continue
+			}
+
+			if err := validateEscapedElement(tmp); err != nil {
+				return err
+			}
+
+			tmp = unescape(tmp)
+		}
+
+		pb.elements = append(pb.elements, tmp)
 	}
 
-	return b, nil
-}
-
-// String returns a string that contains all path segments joined
-// together. Elements of the path that need escaping will be escaped.
-func (b Base) String() string {
-	return join(b.elements)
-}
-
-// segment returns the nth segment of the path. Path segment indices are
-// 0-based. As this function is used exclusively by wrappers of path, it does no
-// bounds checking. Callers are expected to have validated the number of
-// segments when making the path.
-func (b Base) segment(n int) string {
-	if n == len(b.segmentIdx)-1 {
-		return join(b.elements[b.segmentIdx[n]:])
-	}
-
-	return join(b.elements[b.segmentIdx[n]:b.segmentIdx[n+1]])
-}
-
-// unescapedSegmentElements returns the unescaped version of the elements that
-// comprise the requested segment. Path segment indices are 0-based.
-func (b Base) unescapedSegmentElements(n int) []string {
-	var elements []string
-
-	if n == len(b.segmentIdx)-1 {
-		elements = b.elements[b.segmentIdx[n]:]
-	} else {
-		elements = b.elements[b.segmentIdx[n]:b.segmentIdx[n+1]]
-	}
-
-	res := make([]string, 0, len(elements))
-
-	for _, e := range elements {
-		res = append(res, unescape(e))
-	}
-
-	return res
-}
-
-// TransformedSegments returns a slice of the path segments where each segments
-// has also been transformed such that it contains no characters outside the set
-// of acceptable file system path characters.
-func (b Base) TransformedSegments() []string {
 	return nil
+}
+
+// String returns a string that contains all path elements joined together.
+// Elements of the path that need escaping are escaped.
+func (pb Builder) String() string {
+	escaped := make([]string, 0, len(pb.elements))
+
+	for _, e := range pb.elements {
+		escaped = append(escaped, escapeElement(e))
+	}
+
+	return join(escaped)
+}
+
+func (pb Builder) join(start, end int) string {
+	return join(pb.elements[start:end])
 }
 
 // escapeElement takes a single path element and escapes all characters that
@@ -198,13 +185,14 @@ func escapeElement(element string) string {
 		return element
 	}
 
+	startIdx := 0
 	b := strings.Builder{}
 	b.Grow(len(element) + len(escapeIdx))
-	startIdx := 0
 
 	for _, idx := range escapeIdx {
 		b.WriteString(element[startIdx:idx])
 		b.WriteRune(escapeCharacter)
+
 		startIdx = idx
 	}
 
@@ -220,9 +208,9 @@ func escapeElement(element string) string {
 // separators will result in an ambiguous or incorrect segment.
 func unescape(element string) string {
 	b := strings.Builder{}
-
 	startIdx := 0
 	prevWasEscape := false
+
 	for i, c := range element {
 		if c != escapeCharacter || prevWasEscape {
 			prevWasEscape = false
@@ -240,33 +228,37 @@ func unescape(element string) string {
 	return b.String()
 }
 
-// validateSegments takes a slice of segments and ensures that escaped
-// sequences match the set of characters that need escaping and that there
-// aren't hanging escape characters at the end of a segment.
-func validateSegments(segments []string) error {
-	for _, segment := range segments {
-		prevWasEscape := false
+// validateEscapedElement takes an escaped element that has had trailing
+// separators trimmed and ensures that no characters requiring escaping are
+// unescaped and that no escape characters are combined with characters that
+// don't need escaping.
+func validateEscapedElement(element string) error {
+	prevWasEscape := false
 
-		for _, c := range segment {
-			switch prevWasEscape {
-			case true:
-				prevWasEscape = false
+	for _, c := range element {
+		switch prevWasEscape {
+		case true:
+			prevWasEscape = false
 
-				if _, ok := charactersToEscape[c]; !ok {
-					return errors.Errorf(
-						"bad escape sequence in path: '%c%c'", escapeCharacter, c)
-				}
+			if _, ok := charactersToEscape[c]; !ok {
+				return errors.Errorf(
+					"bad escape sequence in path: '%c%c'", escapeCharacter, c)
+			}
 
-			case false:
-				if c == escapeCharacter {
-					prevWasEscape = true
-				}
+		case false:
+			if c == escapeCharacter {
+				prevWasEscape = true
+				continue
+			}
+
+			if _, ok := charactersToEscape[c]; ok {
+				return errors.Errorf("unescaped '%c' in path", c)
 			}
 		}
+	}
 
-		if prevWasEscape {
-			return errors.New("trailing escape character in segment")
-		}
+	if prevWasEscape {
+		return errors.New("trailing escape character")
 	}
 
 	return nil
@@ -284,6 +276,7 @@ func trimTrailingSlash(element string) string {
 	}
 
 	numSlashes := 0
+
 	for i := lastIdx - 1; i >= 0; i-- {
 		if element[i] != escapeCharacter {
 			break
@@ -305,53 +298,4 @@ func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(pathSeparator))
-}
-
-// split returns a slice of path elements for the given segment when the segment
-// is split on the path separator according to the escaping rules.
-func split(segment string) []string {
-	res := make([]string, 0)
-	numEscapes := 0
-	startIdx := 0
-	// Start with true to ignore leading separator.
-	prevWasSeparator := true
-
-	for i, c := range segment {
-		if c == escapeCharacter {
-			numEscapes++
-			prevWasSeparator = false
-			continue
-		}
-
-		if c != pathSeparator {
-			prevWasSeparator = false
-			numEscapes = 0
-			continue
-		}
-
-		// Remaining is just path separator handling.
-		if numEscapes%2 != 0 {
-			// This is an escaped separator.
-			prevWasSeparator = false
-			numEscapes = 0
-			continue
-		}
-
-		// Ignore leading separator characters and don't add elements that would
-		// be empty.
-		if !prevWasSeparator {
-			res = append(res, segment[startIdx:i])
-		}
-
-		// We don't want to include the path separator in the result.
-		startIdx = i + 1
-		prevWasSeparator = true
-		numEscapes = 0
-	}
-
-	// Add the final segment because the loop above won't catch it. There should
-	// be no trailing separator character, but do a bounds check to be safe.
-	res = append(res, segment[startIdx:])
-
-	return res
 }

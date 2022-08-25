@@ -2,7 +2,6 @@ package path
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -11,138 +10,214 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-var basicInputs = []struct {
-	name                      string
-	input                     [][]string
-	expectedString            string
-	expectedEscapedSegments   []string
-	expectedUnescapedElements [][]string
-}{
+type testData struct {
+	name           string
+	input          []string
+	expectedString string
+}
+
+// Test cases that are the same with and without escaping by the
+// system-under-test.
+var genericCases = []testData{
 	{
 		name: "SimplePath",
-		input: [][]string{
-			{`this`},
-			{`is`},
-			{`a`},
-			{`path`},
-		},
-		expectedString: "this/is/a/path",
-		expectedEscapedSegments: []string{
+		input: []string{
 			`this`,
 			`is`,
 			`a`,
 			`path`,
 		},
-		expectedUnescapedElements: [][]string{
-			{`this`},
-			{`is`},
-			{`a`},
-			{`path`},
-		},
+		expectedString: "this/is/a/path",
 	},
 	{
+		name: "EmptyElement",
+		input: []string{
+			`this`,
+			`is`,
+			``,
+			`a`,
+			`path`,
+		},
+		expectedString: `this/is/a/path`,
+	},
+	{
+		name:           "EmptyInput",
+		expectedString: "",
+	},
+}
+
+// Inputs that should be escaped.
+var basicUnescapedInputs = []testData{
+	{
 		name: "EscapeSeparator",
-		input: [][]string{
-			{`this`},
-			{`is/a`},
-			{`path`},
+		input: []string{
+			`this`,
+			`is/a`,
+			`path`,
 		},
 		expectedString: `this/is\/a/path`,
-		expectedEscapedSegments: []string{
+	},
+	{
+		name: "EscapeEscapeChar",
+		input: []string{
+			`this`,
+			`is\`,
+			`a`,
+			`path`,
+		},
+		expectedString: `this/is\\/a/path`,
+	},
+	{
+		name: "EscapeEscapeAndSeparator",
+		input: []string{
 			`this`,
 			`is\/a`,
 			`path`,
 		},
-		expectedUnescapedElements: [][]string{
-			{`this`},
-			{`is/a`},
-			{`path`},
-		},
+		expectedString: `this/is\\\/a/path`,
 	},
 	{
-		name: "EscapeEscapeChar",
-		input: [][]string{
-			{`this`},
-			{`is\`},
-			{`a`},
-			{`path`},
+		name: "SeparatorAtEndOfElement",
+		input: []string{
+			`this`,
+			`is/`,
+			`a`,
+			`path`,
 		},
-		expectedString: `this/is\\/a/path`,
-		expectedEscapedSegments: []string{
+		expectedString: `this/is\//a/path`,
+	},
+	{
+		name: "SeparatorAtEndOfPath",
+		input: []string{
+			`this`,
+			`is`,
+			`a`,
+			`path/`,
+		},
+		expectedString: `this/is/a/path\/`,
+	},
+}
+
+// Inputs that are already escaped.
+var basicEscapedInputs = []testData{
+	{
+		name: "EscapedSeparator",
+		input: []string{
+			`this`,
+			`is\/a`,
+			`path`,
+		},
+		expectedString: `this/is\/a/path`,
+	},
+	{
+		name: "EscapedEscapeChar",
+		input: []string{
 			`this`,
 			`is\\`,
 			`a`,
 			`path`,
 		},
-		expectedUnescapedElements: [][]string{
-			{`this`},
-			{`is\`},
-			{`a`},
-			{`path`},
-		},
+		expectedString: `this/is\\/a/path`,
 	},
 	{
-		name: "EscapeEscapeAndSeparator",
-		input: [][]string{
-			{`this`},
-			{`is\/a`},
-			{`path`},
-		},
-		expectedString: `this/is\\\/a/path`,
-		expectedEscapedSegments: []string{
+		name: "EscapedEscapeAndSeparator",
+		input: []string{
 			`this`,
 			`is\\\/a`,
 			`path`,
 		},
-		expectedUnescapedElements: [][]string{
-			{`this`},
-			{`is\/a`},
-			{`path`},
-		},
+		expectedString: `this/is\\\/a/path`,
 	},
 	{
-		name: "SeparatorAtEndOfElement",
-		input: [][]string{
-			{`this`},
-			{`is/`},
-			{`a`},
-			{`path`},
-		},
-		expectedString: `this/is\//a/path`,
-		expectedEscapedSegments: []string{
+		name: "EscapedSeparatorAtEndOfElement",
+		input: []string{
 			`this`,
 			`is\/`,
 			`a`,
 			`path`,
 		},
-		expectedUnescapedElements: [][]string{
-			{`this`},
-			{`is/`},
-			{`a`},
-			{`path`},
-		},
+		expectedString: `this/is\//a/path`,
 	},
 	{
-		name: "SeparatorAtEndOfPath",
-		input: [][]string{
-			{`this`},
-			{`is`},
-			{`a`},
-			{`path/`},
-		},
-		expectedString: `this/is/a/path\/`,
-		expectedEscapedSegments: []string{
+		name: "EscapedSeparatorAtEndOfPath",
+		input: []string{
 			`this`,
 			`is`,
 			`a`,
 			`path\/`,
 		},
-		expectedUnescapedElements: [][]string{
-			{`this`},
-			{`is`},
-			{`a`},
-			{`path/`},
+		expectedString: `this/is/a/path\/`,
+	},
+	{
+		name: "ElementOfSeparator",
+		input: []string{
+			`this`,
+			`is`,
+			`/`,
+			`a`,
+			`path`,
 		},
+		expectedString: `this/is/a/path`,
+	},
+	{
+		name: "TrailingElementSeparator",
+		input: []string{
+			`this`,
+			`is`,
+			`a/`,
+			`path`,
+		},
+		expectedString: `this/is/a/path`,
+	},
+	{
+		name: "TrailingSeparatorAtEnd",
+		input: []string{
+			`this`,
+			`is`,
+			`a`,
+			`path/`,
+		},
+		expectedString: `this/is/a/path`,
+	},
+	{
+		name: "TrailingSeparatorWithEmptyElementAtEnd",
+		input: []string{
+			`this`,
+			`is`,
+			`a`,
+			`path/`,
+			``,
+		},
+		expectedString: `this/is/a/path`,
+	},
+}
+
+// Different ways to get a populated Builder given some strings.
+var builderWithEscapingModes = []struct {
+	name      string
+	buildFunc func(elements ...string) *Builder
+}{
+	{
+		name:      "NewFunc",
+		buildFunc: NewBuilderFromUnescaped,
+	},
+	{
+		name:      "AppendFunc",
+		buildFunc: Builder{}.AppendUnescaped,
+	},
+}
+
+var builderWithNoEscapingModes = []struct {
+	name      string
+	buildFunc func(elements ...string) (*Builder, error)
+}{
+	{
+		name:      "NewFunc",
+		buildFunc: NewBuilderFromEscaped,
+	},
+	{
+		name:      "AppendFunc",
+		buildFunc: Builder{}.AppendEscaped,
 	},
 }
 
@@ -154,214 +229,52 @@ func TestPathUnitSuite(t *testing.T) {
 	suite.Run(t, new(PathUnitSuite))
 }
 
-func (suite *PathUnitSuite) TestPathEscapingAndSegments() {
-	for _, test := range basicInputs {
-		suite.T().Run(test.name, func(t *testing.T) {
-			p := newPath(test.input)
-			assert.Equal(t, test.expectedString, p.String())
+func (suite *PathUnitSuite) TestBuilderWithEscaping() {
+	table := append(append([]testData{}, genericCases...), basicUnescapedInputs...)
 
-			for i, s := range test.expectedEscapedSegments {
-				segment := ""
-				assert.NotPanics(t, func() {
-					segment = p.segment(i)
+	for _, m := range builderWithEscapingModes {
+		suite.T().Run(m.name, func(tOuter *testing.T) {
+			for _, test := range table {
+				tOuter.Run(test.name, func(t *testing.T) {
+					p := m.buildFunc(test.input...)
+					assert.Equal(t, test.expectedString, p.String())
 				})
-
-				assert.Equal(t, s, segment)
 			}
-
-			assert.Panics(t, func() {
-				_ = p.segment(len(test.input))
-			})
 		})
 	}
 }
 
-func (suite *PathUnitSuite) TestPathEscapingAndSegments_EmpytElements() {
-	table := []struct {
-		name     string
-		input    [][]string
-		expected string
-	}{
-		{
-			name: "EmptyInternalElement",
-			input: [][]string{
-				{`this`},
-				{`is`},
-				{""},
-				{`a`},
-				{`path`},
-			},
-			expected: "this/is/a/path",
-		},
-		{
-			name: "EmptyInternalElement2",
-			input: [][]string{
-				{`this`},
-				{`is`},
-				{"", "", ""},
-				{`a`},
-				{`path`},
-			},
-			expected: "this/is/a/path",
-		},
-		{
-			name: "EmptyInternalElement3",
-			input: [][]string{
-				{`this`},
-				{`is`},
-				{},
-				{`a`},
-				{`path`},
-			},
-			expected: "this/is/a/path",
-		},
-	}
+func (suite *PathUnitSuite) TestBuilderWithNoEscaping() {
+	table := append(append([]testData{}, genericCases...), basicEscapedInputs...)
 
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			p := newPath(test.input)
+	for _, m := range builderWithNoEscapingModes {
+		suite.T().Run(m.name, func(tOuter *testing.T) {
+			for _, test := range table {
+				tOuter.Run(test.name, func(t *testing.T) {
+					p, err := m.buildFunc(test.input...)
+					require.NoError(t, err)
 
-			idx := 0
-			for i := 0; i < len(test.input); i++ {
-				if i == 2 {
-					continue
-				}
-
-				assert.NotPanics(t, func() {
-					_ = p.segment(idx)
+					assert.Equal(t, test.expectedString, p.String())
 				})
-				idx++
-			}
-
-			assert.Panics(t, func() {
-				_ = p.segment(len(test.input))
-			})
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestUnescapedSegmentElements() {
-	for _, test := range basicInputs {
-		suite.T().Run(test.name, func(t *testing.T) {
-			p := newPath(test.input)
-
-			for i, s := range test.expectedUnescapedElements {
-				elements := []string{}
-				require.NotPanics(t, func() {
-					elements = p.unescapedSegmentElements(i)
-				})
-
-				assert.True(t, reflect.DeepEqual(s, elements))
-			}
-
-			assert.Panics(t, func() {
-				_ = p.unescapedSegmentElements(len(test.input))
-			})
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestPathSplitsEscapedPath() {
-	table := []struct {
-		name             string
-		input            []string
-		expected         string
-		expectedSegments []string
-	}{
-		{
-			name:             "SimplePath",
-			input:            []string{`this`, `is/a`, `path`},
-			expected:         "this/is/a/path",
-			expectedSegments: []string{`this`, `is/a`, `path`},
-		},
-		{
-			name:             "EscapeSeparator",
-			input:            []string{`this`, `is\/a`, `path`},
-			expected:         `this/is\/a/path`,
-			expectedSegments: []string{`this`, `is\/a`, `path`},
-		},
-		{
-			name:             "EscapeEscapeChar",
-			input:            []string{`this`, `is\\/a`, `path`},
-			expected:         `this/is\\/a/path`,
-			expectedSegments: []string{`this`, `is\\/a`, `path`},
-		},
-		{
-			name:             "EmptyInternalElement",
-			input:            []string{`this`, `is//a`, `path`},
-			expected:         "this/is/a/path",
-			expectedSegments: []string{`this`, `is/a`, `path`},
-		},
-		{
-			name:             "SeparatorAtEndOfElement",
-			input:            []string{`this`, `is\//a`, `path`},
-			expected:         `this/is\//a/path`,
-			expectedSegments: []string{`this`, `is\//a`, `path`},
-		},
-		{
-			name:             "SeparatorAtEndOfPath",
-			input:            []string{`this`, `is/a`, `path\/`},
-			expected:         `this/is/a/path\/`,
-			expectedSegments: []string{`this`, `is/a`, `path\/`},
-		},
-		{
-			name:             "TrailingSeparator",
-			input:            []string{`this`, `is/a`, `path/`},
-			expected:         `this/is/a/path`,
-			expectedSegments: []string{`this`, `is/a`, `path`},
-		},
-		{
-			name:             "TrailingSeparator2",
-			input:            []string{`this`, `is/a`, `path\\\\/`},
-			expected:         `this/is/a/path\\\\`,
-			expectedSegments: []string{`this`, `is/a`, `path\\\\`},
-		},
-		{
-			name:             "ManyEscapesNotSeparator",
-			input:            []string{`this`, `is\\\\/a`, `path/`},
-			expected:         `this/is\\\\/a/path`,
-			expectedSegments: []string{`this`, `is\\\\/a`, `path`},
-		},
-		{
-			name:             "ManyEscapesAndSeparator",
-			input:            []string{`this`, `is\\\/a`, `path`},
-			expected:         `this/is\\\/a/path`,
-			expectedSegments: []string{`this`, `is\\\/a`, `path`},
-		},
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			p, err := newPathFromEscapedSegments(test.input)
-			require.NoError(t, err)
-			assert.Equal(t, test.expected, p.String())
-
-			for i, s := range test.expectedSegments {
-				segment := ""
-				require.NotPanics(t, func() {
-					segment = p.segment(i)
-				})
-
-				assert.Equal(t, s, segment)
 			}
 		})
 	}
 }
 
 func (suite *PathUnitSuite) TestEscapedFailure() {
-	target := "i_s/a"
+	target := "i_s"
 
-	for c := range charactersToEscape {
-		if c == pathSeparator {
-			// Extra path separators in the path will just lead to more segments, not
-			// a validation error.
-			continue
-		}
+	for _, m := range builderWithNoEscapingModes {
+		suite.T().Run(m.name, func(tOuter *testing.T) {
+			for c := range charactersToEscape {
+				tOuter.Run(fmt.Sprintf("Unescaped-%c", c), func(t *testing.T) {
+					tmp := strings.ReplaceAll(target, "_", string(c))
 
-		tmp := strings.ReplaceAll(target, "_", string(c))
-		basePath := []string{"this", tmp, "path"}
-		_, err := newPathFromEscapedSegments(basePath)
-		assert.Error(suite.T(), err, "path with unescaped %s did not error", string(c))
+					_, err := m.buildFunc("this", tmp, "path")
+					assert.Error(t, err, "path with unescaped %s did not error", string(c))
+				})
+			}
+		})
 	}
 }
 
@@ -369,31 +282,45 @@ func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
 	target := `i\_s/a`
 	notEscapes := []rune{'a', 'b', '#', '%'}
 
-	for _, c := range notEscapes {
-		tmp := strings.ReplaceAll(target, "_", string(c))
-		basePath := []string{"this", tmp, "path"}
-		_, err := newPathFromEscapedSegments(basePath)
-		assert.Error(
-			suite.T(),
-			err,
-			"path with bad escape sequence %c%c did not error",
-			escapeCharacter,
-			c,
-		)
+	for _, m := range builderWithNoEscapingModes {
+		suite.T().Run(m.name, func(tOuter *testing.T) {
+			for _, c := range notEscapes {
+				tOuter.Run(fmt.Sprintf("Escaped-%c", c), func(t *testing.T) {
+					tmp := strings.ReplaceAll(target, "_", string(c))
+
+					_, err := m.buildFunc("this", tmp, "path")
+					assert.Error(
+						t,
+						err,
+						"path with bad escape sequence %c%c did not error",
+						escapeCharacter,
+						c,
+					)
+				})
+			}
+		})
 	}
 }
 
 func (suite *PathUnitSuite) TestTrailingEscapeChar() {
 	base := []string{"this", "is", "a", "path"}
 
-	for i := 0; i < len(base); i++ {
-		suite.T().Run(fmt.Sprintf("Segment%v", i), func(t *testing.T) {
-			path := make([]string, len(base))
-			copy(path, base)
-			path[i] = path[i] + string(escapeCharacter)
+	for _, m := range builderWithNoEscapingModes {
+		suite.T().Run(m.name, func(tOuter *testing.T) {
+			for i := 0; i < len(base); i++ {
+				tOuter.Run(fmt.Sprintf("Element%v", i), func(t *testing.T) {
+					path := make([]string, len(base))
+					copy(path, base)
+					path[i] = path[i] + string(escapeCharacter)
 
-			_, err := newPathFromEscapedSegments(path)
-			assert.Error(suite.T(), err)
+					_, err := m.buildFunc(path...)
+					assert.Error(
+						t,
+						err,
+						"path with trailing escape character did not error",
+					)
+				})
+			}
 		})
 	}
 }
