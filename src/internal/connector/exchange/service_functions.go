@@ -180,11 +180,9 @@ func GetFolderID(service graph.Service, folderName, user string, category Option
 	if err != nil {
 		return nil, err
 	}
-	foundID := make([]*string, 0)
 	fmt.Printf("Searching for category: %v\t%s\n", category, folderName)
 	callbackFunc := iterateSelectFoldersByCategory(category,
-		foundID,
-		folderID,
+		&folderID,
 		folderName,
 		service.Adapter().GetBaseUrl(),
 		errs,
@@ -194,11 +192,11 @@ func GetFolderID(service graph.Service, folderName, user string, category Option
 		return nil, support.WrapAndAppend(service.Adapter().GetBaseUrl(), err, errs)
 	}
 
-	if len(foundID) == 0 {
+	if folderID == nil {
 		return nil, ErrFolderNotFound
 	}
 
-	return foundID[0], errs
+	return folderID, errs
 }
 
 // parseCalendarIDFromEvent returns the M365 ID for a calendar
