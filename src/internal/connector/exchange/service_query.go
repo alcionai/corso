@@ -715,6 +715,5 @@ func buildOptions(options []string, optID OptionIdentifier) ([]string, error) {
 
 		returnedOptions = append(returnedOptions, entry)
 	}
-	fmt.Println(returnedOptions)
 	return returnedOptions, nil
 }
