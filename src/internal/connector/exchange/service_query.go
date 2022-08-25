@@ -372,8 +372,7 @@ func IterateAllContactsForCollection(
 // FoundID necessary to return the M365ID from iteration
 func iterateSelectFoldersByCategory(
 	category OptionIdentifier,
-	idList []*string,
-	folderID *string,
+	folderID **string,
 	folderName, errorIdentifier string,
 	errs error) func(any) bool {
 	return func(entry any) bool {
@@ -389,13 +388,15 @@ func iterateSelectFoldersByCategory(
 				return true
 			}
 			name := *folder.GetDisplayName()
+			fmt.Println(name)
 			if folderName == name {
 				if folder.GetId() == nil {
 					return true // invalid folder
 				}
-				folderID = folder.GetId()
-				idList = append(idList, folderID)
+				*folderID = folder.GetId()
+				return false
 			}
+			return true
 		case contacts:
 			fmt.Println("This is switch contact")
 			folder, ok := entry.(models.ContactFolderable)
@@ -413,14 +414,14 @@ func iterateSelectFoldersByCategory(
 				if folder.GetId() == nil {
 					return true // invalid folder
 				}
-				folderID = folder.GetId()
-				idList = append(idList, folderID)
+				*folderID = folder.GetId()
+				return false
 			}
+			return true
 		default:
 			return true
 		}
-		// Iterate iff folderID has not been populated
-		return folderID == nil
+
 	}
 }
 func IterateAndFilterMessagesForCollections(
