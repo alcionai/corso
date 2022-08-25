@@ -388,7 +388,6 @@ func iterateSelectFoldersByCategory(
 				return true
 			}
 			name := *folder.GetDisplayName()
-			fmt.Println(name)
 			if folderName == name {
 				if folder.GetId() == nil {
 					return true // invalid folder
@@ -398,7 +397,6 @@ func iterateSelectFoldersByCategory(
 			}
 			return true
 		case contacts:
-			fmt.Println("This is switch contact")
 			folder, ok := entry.(models.ContactFolderable)
 			if !ok {
 				errs = support.WrapAndAppend(errorIdentifier, errors.New("invalid return on HasFolder.contacts iteration failure"), errs)
@@ -406,10 +404,8 @@ func iterateSelectFoldersByCategory(
 			}
 			// Display name not set on Contact Folder
 			if folder.GetDisplayName() == nil {
-				fmt.Printf("Empty Display Name %s\n", *folder.GetId())
 				return true
 			}
-			fmt.Println(*folder.GetDisplayName())
 			if folderName == *folder.GetDisplayName() {
 				if folder.GetId() == nil {
 					return true // invalid folder
@@ -421,7 +417,6 @@ func iterateSelectFoldersByCategory(
 		default:
 			return true
 		}
-
 	}
 }
 func IterateAndFilterMessagesForCollections(
