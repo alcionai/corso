@@ -7,25 +7,18 @@ import "github.com/alcionai/corso/pkg/backup/details"
 // ---------------------------------------------------------------------------
 
 // categorizer
-type mockCategorizer int
+type mockCategorizer string
 
 const (
-	unknownCatStub mockCategorizer = iota
-	rootCatStub
-	leafCatStub
+	unknownCatStub mockCategorizer = ""
+	rootCatStub    mockCategorizer = "rootCatStub"
+	leafCatStub    mockCategorizer = "leafCatStub"
 )
 
 var _ categorizer = unknownCatStub
 
 func (mc mockCategorizer) String() string {
-	switch mc {
-	case leafCatStub:
-		return "leaf"
-	case rootCatStub:
-		return "root"
-	}
-
-	return "unknown"
+	return string(mc)
 }
 
 func (mc mockCategorizer) leafCat() categorizer {
