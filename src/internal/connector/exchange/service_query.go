@@ -369,18 +369,23 @@ func IterateAllContactsForCollection(
 	}
 }
 
-// FoundID necessary to return the M365ID from iteration
+// iterateSelectFoldersByCategory is a utility function for updating
 func iterateSelectFoldersByCategory(
 	category OptionIdentifier,
 	folderID **string,
 	folderName, errorIdentifier string,
-	errs error) func(any) bool {
+	errs error,
+) func(any) bool {
 	return func(entry any) bool {
 		switch category {
 		case messages:
 			folder, ok := entry.(models.MailFolderable)
 			if !ok {
-				errs = support.WrapAndAppend(errorIdentifier, errors.New("invalid return on HasFolder.mail iteration failure"), errs)
+				errs = support.WrapAndAppend(
+					errorIdentifier,
+					errors.New("invalid return on HasFolder.mail iteration failure"),
+					errs,
+				)
 				return true
 			}
 			// Display name not set on folder
@@ -399,7 +404,11 @@ func iterateSelectFoldersByCategory(
 		case contacts:
 			folder, ok := entry.(models.ContactFolderable)
 			if !ok {
-				errs = support.WrapAndAppend(errorIdentifier, errors.New("invalid return on HasFolder.contacts iteration failure"), errs)
+				errs = support.WrapAndAppend(
+					errorIdentifier,
+					errors.New("invalid return on HasFolder.contacts iteration failure"),
+					errs,
+				)
 				return true
 			}
 			// Display name not set on Contact Folder
@@ -419,6 +428,7 @@ func iterateSelectFoldersByCategory(
 		}
 	}
 }
+
 func IterateAndFilterMessagesForCollections(
 	tenant string,
 	scope selectors.ExchangeScope,
@@ -605,7 +615,10 @@ func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilde
 	return options, nil
 }
 
-func optionsForContactFolders(moreOps []string) (*mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration, error) {
+func optionsForContactFolders(moreOps []string) (
+	*mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration,
+	error,
+) {
 	selecting, err := buildOptions(moreOps, folders)
 	if err != nil {
 		return nil, err
