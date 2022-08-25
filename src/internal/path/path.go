@@ -65,29 +65,10 @@ type Path interface {
 	Item() string
 }
 
-func NewBuilderFromEscaped(elements ...string) (*Builder, error) {
-	res := &Builder{}
-
-	if err := res.appendElements(true, elements); err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-func NewBuilderFromUnescaped(elements ...string) *Builder {
-	res := &Builder{}
-
-	// Unescaped elements can't fail validation.
-	//nolint:errcheck
-	res.appendElements(false, elements)
-
-	return res
-}
-
 // Builder is a simple path representation that only tracks path elements. It
-// can join, escape, and unescape elements. To turn it into a Path useful for
-// other components, use functions like ToDataLayerExchangeMailFolder.
+// can join, escape, and unescape elements. Higher-level packages are expected
+// to wrap this struct to build resource-speicific contexts (e.x. an
+// ExchangeMailPath).
 // Resource-specific paths allow access to more information like segments in the
 // path. Builders that are turned into resource paths later on do not need to
 // manually add prefixes for items that normally appear in the data layer (ex.
@@ -97,10 +78,10 @@ type Builder struct {
 	elements []string
 }
 
-// AppendEscaped creates a copy of this Builder and adds one or more already
+// UnescapeAndAppend creates a copy of this Builder and adds one or more already
 // escaped path elements to the end of the new Builder. Elements are added in
 // the order they are passed.
-func (pb Builder) AppendEscaped(elements ...string) (*Builder, error) {
+func (pb Builder) UnescapeAndAppend(elements ...string) (*Builder, error) {
 	res := &Builder{elements: make([]string, 0, len(pb.elements))}
 	copy(res.elements, pb.elements)
 
@@ -111,10 +92,9 @@ func (pb Builder) AppendEscaped(elements ...string) (*Builder, error) {
 	return res, nil
 }
 
-// AppendUnescaped creates a copy of this Builder, escapes the given path
-// elements, and adds them to the end of the new Builder. Elements are added in
-// the order they are passed.
-func (pb Builder) AppendUnescaped(elements ...string) *Builder {
+// Append creates a copy of this Builder and adds the given elements them to the
+// end of the new Builder. Elements are added in the order they are passed.
+func (pb Builder) Append(elements ...string) *Builder {
 	res := &Builder{elements: make([]string, len(pb.elements))}
 	copy(res.elements, pb.elements)
 

@@ -192,35 +192,6 @@ var basicEscapedInputs = []testData{
 	},
 }
 
-// Different ways to get a populated Builder given some strings.
-var builderWithEscapingModes = []struct {
-	name      string
-	buildFunc func(elements ...string) *Builder
-}{
-	{
-		name:      "NewFunc",
-		buildFunc: NewBuilderFromUnescaped,
-	},
-	{
-		name:      "AppendFunc",
-		buildFunc: Builder{}.AppendUnescaped,
-	},
-}
-
-var builderWithNoEscapingModes = []struct {
-	name      string
-	buildFunc func(elements ...string) (*Builder, error)
-}{
-	{
-		name:      "NewFunc",
-		buildFunc: NewBuilderFromEscaped,
-	},
-	{
-		name:      "AppendFunc",
-		buildFunc: Builder{}.AppendEscaped,
-	},
-}
-
 type PathUnitSuite struct {
 	suite.Suite
 }
@@ -229,34 +200,24 @@ func TestPathUnitSuite(t *testing.T) {
 	suite.Run(t, new(PathUnitSuite))
 }
 
-func (suite *PathUnitSuite) TestBuilderWithEscaping() {
+func (suite *PathUnitSuite) TestAppend() {
 	table := append(append([]testData{}, genericCases...), basicUnescapedInputs...)
-
-	for _, m := range builderWithEscapingModes {
-		suite.T().Run(m.name, func(tOuter *testing.T) {
-			for _, test := range table {
-				tOuter.Run(test.name, func(t *testing.T) {
-					p := m.buildFunc(test.input...)
-					assert.Equal(t, test.expectedString, p.String())
-				})
-			}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p := Builder{}.Append(test.input...)
+			assert.Equal(t, test.expectedString, p.String())
 		})
 	}
 }
 
-func (suite *PathUnitSuite) TestBuilderWithNoEscaping() {
+func (suite *PathUnitSuite) TestUnescapeAndAppend() {
 	table := append(append([]testData{}, genericCases...), basicEscapedInputs...)
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p, err := Builder{}.UnescapeAndAppend(test.input...)
+			require.NoError(t, err)
 
-	for _, m := range builderWithNoEscapingModes {
-		suite.T().Run(m.name, func(tOuter *testing.T) {
-			for _, test := range table {
-				tOuter.Run(test.name, func(t *testing.T) {
-					p, err := m.buildFunc(test.input...)
-					require.NoError(t, err)
-
-					assert.Equal(t, test.expectedString, p.String())
-				})
-			}
+			assert.Equal(t, test.expectedString, p.String())
 		})
 	}
 }
@@ -264,16 +225,12 @@ func (suite *PathUnitSuite) TestBuilderWithNoEscaping() {
 func (suite *PathUnitSuite) TestEscapedFailure() {
 	target := "i_s"
 
-	for _, m := range builderWithNoEscapingModes {
-		suite.T().Run(m.name, func(tOuter *testing.T) {
-			for c := range charactersToEscape {
-				tOuter.Run(fmt.Sprintf("Unescaped-%c", c), func(t *testing.T) {
-					tmp := strings.ReplaceAll(target, "_", string(c))
+	for c := range charactersToEscape {
+		suite.T().Run(fmt.Sprintf("Unescaped-%c", c), func(t *testing.T) {
+			tmp := strings.ReplaceAll(target, "_", string(c))
 
-					_, err := m.buildFunc("this", tmp, "path")
-					assert.Error(t, err, "path with unescaped %s did not error", string(c))
-				})
-			}
+			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
+			assert.Error(t, err, "path with unescaped %s did not error", string(c))
 		})
 	}
 }
@@ -282,22 +239,18 @@ func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
 	target := `i\_s/a`
 	notEscapes := []rune{'a', 'b', '#', '%'}
 
-	for _, m := range builderWithNoEscapingModes {
-		suite.T().Run(m.name, func(tOuter *testing.T) {
-			for _, c := range notEscapes {
-				tOuter.Run(fmt.Sprintf("Escaped-%c", c), func(t *testing.T) {
-					tmp := strings.ReplaceAll(target, "_", string(c))
+	for _, c := range notEscapes {
+		suite.T().Run(fmt.Sprintf("Escaped-%c", c), func(t *testing.T) {
+			tmp := strings.ReplaceAll(target, "_", string(c))
 
-					_, err := m.buildFunc("this", tmp, "path")
-					assert.Error(
-						t,
-						err,
-						"path with bad escape sequence %c%c did not error",
-						escapeCharacter,
-						c,
-					)
-				})
-			}
+			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
+			assert.Error(
+				t,
+				err,
+				"path with bad escape sequence %c%c did not error",
+				escapeCharacter,
+				c,
+			)
 		})
 	}
 }
@@ -305,22 +258,18 @@ func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
 func (suite *PathUnitSuite) TestTrailingEscapeChar() {
 	base := []string{"this", "is", "a", "path"}
 
-	for _, m := range builderWithNoEscapingModes {
-		suite.T().Run(m.name, func(tOuter *testing.T) {
-			for i := 0; i < len(base); i++ {
-				tOuter.Run(fmt.Sprintf("Element%v", i), func(t *testing.T) {
-					path := make([]string, len(base))
-					copy(path, base)
-					path[i] = path[i] + string(escapeCharacter)
+	for i := 0; i < len(base); i++ {
+		suite.T().Run(fmt.Sprintf("Element%v", i), func(t *testing.T) {
+			path := make([]string, len(base))
+			copy(path, base)
+			path[i] = path[i] + string(escapeCharacter)
 
-					_, err := m.buildFunc(path...)
-					assert.Error(
-						t,
-						err,
-						"path with trailing escape character did not error",
-					)
-				})
-			}
+			_, err := Builder{}.UnescapeAndAppend(path...)
+			assert.Error(
+				t,
+				err,
+				"path with trailing escape character did not error",
+			)
 		})
 	}
 }
