@@ -199,14 +199,13 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	ctx context.Context,
 	selector selectors.Selector,
 ) ([]data.Collection, error) {
-	scopes, err := gc.DigestBackupSelector(selector)
+	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "exchangeDataCollection: unable to selector input")
 	}
+	scopes := eb.DiscreteScopes(gc.GetUsers())
 	collections := []data.Collection{}
 	var errs error
-
-	// for each scope that includes mail messages, get all
 	for _, scope := range scopes {
 		// Creates a map of collections based on scope
 		dcs, err := gc.createCollections(ctx, scope)
@@ -214,62 +213,12 @@ func (gc *GraphConnector) ExchangeDataCollection(
 			user := scope.Get(selectors.ExchangeUser)
 			return nil, support.WrapAndAppend(user[0], err, errs)
 		}
-
-		if len(dcs) > 0 {
-			for _, collection := range dcs {
-				collections = append(collections, collection)
-			}
+		for _, collection := range dcs {
+			collections = append(collections, collection)
 		}
 	}
+
 	return collections, errs
-}
-
-// DigestBackupSelector utility function to break an incoming selector into ExchangeScope
-// Scopes are created for the all user. The newly created scopes have granularity changed from group --> item
-// resource: * --> user email. These variables are not used during backup or restore operations
-func (gc *GraphConnector) DigestBackupSelector(sel selectors.Selector) ([]selectors.ExchangeScope, error) {
-	returnScopes := make([]selectors.ExchangeScope, 0)
-	eb, err := sel.ToExchangeBackup()
-	if err != nil {
-		return nil, errors.Wrap(err, "collecting exchange data")
-	}
-	scopes := eb.Scopes()
-	for _, scope := range scopes {
-		for _, user := range scope.Get(selectors.ExchangeUser) {
-			if user == selectors.AnyTgt {
-				// Mail
-				if scope.IncludesCategory(selectors.ExchangeMail) {
-					temp := selectors.NewExchangeBackup().Mails(
-						gc.GetUsers(),
-						scope.Get(selectors.ExchangeMailFolder),
-						scope.Get(selectors.ExchangeMail),
-					)
-					returnScopes = append(returnScopes, temp...)
-					continue
-				}
-				if scope.IncludesCategory(selectors.ExchangeContact) {
-					temp := selectors.NewExchangeBackup().Contacts(
-						gc.GetUsers(),
-						scope.Get(selectors.ExchangeContactFolder),
-						scope.Get(selectors.ExchangeContact),
-					)
-					returnScopes = append(returnScopes, temp...)
-					continue
-				}
-				if scope.IncludesCategory(selectors.ExchangeEvent) {
-					temp := selectors.NewExchangeBackup().Events(
-						gc.GetUsers(),
-						scope.Get(selectors.ExchangeEvent),
-					)
-					returnScopes = append(returnScopes, temp...)
-					continue
-				}
-			}
-			// Scope appended if all.Users not selected
-			returnScopes = append(returnScopes, scope)
-		}
-	}
-	return returnScopes, nil
 }
 
 // RestoreMessages: Utility function to connect to M365 backstore
@@ -342,48 +291,52 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
-) (map[string]*exchange.Collection, error) {
+) ([]*exchange.Collection, error) {
 	var (
 		transformer absser.ParsableFactory
 		query       exchange.GraphQuery
 		gIter       exchange.GraphIterateFunc
+		errs        error
 	)
-	user := scope.Get(selectors.ExchangeUser)[0]
 	transformer, query, gIter, err := exchange.SetupExchangeCollectionVars(scope)
 	if err != nil {
-		return nil, support.WrapAndAppend(user, err, nil)
+		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
 	}
-	response, err := query(&gc.graphService, user)
-	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"user %s M365 query: %s",
-			user, support.ConnectorStackErrorTrace(err))
-	}
+	users := scope.Get(selectors.ExchangeUser)
+	allCollections := make([]*exchange.Collection, 0)
+	// Create collection of ExchangeDataCollection
+	for _, user := range users {
+		collections := make(map[string]*exchange.Collection)
+		response, err := query(&gc.graphService, user)
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"user %s M365 query: %s",
+				user, support.ConnectorStackErrorTrace(err))
+		}
 
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
-	if err != nil {
-		return nil, err
-	}
-	// Create collection of ExchangeDataCollection and create  data Holder
-	collections := make(map[string]*exchange.Collection)
-	var errs error
-	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
-	// with corresponding item IDs. New collections are created for each directory
-	callbackFunc := gIter(gc.tenant, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
-	iterateError := pageIterator.Iterate(callbackFunc)
-	if iterateError != nil {
-		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
-	}
-	if errs != nil {
-		return nil, errs // return error if snapshot is incomplete
-	}
+		pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
+		if err != nil {
+			return nil, err
+		}
 
-	for range collections {
-		gc.incrementAwaitingMessages()
+		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
+		// with corresponding item M365IDs. New collections are created for each directory.
+		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
+		callbackFunc := gIter(gc.tenant, user, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
+		iterateError := pageIterator.Iterate(callbackFunc)
+		if iterateError != nil {
+			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
+		}
+		if errs != nil {
+			return nil, errs // return error if snapshot is incomplete
+		}
+		for _, collection := range collections {
+			gc.incrementAwaitingMessages()
+			allCollections = append(allCollections, collection)
+		}
 	}
-
-	return collections, errs
+	return allCollections, errs
 }
 
 // AwaitStatus updates status field based on item within statusChannel.
