@@ -32,6 +32,7 @@ func (c M365Config) StringConfig() (map[string]string, error) {
 		keyM365ClientSecret: c.ClientSecret,
 		keyM365TenantID:     c.TenantID,
 	}
+
 	return cfg, c.validate()
 }
 
@@ -43,6 +44,7 @@ func (a Account) M365Config() (M365Config, error) {
 		c.ClientSecret = a.Config[keyM365ClientSecret]
 		c.TenantID = a.Config[keyM365TenantID]
 	}
+
 	return c, c.validate()
 }
 
@@ -52,10 +54,12 @@ func (c M365Config) validate() error {
 		credentials.ClientSecret: c.ClientSecret,
 		TenantID:                 c.TenantID,
 	}
+
 	for k, v := range check {
 		if len(v) == 0 {
 			return errors.Wrap(errMissingRequired, k)
 		}
 	}
+
 	return nil
 }
