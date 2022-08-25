@@ -354,7 +354,6 @@ func (suite *GraphConnectorIntegrationSuite) TestGetFolderID() {
 				userID,
 				test.category)
 			test.checkError(t, err, "Unable to find folder: "+test.folderName)
-
 		})
 	}
 }
