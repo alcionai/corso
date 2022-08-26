@@ -8,22 +8,22 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type OnedriveSourceSuite struct {
+type OneDriveSelectorSuite struct {
 	suite.Suite
 }
 
-func TestOnedriveSourceSuite(t *testing.T) {
-	suite.Run(t, new(OnedriveSourceSuite))
+func TestOneDriveSelectorSuite(t *testing.T) {
+	suite.Run(t, new(OneDriveSelectorSuite))
 }
 
-func (suite *OnedriveSourceSuite) TestNewOnedriveBackup() {
+func (suite *OneDriveSelectorSuite) TestNewOneDriveBackup() {
 	t := suite.T()
 	ob := NewOneDriveBackup()
 	assert.Equal(t, ob.Service, ServiceOneDrive)
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *OnedriveSourceSuite) TestToOnedriveBackup() {
+func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	t := suite.T()
 	ob := NewOneDriveBackup()
 	s := ob.Selector
@@ -33,7 +33,7 @@ func (suite *OnedriveSourceSuite) TestToOnedriveBackup() {
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *OnedriveSourceSuite) TestOnedriveBackup_DiscreteScopes() {
+func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
 	usrs := []string{"u1", "u2"}
 	table := []struct {
 		name     string
@@ -74,7 +74,7 @@ func (suite *OnedriveSourceSuite) TestOnedriveBackup_DiscreteScopes() {
 	}
 }
 
-func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 	t := suite.T()
 	sel := NewOneDriveBackup()
 
@@ -112,7 +112,7 @@ func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
 	}
 }
 
-func (suite *OnedriveSourceSuite) TestOneDriveSelector_Include_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 	t := suite.T()
 	sel := NewOneDriveBackup()
 
@@ -130,7 +130,7 @@ func (suite *OnedriveSourceSuite) TestOneDriveSelector_Include_Users() {
 	}
 }
 
-func (suite *OnedriveSourceSuite) TestOneDriveSelector_Exclude_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 	t := suite.T()
 	sel := NewOneDriveBackup()
 
