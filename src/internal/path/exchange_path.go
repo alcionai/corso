@@ -2,6 +2,12 @@ package path
 
 var _ Path = &ExchangeMail{}
 
+// ExchangeMail represents resource paths in corso for M365 Exchange mail emails
+// and folders. Paths have the general for of:
+// <tenant ID>/exchange/<user ID>/email/<folder display name>/<item ID>
+//
+// There can be one or more folders in the path, but the item, if present, is
+// always the final path element.
 type ExchangeMail struct {
 	Builder
 	hasItem bool

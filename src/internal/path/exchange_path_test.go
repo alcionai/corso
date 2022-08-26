@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	tenant = "aTenant"
-	user   = "aUser"
+	testTenant = "aTenant"
+	testUser   = "aUser"
 )
 
 var (
@@ -30,19 +30,19 @@ var (
 		{
 			name:   "NoTenant",
 			tenant: "",
-			user:   user,
+			user:   testUser,
 			rest:   rest,
 		},
 		{
 			name:   "NoUser",
-			tenant: tenant,
+			tenant: testTenant,
 			user:   "",
 			rest:   rest,
 		},
 		{
 			name:   "NoRest",
-			tenant: tenant,
-			user:   user,
+			tenant: testTenant,
+			user:   testUser,
 			rest:   nil,
 		},
 	}
@@ -91,6 +91,18 @@ func (suite *ExchangeMailUnitSuite) TestMissingInfoErrors() {
 	}
 }
 
+func (suite *ExchangeMailUnitSuite) TestMailItemNoFolder() {
+	t := suite.T()
+	item := "item"
+	b := path.Builder{}.Append(item)
+
+	p, err := b.ToDataLayerExchangeMailItem(testTenant, testUser)
+	require.NoError(t, err)
+
+	assert.Empty(t, p.Folder())
+	assert.Equal(t, item, p.Item())
+}
+
 type PopulatedExchangeMailUnitSuite struct {
 	suite.Suite
 	b *path.Builder
@@ -107,10 +119,10 @@ func (suite *PopulatedExchangeMailUnitSuite) SetupSuite() {
 func (suite *PopulatedExchangeMailUnitSuite) TestGetTenant() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
-			p, err := m.builderFunc(*suite.b, tenant, user)
+			p, err := m.builderFunc(*suite.b, testTenant, testUser)
 			require.NoError(t, err)
 
-			assert.Equal(suite.T(), tenant, p.Tenant())
+			assert.Equal(t, testTenant, p.Tenant())
 		})
 	}
 }
@@ -118,10 +130,10 @@ func (suite *PopulatedExchangeMailUnitSuite) TestGetTenant() {
 func (suite *PopulatedExchangeMailUnitSuite) TestGetUser() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
-			p, err := m.builderFunc(*suite.b, tenant, user)
+			p, err := m.builderFunc(*suite.b, testTenant, testUser)
 			require.NoError(t, err)
 
-			assert.Equal(suite.T(), user, p.User())
+			assert.Equal(t, testUser, p.User())
 		})
 	}
 }
@@ -129,10 +141,10 @@ func (suite *PopulatedExchangeMailUnitSuite) TestGetUser() {
 func (suite *PopulatedExchangeMailUnitSuite) TestGetFolder() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
-			p, err := m.builderFunc(*suite.b, tenant, user)
+			p, err := m.builderFunc(*suite.b, testTenant, testUser)
 			require.NoError(t, err)
 
-			assert.Equal(suite.T(), m.expectedFolder, p.Folder())
+			assert.Equal(t, m.expectedFolder, p.Folder())
 		})
 	}
 }
@@ -140,10 +152,10 @@ func (suite *PopulatedExchangeMailUnitSuite) TestGetFolder() {
 func (suite *PopulatedExchangeMailUnitSuite) TestGetItem() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
-			p, err := m.builderFunc(*suite.b, tenant, user)
+			p, err := m.builderFunc(*suite.b, testTenant, testUser)
 			require.NoError(t, err)
 
-			assert.Equal(suite.T(), m.expectedItem, p.Item())
+			assert.Equal(t, m.expectedItem, p.Item())
 		})
 	}
 }
