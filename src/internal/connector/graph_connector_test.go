@@ -80,6 +80,8 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 // GraphConnector remains stable to receive a non-zero amount of Collections
 // for the Exchange Package. Enabled exchange applications:
 // - mail
+// - contacts
+// - events
 func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	t := suite.T()
 	connector := loadConnector(t)
@@ -248,35 +250,24 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	assert.Equal(t, status.FolderCount, 1)
 }
 
-// TestGraphConnector_SingleMailFolderCollectionQuery verifies single folder support
-// for Backup operation
-func (suite *GraphConnectorIntegrationSuite) TestGraphConnector_SingleMailFolderCollectionQuery() {
+// TestAccessOfInboxAllUsers verifies that GraphConnector can
+// support `--all-users` for backup operations. Selector.DiscreteScopes
+// returns all of the users within one scope. Only users who have
+// messages in their inbox will have a collection returned.
+// The final test insures that more than a 75% of the user collections are
+// returned. If an error was experienced, the test will fail overall
+func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	t := suite.T()
+	connector := loadConnector(t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
-	scopes := sel.Scopes()
+	sel.Include(sel.MailFolders(selectors.Any(), []string{"Inbox"}))
+	scopes := sel.DiscreteScopes(connector.GetUsers())
 	for _, scope := range scopes {
-		collections, err := suite.connector.createCollections(context.Background(), scope)
+		users := scope.Get(selectors.ExchangeUser)
+		standard := (len(users) / 4) * 3
+		collections, err := connector.createCollections(context.Background(), scope)
 		require.NoError(t, err)
-		suite.Equal(len(collections), 1)
-		for _, edc := range collections {
-			number := 0
-			streamChannel := edc.Items()
-			// Verify that each message can be restored
-			for stream := range streamChannel {
-				testName := fmt.Sprintf("%s_InboxMessage_%d", edc.FullPath()[1], number)
-				suite.T().Run(testName, func(t *testing.T) {
-					buf := &bytes.Buffer{}
-					read, err := buf.ReadFrom(stream.ToReader())
-					assert.NoError(t, err)
-					assert.NotZero(t, read)
-					message, err := support.CreateMessageFromBytes(buf.Bytes())
-					assert.NotNil(t, message)
-					assert.NoError(t, err)
-					number++
-				})
-			}
-		}
+		suite.Greater(len(collections), standard)
 	}
 }
 

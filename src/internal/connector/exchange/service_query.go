@@ -133,6 +133,7 @@ func CollectMailFolders(
 
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
 		tenant,
+		user,
 		scope,
 		err,
 		failFast,
