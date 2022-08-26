@@ -320,13 +320,13 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 		{
 			name:              "Mail Iterative Check",
 			queryFunction:     GetAllMessagesForUser,
-			iterativeFunction: IterateSelectAllMessagesForCollections,
+			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             mailScope,
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Contacts Iterative Check",
 			queryFunction:     GetAllContactsForUser,
-			iterativeFunction: IterateAllContactsForCollection,
+			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             contactScope,
 			transformer:       models.CreateContactFromDiscriminatorValue,
 		}, {
