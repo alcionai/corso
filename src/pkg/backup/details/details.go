@@ -26,6 +26,7 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 	for _, de := range dm.Entries {
 		ps = append(ps, de)
 	}
+
 	print.All(ctx, ps...)
 }
 
@@ -33,9 +34,11 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 func (dm DetailsModel) Paths() []string {
 	ents := dm.Entries
 	r := make([]string, len(ents))
+
 	for i := range ents {
 		r[i] = ents[i].RepoRef
 	}
+
 	return r
 }
 

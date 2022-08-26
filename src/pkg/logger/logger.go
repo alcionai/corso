@@ -130,6 +130,7 @@ func Seed(ctx context.Context) (ctxOut context.Context, zsl *zap.SugaredLogger) 
 	}
 
 	level = levelOf(levelString)
+
 	return // return values handled in defer
 }
 
@@ -153,5 +154,6 @@ func levelOf(lvl string) logLevel {
 	case "error":
 		return Production
 	}
+
 	return Info
 }

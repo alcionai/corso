@@ -474,6 +474,7 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	if len(path) < 2 {
 		return m
 	}
+
 	m[ExchangeUser] = path[1]
 	/*
 		TODO/Notice:
@@ -488,20 +489,26 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 		if len(path) < 5 {
 			return m
 		}
+
 		m[ExchangeContactFolder] = path[3]
 		m[ExchangeContact] = path[4]
+
 	case ExchangeEvent:
 		if len(path) < 4 {
 			return m
 		}
+
 		m[ExchangeEvent] = path[3]
+
 	case ExchangeMail:
 		if len(path) < 5 {
 			return m
 		}
+
 		m[ExchangeMailFolder] = path[3]
 		m[ExchangeMail] = path[4]
 	}
+
 	return m
 }
 

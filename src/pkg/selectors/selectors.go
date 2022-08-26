@@ -163,10 +163,11 @@ func discreteScopes[T scopeT, C categoryT](
 			for k, v := range t {
 				w[k] = v
 			}
+
 			set(w, rootCat, jdid)
 			t = w
-
 		}
+
 		sl = append(sl, t)
 	}
 

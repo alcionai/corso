@@ -196,5 +196,6 @@ func (r Repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 	}
 
 	sw := store.NewKopiaStore(r.modelStore)
+
 	return sw.DeleteBackup(ctx, id)
 }

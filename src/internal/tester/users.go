@@ -13,5 +13,6 @@ import (
 func M365UserID(t *testing.T) string {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "retrieving m365 user id from test configuration")
+
 	return cfg[TestCfgUserID]
 }

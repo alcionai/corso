@@ -24,6 +24,7 @@ func (mc mockCategorizer) String() string {
 	case rootCatStub:
 		return "root"
 	}
+
 	return "unknown"
 }
 
@@ -70,6 +71,7 @@ func (ms mockScope) categorizer() categorizer {
 	case leafCatStub.String():
 		return leafCatStub
 	}
+
 	return unknownCatStub
 }
 
@@ -94,6 +96,7 @@ func stubScope(match string) mockScope {
 	if len(match) > 0 {
 		sm = match
 	}
+
 	return mockScope{
 		rootCatStub.String(): AnyTgt,
 		scopeKeyCategory:     rootCatStub.String(),
@@ -125,5 +128,6 @@ func setScopesToDefault[T scopeT](ts []T) []T {
 	for _, s := range ts {
 		s.setDefaults()
 	}
+
 	return ts
 }

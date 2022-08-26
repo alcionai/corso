@@ -92,6 +92,7 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(RestoreOpIntegrationSuite))
 }
 
@@ -110,16 +111,19 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx))
+
 	suite.kopiaCloser = func(ctx context.Context) {
 		k.Close(ctx)
 	}
 
 	kw, err := kopia.NewWrapper(k)
 	require.NoError(t, err)
+
 	suite.kw = kw
 
 	ms, err := kopia.NewModelStore(k)
 	require.NoError(t, err)
+
 	suite.ms = ms
 
 	sw := store.NewKopiaStore(ms)
@@ -148,9 +152,11 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 	if suite.ms != nil {
 		suite.ms.Close(ctx)
 	}
+
 	if suite.kw != nil {
 		suite.kw.Close(ctx)
 	}
+
 	if suite.kopiaCloser != nil {
 		suite.kopiaCloser(ctx)
 	}

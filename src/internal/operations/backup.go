@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/corso/internal/connector"
 	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/stats"
@@ -78,13 +77,13 @@ type backupStats struct {
 
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
-	// TODO: persist initial state of backupOperation in modelstore
-
-	// persist operation results to the model store on exit
 	var (
 		opStats       backupStats
 		backupDetails *details.Details
 	)
+	// TODO: persist initial state of backupOperation in modelstore
+
+	// persist operation results to the model store on exit
 	defer func() {
 		err = op.persistResults(time.Now(), &opStats)
 		if err != nil {
@@ -93,8 +92,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 		err = op.createBackupModels(ctx, opStats.k.SnapshotID, backupDetails)
 		if err != nil {
+			// todo: we're not persisting this yet, except for the error shown to the user.
 			opStats.writeErr = err
-			// todo: ^ we're not persisting this yet, except for the error shown to the user.
 		}
 	}()
 
@@ -103,14 +102,15 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	if err != nil {
 		err = errors.Wrap(err, "connecting to graph api")
 		opStats.readErr = err
+
 		return err
 	}
 
-	var cs []data.Collection
-	cs, err = gc.ExchangeDataCollection(ctx, op.Selectors)
+	cs, err := gc.ExchangeDataCollection(ctx, op.Selectors)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
 		opStats.readErr = err
+
 		return err
 	}
 
@@ -119,8 +119,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	if err != nil {
 		err = errors.Wrap(err, "backing up service data")
 		opStats.writeErr = err
+
 		return err
 	}
+
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
@@ -139,6 +141,7 @@ func (op *BackupOperation) persistResults(
 	op.Status = Completed
 	if !opStats.started {
 		op.Status = Failed
+
 		return multierror.Append(
 			errors.New("errors prevented the operation from processing"),
 			opStats.readErr,
@@ -174,10 +177,12 @@ func (op *BackupOperation) createBackupModels(
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
 	)
+
 	err = op.store.Put(ctx, model.BackupSchema, b)
 	if err != nil {
 		return errors.Wrap(err, "creating backup model")
 	}
+
 	op.Results.BackupID = b.ID
 
 	return nil

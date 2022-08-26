@@ -385,6 +385,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeBackup_Scopes() {
 
 	scopes := eb.Scopes()
 	assert.Len(suite.T(), scopes, 3)
+
 	for _, sc := range scopes {
 		cat := sc.Category()
 		suite.T().Run(cat.String(), func(t *testing.T) {
@@ -430,6 +431,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeBackup_DiscreteScopes() {
 			expect:   Any(),
 		},
 	}
+
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			eb := NewExchangeBackup()
@@ -861,6 +863,7 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 
 	makeInput := func(es ...[]ExchangeScope) []scope {
 		mss := []scope{}
+
 		for _, sl := range es {
 			for _, s := range sl {
 				mss = append(mss, scope(s))
@@ -1064,6 +1067,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 		ExchangeMailFolder: mailPath[3],
 		ExchangeMail:       mailPath[4],
 	}
+
 	table := []struct {
 		cat    exchangeCategory
 		path   []string
@@ -1087,7 +1091,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathKeys() {
 	event := []categorizer{ExchangeUser, ExchangeEvent}
 	mail := []categorizer{ExchangeUser, ExchangeMailFolder, ExchangeMail}
 	user := []categorizer{ExchangeUser}
+
 	var empty []categorizer
+
 	table := []struct {
 		cat    exchangeCategory
 		expect []categorizer

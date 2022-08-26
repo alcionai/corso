@@ -71,6 +71,7 @@ func PrintAll(ctx context.Context, bs []Backup) {
 	for _, b := range bs {
 		ps = append(ps, print.Printable(b))
 	}
+
 	print.All(ctx, ps...)
 }
 

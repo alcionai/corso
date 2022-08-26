@@ -22,6 +22,7 @@ func (suite *CommonSlicesSuite) TestContainsString() {
 	target := "fnords"
 	good := []string{"fnords"}
 	bad := []string{"foo", "bar"}
+
 	assert.True(t, common.ContainsString(good, target))
 	assert.False(t, common.ContainsString(bad, target))
 }
