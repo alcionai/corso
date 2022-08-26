@@ -87,7 +87,7 @@ type MailFolder struct {
 	DisplayName string
 }
 
-func CreateContactFolder(gs graph.Service, user, folder string) (models.ContactFolderable, error) {
+func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
 	requestBody.SetDisplayName(&folder)
 
