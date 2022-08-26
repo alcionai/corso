@@ -156,12 +156,12 @@ func (pb Builder) join(start, end int) string {
 	return join(pb.elements[start:end])
 }
 
-func (pb Builder) verifyPrefix(tenant, user string) error {
+func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
 	if len(tenant) == 0 {
 		return errors.Wrap(errMissingSegment, "tenant")
 	}
 
-	if len(user) == 0 {
+	if len(resourceOwner) == 0 {
 		return errors.Wrap(errMissingSegment, "user")
 	}
 
