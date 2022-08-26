@@ -23,6 +23,7 @@ func TestExchangeSuite(t *testing.T) {
 
 func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand
+
 	table := []struct {
 		name        string
 		use         string
@@ -52,6 +53,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 
 func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 	stub := []string{"id-stub"}
+
 	table := []struct {
 		name                                                          string
 		contacts, contactFolders, emails, emailFolders, events, users []string
@@ -137,6 +139,7 @@ func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 	stub := []string{"id-stub"}
 	a := []string{utils.Wildcard}
+
 	table := []struct {
 		name                                                          string
 		contacts, contactFolders, emails, emailFolders, events, users []string
@@ -319,6 +322,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 	stub := "id-stub"
 	a := utils.Wildcard
+
 	table := []struct {
 		name                           string
 		after, before, sender, subject string

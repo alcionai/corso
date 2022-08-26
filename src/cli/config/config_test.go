@@ -190,6 +190,7 @@ func TestConfigIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(ConfigIntegrationSuite))
 }
 

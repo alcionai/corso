@@ -22,6 +22,7 @@ func envCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 	envCmd.SetHelpFunc(envGuide)
+
 	return envCmd
 }
 
@@ -81,6 +82,7 @@ func toPrintable(evs []envVar) []Printable {
 	for _, ev := range evs {
 		ps = append(ps, ev)
 	}
+
 	return ps
 }
 

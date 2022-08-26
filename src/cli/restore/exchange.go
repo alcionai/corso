@@ -88,6 +88,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		// others
 		options.AddOperationFlags(c)
 	}
+
 	return c
 }
 
@@ -144,6 +145,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
+
 	defer utils.CloseRepo(ctx, r)
 
 	sel := selectors.NewExchangeRestore()
@@ -177,6 +179,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	Infof(ctx, "Restored Exchange in %s for user %s.\n", s.Provider, user)
+
 	return nil
 }
 
@@ -210,6 +213,7 @@ func includeExchangeContacts(sel *selectors.ExchangeRestore, users, contactFolde
 	if len(contactFolders) == 0 {
 		return
 	}
+
 	if len(contacts) > 0 {
 		sel.Include(sel.Contacts(users, contactFolders, contacts))
 	} else {
@@ -221,6 +225,7 @@ func includeExchangeEmails(sel *selectors.ExchangeRestore, users, emailFolders, 
 	if len(emailFolders) == 0 {
 		return
 	}
+
 	if len(emails) > 0 {
 		sel.Include(sel.Mails(users, emailFolders, emails))
 	} else {
@@ -232,6 +237,7 @@ func includeExchangeEvents(sel *selectors.ExchangeRestore, users, events []strin
 	if len(events) == 0 {
 		return
 	}
+
 	sel.Include(sel.Events(users, events))
 }
 
@@ -250,6 +256,7 @@ func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receive
 	if len(receivedAfter) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailReceivedAfter(receivedAfter))
 }
 
@@ -257,6 +264,7 @@ func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receiv
 	if len(receivedBefore) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailReceivedBefore(receivedBefore))
 }
 
@@ -264,6 +272,7 @@ func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender string)
 	if len(sender) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailSender([]string{sender}))
 }
 
@@ -271,6 +280,7 @@ func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject strin
 	if len(subject) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailSubject([]string{subject}))
 }
 
@@ -282,24 +292,30 @@ func validateExchangeRestoreFlags(
 	if len(backupID) == 0 {
 		return errors.New("a backup ID is required")
 	}
+
 	lu := len(users)
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
 	lev := len(events)
+
 	// if only the backupID is populated, that's the same as --all
 	if lu+lc+lcf+le+lef+lev == 0 {
 		return nil
 	}
+
 	if lu == 0 {
 		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
+
 	if lc > 0 && lcf == 0 {
 		return errors.New(
 			"one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
 	}
+
 	if le > 0 && lef == 0 {
 		return errors.New(
 			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
 	}
+
 	return nil
 }
