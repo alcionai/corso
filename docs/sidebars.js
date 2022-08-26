@@ -20,7 +20,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Initial Configuration',
-      items: ['configuration/concepts', 'configuration/m365_access', 'configuration/repositories'],
+      items: ['configuration/concepts', 'configuration/m365_access', 'configuration/repos'],
     },
     {
       type: 'category',

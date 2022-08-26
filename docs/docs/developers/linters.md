@@ -1,7 +1,3 @@
----
-sidebar_position: 1
----
-
 # Corso linters
 
 Corso uses the golangci-lint GitHub action to run linters on every PR to `main`.

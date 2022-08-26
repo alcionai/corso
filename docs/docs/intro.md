@@ -1,33 +1,17 @@
----
-sidebar_position: 1
----
+# Introduction
 
-# Corso introduction
+## Overview
 
-Discover **Corso in less than 5 minutes**.
+Corso is the first open-source tool that aims to assist admins with the critical task of protecting SaaS service data.
+It provides a reliable, secure, and efficient data protection engine. Admins decide where backup data is stored and
+have the flexibility to execute backups of their desired service through an intuitive interface. As Corso evolves, it
+can become a great building block for more complex data protection workflows.
 
-## Getting started
+Corso is initially focused on protecting data in Microsoft 365 services such as Exchange, OneDrive, SharePoint, and
+Teams. The goals is to expand coverage for additional services beyond M365 based on the interest and needs of the
+community.
 
-### What you'll need
+## Getting Started
 
-- Docker
-- A M365 account with the following permissions:
-  - _
-
-## Running Corso
-
-Corso with automatically run with the command:
-
-```bash
-docker run ...
-```
-
-You can type this command into Command Prompt, PowerShell, Terminal, or any other integrated terminal of your code editor.
-
-## Your first M365 backup
-
-To backup just your own personal data, run:
-
-```bash
-docker run ...
-```
+Follow the instructions in the [Installation](/install) and [Initial Configuration](/configuration) sections to setup
+Corso and get it ready for first use. You can then go through the [Tutorial](/tutorial) section to see it in action.
