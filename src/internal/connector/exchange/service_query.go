@@ -78,7 +78,7 @@ var (
 	}
 )
 
-type OptionIdentifier int
+type optionIdentifier int
 
 const (
 	mailCategory     = "mail"
@@ -86,9 +86,9 @@ const (
 	eventsCategory   = "events"
 )
 
-//go:generate stringer -type=OptionIdentifier
+//go:generate stringer -type=optionIdentifier
 const (
-	unknown OptionIdentifier = iota
+	unknown optionIdentifier = iota
 	folders
 	events
 	messages
@@ -371,7 +371,7 @@ func IterateAllContactsForCollection(
 
 // iterateSelectFoldersByCategory is a utility function for updating
 func iterateSelectFoldersByCategory(
-	category OptionIdentifier,
+	category optionIdentifier,
 	folderID **string,
 	folderName, errorIdentifier string,
 	errs error,
@@ -699,7 +699,7 @@ func optionsForUsers(moreOps []string) (*msuser.UsersRequestBuilderGetRequestCon
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
-func buildOptions(options []string, optID OptionIdentifier) ([]string, error) {
+func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	var allowedOptions map[string]int
 	returnedOptions := []string{"id"}
 
