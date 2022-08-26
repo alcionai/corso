@@ -74,6 +74,7 @@ func IterateSelectAllDescendablesForCollections(
 			isCategorySet = true
 		}
 
+
 		entry, ok := pageItem.(descendable)
 		if !ok {
 			errs = support.WrapAndAppendf(user, errors.New("descendable conversion failure"), errs)
