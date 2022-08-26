@@ -45,11 +45,11 @@ type GraphIterateFunc func(
 	graphStatusChannel chan<- *support.ConnectorOperationStatus,
 ) func(any) bool
 
-// IterateSelectAllMessageForCollection utility function for
-// Iterating through MessagesCollectionResponse
-// During iteration, messages belonging to any folder are
+// IterateSelectAllDescendablesForCollection utility function for
+// Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
+// objects belonging to any folder are
 // placed into a Collection based on the parent folder
-func IterateSelectAllMessagesForCollections(
+func IterateSelectAllDescendablesForCollections(
 	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
@@ -59,18 +59,30 @@ func IterateSelectAllMessagesForCollections(
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
-	return func(messageItem any) bool {
+	var isCategorySet bool
+	var collectionType optionIdentifier
+	var category string
+	return func(pageItem any) bool {
 		// Defines the type of collection being created within the function
-		collectionType := messages
-		user := scope.Get(selectors.ExchangeUser)[0]
+		if !isCategorySet {
+			if scope.IncludesCategory(selectors.ExchangeMail) {
+				collectionType = messages
+				category = mailCategory
+			}
+			if scope.IncludesCategory(selectors.ExchangeContact) {
+				collectionType = contacts
+				category = contactsCategory
+			}
+			isCategorySet = true
+		}
 
-		message, ok := messageItem.(models.Messageable)
+		entry, ok := pageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppendf(user, errors.New("message iteration failure"), errs)
+			errs = support.WrapAndAppendf(user, errors.New("descendable conversion failure"), errs)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
-		directory := *message.GetParentFolderId()
+		directory := *entry.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
 			service, err := createService(credentials, failFast)
 			if err != nil {
@@ -79,14 +91,14 @@ func IterateSelectAllMessagesForCollections(
 			}
 			edc := NewCollection(
 				user,
-				[]string{tenant, user, mailCategory, directory},
+				[]string{tenant, user, category, directory},
 				collectionType,
 				service,
 				statusCh,
 			)
 			collections[directory] = &edc
 		}
-		collections[directory].AddJob(*message.GetId())
+		collections[directory].AddJob(*entry.GetId())
 		return true
 	}
 }
@@ -165,46 +177,6 @@ func IterateSelectAllEventsForCollections(
 		}
 
 		collections[directory].AddJob(*event.GetId())
-		return true
-	}
-}
-
-// IterateAllContactsForCollection GraphIterateFunc for moving through
-// a ContactsCollectionsResponse using the msgraphgocore paging interface.
-// Contacts Ids are placed into a collection based upon the parent folder
-func IterateAllContactsForCollection(
-	tenant string,
-	user string,
-	scope selectors.ExchangeScope,
-	errs error,
-	failFast bool,
-	credentials account.M365Config,
-	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
-) func(any) bool {
-	return func(contactsItem any) bool {
-		contact, ok := contactsItem.(models.Contactable)
-		if !ok {
-			errs = support.WrapAndAppend(user, errors.New("contact iteration failure"), errs)
-			return true
-		}
-		directory := *contact.GetParentFolderId()
-		if _, ok := collections[directory]; !ok {
-			service, err := createService(credentials, failFast)
-			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
-				return true
-			}
-			edc := NewCollection(
-				user,
-				[]string{tenant, user, contactsCategory, directory},
-				contacts,
-				service,
-				statusCh,
-			)
-			collections[directory] = &edc
-		}
-		collections[directory].AddJob(*contact.GetId())
 		return true
 	}
 }
