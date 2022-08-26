@@ -18,6 +18,20 @@ const (
 	eventsCategory   = "events"
 )
 
+// descendable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a "parent folder".
+type descendable interface {
+	GetId() *string
+	GetParentFolderId() *string
+}
+
+// displayable represents objects that implement msgraph-sdk-fo/models.entityable
+// and have the concept of a display name.
+type displayable interface {
+	GetId() *string
+	GetDisplayName() *string
+}
+
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
