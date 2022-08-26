@@ -201,7 +201,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 ) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "exchangeDataCollection: unable to selector input")
+		return nil, errors.Wrap(err, "exchangeDataCollection: unable to parse selector")
 	}
 	scopes := eb.DiscreteScopes(gc.GetUsers())
 	collections := []data.Collection{}
