@@ -25,6 +25,7 @@ func NewModelStore(c *conn) (*ModelStore, error) {
 	if err := c.wrap(); err != nil {
 		return nil, errors.Wrap(err, "creating ModelStore")
 	}
+
 	return &ModelStore{c: c}, nil
 }
 
@@ -54,6 +55,7 @@ func tagsForModel(s model.Schema, tags map[string]string) (map[string]string, er
 
 	res := make(map[string]string, len(tags)+1)
 	res[manifest.TypeLabelKey] = s.String()
+
 	for k, v := range tags {
 		res[k] = v
 	}
@@ -122,6 +124,7 @@ func putInner(
 	}
 
 	base.ModelStoreID = id
+
 	return nil
 }
 
@@ -135,6 +138,7 @@ func (ms *ModelStore) Put(
 	if !s.Valid() {
 		return errors.WithStack(errUnrecognizedSchema)
 	}
+
 	err := repo.WriteSession(
 		ctx,
 		ms.c,
@@ -170,6 +174,7 @@ func baseModelFromMetadata(m *manifest.EntryMetadata) (*model.BaseModel, error) 
 	}
 
 	stripHiddenTags(res.Tags)
+
 	return res, nil
 }
 
@@ -200,6 +205,7 @@ func (ms *ModelStore) GetIDsForType(
 	}
 
 	res := make([]*model.BaseModel, 0, len(metadata))
+
 	for _, m := range metadata {
 		bm, err := baseModelFromMetadata(m)
 		if err != nil {
@@ -230,6 +236,7 @@ func (ms *ModelStore) getModelStoreID(
 	}
 
 	tags := map[string]string{stableIDKey: string(id)}
+
 	metadata, err := ms.c.FindManifests(ctx, tags)
 	if err != nil {
 		return "", errors.Wrap(err, "getting ModelStoreID")
@@ -238,9 +245,11 @@ func (ms *ModelStore) getModelStoreID(
 	if len(metadata) == 0 {
 		return "", errors.Wrap(manifest.ErrNotFound, "getting ModelStoreID")
 	}
+
 	if len(metadata) != 1 {
 		return "", errors.New("multiple models with same StableID")
 	}
+
 	if metadata[0].Labels[manifest.TypeLabelKey] != s.String() {
 		return "", errors.WithStack(errModelTypeMismatch)
 	}
@@ -303,6 +312,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 	base.Tags = metadata.Labels
 	stripHiddenTags(base.Tags)
 	base.ModelStoreID = id
+
 	return nil
 }
 
@@ -334,6 +344,7 @@ func (ms *ModelStore) checkPrevModelVersion(
 	if meta.ID != b.ModelStoreID {
 		return errors.New("updated model has different ModelStoreID")
 	}
+
 	if meta.Labels[manifest.TypeLabelKey] != s.String() {
 		return errors.New("updated model has different model type")
 	}
