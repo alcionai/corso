@@ -352,7 +352,6 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
-				"testingTenant",
 				userID,
 				test.scope,
 				errs, false,
