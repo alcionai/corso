@@ -18,6 +18,7 @@ type kopiaDataCollection struct {
 
 func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
 	res := make(chan data.Stream)
+
 	go func() {
 		defer close(res)
 

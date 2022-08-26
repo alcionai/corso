@@ -30,9 +30,11 @@ func SetRootCmd(ctx context.Context, root *cobra.Command) context.Context {
 func getRootCmd(ctx context.Context) *cobra.Command {
 	cmdIface := ctx.Value(rootCmdCtx{})
 	cmd, ok := cmdIface.(*cobra.Command)
+
 	if cmd == nil || !ok {
 		return &cobra.Command{}
 	}
+
 	return cmd
 }
 
@@ -67,6 +69,7 @@ func err(w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
 	}
+
 	msg := append([]any{"Error: "}, s...)
 	fmt.Fprint(w, msg...)
 }
@@ -82,6 +85,7 @@ func info(w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
 	}
+
 	fmt.Fprint(w, s...)
 	fmt.Fprintf(w, "\n")
 }
@@ -97,6 +101,7 @@ func infof(w io.Writer, t string, s ...any) {
 	if len(t) == 0 {
 		return
 	}
+
 	fmt.Fprintf(w, t, s...)
 	fmt.Fprintf(w, "\n")
 }
@@ -129,6 +134,7 @@ func print(w io.Writer, p Printable) {
 		outputJSON(w, p, outputAsJSONDebug)
 		return
 	}
+
 	outputTable(w, []Printable{p})
 }
 
@@ -144,10 +150,12 @@ func printAll(w io.Writer, ps []Printable) {
 	if len(ps) == 0 {
 		return
 	}
+
 	if outputAsJSON || outputAsJSONDebug {
 		outputJSONArr(w, ps, outputAsJSONDebug)
 		return
 	}
+
 	outputTable(w, ps)
 }
 
@@ -167,9 +175,11 @@ func outputTable(w io.Writer, ps []Printable) {
 		Headers: ps[0].Headers(),
 		Rows:    [][]string{},
 	}
+
 	for _, p := range ps {
 		t.Rows = append(t.Rows, p.Values())
 	}
+
 	_ = t.WriteTable(
 		w,
 		&table.Config{
@@ -188,11 +198,13 @@ func outputJSON(w io.Writer, p Printable, debug bool) {
 		printJSON(w, p)
 		return
 	}
+
 	printJSON(w, p.MinimumPrintable())
 }
 
 func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
 	sl := make([]any, 0, len(ps))
+
 	for _, p := range ps {
 		if debug {
 			sl = append(sl, p)
@@ -200,6 +212,7 @@ func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
 			sl = append(sl, p.MinimumPrintable())
 		}
 	}
+
 	printJSON(w, sl)
 }
 
@@ -210,5 +223,6 @@ func printJSON(w io.Writer, a any) {
 		fmt.Fprintf(w, "error formatting results to json: %v\n", err)
 		return
 	}
+
 	fmt.Fprintln(w, string(pretty.Pretty(bs)))
 }
