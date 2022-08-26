@@ -35,11 +35,13 @@ func RunOnAny(tests ...string) error {
 	for _, test := range tests {
 		l += len(os.Getenv(test))
 	}
+
 	if l == 0 {
 		return fmt.Errorf(
 			"%s env vars are not flagged for testing",
 			strings.Join(tests, ", "))
 	}
+
 	return nil
 }
 
@@ -47,10 +49,13 @@ func RunOnAny(tests ...string) error {
 func LogTimeOfTest(t *testing.T) string {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	name := t.Name()
+
 	if name == "" {
 		t.Logf("Test run at %s.", now)
 		return now
 	}
+
 	t.Logf("%s run at %s", name, now)
+
 	return now
 }

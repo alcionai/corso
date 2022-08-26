@@ -30,6 +30,7 @@ func NewOneDriveBackup() *OneDriveBackup {
 			newSelector(ServiceOneDrive),
 		},
 	}
+
 	return &src
 }
 
@@ -39,7 +40,9 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 	if s.Service != ServiceOneDrive {
 		return nil, badCastErr(ServiceOneDrive, s.Service)
 	}
+
 	src := OneDriveBackup{oneDrive{s}}
+
 	return &src, nil
 }
 
@@ -110,9 +113,11 @@ func (s *oneDrive) Filter(scopes ...[]OneDriveScope) {
 func (s *oneDrive) Users(users []string) []OneDriveScope {
 	users = normalize(users)
 	scopes := []OneDriveScope{}
+
 	for _, u := range users {
 		scopes = append(scopes, makeScope[OneDriveScope](u, Group, OneDriveUser, users))
 	}
+
 	return scopes
 }
 
@@ -197,6 +202,7 @@ func (c oneDriveCategory) pathValues(path []string) map[categorizer]string {
 	if len(path) < 2 {
 		return m
 	}
+
 	m[OneDriveUser] = path[1]
 	/*
 		TODO/Notice:
@@ -306,12 +312,15 @@ func (s OneDriveScope) matchesInfo(info *details.OneDriveInfo) bool {
 	// the scope must define targets to match on
 	filterCat := s.FilterCategory()
 	targets := s.Get(filterCat)
+
 	if len(targets) == 0 {
 		return false
 	}
+
 	if targets[0] == AnyTgt {
 		return true
 	}
+
 	if targets[0] == NoneTgt {
 		return false
 	}
@@ -323,5 +332,6 @@ func (s OneDriveScope) matchesInfo(info *details.OneDriveInfo) bool {
 			return target != NoneTgt
 		}
 	}
+
 	return false
 }

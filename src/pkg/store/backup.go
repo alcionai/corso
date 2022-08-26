@@ -14,10 +14,12 @@ import (
 // GetBackup gets a single backup by id.
 func (w Wrapper) GetBackup(ctx context.Context, backupID model.StableID) (*backup.Backup, error) {
 	b := backup.Backup{}
+
 	err := w.Get(ctx, model.BackupSchema, backupID, &b)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting backup")
 	}
+
 	return &b, nil
 }
 
@@ -27,15 +29,20 @@ func (w Wrapper) GetBackups(ctx context.Context) ([]backup.Backup, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	bs := make([]backup.Backup, len(bms))
+
 	for i, bm := range bms {
 		b := backup.Backup{}
+
 		err := w.GetWithModelStoreID(ctx, model.BackupSchema, bm.ModelStoreID, &b)
 		if err != nil {
 			return nil, err
 		}
+
 		bs[i] = b
 	}
+
 	return bs, nil
 }
 
@@ -45,19 +52,23 @@ func (w Wrapper) DeleteBackup(ctx context.Context, backupID model.StableID) erro
 	if err != nil {
 		return err
 	}
+
 	if err := w.Delete(ctx, model.BackupDetailsSchema, deets.ID); err != nil {
 		return err
 	}
+
 	return w.Delete(ctx, model.BackupSchema, backupID)
 }
 
 // GetDetails gets the backup details by ID.
 func (w Wrapper) GetDetails(ctx context.Context, detailsID manifest.ID) (*details.Details, error) {
 	d := details.Details{}
+
 	err := w.GetWithModelStoreID(ctx, model.BackupDetailsSchema, detailsID, &d)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting details")
 	}
+
 	return &d, nil
 }
 
