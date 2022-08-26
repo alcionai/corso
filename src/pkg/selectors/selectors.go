@@ -103,6 +103,7 @@ func (s Selector) String() string {
 	if err != nil {
 		return "error"
 	}
+
 	return string(bs)
 }
 
@@ -113,12 +114,14 @@ func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
 	if len(to) == 0 {
 		to = []scope{}
 	}
+
 	for _, scopeSl := range scopes {
 		for _, s := range scopeSl {
 			s.setDefaults()
 			to = append(to, scope(s))
 		}
 	}
+
 	return to
 }
 
@@ -126,9 +129,11 @@ func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
 // future TODO: if Inclues is nil, return filters.
 func scopes[T scopeT](s Selector) []T {
 	scopes := []T{}
+
 	for _, v := range s.Includes {
 		scopes = append(scopes, T(v))
 	}
+
 	return scopes
 }
 
@@ -158,10 +163,11 @@ func discreteScopes[T scopeT, C categoryT](
 			for k, v := range t {
 				w[k] = v
 			}
+
 			set(w, rootCat, jdid)
 			t = w
-
 		}
+
 		sl = append(sl, t)
 	}
 
@@ -203,9 +209,11 @@ func (p Printable) Resources() string {
 	if len(s) == 0 {
 		s = resourcesShortFormat(p.Filters)
 	}
+
 	if len(s) == 0 {
 		s = "All"
 	}
+
 	return s
 }
 
@@ -213,13 +221,16 @@ func (p Printable) Resources() string {
 // plus, if more exist, " (len-1 more)"
 func resourcesShortFormat(m map[string][]string) string {
 	var s string
+
 	for k := range m {
 		s = k
 		break
 	}
+
 	if len(s) > 0 && len(m) > 1 {
 		s = fmt.Sprintf("%s (%d more)", s, len(m)-1)
 	}
+
 	return s
 }
 
@@ -230,14 +241,18 @@ func toResourceTypeMap(ms []scope) map[string][]string {
 	if len(ms) == 0 {
 		return nil
 	}
+
 	r := make(map[string][]string)
+
 	for _, m := range ms {
 		res := m[scopeKeyResource]
 		if res == AnyTgt {
 			res = All
 		}
+
 		r[res] = addToSet(r[res], m[scopeKeyDataType])
 	}
+
 	return r
 }
 
@@ -248,11 +263,13 @@ func addToSet(set []string, v string) []string {
 	if len(set) == 0 {
 		return []string{v}
 	}
+
 	for _, s := range set {
 		if s == v {
 			return set
 		}
 	}
+
 	return append(set, v)
 }
 
@@ -293,13 +310,16 @@ func normalize(s []string) []string {
 	if len(s) == 0 {
 		return None()
 	}
+
 	for _, e := range s {
 		if e == AnyTgt {
 			return Any()
 		}
+
 		if e == NoneTgt {
 			return None()
 		}
 	}
+
 	return s
 }

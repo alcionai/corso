@@ -39,6 +39,7 @@ func (suite *ErrorsUnitSuite) TestPropagatesIs() {
 	err := assert.AnError
 	te := testErr{*common.EncapsulateError(err)}
 	te2 := testErr2{*common.EncapsulateError(te)}
+
 	assert.True(suite.T(), errors.Is(te2, err))
 }
 
@@ -46,7 +47,8 @@ func (suite *ErrorsUnitSuite) TestPropagatesAs() {
 	err := assert.AnError
 	te := testErr{*common.EncapsulateError(err)}
 	te2 := testErr2{*common.EncapsulateError(te)}
-	var tmp testErr
+
+	tmp := testErr{}
 	assert.True(suite.T(), errors.As(te2, &tmp))
 }
 
@@ -54,14 +56,16 @@ func (suite *ErrorsUnitSuite) TestAs() {
 	err := assert.AnError
 	te := testErr{*common.EncapsulateError(err)}
 	te2 := testErr2{*common.EncapsulateError(te)}
-	var tmp testErr2
+
+	tmp := testErr2{}
 	assert.True(suite.T(), errors.As(te2, &tmp))
 }
 
 func (suite *ErrorsUnitSuite) TestAsIsUnique() {
 	err := assert.AnError
 	te := testErr{*common.EncapsulateError(err)}
-	var tmp testErr2
+
+	tmp := testErr2{}
 	assert.False(suite.T(), errors.As(te, &tmp))
 }
 

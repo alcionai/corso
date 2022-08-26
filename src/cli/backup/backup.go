@@ -18,6 +18,7 @@ var serviceCommands = []func(parent *cobra.Command) *cobra.Command{
 // AddCommands attaches all `corso backup * *` commands to the parent.
 func AddCommands(parent *cobra.Command) {
 	parent.AddCommand(backupCmd)
+
 	for _, sc := range subCommands {
 		backupCmd.AddCommand(sc)
 	}

@@ -38,6 +38,7 @@ type Storage struct {
 // NewStorage aggregates all the supplied configurations into a single configuration.
 func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, error) {
 	cs, err := common.UnionStringConfigs(cfgs...)
+
 	return Storage{
 		Provider: p,
 		Config:   cs,
@@ -53,8 +54,10 @@ func orEmptyString(v any) string {
 			fmt.Printf("panic recovery casting %v to string\n", v)
 		}
 	}()
+
 	if v == nil {
 		return ""
 	}
+
 	return v.(string)
 }

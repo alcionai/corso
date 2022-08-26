@@ -65,6 +65,7 @@ func (mms *MockModelStore) Get(
 	if mms.err != nil {
 		return mms.err
 	}
+
 	switch s {
 	case model.BackupSchema:
 		unmarshal(mms.backup, data)
@@ -73,6 +74,7 @@ func (mms *MockModelStore) Get(
 	default:
 		return errors.Errorf("schema %s not supported by mock Get", s)
 	}
+
 	return nil
 }
 
@@ -84,16 +86,20 @@ func (mms *MockModelStore) GetIDsForType(
 	if mms.err != nil {
 		return nil, mms.err
 	}
+
 	switch s {
 	case model.BackupSchema:
 		b := backup.Backup{}
 		unmarshal(mms.backup, &b)
+
 		return []*model.BaseModel{&b.BaseModel}, nil
 	case model.BackupDetailsSchema:
 		d := details.Details{}
 		unmarshal(mms.backup, &d)
+
 		return []*model.BaseModel{&d.BaseModel}, nil
 	}
+
 	return nil, errors.Errorf("schema %s not supported by mock GetIDsForType", s)
 }
 
@@ -106,6 +112,7 @@ func (mms *MockModelStore) GetWithModelStoreID(
 	if mms.err != nil {
 		return mms.err
 	}
+
 	switch s {
 	case model.BackupSchema:
 		unmarshal(mms.backup, data)
@@ -114,6 +121,7 @@ func (mms *MockModelStore) GetWithModelStoreID(
 	default:
 		return errors.Errorf("schema %s not supported by mock GetWithModelStoreID", s)
 	}
+
 	return nil
 }
 
@@ -130,6 +138,7 @@ func (mms *MockModelStore) Put(ctx context.Context, s model.Schema, m model.Mode
 	default:
 		return errors.Errorf("schema %s not supported by mock Put", s)
 	}
+
 	return mms.err
 }
 
@@ -142,5 +151,6 @@ func (mms *MockModelStore) Update(ctx context.Context, s model.Schema, m model.M
 	default:
 		return errors.Errorf("schema %s not supported by mock Update", s)
 	}
+
 	return mms.err
 }

@@ -26,16 +26,19 @@ func (c CommonConfig) StringConfig() (map[string]string, error) {
 		keyCommonCorsoPassword: c.CorsoPassword,
 		keyCommonKopiaCfgDir:   c.KopiaCfgDir,
 	}
+
 	return cfg, c.validate()
 }
 
 // CommonConfig retrieves the CommonConfig details from the Storage config.
 func (s Storage) CommonConfig() (CommonConfig, error) {
 	c := CommonConfig{}
+
 	if len(s.Config) > 0 {
 		c.CorsoPassword = orEmptyString(s.Config[keyCommonCorsoPassword])
 		c.KopiaCfgDir = orEmptyString(s.Config[keyCommonKopiaCfgDir])
 	}
+
 	return c, c.validate()
 }
 
@@ -44,6 +47,7 @@ func (c CommonConfig) validate() error {
 	if len(c.CorsoPassword) == 0 {
 		return errors.Wrap(errMissingRequired, credentials.CorsoPassword)
 	}
+
 	// kopiaCfgFilePath is not required
 	return nil
 }

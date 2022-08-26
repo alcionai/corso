@@ -6,6 +6,7 @@ func ContainsString(super []string, sub string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -16,5 +17,6 @@ func First(vs ...string) string {
 			return v
 		}
 	}
+
 	return ""
 }
