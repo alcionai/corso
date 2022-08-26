@@ -4,21 +4,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var backupCommands = []func(parent *cobra.Command) *cobra.Command{
+var subCommands = []*cobra.Command{
+	createCmd,
+	listCmd,
+	detailsCmd,
+	deleteCmd,
+}
+
+var serviceCommands = []func(parent *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 }
 
 // AddCommands attaches all `corso backup * *` commands to the parent.
 func AddCommands(parent *cobra.Command) {
 	parent.AddCommand(backupCmd)
-	backupCmd.AddCommand(createCmd)
-	backupCmd.AddCommand(listCmd)
-	backupCmd.AddCommand(detailsCmd)
 
-	for _, addBackupTo := range backupCommands {
-		addBackupTo(createCmd)
-		addBackupTo(listCmd)
-		addBackupTo(detailsCmd)
+	for _, sc := range subCommands {
+		backupCmd.AddCommand(sc)
+	}
+
+	for _, addBackupTo := range serviceCommands {
+		for _, sc := range subCommands {
+			addBackupTo(sc)
+		}
 	}
 }
 
@@ -75,7 +83,7 @@ func handleListCmd(cmd *cobra.Command, args []string) error {
 }
 
 // The backup details subcommand.
-// `corso backup list <service> [<flag>...]`
+// `corso backup details <service> [<flag>...]`
 var (
 	detailsCommand = "details"
 	detailsCmd     = &cobra.Command{
@@ -89,5 +97,23 @@ var (
 // Handler for calls to `corso backup details`.
 // Produces the same output as `corso backup details --help`.
 func handleDetailsCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
+}
+
+// The backup delete subcommand.
+// `corso backup delete <service> [<flag>...]`
+var (
+	deleteCommand = "delete"
+	deleteCmd     = &cobra.Command{
+		Use:   deleteCommand,
+		Short: "Deletes a backup for a service",
+		RunE:  handleDeleteCmd,
+		Args:  cobra.NoArgs,
+	}
+)
+
+// Handler for calls to `corso backup delete`.
+// Produces the same output as `corso backup delete --help`.
+func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }

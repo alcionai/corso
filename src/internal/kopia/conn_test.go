@@ -15,9 +15,9 @@ import (
 
 //revive:disable:context-as-argument
 func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
-	storage := tester.NewPrefixedS3Storage(t)
+	st := tester.NewPrefixedS3Storage(t)
 
-	k := NewConn(storage)
+	k := NewConn(st)
 	if err := k.Initialize(ctx); err != nil {
 		return nil, err
 	}
@@ -38,8 +38,8 @@ func TestWrapperUnitSuite(t *testing.T) {
 
 func (suite *WrapperUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
 	ctx := context.Background()
-
 	k := conn{}
+
 	assert.NotPanics(suite.T(), func() {
 		k.Close(ctx)
 	})
@@ -214,4 +214,17 @@ func (suite *WrapperIntegrationSuite) TestCompressorSetOnInitAndConnect() {
 	require.NoError(t, err)
 
 	assert.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+}
+
+func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
+	ctx := context.Background()
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err)
+	require.NoError(t, k.Close(ctx))
+
+	// Re-open with Connect.
+	require.NoError(t, k.Connect(ctx))
+	assert.NoError(t, k.Close(ctx))
 }

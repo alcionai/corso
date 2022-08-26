@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/mockconnector"
-	"github.com/alcionai/corso/internal/tester"
 )
 
 type DataSupportSuite struct {
@@ -15,10 +14,6 @@ type DataSupportSuite struct {
 }
 
 func TestDataSupportSuite(t *testing.T) {
-	err := tester.RunOnAny(tester.CorsoGraphConnectorTestSupportFile)
-	if err != nil {
-		t.Skipf("Skipping: %v\n", err)
-	}
 	suite.Run(t, new(DataSupportSuite))
 }
 

@@ -19,7 +19,7 @@ TODO - Link to the appropriate page in the published docs.
 # Building Corso
 
 ```sh
-# Build a binary. Will be places in bin/
+# Build a binary. Will be placed in bin/
 ./build/build.sh 
 
 # Build a container image

@@ -3,6 +3,7 @@ package kopia
 import (
 	"context"
 	"path"
+	"sync"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
@@ -50,10 +51,63 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 	}
 }
 
+type itemDetails struct {
+	info    details.ItemInfo
+	repoRef string
+}
+
+type corsoProgress struct {
+	snapshotfs.UploadProgress
+	pending map[string]*itemDetails
+	deets   *details.Details
+	mu      sync.RWMutex
+}
+
+// Kopia interface function used as a callback when kopia finishes processing a
+// file.
+func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
+	// Pass the call through as well so we don't break expected functionality.
+	defer cp.UploadProgress.FinishedFile(relativePath, err)
+	// Whether it succeeded or failed, remove the entry from our pending set so we
+	// don't leak references.
+	defer func() {
+		cp.mu.Lock()
+		defer cp.mu.Unlock()
+
+		delete(cp.pending, relativePath)
+	}()
+
+	if err != nil {
+		return
+	}
+
+	d := cp.get(relativePath)
+	if d == nil {
+		return
+	}
+
+	cp.deets.Add(d.repoRef, d.info)
+}
+
+func (cp *corsoProgress) put(k string, v *itemDetails) {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+
+	cp.pending[k] = v
+}
+
+func (cp *corsoProgress) get(k string) *itemDetails {
+	cp.mu.RLock()
+	defer cp.mu.RUnlock()
+
+	return cp.pending[k]
+}
+
 func NewWrapper(c *conn) (*Wrapper, error) {
 	if err := c.wrap(); err != nil {
 		return nil, errors.Wrap(err, "creating Wrapper")
 	}
+
 	return &Wrapper{c}, nil
 }
 
@@ -79,9 +133,13 @@ func (w *Wrapper) Close(ctx context.Context) error {
 func getStreamItemFunc(
 	staticEnts []fs.Entry,
 	streamedEnts data.Collection,
-	snapshotDetails *details.Details,
+	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
+		// Collect all errors and return them at the end so that iteration for this
+		// directory doesn't end early.
+		var errs *multierror.Error
+
 		// Return static entries in this directory first.
 		for _, d := range staticEnts {
 			if err := cb(ctx, d); err != nil {
@@ -94,6 +152,7 @@ func getStreamItemFunc(
 		}
 
 		items := streamedEnts.Items()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -101,22 +160,37 @@ func getStreamItemFunc(
 
 			case e, ok := <-items:
 				if !ok {
-					return nil
+					return errs.ErrorOrNil()
 				}
+
+				itemPath := path.Join(append(streamedEnts.FullPath(), e.UUID())...)
 
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
-					return errors.New("item does not implement DataStreamInfo")
+					errs = multierror.Append(
+						errs, errors.Errorf("item %q does not implement DataStreamInfo", itemPath))
+
+					logger.Ctx(ctx).Errorw(
+						"item does not implement DataStreamInfo; skipping", "path", itemPath)
+
+					continue
 				}
+
+				// Relative path given to us in the callback is missing the root
+				// element. Add to pending set before calling the callback to avoid race
+				// conditions when the item is completed.
+				p := path.Join(append(streamedEnts.FullPath()[1:], e.UUID())...)
+				d := &itemDetails{info: ei.Info(), repoRef: itemPath}
+
+				progress.put(p, d)
 
 				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
 				if err := cb(ctx, entry); err != nil {
-					return errors.Wrap(err, "executing callback")
+					// Kopia's uploader swallows errors in most cases, so if we see
+					// something here it's probably a big issue and we should return.
+					errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
+					return errs.ErrorOrNil()
 				}
-
-				// Populate BackupDetails
-				ep := append(streamedEnts.FullPath(), e.UUID())
-				snapshotDetails.Add(path.Join(ep...), ei.Info())
 			}
 		}
 	}
@@ -124,13 +198,13 @@ func getStreamItemFunc(
 
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are virtualfs.StreamingDirectory.
-func buildKopiaDirs(dirName string, dir *treeMap, snapshotDetails *details.Details) (fs.Directory, error) {
+func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.Directory, error) {
 	// Need to build the directory tree from the leaves up because intermediate
 	// directories need to have all their entries at creation time.
 	var childDirs []fs.Entry
 
 	for childName, childDir := range dir.childDirs {
-		child, err := buildKopiaDirs(childName, childDir, snapshotDetails)
+		child, err := buildKopiaDirs(childName, childDir, progress)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +214,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, snapshotDetails *details.Detai
 
 	return virtualfs.NewStreamingDirectory(
 		dirName,
-		getStreamItemFunc(childDirs, dir.collection, snapshotDetails),
+		getStreamItemFunc(childDirs, dir.collection, progress),
 	), nil
 }
 
@@ -162,7 +236,7 @@ func newTreeMap() *treeMap {
 func inflateDirTree(
 	ctx context.Context,
 	collections []data.Collection,
-	snapshotDetails *details.Details,
+	progress *corsoProgress,
 ) (fs.Directory, error) {
 	roots := make(map[string]*treeMap)
 
@@ -221,8 +295,9 @@ func inflateDirTree(
 	}
 
 	var res fs.Directory
+
 	for dirName, dir := range roots {
-		tmp, err := buildKopiaDirs(dirName, dir, snapshotDetails)
+		tmp, err := buildKopiaDirs(dirName, dir, progress)
 		if err != nil {
 			return nil, err
 		}
@@ -241,25 +316,28 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, errNotConnected
 	}
 
-	snapshotDetails := &details.Details{}
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		deets:   &details.Details{},
+	}
 
-	dirTree, err := inflateDirTree(ctx, collections, snapshotDetails)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	stats, err := w.makeSnapshotWithRoot(ctx, dirTree, snapshotDetails)
+	stats, err := w.makeSnapshotWithRoot(ctx, dirTree, progress)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return stats, snapshotDetails, nil
+	return stats, progress.deets, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
-	snapshotDetails *details.Details,
+	progress *corsoProgress,
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
@@ -280,14 +358,25 @@ func (w Wrapper) makeSnapshotWithRoot(
 				Path: root.Name(),
 			}
 
-			policyTree, err := policy.TreeForSource(innerCtx, w.c, si)
+			trueVal := policy.OptionalBool(true)
+			errPolicy := &policy.Policy{
+				ErrorHandlingPolicy: policy.ErrorHandlingPolicy{
+					IgnoreFileErrors:      &trueVal,
+					IgnoreDirectoryErrors: &trueVal,
+				},
+			}
+			policyTree, err := policy.TreeForSourceWithOverride(innerCtx, w.c, si, errPolicy)
 			if err != nil {
 				err = errors.Wrap(err, "get policy tree")
 				logger.Ctx(innerCtx).Errorw("kopia backup", err)
 				return err
 			}
 
+			// By default Uploader is best-attempt.
 			u := snapshotfs.NewUploader(rw)
+			progress.UploadProgress = u.Progress
+			u.Progress = progress
+
 			man, err = u.Upload(innerCtx, root, policyTree, si)
 			if err != nil {
 				err = errors.Wrap(err, "uploading data")
@@ -311,6 +400,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 	}
 
 	res := manifestToStats(man)
+
 	return &res, nil
 }
 
@@ -442,9 +532,10 @@ func walkDirectory(
 	ctx context.Context,
 	dir fs.Directory,
 ) ([]fs.File, []fs.Directory, *multierror.Error) {
+	var errs *multierror.Error
+
 	files := []fs.File{}
 	dirs := []fs.Directory{}
-	var errs *multierror.Error
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, e fs.Entry) error {
 		// Early exit on context cancel.
@@ -459,7 +550,8 @@ func walkDirectory(
 			files = append(files, e)
 		default:
 			errs = multierror.Append(errs, errors.Errorf("unexpected item type %T", e))
-			logger.Ctx(ctx).Warnf("unexpected item of type %T; skipping", e)
+			logger.Ctx(ctx).Errorw(
+				"unexpected item type; skipping", "type", e)
 		}
 
 		return nil
@@ -482,10 +574,11 @@ func restoreSubtree(
 	dir fs.Directory,
 	relativePath []string,
 ) ([]data.Collection, *multierror.Error) {
+	var errs *multierror.Error
+
 	collections := []data.Collection{}
 	// Want a local copy of relativePath with our new element.
 	fullPath := append(append([]string{}, relativePath...), dir.Name())
-	var errs *multierror.Error
 
 	files, dirs, err := walkDirectory(ctx, dir)
 	if err != nil {
@@ -507,7 +600,10 @@ func restoreSubtree(
 				fileFullPath := path.Join(append(append([]string{}, fullPath...), f.Name())...)
 				errs = multierror.Append(
 					errs, errors.Wrapf(err, "getting reader for file %q", fileFullPath))
-				logger.Ctx(ctx).Warnf("skipping file %q", fileFullPath)
+
+				logger.Ctx(ctx).Errorw(
+					"unable to get file reader; skipping", "path", fileFullPath)
+
 				continue
 			}
 
@@ -568,6 +664,7 @@ func (w Wrapper) RestoreMultipleItems(
 		dcs  = []data.Collection{}
 		errs *multierror.Error
 	)
+
 	for _, itemPath := range paths {
 		dc, err := w.RestoreSingleItem(ctx, snapshotID, itemPath)
 		if err != nil {
@@ -576,5 +673,38 @@ func (w Wrapper) RestoreMultipleItems(
 			dcs = append(dcs, dc)
 		}
 	}
+
 	return dcs, errs.ErrorOrNil()
+}
+
+// DeleteSnapshot removes the provided manifest from kopia.
+func (w Wrapper) DeleteSnapshot(
+	ctx context.Context,
+	snapshotID string,
+) error {
+	mid := manifest.ID(snapshotID)
+
+	if len(mid) == 0 {
+		return errors.New("attempt to delete unidentified snapshot")
+	}
+
+	err := repo.WriteSession(
+		ctx,
+		w.c,
+		repo.WriteSessionOptions{Purpose: "KopiaWrapperBackupDeletion"},
+		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+			if err := rw.DeleteManifest(ctx, mid); err != nil {
+				return errors.Wrap(err, "deleting snapshot")
+			}
+
+			return nil
+		},
+	)
+	// Telling kopia to always flush may hide other errors if it fails while
+	// flushing the write session (hence logging above).
+	if err != nil {
+		return errors.Wrap(err, "kopia deleting backup manifest")
+	}
+
+	return nil
 }

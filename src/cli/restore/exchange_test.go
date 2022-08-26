@@ -23,6 +23,7 @@ func TestExchangeSuite(t *testing.T) {
 
 func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand
+
 	table := []struct {
 		name        string
 		use         string
@@ -52,6 +53,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 
 func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 	stub := []string{"id-stub"}
+
 	table := []struct {
 		name                                                          string
 		contacts, contactFolders, emails, emailFolders, events, users []string
@@ -136,7 +138,8 @@ func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 
 func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 	stub := []string{"id-stub"}
-	any := []string{utils.Wildcard}
+	a := []string{utils.Wildcard}
+
 	table := []struct {
 		name                                                          string
 		contacts, contactFolders, emails, emailFolders, events, users []string
@@ -148,7 +151,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users",
-			users:            any,
+			users:            a,
 			expectIncludeLen: 3,
 		},
 		{
@@ -163,19 +166,19 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users, any data",
-			contacts:         any,
-			contactFolders:   any,
-			emails:           any,
-			emailFolders:     any,
-			events:           any,
-			users:            any,
+			contacts:         a,
+			contactFolders:   a,
+			emails:           a,
+			emailFolders:     a,
+			events:           a,
+			users:            a,
 			expectIncludeLen: 3,
 		},
 		{
 			name:             "any users, any folders",
-			contactFolders:   any,
-			emailFolders:     any,
-			users:            any,
+			contactFolders:   a,
+			emailFolders:     a,
+			users:            a,
 			expectIncludeLen: 2,
 		},
 		{
@@ -197,9 +200,9 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users, contacts",
-			contacts:         any,
+			contacts:         a,
 			contactFolders:   stub,
-			users:            any,
+			users:            a,
 			expectIncludeLen: 1,
 		},
 		{
@@ -211,9 +214,9 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users, emails",
-			emails:           any,
+			emails:           a,
 			emailFolders:     stub,
-			users:            any,
+			users:            a,
 			expectIncludeLen: 1,
 		},
 		{
@@ -225,8 +228,8 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users, events",
-			events:           any,
-			users:            any,
+			events:           a,
+			users:            a,
 			expectIncludeLen: 1,
 		},
 		{
@@ -237,11 +240,11 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users, contacts + email",
-			contacts:         any,
-			contactFolders:   any,
-			emails:           any,
-			emailFolders:     any,
-			users:            any,
+			contacts:         a,
+			contactFolders:   a,
+			emails:           a,
+			emailFolders:     a,
+			users:            a,
 			expectIncludeLen: 2,
 		},
 		{
@@ -255,10 +258,10 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users, email + event",
-			emails:           any,
-			emailFolders:     any,
-			events:           any,
-			users:            any,
+			emails:           a,
+			emailFolders:     a,
+			events:           a,
+			users:            a,
 			expectIncludeLen: 2,
 		},
 		{
@@ -271,10 +274,10 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 		{
 			name:             "any users, event + contact",
-			contacts:         any,
-			contactFolders:   any,
-			events:           any,
-			users:            any,
+			contacts:         a,
+			contactFolders:   a,
+			events:           a,
+			users:            a,
 			expectIncludeLen: 2,
 		},
 		{
@@ -318,7 +321,8 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 
 func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 	stub := "id-stub"
-	any := utils.Wildcard
+	a := utils.Wildcard
+
 	table := []struct {
 		name                           string
 		after, before, sender, subject string
@@ -330,7 +334,7 @@ func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 		},
 		{
 			name:            "any receivedAfter",
-			after:           any,
+			after:           a,
 			expectFilterLen: 1,
 		},
 		{
@@ -340,7 +344,7 @@ func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 		},
 		{
 			name:            "any receivedBefore",
-			before:          any,
+			before:          a,
 			expectFilterLen: 1,
 		},
 		{
@@ -350,7 +354,7 @@ func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 		},
 		{
 			name:            "any senders",
-			sender:          any,
+			sender:          a,
 			expectFilterLen: 1,
 		},
 		{
@@ -360,7 +364,7 @@ func (suite *ExchangeSuite) TestFilterExchangeRestoreInfoSelectors() {
 		},
 		{
 			name:            "any subjects",
-			subject:         any,
+			subject:         a,
 			expectFilterLen: 1,
 		},
 		{

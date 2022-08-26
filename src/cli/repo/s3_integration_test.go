@@ -25,6 +25,7 @@ func TestS3IntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(S3IntegrationSuite))
 }
 
@@ -45,6 +46,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 
 	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
 	require.NoError(t, err)
+
 	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(
@@ -68,6 +70,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 
 	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
 	require.NoError(t, err)
+
 	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(
@@ -95,6 +98,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 	}
 	vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
+
 	ctx = config.SetViper(ctx, vpr)
 
 	// init the repo first
@@ -123,6 +127,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 
 	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
 	require.NoError(t, err)
+
 	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(
@@ -146,6 +151,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
 
 	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
 	require.NoError(t, err)
+
 	ctx = config.SetViper(ctx, vpr)
 
 	cmd := tester.StubRootCmd(

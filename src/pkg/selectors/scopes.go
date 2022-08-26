@@ -1,6 +1,9 @@
 package selectors
 
 import (
+	"strings"
+
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
@@ -14,10 +17,18 @@ type (
 		// String should return the human readable name of the category.
 		String() string
 
-		// includesType should return true if the parameterized category is, contextually
-		// within the service, a subset of the receiver category.  Ex: a Mail category
-		// is a subset of a MailFolder category.
-		includesType(categorizer) bool
+		// leafCat should return the lowest level type matching the category.  If the type
+		// has multiple leaf types (ex: the root category) or no leaves (ex: unknown values),
+		// the same value is returned.  Otherwise, if the receiver is an intermediary type,
+		// such as a folder, then the child value should be returned.
+		// Ex: fooFolder.leafCat() => foo.
+		leafCat() categorizer
+
+		// rootCat returns the root category for the categorizer
+		rootCat() categorizer
+
+		// unknownType returns the unknown category value
+		unknownCat() categorizer
 
 		// pathValues should produce a map of category:string pairs populated by extracting
 		// values out of the path that match the given categorizer.
@@ -38,12 +49,11 @@ type (
 		// so that the two can be compared.
 		pathKeys() []categorizer
 	}
-	// TODO: Uncomment when reducer func is added
 	// categoryT is the generic type interface of a categorizer
-	// categoryT interface {
-	// 	~int
-	// 	categorizer
-	// }
+	categoryT interface {
+		~int
+		categorizer
+	}
 )
 
 type (
@@ -91,6 +101,11 @@ type (
 		// entry - the details entry containing extended service info for the item that a filter may
 		//   compare.  Identification of the correct entry Info service is left up to the scope.
 		matchesEntry(cat categorizer, pathValues map[categorizer]string, entry details.DetailsEntry) bool
+
+		// setDefaults populates default values for certain scope categories.
+		// Primarily to ensure that root- or mid-tier scopes (such as folders)
+		// cascade 'Any' matching to more granular categories.
+		setDefaults()
 	}
 	// scopeT is the generic type interface of a scoper.
 	scopeT interface {
@@ -99,30 +114,64 @@ type (
 	}
 )
 
+// makeScope produces a well formatted, typed scope that ensures all base values are populated.
+func makeScope[T scopeT](
+	resource, granularity string,
+	cat categorizer,
+	vs []string,
+) T {
+	s := T{
+		scopeKeyCategory:       cat.String(),
+		scopeKeyDataType:       cat.leafCat().String(),
+		scopeKeyGranularity:    granularity,
+		scopeKeyResource:       resource,
+		cat.String():           join(vs...),
+		cat.rootCat().String(): resource,
+	}
+	return s
+}
+
+// makeFilterScope produces a well formatted, typed scope, with properties specifically oriented
+// towards identifying filter-type scopes, that ensures all base values are populated.
+func makeFilterScope[T scopeT](
+	cat, filterCat categorizer,
+	vs []string,
+) T {
+	return T{
+		scopeKeyCategory:    cat.String(),
+		scopeKeyDataType:    cat.leafCat().String(),
+		scopeKeyGranularity: Filter,
+		scopeKeyInfoFilter:  filterCat.String(),
+		scopeKeyResource:    Filter,
+		filterCat.String():  join(vs...),
+	}
+}
+
 // ---------------------------------------------------------------------------
-// funcs
+// scope funcs
 // ---------------------------------------------------------------------------
 
-// TODO: Uncomment when selectors.go/contains() can be removed.
-//
 // contains returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
-// func contains[T scopeT](s T, cat categorizer, target string) bool {
-// 	if !s.categorizer().includesType(cat) {
-// 		return false
-// 	}
-// 	compare := s[cat.String()]
-// 	if len(compare) == 0 {
-// 		return false
-// 	}
-// 	if compare == NoneTgt {
-// 		return false
-// 	}
-// 	if compare == AnyTgt {
-// 		return true
-// 	}
-// 	return strings.Contains(compare, target)
-// }
+func contains[T scopeT, C categoryT](s T, cat C, target string) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
+		return false
+	}
+	if len(target) == 0 {
+		return false
+	}
+	compare := s[cat.String()]
+	if len(compare) == 0 {
+		return false
+	}
+	if compare == NoneTgt {
+		return false
+	}
+	if compare == AnyTgt {
+		return true
+	}
+	return strings.Contains(compare, target)
+}
 
 // getCatValue takes the value of s[cat], split it by the standard
 // delimiter, and returns the slice.  If s[cat] is nil, returns
@@ -135,6 +184,13 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 	return split(v)
 }
 
+// set sets a value by category to the scope.  Only intended for internal
+// use, not for exporting to callers.
+func set[T scopeT](s T, cat categorizer, v string) T {
+	s[cat.String()] = v
+	return s
+}
+
 // granularity describes the granularity (directory || item)
 // of the data in scope.
 func granularity[T scopeT](s T) string {
@@ -143,9 +199,228 @@ func granularity[T scopeT](s T) string {
 
 // returns true if the category is included in the scope's category type,
 // and the value is set to Any().
-func isAnyTarget[T scopeT](s T, cat categorizer) bool {
-	if !s.categorizer().includesType(cat) {
+func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}
 	return s[cat.String()] == AnyTgt
+}
+
+// reduce filters the entries in the details to only those that match the
+// inclusions, filters, and exclusions in the selector.
+//
+func reduce[T scopeT, C categoryT](
+	deets *details.Details,
+	s Selector,
+	dataCategories map[pathType]C,
+) *details.Details {
+	if deets == nil {
+		return nil
+	}
+
+	// aggregate each scope type by category for easier isolation in future processing.
+	excludes := scopesByCategory[T](s.Excludes, dataCategories)
+	filters := scopesByCategory[T](s.Filters, dataCategories)
+	includes := scopesByCategory[T](s.Includes, dataCategories)
+
+	ents := []details.DetailsEntry{}
+
+	// for each entry, compare that entry against the scopes of the same data type
+	for _, ent := range deets.Entries {
+		// todo: use Path pkg for this
+		path := strings.Split(ent.RepoRef, "/")
+		dc, ok := dataCategories[pathTypeIn(path)]
+		if !ok {
+			continue
+		}
+
+		passed := passes(
+			dc,
+			dc.pathValues(path),
+			ent,
+			excludes[dc],
+			filters[dc],
+			includes[dc],
+		)
+		if passed {
+			ents = append(ents, ent)
+		}
+	}
+
+	reduced := &details.Details{DetailsModel: deets.DetailsModel}
+	reduced.Entries = ents
+	return reduced
+}
+
+// TODO: this is a hack.  We don't want these values declared here- it will get
+// unwieldy to have all of them for all services.  They should be declared in
+// paths, since that's where service- and data-type-specific assertions are owned.
+type pathType int
+
+const (
+	unknownPathType pathType = iota
+	exchangeEventPath
+	exchangeContactPath
+	exchangeMailPath
+)
+
+// return the service data type of the path.
+// TODO: this is a hack.  We don't want this identification to occur in this
+// package.  It should get handled in paths, since that's where service- and
+// data-type-specific assertions are owned.
+// Ideally, we'd use something like path.DataType() instead of this func.
+func pathTypeIn(path []string) pathType {
+	// not all paths will be len=3.  Most should be longer.
+	// This just protects us from panicing below.
+	if len(path) < 3 {
+		return unknownPathType
+	}
+	switch path[2] {
+	case "mail":
+		return exchangeMailPath
+	case "contact":
+		return exchangeContactPath
+	case "event":
+		return exchangeEventPath
+	}
+	return unknownPathType
+}
+
+// groups each scope by its category of data (specified by the service-selector).
+// ex: a slice containing the scopes [mail1, mail2, event1]
+// would produce a map like { mail: [1, 2], event: [1] }
+// so long as "mail" and "event" are contained in cats.
+func scopesByCategory[T scopeT, C categoryT](
+	scopes []scope,
+	cats map[pathType]C,
+) map[C][]T {
+	m := map[C][]T{}
+	for _, cat := range cats {
+		m[cat] = []T{}
+	}
+
+	for _, sc := range scopes {
+		for _, cat := range cats {
+			t := T(sc)
+			if typeAndCategoryMatches(cat, t.categorizer()) {
+				m[cat] = append(m[cat], t)
+			}
+		}
+	}
+	return m
+}
+
+// passes compares each path to the included and excluded exchange scopes.  Returns true
+// if the path is included, passes filters, and not excluded.
+func passes[T scopeT](
+	cat categorizer,
+	pathValues map[categorizer]string,
+	entry details.DetailsEntry,
+	excs, filts, incs []T,
+) bool {
+	// a passing match requires either a filter or an inclusion
+	if len(incs)+len(filts) == 0 {
+		return false
+	}
+
+	// skip this check if 0 inclusions were populated
+	// since filters act as the inclusion check in that case
+	if len(incs) > 0 {
+		// at least one inclusion must apply.
+		var included bool
+		for _, inc := range incs {
+			if inc.matchesEntry(cat, pathValues, entry) {
+				included = true
+				break
+			}
+		}
+		if !included {
+			return false
+		}
+	}
+
+	// all filters must pass
+	for _, filt := range filts {
+		if !filt.matchesEntry(cat, pathValues, entry) {
+			return false
+		}
+	}
+
+	// any matching exclusion means failure
+	for _, exc := range excs {
+		if exc.matchesEntry(cat, pathValues, entry) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// matchesPathValues will check whether the pathValues have matching entries
+// in the scope.  The keys of the values to match against are identified by
+// the categorizer.
+// Standard expectations apply: None() or missing values always fail, Any()
+// always succeeds.
+func matchesPathValues[T scopeT, C categoryT](
+	sc T,
+	cat C,
+	pathValues map[categorizer]string,
+) bool {
+	for _, c := range cat.pathKeys() {
+		target := getCatValue(sc, c)
+		// the scope must define the targets to match on
+		if len(target) == 0 {
+			return false
+		}
+		// None() fails all matches
+		if target[0] == NoneTgt {
+			return false
+		}
+		// the path must contain a value to match against
+		pv, ok := pathValues[c]
+		if !ok {
+			return false
+		}
+		// all parts of the scope must match
+		cc := c.(C)
+		if !isAnyTarget(sc, cc) {
+			if !common.ContainsString(target, pv) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// ---------------------------------------------------------------------------
+// categorizer funcs
+// ---------------------------------------------------------------------------
+
+// categoryMatches returns true if:
+// - neither type is 'unknown'
+// - either type is the root type
+// - the leaf types match
+func categoryMatches[C categoryT](a, b C) bool {
+	u := a.unknownCat()
+	if a == u || b == u {
+		return false
+	}
+
+	r := a.rootCat()
+	if a == r || b == r {
+		return true
+	}
+
+	return a.leafCat() == b.leafCat()
+}
+
+// typeAndCategoryMatches returns true if:
+// - both parameters are the same categoryT type
+// - the category matches for both types
+func typeAndCategoryMatches[C categoryT](a C, b categorizer) bool {
+	bb, ok := b.(C)
+	if !ok {
+		return false
+	}
+	return categoryMatches(a, bb)
 }

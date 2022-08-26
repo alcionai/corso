@@ -8,15 +8,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func stubSelector() Selector {
-	return Selector{
-		Service:  ServiceExchange,
-		Excludes: []scope{scope(stubScope(""))},
-		Filters:  []scope{scope(stubScope(""))},
-		Includes: []scope{scope(stubScope(""))},
-	}
-}
-
 type SelectorSuite struct {
 	suite.Suite
 }
@@ -62,7 +53,7 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p := sel.Printable()
 	res := p.Resources()
 
-	assert.Equal(t, stubResource, res, "resource should state only the user")
+	assert.Equal(t, stubResource, res, "resource should state only the stub")
 
 	sel.Includes = []scope{
 		scope(stubScope("")),
@@ -77,7 +68,7 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p.Includes = nil
 	res = p.Resources()
 
-	assert.Equal(t, stubResource, res, "resource on filters should state only the user")
+	assert.Equal(t, stubResource, res, "resource on filters should state only the stub")
 
 	p.Filters = nil
 	res = p.Resources()
@@ -136,10 +127,12 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 
 func (suite *SelectorSuite) TestContains() {
 	t := suite.T()
-	key := unknownCatStub.String()
+	key := rootCatStub
 	target := "fnords"
-	does := scope{key: target}
-	doesNot := scope{key: "smarf"}
-	assert.True(t, contains(does, key, target))
-	assert.False(t, contains(doesNot, key, target))
+	does := stubScope("")
+	does[key.String()] = target
+	doesNot := stubScope("")
+	doesNot[key.String()] = "smarf"
+	assert.True(t, contains(does, key, target), "does contain")
+	assert.False(t, contains(doesNot, key, target), "does not contain")
 }

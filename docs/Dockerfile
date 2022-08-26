@@ -9,8 +9,8 @@ RUN apt-get -y update && apt-get -y install gpg emacs curl git make \
   && apt-get autoclean \
   && node --version \
   && npm --version \
-  && cd /tmp && curl -O -L https://github.com/errata-ai/vale/releases/download/v2.15.4/vale_2.15.4_Linux_64-bit.tar.gz \
-  && tar -xvzf vale_2.15.4_Linux_64-bit.tar.gz -C /usr/bin vale
+  && cd /tmp && curl -O -L https://github.com/errata-ai/vale/releases/download/v2.20.1/vale_2.20.1_Linux_64-bit.tar.gz \
+  && tar -xvzf vale_2.20.1_Linux_64-bit.tar.gz -C /usr/bin vale
 
 WORKDIR /usr/src
 COPY package.json package-lock.json* ./

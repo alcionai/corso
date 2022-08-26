@@ -2,6 +2,8 @@ package kopia
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/pkg/backup/details"
 )
 
 type fooModel struct {
@@ -511,4 +514,126 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	require.NoError(
 		t, m.GetWithModelStoreID(ctx, theModelType, foo.ModelStoreID, returned))
 	assert.Equal(t, foo, returned)
+}
+
+func openConnAndModelStore(
+	t *testing.T,
+	ctx context.Context,
+) (*conn, *ModelStore) {
+	st := tester.NewPrefixedS3Storage(t)
+	c := NewConn(st)
+
+	require.NoError(t, c.Initialize(ctx))
+
+	defer func() {
+		require.NoError(t, c.Close(ctx))
+	}()
+
+	ms, err := NewModelStore(c)
+	require.NoError(t, err)
+
+	return c, ms
+}
+
+func reconnectToModelStore(
+	t *testing.T,
+	ctx context.Context,
+	c *conn,
+) *ModelStore {
+	require.NoError(t, c.Connect(ctx))
+
+	defer func() {
+		assert.NoError(t, c.Close(ctx))
+	}()
+
+	ms, err := NewModelStore(c)
+	require.NoError(t, err)
+
+	return ms
+}
+
+// Ensures there's no shared configuration state between different instances of
+// the ModelStore (and consequently the underlying kopia instances).
+func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
+	ctx := context.Background()
+	t := suite.T()
+	numEntries := 10
+	deets := details.DetailsModel{
+		Entries: make([]details.DetailsEntry, 0, numEntries),
+	}
+
+	for i := 0; i < numEntries; i++ {
+		deets.Entries = append(
+			deets.Entries,
+			details.DetailsEntry{
+				RepoRef: fmt.Sprintf("exchange/user1/mail/inbox/mail%v", i),
+				ItemInfo: details.ItemInfo{
+					Exchange: &details.ExchangeInfo{
+						Sender:  "John Doe",
+						Subject: fmt.Sprintf("Hola mundo %v", i),
+					},
+				},
+			},
+		)
+	}
+
+	conn1, ms1 := openConnAndModelStore(t, ctx)
+
+	require.NoError(t, ms1.Put(ctx, model.BackupDetailsSchema, &deets))
+	require.NoError(t, ms1.Close(ctx))
+
+	start := make(chan struct{})
+	ready := sync.WaitGroup{}
+	ready.Add(2)
+
+	var ms2 *ModelStore
+
+	// These need to be opened in parallel because it's a race writing the kopia
+	// config file.
+	go func() {
+		defer ready.Done()
+
+		<-start
+
+		_, ms2 = openConnAndModelStore(t, ctx)
+	}()
+
+	go func() {
+		defer ready.Done()
+
+		<-start
+
+		ms1 = reconnectToModelStore(t, ctx, conn1)
+	}()
+
+	close(start)
+	ready.Wait()
+
+	defer func() {
+		assert.NoError(t, ms2.Close(ctx))
+	}()
+
+	defer func() {
+		assert.NoError(t, ms1.Close(ctx))
+	}()
+
+	// New instance should not have model we added.
+	gotDeets := details.Details{}
+	err := ms2.GetWithModelStoreID(
+		ctx,
+		model.BackupDetailsSchema,
+		deets.ModelStoreID,
+		&gotDeets,
+	)
+	assert.Error(t, err)
+
+	// Old instance should still be able to access added model.
+	gotDeets = details.Details{}
+	err = ms1.GetWithModelStoreID(
+		ctx,
+		model.BackupDetailsSchema,
+		deets.ModelStoreID,
+		&gotDeets,
+	)
+	assert.NoError(t, err)
 }
