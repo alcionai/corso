@@ -35,7 +35,6 @@ type displayable interface {
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -50,7 +49,6 @@ type GraphIterateFunc func(
 // objects belonging to any folder are
 // placed into a Collection based on the parent folder
 func IterateSelectAllDescendablesForCollections(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -91,7 +89,7 @@ func IterateSelectAllDescendablesForCollections(
 			}
 			edc := NewCollection(
 				user,
-				[]string{tenant, user, category, directory},
+				[]string{credentials.TenantID, user, category, directory},
 				collectionType,
 				service,
 				statusCh,
@@ -108,7 +106,6 @@ func IterateSelectAllDescendablesForCollections(
 // and storing events in collections based on
 // the calendarID which originates from M365.
 func IterateSelectAllEventsForCollections(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -168,7 +165,7 @@ func IterateSelectAllEventsForCollections(
 			}
 			edc := NewCollection(
 				user,
-				[]string{tenant, user, eventsCategory, directory},
+				[]string{credentials.TenantID, user, eventsCategory, directory},
 				events,
 				service,
 				statusCh,
@@ -185,7 +182,6 @@ func IterateSelectAllEventsForCollections(
 // that places exchange mail message ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
 func IterateAndFilterMessagesForCollections(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -200,7 +196,6 @@ func IterateAndFilterMessagesForCollections(
 
 			err := CollectMailFolders(
 				scope,
-				tenant,
 				user,
 				collections,
 				credentials,
@@ -214,7 +209,7 @@ func IterateAndFilterMessagesForCollections(
 			isFilterSet = true
 		}
 
-		message, ok := messageItem.(models.Messageable)
+		message, ok := messageItem.(descendable)
 		if !ok {
 			errs = support.WrapAndAppend(user, errors.New("message iteration failure"), errs)
 			return true
@@ -230,7 +225,6 @@ func IterateAndFilterMessagesForCollections(
 }
 
 func IterateFilterFolderDirectoriesForCollections(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -244,7 +238,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		err     error
 	)
 	return func(folderItem any) bool {
-		folder, ok := folderItem.(models.MailFolderable)
+		folder, ok := folderItem.(displayable)
 		if !ok {
 			errs = support.WrapAndAppend(
 				user,
@@ -276,7 +270,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 		temp := NewCollection(
 			user,
-			[]string{tenant, user, mailCategory, directory},
+			[]string{credentials.TenantID, user, mailCategory, directory},
 			messages,
 			service,
 			statusCh,
