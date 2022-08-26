@@ -28,5 +28,6 @@ func NewM365Account(t *testing.T) account.Account {
 		},
 	)
 	require.NoError(t, err, "initializing account")
+
 	return acc
 }

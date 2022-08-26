@@ -13,18 +13,24 @@ func LoadAFile(aFile string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		defer f.Close()
+
 		buffer := make([]byte, 0)
 		reader := bufio.NewScanner(f)
+
 		for reader.Scan() {
 			temp := reader.Bytes()
 			buffer = append(buffer, temp...)
 		}
+
 		aErr := reader.Err()
 		if aErr != nil {
 			return nil, aErr
 		}
+
 		return buffer, nil
 	}
+
 	return bytes, nil
 }

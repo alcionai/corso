@@ -226,6 +226,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	dataCats := map[pathType]mockCategorizer{
 		unknownPathType: rootCatStub,
 	}
+
 	for _, test := range reduceTestTable {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ds := deets()
@@ -264,6 +265,7 @@ func (suite *SelectorScopesSuite) TestPasses() {
 	cat := rootCatStub
 	pathVals := map[categorizer]string{}
 	entry := details.DetailsEntry{}
+
 	for _, test := range reduceTestTable {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := test.sel()
@@ -284,10 +286,13 @@ func toMockScope(sc []scope) []mockScope {
 	if len(sc) == 0 {
 		return nil
 	}
+
 	ms := []mockScope{}
+
 	for _, s := range sc {
 		ms = append(ms, mockScope(s))
 	}
+
 	return ms
 }
 

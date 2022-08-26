@@ -43,12 +43,14 @@ func (c S3Config) StringConfig() (map[string]string, error) {
 		keyS3SecretKey:    c.SecretKey,
 		keyS3SessionToken: c.SessionToken,
 	}
+
 	return cfg, c.validate()
 }
 
 // S3Config retrieves the S3Config details from the Storage config.
 func (s Storage) S3Config() (S3Config, error) {
 	c := S3Config{}
+
 	if len(s.Config) > 0 {
 		c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
 		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
@@ -57,6 +59,7 @@ func (s Storage) S3Config() (S3Config, error) {
 		c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
 		c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
 	}
+
 	return c, c.validate()
 }
 
@@ -72,5 +75,6 @@ func (c S3Config) validate() error {
 			return errors.Wrap(errMissingRequired, k)
 		}
 	}
+
 	return nil
 }
