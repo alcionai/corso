@@ -1,14 +1,13 @@
 package exchange
 
 import (
-	"github.com/pkg/errors"
-
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
+	"github.com/pkg/errors"
 )
 
 //-----------------------------------------------------------------------
