@@ -299,6 +299,54 @@ func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
 	}
 }
 
+// TestGetMailFolderID verifies the ability to retrieve folder ID of folders
+// at the top level of the file tree
+func (suite *ExchangeServiceSuite) TestGetFolderID() {
+	userID := tester.M365UserID(suite.T())
+	tests := []struct {
+		name       string
+		folderName string
+		// category references the current optionId :: TODO --> use selector fields
+		category   optionIdentifier
+		checkError assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Mail Valid",
+			folderName: "Inbox",
+			category:   messages,
+			checkError: assert.NoError,
+		},
+		{
+			name:       "Mail Invalid",
+			folderName: "FolderThatIsNotHere",
+			category:   messages,
+			checkError: assert.Error,
+		},
+		{
+			name:       "Contact Invalid",
+			folderName: "FolderThatIsNotHereContacts",
+			category:   contacts,
+			checkError: assert.Error,
+		},
+		{
+			name:       "Contact Valid",
+			folderName: "TrialFolder",
+			category:   contacts,
+			checkError: assert.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := GetFolderID(
+				suite.es,
+				test.folderName,
+				userID,
+				test.category)
+			test.checkError(t, err, "Unable to find folder: "+test.folderName)
+		})
+	}
+}
+
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
