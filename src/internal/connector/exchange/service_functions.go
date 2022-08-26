@@ -89,7 +89,7 @@ type MailFolder struct {
 
 func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
-	requestBody.SetDisplayName(&folder)
+	requestBody.SetDisplayName(&folderName)
 
 	return gs.Client().UsersById(user).ContactFolders().Post(requestBody)
 }
@@ -146,7 +146,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 // @param folderName the target folder's display name. Case sensitive
 // @param category switches query and iteration to support  multiple exchange applications
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetFolderID(service graph.Service, folderName, user string, category OptionIdentifier) (*string, error) {
+func GetFolderID(service graph.Service, folderName, user string, category optionIdentifier) (*string, error) {
 	var (
 		errs      error
 		folderID  *string
@@ -304,7 +304,7 @@ func RestoreExchangeObject(
 	service graph.Service,
 	destination, user string,
 ) error {
-	var setting OptionIdentifier
+	var setting optionIdentifier
 	switch category {
 	case mailCategory:
 		setting = messages
