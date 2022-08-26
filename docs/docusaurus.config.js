@@ -12,7 +12,7 @@ const config = {
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
-  favicon: 'img/corso.svg',
+  favicon: 'img/corso_logo.svg',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -26,6 +26,7 @@ const config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+  staticDirectories: ['static', 'public'],
 
   presets: [
     [
@@ -54,8 +55,8 @@ const config = {
         title: 'Corso',
         logo: {
           alt: 'Corso Logo',
-          src: 'img/corso.svg',
-          srcDark: 'img/corso_white.svg',
+          src: '/img/corso_logo.svg',
+          srcDark: 'img/corso_logo_white.svg',
         },
         items: [
           {
