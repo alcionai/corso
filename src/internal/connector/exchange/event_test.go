@@ -29,6 +29,7 @@ func (suite *EventSuite) TestEventInfo() {
 
 	now := initial.Format(common.StandardTimeFormat)
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
+
 	tests := []struct {
 		name     string
 		evtAndRP func() (models.Eventable, *details.ExchangeInfo)

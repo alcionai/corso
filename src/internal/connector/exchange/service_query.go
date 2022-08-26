@@ -35,6 +35,7 @@ func GetAllMessagesForUser(gs graph.Service, user string) (absser.Parsable, erro
 // GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
 func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"parentFolderId"}
+
 	options, err := optionsForContacts(selecting)
 	if err != nil {
 		return nil, err
@@ -62,6 +63,7 @@ func GetAllContactFolderNamesForUser(gs graph.Service, user string) (absser.Pars
 	if err != nil {
 		return nil, err
 	}
+
 	return gs.Client().UsersById(user).ContactFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
@@ -69,10 +71,12 @@ func GetAllContactFolderNamesForUser(gs graph.Service, user string) (absser.Pars
 // that contains the UserID and email for each user. All other information is omitted
 func GetAllUsersForTenant(gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"userPrincipalName"}
+
 	options, err := optionsForUsers(selecting)
 	if err != nil {
 		return nil, err
 	}
+
 	return gs.Client().Users().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
@@ -155,5 +159,6 @@ func CollectMailFolders(
 	if iterateFailure != nil {
 		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
 	}
+
 	return err
 }

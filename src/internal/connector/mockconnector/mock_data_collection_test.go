@@ -33,6 +33,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 		assert.NoError(suite.T(), err)
 		messagesRead++
 	}
+
 	assert.Equal(suite.T(), 2, messagesRead)
 }
 
@@ -46,6 +47,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchange
 	for stream := range mdc.Items() {
 		_, err := buf.ReadFrom(stream.ToReader())
 		assert.NoError(t, err)
+
 		byteArray := buf.Bytes()
 		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
 		assert.NoError(t, err)

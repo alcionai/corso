@@ -116,12 +116,14 @@ func optionsForMessages(moreOps []string) (*msmessage.MessagesRequestBuilderGetR
 	if err != nil {
 		return nil, err
 	}
+
 	requestParameters := &msmessage.MessagesRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &msmessage.MessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -133,12 +135,14 @@ func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilde
 	if err != nil {
 		return nil, err
 	}
+
 	requestParams := &msitem.MessageItemRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &msitem.MessageItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
+
 	return options, nil
 }
 
@@ -150,12 +154,14 @@ func optionsForContactFolders(moreOps []string) (
 	if err != nil {
 		return nil, err
 	}
+
 	requestParameters := &mscontactfolder.ContactFoldersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -174,6 +180,7 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 	options := &msfolder.MailFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -184,12 +191,14 @@ func optionsForEvents(moreOps []string) (*msevents.EventsRequestBuilderGetReques
 	if err != nil {
 		return nil, err
 	}
+
 	requestParameters := &msevents.EventsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &msevents.EventsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -200,12 +209,14 @@ func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGet
 	if err != nil {
 		return nil, err
 	}
+
 	requestParameters := &mscontacts.ContactsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &mscontacts.ContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	return options, nil
 }
 
@@ -214,12 +225,14 @@ func optionsForUsers(moreOps []string) (*msuser.UsersRequestBuilderGetRequestCon
 	if err != nil {
 		return nil, err
 	}
+
 	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
+
 	return options, nil
 }
 
@@ -227,8 +240,10 @@ func optionsForUsers(moreOps []string) (*msuser.UsersRequestBuilderGetRequestCon
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
 func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
-	var allowedOptions map[string]int
-	returnedOptions := []string{"id"}
+	var (
+		allowedOptions  map[string]int
+		returnedOptions = []string{"id"}
+	)
 
 	switch optID {
 	case events:
@@ -255,5 +270,6 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 
 		returnedOptions = append(returnedOptions, entry)
 	}
+
 	return returnedOptions, nil
 }

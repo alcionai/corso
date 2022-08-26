@@ -33,11 +33,13 @@ func CreateStatus(
 	objects, success, folders int,
 	err error,
 ) *ConnectorOperationStatus {
-	hasErrors := err != nil
 	var reason string
+
 	if err != nil {
 		reason = err.Error()
 	}
+
+	hasErrors := err != nil
 	numErr := GetNumberOfErrors(err)
 	status := ConnectorOperationStatus{
 		lastOperation:    op,
@@ -48,6 +50,7 @@ func CreateStatus(
 		incomplete:       hasErrors,
 		incompleteReason: reason,
 	}
+
 	if status.ObjectCount != status.errorCount+status.Successful {
 		logger.Ctx(ctx).DPanicw(
 			"status object count does not match errors + successes",
@@ -55,6 +58,7 @@ func CreateStatus(
 			"successes", success,
 			"errors", numErr)
 	}
+
 	return &status
 }
 
@@ -64,6 +68,8 @@ func (cos *ConnectorOperationStatus) String() string {
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
 	}
+
 	message = message + "\n"
+
 	return message
 }

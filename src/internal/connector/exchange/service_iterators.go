@@ -51,9 +51,12 @@ func IterateSelectAllDescendablesForCollections(
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
-	var isCategorySet bool
-	var collectionType optionIdentifier
-	var category string
+	var (
+		isCategorySet  bool
+		collectionType optionIdentifier
+		category       string
+	)
+
 	return func(pageItem any) bool {
 		// Defines the type of collection being created within the function
 		if !isCategorySet {
@@ -61,10 +64,12 @@ func IterateSelectAllDescendablesForCollections(
 				collectionType = messages
 				category = mailCategory
 			}
+
 			if scope.IncludesCategory(selectors.ExchangeContact) {
 				collectionType = contacts
 				category = contactsCategory
 			}
+
 			isCategorySet = true
 		}
 
@@ -81,6 +86,7 @@ func IterateSelectAllDescendablesForCollections(
 				errs = support.WrapAndAppend(user, err, errs)
 				return true
 			}
+
 			edc := NewCollection(
 				user,
 				[]string{credentials.TenantID, user, category, directory},
@@ -90,7 +96,9 @@ func IterateSelectAllDescendablesForCollections(
 			)
 			collections[directory] = &edc
 		}
+
 		collections[directory].AddJob(*entry.GetId())
+
 		return true
 	}
 }
@@ -116,10 +124,12 @@ func IterateSelectAllEventsForCollections(
 				errors.New("event iteration failure"),
 				errs,
 			)
+
 			return true
 		}
 
 		adtl := event.GetAdditionalData()
+
 		value, ok := adtl["calendar@odata.associationLink"]
 		if !ok {
 			errs = support.WrapAndAppend(
@@ -127,8 +137,10 @@ func IterateSelectAllEventsForCollections(
 				fmt.Errorf("%s: does not support calendar look up", *event.GetId()),
 				errs,
 			)
+
 			return true
 		}
+
 		link, ok := value.(*string)
 		if !ok || link == nil {
 			errs = support.WrapAndAppend(
@@ -136,6 +148,7 @@ func IterateSelectAllEventsForCollections(
 				fmt.Errorf("%s: unable to obtain calendar event data", *event.GetId()),
 				errs,
 			)
+
 			return true
 		}
 		// calendars and events are not easily correlated
@@ -147,16 +160,17 @@ func IterateSelectAllEventsForCollections(
 				errors.Wrap(err, *event.GetId()),
 				errs,
 			)
+
 			return true
 		}
 
 		if _, ok := collections[directory]; !ok {
-
 			service, err := createService(credentials, failFast)
 			if err != nil {
 				errs = support.WrapAndAppend(user, err, errs)
 				return true
 			}
+
 			edc := NewCollection(
 				user,
 				[]string{credentials.TenantID, user, eventsCategory, directory},
@@ -168,6 +182,7 @@ func IterateSelectAllEventsForCollections(
 		}
 
 		collections[directory].AddJob(*event.GetId())
+
 		return true
 	}
 }
@@ -185,9 +200,9 @@ func IterateAndFilterMessagesForCollections(
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
 	var isFilterSet bool
+
 	return func(messageItem any) bool {
 		if !isFilterSet {
-
 			err := CollectMailFolders(
 				scope,
 				user,
@@ -200,6 +215,7 @@ func IterateAndFilterMessagesForCollections(
 				errs = support.WrapAndAppend(user, err, errs)
 				return false
 			}
+
 			isFilterSet = true
 		}
 
@@ -213,7 +229,9 @@ func IterateAndFilterMessagesForCollections(
 		if _, ok = collections[directory]; !ok {
 			return true
 		}
+
 		collections[directory].AddJob(*message.GetId())
+
 		return true
 	}
 }
@@ -231,6 +249,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		service graph.Service
 		err     error
 	)
+
 	return func(folderItem any) bool {
 		folder, ok := folderItem.(displayable)
 		if !ok {
@@ -246,10 +265,13 @@ func IterateFilterFolderDirectoriesForCollections(
 		if folder.GetDisplayName() == nil {
 			return true
 		}
+
 		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
 			return true
 		}
+
 		directory := *folder.GetId()
+
 		service, err = createService(credentials, failFast)
 		if err != nil {
 			errs = support.WrapAndAppend(
@@ -260,8 +282,10 @@ func IterateFilterFolderDirectoriesForCollections(
 				),
 				errs,
 			)
+
 			return true
 		}
+
 		temp := NewCollection(
 			user,
 			[]string{credentials.TenantID, user, mailCategory, directory},
@@ -296,21 +320,27 @@ func iterateFindFolderID(
 					errors.New("struct does not implement displayable"),
 					errs,
 				)
+
 				return true
 			}
 			// Display name not set on folder
 			if folder.GetDisplayName() == nil {
 				return true
 			}
+
 			name := *folder.GetDisplayName()
 			if folderName == name {
 				if folder.GetId() == nil {
 					return true // invalid folder
 				}
+
 				*folderID = folder.GetId()
+
 				return false
 			}
+
 			return true
+
 		default:
 			return false
 		}
