@@ -62,7 +62,6 @@ func IterateSelectAllMessagesForCollections(
 	return func(messageItem any) bool {
 		// Defines the type of collection being created within the function
 		collectionType := messages
-		user := scope.Get(selectors.ExchangeUser)[0]
 
 		message, ok := messageItem.(models.Messageable)
 		if !ok {
