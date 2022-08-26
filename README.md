@@ -26,6 +26,18 @@ TODO - Link to the appropriate page in the published docs.
 ./build/build-container.sh 
 ```
 
+# Containers
+
+Corso images are hosted on [ghrc.io](https://github.com/alcionai/corso/pkgs/container/corso).
+
+Rolling release
+```sh
+# also builds linux/amd64
+docker pull ghcr.io/alcionai/corso:rolling --platform linux/arm64
+# alternative (also tags linux-amd64-rolling)
+docker pull ghcr.io/alcionai/corso:linux-arm64-rolling
+```
+
 # Contribution Guidelines
 
 TODO 
