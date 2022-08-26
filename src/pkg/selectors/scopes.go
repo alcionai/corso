@@ -128,6 +128,7 @@ func makeScope[T scopeT](
 		cat.String():           join(vs...),
 		cat.rootCat().String(): resource,
 	}
+
 	return s
 }
 
@@ -157,19 +158,24 @@ func contains[T scopeT, C categoryT](s T, cat C, target string) bool {
 	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}
+
 	if len(target) == 0 {
 		return false
 	}
+
 	compare := s[cat.String()]
 	if len(compare) == 0 {
 		return false
 	}
+
 	if compare == NoneTgt {
 		return false
 	}
+
 	if compare == AnyTgt {
 		return true
 	}
+
 	return strings.Contains(compare, target)
 }
 
@@ -181,6 +187,7 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 	if !ok {
 		return None()
 	}
+
 	return split(v)
 }
 
@@ -203,6 +210,7 @@ func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
 	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}
+
 	return s[cat.String()] == AnyTgt
 }
 
@@ -229,6 +237,7 @@ func reduce[T scopeT, C categoryT](
 	for _, ent := range deets.Entries {
 		// todo: use Path pkg for this
 		path := strings.Split(ent.RepoRef, "/")
+
 		dc, ok := dataCategories[pathTypeIn(path)]
 		if !ok {
 			continue
@@ -249,6 +258,7 @@ func reduce[T scopeT, C categoryT](
 
 	reduced := &details.Details{DetailsModel: deets.DetailsModel}
 	reduced.Entries = ents
+
 	return reduced
 }
 
@@ -275,6 +285,7 @@ func pathTypeIn(path []string) pathType {
 	if len(path) < 3 {
 		return unknownPathType
 	}
+
 	switch path[2] {
 	case "mail":
 		return exchangeMailPath
@@ -283,6 +294,7 @@ func pathTypeIn(path []string) pathType {
 	case "event":
 		return exchangeEventPath
 	}
+
 	return unknownPathType
 }
 
@@ -307,6 +319,7 @@ func scopesByCategory[T scopeT, C categoryT](
 			}
 		}
 	}
+
 	return m
 }
 
@@ -328,12 +341,14 @@ func passes[T scopeT](
 	if len(incs) > 0 {
 		// at least one inclusion must apply.
 		var included bool
+
 		for _, inc := range incs {
 			if inc.matchesEntry(cat, pathValues, entry) {
 				included = true
 				break
 			}
 		}
+
 		if !included {
 			return false
 		}
@@ -389,6 +404,7 @@ func matchesPathValues[T scopeT, C categoryT](
 			}
 		}
 	}
+
 	return true
 }
 
@@ -422,5 +438,6 @@ func typeAndCategoryMatches[C categoryT](a C, b categorizer) bool {
 	if !ok {
 		return false
 	}
+
 	return categoryMatches(a, bb)
 }

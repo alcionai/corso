@@ -26,6 +26,7 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 	for _, de := range dm.Entries {
 		ps = append(ps, de)
 	}
+
 	print.All(ctx, ps...)
 }
 
@@ -33,9 +34,11 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 func (dm DetailsModel) Paths() []string {
 	ents := dm.Entries
 	r := make([]string, len(ents))
+
 	for i := range ents {
 		r[i] = ents[i].RepoRef
 	}
+
 	return r
 }
 
@@ -88,30 +91,38 @@ func (de DetailsEntry) MinimumPrintable() any {
 // for printing out to a terminal in a columnar display.
 func (de DetailsEntry) Headers() []string {
 	hs := []string{"Repo Ref"}
+
 	if de.ItemInfo.Exchange != nil {
 		hs = append(hs, de.ItemInfo.Exchange.Headers()...)
 	}
+
 	if de.ItemInfo.Sharepoint != nil {
 		hs = append(hs, de.ItemInfo.Sharepoint.Headers()...)
 	}
+
 	if de.ItemInfo.OneDrive != nil {
 		hs = append(hs, de.ItemInfo.OneDrive.Headers()...)
 	}
+
 	return hs
 }
 
 // Values returns the values matching the Headers list.
 func (de DetailsEntry) Values() []string {
 	vs := []string{de.RepoRef}
+
 	if de.ItemInfo.Exchange != nil {
 		vs = append(vs, de.ItemInfo.Exchange.Values()...)
 	}
+
 	if de.ItemInfo.Sharepoint != nil {
 		vs = append(vs, de.ItemInfo.Sharepoint.Values()...)
 	}
+
 	if de.ItemInfo.OneDrive != nil {
 		vs = append(vs, de.ItemInfo.OneDrive.Values()...)
 	}
+
 	return vs
 }
 

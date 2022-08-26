@@ -27,6 +27,7 @@ func TestBackupSuite(t *testing.T) {
 func stubBackup(t time.Time) backup.Backup {
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users(selectors.Any()))
+
 	return backup.Backup{
 		BaseModel: model.BaseModel{
 			ID: model.StableID("id"),
@@ -62,14 +63,15 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 	}
 	hs := b.Headers()
 	assert.Equal(t, expectHs, hs)
-	nowFmt := common.FormatTime(now)
 
+	nowFmt := common.FormatTime(now)
 	expectVs := []string{
 		nowFmt,
 		"id",
 		"status (2 errors)",
 		selectors.All,
 	}
+
 	vs := b.Values()
 	assert.Equal(t, expectVs, vs)
 }

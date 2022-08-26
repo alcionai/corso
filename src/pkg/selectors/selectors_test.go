@@ -133,6 +133,7 @@ func (suite *SelectorSuite) TestContains() {
 	does[key.String()] = target
 	doesNot := stubScope("")
 	doesNot[key.String()] = "smarf"
+
 	assert.True(t, contains(does, key, target), "does contain")
 	assert.False(t, contains(doesNot, key, target), "does not contain")
 }

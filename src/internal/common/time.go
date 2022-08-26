@@ -34,13 +34,16 @@ func ParseTime(s string) (time.Time, error) {
 	if len(s) == 0 {
 		return time.Time{}, errors.New("cannot interpret an empty string as time.Time")
 	}
+
 	t, err := time.Parse(StandardTimeFormat, s)
 	if err == nil {
 		return t.UTC(), nil
 	}
+
 	t, err = time.Parse(SimpleDateTimeFormat, s)
 	if err == nil {
 		return t.UTC(), nil
 	}
+
 	return time.Time{}, errors.New("unable to format time string: " + s)
 }

@@ -19,8 +19,10 @@ func TestOptionsSuite(t *testing.T) {
 
 func (suite *OptionsSuite) TestNewOptions() {
 	t := suite.T()
+
 	o1 := control.NewOptions(true)
 	assert.True(t, o1.FailFast, "failFast")
+
 	o2 := control.NewOptions(false)
 	assert.False(t, o2.FailFast, "failFast")
 }
