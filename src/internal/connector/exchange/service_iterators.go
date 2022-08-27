@@ -319,7 +319,7 @@ func IterateFilterFolderDirectoriesForCollections(
 // will work on folderCollection responses whose objects implement
 // the displayable interface. If folder exists, the function updates the
 // folderID memory address that was passed in.
-func iterateSelectFoldersByCategory(
+func iterateFindFolderID(
 	category optionIdentifier,
 	folderID **string,
 	folderName, errorIdentifier string,
