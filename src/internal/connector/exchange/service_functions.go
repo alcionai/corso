@@ -88,7 +88,7 @@ type MailFolder struct {
 }
 
 // CreateContactFolder makes a contact folder with the displayName of folderName.
-// If sucessful, returns the created folder object.
+// If successful, returns the created folder object.
 func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
 	requestBody.SetDisplayName(&folderName)
@@ -302,7 +302,7 @@ func establishFolder(
 	case contacts:
 		fold, err := CreateContactFolder(service, user, folderName)
 		if err != nil {
-			support.WrapAndAppend(user, err, err)
+			return "", support.WrapAndAppend(user, err, err)
 		}
 		return *fold.GetId(), nil
 	default:
