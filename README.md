@@ -32,7 +32,7 @@ TODO
 
 # Code of Conduct
 
-it's important that our community is inclusive and respectful of everyone.
+It's important that our community is inclusive and respectful of everyone.
 We ask that all Corso users and contributors take a few minutes to review our
 [Code of Conduct](CODE_OF_CONDUCT.md)
 
