@@ -1,3 +1,3 @@
-# Build From Source
+# Build from source
 
 TODO

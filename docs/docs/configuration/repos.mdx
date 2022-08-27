@@ -4,7 +4,7 @@ description: "Configure backup repository"
 
 # Repositories
 
-A Corso [repository](/concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are currently
+A Corso [repository](/concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are
 supported on the following object storage systems:
 
 import TOCInline from '@theme/TOCInline';
@@ -12,7 +12,7 @@ import TOCInline from '@theme/TOCInline';
 <TOCInline toc={toc} maxHeadingLevel={2}/><br/>
 
 :::note
-Depending on community interest, support for other object storage backends may be added in the future.
+Depending on community interest, Corso may support other object storage backends in the future.
 :::
 
 ## Amazon S3
@@ -21,8 +21,8 @@ Depending on community interest, support for other object storage backends may b
 
 Before setting you your Corso S3 repository, the following prerequisites must be met:
 
-* S3 bucket for the repo has already been created. Corso will not create it for you.
-* You have access to credentials for a user or an IAM role that confer the following permissions
+* S3 bucket for the repository already exists. Corso won't create it for you.
+* You have access to credentials for a user or an IAM role that represent the following permissions
 
 **TODO: Verify if these permissions are correct? What about multi-part upload permissions?**
 
@@ -51,22 +51,22 @@ Before setting you your Corso S3 repository, the following prerequisites must be
 }
 ```
 
-### Credential Setup {#s3-creds-setup}
+### Credential setup {#s3-creds-setup}
 
-Corso supports the credential options offered by the Go SDK. Full details can be found in the *Specifying Credentials*
+Corso supports the credential options offered by the Go SDK. For Full details, see the *Specifying Credentials*
 section of the [official documentation](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html).
 
 * **Environment variables** - set and export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. If using temporary
   credentials derived by assuming an IAM Role, you will also need `AWS_SESSION_TOKEN`.
 
-* **Credentials file** - ensure that the credentials file is available to Corso (e.g. may need to map it if using Corso
-  as a container). Additionally, you may want to set and export `AWS_PROFILE`, if not using the default profile, and
+* **Credentials file** - ensure that the credentials file is available to Corso (for example, may need to map it if 
+  using Corso as a container). You may also want to set and export `AWS_PROFILE`, if not using the default profile, and
   `AWS_SHARED_CREDENTIALS_FILE`, if not using the default file location. You can learn more about the AWS CLI
   environment variables [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
 
-### Initialize Repository
+### Initialize repository
 
-Before first use, you need to initialize a Corso repositoy with `corso repo init s3`. See command details
+Before first use, you need to initialize a Corso repository with `corso repo init s3`. See command details
 [here](/cli/corso_repo_init_s3).
 
 If a repository already exists, you can connect to it with `corso repo connect s3`. See command details

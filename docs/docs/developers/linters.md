@@ -75,7 +75,7 @@ This applies to golangci-lint v1.45.2 for the `gci` linter and is due to an impo
 ordering issue. It occurs because imports in the file aren't grouped according
 to the import rules for Corso. Corso code should have three distinct import
 groups, system imports, third party imports, and imports of other Corso code
-like below. The most likely cause of a `gci` lint error is a Corso import in the
+like below. Typically the cause of a `gci` lint error is a Corso import in the
 block for third party libraries.
 
 ```go

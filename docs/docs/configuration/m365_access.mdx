@@ -2,14 +2,14 @@
 description: "Connect to M365 Tenant"
 ---
 
-# M365 Access
+# M365 access
 
 To perform backup and restore operations, Corso requires access to your [M365 tenant](/concepts#m365-concepts)
 through a properly configured [Azure AD application](/concepts#m365-concepts).
 
-## Create Azure AD Application
+## Create Azure AD application
 
-The official documentation for adding an Azure AD Application and Service Principal using the Azure Portal can be found
+For the official documentation for adding an Azure AD Application and Service Principal using the Azure Portal see
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal).
 
 The following steps outline a simplified procedure for creating an Azure Ad application suitable for use with Corso.
@@ -22,7 +22,7 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 2. **Configure basic settings**
 
    * Give the application a name
-   * Select **Acounts in this organizational directory only**
+   * Select **Accounts in this organizational directory only**
    * Skip the **Redirect URI** option
 
    <br/><img src="/img/m365app_configure.png" className="guideImages"/>
@@ -46,14 +46,14 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
    <img src="/img/m365app_consent.png" className="guideImages"/>
 
-## Export Appplication Credentials
+## Export application credentials
 
 Now that the Corso Azure AD application is configured, you need to capture as environment variables the information that
 Corso will need to connect to the application.
 
-### Tenant ID and Client ID
+### Tenant ID and client ID
 
-To obtain these select Overview from from the app management panel and export the corresponding environment variables.
+To obtain these, select Overview from the app management panel and export the corresponding environment variables.
 
 ```bash
 export AZURE_TENANT_ID=<Directory (tenent) ID for configured app>
@@ -62,13 +62,13 @@ export AZURE_CLIENT_ID=<Application (client) ID for configured app>
 
 <img src="/img/m365app_ids.png" className="guideImages"/>
 
-### Azure Client Secret
+### Azure client secret
 
-Finally, you need to configure a cleint secret associated with the app using **Certificates & Secrets** from the app
+Lastly, you need to configure a client secret associated with the app using **Certificates & Secrets** from the app
 management panel.
 
-Click **New Client Secter** and follow the instructions to create a secret. After creating the secret, copy the secret
-value immediately; it is only available right after creation. Finally, export as an environmet variable.
+Click **New Client Secret** and follow the instructions to create a secret. After creating the secret, copy the secret
+value right away because it's only available after creation. In the end, export as an environment variable.
 
 ```bash
 export AZURE_CLIENT_SECRET=<client secret value>

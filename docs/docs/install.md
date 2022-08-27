@@ -1,6 +1,6 @@
 # Installation
 
-Corso releases are currently available using the following options:
+Corso releases are available using the following options:
 
 import TOCInline from '@theme/TOCInline';
 
@@ -8,27 +8,27 @@ import TOCInline from '@theme/TOCInline';
 
 :::note
 
-To maximize portability accross platforms, Corso is currently distributed as a container image. In the future,
+To maximize portability across platforms, Corso is available as a container image. In the future,
 releases may also be available as operating system specific pre-built binaries.
 
-In the meantime, if you are interested in running Corso as a binary, refer to the
+In the meantime, if you want to run Corso as a binary, refer to the
 [instructions on how to build from source](developers/build).
 
 :::
 
-## Docker Image
+## Docker image
 
 To use Corso as a Docker image, you need to have [Docker installed](https://docs.docker.com/engine/install/)
 on your machine.
 
-### Docker Command
+### Docker command
 
-To run the Corso container, it is recommended that you:
+To run the Corso container, it's recommended that you:
 
 * Export [Corso key configuration environment variables](cli/corso_env) and add their names to an
-[environemnt variables file](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables--e---env---env-file)
+[environment variables file](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables--e---env---env-file)
 * Map a local config directory to `/app/config` where Corso will look for or create the `corso.toml` config file.
-This will preserve configuration accross container runs.
+This will preserve configuration across container runs.
 * Map a local log directory to `/app/logs` where Corso will write logs
 
 To create the environment variables file, you can run the following.
@@ -63,7 +63,7 @@ $ docker run --env-file ~/.corso/corso.env \
     corso/corso:latest backup list exchange 
 ```
 
-### Available Variants
+### Available variants
 
 The Corso image is available on DockerHub for the following architectures:
 
@@ -77,10 +77,10 @@ For Windows, you can run the `amd64` container in
 
 :::
 
-Additionally, the following tags are available:
+The following tags are available:
 
 * `:latest` - The most recent stable release
 * `:x.y.z` - A specific release build
-* `:pre-release` - The most recent pre-release (beta or RC) if newer that the latest stable release
-* `:nightly` - The most recent unstable nightly developer build
-* `:SHA` - A specific nightly build
+* `:pre-release` - The most recent pre-release if newer that the latest stable release
+* `:nightly` - The most recent unstable developer build
+* `:SHA` - A specific build

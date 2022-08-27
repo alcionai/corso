@@ -6,13 +6,13 @@ In this tutorial you will perform your first backup followed by a restore.
 
 * Docker is installed and Corso container is available (see [Installation](/install))
 * Corso is connected to your M365 Tenant (see [M365 Access](/configuration/m365_access))
-* Corso has initilized a backup repository (see [Repositories](/configuration/repos))
+* Corso has initialized a backup repository (see [Repositories](/configuration/repos))
 
 ## Your first backup
 
-Corso can do much more, but let's start by creating a backup of your Exchange mailbox.
+Corso can do much more, but you can start by creating a backup of your Exchange mailbox.
 
-To accomplish this, you can execute the following command:
+To do this, you can run the following command:
 
 ```bash
 $ docker run -e CORSO_PASSPHRASE \
@@ -23,7 +23,7 @@ $ docker run -e CORSO_PASSPHRASE \
 ```
 
 :::note
-Your first backup may take some time if your mailbox has a large number of items so please be patient.
+Your first backup may take some time if your mailbox has many items so please be patient.
 :::
 
 **TODO:** Update ^^^ after Corso output from operations is finalized.
@@ -73,6 +73,6 @@ $ docker run -e CORSO_PASSPHRASE \
     --email <id of your selected email>
 ```
 
-The email would now be recovered in a folder named "Corso_Restore_DD-MMM-YYYY_HH:MM:SS" in your mailbox.
+You can now find the recovered email in a folder named "Corso_Restore_DD-MMM-YYYY_HH:MM:SS" in your mailbox.
 
 You are now ready to explore the [Command Line Reference](cli) and try everything that Corso can do for you.
