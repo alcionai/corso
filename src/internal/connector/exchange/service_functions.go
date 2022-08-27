@@ -279,7 +279,7 @@ func establishMailFolder(
 	service graph.Service,
 	folderName, user string,
 ) (string, error) {
-	isFolder, err := GetFolderID(service, folderName, user, messages)
+	folderID, err := GetFolderID(service, folderName, user, messages)
 	if err != nil {
 		// Verify unique folder was not found
 		if errors.Is(err, ErrFolderNotFound) {
@@ -293,7 +293,7 @@ func establishMailFolder(
 
 		return "", err
 	}
-	return *isFolder, nil
+	return *folderID, nil
 }
 
 func RestoreExchangeObject(
