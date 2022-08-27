@@ -28,7 +28,7 @@ To run the Corso container, it's recommended that you:
 * Export [Corso key configuration environment variables](cli/corso_env) and add their names to an
 [environment variables file](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables--e---env---env-file)
 * Map a local directory to `/app/corso`. Corso will look for or create the `corso.toml` config file there. This will preserve
-  configuration across container runs. Corso will use the directoy for logs, if enabled. 
+  configuration across container runs. Corso will use the directory for logs, if enabled. 
 
 To create the environment variables file, you can run the following.
 

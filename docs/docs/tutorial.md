@@ -4,9 +4,10 @@ In this tutorial you will perform your first backup followed by a restore.
 
 ## Prerequisites
 
-* Docker is installed and Corso container is available (see [Installation](/install))
-* Corso is connected to your M365 Tenant (see [M365 Access](/configuration/m365_access))
-* Corso has initialized a backup repository (see [Repositories](/configuration/repos))
+* A running Docker installation
+* Availability of the Corso container (see [Installation](/install))
+* Corso connection to your M365 Tenant (see [M365 Access](/configuration/m365_access))
+* Initialization of a Corso backup repository (see [Repositories](/configuration/repos))
 
 ## Your first backup
 
@@ -23,10 +24,10 @@ $ docker run -e CORSO_PASSPHRASE \
 ```
 
 :::note
-Your first backup may take some time if your mailbox has many items so please be patient.
+Your first backup may take some time if your mailbox is large.
 :::
 
-**TODO:** Update ^^^ after Corso output from operations is finalized.
+**TODO:** Update ^^^ after the finalization of Corso output from operations.
 
 ## Restore an email
 
@@ -42,7 +43,7 @@ $ docker run -e CORSO_PASSPHRASE \
     backup list exchange --user <your exchange email address>
 ```
 
-**TODO:** Update after Corso output from operations is finalized.
+**TODO:** Update ^^^ after the finalization of Corso output from operations.
 
 Select one of the available backups and search through its contents.
 
@@ -57,8 +58,8 @@ $ docker run -e CORSO_PASSPHRASE \
     --email-subject <portion of subject of email you want to recover>
 ```
 
-The above should give you a list of any matching emails. Note the ID of the one you would like to
-use for testing restore.
+The output from the executed command above should display a list of any matching emails. Note the ID
+of the one to use for testing restore.
 
 When you are ready to restore, use the following command:
 
@@ -73,6 +74,6 @@ $ docker run -e CORSO_PASSPHRASE \
     --email <id of your selected email>
 ```
 
-You can now find the recovered email in a folder named "Corso_Restore_DD-MMM-YYYY_HH:MM:SS" in your mailbox.
+You can now find the recovered email in a mailbox folder named `Corso_Restore_DD-MMM-YYYY_HH:MM:SS`.
 
-You are now ready to explore the [Command Line Reference](cli) and try everything that Corso can do for you.
+You are now ready to explore the [Command Line Reference](cli) and try everything that Corso can do.
