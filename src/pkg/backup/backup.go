@@ -71,6 +71,7 @@ func PrintAll(ctx context.Context, bs []Backup) {
 	for _, b := range bs {
 		ps = append(ps, print.Printable(b))
 	}
+
 	print.All(ctx, ps...)
 }
 
@@ -111,6 +112,7 @@ func (b Backup) Headers() []string {
 func (b Backup) Values() []string {
 	errCount := support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
 	status := fmt.Sprintf("%s (%d errors)", b.Status, errCount)
+
 	return []string{
 		common.FormatTime(b.StartedAt),
 		string(b.ID),

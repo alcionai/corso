@@ -63,8 +63,10 @@ func (op operation) validate() error {
 	if op.kopia == nil {
 		return errors.New("missing kopia connection")
 	}
+
 	if op.store == nil {
 		return errors.New("missing modelstore")
 	}
+
 	return nil
 }

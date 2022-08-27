@@ -19,6 +19,7 @@ func TestEnvvarsSuite(t *testing.T) {
 func (suite *EnvvarsTestSuite) TestRunOnAny() {
 	envVariable := "TEST_ENVVARS_SUITE"
 	os.Setenv(envVariable, "1")
+
 	table := []struct {
 		name     string
 		param    string
@@ -41,5 +42,6 @@ func (suite *EnvvarsTestSuite) TestRunOnAny() {
 			test.function(suite.T(), result)
 		})
 	}
+
 	os.Unsetenv(envVariable)
 }

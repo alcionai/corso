@@ -60,6 +60,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
 			expect:   Any(),
 		},
 	}
+
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			eb := NewOneDriveBackup()
@@ -82,6 +83,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 		u1 = "u1"
 		u2 = "u2"
 	)
+
 	userScopes := sel.Users([]string{u1, u2})
 	for _, scope := range userScopes {
 		// Scope value is either u1 or u2
