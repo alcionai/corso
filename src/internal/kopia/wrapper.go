@@ -107,6 +107,7 @@ func NewWrapper(c *conn) (*Wrapper, error) {
 	if err := c.wrap(); err != nil {
 		return nil, errors.Wrap(err, "creating Wrapper")
 	}
+
 	return &Wrapper{c}, nil
 }
 
@@ -151,6 +152,7 @@ func getStreamItemFunc(
 		}
 
 		items := streamedEnts.Items()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -293,6 +295,7 @@ func inflateDirTree(
 	}
 
 	var res fs.Directory
+
 	for dirName, dir := range roots {
 		tmp, err := buildKopiaDirs(dirName, dir, progress)
 		if err != nil {
@@ -397,6 +400,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 	}
 
 	res := manifestToStats(man)
+
 	return &res, nil
 }
 
@@ -528,9 +532,10 @@ func walkDirectory(
 	ctx context.Context,
 	dir fs.Directory,
 ) ([]fs.File, []fs.Directory, *multierror.Error) {
+	var errs *multierror.Error
+
 	files := []fs.File{}
 	dirs := []fs.Directory{}
-	var errs *multierror.Error
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, e fs.Entry) error {
 		// Early exit on context cancel.
@@ -569,10 +574,11 @@ func restoreSubtree(
 	dir fs.Directory,
 	relativePath []string,
 ) ([]data.Collection, *multierror.Error) {
+	var errs *multierror.Error
+
 	collections := []data.Collection{}
 	// Want a local copy of relativePath with our new element.
 	fullPath := append(append([]string{}, relativePath...), dir.Name())
-	var errs *multierror.Error
 
 	files, dirs, err := walkDirectory(ctx, dir)
 	if err != nil {
@@ -594,8 +600,10 @@ func restoreSubtree(
 				fileFullPath := path.Join(append(append([]string{}, fullPath...), f.Name())...)
 				errs = multierror.Append(
 					errs, errors.Wrapf(err, "getting reader for file %q", fileFullPath))
+
 				logger.Ctx(ctx).Errorw(
 					"unable to get file reader; skipping", "path", fileFullPath)
+
 				continue
 			}
 
@@ -656,6 +664,7 @@ func (w Wrapper) RestoreMultipleItems(
 		dcs  = []data.Collection{}
 		errs *multierror.Error
 	)
+
 	for _, itemPath := range paths {
 		dc, err := w.RestoreSingleItem(ctx, snapshotID, itemPath)
 		if err != nil {
@@ -664,6 +673,7 @@ func (w Wrapper) RestoreMultipleItems(
 			dcs = append(dcs, dc)
 		}
 	}
+
 	return dcs, errs.ErrorOrNil()
 }
 

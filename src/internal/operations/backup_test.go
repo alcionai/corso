@@ -82,6 +82,7 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(BackupOpIntegrationSuite))
 }
 
@@ -164,7 +165,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			},
 		},
 	}
-
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			// need to initialize the repository before we can test connecting to it.

@@ -28,3 +28,9 @@
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+.guideImages {
+  max-width: 650px;
+  width: 100%;
+  border: 1px solid #80808029
+}

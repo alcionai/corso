@@ -201,39 +201,23 @@ func (gc *GraphConnector) ExchangeDataCollection(
 ) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "collecting exchange data")
+		return nil, errors.Wrap(err, "exchangeDataCollection: unable to parse selector")
 	}
-
+	scopes := eb.DiscreteScopes(gc.GetUsers())
 	collections := []data.Collection{}
-	scopes := eb.Scopes()
 	var errs error
-
-	// for each scope that includes mail messages, get all
 	for _, scope := range scopes {
-		for _, user := range scope.Get(selectors.ExchangeUser) {
-			// TODO: handle "get mail for all users"
-			// this would probably no-op without this check,
-			// but we want it made obvious that we're punting.
-			if user == selectors.AnyTgt {
-				errs = support.WrapAndAppend(
-					"all-users",
-					errors.New("all users selector currently not handled"),
-					errs)
-				continue
-			}
-			// Creates a map of collections based on scope
-			dcs, err := gc.createCollections(ctx, scope)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, errs)
-			}
-
-			if len(dcs) > 0 {
-				for _, collection := range dcs {
-					collections = append(collections, collection)
-				}
-			}
+		// Creates a map of collections based on scope
+		dcs, err := gc.createCollections(ctx, scope)
+		if err != nil {
+			user := scope.Get(selectors.ExchangeUser)
+			return nil, support.WrapAndAppend(user[0], err, errs)
+		}
+		for _, collection := range dcs {
+			collections = append(collections, collection)
 		}
 	}
+
 	return collections, errs
 }
 
@@ -308,48 +292,52 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
-) (map[string]*exchange.Collection, error) {
+) ([]*exchange.Collection, error) {
 	var (
 		transformer absser.ParsableFactory
 		query       exchange.GraphQuery
 		gIter       exchange.GraphIterateFunc
+		errs        error
 	)
-	user := scope.Get(selectors.ExchangeUser)[0]
 	transformer, query, gIter, err := exchange.SetupExchangeCollectionVars(scope)
 	if err != nil {
-		return nil, support.WrapAndAppend(user, err, nil)
+		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
 	}
-	response, err := query(&gc.graphService, user)
-	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"user %s M365 query: %s",
-			user, support.ConnectorStackErrorTrace(err))
-	}
+	users := scope.Get(selectors.ExchangeUser)
+	allCollections := make([]*exchange.Collection, 0)
+	// Create collection of ExchangeDataCollection
+	for _, user := range users {
+		collections := make(map[string]*exchange.Collection)
+		response, err := query(&gc.graphService, user)
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"user %s M365 query: %s",
+				user, support.ConnectorStackErrorTrace(err))
+		}
 
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
-	if err != nil {
-		return nil, err
-	}
-	// Create collection of ExchangeDataCollection and create  data Holder
-	collections := make(map[string]*exchange.Collection)
-	var errs error
-	// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
-	// with corresponding item IDs. New collections are created for each directory
-	callbackFunc := gIter(gc.tenant, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
-	iterateError := pageIterator.Iterate(callbackFunc)
-	if iterateError != nil {
-		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
-	}
-	if errs != nil {
-		return nil, errs // return error if snapshot is incomplete
-	}
+		pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
+		if err != nil {
+			return nil, err
+		}
 
-	for range collections {
-		gc.incrementAwaitingMessages()
+		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
+		// with corresponding item M365IDs. New collections are created for each directory.
+		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
+		callbackFunc := gIter(gc.tenant, user, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
+		iterateError := pageIterator.Iterate(callbackFunc)
+		if iterateError != nil {
+			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
+		}
+		if errs != nil {
+			return nil, errs // return error if snapshot is incomplete
+		}
+		for _, collection := range collections {
+			gc.incrementAwaitingMessages()
+			allCollections = append(allCollections, collection)
+		}
 	}
-
-	return collections, errs
+	return allCollections, errs
 }
 
 // AwaitStatus updates status field based on item within statusChannel.

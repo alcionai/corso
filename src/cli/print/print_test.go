@@ -30,8 +30,9 @@ func (suite *PrintUnitSuite) TestOnly() {
 
 func (suite *PrintUnitSuite) TestErr() {
 	t := suite.T()
-	var b bytes.Buffer
+	b := bytes.Buffer{}
 	msg := "I have seen the fnords!"
+
 	err(&b, msg)
 	assert.Contains(t, b.String(), "Error: ")
 	assert.Contains(t, b.String(), msg)
@@ -39,17 +40,19 @@ func (suite *PrintUnitSuite) TestErr() {
 
 func (suite *PrintUnitSuite) TestInfo() {
 	t := suite.T()
-	var b bytes.Buffer
+	b := bytes.Buffer{}
 	msg := "I have seen the fnords!"
+
 	info(&b, msg)
 	assert.Contains(t, b.String(), msg)
 }
 
 func (suite *PrintUnitSuite) TestInfof() {
 	t := suite.T()
-	var b bytes.Buffer
+	b := bytes.Buffer{}
 	msg := "I have seen the fnords!"
 	msg2 := "smarf"
+
 	infof(&b, msg, msg2)
 	bs := b.String()
 	assert.Contains(t, bs, msg)

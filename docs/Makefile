@@ -8,14 +8,16 @@ dev:
 		-p 3000:3000 \
 		-v ${PWD}:/usr/src/docs alcion/docs
 
+VALE_TARGET ?= docs README.md
+
 dockercheck:
 	docker run --rm \
-		-v ${PWD}:/usr/src/docs alcion/docs vale docs README.md
+		-v ${PWD}:/usr/src/docs alcion/docs vale $(VALE_TARGET)
 	docker run --rm \
-		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
+	 	-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
 check:
-	vale docs README.md
+	vale $(VALE_TARGET)
 	markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
 shell:

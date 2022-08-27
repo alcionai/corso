@@ -26,6 +26,7 @@ func GetAWS(override map[string]string) AWS {
 	if ovr, ok := override[AWSAccessKeyID]; ok && ovr != "" {
 		accessKey = ovr
 	}
+
 	secretKey := os.Getenv(AWSSecretAccessKey)
 	sessToken := os.Getenv(AWSSessionToken)
 
@@ -44,10 +45,12 @@ func (c AWS) Validate() error {
 		AWSSecretAccessKey: c.SecretKey,
 		AWSSessionToken:    c.SessionToken,
 	}
+
 	for k, v := range check {
 		if len(v) == 0 {
 			return errors.Wrap(errMissingRequired, k)
 		}
 	}
+
 	return nil
 }

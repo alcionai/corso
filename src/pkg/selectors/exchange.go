@@ -40,6 +40,7 @@ func NewExchangeBackup() *ExchangeBackup {
 			newSelector(ServiceExchange),
 		},
 	}
+
 	return &src
 }
 
@@ -49,7 +50,9 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 	if s.Service != ServiceExchange {
 		return nil, badCastErr(ServiceExchange, s.Service)
 	}
+
 	src := ExchangeBackup{exchange{s}}
+
 	return &src, nil
 }
 
@@ -60,6 +63,7 @@ func NewExchangeRestore() *ExchangeRestore {
 			newSelector(ServiceExchange),
 		},
 	}
+
 	return &src
 }
 
@@ -69,7 +73,9 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 	if s.Service != ServiceExchange {
 		return nil, badCastErr(ServiceExchange, s.Service)
 	}
+
 	src := ExchangeRestore{exchange{s}}
+
 	return &src, nil
 }
 
@@ -163,6 +169,7 @@ func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 	folders = normalize(folders)
 	contacts = normalize(contacts)
 	scopes := []ExchangeScope{}
+
 	for _, u := range users {
 		for _, f := range folders {
 			scopes = append(
@@ -171,6 +178,7 @@ func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 			)
 		}
 	}
+
 	return scopes
 }
 
@@ -183,12 +191,14 @@ func (s *exchange) ContactFolders(users, folders []string) []ExchangeScope {
 	users = normalize(users)
 	folders = normalize(folders)
 	scopes := []ExchangeScope{}
+
 	for _, u := range users {
 		scopes = append(
 			scopes,
 			makeScope[ExchangeScope](u, Group, ExchangeContactFolder, folders),
 		)
 	}
+
 	return scopes
 }
 
@@ -201,12 +211,14 @@ func (s *exchange) Events(users, events []string) []ExchangeScope {
 	users = normalize(users)
 	events = normalize(events)
 	scopes := []ExchangeScope{}
+
 	for _, u := range users {
 		scopes = append(
 			scopes,
 			makeScope[ExchangeScope](u, Item, ExchangeEvent, events),
 		)
 	}
+
 	return scopes
 }
 
@@ -220,6 +232,7 @@ func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 	folders = normalize(folders)
 	mails = normalize(mails)
 	scopes := []ExchangeScope{}
+
 	for _, u := range users {
 		for _, f := range folders {
 			scopes = append(
@@ -228,6 +241,7 @@ func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 			)
 		}
 	}
+
 	return scopes
 }
 
@@ -240,12 +254,14 @@ func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 	users = normalize(users)
 	folders = normalize(folders)
 	scopes := []ExchangeScope{}
+
 	for _, u := range users {
 		scopes = append(
 			scopes,
 			makeScope[ExchangeScope](u, Group, ExchangeMailFolder, folders),
 		)
 	}
+
 	return scopes
 }
 
@@ -257,11 +273,13 @@ func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 func (s *exchange) Users(users []string) []ExchangeScope {
 	users = normalize(users)
 	scopes := []ExchangeScope{}
+
 	for _, u := range users {
 		scopes = append(scopes, makeScope[ExchangeScope](u, Group, ExchangeContactFolder, Any()))
 		scopes = append(scopes, makeScope[ExchangeScope](u, Item, ExchangeEvent, Any()))
 		scopes = append(scopes, makeScope[ExchangeScope](u, Group, ExchangeMailFolder, Any()))
 	}
+
 	return scopes
 }
 
@@ -327,6 +345,7 @@ func (d ExchangeDestination) GetOrDefault(cat exchangeCategory, current string) 
 	if !ok {
 		return current
 	}
+
 	return dest
 }
 
@@ -336,11 +355,14 @@ func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
 	if len(dest) == 0 {
 		return nil
 	}
+
 	cs := cat.String()
 	if curr, ok := d[cs]; ok {
 		return existingDestinationErr(cs, curr)
 	}
+
 	d[cs] = dest
+
 	return nil
 }
 
@@ -424,6 +446,7 @@ func (ec exchangeCategory) leafCat() categorizer {
 	case ExchangeMail, ExchangeMailFolder:
 		return ExchangeMail
 	}
+
 	return ec
 }
 
@@ -451,6 +474,7 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	if len(path) < 2 {
 		return m
 	}
+
 	m[ExchangeUser] = path[1]
 	/*
 		TODO/Notice:
@@ -465,20 +489,26 @@ func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 		if len(path) < 5 {
 			return m
 		}
+
 		m[ExchangeContactFolder] = path[3]
 		m[ExchangeContact] = path[4]
+
 	case ExchangeEvent:
 		if len(path) < 4 {
 			return m
 		}
+
 		m[ExchangeEvent] = path[3]
+
 	case ExchangeMail:
 		if len(path) < 5 {
 			return m
 		}
+
 		m[ExchangeMailFolder] = path[3]
 		m[ExchangeMail] = path[4]
 	}
+
 	return m
 }
 
@@ -604,18 +634,23 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	if info == nil {
 		return false
 	}
+
 	// the scope must define targets to match on
 	filterCat := s.FilterCategory()
 	targets := s.Get(filterCat)
+
 	if len(targets) == 0 {
 		return false
 	}
+
 	if targets[0] == AnyTgt {
 		return true
 	}
+
 	if targets[0] == NoneTgt {
 		return false
 	}
+
 	// any of the targets for a given info filter may succeed.
 	for _, target := range targets {
 		switch filterCat {
@@ -637,5 +672,6 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 			}
 		}
 	}
+
 	return false
 }

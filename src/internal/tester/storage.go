@@ -23,6 +23,7 @@ var AWSStorageCredEnvs = []string{
 // configs.
 func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	now := LogTimeOfTest(t)
+
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "configuring storage from test file")
 
@@ -39,5 +40,6 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 		},
 	)
 	require.NoError(t, err, "creating storage")
+
 	return st
 }

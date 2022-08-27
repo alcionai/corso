@@ -18,10 +18,12 @@ func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error)
 	if err != nil {
 		return nil, err
 	}
+
 	endpoint := defaultS3Endpoint
 	if len(cfg.Endpoint) > 0 {
 		endpoint = cfg.Endpoint
 	}
+
 	opts := s3.Options{
 		AccessKeyID:     cfg.AccessKey,
 		BucketName:      cfg.Bucket,
@@ -30,5 +32,6 @@ func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error)
 		SecretAccessKey: cfg.SecretKey,
 		SessionToken:    cfg.SessionToken,
 	}
+
 	return s3.New(ctx, &opts)
 }

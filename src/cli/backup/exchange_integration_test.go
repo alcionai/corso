@@ -46,6 +46,7 @@ func TestBackupExchangeIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(BackupExchangeIntegrationSuite))
 }
 
@@ -70,8 +71,8 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	}
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
@@ -89,8 +90,10 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 		"--user", suite.m365UserID,
 		"--data", "email")
 	cli.BuildCommandTree(cmd)
-	var recorder strings.Builder
+
+	recorder := strings.Builder{}
 	cmd.SetOut(&recorder)
+
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
@@ -126,6 +129,7 @@ func TestPreparedBackupExchangeIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(PreparedBackupExchangeIntegrationSuite))
 }
 
@@ -150,8 +154,8 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	}
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
@@ -178,8 +182,10 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
 		"backup", "list", "exchange",
 		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
-	var recorder strings.Builder
+
+	recorder := strings.Builder{}
 	cmd.SetOut(&recorder)
+
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
@@ -203,8 +209,10 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 		"--config-file", suite.cfgFP,
 		"--backup", string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
-	var recorder strings.Builder
+
+	recorder := strings.Builder{}
 	cmd.SetOut(&recorder)
+
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
@@ -212,6 +220,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 
 	// compare the output
 	result := recorder.String()
+
 	for i, ent := range deets.Entries {
 		t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
 			assert.Contains(t, result, ent.RepoRef)
@@ -241,6 +250,7 @@ func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(BackupDeleteExchangeIntegrationSuite))
 }
 
@@ -265,6 +275,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	}
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
+
 	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
 	// init the repo first
