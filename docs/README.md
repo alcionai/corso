@@ -49,7 +49,6 @@ make check
 
 Same as `make dockercheck` but runs locally. Requires `vale` to be installed.
 
-
 ## Documentation platform development
 
 ```bash
