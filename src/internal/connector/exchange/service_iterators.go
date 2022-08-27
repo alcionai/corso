@@ -314,7 +314,11 @@ func IterateFilterFolderDirectoriesForCollections(
 	}
 }
 
-// iterateSelectFoldersByCategory is a utility function for updating
+// iterateFindFolderID is a utility function that supports finding
+// M365 folders objects that matches the folderName. Iterator callback function
+// will work on folderCollection responses whose objects implement
+// the displayable interface. If folder exists, the function updates the
+// folderID memory address that was passed in.
 func iterateSelectFoldersByCategory(
 	category optionIdentifier,
 	folderID **string,
@@ -323,8 +327,8 @@ func iterateSelectFoldersByCategory(
 ) func(any) bool {
 	return func(entry any) bool {
 		switch category {
-		case messages:
-			folder, ok := entry.(models.MailFolderable)
+		case messages, contacts:
+			folder, ok := entry.(displayable)
 			if !ok {
 				errs = support.WrapAndAppend(
 					errorIdentifier,
@@ -339,28 +343,6 @@ func iterateSelectFoldersByCategory(
 			}
 			name := *folder.GetDisplayName()
 			if folderName == name {
-				if folder.GetId() == nil {
-					return true // invalid folder
-				}
-				*folderID = folder.GetId()
-				return false
-			}
-			return true
-		case contacts:
-			folder, ok := entry.(models.ContactFolderable)
-			if !ok {
-				errs = support.WrapAndAppend(
-					errorIdentifier,
-					errors.New("invalid return on HasFolder.contacts iteration failure"),
-					errs,
-				)
-				return true
-			}
-			// Display name not set on Contact Folder
-			if folder.GetDisplayName() == nil {
-				return true
-			}
-			if folderName == *folder.GetDisplayName() {
 				if folder.GetId() == nil {
 					return true // invalid folder
 				}
