@@ -12,12 +12,6 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
-const (
-	mailCategory     = "mail"
-	contactsCategory = "contacts"
-	eventsCategory   = "events"
-)
-
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a "parent folder".
 type descendable interface {
