@@ -87,6 +87,8 @@ type MailFolder struct {
 	DisplayName string
 }
 
+// CreateContactFolder makes a contact folder with the displayName of folderName.
+// If sucessful, returns the created folder object.
 func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
 	requestBody.SetDisplayName(&folderName)
@@ -94,6 +96,8 @@ func CreateContactFolder(gs graph.Service, user, folderName string) (models.Cont
 	return gs.Client().UsersById(user).ContactFolders().Post(requestBody)
 }
 
+// DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
+// Errors returned if the function call was not successful.
 func DeleteContactFolder(gs graph.Service, user, folderID string) error {
 	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete()
 }
@@ -268,32 +272,42 @@ func GetCopyRestoreFolder(
 ) (string, error) {
 	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	switch category {
-	case mailCategory:
-		return establishMailFolder(service, newFolder, user)
+	case mailCategory, contactsCategory:
+		return establishFolder(service, newFolder, user, categoryToOptionIdentifier(category))
 	default:
 		return "", fmt.Errorf("%s category not supported", category)
 	}
 }
 
-func establishMailFolder(
+func establishFolder(
 	service graph.Service,
 	folderName, user string,
+	optID optionIdentifier,
 ) (string, error) {
-	folderID, err := GetFolderID(service, folderName, user, messages)
-	if err != nil {
-		// Verify unique folder was not found
-		if errors.Is(err, ErrFolderNotFound) {
-
-			fold, err := CreateMailFolder(service, user, folderName)
-			if err != nil {
-				return "", support.WrapAndAppend(user, err, err)
-			}
-			return *fold.GetId(), nil
-		}
-
-		return "", err
+	folderID, err := GetFolderID(service, folderName, user, optID)
+	if err == nil {
+		return *folderID, nil
 	}
-	return *folderID, nil
+	// Experienced error other than folder does not exit
+	if !errors.Is(err, ErrFolderNotFound) {
+		return "", support.WrapAndAppend(user, err, err)
+	}
+	switch optID {
+	case messages:
+		fold, err := CreateMailFolder(service, user, folderName)
+		if err != nil {
+			return "", support.WrapAndAppend(user, err, err)
+		}
+		return *fold.GetId(), nil
+	case contacts:
+		fold, err := CreateContactFolder(service, user, folderName)
+		if err != nil {
+			support.WrapAndAppend(user, err, err)
+		}
+		return *fold.GetId(), nil
+	default:
+		return "", fmt.Errorf("category: %s not supported for folder creation", optID)
+	}
 }
 
 func RestoreExchangeObject(
@@ -306,10 +320,8 @@ func RestoreExchangeObject(
 ) error {
 	var setting optionIdentifier
 	switch category {
-	case mailCategory:
-		setting = messages
-	case contactsCategory:
-		setting = contacts
+	case mailCategory, contactsCategory:
+		setting = categoryToOptionIdentifier(category)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
