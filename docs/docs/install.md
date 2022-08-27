@@ -27,9 +27,8 @@ To run the Corso container, it's recommended that you:
 
 * Export [Corso key configuration environment variables](cli/corso_env) and add their names to an
 [environment variables file](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables--e---env---env-file)
-* Map a local config directory to `/app/config` where Corso will look for or create the `corso.toml` config file.
-This will preserve configuration across container runs.
-* Map a local log directory to `/app/logs` where Corso will write logs
+* Map a local directory to `/app/corso`. Corso will look for or create the `corso.toml` config file there. This will preserve
+  configuration across container runs. Corso will use the directoy for logs, if enabled. 
 
 To create the environment variables file, you can run the following.
 
@@ -58,16 +57,15 @@ as needed.
 
 ```bash
 $ docker run --env-file ~/.corso/corso.env \
-    -v ~/.corso/config:/app/config \ 
-    -v ~/.corso/logs:/app/logs \
-    corso/corso:latest backup list exchange 
+    -v ~/.corso/corso:/app/corso \ 
+    corso/corso backup list exchange 
 ```
 
 ### Available variants
 
 The Corso image is available on DockerHub for the following architectures:
 
-* Linux x86-64 - `amd64`
+* Linux and Windows x86-64 - `amd64`
 * ARM 64-bit - `arm64`
 
 :::tip
@@ -79,7 +77,6 @@ For Windows, you can run the `amd64` container in
 
 The following tags are available:
 
-* `:latest` - The most recent stable release
 * `:x.y.z` - A specific release build
 * `:pre-release` - The most recent pre-release if newer that the latest stable release
 * `:nightly` - The most recent unstable developer build
