@@ -180,7 +180,7 @@ func GetFolderID(service graph.Service, folderName, user string, category option
 	if err != nil {
 		return nil, err
 	}
-	callbackFunc := iterateSelectFoldersByCategory(category,
+	callbackFunc := iterateFindFolderID(category,
 		&folderID,
 		folderName,
 		service.Adapter().GetBaseUrl(),
