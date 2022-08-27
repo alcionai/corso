@@ -85,6 +85,25 @@ const (
 	contacts
 )
 
+const (
+	mailCategory     = "mail"
+	contactsCategory = "contacts"
+	eventsCategory   = "events"
+)
+
+func categoryToOptionIdentifier(category string) optionIdentifier {
+	switch category {
+	case mailCategory:
+		return messages
+	case contactsCategory:
+		return contacts
+	case eventsCategory:
+		return events
+	default:
+		return unknown
+	}
+}
+
 //---------------------------------------------------
 // exchange.Query Option Section
 //------------------------------------------------
