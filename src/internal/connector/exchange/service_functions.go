@@ -236,7 +236,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 		if scope.IsAny(selectors.ExchangeMailFolder) {
 			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 				GetAllMessagesForUser,
-				IterateSelectAllMessagesForCollections,
+				IterateSelectAllDescendablesForCollections,
 				nil
 		}
 
@@ -255,7 +255,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	if scope.IncludesCategory(selectors.ExchangeContact) {
 		return models.CreateContactFromDiscriminatorValue,
 			GetAllContactsForUser,
-			IterateAllContactsForCollection,
+			IterateSelectAllDescendablesForCollections,
 			nil
 	}
 
