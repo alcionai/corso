@@ -34,13 +34,13 @@ var (
 			rest:   rest,
 		},
 		{
-			name:   "NoUser",
+			name:   "NoResourceOwner",
 			tenant: testTenant,
 			user:   "",
 			rest:   rest,
 		},
 		{
-			name:   "NoRest",
+			name:   "NoFolderOrItem",
 			tenant: testTenant,
 			user:   testUser,
 			rest:   nil,
@@ -48,35 +48,41 @@ var (
 	}
 
 	modes = []struct {
-		name           string
-		builderFunc    func(b path.Builder, tenant, user string) (path.Path, error)
-		expectedFolder string
-		expectedItem   string
+		name             string
+		builderFunc      func(b path.Builder, tenant, user string) (path.Path, error)
+		expectedFolder   string
+		expectedItem     string
+		expectedService  path.ServiceType
+		expectedCategory path.CategoryType
 	}{
 		{
-			name:           "Folder",
-			builderFunc:    path.Builder.ToDataLayerExchangeMailFolder,
-			expectedFolder: strings.Join(rest, "/"),
-			expectedItem:   "",
+			name:             "ExchangeMailFolder",
+			builderFunc:      path.Builder.ToDataLayerExchangeMailFolder,
+			expectedFolder:   strings.Join(rest, "/"),
+			expectedItem:     "",
+			expectedService:  path.ExchangeService,
+			expectedCategory: path.EmailCategory,
 		},
 		{
-			name:           "Item",
-			builderFunc:    path.Builder.ToDataLayerExchangeMailItem,
-			expectedFolder: strings.Join(rest[0:len(rest)-1], "/"),
-			expectedItem:   rest[len(rest)-1],
+			name:             "ExchangeMailItem",
+			builderFunc:      path.Builder.ToDataLayerExchangeMailItem,
+			expectedFolder:   strings.Join(rest[0:len(rest)-1], "/"),
+			expectedItem:     rest[len(rest)-1],
+			expectedService:  path.ExchangeService,
+			expectedCategory: path.EmailCategory,
 		},
 	}
 )
 
-type ExchangeMailUnitSuite struct {
+type DataLayerResourcePath struct {
 	suite.Suite
 }
 
-func TestExchangeMailUnitSuite(t *testing.T) {
-	suite.Run(t, new(ExchangeMailUnitSuite))
+func TestDataLayerResourcePath(t *testing.T) {
+	suite.Run(t, new(DataLayerResourcePath))
 }
 
-func (suite *ExchangeMailUnitSuite) TestMissingInfoErrors() {
+func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(tOuter *testing.T) {
 			for _, test := range missingInfo {
@@ -91,7 +97,7 @@ func (suite *ExchangeMailUnitSuite) TestMissingInfoErrors() {
 	}
 }
 
-func (suite *ExchangeMailUnitSuite) TestMailItemNoFolder() {
+func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 	t := suite.T()
 	item := "item"
 	b := path.Builder{}.Append(item)
@@ -103,20 +109,20 @@ func (suite *ExchangeMailUnitSuite) TestMailItemNoFolder() {
 	assert.Equal(t, item, p.Item())
 }
 
-type PopulatedExchangeMailUnitSuite struct {
+type PopulatedDataLayerResourcePath struct {
 	suite.Suite
 	b *path.Builder
 }
 
-func TestPopulatedExchangeMailUnitSuite(t *testing.T) {
-	suite.Run(t, new(PopulatedExchangeMailUnitSuite))
+func TestPopulatedDataLayerResourcePath(t *testing.T) {
+	suite.Run(t, new(PopulatedDataLayerResourcePath))
 }
 
-func (suite *PopulatedExchangeMailUnitSuite) SetupSuite() {
+func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
 	suite.b = path.Builder{}.Append(rest...)
 }
 
-func (suite *PopulatedExchangeMailUnitSuite) TestGetTenant() {
+func (suite *PopulatedDataLayerResourcePath) TestTenant() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
 			p, err := m.builderFunc(*suite.b, testTenant, testUser)
@@ -127,18 +133,40 @@ func (suite *PopulatedExchangeMailUnitSuite) TestGetTenant() {
 	}
 }
 
-func (suite *PopulatedExchangeMailUnitSuite) TestGetUser() {
+func (suite *PopulatedDataLayerResourcePath) TestService() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
 			p, err := m.builderFunc(*suite.b, testTenant, testUser)
 			require.NoError(t, err)
 
-			assert.Equal(t, testUser, p.User())
+			assert.Equal(t, m.expectedService, p.Service())
 		})
 	}
 }
 
-func (suite *PopulatedExchangeMailUnitSuite) TestGetFolder() {
+func (suite *PopulatedDataLayerResourcePath) TestCategory() {
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t *testing.T) {
+			p, err := m.builderFunc(*suite.b, testTenant, testUser)
+			require.NoError(t, err)
+
+			assert.Equal(t, m.expectedCategory, p.Category())
+		})
+	}
+}
+
+func (suite *PopulatedDataLayerResourcePath) TestResourceOwner() {
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t *testing.T) {
+			p, err := m.builderFunc(*suite.b, testTenant, testUser)
+			require.NoError(t, err)
+
+			assert.Equal(t, testUser, p.ResourceOwner())
+		})
+	}
+}
+
+func (suite *PopulatedDataLayerResourcePath) TestFolder() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
 			p, err := m.builderFunc(*suite.b, testTenant, testUser)
@@ -149,7 +177,7 @@ func (suite *PopulatedExchangeMailUnitSuite) TestGetFolder() {
 	}
 }
 
-func (suite *PopulatedExchangeMailUnitSuite) TestGetItem() {
+func (suite *PopulatedDataLayerResourcePath) TestItem() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
 			p, err := m.builderFunc(*suite.b, testTenant, testUser)

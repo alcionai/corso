@@ -44,10 +44,6 @@ import (
 const (
 	escapeCharacter = '\\'
 	pathSeparator   = '/'
-
-	emailCategory = "email"
-
-	exchangeService = "exchange"
 )
 
 var charactersToEscape = map[rune]struct{}{
@@ -57,16 +53,15 @@ var charactersToEscape = map[rune]struct{}{
 
 var errMissingSegment = errors.New("missing required path element")
 
-// TODO(ashmrtn): Getting the category should either be through type-switches or
-// through a function, but if it's a function it should re-use existing enums
-// for resource types.
 // For now, adding generic functions to pull information from segments.
 // Resources that don't have the requested information should return an empty
 // string.
 type Path interface {
 	String() string
+	Service() ServiceType
+	Category() CategoryType
 	Tenant() string
-	User() string
+	ResourceOwner() string
 	Folder() string
 	Item() string
 }
@@ -188,8 +183,15 @@ func (pb Builder) ToDataLayerExchangeMailFolder(tenant, user string) (Path, erro
 		return nil, err
 	}
 
-	return &ExchangeMail{
-		Builder: *pb.withPrefix(tenant, exchangeService, user, emailCategory),
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			ExchangeService.String(),
+			user,
+			EmailCategory.String(),
+		),
+		service:  ExchangeService,
+		category: EmailCategory,
 	}, nil
 }
 
@@ -202,9 +204,16 @@ func (pb Builder) ToDataLayerExchangeMailItem(tenant, user string) (Path, error)
 		return nil, err
 	}
 
-	return &ExchangeMail{
-		Builder: *pb.withPrefix(tenant, exchangeService, user, emailCategory),
-		hasItem: true,
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			ExchangeService.String(),
+			user,
+			EmailCategory.String(),
+		),
+		service:  ExchangeService,
+		category: EmailCategory,
+		hasItem:  true,
 	}, nil
 }
 
