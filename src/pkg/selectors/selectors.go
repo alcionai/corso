@@ -276,7 +276,7 @@ func addToSet(set []string, v []string) []string {
 		for _, s := range set {
 			if vv == s {
 				matched = true
-				continue
+				break
 			}
 		}
 		if !matched {
