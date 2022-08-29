@@ -334,6 +334,11 @@ func RestoreExchangeObject(
 		default:
 			return fmt.Errorf("restore policy: %s not supported", policy)
 		}
+	case contacts:
+		switch policy {
+		case control.Copy:
+			return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
+		}
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
