@@ -21,12 +21,6 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
-const (
-	mailCategory     = "mail"
-	contactsCategory = "contacts"
-	eventsCategory   = "events"
-)
-
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
@@ -231,16 +225,18 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 	suite.Equal(status.ObjectCount, status.Successful)
 }
 
+// Restore Functions
 // TestRestoreMessages uses mock data to ensure GraphConnector
 // is able to restore a several messageable item to a Mailbox.
 // The result should be all successful items restored within the same folder.
 func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	t := suite.T()
+	category := "mail"
 	connector := loadConnector(t)
 	collection := make([]data.Collection, 0)
 	for i := 0; i < 3; i++ {
 		mdc := mockconnector.NewMockExchangeCollection(
-			[]string{"tenant", suite.user, mailCategory, "Inbox"},
+			[]string{"tenant", suite.user, category, "Inbox"},
 			1)
 		collection = append(collection, mdc)
 	}
