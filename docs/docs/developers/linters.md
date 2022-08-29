@@ -11,8 +11,8 @@ there's also a docker container available. Instructions for installation are
 available on the golangci-lint
 [website](https://golangci-lint.run/usage/install/#local-installation). The
 version that you install should match the version the GitHub workflow uses to
-avoid failures even after running locally. The current version in use is
-[denoted](https://github.com/alcionai/corso/blob/main/.github/workflows/lint.yml#L55)
+avoid failures even after running locally. The current version in use can be
+[found](https://github.com/alcionai/corso/blob/main/.github/workflows/lint.yml#L55)
 in `.github/worflows/lint.yaml`.
 
 ## Running the linter
@@ -23,22 +23,21 @@ installed.
 
 ### Running with the `Makefile`
 
-There’s a `Makefile` in the repository that will automatically check if the proper
+There’s a `Makefile` in the corso/src that will automatically check if the proper
 golangci-lint version is installed and run it. This make rule can be run
 with `make lint`. If golangci-lint isn't installed locally or the wrong version
-is present it will tell you what version it expects and give a link to the
+is present it will tell you what version it expects and provide a link to the
 installation page.
 
 ### Running manually
 
-You can run golangci-lint manually by executing `golangci-lint run` in the Corso
-code directory. It will automatically use the `.golangci.yml` configuration file so it
-executes with the same settings as the GitHub action.
+You can run golangci-lint manually by executing `golangci-lint run` in the corso/src
+directory. This will automatically use corso's `.golangci.yml` configuration.
 
 ## Adding exceptions for lint errors
 
 Sometimes the linter will report an issue but it's not something that can or
-should be fixed. In those cases there are two ways to add a linter exception.
+should be fixed. In those cases there are two ways to add a linter exception:
 
 ### Single exception via comment
 
@@ -61,21 +60,23 @@ in the repository under the `issues` section.
 The configuration file allows for regex in the text property, so it’s useful to include
 the linter/rule that triggered the message. This ensures the lint error is only
 ignored for that linter. Combining the linter/rule with the error message text
-specific to that error also helps avoid ignoring other lint errors.
+specific to that error also helps minimize collisions with other lint errors.
 
-## Interpreting linter output
+## Common problem linters
 
-Some linters have output messages that don't make clear what the issue is. The
-following subsections give the version of golangci-lint that they apply to, the
-linter in question, and give guidance on interpreting lint messages.
+Some linter messages aren't clear about what the issue is. Here's common
+cryptic messages we've dealt with in the past and how you can fix the problems
+the linters flag.
+Each subsection also includes the version of golangci-lint it applies to and the
+linter in question.
 
 ### `gci` `Expected 's', Found 'a' at file.go`
 
 This applies to golangci-lint v1.45.2 for the `gci` linter and is due to an import
 ordering issue. It occurs because imports in the file aren't grouped according
 to the import rules for Corso. Corso code should have three distinct import
-groups, system imports, third party imports, and imports of other Corso code
-like below. Typically the cause of a `gci` lint error is a Corso import in the
+groups: system imports, third party imports, and imports of other Corso packaged;
+see the example below. Typically the cause of a `gci` lint error is a Corso import in the
 block for third party libraries.
 
 ```go
@@ -86,3 +87,4 @@ import (
 
     "github.com/alcionai/corso/pkg/selector"
 )
+```
