@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"testing"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -10,8 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -363,4 +366,19 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 			require.NoError(t, iterateError)
 		})
 	}
+}
+
+// TestRestoreContact ensures that file can be created
+func (suite *ExchangeServiceSuite) TestRestoreContact() {
+	t := suite.T()
+	userID := tester.M365UserID(suite.T())
+	// TODO add folder for contact at the completion of the test delete the folder
+	err := RestoreExchangeContact(context.Background(),
+		mockconnector.GetMockContactBytes("Weird Middle Name"),
+		suite.es,
+		control.Copy, "Contacts",
+		userID)
+	assert.NoError(t, err)
+	t.Logf("%v\n", err)
+
 }
