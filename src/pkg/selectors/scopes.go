@@ -234,9 +234,9 @@ func reduce[T scopeT, C categoryT](
 	}
 
 	// aggregate each scope type by category for easier isolation in future processing.
-	excludes := scopesByCategory[T](s.Excludes, dataCategories)
-	filters := scopesByCategory[T](s.Filters, dataCategories)
-	includes := scopesByCategory[T](s.Includes, dataCategories)
+	excls := scopesByCategory[T](s.Excludes, dataCategories)
+	filts := scopesByCategory[T](s.Filters, dataCategories)
+	incls := scopesByCategory[T](s.Includes, dataCategories)
 
 	ents := []details.DetailsEntry{}
 
@@ -254,9 +254,9 @@ func reduce[T scopeT, C categoryT](
 			dc,
 			dc.pathValues(path),
 			ent,
-			excludes[dc],
-			filters[dc],
-			includes[dc],
+			excls[dc],
+			filts[dc],
+			incls[dc],
 		)
 		if passed {
 			ents = append(ents, ent)

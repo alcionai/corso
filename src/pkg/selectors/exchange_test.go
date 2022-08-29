@@ -356,7 +356,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Users() {
 					ExchangeEvent: AnyTgt,
 				},
 			)
-
 		}
 
 		if sc[scopeKeyCategory].Matches(ExchangeMailFolder.String()) {
@@ -411,7 +410,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 					ExchangeEvent: AnyTgt,
 				},
 			)
-
 		}
 
 		if sc[scopeKeyCategory].Matches(ExchangeMailFolder.String()) {

@@ -601,41 +601,6 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 
 	// the scope must define targets to match on
 	filterCat := s.FilterCategory()
-	// targets := s.Get(filterCat)
-
-	// if len(targets) == 0 {
-	// 	return false
-	// }
-
-	// if targets[0] == AnyTgt {
-	// 	return true
-	// }
-
-	// if targets[0] == NoneTgt {
-	// 	return false
-	// }
-
-	// any of the targets for a given info filter may succeed.
-	// for _, target := range targets {
-	// 	switch filterCat {
-	// 	case ExchangeFilterMailSender:
-	// 		if target == info.Sender {
-	// 			return true
-	// 		}
-	// 	case ExchangeFilterMailSubject:
-	// 		if strings.Contains(info.Subject, target) {
-	// 			return true
-	// 		}
-	// 	case ExchangeFilterMailReceivedAfter:
-	// 		if target < common.FormatTime(info.Received) {
-	// 			return true
-	// 		}
-	// 	case ExchangeFilterMailReceivedBefore:
-	// 		if target > common.FormatTime(info.Received) {
-	// 			return true
-	// 		}
-	// 	}
-	// }
 
 	i := ""
 	switch filterCat {
@@ -649,6 +614,4 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 		i = common.FormatTime(info.Received)
 	}
 	return s.Matches(filterCat, i)
-
-	// return false
 }

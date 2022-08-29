@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/alcionai/corso/pkg/filters"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/pkg/filters"
 )
 
 type service int
