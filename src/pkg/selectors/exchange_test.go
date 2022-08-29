@@ -1034,7 +1034,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_leafCat() {
 		cat    exchangeCategory
 		expect exchangeCategory
 	}{
-		{exchangeCategory(-1), exchangeCategory(-1)},
+		{exchangeCategory("foo"), exchangeCategory("foo")},
 		{ExchangeCategoryUnknown, ExchangeCategoryUnknown},
 		{ExchangeUser, ExchangeUser},
 		{ExchangeMailFolder, ExchangeMail},
