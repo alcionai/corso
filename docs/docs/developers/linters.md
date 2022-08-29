@@ -64,14 +64,12 @@ specific to that error also helps minimize collisions with other lint errors.
 
 ## Working with the linters
 
-Some linters Corso has enabled, like `wsl`, are picky about how code is
-arranged. This section provides some tips on how to organize code to reduce lint
-errors.
+Some of the enabled linters, like `wsl`, are picky about how code is arranged.
+This section provides some tips on how to organize code to reduce lint errors.
 
 ### `wsl`
 `wsl` is a linter that requires blank lines in parts of the code. It helps make
-the codebase more uniform and ensures the code doesn't get too squeezed
-together, helping readability.
+the codebase more uniform and ensures the code doesn't feel too compact.
 
 #### Short-assignments versus var declarations
 Go allows declaring and assigning to a variable with either short-assignments
@@ -133,6 +131,7 @@ foo(a)
 ```
 
 should be changed to
+
 ```go
 b := 42
 a := 7
@@ -142,6 +141,13 @@ foo(a)
 If both the second assignment and function call depend on the value of the first
 assignment then the assignments and function call must be separated by a blank
 line.
+
+```go
+a := 7
+b := a + 35
+
+foo(a, b)
+```
 
 #### Function calls and checking returned error values
 One of the other linters expects error checks to follow assignments to the error
