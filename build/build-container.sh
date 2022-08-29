@@ -11,6 +11,7 @@ usage() {
   echo "Flags"
   echo "  -h|--help         Help"
   echo "  -a|--arch         Set the architecture to the specified value (default: amd64)"
+  echo "  -l|--local        Build the corso binary on your local system, rather than a go image"
   echo "  -p|--prefix       Prefixes the image name."
   echo "  -s|--suffix       Suffixes the version."
   echo " "
@@ -30,6 +31,7 @@ OS=linux
 ARCH=amd64
 IMAGE_NAME_PREFIX=
 IMAGE_TAG_SUFFIX=
+LOCAL=
 
 while [ "$#" -gt 0 ]
 do
@@ -41,6 +43,9 @@ do
   -a|--arch)
     ARCH=$2
     shift
+    ;;
+  -l|--local)
+    LOCAL=1
     ;;
   -p|--prefix)
     IMAGE_NAME_PREFIX=$2
@@ -62,6 +67,8 @@ do
   shift
 done
 
+TARGETPLATFORM=${OS}/${ARCH}
+
 IMAGE_TAG=${OS}-${ARCH}
 if [ ! -z "${IMAGE_TAG_SUFFIX}" ]; then
   IMAGE_TAG=${IMAGE_TAG}-${IMAGE_TAG_SUFFIX}
@@ -72,7 +79,11 @@ if [ ! -z "${IMAGE_NAME_PREFIX}" ]; then
   IMAGE_NAME=${IMAGE_NAME_PREFIX}/${IMAGE_NAME}
 fi
 
-${SCRIPT_ROOT}/build.sh --arch ${ARCH}
+if [ -z "$LOCAL" ]; then
+  ${SCRIPT_ROOT}/build.sh --platforms "${TARGETPLATFORM}"
+else
+  ${SCRIPT_ROOT}/multiplatform-binary.sh --platforms "${TARGETPLATFORM}"
+fi
 
 echo "-----"
 echo "building corso container ${IMAGE_NAME}"
@@ -80,8 +91,8 @@ echo "-----"
 
 set -x
 docker buildx build --tag ${IMAGE_NAME}     \
-  --platform ${OS}/${ARCH}                  \
-  --file ${PROJECT_ROOT}/build/Dockerfile  \
+  --platform ${TARGETPLATFORM}              \
+  --file ${PROJECT_ROOT}/build/Dockerfile   \
   ${PROJECT_ROOT}
 set +x
 

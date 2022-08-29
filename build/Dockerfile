@@ -8,7 +8,9 @@ FROM gcr.io/distroless/base-debian10
 
 WORKDIR /
 
-COPY ./bin/corso ./
+ARG TARGETOS
+ARG TARGETARCH
+COPY ./bin/${TARGETOS}-${TARGETARCH}/corso ./
 
 USER nonroot:nonroot
 
