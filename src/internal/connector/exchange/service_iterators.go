@@ -35,7 +35,6 @@ type displayable interface {
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -45,12 +44,11 @@ type GraphIterateFunc func(
 	graphStatusChannel chan<- *support.ConnectorOperationStatus,
 ) func(any) bool
 
-// IterateSelectAllMessageForCollection utility function for
-// Iterating through MessagesCollectionResponse
-// During iteration, messages belonging to any folder are
+// IterateSelectAllDescendablesForCollection utility function for
+// Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
+// objects belonging to any folder are
 // placed into a Collection based on the parent folder
-func IterateSelectAllMessagesForCollections(
-	tenant string,
+func IterateSelectAllDescendablesForCollections(
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -59,17 +57,30 @@ func IterateSelectAllMessagesForCollections(
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) func(any) bool {
-	return func(messageItem any) bool {
+	var isCategorySet bool
+	var collectionType optionIdentifier
+	var category string
+	return func(pageItem any) bool {
 		// Defines the type of collection being created within the function
-		collectionType := messages
+		if !isCategorySet {
+			if scope.IncludesCategory(selectors.ExchangeMail) {
+				collectionType = messages
+				category = mailCategory
+			}
+			if scope.IncludesCategory(selectors.ExchangeContact) {
+				collectionType = contacts
+				category = contactsCategory
+			}
+			isCategorySet = true
+		}
 
-		message, ok := messageItem.(models.Messageable)
+		entry, ok := pageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppendf(user, errors.New("message iteration failure"), errs)
+			errs = support.WrapAndAppendf(user, errors.New("descendable conversion failure"), errs)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
-		directory := *message.GetParentFolderId()
+		directory := *entry.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
 			service, err := createService(credentials, failFast)
 			if err != nil {
@@ -78,14 +89,14 @@ func IterateSelectAllMessagesForCollections(
 			}
 			edc := NewCollection(
 				user,
-				[]string{tenant, user, mailCategory, directory},
+				[]string{credentials.TenantID, user, category, directory},
 				collectionType,
 				service,
 				statusCh,
 			)
 			collections[directory] = &edc
 		}
-		collections[directory].AddJob(*message.GetId())
+		collections[directory].AddJob(*entry.GetId())
 		return true
 	}
 }
@@ -95,7 +106,6 @@ func IterateSelectAllMessagesForCollections(
 // and storing events in collections based on
 // the calendarID which originates from M365.
 func IterateSelectAllEventsForCollections(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -155,7 +165,7 @@ func IterateSelectAllEventsForCollections(
 			}
 			edc := NewCollection(
 				user,
-				[]string{tenant, user, eventsCategory, directory},
+				[]string{credentials.TenantID, user, eventsCategory, directory},
 				events,
 				service,
 				statusCh,
@@ -168,51 +178,10 @@ func IterateSelectAllEventsForCollections(
 	}
 }
 
-// IterateAllContactsForCollection GraphIterateFunc for moving through
-// a ContactsCollectionsResponse using the msgraphgocore paging interface.
-// Contacts Ids are placed into a collection based upon the parent folder
-func IterateAllContactsForCollection(
-	tenant string,
-	user string,
-	scope selectors.ExchangeScope,
-	errs error,
-	failFast bool,
-	credentials account.M365Config,
-	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
-) func(any) bool {
-	return func(contactsItem any) bool {
-		contact, ok := contactsItem.(models.Contactable)
-		if !ok {
-			errs = support.WrapAndAppend(user, errors.New("contact iteration failure"), errs)
-			return true
-		}
-		directory := *contact.GetParentFolderId()
-		if _, ok := collections[directory]; !ok {
-			service, err := createService(credentials, failFast)
-			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
-				return true
-			}
-			edc := NewCollection(
-				user,
-				[]string{tenant, user, contactsCategory, directory},
-				contacts,
-				service,
-				statusCh,
-			)
-			collections[directory] = &edc
-		}
-		collections[directory].AddJob(*contact.GetId())
-		return true
-	}
-}
-
 // IterateAndFilterMessagesForCollections is a filtering GraphIterateFunc
 // that places exchange mail message ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
 func IterateAndFilterMessagesForCollections(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -227,7 +196,6 @@ func IterateAndFilterMessagesForCollections(
 
 			err := CollectMailFolders(
 				scope,
-				tenant,
 				user,
 				collections,
 				credentials,
@@ -241,7 +209,7 @@ func IterateAndFilterMessagesForCollections(
 			isFilterSet = true
 		}
 
-		message, ok := messageItem.(models.Messageable)
+		message, ok := messageItem.(descendable)
 		if !ok {
 			errs = support.WrapAndAppend(user, errors.New("message iteration failure"), errs)
 			return true
@@ -257,7 +225,6 @@ func IterateAndFilterMessagesForCollections(
 }
 
 func IterateFilterFolderDirectoriesForCollections(
-	tenant string,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -271,7 +238,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		err     error
 	)
 	return func(folderItem any) bool {
-		folder, ok := folderItem.(models.MailFolderable)
+		folder, ok := folderItem.(displayable)
 		if !ok {
 			errs = support.WrapAndAppend(
 				user,
@@ -303,7 +270,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 		temp := NewCollection(
 			user,
-			[]string{tenant, user, mailCategory, directory},
+			[]string{credentials.TenantID, user, mailCategory, directory},
 			messages,
 			service,
 			statusCh,
