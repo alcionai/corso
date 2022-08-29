@@ -67,6 +67,7 @@ func testForFiles(
 	collections []data.Collection,
 ) {
 	count := 0
+
 	for _, c := range collections {
 		for s := range c.Items() {
 			count++
@@ -228,6 +229,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
 	require.NoError(suite.T(), err)
+
 	names := entriesToNames(entries)
 	assert.Len(suite.T(), names, 2)
 	assert.Contains(suite.T(), names, user1)
@@ -261,7 +263,6 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
 
 	ctx := context.Background()
 	emails := "emails"
-
 	expectedFileCount := 42
 
 	progress := &corsoProgress{pending: map[string]*itemDetails{}}
@@ -537,8 +538,10 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 func (suite *KopiaIntegrationSuite) SetupTest() {
 	t := suite.T()
 	suite.ctx = context.Background()
+
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
+
 	suite.w = &Wrapper{c}
 }
 
@@ -760,6 +763,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	for k, v := range suite.inboxExpectedFiles {
 		suite.allExpectedFiles[k] = v
 	}
+
 	for k, v := range suite.archiveExpectedFiles {
 		suite.allExpectedFiles[k] = v
 	}
@@ -782,6 +786,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	assert.Equal(t, c.FullPath(), testPath)
 
 	count := 0
+
 	for resultStream := range c.Items() {
 		buf, err := ioutil.ReadAll(resultStream.ToReader())
 		require.NoError(t, err)
@@ -925,6 +930,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	p2 := []string{tid, "uid2", "emails", "fid"}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
+
 	fp1 := append(p1, dc1.Names[0])
 	fp2 := append(p2, dc2.Names[0])
 
@@ -983,6 +989,56 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 				test.paths,
 			)
 			require.Error(t, err)
+		})
+	}
+}
+
+func (suite *KopiaIntegrationSuite) TestDeleteSnapshot() {
+	t := suite.T()
+
+	collections := []data.Collection{
+		mockconnector.NewMockExchangeCollection(
+			[]string{"a-tenant", "user1", "emails"},
+			5,
+		),
+		mockconnector.NewMockExchangeCollection(
+			[]string{"a-tenant", "user2", "emails"},
+			42,
+		),
+	}
+
+	bs, _, err := suite.w.BackupCollections(suite.ctx, collections)
+	require.NoError(t, err)
+
+	snapshotID := bs.SnapshotID
+	assert.NoError(t, suite.w.DeleteSnapshot(suite.ctx, snapshotID))
+
+	// assert the deletion worked
+	dirPath := []string{testTenant, testUser}
+	_, err = suite.w.RestoreDirectory(suite.ctx, snapshotID, dirPath)
+	assert.Error(t, err, "snapshot should be deleted")
+}
+
+func (suite *KopiaIntegrationSuite) TestDeleteSnapshot_BadIDs() {
+	table := []struct {
+		name       string
+		snapshotID string
+		expect     assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "no id",
+			snapshotID: "",
+			expect:     assert.Error,
+		},
+		{
+			name:       "unknown id",
+			snapshotID: uuid.NewString(),
+			expect:     assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			test.expect(t, suite.w.DeleteSnapshot(suite.ctx, test.snapshotID))
 		})
 	}
 }

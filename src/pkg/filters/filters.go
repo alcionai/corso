@@ -83,6 +83,7 @@ func NewIn(negate bool, category any, substr string) Filter {
 // Checks whether the filter matches the input
 func (f Filter) Matches(input string) bool {
 	var cmp func(string, string) bool
+
 	switch f.Comparator {
 	case Equal:
 		cmp = equals
@@ -97,10 +98,12 @@ func (f Filter) Matches(input string) bool {
 	case In:
 		cmp = in
 	}
+
 	result := cmp(f.Target, norm(input))
 	if f.Negate {
 		result = !result
 	}
+
 	return result
 }
 

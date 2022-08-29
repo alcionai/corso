@@ -24,6 +24,7 @@ func (suite *EnvSuite) TestAddEnvCommands() {
 	cmd := &cobra.Command{Use: "root"}
 
 	AddCommands(cmd)
+
 	c := envCmd()
 	require.NotNil(t, c)
 

@@ -37,6 +37,7 @@ func TestRestoreExchangeIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(RestoreExchangeIntegrationSuite))
 }
 
@@ -62,8 +63,8 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	}
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
+	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first

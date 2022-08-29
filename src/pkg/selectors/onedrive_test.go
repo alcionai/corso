@@ -8,22 +8,22 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type OnedriveSourceSuite struct {
+type OneDriveSelectorSuite struct {
 	suite.Suite
 }
 
-func TestOnedriveSourceSuite(t *testing.T) {
-	suite.Run(t, new(OnedriveSourceSuite))
+func TestOneDriveSelectorSuite(t *testing.T) {
+	suite.Run(t, new(OneDriveSelectorSuite))
 }
 
-func (suite *OnedriveSourceSuite) TestNewOnedriveBackup() {
+func (suite *OneDriveSelectorSuite) TestNewOneDriveBackup() {
 	t := suite.T()
 	ob := NewOneDriveBackup()
 	assert.Equal(t, ob.Service, ServiceOneDrive)
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *OnedriveSourceSuite) TestToOnedriveBackup() {
+func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	t := suite.T()
 	ob := NewOneDriveBackup()
 	s := ob.Selector
@@ -33,7 +33,49 @@ func (suite *OnedriveSourceSuite) TestToOnedriveBackup() {
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
+	usrs := []string{"u1", "u2"}
+	table := []struct {
+		name     string
+		include  []string
+		discrete []string
+		expect   []string
+	}{
+		{
+			name:     "any user",
+			include:  Any(),
+			discrete: usrs,
+			expect:   usrs,
+		},
+		{
+			name:     "discrete user",
+			include:  []string{"u3"},
+			discrete: usrs,
+			expect:   []string{"u3"},
+		},
+		{
+			name:     "nil discrete slice",
+			include:  Any(),
+			discrete: nil,
+			expect:   Any(),
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			eb := NewOneDriveBackup()
+			eb.Include(eb.Users(test.include))
+
+			scopes := eb.DiscreteScopes(test.discrete)
+			for _, sc := range scopes {
+				users := sc.Get(OneDriveUser)
+				assert.Equal(t, test.expect, users)
+			}
+		})
+	}
+}
+
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 	t := suite.T()
 	sel := NewOneDriveBackup()
 
@@ -41,6 +83,7 @@ func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
 		u1 = "u1"
 		u2 = "u2"
 	)
+
 	userScopes := sel.Users([]string{u1, u2})
 	for _, scope := range userScopes {
 		// Scope value is either u1 or u2
@@ -71,7 +114,7 @@ func (suite *OnedriveSourceSuite) TestOnedriveSelector_Users() {
 	}
 }
 
-func (suite *OnedriveSourceSuite) TestOneDriveSelector_Include_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 	t := suite.T()
 	sel := NewOneDriveBackup()
 
@@ -89,7 +132,7 @@ func (suite *OnedriveSourceSuite) TestOneDriveSelector_Include_Users() {
 	}
 }
 
-func (suite *OnedriveSourceSuite) TestOneDriveSelector_Exclude_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 	t := suite.T()
 	sel := NewOneDriveBackup()
 

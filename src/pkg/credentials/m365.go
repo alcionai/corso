@@ -33,10 +33,12 @@ func (c M365) Validate() error {
 		ClientID:     c.ClientID,
 		ClientSecret: c.ClientSecret,
 	}
+
 	for k, v := range check {
 		if len(v) == 0 {
 			return errors.Wrap(errMissingRequired, k)
 		}
 	}
+
 	return nil
 }

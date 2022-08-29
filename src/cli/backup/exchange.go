@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/cli/options"
 	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
+	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
 	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
@@ -52,7 +53,6 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	)
 
 	switch parent.Use {
-
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 		fs.StringSliceVar(
@@ -134,6 +134,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"",
 			"Select backup details where the email subject lines contain this value",
 		)
+
+	case deleteCommand:
+		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
+		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+		cobra.CheckErr(c.MarkFlagRequired("backup"))
 	}
 
 	return c
@@ -185,6 +190,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
+
 	defer utils.CloseRepo(ctx, r)
 
 	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
@@ -205,6 +211,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	bu.Print(ctx)
+
 	return nil
 }
 
@@ -214,11 +221,13 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 		sel.Include(sel.Users(selectors.Any()))
 		return sel.Selector
 	}
+
 	if len(data) == 0 {
 		sel.Include(sel.ContactFolders(user, selectors.Any()))
 		sel.Include(sel.MailFolders(user, selectors.Any()))
 		sel.Include(sel.Events(user, selectors.Any()))
 	}
+
 	for _, d := range data {
 		switch d {
 		case dataContacts:
@@ -229,6 +238,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 			sel.Include(sel.Events(users, selectors.Any()))
 		}
 	}
+
 	return sel.Selector
 }
 
@@ -236,15 +246,18 @@ func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
 	if len(users) == 0 && !all {
 		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
+
 	if len(data) > 0 && all {
 		return errors.New("--all does a backup on all data, and cannot be reduced with --data")
 	}
+
 	for _, d := range data {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
 			return errors.New(
 				d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
 		}
 	}
+
 	return nil
 }
 
@@ -284,6 +297,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
+
 	defer utils.CloseRepo(ctx, r)
 
 	bs, err := r.Backups(ctx)
@@ -292,6 +306,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	backup.PrintAll(ctx, bs)
+
 	return nil
 }
 
@@ -347,6 +362,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
+
 	defer utils.CloseRepo(ctx, r)
 
 	d, _, err := r.BackupDetails(ctx, backupID)
@@ -381,6 +397,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ds.PrintEntries(ctx)
+
 	return nil
 }
 
@@ -414,6 +431,7 @@ func includeExchangeContacts(sel *selectors.ExchangeRestore, users, contactFolde
 	if len(contactFolders) == 0 {
 		return
 	}
+
 	if len(contacts) > 0 {
 		sel.Include(sel.Contacts(users, contactFolders, contacts))
 	} else {
@@ -425,6 +443,7 @@ func includeExchangeEmails(sel *selectors.ExchangeRestore, users, emailFolders, 
 	if len(emailFolders) == 0 {
 		return
 	}
+
 	if len(emails) > 0 {
 		sel.Include(sel.Mails(users, emailFolders, emails))
 	} else {
@@ -436,6 +455,7 @@ func includeExchangeEvents(sel *selectors.ExchangeRestore, users, events []strin
 	if len(events) == 0 {
 		return
 	}
+
 	sel.Include(sel.Events(users, events))
 }
 
@@ -454,6 +474,7 @@ func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receive
 	if len(receivedAfter) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailReceivedAfter(receivedAfter))
 }
 
@@ -461,6 +482,7 @@ func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receiv
 	if len(receivedBefore) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailReceivedBefore(receivedBefore))
 }
 
@@ -468,6 +490,7 @@ func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender string)
 	if len(sender) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailSender([]string{sender}))
 }
 
@@ -475,6 +498,7 @@ func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject strin
 	if len(subject) == 0 {
 		return
 	}
+
 	sel.Filter(sel.MailSubject([]string{subject}))
 }
 
@@ -486,23 +510,81 @@ func validateExchangeBackupDetailFlags(
 	if len(backupID) == 0 {
 		return errors.New("a backup ID is required")
 	}
+
 	lu := len(users)
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
 	lev := len(events)
+
 	if lu+lc+lcf+le+lef+lev == 0 {
 		return nil
 	}
+
 	if lu == 0 {
 		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
 	}
+
 	if lc > 0 && lcf == 0 {
 		return errors.New(
 			"one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
 	}
+
 	if le > 0 && lef == 0 {
 		return errors.New(
 			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
 	}
+
+	return nil
+}
+
+// ------------------------------------------------------------------------------------------------
+// backup delete
+// ------------------------------------------------------------------------------------------------
+
+// `corso backup delete exchange [<flag>...]`
+func exchangeDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   exchangeServiceCommand,
+		Short: "Delete backed-up M365 Exchange service data",
+		RunE:  deleteExchangeCmd,
+		Args:  cobra.NoArgs,
+	}
+}
+
+// deletes an exchange service backup.
+func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	m365, err := acct.M365Config()
+	if err != nil {
+		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
+	}
+
+	logger.Ctx(ctx).Debugw(
+		"Called - "+cmd.CommandPath(),
+		"tenantID", m365.TenantID,
+		"clientID", m365.ClientID,
+		"hasClientSecret", len(m365.ClientSecret) > 0)
+
+	r, err := repository.Connect(ctx, acct, s)
+	if err != nil {
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	if err := r.DeleteBackup(ctx, model.StableID(backupID)); err != nil {
+		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
+	}
+
 	return nil
 }

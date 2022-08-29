@@ -23,6 +23,7 @@ func TestExchangeSuite(t *testing.T) {
 
 func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand
+
 	table := []struct {
 		name        string
 		use         string
@@ -33,6 +34,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		{"create exchange", createCommand, expectUse, exchangeCreateCmd().Short, createExchangeCmd},
 		{"list exchange", listCommand, expectUse, exchangeListCmd().Short, listExchangeCmd},
 		{"details exchange", detailsCommand, expectUse, exchangeDetailsCmd().Short, detailsExchangeCmd},
+		{"delete exchange", deleteCommand, expectUse, exchangeDeleteCmd().Short, deleteExchangeCmd},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -216,6 +218,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 
 func (suite *ExchangeSuite) TestValidateBackupDetailFlags() {
 	stub := []string{"id-stub"}
+
 	table := []struct {
 		name                                                          string
 		contacts, contactFolders, emails, emailFolders, events, users []string
@@ -301,6 +304,7 @@ func (suite *ExchangeSuite) TestValidateBackupDetailFlags() {
 func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 	stub := []string{"id-stub"}
 	a := []string{utils.Wildcard}
+
 	table := []struct {
 		name                                                          string
 		contacts, contactFolders, emails, emailFolders, events, users []string
@@ -483,6 +487,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 	stub := "id-stub"
 	a := utils.Wildcard
+
 	table := []struct {
 		name                           string
 		after, before, sender, subject string

@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
 )
@@ -24,6 +25,7 @@ type DisconnectedGraphConnectorSuite struct {
 }
 
 func TestDisconnectedGraphSuite(t *testing.T) {
+	tester.LogTimeOfTest(t)
 	suite.Run(t, new(DisconnectedGraphConnectorSuite))
 }
 

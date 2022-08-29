@@ -70,6 +70,7 @@ func Initialize(
 		dataLayer:  w,
 		modelStore: ms,
 	}
+
 	return &r, nil
 }
 
@@ -109,6 +110,7 @@ func Connect(
 		dataLayer:  w,
 		modelStore: ms,
 	}
+
 	return &r, nil
 }
 
@@ -116,6 +118,7 @@ func (r *Repository) Close(ctx context.Context) error {
 	if r.dataLayer != nil {
 		err := r.dataLayer.Close(ctx)
 		r.dataLayer = nil
+
 		if err != nil {
 			return errors.Wrap(err, "closing corso DataLayer")
 		}
@@ -124,8 +127,10 @@ func (r *Repository) Close(ctx context.Context) error {
 	if r.modelStore == nil {
 		return nil
 	}
+
 	err := r.modelStore.Close(ctx)
 	r.modelStore = nil
+
 	return errors.Wrap(err, "closing corso ModelStore")
 }
 
@@ -177,4 +182,20 @@ func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
 func (r Repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetDetailsFromBackupID(ctx, model.StableID(backupID))
+}
+
+// DeleteBackup removes the backup from both the model store and the backup storage.
+func (r Repository) DeleteBackup(ctx context.Context, id model.StableID) error {
+	bu, err := r.Backup(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
+		return err
+	}
+
+	sw := store.NewKopiaStore(r.modelStore)
+
+	return sw.DeleteBackup(ctx, id)
 }

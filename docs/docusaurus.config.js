@@ -12,7 +12,7 @@ const config = {
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
-  favicon: 'img/corso.svg',
+  favicon: 'img/corso_logo.svg',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -26,6 +26,11 @@ const config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+  staticDirectories: ['static', 'public'],
+
+  plugins: [
+    require.resolve('docusaurus-plugin-image-zoom')
+  ],
 
   presets: [
     [
@@ -54,8 +59,8 @@ const config = {
         title: 'Corso',
         logo: {
           alt: 'Corso Logo',
-          src: 'img/corso.svg',
-          srcDark: 'img/corso_white.svg',
+          src: '/img/corso_logo.svg',
+          srcDark: 'img/corso_logo_white.svg',
         },
         items: [
           {
@@ -113,6 +118,21 @@ const config = {
         disableSwitch: true,
         respectPrefersColorScheme: true,
       },
+
+      zoom: {
+        selector: '.markdown img',
+        background: {
+          light: 'rgb(255, 255, 255)',
+          dark: 'rgb(50, 50, 50)'
+        },
+        // options you can specify via https://github.com/francoischalifour/medium-zoom#usage
+        config: {
+          margin: 24,
+          background: '#242526',
+          scrollOffset: 0,
+        },
+      },
+
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
