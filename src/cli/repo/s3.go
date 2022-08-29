@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/internal/kopia"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/storage"
 )
@@ -72,7 +71,6 @@ func s3InitCmd() *cobra.Command {
 // initializes a s3 repo.
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	log := logger.Ctx(ctx)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
@@ -92,14 +90,6 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
-
-	log.Debugw(
-		"Called - "+cmd.CommandPath(),
-		"bucket", s3Cfg.Bucket,
-		"clientID", m365.ClientID,
-		"hasClientSecret", len(m365.ClientSecret) > 0,
-		"accessKey", s3Cfg.AccessKey,
-		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
 
 	r, err := repository.Initialize(ctx, a, s)
 	if err != nil {
@@ -139,7 +129,6 @@ func s3ConnectCmd() *cobra.Command {
 // connects to an existing s3 repo.
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	log := logger.Ctx(ctx)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
@@ -159,14 +148,6 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
-
-	log.Debugw(
-		"Called - "+cmd.CommandPath(),
-		"bucket", s3Cfg.Bucket,
-		"clientID", m365.ClientID,
-		"hasClientSecret", len(m365.ClientSecret) > 0,
-		"accessKey", s3Cfg.AccessKey,
-		"hasSecretKey", len(s3Cfg.SecretKey) > 0)
 
 	r, err := repository.Connect(ctx, a, s)
 	if err != nil {

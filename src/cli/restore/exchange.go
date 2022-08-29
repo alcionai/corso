@@ -9,7 +9,6 @@ import (
 	"github.com/alcionai/corso/cli/options"
 	. "github.com/alcionai/corso/cli/print"
 	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -128,18 +127,6 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	m365, err := a.M365Config()
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
-	}
-
-	logger.Ctx(ctx).Debugw(
-		"Called - "+cmd.CommandPath(),
-		"backupID", backupID,
-		"tenantID", m365.TenantID,
-		"clientID", m365.ClientID,
-		"hasClientSecret", len(m365.ClientSecret) > 0)
 
 	r, err := repository.Connect(ctx, a, s)
 	if err != nil {
