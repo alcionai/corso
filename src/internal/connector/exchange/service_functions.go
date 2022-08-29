@@ -262,11 +262,11 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-// GetCopyRestoreFolder utility function to create
+// GetRestoreFolder utility function to create
 //  an unique folder for the restore process
 // @param category: input from fullPath()[2]
 // that defines the application the folder is created in.
-func GetCopyRestoreFolder(
+func GetRestoreFolder(
 	service graph.Service,
 	user, category string,
 ) (string, error) {
@@ -338,6 +338,8 @@ func RestoreExchangeObject(
 		switch policy {
 		case control.Copy:
 			return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
+		default:
+			return fmt.Errorf("restore policy: %s not supported", policy)
 		}
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
