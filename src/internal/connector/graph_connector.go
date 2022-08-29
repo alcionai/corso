@@ -240,7 +240,7 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 		if _, ok := pathCounter[directory]; !ok {
 			pathCounter[directory] = true
 			if policy == control.Copy {
-				folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user, category)
+				folderID, errs = exchange.GetRestoreFolder(&gc.graphService, user, category)
 				if errs != nil {
 					return errs
 				}
