@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -16,6 +16,7 @@ CORSO_MOD_CACHE=${CORSO_BUILD_PKG_MOD}/cache
 
 CORSO_BUILD_ARGS=''
 
+platforms=
 GOVER=1.18
 GOOS=linux
 GOARCH=amd64
@@ -23,8 +24,8 @@ GOARCH=amd64
 while [ "$#" -gt 0 ]
 do
   case "$1" in
-  --arch)
-    GOARCH=$2
+  --platforms)
+    platforms=$2
     shift
     ;;
   esac
@@ -36,27 +37,39 @@ mkdir -p ${CORSO_BUILD_TMP_CACHE}
 # temporary directory for caching go modules (needed for fast cross-platform build)
 mkdir -p ${CORSO_BUILD_TMP_MOD}
 
-echo "-----"
-echo "building corso binary for ${GOOS}-${GOARCH}"
-echo "-----"
+if [ -z "$platforms" ]; then
+  platforms="${GOOS}/${GOARCH}"
+fi
 
-set -x
-docker run --rm \
-  --mount type=bind,src=${PROJECT_ROOT},dst=${CORSO_BUILD_CONTAINER}          \
-  --mount type=bind,src=${CORSO_BUILD_TMP_CACHE},dst=${CORSO_BUILD_TMP_CACHE} \
-  --mount type=bind,src=${CORSO_BUILD_TMP_MOD},dst=${CORSO_BUILD_PKG_MOD}     \
-  --workdir ${CORSO_BUILD_CONTAINER_SRC}                                      \
-  --env GOMODCACHE=${CORSO_MOD_CACHE}                                         \
-  --env GOCACHE=${CORSO_CACHE}                                                \
-  --env GOOS=${GOOS}                                                          \
-  --env GOARCH=${GOARCH}                                                      \
-  --entrypoint /usr/local/go/bin/go                                           \
-  golang:${GOVER}                                                             \
-  build ${CORSO_BUILD_ARGS}
-set +x
+for platform in ${platforms/,/ }
+do
+  IFS='/' read -r -a platform_split <<< "${platform}"
+  GOOS=${platform_split[0]}
+  GOARCH=${platform_split[1]}
 
-mkdir -p ${PROJECT_ROOT}/bin
-mv ${PROJECT_ROOT}/src/corso ${PROJECT_ROOT}/bin/corso
+  echo "-----"
+  echo "building corso binary for ${GOOS}/${GOARCH}"
+  echo "-----"
 
-echo "-----"
-echo "created binary image in ${PROJECT_ROOT}/bin/corso"
+  set -x
+  docker run --rm \
+    --mount type=bind,src=${PROJECT_ROOT},dst=${CORSO_BUILD_CONTAINER}          \
+    --mount type=bind,src=${CORSO_BUILD_TMP_CACHE},dst=${CORSO_BUILD_TMP_CACHE} \
+    --mount type=bind,src=${CORSO_BUILD_TMP_MOD},dst=${CORSO_BUILD_PKG_MOD}     \
+    --workdir ${CORSO_BUILD_CONTAINER_SRC}                                      \
+    --env GOMODCACHE=${CORSO_MOD_CACHE}                                         \
+    --env GOCACHE=${CORSO_CACHE}                                                \
+    --env GOOS=${GOOS}                                                          \
+    --env GOARCH=${GOARCH}                                                      \
+    --entrypoint /usr/local/go/bin/go                                           \
+    golang:${GOVER}                                                             \
+    build ${CORSO_BUILD_ARGS}
+  set +x
+
+  mkdir -p ${PROJECT_ROOT}/bin/${GOOS}-${GOARCH}
+  mv ${PROJECT_ROOT}/src/corso ${PROJECT_ROOT}/bin/${GOOS}-${GOARCH}/corso
+
+  echo "-----"
+  echo "created binary image in ${PROJECT_ROOT}/bin/${GOOS}-${GOARCH}/corso"
+  echo "-----"
+done
