@@ -28,6 +28,10 @@ const config = {
   },
   staticDirectories: ['static', 'public'],
 
+  plugins: [
+    require.resolve('docusaurus-plugin-image-zoom')
+  ],
+
   presets: [
     [
       'classic',
@@ -114,6 +118,21 @@ const config = {
         disableSwitch: true,
         respectPrefersColorScheme: true,
       },
+
+      zoom: {
+        selector: '.markdown img',
+        background: {
+          light: 'rgb(255, 255, 255)',
+          dark: 'rgb(50, 50, 50)'
+        },
+        // options you can specify via https://github.com/francoischalifour/medium-zoom#usage
+        config: {
+          margin: 24,
+          background: '#242526',
+          scrollOffset: 0,
+        },
+      },
+
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
