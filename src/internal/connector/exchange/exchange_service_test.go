@@ -380,5 +380,4 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 		userID)
 	assert.NoError(t, err)
 	t.Logf("%v\n", err)
-
 }
