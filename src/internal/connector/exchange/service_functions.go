@@ -289,6 +289,12 @@ func RestoreExchangeObject(
 	}
 }
 
+// RestoreExchangeContact restores a contact to the
+// @bits byte representation of M365 contact object
+// @destination M365 ID representing a M365 Contact_Folder
+// Returns an error if the input bits do not parsent into a models.Contactable object
+// or if an error is encountered sending data to the M365 account.
+// Post details: https://docs.microsoft.com/en-us/graph/api/user-post-contacts?view=graph-rest-1.0&tabs=go
 func RestoreExchangeContact(
 	ctx context.Context,
 	bits []byte,
@@ -300,10 +306,15 @@ func RestoreExchangeContact(
 	if err != nil {
 		return err
 	}
-	// swap Contact
 
-	// Post
-	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(clone)
+	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
+	if err != nil {
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+	if response == nil {
+		return errors.New("msgraph contact post fail: REST response not received")
+	}
+	return nil
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
