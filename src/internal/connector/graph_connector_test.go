@@ -274,26 +274,28 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 // Exchange Functions
 //-------------------------------------------------------
 
-//  TestCreateAndDeleteFolder ensures GraphConnector has the ability
+//  TestCreateAndDeleteMailFolder ensures GraphConnector has the ability
 //  to create and remove folders within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteFolder() {
-	userID := tester.M365UserID(suite.T())
+func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, userID, folderName)
+	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, suite.user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 	if aFolder != nil {
-		err = exchange.DeleteMailFolder(suite.connector.Service(), userID, *aFolder.GetId())
+		err = exchange.DeleteMailFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 	}
 }
 
-// TestGetMailFolderID verifies the ability to retrieve folder ID of folders
-// at the top level of the file tree
-func (suite *GraphConnectorIntegrationSuite) TestGetMailFolderID() {
-	userID := tester.M365UserID(suite.T())
-	folderName := "Inbox"
-	folderID, err := exchange.GetMailFolderID(&suite.connector.graphService, folderName, userID)
+// TestCreateAndDeleteContactFolder ensures GraphConnector has the ability
+// to create and remove contact folders within the tenant
+func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() {
+	now := time.Now()
+	folderName := "TestContactFolder: " + common.FormatSimpleDateTime(now)
+	aFolder, err := exchange.CreateContactFolder(suite.connector.Service(), suite.user, folderName)
 	assert.NoError(suite.T(), err)
-	assert.NotNil(suite.T(), folderID)
+	if aFolder != nil {
+		err = exchange.DeleteContactFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
+		assert.NoError(suite.T(), err)
+	}
 }

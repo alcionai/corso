@@ -87,6 +87,21 @@ type MailFolder struct {
 	DisplayName string
 }
 
+// CreateContactFolder makes a contact folder with the displayName of folderName.
+// If successful, returns the created folder object.
+func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
+	requestBody := models.NewContactFolder()
+	requestBody.SetDisplayName(&folderName)
+
+	return gs.Client().UsersById(user).ContactFolders().Post(requestBody)
+}
+
+// DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
+// Errors returned if the function call was not successful.
+func DeleteContactFolder(gs graph.Service, user, folderID string) error {
+	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete()
+}
+
 // GetAllMailFolders retrieves all mail folders for the specified user.
 // If nameContains is populated, only returns mail matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
@@ -131,14 +146,29 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 	return mfs, err
 }
 
-// GetMailFolderID query function to retrieve the M365 ID based on the folder's displayName.
+// GetFolderID query function to retrieve the M365 ID based on the folder's displayName.
 // @param folderName the target folder's display name. Case sensitive
+// @param category switches query and iteration to support  multiple exchange applications
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
-	var errs error
-	var folderID *string
+func GetFolderID(service graph.Service, folderName, user string, category optionIdentifier) (*string, error) {
+	var (
+		errs      error
+		folderID  *string
+		query     GraphQuery
+		transform absser.ParsableFactory
+	)
+	switch category {
+	case messages:
+		query = GetAllFolderNamesForUser
+		transform = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
+	case contacts:
+		query = GetAllContactFolderNamesForUser
+		transform = models.CreateContactFolderFromDiscriminatorValue
+	default:
+		return nil, fmt.Errorf("unsupported category %s for GetFolderID()", category)
+	}
 
-	response, err := GetAllFolderNamesForUser(service, user)
+	response, err := query(service, user)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -146,31 +176,26 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 			user, support.ConnectorStackErrorTrace(err),
 		)
 	}
-
 	pageIterator, err := msgraphgocore.NewPageIterator(
 		response,
 		service.Adapter(),
-		models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
+		transform,
 	)
 	if err != nil {
 		return nil, err
 	}
-	callbackFunc := func(folderItem any) bool {
-		folder, ok := folderItem.(models.MailFolderable)
-		if !ok {
-			errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), errors.New("HasFolder() iteration failure"), errs)
-			return true
-		}
-		if *folder.GetDisplayName() == folderName {
-			folderID = folder.GetId()
-			return false
-		}
-		return true
+	callbackFunc := iterateFindFolderID(category,
+		&folderID,
+		folderName,
+		service.Adapter().GetBaseUrl(),
+		errs,
+	)
+
+	if err := pageIterator.Iterate(callbackFunc); err != nil {
+		return nil, support.WrapAndAppend(service.Adapter().GetBaseUrl(), err, errs)
 	}
-	iterateError := pageIterator.Iterate(callbackFunc)
-	if iterateError != nil {
-		errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), iterateError, errs)
-	} else if folderID == nil {
+
+	if folderID == nil {
 		return nil, ErrFolderNotFound
 	}
 
@@ -237,25 +262,52 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-// GetCopyRestoreFolder utility function to create an unique folder for the restore process
-func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
+// GetCopyRestoreFolder utility function to create
+//  an unique folder for the restore process
+// @param category: input from fullPath()[2]
+// that defines the application the folder is created in.
+func GetCopyRestoreFolder(
+	service graph.Service,
+	user, category string,
+) (string, error) {
 	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
-	isFolder, err := GetMailFolderID(service, newFolder, user)
-	if err != nil {
-		// Verify unique folder was not found
-		if errors.Is(err, ErrFolderNotFound) {
-
-			fold, err := CreateMailFolder(service, user, newFolder)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, err)
-			}
-			return fold.GetId(), nil
-		}
-
-		return nil, err
+	switch category {
+	case mailCategory, contactsCategory:
+		return establishFolder(service, newFolder, user, categoryToOptionIdentifier(category))
+	default:
+		return "", fmt.Errorf("%s category not supported", category)
 	}
+}
 
-	return isFolder, nil
+func establishFolder(
+	service graph.Service,
+	folderName, user string,
+	optID optionIdentifier,
+) (string, error) {
+	folderID, err := GetFolderID(service, folderName, user, optID)
+	if err == nil {
+		return *folderID, nil
+	}
+	// Experienced error other than folder does not exist
+	if !errors.Is(err, ErrFolderNotFound) {
+		return "", support.WrapAndAppend(user, err, err)
+	}
+	switch optID {
+	case messages:
+		fold, err := CreateMailFolder(service, user, folderName)
+		if err != nil {
+			return "", support.WrapAndAppend(user, err, err)
+		}
+		return *fold.GetId(), nil
+	case contacts:
+		fold, err := CreateContactFolder(service, user, folderName)
+		if err != nil {
+			return "", support.WrapAndAppend(user, err, err)
+		}
+		return *fold.GetId(), nil
+	default:
+		return "", fmt.Errorf("category: %s not supported for folder creation", optID)
+	}
 }
 
 func RestoreExchangeObject(
@@ -268,10 +320,8 @@ func RestoreExchangeObject(
 ) error {
 	var setting optionIdentifier
 	switch category {
-	case mailCategory:
-		setting = messages
-	case contactsCategory:
-		setting = contacts
+	case mailCategory, contactsCategory:
+		setting = categoryToOptionIdentifier(category)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}

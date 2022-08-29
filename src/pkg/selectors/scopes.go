@@ -51,7 +51,7 @@ type (
 	}
 	// categoryT is the generic type interface of a categorizer
 	categoryT interface {
-		~int
+		~string
 		categorizer
 	}
 )
