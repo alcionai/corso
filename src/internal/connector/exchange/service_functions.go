@@ -288,7 +288,7 @@ func establishFolder(
 	if err == nil {
 		return *folderID, nil
 	}
-	// Experienced error other than folder does not exit
+	// Experienced error other than folder does not exist
 	if !errors.Is(err, ErrFolderNotFound) {
 		return "", support.WrapAndAppend(user, err, err)
 	}
