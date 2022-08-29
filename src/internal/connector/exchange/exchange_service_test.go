@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"testing"
+	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
@@ -424,16 +426,26 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 	}
 }
 
-// TestRestoreContact ensures that file can be created
+// TestRestoreContact ensures contact object can be created, placed into
+// the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	t := suite.T()
 	userID := tester.M365UserID(suite.T())
+	now := time.Now()
+
+	folderName := "TestRestoreContact: " + common.FormatSimpleDateTime(now)
+	aFolder, err := CreateContactFolder(suite.es, userID, folderName)
+	require.NoError(t, err)
+	folderID := *aFolder.GetId()
 	// TODO add folder for contact at the completion of the test delete the folder
-	err := RestoreExchangeContact(context.Background(),
-		mockconnector.GetMockContactBytes("Weird Middle Name"),
+	err = RestoreExchangeContact(context.Background(),
+		mockconnector.GetMockContactBytes("Corso TestContact"),
 		suite.es,
-		control.Copy, "Contacts",
+		control.Copy,
+		folderID,
 		userID)
 	assert.NoError(t, err)
-	t.Logf("%v\n", err)
+	//TearDown
+	err = DeleteContactFolder(suite.es, userID, folderID)
+	assert.NoError(t, err)
 }
