@@ -293,7 +293,7 @@ func iterateFindFolderID(
 			if !ok {
 				errs = support.WrapAndAppend(
 					errorIdentifier,
-					errors.New("invalid return on HasFolder.mail iteration failure"),
+					errors.New("struct does not implement displayable"),
 					errs,
 				)
 				return true
@@ -312,7 +312,7 @@ func iterateFindFolderID(
 			}
 			return true
 		default:
-			return true
+			return false
 		}
 	}
 }
