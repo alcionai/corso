@@ -139,7 +139,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	err = gc.RestoreMessages(ctx, dcs)
+	err = gc.RestoreExchangeDataCollection(ctx, dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err
