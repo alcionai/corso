@@ -292,7 +292,7 @@ func (s *exchange) Users(users []string) []ExchangeScope {
 // If the input is empty or selectors.None, the scope will always fail comparisons.
 func (sr *ExchangeRestore) MailReceivedAfter(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeInfoMailReceivedAfter, []string{timeStrings}),
+		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeFilterMailReceivedAfter, []string{timeStrings}),
 	}
 }
 
@@ -302,7 +302,7 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeStrings string) []ExchangeScope
 // If the input is empty or selectors.None, the scope will always fail comparisons.
 func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeInfoMailReceivedBefore, []string{timeStrings}),
+		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeFilterMailReceivedBefore, []string{timeStrings}),
 	}
 }
 
@@ -313,7 +313,7 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScop
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeInfoMailSender, senderIDs),
+		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeFilterMailSender, senderIDs),
 	}
 }
 
@@ -324,7 +324,7 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) MailSubject(subjectSubstrings []string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeInfoMailSubject, subjectSubstrings),
+		makeFilterScope[ExchangeScope](ExchangeMail, ExchangeFilterMailSubject, subjectSubstrings),
 	}
 }
 
@@ -372,56 +372,26 @@ func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
 
 // exchangeCategory enumerates the type of the lowest level
 // of data specified by the scope.
-type exchangeCategory int
+type exchangeCategory string
 
 // interface compliance checks
 var _ categorizer = ExchangeCategoryUnknown
 
-//go:generate stringer -type=exchangeCategory
 const (
-	ExchangeCategoryUnknown exchangeCategory = iota
+	ExchangeCategoryUnknown exchangeCategory = ""
 	// types of data identified by exchange
-	ExchangeContact
-	ExchangeContactFolder
-	ExchangeEvent
-	ExchangeMail
-	ExchangeMailFolder
-	ExchangeUser
+	ExchangeContact       exchangeCategory = "ExchangeContact"
+	ExchangeContactFolder exchangeCategory = "ExchangeContactFolder"
+	ExchangeEvent         exchangeCategory = "ExchangeEvent"
+	ExchangeMail          exchangeCategory = "ExchangeMail"
+	ExchangeMailFolder    exchangeCategory = "ExchangeFolder"
+	ExchangeUser          exchangeCategory = "ExchangeUser"
 	// filterable topics identified by exchange
-	ExchangeInfoMailSender exchangeCategory = iota + 100 // offset to pad out future data additions
-	ExchangeInfoMailSubject
-	ExchangeInfoMailReceivedAfter
-	ExchangeInfoMailReceivedBefore
+	ExchangeFilterMailSender         exchangeCategory = "ExchangeFilterMailSender"
+	ExchangeFilterMailSubject        exchangeCategory = "ExchangeFilterMailSubject"
+	ExchangeFilterMailReceivedAfter  exchangeCategory = "ExchangeFilterMailReceivedAfter"
+	ExchangeFilterMailReceivedBefore exchangeCategory = "ExchangeFilterMailReceivedBefore"
 )
-
-func exchangeCatAtoI(s string) exchangeCategory {
-	switch s {
-	// data types
-	case ExchangeContact.String():
-		return ExchangeContact
-	case ExchangeContactFolder.String():
-		return ExchangeContactFolder
-	case ExchangeEvent.String():
-		return ExchangeEvent
-	case ExchangeMail.String():
-		return ExchangeMail
-	case ExchangeMailFolder.String():
-		return ExchangeMailFolder
-	case ExchangeUser.String():
-		return ExchangeUser
-	// filters
-	case ExchangeInfoMailSender.String():
-		return ExchangeInfoMailSender
-	case ExchangeInfoMailSubject.String():
-		return ExchangeInfoMailSubject
-	case ExchangeInfoMailReceivedAfter.String():
-		return ExchangeInfoMailReceivedAfter
-	case ExchangeInfoMailReceivedBefore.String():
-		return ExchangeInfoMailReceivedBefore
-	default:
-		return ExchangeCategoryUnknown
-	}
-}
 
 // exchangePathSet describes the category type keys used in Exchange paths.
 // The order of each slice is important, and should match the order in which
@@ -431,6 +401,10 @@ var exchangePathSet = map[categorizer][]categorizer{
 	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
 	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
 	ExchangeUser:    {ExchangeUser}, // the root category must be represented
+}
+
+func (ec exchangeCategory) String() string {
+	return string(ec)
 }
 
 // leafCat returns the leaf category of the receiver.
@@ -530,7 +504,7 @@ var _ scoper = &ExchangeScope{}
 
 // Category describes the type of the data in scope.
 func (s ExchangeScope) Category() exchangeCategory {
-	return exchangeCatAtoI(s[scopeKeyCategory])
+	return exchangeCategory(s[scopeKeyCategory])
 }
 
 // categorizer type is a generic wrapper around Category.
@@ -548,7 +522,7 @@ func (s ExchangeScope) Contains(cat exchangeCategory, target string) bool {
 // FilterCategory returns the category enum of the scope filter.
 // If the scope is not a filter type, returns ExchangeUnknownCategory.
 func (s ExchangeScope) FilterCategory() exchangeCategory {
-	return exchangeCatAtoI(s[scopeKeyInfoFilter])
+	return exchangeCategory(s[scopeKeyInfoFilter])
 }
 
 // Granularity describes the granularity (directory || item)
@@ -627,7 +601,7 @@ func (s ExchangeScope) matchesEntry(
 	return matchesPathValues(s, cat.(exchangeCategory), pathValues) || s.matchesInfo(entry.Exchange)
 }
 
-// matchesInfo handles the standard behavior when comparing a scope and an exchangeInfo
+// matchesInfo handles the standard behavior when comparing a scope and an ExchangeFilter
 // returns true if the scope and info match for the provided category.
 func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	// we need values to match against
@@ -654,19 +628,19 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	// any of the targets for a given info filter may succeed.
 	for _, target := range targets {
 		switch filterCat {
-		case ExchangeInfoMailSender:
+		case ExchangeFilterMailSender:
 			if target == info.Sender {
 				return true
 			}
-		case ExchangeInfoMailSubject:
+		case ExchangeFilterMailSubject:
 			if strings.Contains(info.Subject, target) {
 				return true
 			}
-		case ExchangeInfoMailReceivedAfter:
+		case ExchangeFilterMailReceivedAfter:
 			if target < common.FormatTime(info.Received) {
 				return true
 			}
-		case ExchangeInfoMailReceivedBefore:
+		case ExchangeFilterMailReceivedBefore:
 			if target > common.FormatTime(info.Received) {
 				return true
 			}
