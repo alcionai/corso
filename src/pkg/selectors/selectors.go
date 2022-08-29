@@ -272,12 +272,16 @@ func addToSet(set []string, v []string) []string {
 	}
 
 	for _, vv := range v {
+		var matched bool
 		for _, s := range set {
 			if vv == s {
+				matched = true
 				continue
 			}
 		}
-		set = append(set, vv)
+		if !matched {
+			set = append(set, vv)
+		}
 	}
 
 	return set

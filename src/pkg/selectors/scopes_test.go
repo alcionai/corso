@@ -344,3 +344,114 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 		})
 	}
 }
+
+func (suite *SelectorScopesSuite) TestAddToSet() {
+	t := suite.T()
+	set := []string{}
+
+	set = addToSet(set, []string{})
+	assert.Len(t, set, 0)
+
+	set = addToSet(set, []string{"a"})
+	assert.Len(t, set, 1)
+	assert.Equal(t, set[0], "a")
+
+	set = addToSet(set, []string{"a"})
+	assert.Len(t, set, 1)
+
+	set = addToSet(set, []string{"a", "b"})
+	assert.Len(t, set, 2)
+	assert.Equal(t, set[0], "a")
+	assert.Equal(t, set[1], "b")
+
+	set = addToSet(set, []string{"c", "d"})
+	assert.Len(t, set, 4)
+	assert.Equal(t, set[0], "a")
+	assert.Equal(t, set[1], "b")
+	assert.Equal(t, set[2], "c")
+	assert.Equal(t, set[3], "d")
+}
+
+func (suite *SelectorScopesSuite) TestClean() {
+	table := []struct {
+		name   string
+		input  []string
+		expect []string
+	}{
+		{
+			name:   "nil",
+			input:  nil,
+			expect: None(),
+		},
+		{
+			name:   "has anyTgt",
+			input:  []string{"a", AnyTgt},
+			expect: Any(),
+		},
+		{
+			name:   "has noneTgt",
+			input:  []string{"a", NoneTgt},
+			expect: None(),
+		},
+		{
+			name:   "has anyTgt and noneTgt, any first",
+			input:  []string{"a", AnyTgt, NoneTgt},
+			expect: Any(),
+		},
+		{
+			name:   "has noneTgt and anyTgt, none first",
+			input:  []string{"a", NoneTgt, AnyTgt},
+			expect: None(),
+		},
+		{
+			name:   "already clean",
+			input:  []string{"a", "b"},
+			expect: []string{"a", "b"},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := clean(test.input)
+			assert.Equal(t, result, test.expect)
+		})
+	}
+}
+
+func (suite *SelectorScopesSuite) TestWrapFilter() {
+	table := []struct {
+		name       string
+		filter     filterFunc
+		input      []string
+		comparator int
+		target     string
+	}{
+		{
+			name:       "any",
+			filter:     filters.NewContains,
+			input:      Any(),
+			comparator: int(filters.Pass),
+			target:     AnyTgt,
+		},
+		{
+			name:       "none",
+			filter:     filters.NewIn,
+			input:      None(),
+			comparator: int(filters.Fail),
+			target:     NoneTgt,
+		},
+		{
+			name:       "something",
+			filter:     filters.NewEquals,
+			input:      []string{"userid"},
+			comparator: int(filters.Equal),
+			target:     "userid",
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ff := wrapFilter(test.filter)(test.input)
+			assert.Equal(t, int(ff.Comparator), test.comparator)
+			assert.Equal(t, ff.Target, test.target)
+		})
+	}
+}
