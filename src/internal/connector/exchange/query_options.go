@@ -2,6 +2,7 @@ package exchange
 
 import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
+	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -84,6 +85,25 @@ const (
 	contacts
 )
 
+const (
+	mailCategory     = "mail"
+	contactsCategory = "contacts"
+	eventsCategory   = "events"
+)
+
+func categoryToOptionIdentifier(category string) optionIdentifier {
+	switch category {
+	case mailCategory:
+		return messages
+	case contactsCategory:
+		return contacts
+	case eventsCategory:
+		return events
+	default:
+		return unknown
+	}
+}
+
 //---------------------------------------------------
 // exchange.Query Option Section
 //------------------------------------------------
@@ -118,6 +138,23 @@ func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilde
 	}
 	options := &msitem.MessageItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
+	}
+	return options, nil
+}
+
+func optionsForContactFolders(moreOps []string) (
+	*mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration,
+	error,
+) {
+	selecting, err := buildOptions(moreOps, folders)
+	if err != nil {
+		return nil, err
+	}
+	requestParameters := &mscontactfolder.ContactFoldersRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
 	}
 	return options, nil
 }

@@ -12,12 +12,6 @@ import (
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
-const (
-	mailCategory     = "mail"
-	contactsCategory = "contacts"
-	eventsCategory   = "events"
-)
-
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a "parent folder".
 type descendable interface {
@@ -278,5 +272,47 @@ func IterateFilterFolderDirectoriesForCollections(
 		collections[directory] = &temp
 
 		return true
+	}
+}
+
+// iterateFindFolderID is a utility function that supports finding
+// M365 folders objects that matches the folderName. Iterator callback function
+// will work on folderCollection responses whose objects implement
+// the displayable interface. If folder exists, the function updates the
+// folderID memory address that was passed in.
+func iterateFindFolderID(
+	category optionIdentifier,
+	folderID **string,
+	folderName, errorIdentifier string,
+	errs error,
+) func(any) bool {
+	return func(entry any) bool {
+		switch category {
+		case messages, contacts:
+			folder, ok := entry.(displayable)
+			if !ok {
+				errs = support.WrapAndAppend(
+					errorIdentifier,
+					errors.New("struct does not implement displayable"),
+					errs,
+				)
+				return true
+			}
+			// Display name not set on folder
+			if folder.GetDisplayName() == nil {
+				return true
+			}
+			name := *folder.GetDisplayName()
+			if folderName == name {
+				if folder.GetId() == nil {
+					return true // invalid folder
+				}
+				*folderID = folder.GetId()
+				return false
+			}
+			return true
+		default:
+			return false
+		}
 	}
 }

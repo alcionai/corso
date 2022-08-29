@@ -34,7 +34,7 @@ func GetAllMessagesForUser(gs graph.Service, user string) (absser.Parsable, erro
 
 // GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
 func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	selecting := []string{"id", "parentFolderId"}
+	selecting := []string{"parentFolderId"}
 	options, err := optionsForContacts(selecting)
 	if err != nil {
 		return nil, err
@@ -46,12 +46,23 @@ func GetAllContactsForUser(gs graph.Service, user string) (absser.Parsable, erro
 // GetAllFolderDisplayNamesForUser is a GraphQuery function for getting FolderId and display
 // names for Mail Folder. All other information for the MailFolder object is omitted.
 func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	options, err := optionsForMailFolders([]string{"id", "displayName"})
+	options, err := optionsForMailFolders([]string{"displayName"})
 	if err != nil {
 		return nil, err
 	}
 
 	return gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
+// GetAllContactFolderNamesForUser is a GraphQuery function for getting ContactFolderId
+// and display names for contacts. All other information is omitted.
+// Does not return the primary Contact Folder
+func GetAllContactFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
+	options, err := optionsForContactFolders([]string{"displayName"})
+	if err != nil {
+		return nil, err
+	}
+	return gs.Client().UsersById(user).ContactFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
 // GetAllUsersForTenant is a GraphQuery for retrieving all the UserCollectionResponse with
