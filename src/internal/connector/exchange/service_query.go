@@ -101,7 +101,6 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 
 func CollectMailFolders(
 	scope selectors.ExchangeScope,
-	tenant string,
 	user string,
 	collections map[string]*Collection,
 	credentials account.M365Config,
@@ -132,7 +131,6 @@ func CollectMailFolders(
 	}
 
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
-		tenant,
 		user,
 		scope,
 		err,

@@ -320,13 +320,13 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 		{
 			name:              "Mail Iterative Check",
 			queryFunction:     GetAllMessagesForUser,
-			iterativeFunction: IterateSelectAllMessagesForCollections,
+			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             mailScope,
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Contacts Iterative Check",
 			queryFunction:     GetAllContactsForUser,
-			iterativeFunction: IterateAllContactsForCollection,
+			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             contactScope,
 			transformer:       models.CreateContactFromDiscriminatorValue,
 		}, {
@@ -352,7 +352,6 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
-				"testingTenant",
 				userID,
 				test.scope,
 				errs, false,
