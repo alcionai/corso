@@ -403,8 +403,8 @@ var exchangePathSet = map[categorizer][]categorizer{
 	ExchangeUser:    {ExchangeUser}, // the root category must be represented
 }
 
-func (c exchangeCategory) String() string {
-	return string(c)
+func (ec exchangeCategory) String() string {
+	return string(ec)
 }
 
 // leafCat returns the leaf category of the receiver.
