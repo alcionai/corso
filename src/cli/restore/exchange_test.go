@@ -162,7 +162,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		{
 			name:             "multiple users",
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 6,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "any users, any data",
@@ -292,7 +292,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			name:             "many users, events",
 			events:           []string{"foo", "bar"},
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 2,
+			expectIncludeLen: 1,
 		},
 		{
 			name:             "many users, events + contacts",
@@ -300,7 +300,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			contactFolders:   []string{"foo", "bar"},
 			events:           []string{"foo", "bar"},
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 6,
+			expectIncludeLen: 2,
 		},
 	}
 	for _, test := range table {

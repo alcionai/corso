@@ -265,8 +265,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		if folder.GetDisplayName() == nil {
 			return true
 		}
-
-		if !scope.Contains(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+		if !scope.Matches(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
 			return true
 		}
 
