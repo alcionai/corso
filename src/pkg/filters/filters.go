@@ -95,7 +95,7 @@ func Contains(target string) Filter {
 	return newFilter(TargetContains, target, false)
 }
 
-// Contains creates a filter where Compare(v) is true if
+// NotContains creates a filter where Compare(v) is true if
 // !target.Contains(v)
 func NotContains(target string) Filter {
 	return newFilter(TargetContains, target, true)
