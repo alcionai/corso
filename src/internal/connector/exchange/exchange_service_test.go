@@ -78,6 +78,42 @@ func (suite *ExchangeServiceSuite) TestCreateService() {
 	}
 }
 
+func (suite *ExchangeServiceSuite) TestOptionsForCalendars() {
+	tests := []struct {
+		name       string
+		params     []string
+		checkError assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Empty Literal",
+			params:     []string{},
+			checkError: assert.NoError,
+		},
+		{
+			name:       "Invalid Parameter",
+			params:     []string{"status"},
+			checkError: assert.Error,
+		},
+		{
+			name:       "Invalid Parameters",
+			params:     []string{"status", "height", "month"},
+			checkError: assert.Error,
+		},
+		{
+			name:       "Valid Parameters",
+			params:     []string{"changeKey", "events", "owner"},
+			checkError: assert.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := optionsForCalendars(test.params)
+			test.checkError(t, err)
+
+		})
+	}
+}
+
 // TestOptionsForMessages checks to ensure approved query
 // options are added to the type specific RequestBuildConfiguration. Expected
 // will be +1 on all select parameters
@@ -246,6 +282,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			name:     "GraphQuery: Get All Events for User",
 			function: GetAllEventsForUser,
 		},
+		{
+			name:     "GraphQuery: Get All Calendars for User",
+			function: GetAllCalendarNamesForUser,
+		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -337,7 +377,7 @@ func (suite *ExchangeServiceSuite) TestGetFolderID() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := GetFolderID(
+			_, err := GetContainerID(
 				suite.es,
 				test.folderName,
 				userID,
