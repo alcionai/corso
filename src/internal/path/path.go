@@ -245,31 +245,30 @@ func validateEscapedElement(element string) error {
 }
 
 // trimTrailingSlash takes an escaped path element and returns an escaped path
-// element with the trailing path separator character removed if it was not
-// escaped. If there was no trailing path separator character or the separator
-// was escaped the input is returned unchanged.
+// element with the trailing path separator character(s) removed if they were not
+// escaped. If there were no trailing path separator character(s) or the separator(s)
+// were escaped the input is returned unchanged.
 func trimTrailingSlash(element string) string {
-	lastIdx := len(element) - 1
+	for len(element) > 0 && element[len(element)-1] == pathSeparator {
+		lastIdx := len(element) - 1
+		numSlashes := 0
 
-	if element[lastIdx] != pathSeparator {
-		return element
-	}
+		for i := lastIdx - 1; i >= 0; i-- {
+			if element[i] != escapeCharacter {
+				break
+			}
 
-	numSlashes := 0
+			numSlashes++
+		}
 
-	for i := lastIdx - 1; i >= 0; i-- {
-		if element[i] != escapeCharacter {
+		if numSlashes%2 != 0 {
 			break
 		}
 
-		numSlashes++
+		element = element[:lastIdx]
 	}
 
-	if numSlashes%2 != 0 {
-		return element
-	}
-
-	return element[:lastIdx]
+	return element
 }
 
 // join returns a string containing the given elements joined by the path

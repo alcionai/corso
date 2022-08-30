@@ -170,12 +170,32 @@ var basicEscapedInputs = []testData{
 		expectedString: `this/is/a/path`,
 	},
 	{
+		name: "MultipleTrailingElementSeparator",
+		input: []string{
+			`this`,
+			`is`,
+			`a///`,
+			`path`,
+		},
+		expectedString: `this/is/a/path`,
+	},
+	{
 		name: "TrailingSeparatorAtEnd",
 		input: []string{
 			`this`,
 			`is`,
 			`a`,
 			`path/`,
+		},
+		expectedString: `this/is/a/path`,
+	},
+	{
+		name: "MultipleTrailingSeparatorAtEnd",
+		input: []string{
+			`this`,
+			`is`,
+			`a`,
+			`path///`,
 		},
 		expectedString: `this/is/a/path`,
 	},
