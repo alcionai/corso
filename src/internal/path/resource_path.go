@@ -1,5 +1,11 @@
 package path
 
+import (
+	"github.com/pkg/errors"
+)
+
+const unknownServiceCombination = "unknown service/category combination %q/%q"
+
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
@@ -8,6 +14,15 @@ const (
 	ExchangeService             // exchange
 )
 
+func toServiceType(service string) ServiceType {
+	switch service {
+	case ExchangeService.String():
+		return ExchangeService
+	default:
+		return UnknownService
+	}
+}
+
 type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
@@ -15,6 +30,47 @@ const (
 	UnknownCategory CategoryType = iota
 	EmailCategory                // email
 )
+
+func toCategoryType(category string) CategoryType {
+	switch category {
+	case EmailCategory.String():
+		return EmailCategory
+	default:
+		return UnknownCategory
+	}
+}
+
+// serviceCategories is a mapping of all valid service/category pairs.
+var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
+	ExchangeService: {
+		EmailCategory: {},
+	},
+}
+
+func validateServiceAndCategory(s, c string) (ServiceType, CategoryType, error) {
+	// Validity of service checked on first-level lookup to serviceCategories.
+	service := toServiceType(s)
+
+	category := toCategoryType(c)
+	if category == UnknownCategory {
+		return UnknownService, UnknownCategory, errors.Errorf("unknown category string %q", c)
+	}
+
+	cats, ok := serviceCategories[service]
+	if !ok {
+		return UnknownService, UnknownCategory, errors.Errorf("unknown service string %q", s)
+	}
+
+	if _, ok := cats[category]; !ok {
+		return UnknownService, UnknownCategory, errors.Errorf(
+			unknownServiceCombination,
+			service,
+			category,
+		)
+	}
+
+	return service, category, nil
+}
 
 // dataLayerResourcePath allows callers to extract information from a
 // resource-specific path. This struct is unexported so that callers are
