@@ -260,6 +260,21 @@ func (s *exchange) Users(users []string) []ExchangeScope {
 // -------------------
 // Filter Factories
 
+// Produces one or more exchange contact name filter scopes.
+// Matches any contact whose name contains one of the provided strings.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) ContactName(senderIDs []string) []ExchangeScope {
+	return []ExchangeScope{
+		makeFilterScope[ExchangeScope](
+			ExchangeContact,
+			ExchangeFilterContactName,
+			senderIDs,
+			wrapFilter(filters.NewIn)),
+	}
+}
+
 // Produces an exchange mail received-after filter scope.
 // Matches any mail which was received after the timestring.
 // If the input equals selectors.Any, the scope will match all times.
@@ -289,7 +304,7 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScop
 }
 
 // Produces one or more exchange mail sender filter scopes.
-// Matches any mail whose mail sender equals one of the provided strings.
+// Matches any mail whose sender contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -304,7 +319,7 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 }
 
 // Produces one or more exchange mail subject line filter scopes.
-// Matches any mail whose mail subject contains one of the provided strings.
+// Matches any mail whose subject contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -376,11 +391,15 @@ const (
 	ExchangeMail          exchangeCategory = "ExchangeMail"
 	ExchangeMailFolder    exchangeCategory = "ExchangeFolder"
 	ExchangeUser          exchangeCategory = "ExchangeUser"
+	// append new data cats here
+
 	// filterable topics identified by exchange
 	ExchangeFilterMailSender         exchangeCategory = "ExchangeFilterMailSender"
 	ExchangeFilterMailSubject        exchangeCategory = "ExchangeFilterMailSubject"
 	ExchangeFilterMailReceivedAfter  exchangeCategory = "ExchangeFilterMailReceivedAfter"
 	ExchangeFilterMailReceivedBefore exchangeCategory = "ExchangeFilterMailReceivedBefore"
+	ExchangeFilterContactName        exchangeCategory = "ExchangeFilterContactName"
+	// append new filter cats here
 )
 
 // exchangePathSet describes the category type keys used in Exchange paths.
@@ -407,7 +426,7 @@ func (ec exchangeCategory) String() string {
 // Ex: ExchangeUser.leafCat() => ExchangeUser
 func (ec exchangeCategory) leafCat() categorizer {
 	switch ec {
-	case ExchangeContact, ExchangeContactFolder:
+	case ExchangeContact, ExchangeContactFolder, ExchangeFilterContactName:
 		return ExchangeContact
 	case ExchangeMail, ExchangeMailFolder, ExchangeFilterMailReceivedAfter,
 		ExchangeFilterMailReceivedBefore, ExchangeFilterMailSender, ExchangeFilterMailSubject:
@@ -606,6 +625,8 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	i := ""
 
 	switch filterCat {
+	case ExchangeFilterContactName:
+		i = info.ContactName
 	case ExchangeFilterMailSender:
 		i = info.Sender
 	case ExchangeFilterMailSubject:
