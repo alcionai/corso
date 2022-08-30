@@ -240,11 +240,9 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 		category := dc.FullPath()[2]
 		if _, ok := pathCounter[directory]; !ok {
 			pathCounter[directory] = true
-			if policy == control.Copy {
-				folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user, category)
-				if errs != nil {
-					return errs
-				}
+			folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user, category)
+			if errs != nil {
+				return errs
 			}
 		}
 		var exit bool
@@ -265,7 +263,6 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
 					continue
 				}
-				category := dc.FullPath()[2]
 				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
 
 				if err != nil {
