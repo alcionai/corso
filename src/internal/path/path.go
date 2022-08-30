@@ -240,7 +240,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, errors.Errorf("path has too few segments: %s", p)
 	}
 
-	if err := pb.verifyPrefix(pb.elements[0], pb.elements[1]); err != nil {
+	if err := pb.verifyPrefix(pb.elements[0], pb.elements[2]); err != nil {
 		return nil, errors.Wrapf(err, errPathParsing, p)
 	}
 
