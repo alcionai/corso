@@ -111,12 +111,9 @@ func (s *oneDrive) Filter(scopes ...[]OneDriveScope) {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *oneDrive) Users(users []string) []OneDriveScope {
-	users = normalize(users)
 	scopes := []OneDriveScope{}
 
-	for _, u := range users {
-		scopes = append(scopes, makeScope[OneDriveScope](u, Group, OneDriveUser, users))
-	}
+	scopes = append(scopes, makeScope[OneDriveScope](Group, OneDriveUser, users, users))
 
 	return scopes
 }
@@ -226,7 +223,7 @@ var _ scoper = &OneDriveScope{}
 
 // Category describes the type of the data in scope.
 func (s OneDriveScope) Category() oneDriveCategory {
-	return oneDriveCategory(s[scopeKeyCategory])
+	return oneDriveCategory(getCategory(s))
 }
 
 // categorizer type is a generic wrapper around Category.
@@ -238,13 +235,13 @@ func (s OneDriveScope) categorizer() categorizer {
 // FilterCategory returns the category enum of the scope filter.
 // If the scope is not a filter type, returns OneDriveUnknownCategory.
 func (s OneDriveScope) FilterCategory() oneDriveCategory {
-	return oneDriveCategory(s[scopeKeyInfoFilter])
+	return oneDriveCategory(getFilterCategory(s))
 }
 
 // Granularity describes the granularity (directory || item)
 // of the data in scope.
 func (s OneDriveScope) Granularity() string {
-	return s[scopeKeyGranularity]
+	return getGranularity(s)
 }
 
 // IncludeCategory checks whether the scope includes a
@@ -255,10 +252,10 @@ func (s OneDriveScope) IncludesCategory(cat oneDriveCategory) bool {
 	return categoryMatches(s.Category(), cat)
 }
 
-// Contains returns true if the category is included in the scope's
-// data type, and the target string is included in the scope.
-func (s OneDriveScope) Contains(cat oneDriveCategory, target string) bool {
-	return contains(s, cat, target)
+// Matches returns true if the category is included in the scope's
+// data type, and the target string matches that category's comparator.
+func (s OneDriveScope) Matches(cat oneDriveCategory, target string) bool {
+	return matches(s, cat, target)
 }
 
 // returns true if the category is included in the scope's data type,

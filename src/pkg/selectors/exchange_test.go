@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/filters"
 )
 
 type ExchangeSelectorSuite struct {
@@ -69,10 +70,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Contacts() {
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], folder)
-	assert.Equal(t, scope[ExchangeContact.String()], join(c1, c2))
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeContactFolder: folder,
+			ExchangeContact:       join(c1, c2),
+		},
+	)
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
@@ -90,10 +96,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], folder)
-	assert.Equal(t, scope[ExchangeContact.String()], join(c1, c2))
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeContactFolder: folder,
+			ExchangeContact:       join(c1, c2),
+		},
+	)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeContact)
 }
@@ -112,10 +123,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_ContactFolders(
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeContactFolder: join(f1, f2),
+			ExchangeContact:       AnyTgt,
+		},
+	)
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders() {
@@ -132,10 +148,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders(
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeContactFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeContactFolder: join(f1, f2),
+			ExchangeContact:       AnyTgt,
+		},
+	)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeContactFolder)
 }
@@ -154,9 +175,14 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeEvent.String()], join(e1, e2))
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:  user,
+			ExchangeEvent: join(e1, e2),
+		},
+	)
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
@@ -173,9 +199,14 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeEvent.String()], join(e1, e2))
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:  user,
+			ExchangeEvent: join(e1, e2),
+		},
+	)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeEvent)
 }
@@ -195,10 +226,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], folder)
-	assert.Equal(t, scope[ExchangeMail.String()], join(m1, m2))
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:       user,
+			ExchangeMailFolder: folder,
+			ExchangeMail:       join(m1, m2),
+		},
+	)
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
@@ -216,10 +252,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], folder)
-	assert.Equal(t, scope[ExchangeMail.String()], join(m1, m2))
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:       user,
+			ExchangeMailFolder: folder,
+			ExchangeMail:       join(m1, m2),
+		},
+	)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeMail)
 }
@@ -238,10 +279,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_MailFolders() {
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:       user,
+			ExchangeMailFolder: join(f1, f2),
+			ExchangeMail:       AnyTgt,
+		},
+	)
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
@@ -258,10 +304,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
-	scope := scopes[0]
-	assert.Equal(t, scope[ExchangeUser.String()], user)
-	assert.Equal(t, scope[ExchangeMailFolder.String()], join(f1, f2))
-	assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:       user,
+			ExchangeMailFolder: join(f1, f2),
+			ExchangeMail:       AnyTgt,
+		},
+	)
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeMailFolder)
 }
@@ -277,23 +328,45 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Users() {
 
 	sel.Exclude(sel.Users([]string{u1, u2}))
 	scopes := sel.Excludes
-	require.Len(t, scopes, 6)
+	require.Len(t, scopes, 3)
 
-	for _, scope := range scopes {
-		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+	for _, sc := range scopes {
+		scopeMustHave(
+			t,
+			ExchangeScope(sc),
+			map[categorizer]string{ExchangeUser: join(u1, u2)},
+		)
 
-		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
-			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
-			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
+		if sc[scopeKeyCategory].Matches(ExchangeContactFolder.String()) {
+			scopeMustHave(
+				t,
+				ExchangeScope(sc),
+				map[categorizer]string{
+					ExchangeContact:       AnyTgt,
+					ExchangeContactFolder: AnyTgt,
+				},
+			)
 		}
 
-		if scope[scopeKeyCategory] == ExchangeEvent.String() {
-			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
+		if sc[scopeKeyCategory].Matches(ExchangeEvent.String()) {
+			scopeMustHave(
+				t,
+				ExchangeScope(sc),
+				map[categorizer]string{
+					ExchangeEvent: AnyTgt,
+				},
+			)
 		}
 
-		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
-			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
-			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+		if sc[scopeKeyCategory].Matches(ExchangeMailFolder.String()) {
+			scopeMustHave(
+				t,
+				ExchangeScope(sc),
+				map[categorizer]string{
+					ExchangeMail:       AnyTgt,
+					ExchangeMailFolder: AnyTgt,
+				},
+			)
 		}
 	}
 }
@@ -309,23 +382,45 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 
 	sel.Include(sel.Users([]string{u1, u2}))
 	scopes := sel.Includes
-	require.Len(t, scopes, 6)
+	require.Len(t, scopes, 3)
 
-	for _, scope := range scopes {
-		assert.Contains(t, join(u1, u2), scope[ExchangeUser.String()])
+	for _, sc := range scopes {
+		scopeMustHave(
+			t,
+			ExchangeScope(sc),
+			map[categorizer]string{ExchangeUser: join(u1, u2)},
+		)
 
-		if scope[scopeKeyCategory] == ExchangeContactFolder.String() {
-			assert.Equal(t, scope[ExchangeContact.String()], AnyTgt)
-			assert.Equal(t, scope[ExchangeContactFolder.String()], AnyTgt)
+		if sc[scopeKeyCategory].Matches(ExchangeContactFolder.String()) {
+			scopeMustHave(
+				t,
+				ExchangeScope(sc),
+				map[categorizer]string{
+					ExchangeContact:       AnyTgt,
+					ExchangeContactFolder: AnyTgt,
+				},
+			)
 		}
 
-		if scope[scopeKeyCategory] == ExchangeEvent.String() {
-			assert.Equal(t, scope[ExchangeEvent.String()], AnyTgt)
+		if sc[scopeKeyCategory].Matches(ExchangeEvent.String()) {
+			scopeMustHave(
+				t,
+				ExchangeScope(sc),
+				map[categorizer]string{
+					ExchangeEvent: AnyTgt,
+				},
+			)
 		}
 
-		if scope[scopeKeyCategory] == ExchangeMailFolder.String() {
-			assert.Equal(t, scope[ExchangeMail.String()], AnyTgt)
-			assert.Equal(t, scope[ExchangeMailFolder.String()], AnyTgt)
+		if sc[scopeKeyCategory].Matches(ExchangeMailFolder.String()) {
+			scopeMustHave(
+				t,
+				ExchangeScope(sc),
+				map[categorizer]string{
+					ExchangeMail:       AnyTgt,
+					ExchangeMailFolder: AnyTgt,
+				},
+			)
 		}
 	}
 }
@@ -470,7 +565,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_Category() {
 	for _, test := range table {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
 			eb := NewExchangeBackup()
-			eb.Includes = []scope{{scopeKeyCategory: test.is.String()}}
+			eb.Includes = []scope{
+				{scopeKeyCategory: filters.NewIdentity(test.is.String())},
+			}
 			scope := eb.Scopes()[0]
 			test.check(t, test.expect, scope.Category())
 		})
@@ -502,7 +599,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 	for _, test := range table {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
 			eb := NewExchangeBackup()
-			eb.Includes = []scope{{scopeKeyCategory: test.is.String()}}
+			eb.Includes = []scope{
+				{scopeKeyCategory: filters.NewIdentity(test.is.String())},
+			}
 			scope := eb.Scopes()[0]
 			test.check(t, scope.IncludesCategory(test.expect))
 		})
@@ -984,7 +1083,7 @@ func (suite *ExchangeSelectorSuite) TestContains() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			var result bool
 			for _, scope := range test.scopes {
-				if scope.Contains(ExchangeMail, target) {
+				if scope.Matches(ExchangeMail, target) {
 					result = true
 					break
 				}

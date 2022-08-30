@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/pkg/filters"
 )
 
 type service int
@@ -51,6 +53,11 @@ const (
 	// Ex: {user: u1, events: NoneTgt} => matches nothing.
 	NoneTgt   = ""
 	delimiter = ","
+)
+
+var (
+	passAny = filters.NewPass()
+	failAny = filters.NewFail()
 )
 
 // All is the resource name that gets output when the resource is AnyTgt.
@@ -149,9 +156,8 @@ func discreteScopes[T scopeT, C categoryT](
 	discreteIDs []string,
 ) []T {
 	sl := []T{}
-	jdid := join(discreteIDs...)
 
-	if len(jdid) == 0 {
+	if len(discreteIDs) == 0 {
 		return scopes[T](s)
 	}
 
@@ -164,7 +170,7 @@ func discreteScopes[T scopeT, C categoryT](
 				w[k] = v
 			}
 
-			set(w, rootCat, jdid)
+			set(w, rootCat, discreteIDs)
 			t = w
 		}
 
@@ -246,31 +252,41 @@ func toResourceTypeMap(ms []scope) map[string][]string {
 
 	for _, m := range ms {
 		res := m[scopeKeyResource]
-		if res == AnyTgt {
-			res = All
+		k := res.Target
+
+		if res.Target == AnyTgt {
+			k = All
 		}
 
-		r[res] = addToSet(r[res], m[scopeKeyDataType])
+		r[k] = addToSet(r[k], m[scopeKeyDataType].Targets())
 	}
 
 	return r
 }
 
-// returns [v] if set is empty,
-// returns self if set contains v,
-// appends v to self, otherwise.
-func addToSet(set []string, v string) []string {
+// returns v if set is empty,
+// unions v with set, otherwise.
+func addToSet(set []string, v []string) []string {
 	if len(set) == 0 {
-		return []string{v}
+		return v
 	}
 
-	for _, s := range set {
-		if s == v {
-			return set
+	for _, vv := range v {
+		var matched bool
+
+		for _, s := range set {
+			if vv == s {
+				matched = true
+				break
+			}
+		}
+
+		if !matched {
+			set = append(set, vv)
 		}
 	}
 
-	return append(set, v)
+	return set
 }
 
 // ---------------------------------------------------------------------------
@@ -305,8 +321,8 @@ func split(s string) []string {
 // if the slice contains None, returns [None]
 // if the slice contains Any and None, returns the first
 // if the slice is empty, returns [None]
-// otherwise returns the input unchanged
-func normalize(s []string) []string {
+// otherwise returns the input
+func clean(s []string) []string {
 	if len(s) == 0 {
 		return None()
 	}
@@ -322,4 +338,54 @@ func normalize(s []string) []string {
 	}
 
 	return s
+}
+
+// filterize turns the slice into a filter.
+// if the input is Any(), returns a passAny filter.
+// if the input is None(), returns a failAny filter.
+// if the input is len(1), returns an Equals filter.
+// otherwise returns a Contains filter.
+func filterize(s ...string) filters.Filter {
+	s = clean(s)
+
+	if len(s) == 1 {
+		if s[0] == AnyTgt {
+			return passAny
+		}
+
+		if s[0] == NoneTgt {
+			return failAny
+		}
+
+		return filters.NewEquals(false, "", s[0])
+	}
+
+	return filters.NewContains(false, "", join(s...))
+}
+
+type filterFunc func(bool, any, string) filters.Filter
+
+// wrapFilter produces a func that filterizes the input by:
+// - cleans the input string
+// - normalizes the cleaned input (returns anyFail if empty, allFail if *)
+// - joins the string
+// - and generates a filter with the joined input.
+func wrapFilter(ff filterFunc) func([]string) filters.Filter {
+	return func(s []string) filters.Filter {
+		s = clean(s)
+
+		if len(s) == 1 {
+			if s[0] == AnyTgt {
+				return passAny
+			}
+
+			if s[0] == NoneTgt {
+				return failAny
+			}
+		}
+
+		ss := join(s...)
+
+		return ff(false, nil, ss)
+	}
 }

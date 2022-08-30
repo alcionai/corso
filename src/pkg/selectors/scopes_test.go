@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "none",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = NoneTgt
+				stub[rootCatStub.String()] = failAny
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -52,7 +53,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank value",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = ""
+				stub[rootCatStub.String()] = filters.NewEquals(false, nil, "")
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -62,7 +63,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = "fnords"
+				stub[rootCatStub.String()] = filterize("fnords")
 				return stub
 			},
 			check:  "",
@@ -72,7 +73,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = rootCatStub.String()
+				stub[rootCatStub.String()] = filterize(rootCatStub.String())
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -82,7 +83,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "non-matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = rootCatStub.String()
+				stub[rootCatStub.String()] = filterize(rootCatStub.String())
 				return stub
 			},
 			check:  "smarf",
@@ -93,7 +94,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			test.expect(
 				t,
-				contains(test.scope(), rootCatStub, test.check))
+				matches(test.scope(), rootCatStub, test.check))
 		})
 	}
 }
@@ -101,8 +102,10 @@ func (suite *SelectorScopesSuite) TestContains() {
 func (suite *SelectorScopesSuite) TestGetCatValue() {
 	t := suite.T()
 	stub := stubScope("")
-	stub[rootCatStub.String()] = rootCatStub.String()
-	assert.Equal(t, []string{rootCatStub.String()}, getCatValue(stub, rootCatStub))
+	stub[rootCatStub.String()] = filterize(rootCatStub.String())
+	assert.Equal(t,
+		[]string{rootCatStub.String()},
+		getCatValue(stub, rootCatStub))
 	assert.Equal(t, None(), getCatValue(stub, leafCatStub))
 }
 
@@ -250,7 +253,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	t := suite.T()
 	s1 := stubScope("")
 	s2 := stubScope("")
-	s2[scopeKeyCategory] = unknownCatStub.String()
+	s2[scopeKeyCategory] = filterize(unknownCatStub.String())
 	result := scopesByCategory[mockScope](
 		[]scope{scope(s1), scope(s2)},
 		map[pathType]mockCategorizer{
@@ -297,22 +300,158 @@ func toMockScope(sc []scope) []mockScope {
 }
 
 func (suite *SelectorScopesSuite) TestMatchesPathValues() {
-	t := suite.T()
 	cat := rootCatStub
-	sc := stubScope("")
-	sc[rootCatStub.String()] = rootCatStub.String()
-	sc[leafCatStub.String()] = leafCatStub.String()
 	pvs := stubPathValues()
-	assert.True(t, matchesPathValues(sc, cat, pvs), "matching values")
-	// "any" seems like it should pass, but this is the path value,
-	// not the scope value, so unless the scope is also "any", it fails.
-	pvs[rootCatStub] = AnyTgt
-	pvs[leafCatStub] = AnyTgt
-	assert.False(t, matchesPathValues(sc, cat, pvs), "any")
-	pvs[rootCatStub] = NoneTgt
-	pvs[leafCatStub] = NoneTgt
-	assert.False(t, matchesPathValues(sc, cat, pvs), "none")
-	pvs[rootCatStub] = "foo"
-	pvs[leafCatStub] = "bar"
-	assert.False(t, matchesPathValues(sc, cat, pvs), "mismatched values")
+
+	table := []struct {
+		name    string
+		rootVal string
+		leafVal string
+		expect  assert.BoolAssertionFunc
+	}{
+		{
+			name:    "matching values",
+			rootVal: rootCatStub.String(),
+			leafVal: leafCatStub.String(),
+			expect:  assert.True,
+		},
+		{
+			name:    "any",
+			rootVal: AnyTgt,
+			leafVal: AnyTgt,
+			expect:  assert.True,
+		},
+		{
+			name:    "none",
+			rootVal: NoneTgt,
+			leafVal: NoneTgt,
+			expect:  assert.False,
+		},
+		{
+			name:    "mismatched values",
+			rootVal: "fnords",
+			leafVal: "smarf",
+			expect:  assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sc := stubScope("")
+			sc[rootCatStub.String()] = filterize(test.rootVal)
+			sc[leafCatStub.String()] = filterize(test.leafVal)
+
+			test.expect(t, matchesPathValues(sc, cat, pvs))
+		})
+	}
+}
+
+func (suite *SelectorScopesSuite) TestAddToSet() {
+	t := suite.T()
+	set := []string{}
+
+	set = addToSet(set, []string{})
+	assert.Len(t, set, 0)
+
+	set = addToSet(set, []string{"a"})
+	assert.Len(t, set, 1)
+	assert.Equal(t, set[0], "a")
+
+	set = addToSet(set, []string{"a"})
+	assert.Len(t, set, 1)
+
+	set = addToSet(set, []string{"a", "b"})
+	assert.Len(t, set, 2)
+	assert.Equal(t, set[0], "a")
+	assert.Equal(t, set[1], "b")
+
+	set = addToSet(set, []string{"c", "d"})
+	assert.Len(t, set, 4)
+	assert.Equal(t, set[0], "a")
+	assert.Equal(t, set[1], "b")
+	assert.Equal(t, set[2], "c")
+	assert.Equal(t, set[3], "d")
+}
+
+func (suite *SelectorScopesSuite) TestClean() {
+	table := []struct {
+		name   string
+		input  []string
+		expect []string
+	}{
+		{
+			name:   "nil",
+			input:  nil,
+			expect: None(),
+		},
+		{
+			name:   "has anyTgt",
+			input:  []string{"a", AnyTgt},
+			expect: Any(),
+		},
+		{
+			name:   "has noneTgt",
+			input:  []string{"a", NoneTgt},
+			expect: None(),
+		},
+		{
+			name:   "has anyTgt and noneTgt, any first",
+			input:  []string{"a", AnyTgt, NoneTgt},
+			expect: Any(),
+		},
+		{
+			name:   "has noneTgt and anyTgt, none first",
+			input:  []string{"a", NoneTgt, AnyTgt},
+			expect: None(),
+		},
+		{
+			name:   "already clean",
+			input:  []string{"a", "b"},
+			expect: []string{"a", "b"},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := clean(test.input)
+			assert.Equal(t, result, test.expect)
+		})
+	}
+}
+
+func (suite *SelectorScopesSuite) TestWrapFilter() {
+	table := []struct {
+		name       string
+		filter     filterFunc
+		input      []string
+		comparator int
+		target     string
+	}{
+		{
+			name:       "any",
+			filter:     filters.NewContains,
+			input:      Any(),
+			comparator: int(filters.Pass),
+			target:     AnyTgt,
+		},
+		{
+			name:       "none",
+			filter:     filters.NewIn,
+			input:      None(),
+			comparator: int(filters.Fail),
+			target:     NoneTgt,
+		},
+		{
+			name:       "something",
+			filter:     filters.NewEquals,
+			input:      []string{"userid"},
+			comparator: int(filters.Equal),
+			target:     "userid",
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ff := wrapFilter(test.filter)(test.input)
+			assert.Equal(t, int(ff.Comparator), test.comparator)
+			assert.Equal(t, ff.Target, test.target)
+		})
+	}
 }
