@@ -53,13 +53,13 @@ type Filter struct {
 // Constructors
 // ----------------------------------------------------------------------------------------------------
 
-// Equals creates a filter where Compare(v) is true if
+// Equal creates a filter where Compare(v) is true if
 // target == v
 func Equal(target string) Filter {
 	return newFilter(EqualTo, target, false)
 }
 
-// NotEquals creates a filter where Compare(v) is true if
+// NotEqual creates a filter where Compare(v) is true if
 // target != v
 func NotEqual(target string) Filter {
 	return newFilter(EqualTo, target, true)
