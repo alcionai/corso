@@ -56,8 +56,8 @@ const (
 )
 
 var (
-	passAny = filters.NewPass()
-	failAny = filters.NewFail()
+	passAny = filters.Pass()
+	failAny = filters.Fail()
 )
 
 // All is the resource name that gets output when the resource is AnyTgt.
@@ -357,13 +357,13 @@ func filterize(s ...string) filters.Filter {
 			return failAny
 		}
 
-		return filters.NewEquals(false, "", s[0])
+		return filters.Equal(s[0])
 	}
 
-	return filters.NewContains(false, "", join(s...))
+	return filters.Contains(join(s...))
 }
 
-type filterFunc func(bool, any, string) filters.Filter
+type filterFunc func(string) filters.Filter
 
 // wrapFilter produces a func that filterizes the input by:
 // - cleans the input string
@@ -386,6 +386,6 @@ func wrapFilter(ff filterFunc) func([]string) filters.Filter {
 
 		ss := join(s...)
 
-		return ff(false, nil, ss)
+		return ff(ss)
 	}
 }
