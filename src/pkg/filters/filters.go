@@ -182,15 +182,6 @@ func less(target, input string) bool {
 	return target < input
 }
 
-// assumes target is a delimited string.
-// true if both:
-//   - less(target[0], input)
-//   - greater(target[1], input)
-func between(target, input string) bool {
-	parts := split(target)
-	return less(parts[0], input) && greater(parts[1], input)
-}
-
 // true if target contains input as a substring.
 func contains(target, input string) bool {
 	return strings.Contains(target, input)
