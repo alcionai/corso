@@ -5,7 +5,7 @@ description: "Connect to a Microsft 365 tenant"
 # Microsoft 365 access
 
 To perform backup and restore operations, Corso requires access to your [M365 tenant](/concepts#m365-concepts)
-through an [Azure AD application](/concepts#m365-concepts).  
+through an [Azure AD application](/concepts#m365-concepts) with appropriate permissions.  
 
 ## Create an Azure AD application
 
