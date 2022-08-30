@@ -11,8 +11,8 @@ there's also a docker container available. Instructions for installation are
 available on the golangci-lint
 [website](https://golangci-lint.run/usage/install/#local-installation). The
 version that you install should match the version the GitHub workflow uses to
-avoid failures even after running locally. The current version in use is
-[denoted](https://github.com/alcionai/corso/blob/main/.github/workflows/lint.yml#L55)
+avoid failures even after running locally. The current version in use can be
+[found](https://github.com/alcionai/corso/blob/main/.github/workflows/lint.yml#L55)
 in `.github/worflows/lint.yaml`.
 
 ## Running the linter
@@ -23,22 +23,21 @@ installed.
 
 ### Running with the `Makefile`
 
-There’s a `Makefile` in the repository that will automatically check if the proper
+There’s a `Makefile` in the corso/src that will automatically check if the proper
 golangci-lint version is installed and run it. This make rule can be run
 with `make lint`. If golangci-lint isn't installed locally or the wrong version
-is present it will tell you what version it expects and give a link to the
+is present it will tell you what version it expects and provide a link to the
 installation page.
 
 ### Running manually
 
-You can run golangci-lint manually by executing `golangci-lint run` in the Corso
-code directory. It will automatically use the `.golangci.yml` configuration file so it
-executes with the same settings as the GitHub action.
+You can run golangci-lint manually by executing `golangci-lint run` in the corso/src
+directory. This will automatically use corso's `.golangci.yml` configuration.
 
 ## Adding exceptions for lint errors
 
 Sometimes the linter will report an issue but it's not something that can or
-should be fixed. In those cases there are two ways to add a linter exception.
+should be fixed. In those cases there are two ways to add a linter exception:
 
 ### Single exception via comment
 
@@ -61,21 +60,138 @@ in the repository under the `issues` section.
 The configuration file allows for regex in the text property, so it’s useful to include
 the linter/rule that triggered the message. This ensures the lint error is only
 ignored for that linter. Combining the linter/rule with the error message text
-specific to that error also helps avoid ignoring other lint errors.
+specific to that error also helps minimize collisions with other lint errors.
 
-## Interpreting linter output
+## Working with the linters
 
-Some linters have output messages that don't make clear what the issue is. The
-following subsections give the version of golangci-lint that they apply to, the
-linter in question, and give guidance on interpreting lint messages.
+Some of the enabled linters, like `wsl`, are picky about how code is arranged.
+This section provides some tips on how to organize code to reduce lint errors.
+
+### `wsl`
+`wsl` is a linter that requires blank lines in parts of the code. It helps make
+the codebase more uniform and ensures the code doesn't feel too compact.
+
+#### Short-assignments versus var declarations
+Go allows declaring and assigning to a variable with either short-assignments
+(`x := 42`) or var assignments (`var x = 42`). `wsl` doesn't allow
+grouping these two types of variable declarations together. To work around this,
+you can convert all your declarations to one type or the other. Converting to
+short-assignments only works if the types in question have accessible and
+suitable default values.
+
+For example, the mixed set of declarations and assignments:
+
+```go
+var err error
+x := 42
+```
+
+should be changed to the following because using a short-assignment for type
+`error` is cumbersome.
+
+```go
+var (
+    err error
+    x = 42
+)
+```
+
+#### Post-increment and assignments
+`wsl` doesn't allow statements before an assignment without a blank line
+separating the two. Post-increment operators (e.x. `x++`) count as statements
+instead of assignments and may cause `wsl` to report an error. You can avoid
+this by moving the post-increment operator to be after the assignment instead of
+before it if the assignment doesn't depend on the increment operation.
+
+For example, the snippet:
+
+```go
+x++
+found = true
+```
+
+should be converted to:
+
+```go
+found = true
+x++
+```
+
+#### Functions using recently assigned values
+`wsl` allows functions immediately after assignments, but only if the function
+uses the assigned value. This requires an ordering for assignments and
+function calls.
+
+For example, the following code
+
+```go
+a := 7
+b := 42
+foo(a)
+```
+
+should be changed to
+
+```go
+b := 42
+a := 7
+foo(a)
+```
+
+If both the second assignment and function call depend on the value of the first
+assignment then the assignments and function call must be separated by a blank
+line.
+
+```go
+a := 7
+b := a + 35
+
+foo(a, b)
+```
+
+#### Function calls and checking returned error values
+One of the other linters expects error checks to follow assignments to the error
+variable without blank lines separating the two. One the other hand, `wsl` has
+requirements about what statements can be mixed with assignments. To work
+around this, you should separate assignments that involve an error from other
+assignments. For example
+
+```go
+a := 7
+b := 42
+c, err := foo()
+if err != nil {
+  ...
+}
+```
+
+should be changed to
+
+```go
+a := 7
+b := 42
+
+c, err := foo()
+if err != nil {
+  ...
+}
+```
+
+## Common problem linters
+
+Some linter messages aren't clear about what the issue is. Here's common
+cryptic messages we've dealt with in the past and how you can fix the problems
+the linters flag.
+Each subsection also includes the version of golangci-lint it applies to and the
+linter in question.
 
 ### `gci` `Expected 's', Found 'a' at file.go`
 
 This applies to golangci-lint v1.45.2 for the `gci` linter and is due to an import
 ordering issue. It occurs because imports in the file aren't grouped according
 to the import rules for Corso. Corso code should have three distinct import
-groups, system imports, third party imports, and imports of other Corso code
-like below. Typically the cause of a `gci` lint error is a Corso import in the
+groups: system imports, third party imports, and imports of other Corso packaged;
+see the example below. Typically the cause of a `gci` lint error is a Corso import in the
 block for third party libraries.
 
 ```go
@@ -86,3 +202,4 @@ import (
 
     "github.com/alcionai/corso/pkg/selector"
 )
+```
