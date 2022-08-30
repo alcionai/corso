@@ -41,6 +41,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const errPathParsing = "parsing resource path from %s"
+
 const (
 	escapeCharacter = '\\'
 	pathSeparator   = '/'
@@ -217,6 +219,47 @@ func (pb Builder) ToDataLayerExchangeMailItem(tenant, user string) (Path, error)
 	}, nil
 }
 
+// FromDataLayerPath parses the escaped path p, validates the elements in p
+// match a resource-specific path format, and returns a Path struct for that
+// resource-specific type. If p does not match any resource-specific paths or
+// is malformed returns an error.
+func FromDataLayerPath(p string, isItem bool) (Path, error) {
+	p = trimTrailingSlash(p)
+	// If p was just the path separator then it will be empty now.
+	if len(p) == 0 {
+		return nil, errors.Errorf("logically empty path given: %s", p)
+	}
+
+	// Turn into a Builder to reuse code that ignores empty elements.
+	pb, err := Builder{}.UnescapeAndAppend(split(p)...)
+	if err != nil {
+		return nil, errors.Wrapf(err, errPathParsing, p)
+	}
+
+	if len(pb.elements) < 5 {
+		return nil, errors.Errorf("path has too few segments: %s", p)
+	}
+
+	if err := pb.verifyPrefix(pb.elements[0], pb.elements[1]); err != nil {
+		return nil, errors.Wrapf(err, errPathParsing, p)
+	}
+
+	service, category, err := validateServiceAndCategory(
+		pb.elements[1],
+		pb.elements[3],
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err, errPathParsing, p)
+	}
+
+	return &dataLayerResourcePath{
+		Builder:  *pb,
+		service:  service,
+		category: category,
+		hasItem:  isItem,
+	}, nil
+}
+
 // escapeElement takes a single path element and escapes all characters that
 // require an escape sequence. If there are no characters that need escaping,
 // the input is returned unchanged.
@@ -345,4 +388,57 @@ func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(pathSeparator))
+}
+
+// split takes an escaped string and returns a slice of path elements. The
+// string is split on the path separator according to the escaping rules. The
+// provided string must not contain an unescaped trailing path separator.
+func split(segment string) []string {
+	res := make([]string, 0)
+	numEscapes := 0
+	startIdx := 0
+	// Start with true to ignore leading separator.
+	prevWasSeparator := true
+
+	for i, c := range segment {
+		if c == escapeCharacter {
+			prevWasSeparator = false
+			numEscapes++
+
+			continue
+		}
+
+		if c != pathSeparator {
+			prevWasSeparator = false
+			numEscapes = 0
+
+			continue
+		}
+
+		// Remaining is just path separator handling.
+		if numEscapes%2 != 0 {
+			// This is an escaped separator.
+			prevWasSeparator = false
+			numEscapes = 0
+
+			continue
+		}
+
+		// Ignore leading separator characters and don't add elements that would
+		// be empty.
+		if !prevWasSeparator {
+			res = append(res, segment[startIdx:i])
+		}
+
+		// We don't want to include the path separator in the result.
+		startIdx = i + 1
+		prevWasSeparator = true
+		numEscapes = 0
+	}
+
+	// Add the final segment because the loop above won't catch it. There should
+	// be no trailing separator character.
+	res = append(res, segment[startIdx:])
+
+	return res
 }
