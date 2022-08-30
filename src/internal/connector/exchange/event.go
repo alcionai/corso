@@ -22,19 +22,23 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 			GetEmailAddress().
 			GetAddress()
 	}
+
 	if evt.GetSubject() != nil {
 		subject = *evt.GetSubject()
 	}
+
 	if evt.GetStart() != nil &&
 		evt.GetStart().GetDateTime() != nil {
 		// timeString has 'Z' literal added to ensure the stored
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		timeString := *evt.GetStart().GetDateTime() + "Z"
+
 		output, err := common.ParseTime(timeString)
 		if err == nil {
 			start = output
 		}
 	}
+
 	return &details.ExchangeInfo{
 		Organizer:  organizer,
 		Subject:    subject,
