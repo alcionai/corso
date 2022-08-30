@@ -207,8 +207,7 @@ func (f Filter) String() string {
 	case Fail:
 		return "fail"
 	case Identity:
-	default:
-		// no prefix
+	default: // no prefix
 	}
 
 	return prefix + f.Target

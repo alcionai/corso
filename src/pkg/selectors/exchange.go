@@ -603,8 +603,8 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	}
 
 	filterCat := s.FilterCategory()
-
 	i := ""
+
 	switch filterCat {
 	case ExchangeFilterMailSender:
 		i = info.Sender
