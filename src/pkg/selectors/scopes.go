@@ -170,9 +170,6 @@ func matches[T scopeT, C categoryT](s T, cat C, target string) bool {
 // getCategory returns the scope's category value.
 // if s is a filter-type scope, returns the filter category.
 func getCategory[T scopeT](s T) string {
-	if _, ok := s[scopeKeyInfoFilter]; ok {
-		return s[scopeKeyInfoFilter].Target
-	}
 	return s[scopeKeyCategory].Target
 }
 
@@ -388,6 +385,12 @@ func matchesPathValues[T scopeT, C categoryT](
 	cat C,
 	pathValues map[categorizer]string,
 ) bool {
+	// if scope specifies a filter category,
+	// path checking is automatically skipped.
+	if len(getFilterCategory(sc)) > 0 {
+		return false
+	}
+
 	for _, c := range cat.pathKeys() {
 		scopeVals := getCatValue(sc, c)
 		// the scope must define the targets to match on

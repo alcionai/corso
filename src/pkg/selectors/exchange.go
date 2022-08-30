@@ -400,6 +400,8 @@ func (ec exchangeCategory) String() string {
 // leafCat returns the leaf category of the receiver.
 // If the receiver category has multiple leaves (ex: User) or no leaves,
 // (ex: Unknown), the receiver itself is returned.
+// If the receiver category is a filter type (ex: ExchangeFilterMailSubject),
+// returns the category covered by the filter.
 // Ex: ExchangeContactFolder.leafCat() => ExchangeContact
 // Ex: ExchangeEvent.leafCat() => ExchangeEvent
 // Ex: ExchangeUser.leafCat() => ExchangeUser
@@ -407,7 +409,8 @@ func (ec exchangeCategory) leafCat() categorizer {
 	switch ec {
 	case ExchangeContact, ExchangeContactFolder:
 		return ExchangeContact
-	case ExchangeMail, ExchangeMailFolder:
+	case ExchangeMail, ExchangeMailFolder, ExchangeFilterMailReceivedAfter,
+		ExchangeFilterMailReceivedBefore, ExchangeFilterMailSender, ExchangeFilterMailSubject:
 		return ExchangeMail
 	}
 
@@ -599,7 +602,6 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 		return false
 	}
 
-	// the scope must define targets to match on
 	filterCat := s.FilterCategory()
 
 	i := ""
@@ -613,5 +615,6 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	case ExchangeFilterMailReceivedBefore:
 		i = common.FormatTime(info.Received)
 	}
+
 	return s.Matches(filterCat, i)
 }
