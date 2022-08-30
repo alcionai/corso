@@ -109,7 +109,6 @@ func (suite *ExchangeServiceSuite) TestOptionsForCalendars() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := optionsForCalendars(test.params)
 			test.checkError(t, err)
-
 		})
 	}
 }
