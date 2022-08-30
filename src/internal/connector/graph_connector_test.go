@@ -225,24 +225,23 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 	suite.Equal(status.ObjectCount, status.Successful)
 }
 
+// Restore Functions
 // TestRestoreMessages uses mock data to ensure GraphConnector
 // is able to restore a several messageable item to a Mailbox.
 // The result should be all successful items restored within the same folder.
 func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	t := suite.T()
+	category := "mail"
 	connector := loadConnector(t)
-	user := tester.M365UserID(t)
-	if len(user) == 0 {
-		suite.T().Skip("Environment not configured: missing m365 test user")
-	}
-
 	collection := make([]data.Collection, 0)
 	for i := 0; i < 3; i++ {
-		mdc := mockconnector.NewMockExchangeCollection([]string{"tenant", user, mailCategory, "Inbox"}, 1)
+		mdc := mockconnector.NewMockExchangeCollection(
+			[]string{"tenant", suite.user, category, "Inbox"},
+			1)
 		collection = append(collection, mdc)
 	}
 
-	err := connector.RestoreMessages(context.Background(), collection)
+	err := connector.RestoreExchangeDataCollection(context.Background(), collection)
 	assert.NoError(suite.T(), err)
 	status := connector.AwaitStatus()
 	assert.NotNil(t, status)
