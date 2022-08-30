@@ -35,7 +35,7 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
    The required permissions are as follows:
 
-   **TODO: Complete list of permissions** 
+   **TODO: Complete list of permissions**
 
    | API / Permissions Name | Type |
    |--|--|
@@ -48,11 +48,13 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
 ## Export application credentials
 
-After configuring the Corso Azure AD application, store the information needed by Corso to connect to the application as environment variables.
+After configuring the Corso Azure AD application, store the information needed by Corso to connect to the application
+as environment variables.
 
 ### Tenant ID and client ID
 
-To extract the tenant and client ID, select Overview from the app management panel and export the corresponding environment variables.
+To extract the tenant and client ID, select Overview from the app management panel and export the corresponding
+environment variables.
 
 ```bash
 export AZURE_TENANT_ID=<Directory (tenent) ID for configured app>
