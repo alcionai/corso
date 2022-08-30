@@ -282,6 +282,7 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 				attempts++
 
 				buf := &bytes.Buffer{}
+
 				_, err := buf.ReadFrom(itemData.ToReader())
 				if err != nil {
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
@@ -332,6 +333,7 @@ func (gc *GraphConnector) createCollections(
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
 		collections := make(map[string]*exchange.Collection)
+
 		response, err := query(&gc.graphService, user)
 		if err != nil {
 			return nil, errors.Wrapf(

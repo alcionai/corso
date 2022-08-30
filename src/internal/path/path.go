@@ -145,6 +145,7 @@ func (pb Builder) String() string {
 	return join(escaped)
 }
 
+//nolint:unused
 func (pb Builder) join(start, end int) string {
 	return join(pb.elements[start:end])
 }
