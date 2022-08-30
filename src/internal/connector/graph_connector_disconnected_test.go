@@ -76,6 +76,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	names["Axel"] = "Foley"
 	first := buildFromMap(true, names)
 	last := buildFromMap(false, names)
+
 	suite.Contains(first, "Al")
 	suite.Contains(first, "Ellen")
 	suite.Contains(first, "Axel")
@@ -86,6 +87,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 
 func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	var dc data.Collection
+
 	concrete := mockconnector.NewMockExchangeCollection([]string{"a", "path"}, 1)
 	dc = concrete
 	assert.NotNil(suite.T(), dc)
@@ -97,6 +99,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	}
 	suite.Equal(len(gc.PrintableStatus()), 0)
 	gc.incrementAwaitingMessages()
+
 	go func() {
 		status := support.CreateStatus(
 			context.Background(),

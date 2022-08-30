@@ -13,11 +13,12 @@ func _() {
 	_ = x[events-2]
 	_ = x[messages-3]
 	_ = x[users-4]
+	_ = x[contacts-5]
 }
 
-const _optionIdentifier_name = "unknownfolderseventsmessagesusers"
+const _optionIdentifier_name = "unknownfolderseventsmessagesuserscontacts"
 
-var _optionIdentifier_index = [...]uint8{0, 7, 14, 20, 28, 33}
+var _optionIdentifier_index = [...]uint8{0, 7, 14, 20, 28, 33, 41}
 
 func (i optionIdentifier) String() string {
 	if i < 0 || i >= optionIdentifier(len(_optionIdentifier_index)-1) {

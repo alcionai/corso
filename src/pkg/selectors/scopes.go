@@ -3,8 +3,8 @@ package selectors
 import (
 	"strings"
 
-	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ type (
 	}
 	// categoryT is the generic type interface of a categorizer
 	categoryT interface {
-		~int
+		~string
 		categorizer
 	}
 )
@@ -75,7 +75,7 @@ type (
 	// (human readable), or whether the scope is a filter-type or an inclusion-/exclusion-type.
 	// Metadata values can be used in either logical processing of scopes, and/or for presentation
 	// to end users.
-	scope map[string]string
+	scope map[string]filters.Filter
 
 	// scoper describes the minimum necessary interface that a soundly built scope should
 	// comply with.
@@ -109,24 +109,24 @@ type (
 	}
 	// scopeT is the generic type interface of a scoper.
 	scopeT interface {
-		~map[string]string
+		~map[string]filters.Filter
 		scoper
 	}
 )
 
 // makeScope produces a well formatted, typed scope that ensures all base values are populated.
 func makeScope[T scopeT](
-	resource, granularity string,
+	granularity string,
 	cat categorizer,
-	vs []string,
+	resources, vs []string,
 ) T {
 	s := T{
-		scopeKeyCategory:       cat.String(),
-		scopeKeyDataType:       cat.leafCat().String(),
-		scopeKeyGranularity:    granularity,
-		scopeKeyResource:       resource,
-		cat.String():           join(vs...),
-		cat.rootCat().String(): resource,
+		scopeKeyCategory:       filters.NewIdentity(cat.String()),
+		scopeKeyDataType:       filters.NewIdentity(cat.leafCat().String()),
+		scopeKeyGranularity:    filters.NewIdentity(granularity),
+		scopeKeyResource:       filters.NewIdentity(join(resources...)),
+		cat.String():           filterize(vs...),
+		cat.rootCat().String(): filterize(resources...),
 	}
 
 	return s
@@ -137,14 +137,15 @@ func makeScope[T scopeT](
 func makeFilterScope[T scopeT](
 	cat, filterCat categorizer,
 	vs []string,
+	f func([]string) filters.Filter,
 ) T {
 	return T{
-		scopeKeyCategory:    cat.String(),
-		scopeKeyDataType:    cat.leafCat().String(),
-		scopeKeyGranularity: Filter,
-		scopeKeyInfoFilter:  filterCat.String(),
-		scopeKeyResource:    Filter,
-		filterCat.String():  join(vs...),
+		scopeKeyCategory:    filters.NewIdentity(cat.String()),
+		scopeKeyDataType:    filters.NewIdentity(cat.leafCat().String()),
+		scopeKeyGranularity: filters.NewIdentity(Filter),
+		scopeKeyInfoFilter:  filters.NewIdentity(filterCat.String()),
+		scopeKeyResource:    filters.NewIdentity(Filter),
+		filterCat.String():  f(clean(vs)),
 	}
 }
 
@@ -152,9 +153,9 @@ func makeFilterScope[T scopeT](
 // scope funcs
 // ---------------------------------------------------------------------------
 
-// contains returns true if the category is included in the scope's
+// matches returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
-func contains[T scopeT, C categoryT](s T, cat C, target string) bool {
+func matches[T scopeT, C categoryT](s T, cat C, target string) bool {
 	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}
@@ -163,20 +164,23 @@ func contains[T scopeT, C categoryT](s T, cat C, target string) bool {
 		return false
 	}
 
-	compare := s[cat.String()]
-	if len(compare) == 0 {
-		return false
-	}
+	return s[cat.String()].Matches(target)
+}
 
-	if compare == NoneTgt {
-		return false
-	}
+// getCategory returns the scope's category value.
+// if s is a filter-type scope, returns the filter category.
+func getCategory[T scopeT](s T) string {
+	return s[scopeKeyCategory].Target
+}
 
-	if compare == AnyTgt {
-		return true
-	}
+// getFilterCategory returns the scope's infoFilter category value.
+func getFilterCategory[T scopeT](s T) string {
+	return s[scopeKeyInfoFilter].Target
+}
 
-	return strings.Contains(compare, target)
+// getGranularity returns the scope's granularity value.
+func getGranularity[T scopeT](s T) string {
+	return s[scopeKeyGranularity].Target
 }
 
 // getCatValue takes the value of s[cat], split it by the standard
@@ -188,20 +192,20 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 		return None()
 	}
 
-	return split(v)
+	return split(v.Target)
 }
 
 // set sets a value by category to the scope.  Only intended for internal
 // use, not for exporting to callers.
-func set[T scopeT](s T, cat categorizer, v string) T {
-	s[cat.String()] = v
+func set[T scopeT](s T, cat categorizer, v []string) T {
+	s[cat.String()] = filterize(v...)
 	return s
 }
 
 // granularity describes the granularity (directory || item)
 // of the data in scope.
 func granularity[T scopeT](s T) string {
-	return s[scopeKeyGranularity]
+	return s[scopeKeyGranularity].Target
 }
 
 // returns true if the category is included in the scope's category type,
@@ -211,7 +215,7 @@ func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
 		return false
 	}
 
-	return s[cat.String()] == AnyTgt
+	return s[cat.String()].Target == AnyTgt
 }
 
 // reduce filters the entries in the details to only those that match the
@@ -227,9 +231,9 @@ func reduce[T scopeT, C categoryT](
 	}
 
 	// aggregate each scope type by category for easier isolation in future processing.
-	excludes := scopesByCategory[T](s.Excludes, dataCategories)
-	filters := scopesByCategory[T](s.Filters, dataCategories)
-	includes := scopesByCategory[T](s.Includes, dataCategories)
+	excls := scopesByCategory[T](s.Excludes, dataCategories)
+	filts := scopesByCategory[T](s.Filters, dataCategories)
+	incls := scopesByCategory[T](s.Includes, dataCategories)
 
 	ents := []details.DetailsEntry{}
 
@@ -247,9 +251,9 @@ func reduce[T scopeT, C categoryT](
 			dc,
 			dc.pathValues(path),
 			ent,
-			excludes[dc],
-			filters[dc],
-			includes[dc],
+			excls[dc],
+			filts[dc],
+			incls[dc],
 		)
 		if passed {
 			ents = append(ents, ent)
@@ -381,25 +385,32 @@ func matchesPathValues[T scopeT, C categoryT](
 	cat C,
 	pathValues map[categorizer]string,
 ) bool {
+	// if scope specifies a filter category,
+	// path checking is automatically skipped.
+	if len(getFilterCategory(sc)) > 0 {
+		return false
+	}
+
 	for _, c := range cat.pathKeys() {
-		target := getCatValue(sc, c)
+		scopeVals := getCatValue(sc, c)
 		// the scope must define the targets to match on
-		if len(target) == 0 {
+		if len(scopeVals) == 0 {
 			return false
 		}
 		// None() fails all matches
-		if target[0] == NoneTgt {
+		if scopeVals[0] == NoneTgt {
 			return false
 		}
 		// the path must contain a value to match against
-		pv, ok := pathValues[c]
+		pathVal, ok := pathValues[c]
 		if !ok {
 			return false
 		}
 		// all parts of the scope must match
 		cc := c.(C)
 		if !isAnyTarget(sc, cc) {
-			if !common.ContainsString(target, pv) {
+			f := filters.NewContains(false, cc, join(scopeVals...))
+			if !f.Matches(pathVal) {
 				return false
 			}
 		}

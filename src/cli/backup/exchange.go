@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/cli/utils"
 	"github.com/alcionai/corso/internal/model"
 	"github.com/alcionai/corso/pkg/backup"
-	"github.com/alcionai/corso/pkg/logger"
 	"github.com/alcionai/corso/pkg/repository"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -175,17 +174,6 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	m365, err := acct.M365Config()
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
-	}
-
-	logger.Ctx(ctx).Debugw(
-		"Called - "+cmd.CommandPath(),
-		"tenantID", m365.TenantID,
-		"clientID", m365.ClientID,
-		"hasClientSecret", len(m365.ClientSecret) > 0)
-
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
@@ -284,15 +272,6 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	m365, err := acct.M365Config()
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
-	}
-
-	logger.Ctx(ctx).Debugw(
-		"Called - "+cmd.CommandPath(),
-		"tenantID", m365.TenantID)
-
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
@@ -348,15 +327,6 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	m365, err := acct.M365Config()
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
-	}
-
-	logger.Ctx(ctx).Debugw(
-		"Called - "+cmd.CommandPath(),
-		"tenantID", m365.TenantID)
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {
@@ -563,17 +533,6 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	m365, err := acct.M365Config()
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
-	}
-
-	logger.Ctx(ctx).Debugw(
-		"Called - "+cmd.CommandPath(),
-		"tenantID", m365.TenantID,
-		"clientID", m365.ClientID,
-		"hasClientSecret", len(m365.ClientSecret) > 0)
 
 	r, err := repository.Connect(ctx, acct, s)
 	if err != nil {

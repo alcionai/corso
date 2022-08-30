@@ -126,6 +126,28 @@ func (suite *FiltersSuite) TestContains() {
 	}
 }
 
+func (suite *FiltersSuite) TestContains_Joined() {
+	makeFilt := filters.NewContains
+	f := makeFilt(false, "", "smarf,userid")
+	nf := makeFilt(true, "", "smarf,userid")
+
+	table := []struct {
+		input    string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"userid", assert.True, assert.False},
+		{"f,userid", assert.True, assert.False},
+		{"fnords", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.input, func(t *testing.T) {
+			test.expectF(t, f.Matches(test.input), "filter")
+			test.expectNF(t, nf.Matches(test.input), "negated filter")
+		})
+	}
+}
+
 func (suite *FiltersSuite) TestIn() {
 	makeFilt := filters.NewIn
 	f := makeFilt(false, "", "murf")
@@ -138,6 +160,27 @@ func (suite *FiltersSuite) TestIn() {
 	}{
 		{"smurfs", assert.True, assert.False},
 		{"sfrums", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.input, func(t *testing.T) {
+			test.expectF(t, f.Matches(test.input), "filter")
+			test.expectNF(t, nf.Matches(test.input), "negated filter")
+		})
+	}
+}
+
+func (suite *FiltersSuite) TestIn_Joined() {
+	makeFilt := filters.NewIn
+	f := makeFilt(false, "", "userid")
+	nf := makeFilt(true, "", "userid")
+
+	table := []struct {
+		input    string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"smarf,userid", assert.True, assert.False},
+		{"arf,user", assert.False, assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {

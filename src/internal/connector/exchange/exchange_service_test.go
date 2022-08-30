@@ -1,17 +1,23 @@
 package exchange
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -27,6 +33,7 @@ func TestExchangeServiceSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(ExchangeServiceSuite))
 }
 
@@ -41,6 +48,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	require.NoError(t, err)
 	service, err := createService(m365, false)
 	require.NoError(t, err)
+
 	suite.es = service
 }
 
@@ -201,6 +209,7 @@ func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
+
 	scopes := eb.Scopes()
 
 	for _, test := range scopes {
@@ -238,7 +247,16 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			name:     "GraphQuery: Get All Users",
 			function: GetAllUsersForTenant,
 		},
+		{
+			name:     "GraphQuery: Get All ContactFolders",
+			function: GetAllContactFolderNamesForUser,
+		},
+		{
+			name:     "GraphQuery: Get All Events for User",
+			function: GetAllEventsForUser,
+		},
 	}
+
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			response, err := test.function(suite.es, userID)
@@ -291,20 +309,76 @@ func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
 	}
 }
 
+// TestGetMailFolderID verifies the ability to retrieve folder ID of folders
+// at the top level of the file tree
+func (suite *ExchangeServiceSuite) TestGetFolderID() {
+	userID := tester.M365UserID(suite.T())
+	tests := []struct {
+		name       string
+		folderName string
+		// category references the current optionId :: TODO --> use selector fields
+		category   optionIdentifier
+		checkError assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Mail Valid",
+			folderName: "Inbox",
+			category:   messages,
+			checkError: assert.NoError,
+		},
+		{
+			name:       "Mail Invalid",
+			folderName: "FolderThatIsNotHere",
+			category:   messages,
+			checkError: assert.Error,
+		},
+		{
+			name:       "Contact Invalid",
+			folderName: "FolderThatIsNotHereContacts",
+			category:   contacts,
+			checkError: assert.Error,
+		},
+		{
+			name:       "Contact Valid",
+			folderName: "TrialFolder",
+			category:   contacts,
+			checkError: assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := GetFolderID(
+				suite.es,
+				test.folderName,
+				userID,
+				test.category)
+			test.checkError(t, err, "Unable to find folder: "+test.folderName)
+		})
+	}
+}
+
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
-	userID := tester.M365UserID(suite.T())
-	sel := selectors.NewExchangeBackup()
+	var (
+		mailScope, contactScope selectors.ExchangeScope
+		userID                  = tester.M365UserID(suite.T())
+		sel                     = selectors.NewExchangeBackup()
+	)
+
 	sel.Include(sel.Users([]string{userID}))
+
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
+
 	scopes := eb.Scopes()
-	var mailScope, contactScope selectors.ExchangeScope
+
 	for _, scope := range scopes {
 		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
 			contactScope = scope
 		}
+
 		if scope.IncludesCategory(selectors.ExchangeMail) {
 			mailScope = scope
 		}
@@ -320,13 +394,13 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 		{
 			name:              "Mail Iterative Check",
 			queryFunction:     GetAllMessagesForUser,
-			iterativeFunction: IterateSelectAllMessagesForCollections,
+			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             mailScope,
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Contacts Iterative Check",
 			queryFunction:     GetAllContactsForUser,
-			iterativeFunction: IterateAllContactsForCollection,
+			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             contactScope,
 			transformer:       models.CreateContactFromDiscriminatorValue,
 		}, {
@@ -352,7 +426,6 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
-				"testingTenant",
 				userID,
 				test.scope,
 				errs, false,
@@ -362,6 +435,90 @@ func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
 
 			iterateError := pageIterator.Iterate(callbackFunc)
 			require.NoError(t, iterateError)
+		})
+	}
+}
+
+// TestRestoreContact ensures contact object can be created, placed into
+// the Corso Folder. The function handles test clean-up.
+func (suite *ExchangeServiceSuite) TestRestoreContact() {
+	t := suite.T()
+	userID := tester.M365UserID(suite.T())
+	now := time.Now()
+
+	folderName := "TestRestoreContact: " + common.FormatSimpleDateTime(now)
+	aFolder, err := CreateContactFolder(suite.es, userID, folderName)
+	require.NoError(t, err)
+
+	folderID := *aFolder.GetId()
+	err = RestoreExchangeContact(context.Background(),
+		mockconnector.GetMockContactBytes("Corso TestContact"),
+		suite.es,
+		control.Copy,
+		folderID,
+		userID)
+	assert.NoError(t, err)
+	// Removes folder containing contact prior to exiting test
+	err = DeleteContactFolder(suite.es, userID, folderID)
+	assert.NoError(t, err)
+}
+
+// TestEstablishFolder checks the ability to Create a "container" for the
+// GraphConnector's Restore Workflow based on OptionIdentifier.
+func (suite *ExchangeServiceSuite) TestEstablishFolder() {
+	tests := []struct {
+		name       string
+		option     optionIdentifier
+		checkError assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Establish User Restore Folder",
+			option:     users,
+			checkError: assert.Error,
+		},
+		{
+			name:       "Establish Event Restore Location",
+			option:     events,
+			checkError: assert.Error,
+		},
+		{
+			name:       "Establish Restore Folder for Unknown",
+			option:     unknown,
+			checkError: assert.Error,
+		},
+		{
+			name:       "Establish Restore folder for Mail",
+			option:     messages,
+			checkError: assert.NoError,
+		},
+		{
+			name:       "Establish Restore folder for Contacts",
+			option:     contacts,
+			checkError: assert.NoError,
+		},
+	}
+	now := time.Now()
+	folderName := "CorsoEstablishFolder" + common.FormatSimpleDateTime(now)
+	userID := tester.M365UserID(suite.T())
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			folderID, err := establishFolder(suite.es, folderName, userID, test.option)
+			require.True(t, test.checkError(t, err))
+			if folderID != "" {
+				switch test.option {
+				case messages:
+					err = DeleteMailFolder(suite.es, userID, folderID)
+					assert.NoError(t, err)
+				case contacts:
+					err = DeleteContactFolder(suite.es, userID, folderID)
+					assert.NoError(t, err)
+				default:
+					assert.NoError(t,
+						errors.New("unsupported type received folderID: "+test.option.String()),
+					)
+				}
+			}
 		})
 	}
 }

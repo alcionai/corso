@@ -25,30 +25,38 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppend() {
 	returnErr := WrapAndAppend("arc376", err2, err1)
 	suite.True(strings.Contains(returnErr.Error(), "arc376"))
 	suite.Error(returnErr)
+
 	multi := &multierror.Error{Errors: []error{err1, err2}}
 	suite.True(strings.Contains(ListErrors(*multi), "two")) // Does not contain the wrapped information
 	suite.T().Log(ListErrors(*multi))
 }
 
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_OnVar() {
-	var err1 error
-	id := "xi2058"
+	var (
+		err1 error
+		id   = "xi2058"
+	)
+
 	received := WrapAndAppend(id, errors.New("network error"), err1)
 	suite.True(strings.Contains(received.Error(), id))
 }
 
 func (suite *GraphConnectorErrorSuite) TestAsRecoverableError() {
 	err := assert.AnError
-	var rcv RecoverableGCError
+
+	rcv := RecoverableGCError{}
 	suite.False(errors.As(err, &rcv))
+
 	aRecoverable := SetRecoverableError(err)
 	suite.True(errors.As(aRecoverable, &rcv))
 }
 
 func (suite *GraphConnectorErrorSuite) TestAsNonRecoverableError() {
 	err := assert.AnError
-	var noRecover NonRecoverableGCError
+
+	noRecover := NonRecoverableGCError{}
 	suite.False(errors.As(err, &noRecover))
+
 	nonRecoverable := SetNonRecoverableError(err)
 	suite.True(errors.As(nonRecoverable, &noRecover))
 }
@@ -70,12 +78,15 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppendf() {
 }
 
 func (suite *GraphConnectorErrorSuite) TestConcatenateStringFromPointers() {
-	var s1, s2, s3 *string
-	var outString string
-	v1 := "Corso"
-	v3 := "remains"
-	s1 = &v1
-	s3 = &v3
+	var (
+		outString string
+		v1        = "Corso"
+		v3        = "remains"
+		s1        = &v1
+		s2        *string
+		s3        = &v3
+	)
+
 	outString = concatenateStringFromPointers(outString, []*string{s1, s2, s3})
 	suite.True(strings.Contains(outString, v1))
 	suite.True(strings.Contains(outString, v3))

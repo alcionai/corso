@@ -56,12 +56,14 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 	if err != nil {
 		return nil, err
 	}
+
 	service := exchangeService{
 		adapter:     *adapter,
 		client:      *msgraphsdk.NewGraphServiceClient(adapter),
 		failFast:    shouldFailFast,
 		credentials: credentials,
 	}
+
 	return &service, err
 }
 
@@ -70,6 +72,7 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 func CreateMailFolder(gs graph.Service, user, folder string) (models.MailFolderable, error) {
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
+
 	isHidden := false
 	requestBody.SetIsHidden(&isHidden)
 
@@ -87,6 +90,21 @@ type MailFolder struct {
 	DisplayName string
 }
 
+// CreateContactFolder makes a contact folder with the displayName of folderName.
+// If successful, returns the created folder object.
+func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
+	requestBody := models.NewContactFolder()
+	requestBody.SetDisplayName(&folderName)
+
+	return gs.Client().UsersById(user).ContactFolders().Post(requestBody)
+}
+
+// DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
+// Errors returned if the function call was not successful.
+func DeleteContactFolder(gs graph.Service, user, folderID string) error {
+	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete()
+}
+
 // GetAllMailFolders retrieves all mail folders for the specified user.
 // If nameContains is populated, only returns mail matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
@@ -95,6 +113,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		mfs = []MailFolder{}
 		err error
 	)
+
 	resp, err := GetAllFolderNamesForUser(gs, user)
 	if err != nil {
 		return nil, err
@@ -128,17 +147,34 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 	if err := iter.Iterate(cb); err != nil {
 		return nil, err
 	}
+
 	return mfs, err
 }
 
-// GetMailFolderID query function to retrieve the M365 ID based on the folder's displayName.
+// GetFolderID query function to retrieve the M365 ID based on the folder's displayName.
 // @param folderName the target folder's display name. Case sensitive
+// @param category switches query and iteration to support  multiple exchange applications
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetMailFolderID(service graph.Service, folderName, user string) (*string, error) {
-	var errs error
-	var folderID *string
+func GetFolderID(service graph.Service, folderName, user string, category optionIdentifier) (*string, error) {
+	var (
+		errs      error
+		folderID  *string
+		query     GraphQuery
+		transform absser.ParsableFactory
+	)
 
-	response, err := GetAllFolderNamesForUser(service, user)
+	switch category {
+	case messages:
+		query = GetAllFolderNamesForUser
+		transform = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
+	case contacts:
+		query = GetAllContactFolderNamesForUser
+		transform = models.CreateContactFolderFromDiscriminatorValue
+	default:
+		return nil, fmt.Errorf("unsupported category %s for GetFolderID()", category)
+	}
+
+	response, err := query(service, user)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -150,27 +186,24 @@ func GetMailFolderID(service graph.Service, folderName, user string) (*string, e
 	pageIterator, err := msgraphgocore.NewPageIterator(
 		response,
 		service.Adapter(),
-		models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
+		transform,
 	)
 	if err != nil {
 		return nil, err
 	}
-	callbackFunc := func(folderItem any) bool {
-		folder, ok := folderItem.(models.MailFolderable)
-		if !ok {
-			errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), errors.New("HasFolder() iteration failure"), errs)
-			return true
-		}
-		if *folder.GetDisplayName() == folderName {
-			folderID = folder.GetId()
-			return false
-		}
-		return true
+
+	callbackFunc := iterateFindFolderID(category,
+		&folderID,
+		folderName,
+		service.Adapter().GetBaseUrl(),
+		errs,
+	)
+
+	if err := pageIterator.Iterate(callbackFunc); err != nil {
+		return nil, support.WrapAndAppend(service.Adapter().GetBaseUrl(), err, errs)
 	}
-	iterateError := pageIterator.Iterate(callbackFunc)
-	if iterateError != nil {
-		errs = support.WrapAndAppend(service.Adapter().GetBaseUrl(), iterateError, errs)
-	} else if folderID == nil {
+
+	if folderID == nil {
 		return nil, ErrFolderNotFound
 	}
 
@@ -186,12 +219,16 @@ func parseCalendarIDFromEvent(reference string) (string, error) {
 	if len(stringArray) < 2 {
 		return "", errors.New("calendarID not found")
 	}
+
 	temp := stringArray[1]
 	stringArray = strings.Split(temp, "')/$ref")
+
 	if len(stringArray) < 2 {
 		return "", errors.New("calendarID not found")
 	}
+
 	calendarID := stringArray[0]
+
 	if len(calendarID) == 0 {
 		return "", errors.New("calendarID empty")
 	}
@@ -211,7 +248,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 		if scope.IsAny(selectors.ExchangeMailFolder) {
 			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 				GetAllMessagesForUser,
-				IterateSelectAllMessagesForCollections,
+				IterateSelectAllDescendablesForCollections,
 				nil
 		}
 
@@ -220,6 +257,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 			IterateAndFilterMessagesForCollections,
 			nil
 	}
+
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateEventCollectionResponseFromDiscriminatorValue,
 			GetAllEventsForUser,
@@ -230,32 +268,63 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	if scope.IncludesCategory(selectors.ExchangeContact) {
 		return models.CreateContactFromDiscriminatorValue,
 			GetAllContactsForUser,
-			IterateAllContactsForCollection,
+			IterateSelectAllDescendablesForCollections,
 			nil
 	}
 
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-// GetCopyRestoreFolder utility function to create an unique folder for the restore process
-func GetCopyRestoreFolder(service graph.Service, user string) (*string, error) {
+// GetRestoreFolder utility function to create
+//  an unique folder for the restore process
+// @param category: input from fullPath()[2]
+// that defines the application the folder is created in.
+func GetRestoreFolder(
+	service graph.Service,
+	user, category string,
+) (string, error) {
 	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
-	isFolder, err := GetMailFolderID(service, newFolder, user)
-	if err != nil {
-		// Verify unique folder was not found
-		if errors.Is(err, ErrFolderNotFound) {
 
-			fold, err := CreateMailFolder(service, user, newFolder)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, err)
-			}
-			return fold.GetId(), nil
-		}
+	switch category {
+	case mailCategory, contactsCategory:
+		return establishFolder(service, newFolder, user, categoryToOptionIdentifier(category))
+	default:
+		return "", fmt.Errorf("%s category not supported", category)
+	}
+}
 
-		return nil, err
+func establishFolder(
+	service graph.Service,
+	folderName, user string,
+	optID optionIdentifier,
+) (string, error) {
+	folderID, err := GetFolderID(service, folderName, user, optID)
+	if err == nil {
+		return *folderID, nil
+	}
+	// Experienced error other than folder does not exist
+	if !errors.Is(err, ErrFolderNotFound) {
+		return "", support.WrapAndAppend(user, err, err)
 	}
 
-	return isFolder, nil
+	switch optID {
+	case messages:
+		fold, err := CreateMailFolder(service, user, folderName)
+		if err != nil {
+			return "", support.WrapAndAppend(user, err, err)
+		}
+
+		return *fold.GetId(), nil
+	case contacts:
+		fold, err := CreateContactFolder(service, user, folderName)
+		if err != nil {
+			return "", support.WrapAndAppend(user, err, err)
+		}
+
+		return *fold.GetId(), nil
+	default:
+		return "", fmt.Errorf("category: %s not supported for folder creation", optID)
+	}
 }
 
 func RestoreExchangeObject(
@@ -267,26 +336,56 @@ func RestoreExchangeObject(
 	destination, user string,
 ) error {
 	var setting optionIdentifier
+
 	switch category {
-	case mailCategory:
-		setting = messages
-	case contactsCategory:
-		setting = contacts
+	case mailCategory, contactsCategory:
+		setting = categoryToOptionIdentifier(category)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
 
+	if policy != control.Copy {
+		return fmt.Errorf("restore policy: %s not supported", policy)
+	}
+
 	switch setting {
 	case messages:
-		switch policy {
-		case control.Copy:
-			return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
-		default:
-			return fmt.Errorf("restore policy: %s not supported", policy)
-		}
+		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
+	case contacts:
+		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
+}
+
+// RestoreExchangeContact restores a contact to the @bits byte
+// representation of M365 contact object.
+// @destination M365 ID representing a M365 Contact_Folder
+// Returns an error if the input bits do not parse into a models.Contactable object
+// or if an error is encountered sending data to the M365 account.
+// Post details: https://docs.microsoft.com/en-us/graph/api/user-post-contacts?view=graph-rest-1.0&tabs=go
+func RestoreExchangeContact(
+	ctx context.Context,
+	bits []byte,
+	service graph.Service,
+	cp control.CollisionPolicy,
+	destination, user string,
+) error {
+	contact, err := support.CreateContactFromBytes(bits)
+	if err != nil {
+		return err
+	}
+
+	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
+	if err != nil {
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	if response == nil {
+		return errors.New("msgraph contact post fail: REST response not received")
+	}
+
+	return nil
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -317,6 +416,7 @@ func RestoreMailMessage(
 	sv.SetValue(&enableValue)
 	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
 	clone.SetSingleValueExtendedProperties(svlep)
+
 	draft := false
 	clone.SetIsDraft(&draft)
 
@@ -340,8 +440,10 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
+
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
 	}
+
 	return nil
 }

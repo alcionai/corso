@@ -199,13 +199,13 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 			name:             "many users, events",
 			user:             []string{"fnord", "smarf"},
 			data:             []string{dataEvents},
-			expectIncludeLen: 2,
+			expectIncludeLen: 1,
 		},
 		{
 			name:             "many users, events + contacts",
 			user:             []string{"fnord", "smarf"},
 			data:             []string{dataEvents, dataContacts},
-			expectIncludeLen: 4,
+			expectIncludeLen: 2,
 		},
 	}
 	for _, test := range table {
@@ -327,7 +327,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 		{
 			name:             "multiple users",
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 6,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "any users, any data",
@@ -457,7 +457,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 			name:             "many users, events",
 			events:           []string{"foo", "bar"},
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 2,
+			expectIncludeLen: 1,
 		},
 		{
 			name:             "many users, events + contacts",
@@ -465,7 +465,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 			contactFolders:   []string{"foo", "bar"},
 			events:           []string{"foo", "bar"},
 			users:            []string{"fnord", "smarf"},
-			expectIncludeLen: 6,
+			expectIncludeLen: 2,
 		},
 	}
 	for _, test := range table {

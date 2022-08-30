@@ -1,31 +1,31 @@
 package selectors
 
-import "github.com/alcionai/corso/pkg/backup/details"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/pkg/filters"
+)
 
 // ---------------------------------------------------------------------------
 // categorizers
 // ---------------------------------------------------------------------------
 
 // categorizer
-type mockCategorizer int
+type mockCategorizer string
 
 const (
-	unknownCatStub mockCategorizer = iota
-	rootCatStub
-	leafCatStub
+	unknownCatStub mockCategorizer = ""
+	rootCatStub    mockCategorizer = "rootCatStub"
+	leafCatStub    mockCategorizer = "leafCatStub"
 )
 
 var _ categorizer = unknownCatStub
 
 func (mc mockCategorizer) String() string {
-	switch mc {
-	case leafCatStub:
-		return "leaf"
-	case rootCatStub:
-		return "root"
-	}
-
-	return "unknown"
+	return string(mc)
 }
 
 func (mc mockCategorizer) leafCat() categorizer {
@@ -65,7 +65,7 @@ type mockScope scope
 var _ scoper = &mockScope{}
 
 func (ms mockScope) categorizer() categorizer {
-	switch ms[scopeKeyCategory] {
+	switch ms[scopeKeyCategory].Target {
 	case rootCatStub.String():
 		return rootCatStub
 	case leafCatStub.String():
@@ -80,7 +80,7 @@ func (ms mockScope) matchesEntry(
 	pathValues map[categorizer]string,
 	entry details.DetailsEntry,
 ) bool {
-	return ms[shouldMatch] == "true"
+	return ms[shouldMatch].Target == "true"
 }
 
 func (ms mockScope) setDefaults() {}
@@ -98,12 +98,12 @@ func stubScope(match string) mockScope {
 	}
 
 	return mockScope{
-		rootCatStub.String(): AnyTgt,
-		scopeKeyCategory:     rootCatStub.String(),
-		scopeKeyGranularity:  Item,
-		scopeKeyResource:     stubResource,
-		scopeKeyDataType:     rootCatStub.String(),
-		shouldMatch:          sm,
+		rootCatStub.String(): passAny,
+		scopeKeyCategory:     filters.NewIdentity(rootCatStub.String()),
+		scopeKeyGranularity:  filters.NewIdentity(Item),
+		scopeKeyResource:     filters.NewIdentity(stubResource),
+		scopeKeyDataType:     filters.NewIdentity(rootCatStub.String()),
+		shouldMatch:          filters.NewIdentity(sm),
 	}
 }
 
@@ -130,4 +130,13 @@ func setScopesToDefault[T scopeT](ts []T) []T {
 	}
 
 	return ts
+}
+
+// calls assert.Equal(t, getCatValue(sc, k)[0], v) on each k:v pair in the map
+func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
+	for k, v := range m {
+		t.Run(k.String(), func(t *testing.T) {
+			assert.Equal(t, getCatValue(sc, k), split(v))
+		})
+	}
 }

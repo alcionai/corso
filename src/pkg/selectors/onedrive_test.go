@@ -87,7 +87,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 	userScopes := sel.Users([]string{u1, u2})
 	for _, scope := range userScopes {
 		// Scope value is either u1 or u2
-		assert.Contains(t, []string{u1, u2}, scope[OneDriveUser.String()])
+		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()].Target)
 	}
 
 	// Initialize the selector Include, Exclude, Filter
@@ -105,10 +105,10 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			require.Equal(t, 2, len(test.scopesToCheck))
+			require.Len(t, test.scopesToCheck, 1)
 			for _, scope := range test.scopesToCheck {
 				// Scope value is u1,u2
-				assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()])
+				assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()].Target)
 			}
 		})
 	}
@@ -125,10 +125,14 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 
 	sel.Include(sel.Users([]string{u1, u2}))
 	scopes := sel.Includes
-	require.Len(t, scopes, 2)
+	require.Len(t, scopes, 1)
 
-	for _, scope := range scopes {
-		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()])
+	for _, sc := range scopes {
+		scopeMustHave(
+			t,
+			OneDriveScope(sc),
+			map[categorizer]string{OneDriveUser: join(u1, u2)},
+		)
 	}
 }
 
@@ -143,9 +147,13 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 
 	sel.Exclude(sel.Users([]string{u1, u2}))
 	scopes := sel.Excludes
-	require.Len(t, scopes, 2)
+	require.Len(t, scopes, 1)
 
-	for _, scope := range scopes {
-		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()])
+	for _, sc := range scopes {
+		scopeMustHave(
+			t,
+			OneDriveScope(sc),
+			map[categorizer]string{OneDriveUser: join(u1, u2)},
+		)
 	}
 }

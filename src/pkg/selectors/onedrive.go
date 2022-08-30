@@ -111,12 +111,9 @@ func (s *oneDrive) Filter(scopes ...[]OneDriveScope) {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *oneDrive) Users(users []string) []OneDriveScope {
-	users = normalize(users)
 	scopes := []OneDriveScope{}
 
-	for _, u := range users {
-		scopes = append(scopes, makeScope[OneDriveScope](u, Group, OneDriveUser, users))
-	}
+	scopes = append(scopes, makeScope[OneDriveScope](Group, OneDriveUser, users, users))
 
 	return scopes
 }
@@ -139,34 +136,26 @@ func (s *oneDrive) DiscreteScopes(userPNs []string) []OneDriveScope {
 
 // oneDriveCategory enumerates the type of the lowest level
 // of data () in a scope.
-type oneDriveCategory int
+type oneDriveCategory string
 
 // interface compliance checks
 var _ categorizer = OneDriveCategoryUnknown
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=oneDriveCategory
 const (
-	OneDriveCategoryUnknown oneDriveCategory = iota
+	OneDriveCategoryUnknown oneDriveCategory = ""
 	// types of data identified by OneDrive
-	OneDriveUser
+	OneDriveUser oneDriveCategory = "OneDriveUser"
 )
-
-func oneDriveCatAtoI(s string) oneDriveCategory {
-	switch s {
-	// data types
-	case OneDriveUser.String():
-		return OneDriveUser
-	// filters
-	default:
-		return OneDriveCategoryUnknown
-	}
-}
 
 // oneDrivePathSet describes the category type keys used in OneDrive paths.
 // The order of each slice is important, and should match the order in which
 // these types appear in the canonical Path for each type.
 var oneDrivePathSet = map[categorizer][]categorizer{
 	OneDriveUser: {OneDriveUser}, // the root category must be represented
+}
+
+func (c oneDriveCategory) String() string {
+	return string(c)
 }
 
 // leafCat returns the leaf category of the receiver.
@@ -234,7 +223,7 @@ var _ scoper = &OneDriveScope{}
 
 // Category describes the type of the data in scope.
 func (s OneDriveScope) Category() oneDriveCategory {
-	return oneDriveCatAtoI(s[scopeKeyCategory])
+	return oneDriveCategory(getCategory(s))
 }
 
 // categorizer type is a generic wrapper around Category.
@@ -246,13 +235,13 @@ func (s OneDriveScope) categorizer() categorizer {
 // FilterCategory returns the category enum of the scope filter.
 // If the scope is not a filter type, returns OneDriveUnknownCategory.
 func (s OneDriveScope) FilterCategory() oneDriveCategory {
-	return oneDriveCatAtoI(s[scopeKeyInfoFilter])
+	return oneDriveCategory(getFilterCategory(s))
 }
 
 // Granularity describes the granularity (directory || item)
 // of the data in scope.
 func (s OneDriveScope) Granularity() string {
-	return s[scopeKeyGranularity]
+	return getGranularity(s)
 }
 
 // IncludeCategory checks whether the scope includes a
@@ -263,10 +252,10 @@ func (s OneDriveScope) IncludesCategory(cat oneDriveCategory) bool {
 	return categoryMatches(s.Category(), cat)
 }
 
-// Contains returns true if the category is included in the scope's
-// data type, and the target string is included in the scope.
-func (s OneDriveScope) Contains(cat oneDriveCategory, target string) bool {
-	return contains(s, cat, target)
+// Matches returns true if the category is included in the scope's
+// data type, and the target string matches that category's comparator.
+func (s OneDriveScope) Matches(cat oneDriveCategory, target string) bool {
+	return matches(s, cat, target)
 }
 
 // returns true if the category is included in the scope's data type,

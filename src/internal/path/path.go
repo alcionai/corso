@@ -51,16 +51,17 @@ var charactersToEscape = map[rune]struct{}{
 	escapeCharacter: {},
 }
 
-// TODO(ashmrtn): Getting the category should either be through type-switches or
-// through a function, but if it's a function it should re-use existing enums
-// for resource types.
+var errMissingSegment = errors.New("missing required path element")
+
 // For now, adding generic functions to pull information from segments.
 // Resources that don't have the requested information should return an empty
 // string.
 type Path interface {
 	String() string
+	Service() ServiceType
+	Category() CategoryType
 	Tenant() string
-	User() string
+	ResourceOwner() string
 	Folder() string
 	Item() string
 }
@@ -145,8 +146,75 @@ func (pb Builder) String() string {
 	return join(escaped)
 }
 
+//nolint:unused
 func (pb Builder) join(start, end int) string {
 	return join(pb.elements[start:end])
+}
+
+func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+	if len(tenant) == 0 {
+		return errors.Wrap(errMissingSegment, "tenant")
+	}
+
+	if len(resourceOwner) == 0 {
+		return errors.Wrap(errMissingSegment, "user")
+	}
+
+	if len(pb.elements) == 0 {
+		return errors.New("missing path beyond prefix")
+	}
+
+	return nil
+}
+
+func (pb Builder) withPrefix(elements ...string) *Builder {
+	res := Builder{}.Append(elements...)
+	res.elements = append(res.elements, pb.elements...)
+
+	return res
+}
+
+// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail folder
+// resource with information useful to the data layer. This includes prefix
+// elements of the path such as the tenant ID, user ID, service, and service
+// category.
+func (pb Builder) ToDataLayerExchangeMailFolder(tenant, user string) (Path, error) {
+	if err := pb.verifyPrefix(tenant, user); err != nil {
+		return nil, err
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			ExchangeService.String(),
+			user,
+			EmailCategory.String(),
+		),
+		service:  ExchangeService,
+		category: EmailCategory,
+	}, nil
+}
+
+// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail item
+// resource with information useful to the data layer. This includes prefix
+// elements of the path such as the tenant ID, user ID, service, and service
+// category.
+func (pb Builder) ToDataLayerExchangeMailItem(tenant, user string) (Path, error) {
+	if err := pb.verifyPrefix(tenant, user); err != nil {
+		return nil, err
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			ExchangeService.String(),
+			user,
+			EmailCategory.String(),
+		),
+		service:  ExchangeService,
+		category: EmailCategory,
+		hasItem:  true,
+	}, nil
 }
 
 // escapeElement takes a single path element and escapes all characters that
@@ -245,31 +313,30 @@ func validateEscapedElement(element string) error {
 }
 
 // trimTrailingSlash takes an escaped path element and returns an escaped path
-// element with the trailing path separator character removed if it was not
-// escaped. If there was no trailing path separator character or the separator
-// was escaped the input is returned unchanged.
+// element with the trailing path separator character(s) removed if they were not
+// escaped. If there were no trailing path separator character(s) or the separator(s)
+// were escaped the input is returned unchanged.
 func trimTrailingSlash(element string) string {
-	lastIdx := len(element) - 1
+	for len(element) > 0 && element[len(element)-1] == pathSeparator {
+		lastIdx := len(element) - 1
+		numSlashes := 0
 
-	if element[lastIdx] != pathSeparator {
-		return element
-	}
+		for i := lastIdx - 1; i >= 0; i-- {
+			if element[i] != escapeCharacter {
+				break
+			}
 
-	numSlashes := 0
+			numSlashes++
+		}
 
-	for i := lastIdx - 1; i >= 0; i-- {
-		if element[i] != escapeCharacter {
+		if numSlashes%2 != 0 {
 			break
 		}
 
-		numSlashes++
+		element = element[:lastIdx]
 	}
 
-	if numSlashes%2 != 0 {
-		return element
-	}
-
-	return element[:lastIdx]
+	return element
 }
 
 // join returns a string containing the given elements joined by the path

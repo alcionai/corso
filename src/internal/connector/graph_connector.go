@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -22,10 +21,6 @@ import (
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
-)
-
-const (
-	mailCategory = "mail"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -71,6 +66,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m356 account configuration")
 	}
+
 	gc := GraphConnector{
 		tenant:      m365.TenantID,
 		Users:       make(map[string]string, 0),
@@ -78,15 +74,19 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 		statusCh:    make(chan *support.ConnectorOperationStatus),
 		credentials: m365,
 	}
+
 	aService, err := gc.createService(false)
 	if err != nil {
 		return nil, err
 	}
+
 	gc.graphService = *aService
+
 	err = gc.setTenantUsers()
 	if err != nil {
 		return nil, err
 	}
+
 	return &gc, nil
 }
 
@@ -100,11 +100,13 @@ func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, err
 	if err != nil {
 		return nil, err
 	}
+
 	connector := graphService{
 		adapter:  *adapter,
 		client:   *msgraphsdk.NewGraphServiceClient(adapter),
 		failFast: shouldFailFast,
 	}
+
 	return &connector, err
 }
 
@@ -125,10 +127,12 @@ func (gc *GraphConnector) setTenantUsers() error {
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
+
 	if response == nil {
 		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
 		return err
 	}
+
 	userIterator, err := msgraphgocore.NewPageIterator(
 		response,
 		&gc.graphService.adapter,
@@ -137,31 +141,35 @@ func (gc *GraphConnector) setTenantUsers() error {
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
-	var iterateError error
+
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
 			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
 			return true
 		}
+
 		if user.GetUserPrincipalName() == nil {
 			err = support.WrapAndAppend(
 				gc.graphService.adapter.GetBaseUrl(),
 				fmt.Errorf("no email address for User: %s", *user.GetId()),
 				err,
 			)
+
 			return true
 		}
 
 		// *user.GetId() is populated for every M365 entityable object by M365 backstore
 		gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
+
 		return true
 	}
 
-	iterateError = userIterator.Iterate(callbackFunc)
+	iterateError := userIterator.Iterate(callbackFunc)
 	if iterateError != nil {
 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
 	}
+
 	return err
 }
 
@@ -179,6 +187,7 @@ func (gc *GraphConnector) GetUsersIds() []string {
 // Returns list of keys iff true; otherwise returns a list of values
 func buildFromMap(isKey bool, mapping map[string]string) []string {
 	returnString := make([]string, 0)
+
 	if isKey {
 		for k := range mapping {
 			returnString = append(returnString, k)
@@ -188,6 +197,7 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 			returnString = append(returnString, v)
 		}
 	}
+
 	return returnString
 }
 
@@ -203,9 +213,13 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	if err != nil {
 		return nil, errors.Wrap(err, "exchangeDataCollection: unable to parse selector")
 	}
-	scopes := eb.DiscreteScopes(gc.GetUsers())
-	collections := []data.Collection{}
-	var errs error
+
+	var (
+		scopes      = eb.DiscreteScopes(gc.GetUsers())
+		collections = []data.Collection{}
+		errs        error
+	)
+
 	for _, scope := range scopes {
 		// Creates a map of collections based on scope
 		dcs, err := gc.createCollections(ctx, scope)
@@ -213,6 +227,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 			user := scope.Get(selectors.ExchangeUser)
 			return nil, support.WrapAndAppend(user[0], err, errs)
 		}
+
 		for _, collection := range dcs {
 			collections = append(collections, collection)
 		}
@@ -221,32 +236,40 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	return collections, errs
 }
 
-// RestoreMessages: Utility function to connect to M365 backstore
+// RestoreExchangeDataCollection: Utility function to connect to M365 backstore
 // and upload messages from DataCollection.
-// FullPath: tenantId, userId, <mailCategory>, FolderId
-func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collection) error {
+// FullPath: tenantId, userId, <collectionCategory>, FolderId
+func (gc *GraphConnector) RestoreExchangeDataCollection(
+	ctx context.Context,
+	dcs []data.Collection,
+) error {
 	var (
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
-		folderID            *string
+		folderID            string
+		// TODO policy to be updated from external source after completion of refactoring
+		policy = control.Copy
 	)
-	policy := control.Copy // TODO policy to be updated from external source after completion of refactoring
 
 	for _, dc := range dcs {
-		directory := strings.Join(dc.FullPath(), "")
-		user := dc.FullPath()[1]
-		items := dc.Items()
+		var (
+			directory = strings.Join(dc.FullPath(), "")
+			user      = dc.FullPath()[1]
+			items     = dc.Items()
+			category  = dc.FullPath()[2]
+			exit      bool
+		)
+
 		if _, ok := pathCounter[directory]; !ok {
 			pathCounter[directory] = true
-			if policy == control.Copy {
-				folderID, errs = exchange.GetCopyRestoreFolder(&gc.graphService, user)
-				if errs != nil {
-					return errs
-				}
+			folderID, errs = exchange.GetRestoreFolder(&gc.graphService, user, category)
+
+			if errs != nil {
+				return errs
 			}
 		}
-		var exit bool
+
 		for !exit {
 			select {
 			case <-ctx.Done():
@@ -259,13 +282,14 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 				attempts++
 
 				buf := &bytes.Buffer{}
+
 				_, err := buf.ReadFrom(itemData.ToReader())
 				if err != nil {
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
 					continue
 				}
-				category := dc.FullPath()[2]
-				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, *folderID, user)
+
+				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
 
 				if err != nil {
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
@@ -275,12 +299,15 @@ func (gc *GraphConnector) RestoreMessages(ctx context.Context, dcs []data.Collec
 			}
 		}
 	}
+
 	gc.incrementAwaitingMessages()
+
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	// set the channel asynchronously so that this func doesn't block.
 	go func(cos *support.ConnectorOperationStatus) {
 		gc.statusCh <- cos
 	}(status)
+
 	return errs
 }
 
@@ -293,20 +320,20 @@ func (gc *GraphConnector) createCollections(
 	scope selectors.ExchangeScope,
 ) ([]*exchange.Collection, error) {
 	var (
-		transformer absser.ParsableFactory
-		query       exchange.GraphQuery
-		gIter       exchange.GraphIterateFunc
-		errs        error
+		errs                           error
+		transformer, query, gIter, err = exchange.SetupExchangeCollectionVars(scope)
 	)
-	transformer, query, gIter, err := exchange.SetupExchangeCollectionVars(scope)
+
 	if err != nil {
 		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
 	}
+
 	users := scope.Get(selectors.ExchangeUser)
 	allCollections := make([]*exchange.Collection, 0)
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
 		collections := make(map[string]*exchange.Collection)
+
 		response, err := query(&gc.graphService, user)
 		if err != nil {
 			return nil, errors.Wrapf(
@@ -323,19 +350,24 @@ func (gc *GraphConnector) createCollections(
 		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(gc.tenant, user, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
+		callbackFunc := gIter(user, scope, errs, gc.failFast, gc.credentials, collections, gc.statusCh)
 		iterateError := pageIterator.Iterate(callbackFunc)
+
 		if iterateError != nil {
 			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
 		}
+
 		if errs != nil {
 			return nil, errs // return error if snapshot is incomplete
 		}
+
 		for _, collection := range collections {
 			gc.incrementAwaitingMessages()
+
 			allCollections = append(allCollections, collection)
 		}
 	}
+
 	return allCollections, errs
 }
 
@@ -345,6 +377,7 @@ func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 		atomic.AddInt32(&gc.awaitingMessages, -1)
 		gc.status = <-gc.statusCh
 	}
+
 	return gc.status
 }
 
@@ -358,6 +391,7 @@ func (gc *GraphConnector) PrintableStatus() string {
 	if gc.status == nil {
 		return ""
 	}
+
 	return gc.status.String()
 }
 

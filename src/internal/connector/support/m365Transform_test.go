@@ -21,6 +21,7 @@ func (suite *SupportTestSuite) TestToMessage() {
 	bytes := mockconnector.GetMockMessageBytes("m365 mail support test")
 	message, err := CreateMessageFromBytes(bytes)
 	require.NoError(suite.T(), err)
+
 	clone := ToMessage(message)
 	suite.Equal(message.GetBccRecipients(), clone.GetBccRecipients())
 	suite.Equal(message.GetSubject(), clone.GetSubject())
