@@ -325,31 +325,24 @@ func RestoreExchangeObject(
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
+	if policy != control.Copy {
+		return fmt.Errorf("restore policy: %s not supported", policy)
+	}
 
 	switch setting {
 	case messages:
-		switch policy {
-		case control.Copy:
-			return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
-		default:
-			return fmt.Errorf("restore policy: %s not supported", policy)
-		}
+		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
 	case contacts:
-		switch policy {
-		case control.Copy:
-			return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
-		default:
-			return fmt.Errorf("restore policy: %s not supported", policy)
-		}
+		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
 }
 
-// RestoreExchangeContact restores a contact to the
-// @bits byte representation of M365 contact object
+// RestoreExchangeContact restores a contact to the @bits byte
+// representation of M365 contact object.
 // @destination M365 ID representing a M365 Contact_Folder
-// Returns an error if the input bits do not parsent into a models.Contactable object
+// Returns an error if the input bits do not parse into a models.Contactable object
 // or if an error is encountered sending data to the M365 account.
 // Post details: https://docs.microsoft.com/en-us/graph/api/user-post-contacts?view=graph-rest-1.0&tabs=go
 func RestoreExchangeContact(
