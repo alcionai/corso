@@ -31,6 +31,7 @@ func loadConnector(t *testing.T) *GraphConnector {
 	a := tester.NewM365Account(t)
 	connector, err := NewGraphConnector(a)
 	require.NoError(t, err)
+
 	return connector
 }
 
@@ -41,6 +42,7 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(GraphConnectorIntegrationSuite))
 }
 
@@ -66,8 +68,10 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 		statusCh:    make(chan *support.ConnectorOperationStatus),
 		credentials: suite.connector.credentials,
 	}
+
 	service, err := newConnector.createService(false)
 	require.NoError(suite.T(), err)
+
 	newConnector.graphService = *service
 
 	suite.Equal(len(newConnector.Users), 0)
@@ -92,6 +96,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	assert.NoError(t, err)
 	assert.True(t, connector.awaitingMessages > 0)
 	assert.Nil(t, connector.status)
+
 	streams := make(map[string]<-chan data.Stream)
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
 	for _, collection := range collectionList {
@@ -115,6 +120,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 			}
 		})
 	}
+
 	exchangeData := collectionList[0]
 	suite.Greater(len(exchangeData.FullPath()), 2)
 }
@@ -129,11 +135,13 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	sel.Include(sel.MailFolders([]string{suite.user}, selectors.Any()))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
+
 	scopes := eb.Scopes()
 	suite.Len(scopes, 1)
 	mailScope := scopes[0]
 	collection, err := connector.createCollections(context.Background(), mailScope)
 	require.NoError(t, err)
+
 	for _, edc := range collection {
 		testName := strings.Join(edc.FullPath(), " ")
 		suite.T().Run(testName, func(t *testing.T) {
@@ -150,6 +158,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 			}
 		})
 	}
+
 	status := connector.AwaitStatus()
 	suite.NotNil(status)
 	suite.Equal(status.ObjectCount, status.Successful)
@@ -164,13 +173,17 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	sel.Include(sel.ContactFolders([]string{suite.user}, selectors.Any()))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
+
 	scopes := eb.Scopes()
 	connector := loadConnector(t)
+
 	suite.Len(scopes, 1)
 	contactsOnly := scopes[0]
 	collections, err := connector.createCollections(context.Background(), contactsOnly)
 	assert.NoError(t, err)
+
 	number := 0
+
 	for _, edc := range collections {
 		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath()[1], number)
 		suite.T().Run(testName, func(t *testing.T) {
@@ -188,6 +201,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 			number++
 		})
 	}
+
 	status := connector.AwaitStatus()
 	suite.NotNil(status)
 	suite.Equal(status.ObjectCount, status.Successful)
@@ -204,9 +218,11 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 	suite.Equal(len(scopes), 1)
 	collections, err := connector.createCollections(context.Background(), scopes[0])
 	require.NoError(t, err)
+
 	for _, edc := range collections {
 		streamChannel := edc.Items()
 		number := 0
+
 		for stream := range streamChannel {
 			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath()[2], number)
 			suite.T().Run(testName, func(t *testing.T) {
@@ -220,6 +236,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			})
 		}
 	}
+
 	status := connector.AwaitStatus()
 	suite.NotNil(status)
 	suite.Equal(status.ObjectCount, status.Successful)
@@ -234,6 +251,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	category := "mail"
 	connector := loadConnector(t)
 	collection := make([]data.Collection, 0)
+
 	for i := 0; i < 3; i++ {
 		mdc := mockconnector.NewMockExchangeCollection(
 			[]string{"tenant", suite.user, category, "Inbox"},
@@ -243,6 +261,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 
 	err := connector.RestoreExchangeDataCollection(context.Background(), collection)
 	assert.NoError(suite.T(), err)
+
 	status := connector.AwaitStatus()
 	assert.NotNil(t, status)
 	assert.Equal(t, status.ObjectCount, status.Successful)
@@ -261,6 +280,7 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders(selectors.Any(), []string{"Inbox"}))
 	scopes := sel.DiscreteScopes(connector.GetUsers())
+
 	for _, scope := range scopes {
 		users := scope.Get(selectors.ExchangeUser)
 		standard := (len(users) / 4) * 3
@@ -281,6 +301,7 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, suite.user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+
 	if aFolder != nil {
 		err = exchange.DeleteMailFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
@@ -294,6 +315,7 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() 
 	folderName := "TestContactFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateContactFolder(suite.connector.Service(), suite.user, folderName)
 	assert.NoError(suite.T(), err)
+
 	if aFolder != nil {
 		err = exchange.DeleteContactFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)

@@ -80,13 +80,5 @@ issues:
       - revive
       text: "import-shadowing:.*'suite' shadows"
     # Temporarily skip linting wsl on `connector` package until fixes are merged.
-    - path: internal/connector/graph_connector_test.go
-      linters: wsl
-    - path: internal/connector/graph_connector.go
-      linters: wsl
-    - path: internal/connector/exchange/exchange_service_test.go
-      linters: wsl
-    - path: internal/connector/exchange/service_functions.go
-      linters: wsl
     - path: internal/connector/onedrive
       linters: wsl
