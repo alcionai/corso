@@ -18,6 +18,7 @@ func CreateFromBytes(bytes []byte, createFunc absser.ParsableFactory) (absser.Pa
 	if err != nil {
 		return nil, err
 	}
+
 	return anObject, nil
 }
 
@@ -27,7 +28,9 @@ func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	message := aMessage.(models.Messageable)
+
 	return message, nil
 }
 
@@ -38,7 +41,9 @@ func CreateContactFromBytes(bytes []byte) (models.Contactable, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	contact := parsable.(models.Contactable)
+
 	return contact, nil
 }
 
@@ -48,6 +53,8 @@ func CreateEventFromBytes(bytes []byte) (models.Eventable, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	event := parsable.(models.Eventable)
+
 	return event, nil
 }
