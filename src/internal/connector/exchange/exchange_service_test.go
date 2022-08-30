@@ -438,7 +438,6 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	aFolder, err := CreateContactFolder(suite.es, userID, folderName)
 	require.NoError(t, err)
 	folderID := *aFolder.GetId()
-	// TODO add folder for contact at the completion of the test delete the folder
 	err = RestoreExchangeContact(context.Background(),
 		mockconnector.GetMockContactBytes("Corso TestContact"),
 		suite.es,
@@ -446,7 +445,7 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 		folderID,
 		userID)
 	assert.NoError(t, err)
-	//TearDown
+	// Removes folder containing contact prior to exiting test
 	err = DeleteContactFolder(suite.es, userID, folderID)
 	assert.NoError(t, err)
 }
