@@ -1,7 +1,10 @@
 package exchange
 
 import (
+	"fmt"
+
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
+	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
@@ -17,6 +20,15 @@ import (
 // selectors for M365 objects
 //------------------------------------------------------------
 var (
+	fieldsForCalendars = map[string]int{
+		"changeKey":         1,
+		"events":            2,
+		"id":                3,
+		"isDefaultCalendar": 4,
+		"name":              5,
+		"owner":             6,
+	}
+
 	fieldsForEvents = map[string]int{
 		"calendar":          1,
 		"end":               2,
@@ -79,6 +91,7 @@ type optionIdentifier int
 const (
 	unknown optionIdentifier = iota
 	folders
+	calendars
 	events
 	messages
 	users
@@ -104,9 +117,12 @@ func categoryToOptionIdentifier(category string) optionIdentifier {
 	}
 }
 
-//---------------------------------------------------
+//---------------------------------------------------------------------------
 // exchange.Query Option Section
-//------------------------------------------------
+// These functions can be used to filter a response on M365
+// Graph queries and reduce / filter the amount of data returned
+// which reduces the overall latency of complex calls
+//----------------------------------------------------------------
 
 // optionsForMessages - used to select allowable options for exchange.Mail types
 // @param moreOps is []string of options(e.g. "parentFolderId, subject")
@@ -142,6 +158,28 @@ func OptionsForSingleMessage(moreOps []string) (*msitem.MessageItemRequestBuilde
 	return options, nil
 }
 
+// optionsForCalendars places allowed options for exchange.Calendar object
+// @param moreOps should reflect elements from fieldsForCalendars
+// @return is first call in Calendars().GetWithRequestConfigurationAndResponseHandler
+func optionsForCalendars(moreOps []string) (
+	*mscalendars.CalendarsRequestBuilderGetRequestConfiguration,
+	error,
+) {
+	selecting, err := buildOptions(moreOps, calendars)
+	if err != nil {
+		return nil, err
+	}
+	requestParams := &mscalendars.CalendarsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscalendars.CalendarsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParams,
+	}
+	return options, nil
+}
+
+// optionsForContactFolders places allowed options for exchange.ContactFolder object
+// @return is first call in ContactFolders().GetWithRequestConfigurationAndResponseHandler
 func optionsForContactFolders(moreOps []string) (
 	*mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration,
 	error,
@@ -231,10 +269,12 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	returnedOptions := []string{"id"}
 
 	switch optID {
-	case events:
-		allowedOptions = fieldsForEvents
+	case calendars:
+		allowedOptions = fieldsForCalendars
 	case contacts:
 		allowedOptions = fieldsForContacts
+	case events:
+		allowedOptions = fieldsForEvents
 	case folders:
 		allowedOptions = fieldsForFolders
 	case users:
@@ -250,7 +290,7 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	for _, entry := range options {
 		_, ok := allowedOptions[entry]
 		if !ok {
-			return nil, errors.New("unsupported option")
+			return nil, fmt.Errorf("unsupported option: %v", entry)
 		}
 
 		returnedOptions = append(returnedOptions, entry)
