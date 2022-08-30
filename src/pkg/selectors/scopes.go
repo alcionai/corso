@@ -153,6 +153,66 @@ func makeFilterScope[T scopeT](
 // scope funcs
 // ---------------------------------------------------------------------------
 
+// cartesian produces a product of the scope along the path of its categories.
+//
+// So if the scope expresses something like:
+// - Users [u1, u2]
+// - Folders [f1, f2]
+// - Item [i]
+// then the cartesian product is a set of four permutations of those values.
+// Ex: [{u1,f1,i}, {u2,f1,i}, {u1,f2,i}, {u2,f2,i}]
+//
+// The categories used in this permutation are determined by the path set
+// derived from s.categorizer().leafCat().pathKeys().
+// order is important
+func cartesian[T scopeT](s T) []T {
+	// filter category scopes do not produce cartesian products.
+	if len(getFilterCategory(s)) > 0 {
+		return []T{s}
+	}
+
+	cartesian := []T{s}
+
+	// for each category in the path
+	for _, cat := range s.categorizer().leafCat().pathKeys() {
+		expand := []T{}
+		targets := split(s[cat.String()].Target)
+
+		// and for each scope in the cartesian set
+		for _, sc := range cartesian {
+			// make a permutations of the filter targets
+			for _, tgt := range targets {
+				cl := clone(sc)
+
+				tcl := s[cat.String()].Clone()
+				tcl.Target = tgt
+
+				if tcl.Comparator == filters.Contains {
+					tcl.Comparator = filters.Equal
+				}
+
+				cl[cat.String()] = tcl
+				expand = append(expand, cl)
+			}
+		}
+
+		cartesian = expand
+	}
+
+	return cartesian
+}
+
+// clone produces a clone of the scope.
+func clone[T scopeT](s T) T {
+	cl := T{}
+
+	for k, v := range s {
+		cl[k] = v
+	}
+
+	return cl
+}
+
 // matches returns true if the category is included in the scope's
 // data type, and the target string is included in the scope.
 func matches[T scopeT, C categoryT](s T, cat C, target string) bool {

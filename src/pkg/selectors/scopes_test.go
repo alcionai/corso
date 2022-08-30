@@ -455,3 +455,43 @@ func (suite *SelectorScopesSuite) TestWrapFilter() {
 		})
 	}
 }
+
+func (suite *SelectorScopesSuite) TestClone() {
+	s := stubScope("foo")
+	cl := clone(s)
+	assert.Equal(suite.T(), cl, s)
+}
+
+func (suite *SelectorScopesSuite) TestCartesian() {
+	t := suite.T()
+	sc := makeScope[mockScope](Item, leafCatStub, []string{"r1", "r2"}, []string{"l1", "l2"})
+	expect := []mockScope{
+		makeScope[mockScope](Item, leafCatStub, []string{"r1"}, []string{"l1"}),
+		makeScope[mockScope](Item, leafCatStub, []string{"r1"}, []string{"l2"}),
+		makeScope[mockScope](Item, leafCatStub, []string{"r2"}, []string{"l1"}),
+		makeScope[mockScope](Item, leafCatStub, []string{"r2"}, []string{"l2"}),
+	}
+
+	// due to the `resource owner` metadata category not being part of the cartesian,
+	// we need to update the resource owner for each of the expected set to truly match.
+	for _, esc := range expect {
+		esc[scopeKeyResource] = sc[scopeKeyResource]
+	}
+
+	cart := cartesian(sc)
+	assert.Len(t, cart, 4)
+
+	// assert.Equal doesn't work here, so some manual validation is needed.
+	for _, c := range cart {
+		var foundMatch bool
+
+		for _, e := range expect {
+			if err := scopesEqual(e, c); err != nil {
+				foundMatch = true
+				break
+			}
+		}
+
+		assert.True(t, foundMatch, "all cartesian scopes were found in the expected set")
+	}
+}

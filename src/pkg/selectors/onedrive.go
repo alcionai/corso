@@ -221,6 +221,14 @@ type OneDriveScope scope
 // interface compliance checks
 var _ scoper = &OneDriveScope{}
 
+// Cartesian produces the cartesian product of all the values
+// held in the scope.  Ie: if the scope expresses two distinct users
+// (and the same values otherwise), it will return two scopes: one for
+// each individual user.
+func (s OneDriveScope) Cartesian() []OneDriveScope {
+	return cartesian(s)
+}
+
 // Category describes the type of the data in scope.
 func (s OneDriveScope) Category() oneDriveCategory {
 	return oneDriveCategory(getCategory(s))

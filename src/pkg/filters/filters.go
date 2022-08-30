@@ -181,6 +181,15 @@ func in(target, input string) bool {
 // Helpers
 // ----------------------------------------------------------------------------------------------------
 
+// Clone returns a copy of the Filter
+func (f Filter) Clone() Filter {
+	return Filter{
+		Comparator: f.Comparator,
+		Target:     f.Target,
+		Negate:     f.Negate,
+	}
+}
+
 // Targets returns the Target value split into a slice.
 func (f Filter) Targets() []string {
 	return split(f.Target)

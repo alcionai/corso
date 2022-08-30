@@ -3,6 +3,7 @@ package selectors
 import (
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/alcionai/corso/pkg/backup/details"
@@ -139,4 +140,26 @@ func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 			assert.Equal(t, getCatValue(sc, k), split(v))
 		})
 	}
+}
+
+// returns nil if the scopes are equal length and contain equal values.
+func scopesEqual[T scopeT](a, b T) error {
+	if len(a) != len(b) {
+		return errors.New("inequal scope lengths")
+	}
+
+	for k, v := range a {
+		at := v.Target
+
+		bv, ok := b[k]
+		if !ok {
+			return errors.Errorf("key [%s] not found in scope b", k)
+		}
+
+		if at != bv.Target {
+			return errors.Errorf("inequal value at [%s]: a [%s] b [%s]", k, at, bv.Target)
+		}
+	}
+
+	return nil
 }
