@@ -270,7 +270,7 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeStrings string) []ExchangeScope
 			ExchangeMail,
 			ExchangeFilterMailReceivedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.NewLess)),
+			wrapFilter(filters.Less)),
 	}
 }
 
@@ -284,7 +284,7 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScop
 			ExchangeMail,
 			ExchangeFilterMailReceivedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.NewGreater)),
+			wrapFilter(filters.Greater)),
 	}
 }
 
@@ -299,7 +299,7 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeFilterMailSender,
 			senderIDs,
-			wrapFilter(filters.NewIn)),
+			wrapFilter(filters.In)),
 	}
 }
 
@@ -314,7 +314,7 @@ func (sr *ExchangeRestore) MailSubject(subjectSubstrings []string) []ExchangeSco
 			ExchangeMail,
 			ExchangeFilterMailSubject,
 			subjectSubstrings,
-			wrapFilter(filters.NewIn)),
+			wrapFilter(filters.In)),
 	}
 }
 

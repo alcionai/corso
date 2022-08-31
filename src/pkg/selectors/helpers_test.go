@@ -99,11 +99,11 @@ func stubScope(match string) mockScope {
 
 	return mockScope{
 		rootCatStub.String(): passAny,
-		scopeKeyCategory:     filters.NewIdentity(rootCatStub.String()),
-		scopeKeyGranularity:  filters.NewIdentity(Item),
-		scopeKeyResource:     filters.NewIdentity(stubResource),
-		scopeKeyDataType:     filters.NewIdentity(rootCatStub.String()),
-		shouldMatch:          filters.NewIdentity(sm),
+		scopeKeyCategory:     filters.Identity(rootCatStub.String()),
+		scopeKeyGranularity:  filters.Identity(Item),
+		scopeKeyResource:     filters.Identity(stubResource),
+		scopeKeyDataType:     filters.Identity(rootCatStub.String()),
+		shouldMatch:          filters.Identity(sm),
 	}
 }
 

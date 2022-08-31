@@ -11,9 +11,11 @@ import (
 
 // EventInfo searchable metadata for stored event objects.
 func EventInfo(evt models.Eventable) *details.ExchangeInfo {
-	organizer := ""
-	subject := ""
-	start := time.Time{}
+	var (
+		organizer, subject string
+		recurs             bool
+		start              = time.Time{}
+	)
 
 	if evt.GetOrganizer() != nil &&
 		evt.GetOrganizer().GetEmailAddress() != nil &&
@@ -25,6 +27,10 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 
 	if evt.GetSubject() != nil {
 		subject = *evt.GetSubject()
+	}
+
+	if evt.GetRecurrence() != nil {
+		recurs = true
 	}
 
 	if evt.GetStart() != nil &&
@@ -40,8 +46,9 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
-		Organizer:  organizer,
-		Subject:    subject,
-		EventStart: start,
+		Organizer:   organizer,
+		Subject:     subject,
+		EventStart:  start,
+		EventRecurs: recurs,
 	}
 }

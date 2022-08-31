@@ -53,7 +53,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank value",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filters.NewEquals(false, nil, "")
+				stub[rootCatStub.String()] = filters.Equal("")
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -427,23 +427,23 @@ func (suite *SelectorScopesSuite) TestWrapFilter() {
 	}{
 		{
 			name:       "any",
-			filter:     filters.NewContains,
+			filter:     filters.Contains,
 			input:      Any(),
-			comparator: int(filters.Pass),
+			comparator: int(filters.Passes),
 			target:     AnyTgt,
 		},
 		{
 			name:       "none",
-			filter:     filters.NewIn,
+			filter:     filters.In,
 			input:      None(),
-			comparator: int(filters.Fail),
+			comparator: int(filters.Fails),
 			target:     NoneTgt,
 		},
 		{
 			name:       "something",
-			filter:     filters.NewEquals,
+			filter:     filters.Equal,
 			input:      []string{"userid"},
-			comparator: int(filters.Equal),
+			comparator: int(filters.EqualTo),
 			target:     "userid",
 		},
 	}
