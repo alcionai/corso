@@ -273,7 +273,7 @@ func (sr *ExchangeRestore) EventRecurs(recurs bool) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeFilterEventRecurs,
 			[]string{strconv.FormatBool(recurs)},
-			wrapFilter(filters.NewEquals)),
+			wrapFilter(filters.Equal)),
 	}
 }
 
@@ -287,7 +287,7 @@ func (sr *ExchangeRestore) EventStartsAfter(timeStrings string) []ExchangeScope 
 			ExchangeMail,
 			ExchangeFilterMailReceivedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.NewLess)),
+			wrapFilter(filters.Less)),
 	}
 }
 
@@ -301,7 +301,7 @@ func (sr *ExchangeRestore) EventStartsBefore(timeStrings string) []ExchangeScope
 			ExchangeMail,
 			ExchangeFilterMailReceivedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.NewGreater)),
+			wrapFilter(filters.Greater)),
 	}
 }
 
@@ -316,7 +316,7 @@ func (sr *ExchangeRestore) EventSubject(subjectSubstrings []string) []ExchangeSc
 			ExchangeEvent,
 			ExchangeFilterEventSubject,
 			subjectSubstrings,
-			wrapFilter(filters.NewIn)),
+			wrapFilter(filters.In)),
 	}
 }
 
