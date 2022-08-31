@@ -28,14 +28,6 @@ const (
 
 const delimiter = ","
 
-func join(s ...string) string {
-	return strings.Join(s, delimiter)
-}
-
-func split(s string) []string {
-	return strings.Split(s, delimiter)
-}
-
 func norm(s string) string {
 	return strings.ToLower(s)
 }
@@ -195,11 +187,6 @@ func in(target, input string) bool {
 // ----------------------------------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------------------------------
-
-// Targets returns the Target value split into a slice.
-func (f Filter) Targets() []string {
-	return split(f.Target)
-}
 
 // prefixString maps the comparators to string prefixes for printing.
 var prefixString = map[comparator]string{

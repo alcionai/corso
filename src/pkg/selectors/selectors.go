@@ -258,7 +258,7 @@ func toResourceTypeMap(ms []scope) map[string][]string {
 			k = All
 		}
 
-		r[k] = addToSet(r[k], m[scopeKeyDataType].Targets())
+		r[k] = addToSet(r[k], split(m[scopeKeyDataType].Target))
 	}
 
 	return r
