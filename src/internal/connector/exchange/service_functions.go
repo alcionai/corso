@@ -191,7 +191,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
 		isCalendar = true
 	default:
-		return nil, fmt.Errorf("unsupported category %s for GetCalendarID()", category)
+		return nil, fmt.Errorf("unsupported category %s for GetContainerID()", category)
 	}
 
 	response, err := query(service, user)

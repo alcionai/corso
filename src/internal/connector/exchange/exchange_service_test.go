@@ -478,7 +478,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 			containerID, err := GetRestoreContainer(suite.es, userID, test.option)
 			require.True(t, test.checkError(t, err))
 
-			if containerID != "" {
+			if test.cleanupFunc != nil {
 				err = test.cleanupFunc(suite.es, userID, containerID)
 				assert.NoError(t, err)
 			}
