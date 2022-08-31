@@ -24,7 +24,7 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
-	perType := map[string][]print.Printable{}
+	perType := map[itemType][]print.Printable{}
 
 	for _, de := range dm.Entries {
 		it := de.infoType()
@@ -138,6 +138,21 @@ func (de DetailsEntry) Values() []string {
 	return vs
 }
 
+type itemType int
+
+const (
+	UnknownType itemType = iota
+
+	// separate each service by a factor of 100 for padding
+	ExchangeContact
+	ExchangeEvent
+	ExchangeMail
+
+	SharepointItem itemType = iota + 100
+
+	OneDriveItem itemType = iota + 200
+)
+
 // ItemInfo is a oneOf that contains service specific
 // information about the item it tracks
 type ItemInfo struct {
@@ -146,26 +161,30 @@ type ItemInfo struct {
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
 }
 
+// typedInfo should get embedded in each sesrvice type to track
+// the type of item it stores for multi-item service support.
+
 // infoType provides internal categorization for collecting like-typed ItemInfos.
 // It should return the most granular value type (ex: "event" for an exchange
 // calendar event).
-func (i ItemInfo) infoType() string {
+func (i ItemInfo) infoType() itemType {
 	switch {
 	case i.Exchange != nil:
-		return i.Exchange.infoType()
+		return i.Exchange.ItemType
 
 	case i.Sharepoint != nil:
-		return i.Sharepoint.infoType()
+		return i.Sharepoint.ItemType
 
 	case i.OneDrive != nil:
-		return i.OneDrive.infoType()
+		return i.OneDrive.ItemType
 	}
 
-	return ""
+	return UnknownType
 }
 
 // ExchangeInfo describes an exchange item
 type ExchangeInfo struct {
+	ItemType    itemType
 	Sender      string    `json:"sender,omitempty"`
 	Subject     string    `json:"subject,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
@@ -175,36 +194,17 @@ type ExchangeInfo struct {
 	EventRecurs bool      `json:"eventRecurs,omitempty"`
 }
 
-func (i ExchangeInfo) infoType() string {
-	hasContactName := len(i.ContactName) > 0
-	hasReceived := !(&i.Received).Equal(time.Time{})
-	hasEventStart := !(&i.EventStart).Equal(time.Time{})
-
-	switch {
-	case !hasContactName && !hasReceived:
-		return "event"
-
-	case !hasContactName && !hasEventStart:
-		return "mail"
-
-	case !hasEventStart && !hasReceived:
-		return "contact"
-	}
-
-	return ""
-}
-
 // Headers returns the human-readable names of properties in an ExchangeInfo
 // for printing out to a terminal in a columnar display.
 func (i ExchangeInfo) Headers() []string {
-	switch i.infoType() {
-	case "event":
+	switch i.ItemType {
+	case ExchangeEvent:
 		return []string{"Organizer", "Subject", "Starts", "Recurring"}
 
-	case "contact":
+	case ExchangeContact:
 		return []string{"Contact Name"}
 
-	case "mail":
+	case ExchangeMail:
 		return []string{"Sender", "Subject", "Received"}
 	}
 
@@ -214,14 +214,14 @@ func (i ExchangeInfo) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i ExchangeInfo) Values() []string {
-	switch i.infoType() {
-	case "event":
+	switch i.ItemType {
+	case ExchangeEvent:
 		return []string{i.Organizer, i.Subject, common.FormatTime(i.EventStart), strconv.FormatBool(i.EventRecurs)}
 
-	case "contact":
+	case ExchangeContact:
 		return []string{i.ContactName}
 
-	case "mail":
+	case ExchangeMail:
 		return []string{i.Sender, i.Subject, common.FormatTime(i.Received)}
 	}
 
@@ -231,10 +231,8 @@ func (i ExchangeInfo) Values() []string {
 // SharepointInfo describes a sharepoint item
 // TODO: Implement this. This is currently here
 // just to illustrate usage
-type SharepointInfo struct{}
-
-func (i SharepointInfo) infoType() string {
-	return "sharepoint"
+type SharepointInfo struct {
+	ItemType itemType
 }
 
 // Headers returns the human-readable names of properties in a SharepointInfo
@@ -251,6 +249,7 @@ func (i SharepointInfo) Values() []string {
 
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
+	ItemType   itemType
 	ParentPath string `json:"parentPath"`
 	ItemName   string `json:"itemName"`
 }
@@ -265,8 +264,4 @@ func (i OneDriveInfo) Headers() []string {
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
 	return []string{i.ItemName, i.ParentPath}
-}
-
-func (i OneDriveInfo) infoType() string {
-	return "item"
 }

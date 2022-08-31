@@ -43,11 +43,12 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 			expectVs: []string{"reporef"},
 		},
 		{
-			name: "exhange event info",
+			name: "exchange event info",
 			entry: details.DetailsEntry{
 				RepoRef: "reporef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
+						ItemType:    details.ExchangeEvent,
 						EventStart:  now,
 						Organizer:   "organizer",
 						EventRecurs: true,
@@ -59,11 +60,12 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 			expectVs: []string{"reporef", "organizer", "subject", nowStr, "true"},
 		},
 		{
-			name: "exhange contact info",
+			name: "exchange contact info",
 			entry: details.DetailsEntry{
 				RepoRef: "reporef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
+						ItemType:    details.ExchangeContact,
 						ContactName: "contactName",
 					},
 				},
@@ -72,11 +74,12 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 			expectVs: []string{"reporef", "contactName"},
 		},
 		{
-			name: "exhange mail info",
+			name: "exchange mail info",
 			entry: details.DetailsEntry{
 				RepoRef: "reporef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
+						ItemType: details.ExchangeMail,
 						Sender:   "sender",
 						Subject:  "subject",
 						Received: now,

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/pkg/backup/details"
@@ -25,7 +26,8 @@ func (suite *ContactSuite) TestContactInfo() {
 		{
 			name: "Empty Contact",
 			contactAndRP: func() (models.Contactable, *details.ExchangeInfo) {
-				return models.NewContact(), &details.ExchangeInfo{}
+				i := &details.ExchangeInfo{ItemType: details.ExchangeContact}
+				return models.NewContact(), i
 			},
 		}, {
 			name: "Only Name",
@@ -33,14 +35,18 @@ func (suite *ContactSuite) TestContactInfo() {
 				aPerson := "Whole Person"
 				contact := models.NewContact()
 				contact.SetDisplayName(&aPerson)
-				return contact, &details.ExchangeInfo{ContactName: aPerson}
+				i := &details.ExchangeInfo{
+					ItemType:    details.ExchangeContact,
+					ContactName: aPerson,
+				}
+				return contact, i
 			},
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			contact, expected := test.contactAndRP()
-			suite.Equal(expected, ContactInfo(contact))
+			assert.Equal(t, expected, ContactInfo(contact))
 		})
 	}
 }
