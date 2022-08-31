@@ -321,3 +321,18 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() 
 		assert.NoError(suite.T(), err)
 	}
 }
+
+// TestCreateAndDeleteCalendar verifies GraphConnector has the ability to create and remove
+// exchange.Event.Calendars within the tenant
+func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
+	now := time.Now()
+	service := suite.connector.Service()
+	calendarName := "TestCalendar: " + common.FormatSimpleDateTime(now)
+	calendar, err := exchange.CreateCalendar(service, suite.user, calendarName)
+	assert.NoError(suite.T(), err)
+
+	if calendar != nil {
+		err = exchange.DeleteCalendar(service, suite.user, *calendar.GetId())
+		assert.NoError(suite.T(), err)
+	}
+}
