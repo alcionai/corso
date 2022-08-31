@@ -430,21 +430,25 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	assert.NoError(t, err)
 }
 
-<<<<<<< HEAD
+// TestRestoreEvent verifies that event object is able to created
+// and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
-	//calendar, err := CreateCalendar()
-	t.Log(name)
-	// require.NoError(t, err)
+	calendar, err := CreateCalendar(suite.es, userID, name)
+	require.NoError(t, err)
 
-	err := RestoreExchangeEvent(context.Background(),
-		mockconnector.GetMockEventBytes("Tested"),
+	calendarID := *calendar.GetId()
+	err = RestoreExchangeEvent(context.Background(),
+		mockconnector.GetMockEventBytes("Restore Event "),
 		suite.es,
 		control.Copy,
-		"Calendar",
+		calendarID,
 		userID)
+	assert.NoError(t, err)
+	// Removes calendar containing events created during the test
+	err = DeleteCalendar(suite.es, userID, *calendar.GetId())
 	assert.NoError(t, err)
 }
 
