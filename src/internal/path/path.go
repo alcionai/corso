@@ -41,7 +41,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const errPathParsing = "parsing resource path from %s"
+const templateErrPathParsing = "parsing resource path from %s"
 
 const (
 	escapeCharacter = '\\'
@@ -233,7 +233,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 	// Turn into a Builder to reuse code that ignores empty elements.
 	pb, err := Builder{}.UnescapeAndAppend(split(p)...)
 	if err != nil {
-		return nil, errors.Wrapf(err, errPathParsing, p)
+		return nil, errors.Wrapf(err, templateErrPathParsing, p)
 	}
 
 	if len(pb.elements) < 5 {
@@ -245,7 +245,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		pb.elements[3],
 	)
 	if err != nil {
-		return nil, errors.Wrapf(err, errPathParsing, p)
+		return nil, errors.Wrapf(err, templateErrPathParsing, p)
 	}
 
 	return &dataLayerResourcePath{
