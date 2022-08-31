@@ -359,6 +359,8 @@ func RestoreExchangeObject(
 		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
 	case contacts:
 		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
+	case events:
+		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
@@ -389,6 +391,30 @@ func RestoreExchangeContact(
 
 	if response == nil {
 		return errors.New("msgraph contact post fail: REST response not received")
+	}
+
+	return nil
+}
+
+func RestoreExchangeEvent(
+	ctx context.Context,
+	bits []byte,
+	service graph.Service,
+	cp control.CollisionPolicy,
+	destination, user string,
+) error {
+	event, err := support.CreateEventFromBytes(bits)
+	if err != nil {
+		return err
+	}
+
+	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
+	if err != nil {
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	if response == nil {
+		return errors.New("msgraph event post fail: REST response not received")
 	}
 
 	return nil
