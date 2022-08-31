@@ -177,8 +177,8 @@ type ExchangeInfo struct {
 
 func (i ExchangeInfo) infoType() string {
 	hasContactName := len(i.ContactName) > 0
-	hasReceived := i.Received != (time.Time{})
-	hasEventStart := i.EventStart != (time.Time{})
+	hasReceived := !(&i.Received).Equal(time.Time{})
+	hasEventStart := !(&i.EventStart).Equal(time.Time{})
 
 	switch {
 	case !hasContactName && !hasReceived:
