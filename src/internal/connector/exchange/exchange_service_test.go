@@ -8,12 +8,12 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
@@ -514,61 +514,57 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	assert.NoError(t, err)
 }
 
-// TestEstablishFolder checks the ability to Create a "container" for the
+// TestGetRestoreContainer checks the ability to Create a "container" for the
 // GraphConnector's Restore Workflow based on OptionIdentifier.
-func (suite *ExchangeServiceSuite) TestEstablishFolder() {
+func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	tests := []struct {
-		name       string
-		option     optionIdentifier
-		checkError assert.ErrorAssertionFunc
+		name        string
+		option      string
+		checkError  assert.ErrorAssertionFunc
+		cleanupFunc func(graph.Service, string, string) error
 	}{
 		{
-			name:       "Establish User Restore Folder",
-			option:     users,
-			checkError: assert.Error,
+			name:        "Establish User Restore Folder",
+			option:      "users",
+			checkError:  assert.Error,
+			cleanupFunc: nil,
 		},
 		{
-			name:       "Establish Event Restore Location",
-			option:     events,
-			checkError: assert.Error,
+			name:        "Establish Event Restore Location",
+			option:      "events",
+			checkError:  assert.Error,
+			cleanupFunc: DeleteCalendar,
 		},
 		{
-			name:       "Establish Restore Folder for Unknown",
-			option:     unknown,
-			checkError: assert.Error,
+			name:        "Establish Restore Folder for Unknown",
+			option:      "unknown",
+			checkError:  assert.Error,
+			cleanupFunc: nil,
 		},
 		{
-			name:       "Establish Restore folder for Mail",
-			option:     messages,
-			checkError: assert.NoError,
+			name:        "Establish Restore folder for Mail",
+			option:      "mail",
+			checkError:  assert.NoError,
+			cleanupFunc: DeleteMailFolder,
 		},
 		{
-			name:       "Establish Restore folder for Contacts",
-			option:     contacts,
-			checkError: assert.NoError,
+			name:        "Establish Restore folder for Contacts",
+			option:      "contacts",
+			checkError:  assert.NoError,
+			cleanupFunc: DeleteContactFolder,
 		},
 	}
-	now := time.Now()
-	folderName := "CorsoEstablishFolder" + common.FormatSimpleDateTime(now)
+
 	userID := tester.M365UserID(suite.T())
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			folderID, err := establishFolder(suite.es, folderName, userID, test.option)
+			containerID, err := GetRestoreContainer(suite.es, userID, test.option)
 			require.True(t, test.checkError(t, err))
-			if folderID != "" {
-				switch test.option {
-				case messages:
-					err = DeleteMailFolder(suite.es, userID, folderID)
-					assert.NoError(t, err)
-				case contacts:
-					err = DeleteContactFolder(suite.es, userID, folderID)
-					assert.NoError(t, err)
-				default:
-					assert.NoError(t,
-						errors.New("unsupported type received folderID: "+test.option.String()),
-					)
-				}
+
+			if containerID != "" {
+				err = test.cleanupFunc(suite.es, userID, containerID)
+				assert.NoError(t, err)
 			}
 		})
 	}
