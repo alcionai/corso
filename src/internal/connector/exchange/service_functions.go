@@ -157,26 +157,24 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
 func GetContainerID(service graph.Service, containerName, user string, category optionIdentifier) (*string, error) {
 	var (
-		errs      error
-		targetID  *string
-		query     GraphQuery
-		transform absser.ParsableFactory
-		cb        IterateSearchFunc
+		errs       error
+		targetID   *string
+		query      GraphQuery
+		transform  absser.ParsableFactory
+		isCalendar bool
 	)
 
 	switch category {
 	case messages:
 		query = GetAllFolderNamesForUser
 		transform = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
-		cb = iterateFindFolderID
 	case contacts:
 		query = GetAllContactFolderNamesForUser
 		transform = models.CreateContactFolderFromDiscriminatorValue
-		cb = iterateFindFolderID
 	case events:
 		query = GetAllCalendarNamesForUser
 		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
-		cb = iterateFindCalendarID
+		isCalendar = true
 	default:
 		return nil, fmt.Errorf("unsupported category %s for GetFolderID()", category)
 	}
@@ -199,10 +197,11 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		return nil, err
 	}
 
-	callbackFunc := cb(
+	callbackFunc := iterateFindFolderID(
 		&targetID,
 		containerName,
 		service.Adapter().GetBaseUrl(),
+		isCalendar,
 		errs,
 	)
 
