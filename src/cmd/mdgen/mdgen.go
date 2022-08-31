@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -59,7 +59,7 @@ func genDocs(cmd *cobra.Command, args []string) {
 		fatal(errors.Wrap(err, "preparing directory for markdown generation"))
 	}
 
-	corsoCmd:= cli.CorsoCommand()
+	corsoCmd := cli.CorsoCommand()
 	corsoCmd.DisableAutoGenTag = true
 
 	err := doc.GenMarkdownTreeCustom(corsoCmd, cliMarkdownDir, filePrepender, identity)
