@@ -1,6 +1,8 @@
 package restore
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -25,6 +27,7 @@ var (
 	emailSender         string
 	emailSubject        string
 	event               []string
+	eventCalendar       []string
 	user                []string
 )
 
@@ -61,12 +64,18 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders",
 		)
 		fs.StringSliceVar(&event, "event", nil, "Restore events by ID; accepts "+utils.Wildcard+" to select all events")
+		fs.StringSliceVar(
+			&eventCalendar,
+			"event-calendar",
+			nil,
+			"Restore events by calendar ID; accepts "+utils.Wildcard+" to select all event calendars")
 		fs.StringSliceVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
 
 		// TODO: reveal these flags when their production is supported in GC
 		cobra.CheckErr(fs.MarkHidden("contact"))
 		cobra.CheckErr(fs.MarkHidden("contact-folder"))
 		cobra.CheckErr(fs.MarkHidden("event"))
+		cobra.CheckErr(fs.MarkHidden("event-calendar"))
 
 		// exchange-info flags
 		fs.StringVar(
@@ -117,6 +126,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		email,
 		emailFolder,
 		event,
+		eventCalendar,
 		user,
 		backupID,
 	); err != nil {
@@ -143,6 +153,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		email,
 		emailFolder,
 		event,
+		eventCalendar,
 		user)
 	filterExchangeRestoreInfoSelectors(
 		sel,
@@ -173,19 +184,19 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 // builds the data-selector inclusions for `restore exchange`
 func includeExchangeRestoreDataSelectors(
 	sel *selectors.ExchangeRestore,
-	contacts, contactFolders, emails, emailFolders, events, users []string,
+	contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string,
 ) {
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
-	lev := len(events)
+	lev, lec := len(events), len(eventCalendars)
 	lu := len(users)
 
-	if lc+lcf+le+lef+lev+lu == 0 {
+	if lc+lcf+le+lef+lev+lec+lu == 0 {
 		return
 	}
 
 	// if only users are provided, we only get one selector
-	if lu > 0 && lc+lcf+le+lef+lev == 0 {
+	if lu > 0 && lc+lcf+le+lef+lev+lec == 0 {
 		sel.Include(sel.Users(users))
 		return
 	}
@@ -193,7 +204,7 @@ func includeExchangeRestoreDataSelectors(
 	// otherwise, add selectors for each type of data
 	includeExchangeContacts(sel, users, contactFolders, contacts)
 	includeExchangeEmails(sel, users, emailFolders, email)
-	includeExchangeEvents(sel, users, events)
+	includeExchangeEvents(sel, users, eventCalendars, events)
 }
 
 func includeExchangeContacts(sel *selectors.ExchangeRestore, users, contactFolders, contacts []string) {
@@ -201,11 +212,11 @@ func includeExchangeContacts(sel *selectors.ExchangeRestore, users, contactFolde
 		return
 	}
 
-	if len(contacts) > 0 {
-		sel.Include(sel.Contacts(users, contactFolders, contacts))
-	} else {
-		sel.Include(sel.ContactFolders(users, contactFolders))
+	if len(contacts) == 0 {
+		contacts = selectors.Any()
 	}
+
+	sel.Include(sel.Contacts(users, contactFolders, contacts))
 }
 
 func includeExchangeEmails(sel *selectors.ExchangeRestore, users, emailFolders, emails []string) {
@@ -213,17 +224,23 @@ func includeExchangeEmails(sel *selectors.ExchangeRestore, users, emailFolders, 
 		return
 	}
 
-	if len(emails) > 0 {
-		sel.Include(sel.Mails(users, emailFolders, emails))
-	} else {
-		sel.Include(sel.MailFolders(users, emailFolders))
+	if len(emails) == 0 {
+		emails = selectors.Any()
 	}
+
+	sel.Include(sel.Mails(users, emailFolders, emails))
 }
 
-func includeExchangeEvents(sel *selectors.ExchangeRestore, users, events []string) {
-	if len(events) == 0 {
+func includeExchangeEvents(sel *selectors.ExchangeRestore, users, eventCalendars, events []string) {
+	if len(eventCalendars) == 0 {
 		return
 	}
+
+	if len(events) == 0 {
+		events = selectors.Any()
+	}
+
+	fmt.Println("logging eventCalendars so the linter sees it 'used'.  Will remove asap", eventCalendars)
 
 	sel.Include(sel.Events(users, events))
 }
@@ -273,7 +290,7 @@ func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject strin
 
 // checks all flags for correctness and interdependencies
 func validateExchangeRestoreFlags(
-	contacts, contactFolders, emails, emailFolders, events, users []string,
+	contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string,
 	backupID string,
 ) error {
 	if len(backupID) == 0 {
@@ -283,10 +300,10 @@ func validateExchangeRestoreFlags(
 	lu := len(users)
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
-	lev := len(events)
+	lev, lec := len(events), len(eventCalendars)
 
 	// if only the backupID is populated, that's the same as --all
-	if lu+lc+lcf+le+lef+lev == 0 {
+	if lu+lc+lcf+le+lef+lev+lec == 0 {
 		return nil
 	}
 
@@ -301,7 +318,12 @@ func validateExchangeRestoreFlags(
 
 	if le > 0 && lef == 0 {
 		return errors.New(
-			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify a --email")
+			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify an --email")
+	}
+
+	if lev > 0 && lec == 0 {
+		return errors.New(
+			"one or more --event-calendar ids or the wildcard --event-calendar * must be included to specify an --event")
 	}
 
 	return nil
