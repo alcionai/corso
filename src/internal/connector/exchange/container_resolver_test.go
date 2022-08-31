@@ -178,44 +178,42 @@ func TestConfiguredCachingContainerResolverUnitSuite(t *testing.T) {
 }
 
 func (suite *ConfiguredCachingContainerResolverUnitSuite) TestLookup() {
-	t := suite.T()
 	ctx := context.Background()
-	suite.mcr.returnOnce = false
-
-	ccr, err := NewCachingContainerResolver(
-		path.Builder{}.Append(suite.root.DisplayName()),
-		suite.mcr,
-	)
-	require.NoError(t, err)
-	require.NoError(t, ccr.Initialize(ctx))
-
-	for _, c := range suite.mcr.mappings {
-		suite.T().Run(fmt.Sprintf("Lookup-%s", c.DisplayName()), func(t *testing.T) {
-			p, err := ccr.Lookup(ctx, c.ID())
-			require.NoError(t, err)
-
-			assert.Equal(t, c.path, p.String())
-		})
+	table := []struct {
+		name       string
+		returnOnce bool
+	}{
+		{
+			name:       "NoCachingCheck",
+			returnOnce: false,
+		},
+		{
+			name:       "CachingCheck",
+			returnOnce: true,
+		},
 	}
-}
 
-func (suite *ConfiguredCachingContainerResolverUnitSuite) TestLookupCaching() {
-	ctx := context.Background()
-	suite.mcr.returnOnce = true
+	for _, test := range table {
+		suite.SetupTest()
 
-	ccr, err := NewCachingContainerResolver(
-		path.Builder{}.Append(suite.root.DisplayName()),
-		suite.mcr,
-	)
-	require.NoError(suite.T(), err)
-	require.NoError(suite.T(), ccr.Initialize(ctx))
+		suite.mcr.returnOnce = test.returnOnce
 
-	for _, c := range suite.mcr.mappings {
-		suite.T().Run(fmt.Sprintf("Lookup-%s", c.DisplayName()), func(t *testing.T) {
-			p, err := ccr.Lookup(ctx, c.ID())
-			require.NoError(t, err)
+		suite.T().Run(test.name, func(t1 *testing.T) {
+			ccr, err := NewCachingContainerResolver(
+				path.Builder{}.Append(suite.root.DisplayName()),
+				suite.mcr,
+			)
+			require.NoError(t1, err)
+			require.NoError(t1, ccr.Initialize(ctx))
 
-			assert.Equal(t, c.path, p.String())
+			for _, c := range suite.mcr.mappings {
+				t1.Run(fmt.Sprintf("Lookup-%s", c.DisplayName()), func(t *testing.T) {
+					p, err := ccr.Lookup(ctx, c.ID())
+					require.NoError(t, err)
+
+					assert.Equal(t, c.path, p.String())
+				})
+			}
 		})
 	}
 }
