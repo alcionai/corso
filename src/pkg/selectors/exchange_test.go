@@ -656,10 +656,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		now   = time.Now()
 		then  = now.Add(1 * time.Minute)
 		info  = &details.ExchangeInfo{
+			ContactName: name,
+			EventStart:  now,
 			Sender:      sender,
 			Subject:     subject,
 			Received:    now,
-			ContactName: name,
+			// TODO: event recurs
 		}
 	)
 
@@ -673,7 +675,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"mail from a different sender", es.MailSender([]string{"magoo@ma.goo"}), assert.False},
 		{"mail from the matching sender", es.MailSender([]string{sender}), assert.True},
 		{"mail with any subject", es.MailSubject(Any()), assert.True},
-		{"no mail, regardless of subject", es.MailSubject(None()), assert.False},
+		{"mail with none subject", es.MailSubject(None()), assert.False},
 		{"mail with a different subject", es.MailSubject([]string{"fancy"}), assert.False},
 		{"mail with the matching subject", es.MailSubject([]string{subject}), assert.True},
 		{"mail with a substring subject match", es.MailSubject([]string{subject[5:9]}), assert.True},
@@ -683,6 +685,18 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
 		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
 		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(then)), assert.True},
+		// TODO: {"event that recurs", es.EventRecurs(true), assert.True},
+		// TODO: {"event that does not recur", es.EventRecurs(false), assert.False},
+		{"event starting after the epoch", es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
+		{"event starting after now", es.EventStartsAfter(common.FormatTime(now)), assert.False},
+		{"event starting after sometime later", es.EventStartsAfter(common.FormatTime(then)), assert.False},
+		{"event starting before the epoch", es.EventStartsBefore(common.FormatTime(epoch)), assert.False},
+		{"event starting before now", es.EventStartsBefore(common.FormatTime(now)), assert.False},
+		{"event starting before sometime later", es.EventStartsBefore(common.FormatTime(then)), assert.True},
+		{"event with any subject", es.EventSubject(Any()), assert.True},
+		{"event with none subject", es.EventSubject(None()), assert.False},
+		{"event with a different subject", es.EventSubject([]string{"fancy"}), assert.False},
+		{"event with the matching subject", es.EventSubject([]string{subject}), assert.True},
 		{"contact with a different name", es.ContactName("blarps"), assert.False},
 		{"contact with the same name", es.ContactName(name), assert.True},
 		{"contact with a subname search", es.ContactName(name[2:5]), assert.True},
