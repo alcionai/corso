@@ -683,9 +683,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
 		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
 		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(then)), assert.True},
-		{"contact with a different name", es.ContactName([]string{"blarps"}), assert.False},
-		{"contact with the same name", es.ContactName([]string{name}), assert.True},
-		{"contact with a subname search", es.ContactName([]string{name[2:5]}), assert.True},
+		{"contact with a different name", es.ContactName("blarps"), assert.False},
+		{"contact with the same name", es.ContactName(name), assert.True},
+		{"contact with a subname search", es.ContactName(name[2:5]), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
