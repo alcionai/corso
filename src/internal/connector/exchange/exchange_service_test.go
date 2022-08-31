@@ -448,7 +448,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 		{
 			name:        "Establish Event Restore Location",
 			option:      "events",
-			checkError:  assert.Error,
+			checkError:  assert.NoError,
 			cleanupFunc: DeleteCalendar,
 		},
 		{
