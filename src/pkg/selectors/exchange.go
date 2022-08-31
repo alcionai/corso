@@ -1,6 +1,8 @@
 package selectors
 
 import (
+	"strconv"
+
 	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/filters"
@@ -260,6 +262,64 @@ func (s *exchange) Users(users []string) []ExchangeScope {
 // -------------------
 // Filter Factories
 
+// EventRecurs produces one or more exchange event recurrence filter scopes.
+// Matches any event if the comparator flag matches the event recurrence flag.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) EventRecurs(recurs bool) []ExchangeScope {
+	return []ExchangeScope{
+		makeFilterScope[ExchangeScope](
+			ExchangeEvent,
+			ExchangeFilterEventRecurs,
+			[]string{strconv.FormatBool(recurs)},
+			wrapFilter(filters.Equal)),
+	}
+}
+
+// EventStartsAfter produces an exchange event starts-after filter scope.
+// Matches any event where the start time is after the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (sr *ExchangeRestore) EventStartsAfter(timeStrings string) []ExchangeScope {
+	return []ExchangeScope{
+		makeFilterScope[ExchangeScope](
+			ExchangeMail,
+			ExchangeFilterMailReceivedAfter,
+			[]string{timeStrings},
+			wrapFilter(filters.Less)),
+	}
+}
+
+// EventStartsBefore produces an exchange event starts-before filter scope.
+// Matches any event where the start time is before the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (sr *ExchangeRestore) EventStartsBefore(timeStrings string) []ExchangeScope {
+	return []ExchangeScope{
+		makeFilterScope[ExchangeScope](
+			ExchangeMail,
+			ExchangeFilterMailReceivedBefore,
+			[]string{timeStrings},
+			wrapFilter(filters.Greater)),
+	}
+}
+
+// EventSubject produces one or more exchange event subject filter scopes.
+// Matches any event where the event subject contains one of the provided strings.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) EventSubject(subjectSubstrings []string) []ExchangeScope {
+	return []ExchangeScope{
+		makeFilterScope[ExchangeScope](
+			ExchangeEvent,
+			ExchangeFilterEventSubject,
+			subjectSubstrings,
+			wrapFilter(filters.In)),
+	}
+}
+
 // ContactName produces one or more exchange contact name filter scopes.
 // Matches any contact whose name contains the provided string.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -399,6 +459,10 @@ const (
 	ExchangeFilterMailReceivedAfter  exchangeCategory = "ExchangeFilterMailReceivedAfter"
 	ExchangeFilterMailReceivedBefore exchangeCategory = "ExchangeFilterMailReceivedBefore"
 	ExchangeFilterContactName        exchangeCategory = "ExchangeFilterContactName"
+	ExchangeFilterEventRecurs        exchangeCategory = "ExchangeFilterEventRecurs"
+	ExchangeFilterEventStartsAfter   exchangeCategory = "ExchangeFilterEventStartsAfter"
+	ExchangeFilterEventStartsBefore  exchangeCategory = "ExchangeFilterEventStartsBefore"
+	ExchangeFilterEventSubject       exchangeCategory = "ExchangeFilterEventSubject"
 	// append new filter cats here
 )
 
@@ -428,6 +492,9 @@ func (ec exchangeCategory) leafCat() categorizer {
 	switch ec {
 	case ExchangeContact, ExchangeContactFolder, ExchangeFilterContactName:
 		return ExchangeContact
+	case ExchangeEvent, ExchangeFilterEventRecurs, ExchangeFilterEventStartsAfter,
+		ExchangeFilterEventStartsBefore, ExchangeFilterEventSubject:
+		return ExchangeEvent
 	case ExchangeMail, ExchangeMailFolder, ExchangeFilterMailReceivedAfter,
 		ExchangeFilterMailReceivedBefore, ExchangeFilterMailSender, ExchangeFilterMailSubject:
 		return ExchangeMail
@@ -631,10 +698,14 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 		i = info.Sender
 	case ExchangeFilterMailSubject:
 		i = info.Subject
-	case ExchangeFilterMailReceivedAfter:
+	case ExchangeFilterMailReceivedAfter, ExchangeFilterMailReceivedBefore:
 		i = common.FormatTime(info.Received)
-	case ExchangeFilterMailReceivedBefore:
-		i = common.FormatTime(info.Received)
+	case ExchangeFilterEventRecurs:
+		i = "" // TODO: add EventRecurs is added to ExchangeInfo.
+	case ExchangeFilterEventStartsAfter, ExchangeFilterEventStartsBefore:
+		i = common.FormatTime(info.EventStart)
+	case ExchangeFilterEventSubject:
+		i = info.Subject
 	}
 
 	return s.Matches(filterCat, i)
