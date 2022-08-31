@@ -38,12 +38,6 @@ type GraphIterateFunc func(
 	graphStatusChannel chan<- *support.ConnectorOperationStatus,
 ) func(any) bool
 
-type IterateSearchFunc func(
-	containerID **string,
-	targetName, errorIdentifier string,
-	errs error,
-) func(any) bool
-
 // IterateSelectAllDescendablesForCollection utility function for
 // Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
 // objects belonging to any folder are
@@ -313,9 +307,14 @@ func IterateFilterFolderDirectoriesForCollections(
 func iterateFindFolderID(
 	folderID **string,
 	folderName, errorIdentifier string,
+	isCalendar bool,
 	errs error,
 ) func(any) bool {
 	return func(entry any) bool {
+		if isCalendar {
+			entry = CreateCalendarDisplayable(entry)
+		}
+
 		folder, ok := entry.(displayable)
 		if !ok {
 			errs = support.WrapAndAppend(
@@ -339,41 +338,6 @@ func iterateFindFolderID(
 			}
 
 			*folderID = folder.GetId()
-
-			return false
-		}
-
-		return true
-	}
-}
-
-func iterateFindCalendarID(
-	containerID **string,
-	calendarName, errorIdentifier string,
-	errs error,
-) func(any) bool {
-	return func(entry any) bool {
-		cal, ok := entry.(models.Calendarable)
-		if !ok {
-			errs = support.WrapAndAppend(
-				errorIdentifier,
-				errors.New("struct does not implement calendarable"),
-				errs,
-			)
-
-			return true
-		}
-		// Calendar Name not set
-		if cal.GetName() == nil {
-			return true
-		}
-
-		if calendarName == *cal.GetName() {
-			if cal.GetId() == nil {
-				return true // invalid calendar
-			}
-
-			*containerID = cal.GetId()
 
 			return false
 		}
