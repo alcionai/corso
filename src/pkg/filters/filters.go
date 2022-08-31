@@ -26,8 +26,6 @@ const (
 	IdentityValue
 )
 
-const delimiter = ","
-
 func norm(s string) string {
 	return strings.ToLower(s)
 }
