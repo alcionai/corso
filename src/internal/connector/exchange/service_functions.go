@@ -90,6 +90,21 @@ type MailFolder struct {
 	DisplayName string
 }
 
+// CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
+// Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
+func CreateCalendar(gs graph.Service, user, calendarName string) (models.Calendarable, error) {
+	requestbody := models.NewCalendar()
+	requestbody.SetName(&calendarName)
+
+	return gs.Client().UsersById(user).Calendars().Post(requestbody)
+}
+
+// DeleteCalendar removes calendar from user's M365 account
+// Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
+func DeleteCalendar(gs graph.Service, user, calendarID string) error {
+	return gs.Client().UsersById(user).CalendarsById(calendarID).Delete()
+}
+
 // CreateContactFolder makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
 func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
@@ -176,7 +191,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
 		isCalendar = true
 	default:
-		return nil, fmt.Errorf("unsupported category %s for GetFolderID()", category)
+		return nil, fmt.Errorf("unsupported category %s for GetContainerID()", category)
 	}
 
 	response, err := query(service, user)
@@ -197,7 +212,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		return nil, err
 	}
 
-	callbackFunc := iterateFindFolderID(
+	callbackFunc := iterateFindContainerID(
 		&targetID,
 		containerName,
 		service.Adapter().GetBaseUrl(),
@@ -281,30 +296,18 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-// GetRestoreFolder utility function to create
+// GetRestoreContainer utility function to create
 //  an unique folder for the restore process
 // @param category: input from fullPath()[2]
 // that defines the application the folder is created in.
-func GetRestoreFolder(
+func GetRestoreContainer(
 	service graph.Service,
 	user, category string,
 ) (string, error) {
-	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
+	name := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
+	option := categoryToOptionIdentifier(category)
 
-	switch category {
-	case mailCategory, contactsCategory:
-		return establishFolder(service, newFolder, user, categoryToOptionIdentifier(category))
-	default:
-		return "", fmt.Errorf("%s category not supported", category)
-	}
-}
-
-func establishFolder(
-	service graph.Service,
-	folderName, user string,
-	optID optionIdentifier,
-) (string, error) {
-	folderID, err := GetContainerID(service, folderName, user, optID)
+	folderID, err := GetContainerID(service, name, user, option)
 	if err == nil {
 		return *folderID, nil
 	}
@@ -313,23 +316,30 @@ func establishFolder(
 		return "", support.WrapAndAppend(user, err, err)
 	}
 
-	switch optID {
+	switch option {
 	case messages:
-		fold, err := CreateMailFolder(service, user, folderName)
+		fold, err := CreateMailFolder(service, user, name)
 		if err != nil {
 			return "", support.WrapAndAppend(user, err, err)
 		}
 
 		return *fold.GetId(), nil
 	case contacts:
-		fold, err := CreateContactFolder(service, user, folderName)
+		fold, err := CreateContactFolder(service, user, name)
 		if err != nil {
 			return "", support.WrapAndAppend(user, err, err)
 		}
 
 		return *fold.GetId(), nil
+	case events:
+		calendar, err := CreateCalendar(service, user, name)
+		if err != nil {
+			return "", support.WrapAndAppend(user, err, err)
+		}
+
+		return *calendar.GetId(), nil
 	default:
-		return "", fmt.Errorf("category: %s not supported for folder creation", optID)
+		return "", fmt.Errorf("category: %s not supported for folder creation", option)
 	}
 }
 
