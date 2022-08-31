@@ -330,9 +330,7 @@ func iterateFindFolderID(
 			return true
 		}
 
-		name := *folder.GetDisplayName()
-
-		if folderName == name {
+		if folderName == *folder.GetDisplayName() {
 			if folder.GetId() == nil {
 				return true // invalid folder
 			}
