@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -26,6 +27,12 @@ var cmd = &cobra.Command{
 	Run:               genDocs,
 }
 
+const fmTemplate = `---
+title: "%s"
+hide_title: true
+---
+`
+
 func main() {
 	cmd.
 		PersistentFlags().
@@ -41,11 +48,21 @@ func main() {
 }
 
 func genDocs(cmd *cobra.Command, args []string) {
+	identity := func(s string) string { return s }
+	filePrepender := func(filename string) string {
+		name := filepath.Base(filename)
+		base := strings.TrimSuffix(name, filepath.Ext(name))
+		return fmt.Sprintf(fmTemplate, strings.Replace(base, "_", " ", -1))
+	}
+
 	if err := makeDir(cliMarkdownDir); err != nil {
 		fatal(errors.Wrap(err, "preparing directory for markdown generation"))
 	}
 
-	err := doc.GenMarkdownTree(cli.CorsoCommand(), cliMarkdownDir)
+	corsoCmd:= cli.CorsoCommand()
+	corsoCmd.DisableAutoGenTag = true
+
+	err := doc.GenMarkdownTreeCustom(corsoCmd, cliMarkdownDir, filePrepender, identity)
 	if err != nil {
 		fatal(errors.Wrap(err, "generating the Corso CLI markdown"))
 	}
