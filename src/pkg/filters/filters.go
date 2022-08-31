@@ -9,34 +9,22 @@ type comparator int
 const (
 	UnknownComparator comparator = iota
 	// a == b
-	Equal
+	EqualTo
 	// a > b
-	Greater
+	GreaterThan
 	// a < b
-	Less
-	// a < b < c
-	Between
+	LessThan
 	// "foo,bar,baz" contains "foo"
-	Contains
+	TargetContains
 	// "foo" is found in "foo,bar,baz"
-	In
+	TargetIn
 	// always passes
-	Pass
+	Passes
 	// always fails
-	Fail
+	Fails
 	// passthrough for the target
-	Identity
+	IdentityValue
 )
-
-const delimiter = ","
-
-func join(s ...string) string {
-	return strings.Join(s, delimiter)
-}
-
-func split(s string) []string {
-	return strings.Split(s, delimiter)
-}
 
 func norm(s string) string {
 	return strings.ToLower(s)
@@ -47,91 +35,117 @@ func norm(s string) string {
 // true if Filter.Comparer(filter.target, v) is true.
 type Filter struct {
 	Comparator comparator `json:"comparator"`
-	Category   any        `json:"category"` // a caller-provided identifier.  Probably an iota or string const.
-	Target     string     `json:"target"`   // the value to compare against
-	Negate     bool       `json:"negate"`   // when true, negate the comparator result
+	Target     string     `json:"target"` // the value to compare against
+	Negate     bool       `json:"negate"` // when true, negate the comparator result
 }
 
 // ----------------------------------------------------------------------------------------------------
 // Constructors
 // ----------------------------------------------------------------------------------------------------
 
-// NewEquals creates a filter which Matches(v) is true if
+// Equal creates a filter where Compare(v) is true if
 // target == v
-func NewEquals(negate bool, category any, target string) Filter {
-	return Filter{Equal, category, target, negate}
+func Equal(target string) Filter {
+	return newFilter(EqualTo, target, false)
 }
 
-// NewGreater creates a filter which Matches(v) is true if
+// NotEqual creates a filter where Compare(v) is true if
+// target != v
+func NotEqual(target string) Filter {
+	return newFilter(EqualTo, target, true)
+}
+
+// Greater creates a filter where Compare(v) is true if
 // target > v
-func NewGreater(negate bool, category any, target string) Filter {
-	return Filter{Greater, category, target, negate}
+func Greater(target string) Filter {
+	return newFilter(GreaterThan, target, false)
 }
 
-// NewLess creates a filter which Matches(v) is true if
+// NotGreater creates a filter where Compare(v) is true if
+// target <= v
+func NotGreater(target string) Filter {
+	return newFilter(GreaterThan, target, true)
+}
+
+// Less creates a filter where Compare(v) is true if
 // target < v
-func NewLess(negate bool, category any, target string) Filter {
-	return Filter{Less, category, target, negate}
+func Less(target string) Filter {
+	return newFilter(LessThan, target, false)
 }
 
-// NewBetween creates a filter which Matches(v) is true if
-// lesser < v && v < greater
-func NewBetween(negate bool, category any, lesser, greater string) Filter {
-	return Filter{Between, category, join(lesser, greater), negate}
+// NotLess creates a filter where Compare(v) is true if
+// target >= v
+func NotLess(target string) Filter {
+	return newFilter(LessThan, target, true)
 }
 
-// NewContains creates a filter which Matches(v) is true if
-// super.Contains(v)
-func NewContains(negate bool, category any, super string) Filter {
-	return Filter{Contains, category, super, negate}
+// Contains creates a filter where Compare(v) is true if
+// target.Contains(v)
+func Contains(target string) Filter {
+	return newFilter(TargetContains, target, false)
 }
 
-// NewIn creates a filter which Matches(v) is true if
-// v.Contains(substr)
-func NewIn(negate bool, category any, substr string) Filter {
-	return Filter{In, category, substr, negate}
+// NotContains creates a filter where Compare(v) is true if
+// !target.Contains(v)
+func NotContains(target string) Filter {
+	return newFilter(TargetContains, target, true)
 }
 
-// NewPass creates a filter where Matches(v) always returns true
-func NewPass() Filter {
-	return Filter{Pass, nil, "*", false}
+// In creates a filter where Compare(v) is true if
+// v.Contains(target)
+func In(target string) Filter {
+	return newFilter(TargetIn, target, false)
 }
 
-// NewFail creates a filter where Matches(v) always returns false
-func NewFail() Filter {
-	return Filter{Fail, nil, "", false}
+// NotIn creates a filter where Compare(v) is true if
+// !v.Contains(target)
+func NotIn(target string) Filter {
+	return newFilter(TargetIn, target, true)
 }
 
-// NewIdentity creates a filter intended to hold values, rather than
-// compare them.  Functionally, it'll behave the same as Equals.
-func NewIdentity(id string) Filter {
-	return Filter{Identity, nil, id, false}
+// Pass creates a filter where Compare(v) always returns true
+func Pass() Filter {
+	return newFilter(Passes, "*", false)
+}
+
+// Fail creates a filter where Compare(v) always returns false
+func Fail() Filter {
+	return newFilter(Fails, "", false)
+}
+
+// Identity creates a filter intended to hold values, rather than
+// compare them.  Comparatively, it'll behave the same as Equals.
+func Identity(id string) Filter {
+	return newFilter(IdentityValue, id, false)
+}
+
+// newFilter is the standard filter constructor.
+func newFilter(c comparator, target string, negate bool) Filter {
+	return Filter{c, target, negate}
 }
 
 // ----------------------------------------------------------------------------------------------------
 // Comparisons
 // ----------------------------------------------------------------------------------------------------
 
-// Checks whether the filter matches the input
-func (f Filter) Matches(input string) bool {
+// Compare checks whether the input passes the filter.
+func (f Filter) Compare(input string) bool {
 	var cmp func(string, string) bool
 
 	switch f.Comparator {
-	case Equal, Identity:
+	case EqualTo, IdentityValue:
 		cmp = equals
-	case Greater:
+	case GreaterThan:
 		cmp = greater
-	case Less:
+	case LessThan:
 		cmp = less
-	case Between:
-		cmp = between
-	case Contains:
+	case TargetContains:
 		cmp = contains
-	case In:
+	case TargetIn:
 		cmp = in
-	case Pass:
+	case Passes:
 		return true
-	case Fail:
+	case Fails:
 		return false
 	}
 
@@ -158,15 +172,6 @@ func less(target, input string) bool {
 	return target < input
 }
 
-// assumes target is a delimited string.
-// true if both:
-//   - less(target[0], input)
-//   - greater(target[1], input)
-func between(target, input string) bool {
-	parts := split(target)
-	return less(parts[0], input) && greater(parts[1], input)
-}
-
 // true if target contains input as a substring.
 func contains(target, input string) bool {
 	return strings.Contains(target, input)
@@ -181,34 +186,22 @@ func in(target, input string) bool {
 // Helpers
 // ----------------------------------------------------------------------------------------------------
 
-// Targets returns the Target value split into a slice.
-func (f Filter) Targets() []string {
-	return split(f.Target)
+// prefixString maps the comparators to string prefixes for printing.
+var prefixString = map[comparator]string{
+	EqualTo:        "eq:",
+	GreaterThan:    "gt:",
+	LessThan:       "lt:",
+	TargetContains: "cont:",
+	TargetIn:       "in:",
 }
 
 func (f Filter) String() string {
-	var prefix string
-
 	switch f.Comparator {
-	case Equal:
-		prefix = "eq:"
-	case Greater:
-		prefix = "gt:"
-	case Less:
-		prefix = "lt:"
-	case Between:
-		prefix = "btwn:"
-	case Contains:
-		prefix = "cont:"
-	case In:
-		prefix = "in:"
-	case Pass:
+	case Passes:
 		return "pass"
-	case Fail:
+	case Fails:
 		return "fail"
-	case Identity:
-	default: // no prefix
 	}
 
-	return prefix + f.Target
+	return prefixString[f.Comparator] + f.Target
 }

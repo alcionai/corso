@@ -18,9 +18,8 @@ func TestFiltersSuite(t *testing.T) {
 }
 
 func (suite *FiltersSuite) TestEquals() {
-	makeFilt := filters.NewEquals
-	f := makeFilt(false, "", "foo")
-	nf := makeFilt(true, "", "foo")
+	f := filters.Equal("foo")
+	nf := filters.NotEqual("foo")
 
 	table := []struct {
 		input    string
@@ -32,16 +31,15 @@ func (suite *FiltersSuite) TestEquals() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestGreater() {
-	makeFilt := filters.NewGreater
-	f := makeFilt(false, "", "5")
-	nf := makeFilt(true, "", "5")
+	f := filters.Greater("5")
+	nf := filters.NotGreater("5")
 
 	table := []struct {
 		input    string
@@ -54,16 +52,15 @@ func (suite *FiltersSuite) TestGreater() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestLess() {
-	makeFilt := filters.NewLess
-	f := makeFilt(false, "", "5")
-	nf := makeFilt(true, "", "5")
+	f := filters.Less("5")
+	nf := filters.NotLess("5")
 
 	table := []struct {
 		input    string
@@ -76,39 +73,15 @@ func (suite *FiltersSuite) TestLess() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
-		})
-	}
-}
-
-func (suite *FiltersSuite) TestBetween() {
-	makeFilt := filters.NewBetween
-	f := makeFilt(false, "", "abc", "def")
-	nf := makeFilt(true, "", "abc", "def")
-
-	table := []struct {
-		input    string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
-	}{
-		{"cd", assert.True, assert.False},
-		{"a", assert.False, assert.True},
-		{"1", assert.False, assert.True},
-		{"f", assert.False, assert.True},
-	}
-	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestContains() {
-	makeFilt := filters.NewContains
-	f := makeFilt(false, "", "smurfs")
-	nf := makeFilt(true, "", "smurfs")
+	f := filters.Contains("smurfs")
+	nf := filters.NotContains("smurfs")
 
 	table := []struct {
 		input    string
@@ -120,16 +93,15 @@ func (suite *FiltersSuite) TestContains() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestContains_Joined() {
-	makeFilt := filters.NewContains
-	f := makeFilt(false, "", "smarf,userid")
-	nf := makeFilt(true, "", "smarf,userid")
+	f := filters.Contains("smarf,userid")
+	nf := filters.NotContains("smarf,userid")
 
 	table := []struct {
 		input    string
@@ -142,16 +114,15 @@ func (suite *FiltersSuite) TestContains_Joined() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestIn() {
-	makeFilt := filters.NewIn
-	f := makeFilt(false, "", "murf")
-	nf := makeFilt(true, "", "murf")
+	f := filters.In("murf")
+	nf := filters.NotIn("murf")
 
 	table := []struct {
 		input    string
@@ -163,16 +134,15 @@ func (suite *FiltersSuite) TestIn() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestIn_Joined() {
-	makeFilt := filters.NewIn
-	f := makeFilt(false, "", "userid")
-	nf := makeFilt(true, "", "userid")
+	f := filters.In("userid")
+	nf := filters.NotIn("userid")
 
 	table := []struct {
 		input    string
@@ -184,8 +154,8 @@ func (suite *FiltersSuite) TestIn_Joined() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.input, func(t *testing.T) {
-			test.expectF(t, f.Matches(test.input), "filter")
-			test.expectNF(t, nf.Matches(test.input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
