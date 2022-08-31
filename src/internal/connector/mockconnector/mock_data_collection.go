@@ -2,7 +2,6 @@ package mockconnector
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -127,10 +126,7 @@ func GetMockEventBytes(subject string) []byte {
 	newTime := time.Now().AddDate(0, 0, 1)
 	conversion := common.FormatTime(newTime)
 	timeSlice := strings.Split(conversion, "T")
-	fmt.Println(conversion)
-	fmt.Println(timeSlice[0])
 
-	//os.Exit(1)
 	//nolint:lll
 	event := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA=\",\"calendar@odata.navigationLink\":" +
 		"\"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')\"," +
