@@ -73,6 +73,7 @@ func NewCollection(
 		fullPath:       fullPath,
 		collectionType: collectionType,
 	}
+
 	return collection
 }
 
@@ -118,9 +119,11 @@ func (col *Collection) populateByOptionIdentifier(
 		errs    error
 		success int
 	)
+
 	defer func() {
 		col.finishPopulation(ctx, success, errs)
 	}()
+
 	user := col.user
 	objectWriter := kw.NewJsonSerializationWriter()
 	// get QueryBasedonIdentifier
@@ -140,8 +143,10 @@ func (col *Collection) populateByOptionIdentifier(
 			if col.service.ErrPolicy() {
 				break
 			}
+
 			continue
 		}
+
 		err = serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
@@ -149,6 +154,7 @@ func (col *Collection) populateByOptionIdentifier(
 			if col.service.ErrPolicy() {
 				break
 			}
+
 			continue
 		}
 
@@ -188,7 +194,9 @@ func eventToDataCollection(
 	user string,
 ) error {
 	var err error
+
 	defer objectWriter.Close()
+
 	event, ok := parsable.(models.Eventable)
 	if !ok {
 		return fmt.Errorf("expected Eventable, got %T", parsable)
@@ -196,6 +204,7 @@ func eventToDataCollection(
 
 	if *event.GetHasAttachments() {
 		var retriesErr error
+
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := client.
 				UsersById(user).
@@ -203,30 +212,37 @@ func eventToDataCollection(
 				Attachments().
 				Get()
 			retriesErr = err
+
 			if err == nil && attached != nil {
 				event.SetAttachments(attached.GetValue())
 				break
 			}
 		}
+
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
+
 			return support.WrapAndAppend(
 				*event.GetId(),
 				errors.Wrap(retriesErr, "attachment failed"),
 				nil)
 		}
 	}
+
 	err = objectWriter.WriteObjectValue("", event)
 	if err != nil {
 		return support.SetNonRecoverableError(errors.Wrap(err, *event.GetId()))
 	}
+
 	byteArray, err := objectWriter.GetSerializedContent()
 	if err != nil {
 		return support.WrapAndAppend(*event.GetId(), errors.Wrap(err, "serializing content"), nil)
 	}
+
 	if byteArray != nil {
 		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: EventInfo(event)}
 	}
+
 	return nil
 }
 
@@ -240,21 +256,26 @@ func contactToDataCollection(
 	user string,
 ) error {
 	defer objectWriter.Close()
+
 	contact, ok := parsable.(models.Contactable)
 	if !ok {
 		return fmt.Errorf("expected Contactable, got %T", parsable)
 	}
+
 	err := objectWriter.WriteObjectValue("", contact)
 	if err != nil {
 		return support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
 	}
+
 	byteArray, err := objectWriter.GetSerializedContent()
 	if err != nil {
 		return support.WrapAndAppend(*contact.GetId(), err, nil)
 	}
+
 	if byteArray != nil {
 		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: ContactInfo(contact)}
 	}
+
 	return nil
 }
 
@@ -268,11 +289,14 @@ func messageToDataCollection(
 	user string,
 ) error {
 	var err error
+
 	defer objectWriter.Close()
+
 	aMessage, ok := parsable.(models.Messageable)
 	if !ok {
 		return fmt.Errorf("expected Messageable, got %T", parsable)
 	}
+
 	adtl := aMessage.GetAdditionalData()
 	if len(adtl) > 2 {
 		aMessage, err = support.ConvertFromMessageable(adtl, aMessage)
@@ -280,9 +304,11 @@ func messageToDataCollection(
 			return err
 		}
 	}
+
 	if *aMessage.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
+
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := client.
 				UsersById(user).
@@ -290,11 +316,13 @@ func messageToDataCollection(
 				Attachments().
 				Get()
 			retriesErr = err
+
 			if err == nil {
 				aMessage.SetAttachments(attached.GetValue())
 				break
 			}
 		}
+
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
 			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
@@ -313,6 +341,7 @@ func messageToDataCollection(
 	}
 
 	dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage)}
+
 	return nil
 }
 

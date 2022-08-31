@@ -23,5 +23,5 @@ application to connect to your *M365 tenant* and transfer data during backup and
 * **Repository** refers to the storage location where Corso securely and efficiently stores encrypted *backups* of your
 *M365 Services* data. See [Repositories](/configuration/repos) for more information.
 
-* **Backup** is a copy of your *M365 Services* data that can be restored if the original data is deleted, lost, or
-corrupted. Corso performs backups incrementally; each backup only captures data that has changed between backup iterations.
+* **Backup** is a copy of your *M365 Services* data to be used for restores in case of deletion, loss, or corruption of the
+original data. Corso performs backups incrementall, and each backup only captures data that has changed between backup iterations.

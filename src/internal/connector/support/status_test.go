@@ -66,6 +66,7 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 func (suite *GCStatusTestSuite) TestCreateStatus_InvalidStatus() {
 	t := suite.T()
 	params := statusParams{Backup, 9, 3, 13, errors.New("invalidcl")}
+
 	require.Panics(t, func() {
 		CreateStatus(
 			context.Background(),

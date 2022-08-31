@@ -47,6 +47,7 @@ func GetNumberOfErrors(err error) int {
 	if err == nil {
 		return 0
 	}
+
 	result, _, wasFound := strings.Cut(err.Error(), " ")
 	if wasFound {
 		aNum, err := strconv.Atoi(result)
@@ -54,6 +55,7 @@ func GetNumberOfErrors(err error) int {
 			return aNum
 		}
 	}
+
 	return 1
 }
 
@@ -62,13 +64,16 @@ func GetNumberOfErrors(err error) int {
 // depends on ConnectorStackErrorTrace
 func ListErrors(multi multierror.Error) string {
 	aString := ""
+
 	for idx, err := range multi.Errors {
 		detail := ConnectorStackErrorTrace(err)
 		if detail == "" {
 			detail = fmt.Sprintf("%v", err)
 		}
+
 		aString = aString + fmt.Sprintf("\n\tErr: %d %v", idx+1, detail)
 	}
+
 	return aString
 }
 
@@ -80,6 +85,7 @@ func concatenateStringFromPointers(orig string, pointers []*string) string {
 			orig = strings.Join([]string{orig, *pointer}, " ")
 		}
 	}
+
 	return orig
 }
 
@@ -87,6 +93,7 @@ func concatenateStringFromPointers(orig string, pointers []*string) string {
 // stack trace for oDataError types from querying the M365 back store.
 func ConnectorStackErrorTrace(e error) string {
 	eMessage := ""
+
 	if oDataError, ok := e.(msgraph_errors.ODataErrorable); ok {
 		// Get MainError
 		mainErr := oDataError.GetError()
@@ -102,10 +109,12 @@ func ConnectorStackErrorTrace(e error) string {
 		inners := mainErr.GetInnererror()
 		eMessage = concatenateStringFromPointers(eMessage,
 			[]*string{code, subject, target})
+
 		// Get Error Details
 		// code, message, target
 		if details != nil {
 			eMessage = eMessage + "\nDetails Section:"
+
 			for idx, detail := range details {
 				dMessage := fmt.Sprintf("Detail %d:", idx)
 				c := detail.GetCode()
@@ -116,6 +125,7 @@ func ConnectorStackErrorTrace(e error) string {
 				eMessage = eMessage + dMessage
 			}
 		}
+
 		if inners != nil {
 			eMessage = eMessage + "\nConnector Section:"
 			client := inners.GetClientRequestId()
@@ -124,5 +134,6 @@ func ConnectorStackErrorTrace(e error) string {
 				[]*string{client, rID})
 		}
 	}
+
 	return eMessage
 }

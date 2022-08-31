@@ -57,8 +57,8 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 
 	sel.Includes = []scope{
 		scope(stubScope("")),
-		{scopeKeyResource: "smarf", scopeKeyDataType: unknownCatStub.String()},
-		{scopeKeyResource: "smurf", scopeKeyDataType: unknownCatStub.String()},
+		{scopeKeyResource: filterize("smarf"), scopeKeyDataType: filterize(unknownCatStub.String())},
+		{scopeKeyResource: filterize("smurf"), scopeKeyDataType: filterize(unknownCatStub.String())},
 	}
 	p = sel.Printable()
 	res = p.Resources()
@@ -94,8 +94,8 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			input: []scope{
 				scope(stubScope("")),
 				{
-					scopeKeyResource: "smarf",
-					scopeKeyDataType: unknownCatStub.String(),
+					scopeKeyResource: filterize("smarf"),
+					scopeKeyDataType: filterize(unknownCatStub.String()),
 				},
 			},
 			expect: map[string][]string{
@@ -108,8 +108,8 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			input: []scope{
 				scope(stubScope("")),
 				{
-					scopeKeyResource: stubResource,
-					scopeKeyDataType: "other",
+					scopeKeyResource: filterize(stubResource),
+					scopeKeyDataType: filterize("other"),
 				},
 			},
 			expect: map[string][]string{
@@ -130,10 +130,10 @@ func (suite *SelectorSuite) TestContains() {
 	key := rootCatStub
 	target := "fnords"
 	does := stubScope("")
-	does[key.String()] = target
+	does[key.String()] = filterize(target)
 	doesNot := stubScope("")
-	doesNot[key.String()] = "smarf"
+	doesNot[key.String()] = filterize("smarf")
 
-	assert.True(t, contains(does, key, target), "does contain")
-	assert.False(t, contains(doesNot, key, target), "does not contain")
+	assert.True(t, matches(does, key, target), "does contain")
+	assert.False(t, matches(doesNot, key, target), "does not contain")
 }

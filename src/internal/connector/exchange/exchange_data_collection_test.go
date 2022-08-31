@@ -30,11 +30,15 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Valid() {
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
-	var empty []byte
-	expected := int64(0)
+	var (
+		empty    []byte
+		expected int64
+	)
+
 	ed := &Stream{message: empty}
 	buf := &bytes.Buffer{}
 	received, err := buf.ReadFrom(ed.ToReader())
+
 	suite.Equal(expected, received)
 	assert.Nil(suite.T(), err, "received buf.Readfrom error ")
 }
@@ -67,9 +71,11 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 		fullPath: []string{"Today", "is", "currently", "different"},
 	}
 	suite.Zero(len(eoc.jobs))
+
 	shopping := []string{"tomotoes", "potatoes", "pasta", "ice tea"}
 	for _, item := range shopping {
 		eoc.AddJob(item)
 	}
+
 	suite.Equal(len(shopping), len(eoc.jobs))
 }

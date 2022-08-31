@@ -56,12 +56,14 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 	if err != nil {
 		return nil, err
 	}
+
 	service := exchangeService{
 		adapter:     *adapter,
 		client:      *msgraphsdk.NewGraphServiceClient(adapter),
 		failFast:    shouldFailFast,
 		credentials: credentials,
 	}
+
 	return &service, err
 }
 
@@ -70,6 +72,7 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 func CreateMailFolder(gs graph.Service, user, folder string) (models.MailFolderable, error) {
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
+
 	isHidden := false
 	requestBody.SetIsHidden(&isHidden)
 
@@ -110,6 +113,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		mfs = []MailFolder{}
 		err error
 	)
+
 	resp, err := GetAllFolderNamesForUser(gs, user)
 	if err != nil {
 		return nil, err
@@ -143,6 +147,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 	if err := iter.Iterate(cb); err != nil {
 		return nil, err
 	}
+
 	return mfs, err
 }
 
@@ -158,6 +163,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		transform absser.ParsableFactory
 		cb        IterateSearchFunc
 	)
+
 	switch category {
 	case messages:
 		query = GetAllFolderNamesForUser
@@ -183,6 +189,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 			user, support.ConnectorStackErrorTrace(err),
 		)
 	}
+
 	pageIterator, err := msgraphgocore.NewPageIterator(
 		response,
 		service.Adapter(),
@@ -191,6 +198,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 	if err != nil {
 		return nil, err
 	}
+
 	callbackFunc := cb(
 		&targetID,
 		containerName,
@@ -218,12 +226,16 @@ func parseCalendarIDFromEvent(reference string) (string, error) {
 	if len(stringArray) < 2 {
 		return "", errors.New("calendarID not found")
 	}
+
 	temp := stringArray[1]
 	stringArray = strings.Split(temp, "')/$ref")
+
 	if len(stringArray) < 2 {
 		return "", errors.New("calendarID not found")
 	}
+
 	calendarID := stringArray[0]
+
 	if len(calendarID) == 0 {
 		return "", errors.New("calendarID empty")
 	}
@@ -252,6 +264,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 			IterateAndFilterMessagesForCollections,
 			nil
 	}
+
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateEventCollectionResponseFromDiscriminatorValue,
 			GetAllEventsForUser,
@@ -278,6 +291,7 @@ func GetRestoreFolder(
 	user, category string,
 ) (string, error) {
 	newFolder := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
+
 	switch category {
 	case mailCategory, contactsCategory:
 		return establishFolder(service, newFolder, user, categoryToOptionIdentifier(category))
@@ -299,18 +313,21 @@ func establishFolder(
 	if !errors.Is(err, ErrFolderNotFound) {
 		return "", support.WrapAndAppend(user, err, err)
 	}
+
 	switch optID {
 	case messages:
 		fold, err := CreateMailFolder(service, user, folderName)
 		if err != nil {
 			return "", support.WrapAndAppend(user, err, err)
 		}
+
 		return *fold.GetId(), nil
 	case contacts:
 		fold, err := CreateContactFolder(service, user, folderName)
 		if err != nil {
 			return "", support.WrapAndAppend(user, err, err)
 		}
+
 		return *fold.GetId(), nil
 	default:
 		return "", fmt.Errorf("category: %s not supported for folder creation", optID)
@@ -326,12 +343,14 @@ func RestoreExchangeObject(
 	destination, user string,
 ) error {
 	var setting optionIdentifier
+
 	switch category {
 	case mailCategory, contactsCategory:
 		setting = categoryToOptionIdentifier(category)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
 	}
+
 	if policy != control.Copy {
 		return fmt.Errorf("restore policy: %s not supported", policy)
 	}
@@ -368,9 +387,11 @@ func RestoreExchangeContact(
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
+
 	if response == nil {
 		return errors.New("msgraph contact post fail: REST response not received")
 	}
+
 	return nil
 }
 
@@ -402,6 +423,7 @@ func RestoreMailMessage(
 	sv.SetValue(&enableValue)
 	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
 	clone.SetSingleValueExtendedProperties(svlep)
+
 	draft := false
 	clone.SetIsDraft(&draft)
 
@@ -425,8 +447,10 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
+
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
 	}
+
 	return nil
 }

@@ -33,6 +33,7 @@ func TestExchangeServiceSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(ExchangeServiceSuite))
 }
 
@@ -47,6 +48,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	require.NoError(t, err)
 	service, err := createService(m365, false)
 	require.NoError(t, err)
+
 	suite.es = service
 }
 
@@ -242,6 +244,7 @@ func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 	sel.Include(sel.Users([]string{userID}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
+
 	scopes := eb.Scopes()
 
 	for _, test := range scopes {
@@ -292,6 +295,7 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			function: GetAllCalendarNamesForUser,
 		},
 	}
+
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			response, err := test.function(suite.es, userID)
@@ -392,6 +396,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 			checkError:    assert.NoError,
 		},
 	}
+
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := GetContainerID(
@@ -407,17 +412,24 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
-	userID := tester.M365UserID(suite.T())
-	sel := selectors.NewExchangeBackup()
+	var (
+		mailScope, contactScope selectors.ExchangeScope
+		userID                  = tester.M365UserID(suite.T())
+		sel                     = selectors.NewExchangeBackup()
+	)
+
 	sel.Include(sel.Users([]string{userID}))
+
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
+
 	scopes := eb.Scopes()
-	var mailScope, contactScope selectors.ExchangeScope
+
 	for _, scope := range scopes {
 		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
 			contactScope = scope
 		}
+
 		if scope.IncludesCategory(selectors.ExchangeMail) {
 			mailScope = scope
 		}
@@ -488,6 +500,7 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	folderName := "TestRestoreContact: " + common.FormatSimpleDateTime(now)
 	aFolder, err := CreateContactFolder(suite.es, userID, folderName)
 	require.NoError(t, err)
+
 	folderID := *aFolder.GetId()
 	err = RestoreExchangeContact(context.Background(),
 		mockconnector.GetMockContactBytes("Corso TestContact"),
@@ -538,6 +551,7 @@ func (suite *ExchangeServiceSuite) TestEstablishFolder() {
 	now := time.Now()
 	folderName := "CorsoEstablishFolder" + common.FormatSimpleDateTime(now)
 	userID := tester.M365UserID(suite.T())
+
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			folderID, err := establishFolder(suite.es, folderName, userID, test.option)
