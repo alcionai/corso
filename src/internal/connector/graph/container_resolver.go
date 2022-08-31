@@ -1,4 +1,4 @@
-package exchange
+package graph
 
 import (
 	"context"
