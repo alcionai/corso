@@ -313,6 +313,9 @@ func iterateFindFolderID(
 	return func(entry any) bool {
 		if isCalendar {
 			entry = CreateCalendarDisplayable(entry)
+			if entry == nil {
+			  return true
+			}
 		}
 
 		folder, ok := entry.(displayable)
