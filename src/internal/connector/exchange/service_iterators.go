@@ -299,14 +299,16 @@ func IterateFilterFolderDirectoriesForCollections(
 	}
 }
 
-// iterateFindFolderID is a utility function that supports finding
+// iterateFindContainerID is a utility function that supports finding
 // M365 folders objects that matches the folderName. Iterator callback function
 // will work on folderCollection responses whose objects implement
 // the displayable interface. If folder exists, the function updates the
-// folderID memory address that was passed in.
-func iterateFindFolderID(
-	folderID **string,
-	folderName, errorIdentifier string,
+// containerID memory address that was passed in.
+// @param containerName is the string representation of the folder, directory or calendar holds
+// the underlying M365 objects
+func iterateFindContainerID(
+	containerID **string,
+	containerName, errorIdentifier string,
 	isCalendar bool,
 	errs error,
 ) func(any) bool {
@@ -334,12 +336,12 @@ func iterateFindFolderID(
 			return true
 		}
 
-		if folderName == *folder.GetDisplayName() {
+		if containerName == *folder.GetDisplayName() {
 			if folder.GetId() == nil {
 				return true // invalid folder
 			}
 
-			*folderID = folder.GetId()
+			*containerID = folder.GetId()
 
 			return false
 		}
