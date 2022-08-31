@@ -55,10 +55,10 @@ func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 	stub := []string{"id-stub"}
 
 	table := []struct {
-		name                                                          string
-		contacts, contactFolders, emails, emailFolders, events, users []string
-		backupID                                                      string
-		expect                                                        assert.ErrorAssertionFunc
+		name                                                                          string
+		contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string
+		backupID                                                                      string
+		expect                                                                        assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "only backupid",
@@ -73,6 +73,7 @@ func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 			emails:         stub,
 			emailFolders:   stub,
 			events:         stub,
+			eventCalendars: stub,
 			users:          stub,
 			expect:         assert.NoError,
 		},
@@ -87,6 +88,7 @@ func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 			emails:         stub,
 			emailFolders:   stub,
 			events:         stub,
+			eventCalendars: stub,
 			users:          stub,
 			expect:         assert.Error,
 		},
@@ -98,20 +100,33 @@ func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 			emails:         stub,
 			emailFolders:   stub,
 			events:         stub,
+			eventCalendars: stub,
 			expect:         assert.Error,
 		},
 		{
-			name:         "no contact folders",
-			backupID:     "bid",
-			contacts:     stub,
-			emails:       stub,
-			emailFolders: stub,
-			events:       stub,
-			users:        stub,
-			expect:       assert.Error,
+			name:           "no contact folders",
+			backupID:       "bid",
+			contacts:       stub,
+			emails:         stub,
+			emailFolders:   stub,
+			events:         stub,
+			users:          stub,
+			eventCalendars: stub,
+			expect:         assert.Error,
 		},
 		{
 			name:           "no email folders",
+			backupID:       "bid",
+			contacts:       stub,
+			contactFolders: stub,
+			emails:         stub,
+			events:         stub,
+			eventCalendars: stub,
+			users:          stub,
+			expect:         assert.Error,
+		},
+		{
+			name:           "no event calendars",
 			backupID:       "bid",
 			contacts:       stub,
 			contactFolders: stub,
@@ -129,6 +144,7 @@ func (suite *ExchangeSuite) TestValidateExchangeRestoreFlags() {
 				test.emails,
 				test.emailFolders,
 				test.events,
+				test.eventCalendars,
 				test.users,
 				test.backupID,
 			))
@@ -141,9 +157,9 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 	a := []string{utils.Wildcard}
 
 	table := []struct {
-		name                                                          string
-		contacts, contactFolders, emails, emailFolders, events, users []string
-		expectIncludeLen                                              int
+		name                                                                          string
+		contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string
+		expectIncludeLen                                                              int
 	}{
 		{
 			name:             "no selectors",
@@ -171,6 +187,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			emails:           a,
 			emailFolders:     a,
 			events:           a,
+			eventCalendars:   a,
 			users:            a,
 			expectIncludeLen: 3,
 		},
@@ -178,8 +195,9 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			name:             "any users, any folders",
 			contactFolders:   a,
 			emailFolders:     a,
+			eventCalendars:   a,
 			users:            a,
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "single user, single of each data",
@@ -188,6 +206,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			emails:           stub,
 			emailFolders:     stub,
 			events:           stub,
+			eventCalendars:   stub,
 			users:            stub,
 			expectIncludeLen: 3,
 		},
@@ -195,8 +214,9 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			name:             "single user, single of each folder",
 			contactFolders:   stub,
 			emailFolders:     stub,
+			eventCalendars:   stub,
 			users:            stub,
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "any users, contacts",
@@ -229,12 +249,14 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 		{
 			name:             "any users, events",
 			events:           a,
+			eventCalendars:   a,
 			users:            a,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "single user, events",
 			events:           stub,
+			eventCalendars:   stub,
 			users:            stub,
 			expectIncludeLen: 1,
 		},
@@ -261,6 +283,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			emails:           a,
 			emailFolders:     a,
 			events:           a,
+			eventCalendars:   a,
 			users:            a,
 			expectIncludeLen: 2,
 		},
@@ -269,6 +292,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			emails:           stub,
 			emailFolders:     stub,
 			events:           stub,
+			eventCalendars:   stub,
 			users:            stub,
 			expectIncludeLen: 2,
 		},
@@ -277,6 +301,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			contacts:         a,
 			contactFolders:   a,
 			events:           a,
+			eventCalendars:   a,
 			users:            a,
 			expectIncludeLen: 2,
 		},
@@ -285,12 +310,14 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			contacts:         stub,
 			contactFolders:   stub,
 			events:           stub,
+			eventCalendars:   stub,
 			users:            stub,
 			expectIncludeLen: 2,
 		},
 		{
 			name:             "many users, events",
 			events:           []string{"foo", "bar"},
+			eventCalendars:   []string{"baz", "qux"},
 			users:            []string{"fnord", "smarf"},
 			expectIncludeLen: 1,
 		},
@@ -299,6 +326,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 			contacts:         []string{"foo", "bar"},
 			contactFolders:   []string{"foo", "bar"},
 			events:           []string{"foo", "bar"},
+			eventCalendars:   []string{"foo", "bar"},
 			users:            []string{"fnord", "smarf"},
 			expectIncludeLen: 2,
 		},
@@ -313,6 +341,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 				test.emails,
 				test.emailFolders,
 				test.events,
+				test.eventCalendars,
 				test.users)
 			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
 		})
