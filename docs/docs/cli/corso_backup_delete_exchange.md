@@ -1,23 +1,20 @@
 ---
-title: "corso restore"
+title: "corso backup delete exchange"
 hide_title: true
 ---
-## corso restore
+## corso backup delete exchange
 
-Restore your service data
-
-### Synopsis
-
-Restore the data stored in one of your M365 services.
+Delete backed-up M365 Exchange service data
 
 ```
-corso restore [flags]
+corso backup delete exchange [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for restore
+      --backup string   ID of the backup containing the details to be shown
+  -h, --help            help for exchange
 ```
 
 ### Options inherited from parent commands
@@ -30,6 +27,5 @@ corso restore [flags]
 
 ### SEE ALSO
 
-* [corso](corso.md)	 - Protect your Microsoft 365 data.
-* [corso restore exchange](corso_restore_exchange.md)	 - Restore M365 Exchange service data
+* [corso backup delete](corso_backup_delete.md)	 - Deletes a backup for a service
 
