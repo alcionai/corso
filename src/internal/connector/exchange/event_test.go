@@ -37,7 +37,8 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Empty event",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				return models.NewEvent(), &details.ExchangeInfo{}
+				i := &details.ExchangeInfo{ItemType: details.ExchangeEvent}
+				return models.NewEvent(), i
 			},
 		},
 		{
@@ -49,7 +50,11 @@ func (suite *EventSuite) TestEventInfo() {
 				event.SetStart(dateTime)
 				full, err := time.Parse(common.StandardTimeFormat, now)
 				require.NoError(suite.T(), err)
-				return event, &details.ExchangeInfo{Received: full}
+				i := &details.ExchangeInfo{
+					ItemType: details.ExchangeEvent,
+					Received: full,
+				}
+				return event, i
 			},
 		},
 		{
@@ -58,7 +63,11 @@ func (suite *EventSuite) TestEventInfo() {
 				subject := "Hello Corso"
 				event := models.NewEvent()
 				event.SetSubject(&subject)
-				return event, &details.ExchangeInfo{Subject: subject}
+				i := &details.ExchangeInfo{
+					ItemType: details.ExchangeEvent,
+					Subject:  subject,
+				}
+				return event, i
 			},
 		},
 		{
@@ -70,11 +79,13 @@ func (suite *EventSuite) TestEventInfo() {
 				subject := " Test MockReview + Lunch"
 				organizer := "foobar3@8qzvrj.onmicrosoft.com"
 				eventTime := time.Date(2022, time.April, 28, 3, 41, 58, 0, time.UTC)
-				return event, &details.ExchangeInfo{
+				i := &details.ExchangeInfo{
+					ItemType:   details.ExchangeEvent,
 					Subject:    subject,
 					Organizer:  organizer,
 					EventStart: eventTime,
 				}
+				return event, i
 			},
 		},
 	}

@@ -28,6 +28,7 @@ func MessageInfo(msg models.Messageable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
+		ItemType: details.ExchangeMail,
 		Sender:   sender,
 		Subject:  subject,
 		Received: received,
