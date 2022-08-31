@@ -90,6 +90,21 @@ type MailFolder struct {
 	DisplayName string
 }
 
+// CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
+// Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
+func CreateCalendar(gs graph.Service, user, calendarName string) (models.Calendarable, error) {
+	requestbody := models.NewCalendar()
+	requestbody.SetName(&calendarName)
+
+	return gs.Client().UsersById(user).Calendars().Post(requestbody)
+}
+
+// DeleteCalendar removes calendar from user's M365 account
+// Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
+func DeleteCalendar(gs graph.Service, user, calendarID string) error {
+	return gs.Client().UsersById(user).CalendarsById(calendarID).Delete()
+}
+
 // CreateContactFolder makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
 func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
