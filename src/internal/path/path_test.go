@@ -293,3 +293,168 @@ func (suite *PathUnitSuite) TestTrailingEscapeChar() {
 		})
 	}
 }
+
+func (suite *PathUnitSuite) TestFromStringErrors() {
+	table := []struct {
+		name        string
+		escapedPath string
+	}{
+		{
+			name:        "TooFewElements",
+			escapedPath: `some/short/path`,
+		},
+		{
+			name:        "TooFewElementsEmptyElement",
+			escapedPath: `tenant/exchange//email/folder`,
+		},
+		{
+			name:        "BadEscapeSequence",
+			escapedPath: `tenant/exchange/user/email/folder\a`,
+		},
+		{
+			name:        "TrailingEscapeCharacter",
+			escapedPath: `tenant/exchange/user/email/folder\`,
+		},
+		{
+			name:        "UnknownService",
+			escapedPath: `tenant/badService/user/email/folder`,
+		},
+		{
+			name:        "UnknownCategory",
+			escapedPath: `tenant/exchange/user/badCategory/folder`,
+		},
+		{
+			name:        "NoFolderOrItem",
+			escapedPath: `tenant/exchange/user/email`,
+		},
+		{
+			name:        "EmptyPath",
+			escapedPath: ``,
+		},
+		{
+			name:        "JustPathSeparator",
+			escapedPath: `/`,
+		},
+		{
+			name:        "JustMultiplePathSeparators",
+			escapedPath: `//`,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := FromDataLayerPath(test.escapedPath, false)
+			assert.Error(t, err)
+		})
+	}
+}
+
+func (suite *PathUnitSuite) TestFromString() {
+	const (
+		testTenant   = "tenant"
+		testUser     = "user"
+		testElement1 = "folder"
+		testElement2 = "folder2"
+		testElement3 = "other"
+	)
+
+	isItem := []struct {
+		name   string
+		isItem bool
+	}{
+		{
+			name:   "Folder",
+			isItem: false,
+		},
+		{
+			name:   "Item",
+			isItem: true,
+		},
+	}
+	table := []struct {
+		name string
+		// Should have placeholders of '%s' for service and category.
+		unescapedPath string
+		// Expected result for Folder() if path is marked as a folder.
+		expectedFolder string
+		// Expected result for Item() if path is marked as an item.
+		expectedItem string
+		// Expected result for Folder() if path is marked as an item.
+		expectedItemFolder string
+	}{
+		{
+			name: "BasicPath",
+			unescapedPath: fmt.Sprintf(
+				"%s/%%s/%s/%%s/%s/%s/%s",
+				testTenant,
+				testUser,
+				testElement1,
+				testElement2,
+				testElement3,
+			),
+			expectedFolder: fmt.Sprintf(
+				"%s/%s/%s",
+				testElement1,
+				testElement2,
+				testElement3,
+			),
+			expectedItem: testElement3,
+			expectedItemFolder: fmt.Sprintf(
+				"%s/%s",
+				testElement1,
+				testElement2,
+			),
+		},
+		{
+			name: "PathWithEmptyElements",
+			unescapedPath: fmt.Sprintf(
+				"/%s//%%s//%s//%%s//%s///%s//%s//",
+				testTenant,
+				testUser,
+				testElement1,
+				testElement2,
+				testElement3,
+			),
+			expectedFolder: fmt.Sprintf(
+				"%s/%s/%s",
+				testElement1,
+				testElement2,
+				testElement3,
+			),
+			expectedItem: testElement3,
+			expectedItemFolder: fmt.Sprintf(
+				"%s/%s",
+				testElement1,
+				testElement2,
+			),
+		},
+	}
+
+	for service, cats := range serviceCategories {
+		for cat := range cats {
+			for _, item := range isItem {
+				suite.T().Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func(t1 *testing.T) {
+					for _, test := range table {
+						t1.Run(test.name, func(t *testing.T) {
+							testPath := fmt.Sprintf(test.unescapedPath, service, cat)
+
+							p, err := FromDataLayerPath(testPath, item.isItem)
+							require.NoError(t, err)
+
+							assert.Equal(t, service, p.Service())
+							assert.Equal(t, cat, p.Category())
+							assert.Equal(t, testTenant, p.Tenant())
+							assert.Equal(t, testUser, p.ResourceOwner())
+
+							if !item.isItem {
+								assert.Equal(t, test.expectedFolder, p.Folder())
+							} else {
+								assert.Equal(t, test.expectedItemFolder, p.Folder())
+								assert.Equal(t, test.expectedItem, p.Item())
+							}
+						})
+					}
+				})
+			}
+		}
+	}
+}

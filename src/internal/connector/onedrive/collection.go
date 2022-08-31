@@ -119,7 +119,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		oc.data <- &Item{
 			id:   itemID,
 			data: itemData,
-			info: &details.OneDriveInfo{ItemName: itemName, ParentPath: oc.folderPath},
+			info: &details.OneDriveInfo{
+				ItemType:   details.OneDriveItem,
+				ItemName:   itemName,
+				ParentPath: oc.folderPath,
+			},
 		}
 	}
 	close(oc.data)
