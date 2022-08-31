@@ -652,10 +652,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 	)
 
 	var (
-		epoch = time.Time{}
-		now   = time.Now()
-		then  = now.Add(1 * time.Minute)
-		info  = &details.ExchangeInfo{
+		epoch  = time.Time{}
+		now    = time.Now()
+		future = now.Add(1 * time.Minute)
+		info   = &details.ExchangeInfo{
 			ContactName: name,
 			EventStart:  now,
 			Sender:      sender,
@@ -681,18 +681,18 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"mail with a substring subject match", es.MailSubject([]string{subject[5:9]}), assert.True},
 		{"mail received after the epoch", es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
 		{"mail received after now", es.MailReceivedAfter(common.FormatTime(now)), assert.False},
-		{"mail received after sometime later", es.MailReceivedAfter(common.FormatTime(then)), assert.False},
+		{"mail received after sometime later", es.MailReceivedAfter(common.FormatTime(future)), assert.False},
 		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
 		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
-		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(then)), assert.True},
+		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(future)), assert.True},
 		// TODO: {"event that recurs", es.EventRecurs(true), assert.True},
 		// TODO: {"event that does not recur", es.EventRecurs(false), assert.False},
 		{"event starting after the epoch", es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
 		{"event starting after now", es.EventStartsAfter(common.FormatTime(now)), assert.False},
-		{"event starting after sometime later", es.EventStartsAfter(common.FormatTime(then)), assert.False},
+		{"event starting after sometime later", es.EventStartsAfter(common.FormatTime(future)), assert.False},
 		{"event starting before the epoch", es.EventStartsBefore(common.FormatTime(epoch)), assert.False},
 		{"event starting before now", es.EventStartsBefore(common.FormatTime(now)), assert.False},
-		{"event starting before sometime later", es.EventStartsBefore(common.FormatTime(then)), assert.True},
+		{"event starting before sometime later", es.EventStartsBefore(common.FormatTime(future)), assert.True},
 		{"event with any subject", es.EventSubject(Any()), assert.True},
 		{"event with none subject", es.EventSubject(None()), assert.False},
 		{"event with a different subject", es.EventSubject([]string{"fancy"}), assert.False},
