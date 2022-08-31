@@ -151,16 +151,17 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 	return mfs, err
 }
 
-// GetFolderID query function to retrieve the M365 ID based on the folder's displayName.
-// @param folderName the target folder's display name. Case sensitive
+// GetContainerID query function to retrieve a container's M365 ID.
+// @param containerName is the target's name, user-readable and case sensitive
 // @param category switches query and iteration to support  multiple exchange applications
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetFolderID(service graph.Service, folderName, user string, category optionIdentifier) (*string, error) {
+func GetContainerID(service graph.Service, containerName, user string, category optionIdentifier) (*string, error) {
 	var (
-		errs      error
-		folderID  *string
-		query     GraphQuery
-		transform absser.ParsableFactory
+		errs       error
+		targetID   *string
+		query      GraphQuery
+		transform  absser.ParsableFactory
+		isCalendar bool
 	)
 
 	switch category {
@@ -170,6 +171,10 @@ func GetFolderID(service graph.Service, folderName, user string, category option
 	case contacts:
 		query = GetAllContactFolderNamesForUser
 		transform = models.CreateContactFolderFromDiscriminatorValue
+	case events:
+		query = GetAllCalendarNamesForUser
+		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
+		isCalendar = true
 	default:
 		return nil, fmt.Errorf("unsupported category %s for GetFolderID()", category)
 	}
@@ -192,10 +197,11 @@ func GetFolderID(service graph.Service, folderName, user string, category option
 		return nil, err
 	}
 
-	callbackFunc := iterateFindFolderID(category,
-		&folderID,
-		folderName,
+	callbackFunc := iterateFindFolderID(
+		&targetID,
+		containerName,
 		service.Adapter().GetBaseUrl(),
+		isCalendar,
 		errs,
 	)
 
@@ -203,11 +209,11 @@ func GetFolderID(service graph.Service, folderName, user string, category option
 		return nil, support.WrapAndAppend(service.Adapter().GetBaseUrl(), err, errs)
 	}
 
-	if folderID == nil {
+	if targetID == nil {
 		return nil, ErrFolderNotFound
 	}
 
-	return folderID, errs
+	return targetID, errs
 }
 
 // parseCalendarIDFromEvent returns the M365 ID for a calendar
@@ -298,7 +304,7 @@ func establishFolder(
 	folderName, user string,
 	optID optionIdentifier,
 ) (string, error) {
-	folderID, err := GetFolderID(service, folderName, user, optID)
+	folderID, err := GetContainerID(service, folderName, user, optID)
 	if err == nil {
 		return *folderID, nil
 	}

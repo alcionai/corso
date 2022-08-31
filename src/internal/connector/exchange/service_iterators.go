@@ -305,44 +305,45 @@ func IterateFilterFolderDirectoriesForCollections(
 // the displayable interface. If folder exists, the function updates the
 // folderID memory address that was passed in.
 func iterateFindFolderID(
-	category optionIdentifier,
 	folderID **string,
 	folderName, errorIdentifier string,
+	isCalendar bool,
 	errs error,
 ) func(any) bool {
 	return func(entry any) bool {
-		switch category {
-		case messages, contacts:
-			folder, ok := entry.(displayable)
-			if !ok {
-				errs = support.WrapAndAppend(
-					errorIdentifier,
-					errors.New("struct does not implement displayable"),
-					errs,
-				)
+		if isCalendar {
+			entry = CreateCalendarDisplayable(entry)
 
+			if entry == nil {
 				return true
 			}
-			// Display name not set on folder
-			if folder.GetDisplayName() == nil {
-				return true
-			}
+		}
 
-			name := *folder.GetDisplayName()
-			if folderName == name {
-				if folder.GetId() == nil {
-					return true // invalid folder
-				}
-
-				*folderID = folder.GetId()
-
-				return false
-			}
+		folder, ok := entry.(displayable)
+		if !ok {
+			errs = support.WrapAndAppend(
+				errorIdentifier,
+				errors.New("struct does not implement displayable"),
+				errs,
+			)
 
 			return true
+		}
+		// Display name not set on folder
+		if folder.GetDisplayName() == nil {
+			return true
+		}
 
-		default:
+		if folderName == *folder.GetDisplayName() {
+			if folder.GetId() == nil {
+				return true // invalid folder
+			}
+
+			*folderID = folder.GetId()
+
 			return false
 		}
+
+		return true
 	}
 }

@@ -337,7 +337,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Users() {
 			map[categorizer]string{ExchangeUser: join(u1, u2)},
 		)
 
-		if sc[scopeKeyCategory].Matches(ExchangeContactFolder.String()) {
+		if sc[scopeKeyCategory].Compare(ExchangeContactFolder.String()) {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
@@ -348,7 +348,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Users() {
 			)
 		}
 
-		if sc[scopeKeyCategory].Matches(ExchangeEvent.String()) {
+		if sc[scopeKeyCategory].Compare(ExchangeEvent.String()) {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
@@ -358,7 +358,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Users() {
 			)
 		}
 
-		if sc[scopeKeyCategory].Matches(ExchangeMailFolder.String()) {
+		if sc[scopeKeyCategory].Compare(ExchangeMailFolder.String()) {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
@@ -391,7 +391,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 			map[categorizer]string{ExchangeUser: join(u1, u2)},
 		)
 
-		if sc[scopeKeyCategory].Matches(ExchangeContactFolder.String()) {
+		if sc[scopeKeyCategory].Compare(ExchangeContactFolder.String()) {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
@@ -402,7 +402,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 			)
 		}
 
-		if sc[scopeKeyCategory].Matches(ExchangeEvent.String()) {
+		if sc[scopeKeyCategory].Compare(ExchangeEvent.String()) {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
@@ -412,7 +412,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 			)
 		}
 
-		if sc[scopeKeyCategory].Matches(ExchangeMailFolder.String()) {
+		if sc[scopeKeyCategory].Compare(ExchangeMailFolder.String()) {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
@@ -566,7 +566,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_Category() {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
 			eb := NewExchangeBackup()
 			eb.Includes = []scope{
-				{scopeKeyCategory: filters.NewIdentity(test.is.String())},
+				{scopeKeyCategory: filters.Identity(test.is.String())},
 			}
 			scope := eb.Scopes()[0]
 			test.check(t, test.expect, scope.Category())
@@ -600,7 +600,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
 			eb := NewExchangeBackup()
 			eb.Includes = []scope{
-				{scopeKeyCategory: filters.NewIdentity(test.is.String())},
+				{scopeKeyCategory: filters.Identity(test.is.String())},
 			}
 			scope := eb.Scopes()[0]
 			test.check(t, scope.IncludesCategory(test.expect))
@@ -646,6 +646,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 	es := NewExchangeRestore()
 
 	const (
+		name    = "smarf mcfnords"
 		sender  = "smarf@2many.cooks"
 		subject = "I have seen the fnords!"
 	)
@@ -655,9 +656,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		now   = time.Now()
 		then  = now.Add(1 * time.Minute)
 		info  = &details.ExchangeInfo{
-			Sender:   sender,
-			Subject:  subject,
-			Received: now,
+			Sender:      sender,
+			Subject:     subject,
+			Received:    now,
+			ContactName: name,
 		}
 	)
 
@@ -681,6 +683,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
 		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
 		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(then)), assert.True},
+		{"contact with a different name", es.ContactName("blarps"), assert.False},
+		{"contact with the same name", es.ContactName(name), assert.True},
+		{"contact with a subname search", es.ContactName(name[2:5]), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

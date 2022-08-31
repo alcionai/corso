@@ -1,13 +1,13 @@
 ---
-description: "Connect to M365 Tenant"
+description: "Connect to a Microsft 365 tenant"
 ---
 
-# M365 access
+# Microsoft 365 access
 
 To perform backup and restore operations, Corso requires access to your [M365 tenant](/concepts#m365-concepts)
-through a properly configured [Azure AD application](/concepts#m365-concepts).
+through an [Azure AD application](/concepts#m365-concepts) with appropriate permissions.  
 
-## Create Azure AD application
+## Create an Azure AD application
 
 For the official documentation for adding an Azure AD Application and Service Principal using the Azure Portal see
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal).
@@ -35,7 +35,7 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
    The required permissions are as follows:
 
-   **TODO: Complete list of permissions** 
+   **TODO: Complete list of permissions**
 
    | API / Permissions Name | Type |
    |--|--|
@@ -48,12 +48,13 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
 ## Export application credentials
 
-Now that the Corso Azure AD application is configured, you need to capture as environment variables the information that
-Corso will need to connect to the application.
+After configuring the Corso Azure AD application, store the information needed by Corso to connect to the application
+as environment variables.
 
 ### Tenant ID and client ID
 
-To obtain these, select Overview from the app management panel and export the corresponding environment variables.
+To extract the tenant and client ID, select Overview from the app management panel and export the corresponding
+environment variables.
 
 ```bash
 export AZURE_TENANT_ID=<Directory (tenent) ID for configured app>
@@ -68,8 +69,7 @@ Lastly, you need to configure a client secret associated with the app using **Ce
 management panel.
 
 Click **New Client Secret** and follow the instructions to create a secret. After creating the secret, copy the secret
-value right away because it's only available after creation. In the end, export the secret value as an environment
-variable.
+value right away because it won't be available later and export it as an environment variable.
 
 ```bash
 export AZURE_CLIENT_SECRET=<client secret value>

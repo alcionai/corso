@@ -59,7 +59,7 @@ section of the [official documentation](https://docs.aws.amazon.com/sdk-for-go/v
 * **Environment variables** - set and export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. If using temporary
   credentials derived by assuming an IAM Role, you will also need `AWS_SESSION_TOKEN`.
 
-* **Credentials file** - ensure that the credentials file is available to Corso (for example, may need to map it if 
+* **Credentials file** - ensure that the credentials file is available to Corso (for example, may need to map it if
   using Corso as a container). You may also want to set and export `AWS_PROFILE`, if not using the default profile, and
   `AWS_SHARED_CREDENTIALS_FILE`, if not using the default file location. You can learn more about the AWS CLI
   environment variables [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
