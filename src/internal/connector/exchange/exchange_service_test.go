@@ -410,7 +410,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 // the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	t := suite.T()
-	userID := tester.M365UserID(suite.T())
+	userID := tester.M365UserID(t)
 	now := time.Now()
 
 	folderName := "TestRestoreContact: " + common.FormatSimpleDateTime(now)
@@ -427,6 +427,23 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	assert.NoError(t, err)
 	// Removes folder containing contact prior to exiting test
 	err = DeleteContactFolder(suite.es, userID, folderID)
+	assert.NoError(t, err)
+}
+
+func (suite *ExchangeServiceSuite) TestRestoreEvent() {
+	t := suite.T()
+	userID := tester.M365UserID(t)
+	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
+	//calendar, err := CreateCalendar()
+	t.Log(name)
+	// require.NoError(t, err)
+
+	err := RestoreExchangeEvent(context.Background(),
+		mockconnector.GetMockEventBytes("Tested"),
+		suite.es,
+		control.Copy,
+		"Calendar",
+		userID)
 	assert.NoError(t, err)
 }
 
