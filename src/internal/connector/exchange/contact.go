@@ -15,6 +15,7 @@ func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
+		ItemType:    details.ExchangeContact,
 		ContactName: name,
 	}
 }

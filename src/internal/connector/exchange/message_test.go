@@ -26,7 +26,8 @@ func (suite *MessageSuite) TestMessageInfo() {
 		{
 			name: "Empty message",
 			msgAndRP: func() (models.Messageable, *details.ExchangeInfo) {
-				return models.NewMessage(), &details.ExchangeInfo{}
+				i := &details.ExchangeInfo{ItemType: details.ExchangeMail}
+				return models.NewMessage(), i
 			},
 		},
 		{
@@ -39,7 +40,11 @@ func (suite *MessageSuite) TestMessageInfo() {
 				sea.SetAddress(&sender)
 				sr.SetEmailAddress(sea)
 				msg.SetSender(sr)
-				return msg, &details.ExchangeInfo{Sender: sender}
+				i := &details.ExchangeInfo{
+					ItemType: details.ExchangeMail,
+					Sender:   sender,
+				}
+				return msg, i
 			},
 		},
 		{
@@ -48,7 +53,11 @@ func (suite *MessageSuite) TestMessageInfo() {
 				subject := "Hello world"
 				msg := models.NewMessage()
 				msg.SetSubject(&subject)
-				return msg, &details.ExchangeInfo{Subject: subject}
+				i := &details.ExchangeInfo{
+					ItemType: details.ExchangeMail,
+					Subject:  subject,
+				}
+				return msg, i
 			},
 		},
 		{
@@ -57,7 +66,11 @@ func (suite *MessageSuite) TestMessageInfo() {
 				now := time.Now()
 				msg := models.NewMessage()
 				msg.SetReceivedDateTime(&now)
-				return msg, &details.ExchangeInfo{Received: now}
+				i := &details.ExchangeInfo{
+					ItemType: details.ExchangeMail,
+					Received: now,
+				}
+				return msg, i
 			},
 		},
 		{
@@ -74,7 +87,13 @@ func (suite *MessageSuite) TestMessageInfo() {
 				msg.SetSender(sr)
 				msg.SetSubject(&subject)
 				msg.SetReceivedDateTime(&now)
-				return msg, &details.ExchangeInfo{Sender: sender, Subject: subject, Received: now}
+				i := &details.ExchangeInfo{
+					ItemType: details.ExchangeMail,
+					Sender:   sender,
+					Subject:  subject,
+					Received: now,
+				}
+				return msg, i
 			},
 		},
 	}

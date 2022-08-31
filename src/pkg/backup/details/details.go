@@ -2,10 +2,12 @@ package details
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/alcionai/corso/cli/print"
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/model"
 )
 
@@ -22,12 +24,22 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
-	ps := []print.Printable{}
+	perType := map[itemType][]print.Printable{}
+
 	for _, de := range dm.Entries {
-		ps = append(ps, de)
+		it := de.infoType()
+		ps, ok := perType[it]
+
+		if !ok {
+			ps = []print.Printable{}
+		}
+
+		perType[it] = append(ps, print.Printable(de))
 	}
 
-	print.All(ctx, ps...)
+	for _, ps := range perType {
+		print.All(ctx, ps...)
+	}
 }
 
 // Paths returns the list of Paths extracted from the Entries slice.
@@ -126,6 +138,21 @@ func (de DetailsEntry) Values() []string {
 	return vs
 }
 
+type itemType int
+
+const (
+	UnknownType itemType = iota
+
+	// separate each service by a factor of 100 for padding
+	ExchangeContact
+	ExchangeEvent
+	ExchangeMail
+
+	SharepointItem itemType = iota + 100
+
+	OneDriveItem itemType = iota + 200
+)
+
 // ItemInfo is a oneOf that contains service specific
 // information about the item it tracks
 type ItemInfo struct {
@@ -134,8 +161,30 @@ type ItemInfo struct {
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
 }
 
+// typedInfo should get embedded in each sesrvice type to track
+// the type of item it stores for multi-item service support.
+
+// infoType provides internal categorization for collecting like-typed ItemInfos.
+// It should return the most granular value type (ex: "event" for an exchange
+// calendar event).
+func (i ItemInfo) infoType() itemType {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.ItemType
+
+	case i.Sharepoint != nil:
+		return i.Sharepoint.ItemType
+
+	case i.OneDrive != nil:
+		return i.OneDrive.ItemType
+	}
+
+	return UnknownType
+}
+
 // ExchangeInfo describes an exchange item
 type ExchangeInfo struct {
+	ItemType    itemType
 	Sender      string    `json:"sender,omitempty"`
 	Subject     string    `json:"subject,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
@@ -147,47 +196,72 @@ type ExchangeInfo struct {
 
 // Headers returns the human-readable names of properties in an ExchangeInfo
 // for printing out to a terminal in a columnar display.
-func (e ExchangeInfo) Headers() []string {
-	return []string{"Sender", "Subject", "Received"}
+func (i ExchangeInfo) Headers() []string {
+	switch i.ItemType {
+	case ExchangeEvent:
+		return []string{"Organizer", "Subject", "Starts", "Recurring"}
+
+	case ExchangeContact:
+		return []string{"Contact Name"}
+
+	case ExchangeMail:
+		return []string{"Sender", "Subject", "Received"}
+	}
+
+	return []string{}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (e ExchangeInfo) Values() []string {
-	return []string{e.Sender, e.Subject, e.Received.Format(time.RFC3339Nano)}
+func (i ExchangeInfo) Values() []string {
+	switch i.ItemType {
+	case ExchangeEvent:
+		return []string{i.Organizer, i.Subject, common.FormatTime(i.EventStart), strconv.FormatBool(i.EventRecurs)}
+
+	case ExchangeContact:
+		return []string{i.ContactName}
+
+	case ExchangeMail:
+		return []string{i.Sender, i.Subject, common.FormatTime(i.Received)}
+	}
+
+	return []string{}
 }
 
 // SharepointInfo describes a sharepoint item
 // TODO: Implement this. This is currently here
 // just to illustrate usage
-type SharepointInfo struct{}
+type SharepointInfo struct {
+	ItemType itemType
+}
 
 // Headers returns the human-readable names of properties in a SharepointInfo
 // for printing out to a terminal in a columnar display.
-func (s SharepointInfo) Headers() []string {
+func (i SharepointInfo) Headers() []string {
 	return []string{}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (s SharepointInfo) Values() []string {
+func (i SharepointInfo) Values() []string {
 	return []string{}
 }
 
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
+	ItemType   itemType
 	ParentPath string `json:"parentPath"`
 	ItemName   string `json:"itemName"`
 }
 
 // Headers returns the human-readable names of properties in a OneDriveInfo
 // for printing out to a terminal in a columnar display.
-func (oi OneDriveInfo) Headers() []string {
+func (i OneDriveInfo) Headers() []string {
 	return []string{"ItemName", "ParentPath"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (oi OneDriveInfo) Values() []string {
-	return []string{oi.ItemName, oi.ParentPath}
+func (i OneDriveInfo) Values() []string {
+	return []string{i.ItemName, i.ParentPath}
 }

@@ -46,6 +46,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
+		ItemType:    details.ExchangeEvent,
 		Organizer:   organizer,
 		Subject:     subject,
 		EventStart:  start,
