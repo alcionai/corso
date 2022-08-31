@@ -52,7 +52,7 @@ func genDocs(cmd *cobra.Command, args []string) {
 	filePrepender := func(filename string) string {
 		name := filepath.Base(filename)
 		base := strings.TrimSuffix(name, filepath.Ext(name))
-		
+
 		return fmt.Sprintf(fmTemplate, strings.Replace(base, "_", " ", -1))
 	}
 
