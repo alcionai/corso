@@ -142,6 +142,7 @@ type ExchangeInfo struct {
 	EventStart  time.Time `json:"eventStart,omitempty"`
 	Organizer   string    `json:"organizer,omitempty"`
 	ContactName string    `json:"contactName,omitempty"`
+	EventRecurs bool      `json:"eventRecurs,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in an ExchangeInfo
