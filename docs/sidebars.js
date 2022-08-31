@@ -28,7 +28,7 @@ const sidebars = {
       items: [
         'cli/corso_repo_init_s3', 'cli/corso_repo_connect_s3', 
         'cli/corso_backup_create_exchange', 'cli/corso_backup_list_exchange', 'cli/corso_backup_details_exchange',
-        'cli/corso_restore_exchange',
+        'cli/corso_restore_exchange', `cli/corso_env`
       ]
     }, 
     {
