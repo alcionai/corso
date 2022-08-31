@@ -55,6 +55,15 @@ func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, e
 	return gs.Client().UsersById(user).MailFolders().GetWithRequestConfigurationAndResponseHandler(options, nil)
 }
 
+func GetAllCalendarNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
+	options, err := optionsForCalendars([]string{"name"})
+	if err != nil {
+		return nil, err
+	}
+
+	return gs.Client().UsersById(user).Calendars().GetWithRequestConfigurationAndResponseHandler(options, nil)
+}
+
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting ContactFolderId
 // and display names for contacts. All other information is omitted.
 // Does not return the primary Contact Folder

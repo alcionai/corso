@@ -121,10 +121,10 @@ func makeScope[T scopeT](
 	resources, vs []string,
 ) T {
 	s := T{
-		scopeKeyCategory:       filters.NewIdentity(cat.String()),
-		scopeKeyDataType:       filters.NewIdentity(cat.leafCat().String()),
-		scopeKeyGranularity:    filters.NewIdentity(granularity),
-		scopeKeyResource:       filters.NewIdentity(join(resources...)),
+		scopeKeyCategory:       filters.Identity(cat.String()),
+		scopeKeyDataType:       filters.Identity(cat.leafCat().String()),
+		scopeKeyGranularity:    filters.Identity(granularity),
+		scopeKeyResource:       filters.Identity(join(resources...)),
 		cat.String():           filterize(vs...),
 		cat.rootCat().String(): filterize(resources...),
 	}
@@ -140,11 +140,11 @@ func makeFilterScope[T scopeT](
 	f func([]string) filters.Filter,
 ) T {
 	return T{
-		scopeKeyCategory:    filters.NewIdentity(cat.String()),
-		scopeKeyDataType:    filters.NewIdentity(cat.leafCat().String()),
-		scopeKeyGranularity: filters.NewIdentity(Filter),
-		scopeKeyInfoFilter:  filters.NewIdentity(filterCat.String()),
-		scopeKeyResource:    filters.NewIdentity(Filter),
+		scopeKeyCategory:    filters.Identity(cat.String()),
+		scopeKeyDataType:    filters.Identity(cat.leafCat().String()),
+		scopeKeyGranularity: filters.Identity(Filter),
+		scopeKeyInfoFilter:  filters.Identity(filterCat.String()),
+		scopeKeyResource:    filters.Identity(Filter),
 		filterCat.String():  f(clean(vs)),
 	}
 }
@@ -164,7 +164,7 @@ func matches[T scopeT, C categoryT](s T, cat C, target string) bool {
 		return false
 	}
 
-	return s[cat.String()].Matches(target)
+	return s[cat.String()].Compare(target)
 }
 
 // getCategory returns the scope's category value.
@@ -409,8 +409,7 @@ func matchesPathValues[T scopeT, C categoryT](
 		// all parts of the scope must match
 		cc := c.(C)
 		if !isAnyTarget(sc, cc) {
-			f := filters.NewContains(false, cc, join(scopeVals...))
-			if !f.Matches(pathVal) {
+			if filters.NotContains(join(scopeVals...)).Compare(pathVal) {
 				return false
 			}
 		}

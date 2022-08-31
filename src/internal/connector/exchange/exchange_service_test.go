@@ -5,9 +5,6 @@ import (
 	"testing"
 	"time"
 
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,6 +79,41 @@ func (suite *ExchangeServiceSuite) TestCreateService() {
 			t.Log(test.credentials.ClientSecret)
 			_, err := createService(test.credentials, false)
 			test.checkErr(t, err)
+		})
+	}
+}
+
+func (suite *ExchangeServiceSuite) TestOptionsForCalendars() {
+	tests := []struct {
+		name       string
+		params     []string
+		checkError assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Empty Literal",
+			params:     []string{},
+			checkError: assert.NoError,
+		},
+		{
+			name:       "Invalid Parameter",
+			params:     []string{"status"},
+			checkError: assert.Error,
+		},
+		{
+			name:       "Invalid Parameters",
+			params:     []string{"status", "height", "month"},
+			checkError: assert.Error,
+		},
+		{
+			name:       "Valid Parameters",
+			params:     []string{"changeKey", "events", "owner"},
+			checkError: assert.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			_, err := optionsForCalendars(test.params)
+			test.checkError(t, err)
 		})
 	}
 }
@@ -255,6 +287,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			name:     "GraphQuery: Get All Events for User",
 			function: GetAllEventsForUser,
 		},
+		{
+			name:     "GraphQuery: Get All Calendars for User",
+			function: GetAllCalendarNamesForUser,
+		},
 	}
 
 	for _, test := range tests {
@@ -311,130 +347,61 @@ func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
 
 // TestGetMailFolderID verifies the ability to retrieve folder ID of folders
 // at the top level of the file tree
-func (suite *ExchangeServiceSuite) TestGetFolderID() {
+func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	userID := tester.M365UserID(suite.T())
 	tests := []struct {
-		name       string
-		folderName string
+		name          string
+		containerName string
 		// category references the current optionId :: TODO --> use selector fields
 		category   optionIdentifier
 		checkError assert.ErrorAssertionFunc
 	}{
 		{
-			name:       "Mail Valid",
-			folderName: "Inbox",
-			category:   messages,
-			checkError: assert.NoError,
+			name:          "Mail Valid",
+			containerName: "Inbox",
+			category:      messages,
+			checkError:    assert.NoError,
 		},
 		{
-			name:       "Mail Invalid",
-			folderName: "FolderThatIsNotHere",
-			category:   messages,
-			checkError: assert.Error,
+			name:          "Mail Invalid",
+			containerName: "FolderThatIsNotHere",
+			category:      messages,
+			checkError:    assert.Error,
 		},
 		{
-			name:       "Contact Invalid",
-			folderName: "FolderThatIsNotHereContacts",
-			category:   contacts,
-			checkError: assert.Error,
+			name:          "Contact Invalid",
+			containerName: "FolderThatIsNotHereContacts",
+			category:      contacts,
+			checkError:    assert.Error,
 		},
 		{
-			name:       "Contact Valid",
-			folderName: "TrialFolder",
-			category:   contacts,
-			checkError: assert.NoError,
+			name:          "Contact Valid",
+			containerName: "TrialFolder",
+			category:      contacts,
+			checkError:    assert.NoError,
+		},
+		{
+			name:          "Event Invalid",
+			containerName: "NotAValid?@V'vCalendar",
+			category:      events,
+			checkError:    assert.Error,
+		},
+		{
+			name:          "Event Valid",
+			containerName: "Calendar",
+			category:      events,
+			checkError:    assert.NoError,
 		},
 	}
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := GetFolderID(
+			_, err := GetContainerID(
 				suite.es,
-				test.folderName,
+				test.containerName,
 				userID,
 				test.category)
-			test.checkError(t, err, "Unable to find folder: "+test.folderName)
-		})
-	}
-}
-
-// TestIterativeFunctions verifies that GraphQuery to Iterate
-// functions are valid for current versioning of msgraph-go-sdk
-func (suite *ExchangeServiceSuite) TestIterativeFunctions() {
-	var (
-		mailScope, contactScope selectors.ExchangeScope
-		userID                  = tester.M365UserID(suite.T())
-		sel                     = selectors.NewExchangeBackup()
-	)
-
-	sel.Include(sel.Users([]string{userID}))
-
-	eb, err := sel.ToExchangeBackup()
-	require.NoError(suite.T(), err)
-
-	scopes := eb.Scopes()
-
-	for _, scope := range scopes {
-		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
-			contactScope = scope
-		}
-
-		if scope.IncludesCategory(selectors.ExchangeMail) {
-			mailScope = scope
-		}
-	}
-
-	tests := []struct {
-		name              string
-		queryFunction     GraphQuery
-		iterativeFunction GraphIterateFunc
-		scope             selectors.ExchangeScope
-		transformer       absser.ParsableFactory
-	}{
-		{
-			name:              "Mail Iterative Check",
-			queryFunction:     GetAllMessagesForUser,
-			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             mailScope,
-			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
-		}, {
-			name:              "Contacts Iterative Check",
-			queryFunction:     GetAllContactsForUser,
-			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             contactScope,
-			transformer:       models.CreateContactFromDiscriminatorValue,
-		}, {
-			name:              "Folder Iterative Check",
-			queryFunction:     GetAllFolderNamesForUser,
-			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
-			scope:             mailScope,
-			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
-		},
-	}
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			response, err := test.queryFunction(suite.es, userID)
-			require.NoError(t, err)
-			// Create Iterator
-			pageIterator, err := msgraphgocore.NewPageIterator(response,
-				&suite.es.adapter,
-				test.transformer)
-			require.NoError(t, err)
-			// Create collection for iterate test
-			collections := make(map[string]*Collection)
-			var errs error
-			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
-			// with corresponding item IDs. New collections are created for each directory
-			callbackFunc := test.iterativeFunction(
-				userID,
-				test.scope,
-				errs, false,
-				suite.es.credentials,
-				collections,
-				nil)
-
-			iterateError := pageIterator.Iterate(callbackFunc)
-			require.NoError(t, iterateError)
+			test.checkError(t, err, "error with container: "+test.containerName)
 		})
 	}
 }

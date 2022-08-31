@@ -10,15 +10,16 @@ func _() {
 	var x [1]struct{}
 	_ = x[unknown-0]
 	_ = x[folders-1]
-	_ = x[events-2]
-	_ = x[messages-3]
-	_ = x[users-4]
-	_ = x[contacts-5]
+	_ = x[calendars-2]
+	_ = x[events-3]
+	_ = x[messages-4]
+	_ = x[users-5]
+	_ = x[contacts-6]
 }
 
-const _optionIdentifier_name = "unknownfolderseventsmessagesuserscontacts"
+const _optionIdentifier_name = "unknownfolderscalendarseventsmessagesuserscontacts"
 
-var _optionIdentifier_index = [...]uint8{0, 7, 14, 20, 28, 33, 41}
+var _optionIdentifier_index = [...]uint8{0, 7, 14, 23, 29, 37, 42, 50}
 
 func (i optionIdentifier) String() string {
 	if i < 0 || i >= optionIdentifier(len(_optionIdentifier_index)-1) {
