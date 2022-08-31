@@ -271,7 +271,7 @@ func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
 			ExchangeContact,
 			ExchangeFilterContactName,
 			[]string{senderID},
-			wrapFilter(filters.NewIn)),
+			wrapFilter(filters.In)),
 	}
 }
 
