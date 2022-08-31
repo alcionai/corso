@@ -2,11 +2,12 @@ package details_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/pkg/backup/details"
 )
 
@@ -23,8 +24,9 @@ func TestDetailsUnitSuite(t *testing.T) {
 }
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
-	now := time.Now()
-	nowStr := now.Format(time.RFC3339Nano)
+	nowStr := common.FormatNow(common.StandardTimeFormat)
+	now, err := common.ParseTime(nowStr)
+	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name     string
@@ -41,7 +43,36 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 			expectVs: []string{"reporef"},
 		},
 		{
-			name: "exhange info",
+			name: "exhange event info",
+			entry: details.DetailsEntry{
+				RepoRef: "reporef",
+				ItemInfo: details.ItemInfo{
+					Exchange: &details.ExchangeInfo{
+						EventStart:  now,
+						Organizer:   "organizer",
+						EventRecurs: true,
+						Subject:     "subject",
+					},
+				},
+			},
+			expectHs: []string{"Repo Ref", "Organizer", "Subject", "Starts", "Recurring"},
+			expectVs: []string{"reporef", "organizer", "subject", nowStr, "true"},
+		},
+		{
+			name: "exhange contact info",
+			entry: details.DetailsEntry{
+				RepoRef: "reporef",
+				ItemInfo: details.ItemInfo{
+					Exchange: &details.ExchangeInfo{
+						ContactName: "contactName",
+					},
+				},
+			},
+			expectHs: []string{"Repo Ref", "Contact Name"},
+			expectVs: []string{"reporef", "contactName"},
+		},
+		{
+			name: "exhange mail info",
 			entry: details.DetailsEntry{
 				RepoRef: "reporef",
 				ItemInfo: details.ItemInfo{
