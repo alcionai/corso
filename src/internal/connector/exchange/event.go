@@ -40,8 +40,9 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
-		Organizer:  organizer,
-		Subject:    subject,
-		EventStart: start,
+		EventRecurs: evt.GetSeriesMasterId() != nil,
+		EventStart:  start,
+		Organizer:   organizer,
+		Subject:     subject,
 	}
 }

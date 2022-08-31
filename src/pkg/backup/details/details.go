@@ -136,12 +136,13 @@ type ItemInfo struct {
 
 // ExchangeInfo describes an exchange item
 type ExchangeInfo struct {
-	Sender      string    `json:"sender,omitempty"`
-	Subject     string    `json:"subject,omitempty"`
-	Received    time.Time `json:"received,omitempty"`
+	ContactName string    `json:"contactName,omitempty"`
+	EventRecurs bool      `json:"eventRecurs,omitempty"`
 	EventStart  time.Time `json:"eventStart,omitempty"`
 	Organizer   string    `json:"organizer,omitempty"`
-	ContactName string    `json:"contactName,omitempty"`
+	Received    time.Time `json:"received,omitempty"`
+	Sender      string    `json:"sender,omitempty"`
+	Subject     string    `json:"subject,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in an ExchangeInfo

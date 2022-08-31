@@ -27,6 +27,7 @@ var (
 		"responseRequested": 7,
 		"showAs":            8,
 		"subject":           9,
+		"seriesMasterId":    10,
 	}
 
 	fieldsForFolders = map[string]int{
