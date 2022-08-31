@@ -27,6 +27,7 @@ func TestExchangeIteratorSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(ExchangeIteratorSuite))
 }
 
@@ -127,7 +128,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-
 			response, err := test.queryFunction(service, userID)
 			require.NoError(t, err)
 			// Create Iterator
