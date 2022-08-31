@@ -26,6 +26,25 @@ type cachedContainer struct {
 	*path.Builder
 }
 
+func NewCachingContainerResolver(
+	prefix *path.Builder,
+	cr containerResolver,
+) (*cachingContainerResolver, error) {
+	if prefix == nil {
+		return nil, errors.New("nil prefix")
+	}
+
+	if cr == nil {
+		return nil, errors.New("nil resolver")
+	}
+
+	return &cachingContainerResolver{
+		cached:   map[string]cachedContainer{},
+		resolver: cr,
+		prefix:   prefix,
+	}, nil
+}
+
 // cachingContainerResolver is a container (i.e. "folder") path resolver that
 // also caches results as it goes along. Results are cached for the lifetime of
 // the resolver instance. The resolver takes a containerID for the final path

@@ -102,16 +102,14 @@ func TestCachingContainerResolverUnitSuite(t *testing.T) {
 }
 
 func (suite *CachingContainerResolverUnitSuite) TestFailsInitWithNoRoot() {
+	t := suite.T()
 	ctx := context.Background()
 	mcr := &mockContainerResolver{}
 
-	ccr := cachingContainerResolver{
-		cached:   map[string]cachedContainer{},
-		resolver: mcr,
-		prefix:   &path.Builder{},
-	}
+	ccr, err := NewCachingContainerResolver(&path.Builder{}, mcr)
+	require.NoError(t, err)
 
-	assert.Error(suite.T(), ccr.Initialize(ctx))
+	assert.Error(t, ccr.Initialize(ctx))
 }
 
 func (suite *CachingContainerResolverUnitSuite) TestLookupFailsWithNoMapping() {
@@ -125,15 +123,11 @@ func (suite *CachingContainerResolverUnitSuite) TestLookupFailsWithNoMapping() {
 		rootID: root.ID(),
 	}
 
-	ccr := cachingContainerResolver{
-		cached:   map[string]cachedContainer{},
-		resolver: mcr,
-		prefix:   &path.Builder{},
-	}
-
+	ccr, err := NewCachingContainerResolver(&path.Builder{}, mcr)
+	require.NoError(t, err)
 	require.NoError(t, ccr.Initialize(ctx))
 
-	_, err := ccr.Lookup(ctx, "other")
+	_, err = ccr.Lookup(ctx, "other")
 	assert.Error(t, err)
 }
 
@@ -184,15 +178,16 @@ func TestConfiguredCachingContainerResolverUnitSuite(t *testing.T) {
 }
 
 func (suite *ConfiguredCachingContainerResolverUnitSuite) TestLookup() {
+	t := suite.T()
 	ctx := context.Background()
 	suite.mcr.returnOnce = false
-	ccr := cachingContainerResolver{
-		cached:   map[string]cachedContainer{},
-		resolver: suite.mcr,
-		prefix:   path.Builder{}.Append(suite.root.DisplayName()),
-	}
 
-	require.NoError(suite.T(), ccr.Initialize(ctx))
+	ccr, err := NewCachingContainerResolver(
+		path.Builder{}.Append(suite.root.DisplayName()),
+		suite.mcr,
+	)
+	require.NoError(t, err)
+	require.NoError(t, ccr.Initialize(ctx))
 
 	for _, c := range suite.mcr.mappings {
 		suite.T().Run(fmt.Sprintf("Lookup-%s", c.DisplayName()), func(t *testing.T) {
@@ -207,12 +202,12 @@ func (suite *ConfiguredCachingContainerResolverUnitSuite) TestLookup() {
 func (suite *ConfiguredCachingContainerResolverUnitSuite) TestLookupCaching() {
 	ctx := context.Background()
 	suite.mcr.returnOnce = true
-	ccr := cachingContainerResolver{
-		cached:   map[string]cachedContainer{},
-		resolver: suite.mcr,
-		prefix:   path.Builder{}.Append(suite.root.DisplayName()),
-	}
 
+	ccr, err := NewCachingContainerResolver(
+		path.Builder{}.Append(suite.root.DisplayName()),
+		suite.mcr,
+	)
+	require.NoError(suite.T(), err)
 	require.NoError(suite.T(), ccr.Initialize(ctx))
 
 	for _, c := range suite.mcr.mappings {
