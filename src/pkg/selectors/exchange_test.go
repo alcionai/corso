@@ -646,6 +646,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 	es := NewExchangeRestore()
 
 	const (
+		name    = "smarf mcfnords"
 		sender  = "smarf@2many.cooks"
 		subject = "I have seen the fnords!"
 	)
@@ -655,9 +656,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		now   = time.Now()
 		then  = now.Add(1 * time.Minute)
 		info  = &details.ExchangeInfo{
-			Sender:   sender,
-			Subject:  subject,
-			Received: now,
+			Sender:      sender,
+			Subject:     subject,
+			Received:    now,
+			ContactName: name,
 		}
 	)
 
@@ -681,6 +683,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
 		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
 		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(then)), assert.True},
+		{"contact with a different name", es.ContactName("blarps"), assert.False},
+		{"contact with the same name", es.ContactName(name), assert.True},
+		{"contact with a subname search", es.ContactName(name[2:5]), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
