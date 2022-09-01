@@ -102,8 +102,6 @@ func stubScope(match string) mockScope {
 	return mockScope{
 		rootCatStub.String(): passAny,
 		scopeKeyCategory:     filters.Identity(rootCatStub.String()),
-		scopeKeyGranularity:  filters.Identity(Item),
-		scopeKeyResource:     filters.Identity(stubResource),
 		scopeKeyDataType:     filters.Identity(rootCatStub.String()),
 		shouldMatch:          filters.Identity(sm),
 	}
@@ -113,13 +111,23 @@ func stubScope(match string) mockScope {
 // selectors
 // ---------------------------------------------------------------------------
 
-func stubSelector() Selector {
-	return Selector{
-		Service:  ServiceExchange,
-		Excludes: []scope{scope(stubScope(""))},
-		Filters:  []scope{scope(stubScope(""))},
-		Includes: []scope{scope(stubScope(""))},
+type mockSel struct {
+	Selector
+}
+
+func stubSelector() mockSel {
+	return mockSel{
+		Selector: Selector{
+			Service:  ServiceExchange,
+			Excludes: []scope{scope(stubScope(""))},
+			Filters:  []scope{scope(stubScope(""))},
+			Includes: []scope{scope(stubScope(""))},
+		},
 	}
+}
+
+func (s mockSel) Printable() Printable {
+	return toPrintable[mockScope](s.Selector)
 }
 
 // ---------------------------------------------------------------------------

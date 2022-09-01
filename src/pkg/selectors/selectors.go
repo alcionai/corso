@@ -22,20 +22,9 @@ const (
 var ErrorBadSelectorCast = errors.New("wrong selector service type")
 
 const (
-	scopeKeyCategory    = "category"
-	scopeKeyGranularity = "granularity"
-	scopeKeyInfoFilter  = "info_filter"
-	scopeKeyResource    = "resource"
-	scopeKeyDataType    = "type"
-)
-
-// The granularity exprerssed by the scope.  Groups imply non-item granularity,
-// such as a directory.  Items are individual files or objects.
-// Filters are properties that search over service-specific info
-const (
-	Group  = "group"
-	Item   = "item"
-	Filter = "filter"
+	scopeKeyCategory   = "category"
+	scopeKeyInfoFilter = "info_filter"
+	scopeKeyDataType   = "type"
 )
 
 // The granularity exprerssed by the scope.  Groups imply non-item granularity,
@@ -191,23 +180,43 @@ type Printable struct {
 	Includes map[string][]string `json:"includes,omitempty"`
 }
 
-// Printable is the minimized display of a selector, formatted for human readability.
-// This transformer assumes that the scopeKeyResource and scopeKeyDataType have been
-// added to all scopes as they were created.  It is unable to infer resource or data
-// type values from existing scope values.
-func (s Selector) Printable() Printable {
+// ToPrintable creates the minimized display of a selector, formatted for human readability.
+func (s Selector) ToPrintable() Printable {
+	switch s.Service {
+	case ServiceExchange:
+		r, err := s.ToExchangeRestore()
+		if err != nil {
+			return Printable{}
+		}
+
+		return r.Printable()
+
+	case ServiceOneDrive:
+		r, err := s.ToOneDriveBackup()
+		if err != nil {
+			return Printable{}
+		}
+
+		return r.Printable()
+	}
+
+	return Printable{}
+}
+
+// toPrintable creates the minimized display of a selector, formatted for human readability.
+func toPrintable[T scopeT](s Selector) Printable {
 	return Printable{
 		Service:  s.Service.String(),
-		Excludes: toResourceTypeMap(s.Excludes),
-		Filters:  toResourceTypeMap(s.Filters),
-		Includes: toResourceTypeMap(s.Includes),
+		Excludes: toResourceTypeMap[T](s.Excludes),
+		Filters:  toResourceTypeMap[T](s.Filters),
+		Includes: toResourceTypeMap[T](s.Includes),
 	}
 }
 
 // Resources generates a tabular-readable output of the resources in Printable.
 // Only the first (arbitrarily picked) resource is displayed.  All others are
 // simply counted.  If no inclusions exist, uses Filters.  If no filters exist,
-// defaults to "All".
+// defaults to "None".
 // Resource refers to the top-level entity in the service. User for Exchange,
 // Site for sharepoint, etc.
 func (p Printable) Resources() string {
@@ -217,7 +226,7 @@ func (p Printable) Resources() string {
 	}
 
 	if len(s) == 0 {
-		s = "All"
+		s = "None"
 	}
 
 	return s
@@ -243,22 +252,23 @@ func resourcesShortFormat(m map[string][]string) string {
 // Transforms the slice to a single map.
 // Keys are each map's scopeKeyResource value.
 // Values are the set of all scopeKeyDataTypes for a given resource.
-func toResourceTypeMap(ms []scope) map[string][]string {
-	if len(ms) == 0 {
+func toResourceTypeMap[T scopeT](s []scope) map[string][]string {
+	if len(s) == 0 {
 		return nil
 	}
 
 	r := make(map[string][]string)
 
-	for _, m := range ms {
-		res := m[scopeKeyResource]
+	for _, sc := range s {
+		t := T(sc)
+		res := sc[t.categorizer().rootCat().String()]
 		k := res.Target
 
 		if res.Target == AnyTgt {
 			k = All
 		}
 
-		r[k] = addToSet(r[k], split(m[scopeKeyDataType].Target))
+		r[k] = addToSet(r[k], split(sc[scopeKeyDataType].Target))
 	}
 
 	return r
