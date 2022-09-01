@@ -27,7 +27,7 @@ const paths = {
             dir: './'
         },
         node: {
-            dir: './node_modules'
+            dir: '../node_modules'
         },
         packageLock: {
             files: './package-lock.json'
@@ -212,7 +212,7 @@ gulp.task('copy:all', function () {
 
 gulp.task('copy:libs', function () {
     return gulp
-        .src(npmdist(), { base: paths.base.node.dir })
+        .src(npmdist({ nodeModulesPath: '../' }), { base: paths.base.node.dir })
         .pipe(rename(function (path) {
             path.dirname = path.dirname.replace(/\/dist/, '').replace(/\\dist/, '');
         }))
