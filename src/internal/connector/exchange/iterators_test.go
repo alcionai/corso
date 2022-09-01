@@ -139,7 +139,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				test.transformer)
 			require.NoError(t, err)
 
-			info := graph.QueryParams{
+			qp := graph.QueryParams{
 				User:        userID,
 				Scope:       test.scope,
 				Credentials: service.credentials,
@@ -152,7 +152,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
 				ctx,
-				info,
+				qp,
 				errs,
 				collections,
 				nil)

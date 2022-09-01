@@ -332,7 +332,7 @@ func (gc *GraphConnector) createCollections(
 	allCollections := make([]*exchange.Collection, 0)
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
-		info := graph.QueryParams{
+		qp := graph.QueryParams{
 			User:        user,
 			Scope:       scope,
 			FailFast:    gc.failFast,
@@ -340,12 +340,12 @@ func (gc *GraphConnector) createCollections(
 		}
 		collections := make(map[string]*exchange.Collection)
 
-		response, err := query(&gc.graphService, info.User)
+		response, err := query(&gc.graphService, qp.User)
 		if err != nil {
 			return nil, errors.Wrapf(
 				err,
 				"user %s M365 query: %s",
-				info.User, support.ConnectorStackErrorTrace(err))
+				qp.User, support.ConnectorStackErrorTrace(err))
 		}
 
 		pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
@@ -356,7 +356,7 @@ func (gc *GraphConnector) createCollections(
 		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(ctx, info, errs, collections, gc.statusCh)
+		callbackFunc := gIter(ctx, qp, errs, collections, gc.statusCh)
 		iterateError := pageIterator.Iterate(callbackFunc)
 
 		if iterateError != nil {

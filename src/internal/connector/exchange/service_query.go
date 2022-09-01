@@ -124,20 +124,20 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 
 func CollectMailFolders(
 	ctx context.Context,
-	info graph.QueryParams,
+	qp graph.QueryParams,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) error {
-	queryService, err := createService(info.Credentials, info.FailFast)
+	queryService, err := createService(qp.Credentials, qp.FailFast)
 	if err != nil {
-		return errors.New("unable to create a mail folder query service for " + info.User)
+		return errors.New("unable to create a mail folder query service for " + qp.User)
 	}
 
-	query, err := GetAllFolderNamesForUser(queryService, info.User)
+	query, err := GetAllFolderNamesForUser(queryService, qp.User)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to query mail folder for %s: details: %s",
-			info.User,
+			qp.User,
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
@@ -153,7 +153,7 @@ func CollectMailFolders(
 
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
 		ctx,
-		info,
+		qp,
 		err,
 		collections,
 		statusCh,
@@ -161,7 +161,7 @@ func CollectMailFolders(
 
 	iterateFailure := pageIterator.Iterate(callbackFunc)
 	if iterateFailure != nil {
-		err = support.WrapAndAppend(info.User+" iterate failure", iterateFailure, err)
+		err = support.WrapAndAppend(qp.User+" iterate failure", iterateFailure, err)
 	}
 
 	return err

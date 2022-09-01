@@ -30,7 +30,7 @@ type displayable interface {
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
 	ctx context.Context,
-	info graph.QueryParams,
+	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
 	graphStatusChannel chan<- *support.ConnectorOperationStatus,
@@ -42,7 +42,7 @@ type GraphIterateFunc func(
 // placed into a Collection based on the parent folder
 func IterateSelectAllDescendablesForCollections(
 	ctx context.Context,
-	info graph.QueryParams,
+	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
@@ -56,12 +56,12 @@ func IterateSelectAllDescendablesForCollections(
 	return func(pageItem any) bool {
 		// Defines the type of collection being created within the function
 		if !isCategorySet {
-			if info.Scope.IncludesCategory(selectors.ExchangeMail) {
+			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
 				collectionType = messages
 				category = mailCategory
 			}
 
-			if info.Scope.IncludesCategory(selectors.ExchangeContact) {
+			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
 				collectionType = contacts
 				category = contactsCategory
 			}
@@ -71,21 +71,21 @@ func IterateSelectAllDescendablesForCollections(
 
 		entry, ok := pageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppendf(info.User, errors.New("descendable conversion failure"), errs)
+			errs = support.WrapAndAppendf(qp.User, errors.New("descendable conversion failure"), errs)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
-			service, err := createService(info.Credentials, info.FailFast)
+			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errs = support.WrapAndAppend(info.User, err, errs)
+				errs = support.WrapAndAppend(qp.User, err, errs)
 				return true
 			}
 
 			edc := NewCollection(
-				info.User,
-				[]string{info.Credentials.TenantID, info.User, category, directory},
+				qp.User,
+				[]string{qp.Credentials.TenantID, qp.User, category, directory},
 				collectionType,
 				service,
 				statusCh,
@@ -105,7 +105,7 @@ func IterateSelectAllDescendablesForCollections(
 // the calendarID which originates from M365.
 func IterateSelectAllEventsForCollections(
 	ctx context.Context,
-	info graph.QueryParams,
+	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
@@ -114,7 +114,7 @@ func IterateSelectAllEventsForCollections(
 		event, ok := eventItem.(models.Eventable)
 		if !ok {
 			errs = support.WrapAndAppend(
-				info.User,
+				qp.User,
 				errors.New("event iteration failure"),
 				errs,
 			)
@@ -127,7 +127,7 @@ func IterateSelectAllEventsForCollections(
 		value, ok := adtl["calendar@odata.associationLink"]
 		if !ok {
 			errs = support.WrapAndAppend(
-				info.User,
+				qp.User,
 				fmt.Errorf("%s: does not support calendar look up", *event.GetId()),
 				errs,
 			)
@@ -138,7 +138,7 @@ func IterateSelectAllEventsForCollections(
 		link, ok := value.(*string)
 		if !ok || link == nil {
 			errs = support.WrapAndAppend(
-				info.User,
+				qp.User,
 				fmt.Errorf("%s: unable to obtain calendar event data", *event.GetId()),
 				errs,
 			)
@@ -150,7 +150,7 @@ func IterateSelectAllEventsForCollections(
 		directory, err := parseCalendarIDFromEvent(*link)
 		if err != nil {
 			errs = support.WrapAndAppend(
-				info.User,
+				qp.User,
 				errors.Wrap(err, *event.GetId()),
 				errs,
 			)
@@ -159,15 +159,15 @@ func IterateSelectAllEventsForCollections(
 		}
 
 		if _, ok := collections[directory]; !ok {
-			service, err := createService(info.Credentials, info.FailFast)
+			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errs = support.WrapAndAppend(info.User, err, errs)
+				errs = support.WrapAndAppend(qp.User, err, errs)
 				return true
 			}
 
 			edc := NewCollection(
-				info.User,
-				[]string{info.Credentials.TenantID, info.User, eventsCategory, directory},
+				qp.User,
+				[]string{qp.Credentials.TenantID, qp.User, eventsCategory, directory},
 				events,
 				service,
 				statusCh,
@@ -186,7 +186,7 @@ func IterateSelectAllEventsForCollections(
 // into a Collection. Messages outside of those directories are omitted.
 func IterateAndFilterMessagesForCollections(
 	ctx context.Context,
-	info graph.QueryParams,
+	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
@@ -197,12 +197,12 @@ func IterateAndFilterMessagesForCollections(
 		if !isFilterSet {
 			err := CollectMailFolders(
 				ctx,
-				info,
+				qp,
 				collections,
 				statusCh,
 			)
 			if err != nil {
-				errs = support.WrapAndAppend(info.User, err, errs)
+				errs = support.WrapAndAppend(qp.User, err, errs)
 				return false
 			}
 
@@ -211,7 +211,7 @@ func IterateAndFilterMessagesForCollections(
 
 		message, ok := messageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppend(info.User, errors.New("message iteration failure"), errs)
+			errs = support.WrapAndAppend(qp.User, errors.New("message iteration failure"), errs)
 			return true
 		}
 		// Saving only messages for the created directories
@@ -228,7 +228,7 @@ func IterateAndFilterMessagesForCollections(
 
 func IterateFilterFolderDirectoriesForCollections(
 	ctx context.Context,
-	info graph.QueryParams,
+	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
 	statusCh chan<- *support.ConnectorOperationStatus,
@@ -242,7 +242,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		folder, ok := folderItem.(displayable)
 		if !ok {
 			errs = support.WrapAndAppend(
-				info.User,
+				qp.User,
 				errors.New("unable to transform folderable item"),
 				errs,
 			)
@@ -254,19 +254,19 @@ func IterateFilterFolderDirectoriesForCollections(
 			return true
 		}
 
-		if !info.Scope.Matches(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+		if !qp.Scope.Matches(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
 			return true
 		}
 
 		directory := *folder.GetId()
 
-		service, err = createService(info.Credentials, info.FailFast)
+		service, err = createService(qp.Credentials, qp.FailFast)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				*folder.GetDisplayName(),
 				errors.Wrap(
 					err,
-					"unable to create service a folder query service for "+info.User,
+					"unable to create service a folder query service for "+qp.User,
 				),
 				errs,
 			)
@@ -275,8 +275,8 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 
 		temp := NewCollection(
-			info.User,
-			[]string{info.Credentials.TenantID, info.User, mailCategory, directory},
+			qp.User,
+			[]string{qp.Credentials.TenantID, qp.User, mailCategory, directory},
 			messages,
 			service,
 			statusCh,
