@@ -1,0 +1,695 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        <link href="assets/libs/tobii/css/tobii.min.css" rel="stylesheet">
+        <link href="assets/libs/tiny-slider/tiny-slider.css" rel="stylesheet">
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center-light.html")
+
+        <!-- Start Hero -->
+        <section class="relative md:py-60 py-36 items-center">
+            <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none overflow-hidden">
+                <!-- <iframe src="https://player.vimeo.com/video/33955001?background=1&autoplay=1&loop=1&byline=0&title=0" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-[56.25vw] min-h-screen min-w-[177.77vw]"></iframe> -->
+                <!--Note: Vimeo Embed Background Video-->
+
+                <iframe src="https://www.youtube.com/embed/JsNvHJsufhI?controls=0&showinfo=0&rel=0&autoplay=1&loop=1&mute=1" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-[56.25vw] min-h-screen min-w-[177.77vw]"></iframe>
+                <!--Note: Youtube Embed Background Video-->
+            </div>
+            <div class="absolute inset-0 opacity-20 bg-[url('../../assets/images/map.svg')] bg-no-repeat bg-center"></div>
+            <div class="absolute inset-0 bg-black/70"></div>
+
+            <div class="container">
+                <div class="grid grid-cols-1 pb-8 text-center mt-10">
+                    <img src="assets/images/logo-icon-64.png" class="block mx-auto animate-[spin_10s_linear_infinite]" alt="">
+                    <h3 class="font-bold lg:leading-normal leading-normal text-4xl lg:text-5xl mb-5 mt-10 text-white">Coworking Just Feels Right</h3>
+
+                    <p class="text-slate-300 text-lg max-w-2xl mx-auto">Coworking spaces offer a wealth of advantages for self starters, including networking opportunities, daily structure, and increased productivity.</p>
+                
+                    <div class="subcribe-form z-1 mt-8">
+                        <form class="relative mx-auto max-w-xl">
+                            <i data-feather="map-pin" class="w-5 h-5 absolute top-[48%] -translate-y-1/2 left-4"></i>
+                            <input type="text" id="search_name" name="name" class="pt-4 pr-40 pb-4 w-full h-[50px] outline-none text-black dark:text-white rounded-full bg-white dark:bg-slate-900 shadow dark:shadow-gray-800 pl-12" placeholder="Washington, D.C.">
+                            <button type="submit" class="btn absolute top-[2px] right-[3px] h-[46px] bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-full">Find A Space</button>
+                        </form><!--end form-->
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Hero -->
+
+        <!-- STart -->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid md:grid-cols-12 grid-cols-1 items-center gap-[30px]">
+                    <div class="md:col-span-6">
+                        <div class="lg:mr-8">
+                            <img src="assets/images/shape-image.png" alt="">
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-6 mt-8 md:mt-0">
+                        <div class="lg:ml-5">
+                            <h6 class="text-indigo-600 text-sm font-bold uppercase mb-2">Our History</h6>
+                            <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">“Sweet as the Moment When <br> the coworking Went 'Pop”</h3>
+
+                            <p class="text-slate-400 max-w-xl mb-6">Get instant helpful resources about anything on the go, easily implement secure money transfer solutions, boost your daily efficiency, connect to other app users and create your own Techwind network, and much more with just a few taps. commodo consequat. Duis aute irure.</p>
+
+                            <a href="" class="btn bg-indigo-600/5 hover:bg-indigo-600 border-indigo-600/10 hover:border-indigo-600 text-indigo-600 hover:text-white rounded-full">Get Started</a>
+                        </div>
+                    </div>
+                </div>
+            </div><!--end container-->
+
+            <div class="container lg:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">Our Services</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">Start working with Tailwind CSS that can provide everything you need to generate awareness, drive traffic, connect.</p>
+                </div><!--end grid-->
+
+                <div class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 mt-4 gap-[30px]">
+                    <!-- Content -->
+                    <div class="group relative lg:px-10 mt-4 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-32 w-32 fill-indigo-600/5 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-wifi"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-xl font-medium transition-all duration-500 ease-in-out hover:text-indigo-600">Free Internet</a>
+                            <p class="text-slate-400 transition-all duration-500 ease-in-out mt-3">If the distribution of letters and 'words' is random, the reader will not be distracted from making.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="group relative lg:px-10 mt-4 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-32 w-32 fill-indigo-600/5 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-users-alt"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-xl font-medium transition-all duration-500 ease-in-out hover:text-indigo-600">Group Events</a>
+                            <p class="text-slate-400 transition-all duration-500 ease-in-out mt-3">If the distribution of letters and 'words' is random, the reader will not be distracted from making.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="group relative lg:px-10 mt-4 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-32 w-32 fill-indigo-600/5 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-crop-alt-rotate-left"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-xl font-medium transition-all duration-500 ease-in-out hover:text-indigo-600">Meeting Room</a>
+                            <p class="text-slate-400 transition-all duration-500 ease-in-out mt-3">If the distribution of letters and 'words' is random, the reader will not be distracted from making.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+                    
+                    <!-- Content -->
+                    <div class="group relative lg:px-10 mt-4 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-32 w-32 fill-indigo-600/5 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-glass-tea"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-xl font-medium transition-all duration-500 ease-in-out hover:text-indigo-600">Coffee & Tea</a>
+                            <p class="text-slate-400 transition-all duration-500 ease-in-out mt-3">If the distribution of letters and 'words' is random, the reader will not be distracted from making.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="group relative lg:px-10 mt-4 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-32 w-32 fill-indigo-600/5 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-parking-circle"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-xl font-medium transition-all duration-500 ease-in-out hover:text-indigo-600">Free Parking</a>
+                            <p class="text-slate-400 transition-all duration-500 ease-in-out mt-3">If the distribution of letters and 'words' is random, the reader will not be distracted from making.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="group relative lg:px-10 mt-4 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-32 w-32 fill-indigo-600/5 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-process"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-xl font-medium transition-all duration-500 ease-in-out hover:text-indigo-600">Relax Room</a>
+                            <p class="text-slate-400 transition-all duration-500 ease-in-out mt-3">If the distribution of letters and 'words' is random, the reader will not be distracted from making.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container lg:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">We provide Different types of office</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">Start working with Tailwind CSS that can provide everything you need to generate awareness, drive traffic, connect.</p>
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container-fluid">
+                <div class="flex justify-center relative mt-8">
+                    <div class="relative w-full">
+                        <div class="tiny-six-item">
+                            <div class="tiny-slide">
+                                <div class="group relative rounded-md shadow dark:shadow-gray-800 overflow-hidden mx-2">
+                                    <div class="relative">
+                                        <img src="assets/images/cowork/1.jpg" class="group-hover:rotate-3 group-hover:scale-110 duration-500 ease-in-out" alt="">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black"></div>
+                                    </div>
+
+                                    <div class="absolute bottom-6 right-6 left-6">
+                                        <a href="" class="text-white/70 hover:text-white text-lg block font-semibold duration-500 ease-in-out">Private Office</a>
+                                        <span class="text-white/60 block">Co-space</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tiny-slide">
+                                <div class="group relative rounded-md shadow dark:shadow-gray-800 overflow-hidden mx-2">
+                                    <div class="relative">
+                                        <img src="assets/images/cowork/2.jpg" class="group-hover:rotate-3 group-hover:scale-110 duration-500 ease-in-out" alt="">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black"></div>
+                                    </div>
+
+                                    <div class="absolute bottom-6 right-6 left-6">
+                                        <a href="" class="text-white/70 hover:text-white text-lg block font-semibold duration-500 ease-in-out">Dedicated Space</a>
+                                        <span class="text-white/60 block">Co-space</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tiny-slide">
+                                <div class="group relative rounded-md shadow dark:shadow-gray-800 overflow-hidden mx-2">
+                                    <div class="relative">
+                                        <img src="assets/images/cowork/3.jpg" class="group-hover:rotate-3 group-hover:scale-110 duration-500 ease-in-out" alt="">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black"></div>
+                                    </div>
+
+                                    <div class="absolute bottom-6 right-6 left-6">
+                                        <a href="" class="text-white/70 hover:text-white text-lg block font-semibold duration-500 ease-in-out">Small Office</a>
+                                        <span class="text-white/60 block">Co-space</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tiny-slide">
+                                <div class="group relative rounded-md shadow dark:shadow-gray-800 overflow-hidden mx-2">
+                                    <div class="relative">
+                                        <img src="assets/images/cowork/4.jpg" class="group-hover:rotate-3 group-hover:scale-110 duration-500 ease-in-out" alt="">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black"></div>
+                                    </div>
+
+                                    <div class="absolute bottom-6 right-6 left-6">
+                                        <a href="" class="text-white/70 hover:text-white text-lg block font-semibold duration-500 ease-in-out">Floating Seat</a>
+                                        <span class="text-white/60 block">Co-space</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tiny-slide">
+                                <div class="group relative rounded-md shadow dark:shadow-gray-800 overflow-hidden mx-2">
+                                    <div class="relative">
+                                        <img src="assets/images/cowork/5.jpg" class="group-hover:rotate-3 group-hover:scale-110 duration-500 ease-in-out" alt="">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black"></div>
+                                    </div>
+
+                                    <div class="absolute bottom-6 right-6 left-6">
+                                        <a href="" class="text-white/70 hover:text-white text-lg block font-semibold duration-500 ease-in-out">Startups Desk</a>
+                                        <span class="text-white/60 block">Co-space</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tiny-slide">
+                                <div class="group relative rounded-md shadow dark:shadow-gray-800 overflow-hidden mx-2">
+                                    <div class="relative">
+                                        <img src="assets/images/cowork/6.jpg" class="group-hover:rotate-3 group-hover:scale-110 duration-500 ease-in-out" alt="">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black"></div>
+                                    </div>
+
+                                    <div class="absolute bottom-6 right-6 left-6">
+                                        <a href="" class="text-white/70 hover:text-white text-lg block font-semibold duration-500 ease-in-out">Retail Space</a>
+                                        <span class="text-white/60 block">Co-space</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--end flex-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End -->
+
+        <!-- Start -->
+        <section class="relative md:py-24 py-16 md:pt-0 pt-0">
+            <div class="container">
+                <div class="grid grid-cols-1 justify-center">
+                    <div class="relative z-1">
+                        <div class="grid lg:grid-cols-12 grid-cols-1 md:text-left text-center justify-center">
+                            <div class="lg:col-start-2 lg:col-span-10">
+                                <div class="relative">
+                                    <img src="assets/images/digital/cta.jpg" class="rounded-md shadow-lg" alt="">
+                                    <div class="absolute bottom-2/4 translate-y-2/4 right-0 left-0 text-center">
+                                        <a href="#!" data-type="youtube" data-id="yba7hPeTSjk"
+                                            class="lightbox h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 inline-flex items-center justify-center bg-white dark:bg-slate-900 text-indigo-600">
+                                            <i class="mdi mdi-play inline-flex items-center justify-center text-2xl"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="content md:mt-8">
+                            <div class="grid lg:grid-cols-12 grid-cols-1 md:text-left text-center justify-center">
+                                <div class="lg:col-start-2 lg:col-span-10">
+                                    <div class="grid md:grid-cols-2 grid-cols-1 items-center gap-[30px]">
+                                        <div class="mt-8">
+                                            <div class="section-title text-md-start">
+                                                <h6 class="text-white/50 text-lg font-semibold">Customers needs</h6>
+                                                <h3
+                                                    class="md:text-3xl text-2xl md:leading-normal leading-normal font-semibold text-white mt-2">
+                                                    Spaces for every size <br> and type of need.</h3>
+                                            </div>
+                                        </div>
+
+                                        <div class="section-title text-md-start">
+                                            <p class="text-white/50 max-w-xl mx-auto mb-2">Start working with Techwind
+                                                that can provide everything you need to generate awareness, drive
+                                                traffic, connect.</p>
+                                            <a href="" class="text-white">Read More <i
+                                                    class="uil uil-angle-right-b align-middle"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!--end row -->
+            </div>
+            <!--end container-->
+
+            <div class="absolute bottom-0 left-0 right-0 sm:h-2/3 h-4/5 bg-gradient-to-b from-indigo-500 to-indigo-600"></div>
+        </section>
+        <!--end section-->
+        <!-- End -->
+
+        <!-- Start -->
+        <section class="realtive md:py-24 py-16">
+            <div class="container">
+                <div class="grid md:grid-cols-12 grid-cols-1 gap-[30px]">
+                    <div class="lg:col-span-4 md:col-span-5">
+                        <div class="sticky top-20">
+                            <ul class="flex-column text-center p-6 bg-white dark:bg-slate-900 shadow dark:shadow-gray-800 rounded-md" id="myTab" data-tabs-toggle="#myTabContent" role="tablist">
+                                <li role="presentation">
+                                    <button class="px-4 py-2 text-base font-semibold rounded-md w-full hover:text-indigo-600 transition-all duration-500 ease-in-out" id="profile-tab" data-tabs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="true">Private Office</button>
+                                </li>
+                                <li role="presentation">
+                                    <button class="px-4 py-2 text-base font-semibold rounded-md w-full mt-3 transition-all duration-500 ease-in-out" id="dashboard-tab" data-tabs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="false">Dedicated Office</button>
+                                </li>
+                                <li role="presentation">
+                                    <button class="px-4 py-2 text-base font-semibold rounded-md w-full mt-3 transition-all duration-500 ease-in-out" id="settings-tab" data-tabs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="false">Kitchen Space</button>
+                                </li>
+                                <li role="presentation">
+                                    <button class="px-4 py-2 text-base font-semibold rounded-md w-full mt-3 transition-all duration-500 ease-in-out" id="contacts-tab" data-tabs-target="#contacts" type="button" role="tab" aria-controls="contacts" aria-selected="false">Meeting Rooms</button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-8 md:col-span-7">
+                        <div id="myTabContent" class="p-6 bg-white dark:bg-slate-900 shadow dark:shadow-gray-800 rounded-md">
+                            <div class="" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                                <img src="assets/images/cowork/7.jpg" class="shadow rounded-md" alt="">
+                                <div class="mt-6">
+                                    <h5 class="text-lg font-semibold mb-4">Private Office</h5>
+                                    <p class="text-slate-400 mb-2">This is required when, for example, the final text is not yet available. Dummy text is also known as 'fill text'. It is said that song composers of the past used dummy texts as lyrics.</p>
+                                    <a href="" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">See More <i class="uil uil-arrow-right align-middle"></i></a>
+                                </div>
+                            </div>
+                            <div class="hidden " id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+                                <img src="assets/images/cowork/8.jpg" class="shadow rounded-md" alt="">
+                                <div class="mt-6">
+                                    <h5 class="text-lg font-semibold mb-4">Dedicated Office</h5>
+                                    <p class="text-slate-400 mb-2">This is required when, for example, the final text is not yet available. Dummy text is also known as 'fill text'. It is said that song composers of the past used dummy texts as lyrics.</p>
+                                    <a href="" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">See More <i class="uil uil-arrow-right align-middle"></i></a>
+                                </div>
+                            </div>
+                            <div class="hidden " id="settings" role="tabpanel" aria-labelledby="settings-tab">
+                                <img src="assets/images/cowork/9.jpg" class="shadow rounded-md" alt="">
+                                <div class="mt-6">
+                                    <h5 class="text-lg font-semibold mb-4">Kitchen Space</h5>
+                                    <p class="text-slate-400 mb-2">This is required when, for example, the final text is not yet available. Dummy text is also known as 'fill text'. It is said that song composers of the past used dummy texts as lyrics.</p>
+                                    <a href="" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">See More <i class="uil uil-arrow-right align-middle"></i></a>
+                                </div>
+                            </div>
+                            <div class="hidden " id="contacts" role="tabpanel" aria-labelledby="contacts-tab">
+                                <img src="assets/images/cowork/10.jpg" class="shadow rounded-md" alt="">
+                                <div class="mt-6">
+                                    <h5 class="text-lg font-semibold mb-4">Meeting Rooms</h5>
+                                    <p class="text-slate-400 mb-2">This is required when, for example, the final text is not yet available. Dummy text is also known as 'fill text'. It is said that song composers of the past used dummy texts as lyrics.</p>
+                                    <a href="" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">See More <i class="uil uil-arrow-right align-middle"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">What Our Users Say</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">Search all the open positions on the web. Get your own personalized salary estimate. Read reviews on over 30000+ companies worldwide.</p>
+                </div><!--end grid-->
+
+                <div class="grid grid-cols-1 mt-8">
+                    <div class="tiny-three-item">
+                        <div class="tiny-slide text-center">
+                            <div class="customer-testi">
+                                <div class="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
+                                    <i class="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
+                                    <p class="text-slate-400">" It seems that only fragments of the original text remain in the Lorem Ipsum texts used today. "</p>
+                                    <ul class="list-none mb-0 text-amber-400 mt-3">
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="text-center mt-5">
+                                    <img src="assets/images/client/01.jpg" class="h-14 w-14 rounded-full shadow-md mx-auto" alt="">
+                                    <h6 class="mt-2 font-semibold">Calvin Carlo</h6>
+                                    <span class="text-slate-400 text-sm">Manager</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tiny-slide text-center">
+                            <div class="customer-testi">
+                                <div class="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
+                                    <i class="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
+                                    <p class="text-slate-400">" The most well-known dummy text is the 'Lorem Ipsum', which is said to have originated in the 16th century. "</p>
+                                    <ul class="list-none mb-0 text-amber-400 mt-3">
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="text-center mt-5">
+                                    <img src="assets/images/client/02.jpg" class="h-14 w-14 rounded-full shadow-md mx-auto" alt="">
+                                    <h6 class="mt-2 font-semibold">Christa Smith</h6>
+                                    <span class="text-slate-400 text-sm">Manager</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tiny-slide text-center">
+                            <div class="customer-testi">
+                                <div class="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
+                                    <i class="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
+                                    <p class="text-slate-400">" One disadvantage of Lorum Ipsum is that in Latin certain letters appear more frequently than others. "</p>
+                                    <ul class="list-none mb-0 text-amber-400 mt-3">
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="text-center mt-5">
+                                    <img src="assets/images/client/03.jpg" class="h-14 w-14 rounded-full shadow-md mx-auto" alt="">
+                                    <h6 class="mt-2 font-semibold">Jemina CLone</h6>
+                                    <span class="text-slate-400 text-sm">Manager</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tiny-slide text-center">
+                            <div class="customer-testi">
+                                <div class="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
+                                    <i class="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
+                                    <p class="text-slate-400">" Thus, Lorem Ipsum has only limited suitability as a visual filler for German texts. "</p>
+                                    <ul class="list-none mb-0 text-amber-400 mt-3">
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="text-center mt-5">
+                                    <img src="assets/images/client/04.jpg" class="h-14 w-14 rounded-full shadow-md mx-auto" alt="">
+                                    <h6 class="mt-2 font-semibold">Smith Vodka</h6>
+                                    <span class="text-slate-400 text-sm">Manager</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tiny-slide text-center">
+                            <div class="customer-testi">
+                                <div class="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
+                                    <i class="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
+                                    <p class="text-slate-400">" There is now an abundance of readable dummy texts. These are usually used when a text is required. "</p>
+                                    <ul class="list-none mb-0 text-amber-400 mt-3">
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="text-center mt-5">
+                                    <img src="assets/images/client/05.jpg" class="h-14 w-14 rounded-full shadow-md mx-auto" alt="">
+                                    <h6 class="mt-2 font-semibold">Cristino Murfi</h6>
+                                    <span class="text-slate-400 text-sm">Manager</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tiny-slide text-center">
+                            <div class="customer-testi">
+                                <div class="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
+                                    <i class="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
+                                    <p class="text-slate-400">" According to most sources, Lorum Ipsum can be traced back to a text composed by Cicero. "</p>
+                                    <ul class="list-none mb-0 text-amber-400 mt-3">
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                        <li class="inline"><i class="mdi mdi-star"></i></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="text-center mt-5">
+                                    <img src="assets/images/client/06.jpg" class="h-14 w-14 rounded-full shadow-md mx-auto" alt="">
+                                    <h6 class="mt-2 font-semibold">Cristino Murfi</h6>
+                                    <span class="text-slate-400 text-sm">Manager</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid md:grid-cols-12 grid-cols-1 mb-8 items-center">
+                    <div class="md:col-span-6">
+                        <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">Reads Our Latest <br> News & Blog</h3>
+                    </div>
+
+                    <div class="md:col-span-6">
+                        <p class="text-slate-400 max-w-xl">Start working with Techwind that can provide everything you need to generate awareness, drive traffic, connect.</p>
+                    </div>
+                </div><!--end grid-->
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 mt-8 gap-[30px]">
+                    <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/blog/01.jpg" alt="">
+
+                        <div class="content p-6">
+                            <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Tips for higher productivity</a>
+                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            
+                            <div class="mt-4">
+                                <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/blog/02.jpg" alt="">
+
+                        <div class="content p-6">
+                            <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Green work environment</a>
+                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            
+                            <div class="mt-4">
+                                <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/blog/03.jpg" alt="">
+
+                        <div class="content p-6">
+                            <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Importance of social interactions</a>
+                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            
+                            <div class="mt-4">
+                                <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End -->
+
+        <div class="container-fluid relative">
+            <div class="grid grid-cols-1">
+                <div class="relative grayscale w-full leading-[0] border-0">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d39206.002432144705!2d-95.4973981212445!3d29.709510002925988!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8640c16de81f3ca5%3A0xf43e0b60ae539ac9!2sGerald+D.+Hines+Waterwall+Park!5e0!3m2!1sen!2sin!4v1566305861440!5m2!1sen!2sin" style="border:0" class="w-full h-[500px]" allowfullscreen></iframe>
+                </div>
+                <div class="absolute top-1/2 -translate-y-1/2 left-0 right-0 text-center">
+                    <a href="#!" data-modal-toggle="contactModal" class="btn btn-icon btn-lg bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-full"><i class="uil uil-phone"></i></a>
+                </div>
+            </div><!--end grid-->
+        </div><!--end container-->
+
+        <!-- Start Modal -->
+        <div id="contactModal" tabindex="-1" class="fixed z-50 hidden overflow-hidden inset-0 m-auto">
+            <div class="relative w-full h-auto max-w-md p-4">
+                <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-gray-800">
+                    <div class="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                        <h5 class="text-xl font-semibold">Contact Form</h5>
+                        <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-800 dark:hover:text-white" data-modal-toggle="contactModal">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>  
+                        </button>
+                    </div>
+                    <div class="p-6 text-center">
+                        <form method="post" name="myForm" id="myForm" onsubmit="return validateForm()">
+                            <p class="mb-0" id="error-msg"></p>
+                            <div id="simple-msg"></div>
+                            <div class="grid lg:grid-cols-12 lg:gap-6">
+                                <div class="lg:col-span-6 mb-5">
+                                    <div class="text-left">
+                                        <label for="name" class="font-semibold">Your Name:</label>
+                                        <div class="form-icon relative mt-2">
+                                            <i data-feather="user" class="w-4 h-4 absolute top-3 left-4"></i>
+                                            <input name="name" id="name" type="text" class="form-input pl-11" placeholder="Name :">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="lg:col-span-6 mb-5">
+                                    <div class="text-left">
+                                        <label for="email" class="font-semibold">Your Email:</label>
+                                        <div class="form-icon relative mt-2">
+                                            <i data-feather="mail" class="w-4 h-4 absolute top-3 left-4"></i>
+                                            <input name="email" id="email" type="email" class="form-input pl-11" placeholder="Email :">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1">
+                                <div class="mb-5">
+                                    <div class="text-left">
+                                        <label for="subject" class="font-semibold">Your Question:</label>
+                                        <div class="form-icon relative mt-2">
+                                            <i data-feather="book" class="w-4 h-4 absolute top-3 left-4"></i>
+                                            <input name="subject" id="subject" class="form-input pl-11" placeholder="Subject :">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-5">
+                                    <div class="text-left">
+                                        <label for="comments" class="font-semibold">Your Comment:</label>
+                                        <div class="form-icon relative mt-2">
+                                            <i data-feather="message-circle" class="w-4 h-4 absolute top-3 left-4"></i>
+                                            <textarea name="comments" id="comments" class="form-input pl-11 h-28" placeholder="Message :"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" id="submit" name="send" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md justify-center flex items-center">Send Message</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Modal -->
+
+        @@include("partials/footer/footer.html")
+
+        @@include("partials/cookies.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/js/contact.js"></script>
+        <script src="assets/libs/tiny-slider/min/tiny-slider.js"></script>
+        <script src="assets/libs/tobii/js/tobii.min.js"></script>
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>
