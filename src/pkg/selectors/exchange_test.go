@@ -698,9 +698,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 	es := NewExchangeRestore()
 
 	const (
-		name    = "smarf mcfnords"
-		sender  = "smarf@2many.cooks"
-		subject = "I have seen the fnords!"
+		name      = "smarf mcfnords"
+		organizer = "cooks@2many.smarf"
+		sender    = "smarf@2many.cooks"
+		subject   = "I have seen the fnords!"
 	)
 
 	var (
@@ -709,11 +710,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		future = now.Add(1 * time.Minute)
 		info   = &details.ExchangeInfo{
 			ContactName: name,
+			EventRecurs: true,
 			EventStart:  now,
+			Organizer:   organizer,
 			Sender:      sender,
 			Subject:     subject,
 			Received:    now,
-			// TODO: event recurs
 		}
 	)
 
@@ -722,33 +724,37 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"any mail with a sender", es.MailSender(Any()), assert.True},
-		{"no mail, regardless of sender", es.MailSender(None()), assert.False},
-		{"mail from a different sender", es.MailSender([]string{"magoo@ma.goo"}), assert.False},
-		{"mail from the matching sender", es.MailSender([]string{sender}), assert.True},
-		{"mail with any subject", es.MailSubject(Any()), assert.True},
-		{"mail with none subject", es.MailSubject(None()), assert.False},
-		{"mail with a different subject", es.MailSubject([]string{"fancy"}), assert.False},
-		{"mail with the matching subject", es.MailSubject([]string{subject}), assert.True},
-		{"mail with a substring subject match", es.MailSubject([]string{subject[5:9]}), assert.True},
+		{"any mail with a sender", es.MailSender(AnyTgt), assert.True},
+		{"no mail, regardless of sender", es.MailSender(NoneTgt), assert.False},
+		{"mail from a different sender", es.MailSender("magoo@ma.goo"), assert.False},
+		{"mail from the matching sender", es.MailSender(sender), assert.True},
+		{"mail with any subject", es.MailSubject(AnyTgt), assert.True},
+		{"mail with none subject", es.MailSubject(NoneTgt), assert.False},
+		{"mail with a different subject", es.MailSubject("fancy"), assert.False},
+		{"mail with the matching subject", es.MailSubject(subject), assert.True},
+		{"mail with a substring subject match", es.MailSubject(subject[5:9]), assert.True},
 		{"mail received after the epoch", es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
 		{"mail received after now", es.MailReceivedAfter(common.FormatTime(now)), assert.False},
 		{"mail received after sometime later", es.MailReceivedAfter(common.FormatTime(future)), assert.False},
 		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
 		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
 		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(future)), assert.True},
-		// TODO: {"event that recurs", es.EventRecurs(true), assert.True},
-		// TODO: {"event that does not recur", es.EventRecurs(false), assert.False},
+		{"event with any organizer", es.EventOrganizer(AnyTgt), assert.True},
+		{"event with none organizer", es.EventOrganizer(NoneTgt), assert.False},
+		{"event with a different organizer", es.EventOrganizer("fancy"), assert.False},
+		{"event with the matching organizer", es.EventOrganizer(organizer), assert.True},
+		{"event that recurs", es.EventRecurs("true"), assert.True},
+		{"event that does not recur", es.EventRecurs("false"), assert.False},
 		{"event starting after the epoch", es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
 		{"event starting after now", es.EventStartsAfter(common.FormatTime(now)), assert.False},
 		{"event starting after sometime later", es.EventStartsAfter(common.FormatTime(future)), assert.False},
 		{"event starting before the epoch", es.EventStartsBefore(common.FormatTime(epoch)), assert.False},
 		{"event starting before now", es.EventStartsBefore(common.FormatTime(now)), assert.False},
 		{"event starting before sometime later", es.EventStartsBefore(common.FormatTime(future)), assert.True},
-		{"event with any subject", es.EventSubject(Any()), assert.True},
-		{"event with none subject", es.EventSubject(None()), assert.False},
-		{"event with a different subject", es.EventSubject([]string{"fancy"}), assert.False},
-		{"event with the matching subject", es.EventSubject([]string{subject}), assert.True},
+		{"event with any subject", es.EventSubject(AnyTgt), assert.True},
+		{"event with none subject", es.EventSubject(NoneTgt), assert.False},
+		{"event with a different subject", es.EventSubject("fancy"), assert.False},
+		{"event with the matching subject", es.EventSubject(subject), assert.True},
 		{"contact with a different name", es.ContactName("blarps"), assert.False},
 		{"contact with the same name", es.ContactName(name), assert.True},
 		{"contact with a subname search", es.ContactName(name[2:5]), assert.True},

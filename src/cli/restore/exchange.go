@@ -273,7 +273,7 @@ func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender string)
 		return
 	}
 
-	sel.Filter(sel.MailSender([]string{sender}))
+	sel.Filter(sel.MailSender(sender))
 }
 
 func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject string) {
@@ -281,7 +281,7 @@ func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject strin
 		return
 	}
 
-	sel.Filter(sel.MailSubject([]string{subject}))
+	sel.Filter(sel.MailSubject(subject))
 }
 
 // checks all flags for correctness and interdependencies
