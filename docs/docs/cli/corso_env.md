@@ -1,23 +1,23 @@
 ---
-title: "corso restore"
+title: "corso env"
 hide_title: true
 ---
-## corso restore
+## corso env
 
-Restore your service data
+env var guide
 
 ### Synopsis
 
-Restore the data stored in one of your M365 services.
+A guide to using environment variables in Corso.
 
 ```
-corso restore [flags]
+corso env [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for restore
+  -h, --help   help for env
 ```
 
 ### Options inherited from parent commands
@@ -31,5 +31,4 @@ corso restore [flags]
 ### SEE ALSO
 
 * [corso](corso.md)	 - Protect your Microsoft 365 data.
-* [corso restore exchange](corso_restore_exchange.md)	 - Restore M365 Exchange service data
 
