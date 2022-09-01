@@ -136,7 +136,7 @@ func setScopesToDefault[T scopeT](ts []T) []T {
 func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 	for k, v := range m {
 		t.Run(k.String(), func(t *testing.T) {
-			assert.Equal(t, getCatValue(sc, k), split(v))
+			assert.Equal(t, getCatValue(sc, k), split(v), "Key: %s", k)
 		})
 	}
 }
