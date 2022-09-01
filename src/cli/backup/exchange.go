@@ -66,15 +66,14 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 		fs.StringSliceVar(
 			&user,
-			"user",
-			nil,
-			"Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users",
-		)
-		fs.BoolVar(&exchangeAll, "all", false, "Backup all Exchange data for all users")
+			"user", nil,
+			"Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+		fs.BoolVar(&exchangeAll,
+			"all", false,
+			"Backup all Exchange data for all users")
 		fs.StringSliceVar(
 			&exchangeData,
-			"data",
-			nil,
+			"data", nil,
 			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
 		options.AddOperationFlags(c)
 
@@ -83,113 +82,82 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
-		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+		fs.StringVar(&backupID,
+			"backup", "",
+			"ID of the backup containing the details to be shown")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		// per-data-type flags
 		fs.StringSliceVar(
 			&contact,
-			"contact",
-			nil,
-			"Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts",
-		)
+			"contact", nil,
+			"Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
 		fs.StringSliceVar(
 			&contactFolder,
-			"contact-folder",
-			nil,
-			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders",
-		)
+			"contact-folder", nil,
+			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders")
 		fs.StringSliceVar(
 			&email,
-			"email",
-			nil,
-			"Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails",
-		)
+			"email", nil,
+			"Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
 		fs.StringSliceVar(
 			&emailFolder,
-			"email-folder",
-			nil,
+			"email-folder", nil,
 			"Select backup details by email folder ID; accepts "+utils.Wildcard+" to select all email folders")
 		fs.StringSliceVar(
 			&event,
-			"event",
-			nil,
-			"Select backup details by event ID; accepts "+utils.Wildcard+" to select all events",
-		)
+			"event", nil,
+			"Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
 		fs.StringSliceVar(
 			&eventCalendar,
-			"event-calendar",
-			nil,
-			"Select backup details by event calendar ID; accepts "+utils.Wildcard+" to select all events",
-		)
+			"event-calendar", nil,
+			"Select backup details by event calendar ID; accepts "+utils.Wildcard+" to select all events")
 		fs.StringSliceVar(
 			&user,
-			"user",
-			nil,
-			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users",
-		)
+			"user", nil,
+			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
 
 		// exchange-info flags
 		fs.StringVar(
 			&contactName,
-			"contact-name",
-			"",
-			"Select backup details where the contact name contains this value",
-		)
+			"contact-name", "",
+			"Select backup details where the contact name contains this value")
 		fs.StringVar(
 			&emailReceivedAfter,
-			"email-received-after",
-			"",
-			"Restore mail where the email was received after this datetime",
-		)
+			"email-received-after", "",
+			"Restore mail where the email was received after this datetime")
 		fs.StringVar(
 			&emailReceivedBefore,
-			"email-received-before",
-			"",
-			"Restore mail where the email was received before this datetime",
-		)
+			"email-received-before", "",
+			"Restore mail where the email was received before this datetime")
 		fs.StringVar(
 			&emailSender,
-			"email-sender",
-			"",
-			"Restore mail where the email sender matches this user id",
-		)
+			"email-sender", "",
+			"Restore mail where the email sender matches this user id")
 		fs.StringVar(
 			&emailSubject,
-			"email-subject",
-			"",
-			"Restore mail where the email subject lines contain this value",
-		)
+			"email-subject", "",
+			"Restore mail where the email subject lines contain this value")
 		fs.StringVar(
 			&eventOrganizer,
-			"event-organizer",
-			"",
-			"Select backup details where the event organizer user id contains this value",
-		)
+			"event-organizer", "",
+			"Select backup details where the event organizer user id contains this value")
 		fs.StringVar(
 			&eventRecurs,
-			"event-recurs",
-			"",
-			"Select backup details if the event recurs.  Use --event-recurs false to select where the event does not recur.",
-		)
+			"event-recurs", "",
+			"Select backup details if the event recurs.  Use --event-recurs false to select where the event does not recur.")
 		fs.StringVar(
 			&eventStartsAfter,
-			"event-starts-after",
-			"",
-			"Select backup details where the event starts after this datetime",
-		)
+			"event-starts-after", "",
+			"Select backup details where the event starts after this datetime")
 		fs.StringVar(
 			&eventStartsBefore,
-			"event-starts-before",
-			"",
-			"Select backup details where the event starts before this datetime",
-		)
+			"event-starts-before", "",
+			"Select backup details where the event starts before this datetime")
 		fs.StringVar(
 			&eventSubject,
-			"event-subject",
-			"",
-			"Select backup details where the event subject contains this value",
-		)
+			"event-subject", "",
+			"Select backup details where the event subject contains this value")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
@@ -368,7 +336,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupDetailFlags(
+	if err := utils.ValidateExchangeRestoreFlags(
 		contact,
 		contactFolder,
 		email,
@@ -399,7 +367,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	sel := selectors.NewExchangeRestore()
-	includeExchangeBackupDetailDataSelectors(
+	utils.IncludeExchangeRestoreDataSelectors(
 		sel,
 		contact,
 		contactFolder,
@@ -408,7 +376,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		event,
 		eventCalendar,
 		user)
-	filterExchangeBackupDetailInfoSelectors(
+	utils.FilterExchangeRestoreInfoSelectors(
 		sel,
 		contactName,
 		emailReceivedAfter,
@@ -432,207 +400,6 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ds.PrintEntries(ctx)
-
-	return nil
-}
-
-// builds the data-selector inclusions for `backup details exchange`
-func includeExchangeBackupDetailDataSelectors(
-	sel *selectors.ExchangeRestore,
-	contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string,
-) {
-	lc, lcf := len(contacts), len(contactFolders)
-	le, lef := len(emails), len(emailFolders)
-	lev, lec := len(events), len(eventCalendars)
-
-	// either scope the request to a set of users
-	if lc+lcf+le+lef+lev+lec == 0 {
-		if len(users) == 0 {
-			users = selectors.Any()
-		}
-
-		sel.Include(sel.Users(users))
-
-		return
-	}
-
-	// or add selectors for each type of data
-	includeExchangeContacts(sel, users, contactFolders, contacts)
-	includeExchangeEmails(sel, users, emailFolders, email)
-	includeExchangeEvents(sel, users, eventCalendars, events)
-}
-
-func includeExchangeContacts(sel *selectors.ExchangeRestore, users, contactFolders, contacts []string) {
-	if len(contactFolders) == 0 {
-		return
-	}
-
-	if len(contacts) == 0 {
-		contacts = selectors.Any()
-	}
-
-	sel.Include(sel.Contacts(users, contactFolders, contacts))
-}
-
-func includeExchangeEmails(sel *selectors.ExchangeRestore, users, emailFolders, emails []string) {
-	if len(emailFolders) == 0 {
-		return
-	}
-
-	if len(emails) == 0 {
-		emails = selectors.Any()
-	}
-
-	sel.Include(sel.Mails(users, emailFolders, emails))
-}
-
-func includeExchangeEvents(sel *selectors.ExchangeRestore, users, eventCalendars, events []string) {
-	if len(eventCalendars) == 0 {
-		return
-	}
-
-	if len(events) == 0 {
-		events = selectors.Any()
-	}
-
-	sel.Include(sel.Events(users, eventCalendars, events))
-}
-
-// builds the info-selector filters for `backup details exchange`
-func filterExchangeBackupDetailInfoSelectors(
-	sel *selectors.ExchangeRestore,
-	contactName,
-	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject,
-	eventOrganizer, eventRecurs, eventStartsAfter, eventStartsBefore, eventSubject string,
-) {
-	filterExchangeInfoContactName(sel, contactName)
-	filterExchangeInfoMailReceivedAfter(sel, emailReceivedAfter)
-	filterExchangeInfoMailReceivedBefore(sel, emailReceivedBefore)
-	filterExchangeInfoMailSender(sel, emailSender)
-	filterExchangeInfoMailSubject(sel, emailSubject)
-	filterExchangeInfoEventOrganizer(sel, eventOrganizer)
-	filterExchangeInfoEventRecurs(sel, eventRecurs)
-	filterExchangeInfoEventStartsAfter(sel, eventStartsAfter)
-	filterExchangeInfoEventStartsBefore(sel, eventStartsBefore)
-	filterExchangeInfoEventSubject(sel, eventSubject)
-}
-
-func filterExchangeInfoContactName(sel *selectors.ExchangeRestore, name string) {
-	if len(name) == 0 {
-		return
-	}
-
-	sel.Filter(sel.ContactName(name))
-}
-
-func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter string) {
-	if len(receivedAfter) == 0 {
-		return
-	}
-
-	sel.Filter(sel.MailReceivedAfter(receivedAfter))
-}
-
-func filterExchangeInfoMailReceivedBefore(sel *selectors.ExchangeRestore, receivedBefore string) {
-	if len(receivedBefore) == 0 {
-		return
-	}
-
-	sel.Filter(sel.MailReceivedBefore(receivedBefore))
-}
-
-func filterExchangeInfoMailSender(sel *selectors.ExchangeRestore, sender string) {
-	if len(sender) == 0 {
-		return
-	}
-
-	sel.Filter(sel.MailSender(sender))
-}
-
-func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject string) {
-	if len(subject) == 0 {
-		return
-	}
-
-	sel.Filter(sel.MailSubject(subject))
-}
-
-func filterExchangeInfoEventOrganizer(sel *selectors.ExchangeRestore, organizer string) {
-	if len(organizer) == 0 {
-		return
-	}
-
-	sel.Filter(sel.EventOrganizer(organizer))
-}
-
-func filterExchangeInfoEventRecurs(sel *selectors.ExchangeRestore, recurs string) {
-	if len(recurs) == 0 {
-		return
-	}
-
-	sel.Filter(sel.EventRecurs(recurs))
-}
-
-func filterExchangeInfoEventStartsAfter(sel *selectors.ExchangeRestore, startsAfter string) {
-	if len(startsAfter) == 0 {
-		return
-	}
-
-	sel.Filter(sel.EventStartsAfter(startsAfter))
-}
-
-func filterExchangeInfoEventStartsBefore(sel *selectors.ExchangeRestore, startsBefore string) {
-	if len(startsBefore) == 0 {
-		return
-	}
-
-	sel.Filter(sel.EventStartsBefore(startsBefore))
-}
-
-func filterExchangeInfoEventSubject(sel *selectors.ExchangeRestore, subject string) {
-	if len(subject) == 0 {
-		return
-	}
-
-	sel.Filter(sel.EventSubject(subject))
-}
-
-// checks all flags for correctness and interdependencies
-func validateExchangeBackupDetailFlags(
-	contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string,
-	backupID string,
-) error {
-	if len(backupID) == 0 {
-		return errors.New("a backup ID is required")
-	}
-
-	lu := len(users)
-	lc, lcf := len(contacts), len(contactFolders)
-	le, lef := len(emails), len(emailFolders)
-	lev, lec := len(events), len(eventCalendars)
-
-	if lu+lc+lcf+le+lef+lev+lec == 0 {
-		return nil
-	}
-
-	if lu == 0 {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
-	}
-
-	if lc > 0 && lcf == 0 {
-		return errors.New(
-			"one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
-	}
-
-	if le > 0 && lef == 0 {
-		return errors.New(
-			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify an --email")
-	}
-
-	if lev > 0 && lec == 0 {
-		return errors.New(
-			"one or more --event-calendar ids or the wildcard --event-calendar * must be included to specify an --event")
-	}
 
 	return nil
 }
