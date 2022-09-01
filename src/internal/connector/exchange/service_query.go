@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -124,6 +125,7 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 }
 
 func CollectMailFolders(
+	ctx context.Context,
 	scope selectors.ExchangeScope,
 	user string,
 	collections map[string]*Collection,
@@ -155,6 +157,7 @@ func CollectMailFolders(
 	}
 
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
+		ctx,
 		user,
 		scope,
 		err,
