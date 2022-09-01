@@ -1,8 +1,6 @@
 package restore
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -240,9 +238,7 @@ func includeExchangeEvents(sel *selectors.ExchangeRestore, users, eventCalendars
 		events = selectors.Any()
 	}
 
-	fmt.Println("logging eventCalendars so the linter sees it 'used'.  Will remove asap", eventCalendars)
-
-	sel.Include(sel.Events(users, events))
+	sel.Include(sel.Events(users, eventCalendars, events))
 }
 
 // builds the info-selector filters for `restore exchange`
