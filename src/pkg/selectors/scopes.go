@@ -293,9 +293,9 @@ func pathTypeIn(path []string) pathType {
 	switch path[2] {
 	case "mail":
 		return exchangeMailPath
-	case "contact":
+	case "contacts":
 		return exchangeContactPath
-	case "event":
+	case "events":
 		return exchangeEventPath
 	}
 
