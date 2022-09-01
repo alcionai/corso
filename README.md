@@ -22,7 +22,16 @@ TODO - Link to the appropriate page in the published docs.
 ./build/build-container.sh 
 ```
 
-## Contribution Guidelines
+# Containers
+
+Corso images are hosted on [ghrc.io](https://github.com/alcionai/corso/pkgs/container/corso).
+
+Rolling release
+```sh
+docker pull ghcr.io/alcionai/corso:{SHA} --platform linux/arm64
+```
+
+# Contribution Guidelines
 
 TODO 
 

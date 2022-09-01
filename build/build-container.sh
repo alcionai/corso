@@ -10,12 +10,15 @@ usage() {
   echo "-----"
   echo "Flags"
   echo "  -h|--help         Help"
-  echo "    |--arm          Set the architecture to arm64 (default: amd64)"
+  echo "  -a|--arch         Set the architecture to the specified value (default: amd64)"
+  echo "  -p|--prefix       Prefixes the image name."
+  echo "  -s|--suffix       Suffixes the version."
   echo " "
   echo "-----"
   echo "Example Usage:"
   echo "  ./build/build-container.sh"
-  echo "  ./build/build-container.sh --arm" 
+  echo "  ./build/build-container.sh --arch arm64"
+  echo "  ./build/build-container.sh --arch arm64 --prefix ghcr.io --suffix nightly"
   echo " "
   exit 0
 }
@@ -25,6 +28,8 @@ PROJECT_ROOT=$(dirname ${SCRIPT_ROOT})
 
 OS=linux
 ARCH=amd64
+IMAGE_NAME_PREFIX=
+IMAGE_TAG_SUFFIX=
 
 while [ "$#" -gt 0 ]
 do
@@ -33,31 +38,52 @@ do
     usage
     exit 0
     ;;
-  --arm)
-    ARCH=arm64
+  -a|--arch)
+    ARCH=$2
+    shift
+    ;;
+  -p|--prefix)
+    IMAGE_NAME_PREFIX=$2
+    shift
+    ;;
+  -s|--suffix)
+    IMAGE_TAG_SUFFIX=$2
+    shift
     ;;
   -*)
-    echo "Invalid option '$1'. Use -h|--help to see the valid options" >&2
+    echo "Invalid flag '$1'. Use -h|--help to see the valid options" >&2
     return 1
     ;;
   *)
-    echo "Invalid option '$1'. Use -h|--help to see the valid options" >&2
+    echo "Invalid arg '$1'. Use -h|--help to see the valid options" >&2
     return 1
     ;;
   esac
   shift
 done
 
-IMAGE_TAG=${OS}-${ARCH}-$(git describe --tags --always --dirty)
+IMAGE_TAG=${OS}-${ARCH}
+if [ ! -z "${IMAGE_TAG_SUFFIX}" ]; then
+  IMAGE_TAG=${IMAGE_TAG}-${IMAGE_TAG_SUFFIX}
+fi
+
 IMAGE_NAME=alcionai/corso:${IMAGE_TAG}
+if [ ! -z "${IMAGE_NAME_PREFIX}" ]; then
+  IMAGE_NAME=${IMAGE_NAME_PREFIX}/${IMAGE_NAME}
+fi
 
 ${SCRIPT_ROOT}/build.sh --arch ${ARCH}
 
-echo "building container"
+echo "-----"
+echo "building corso container ${IMAGE_NAME}"
+echo "-----"
+
 set -x
 docker buildx build --tag ${IMAGE_NAME}     \
   --platform ${OS}/${ARCH}                  \
-  --file ${PROJECT_ROOT}/docker/Dockerfile  \
+  --file ${PROJECT_ROOT}/build/Dockerfile  \
   ${PROJECT_ROOT}
 set +x
-echo "container built successfully ${IMAGE_NAME}"
+
+echo "-----"
+echo "container built successfully"
