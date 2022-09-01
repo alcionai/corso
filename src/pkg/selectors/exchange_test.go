@@ -169,9 +169,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 		user = "user"
 		e1   = "e1"
 		e2   = "e2"
+		c1   = "c1"
 	)
 
-	sel.Exclude(sel.Events([]string{user}, []string{e1, e2}))
+	sel.Exclude(sel.Events([]string{user}, []string{c1}, []string{e1, e2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
@@ -179,8 +180,34 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 		t,
 		ExchangeScope(scopes[0]),
 		map[categorizer]string{
-			ExchangeUser:  user,
-			ExchangeEvent: join(e1, e2),
+			ExchangeUser:          user,
+			ExchangeEventCalendar: c1,
+			ExchangeEvent:         join(e1, e2),
+		},
+	)
+}
+
+func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars() {
+	t := suite.T()
+	sel := NewExchangeBackup()
+
+	const (
+		user = "user"
+		c1   = "c1"
+		c2   = "c2"
+	)
+
+	sel.Exclude(sel.EventCalendars([]string{user}, []string{c1, c2}))
+	scopes := sel.Excludes
+	require.Len(t, scopes, 1)
+
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeEventCalendar: join(c1, c2),
+			ExchangeEvent:         AnyTgt,
 		},
 	)
 }
@@ -193,9 +220,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 		user = "user"
 		e1   = "e1"
 		e2   = "e2"
+		c1   = "c1"
 	)
 
-	sel.Include(sel.Events([]string{user}, []string{e1, e2}))
+	sel.Include(sel.Events([]string{user}, []string{c1}, []string{e1, e2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
@@ -203,12 +231,36 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 		t,
 		ExchangeScope(scopes[0]),
 		map[categorizer]string{
-			ExchangeUser:  user,
-			ExchangeEvent: join(e1, e2),
+			ExchangeUser:          user,
+			ExchangeEventCalendar: c1,
+			ExchangeEvent:         join(e1, e2),
 		},
 	)
+}
 
-	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeEvent)
+func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars() {
+	t := suite.T()
+	sel := NewExchangeBackup()
+
+	const (
+		user = "user"
+		c1   = "c1"
+		c2   = "c2"
+	)
+
+	sel.Include(sel.EventCalendars([]string{user}, []string{c1, c2}))
+	scopes := sel.Includes
+	require.Len(t, scopes, 1)
+
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeEventCalendar: join(c1, c2),
+			ExchangeEvent:         AnyTgt,
+		},
+	)
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
@@ -824,7 +876,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 
 	const (
 		contact = "tid/uid/contact/cfld/cid"
-		event   = "tid/uid/event/eid"
+		event   = "tid/uid/event/ecld/eid"
 		mail    = "tid/uid/mail/mfld/mid"
 	)
 
@@ -903,7 +955,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Events([]string{"uid"}, []string{"eid"}))
+				er.Include(er.Events([]string{"uid"}, []string{"ecld"}, []string{"eid"}))
 				return er
 			},
 			arr(event),
@@ -935,7 +987,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
 				er.Include(er.Users(Any()))
-				er.Exclude(er.Events([]string{"uid"}, []string{"eid"}))
+				er.Exclude(er.Events([]string{"uid"}, []string{"ecld"}, []string{"eid"}))
 				return er
 			},
 			arr(contact, mail),
@@ -967,7 +1019,7 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 		es       = NewExchangeRestore()
 		users    = es.Users(Any())
 		contacts = es.ContactFolders(Any(), Any())
-		events   = es.Events(Any(), Any())
+		events   = es.Events(Any(), Any(), Any())
 		mail     = es.MailFolders(Any(), Any())
 	)
 
@@ -1174,10 +1226,11 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 		ExchangeContactFolder: contactPath[3],
 		ExchangeContact:       contactPath[4],
 	}
-	eventPath := []string{"ten", "user", "event", "eventitem"}
+	eventPath := []string{"ten", "user", "event", "ecalendar", "eventitem"}
 	eventMap := map[categorizer]string{
-		ExchangeUser:  eventPath[1],
-		ExchangeEvent: eventPath[3],
+		ExchangeUser:          eventPath[1],
+		ExchangeEventCalendar: eventPath[3],
+		ExchangeEvent:         eventPath[4],
 	}
 	mailPath := []string{"ten", "user", "mail", "mfolder", "mailitem"}
 	mailMap := map[categorizer]string{
@@ -1206,7 +1259,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathKeys() {
 	contact := []categorizer{ExchangeUser, ExchangeContactFolder, ExchangeContact}
-	event := []categorizer{ExchangeUser, ExchangeEvent}
+	event := []categorizer{ExchangeUser, ExchangeEventCalendar, ExchangeEvent}
 	mail := []categorizer{ExchangeUser, ExchangeMailFolder, ExchangeMail}
 	user := []categorizer{ExchangeUser}
 

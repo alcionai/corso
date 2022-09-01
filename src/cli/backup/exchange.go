@@ -1,8 +1,6 @@
 package backup
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -222,7 +220,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 	if len(data) == 0 {
 		sel.Include(sel.ContactFolders(user, selectors.Any()))
 		sel.Include(sel.MailFolders(user, selectors.Any()))
-		sel.Include(sel.Events(user, selectors.Any()))
+		sel.Include(sel.EventCalendars(user, selectors.Any()))
 	}
 
 	for _, d := range data {
@@ -232,7 +230,7 @@ func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Sel
 		case dataEmail:
 			sel.Include(sel.MailFolders(users, selectors.Any()))
 		case dataEvents:
-			sel.Include(sel.Events(users, selectors.Any()))
+			sel.Include(sel.EventCalendars(users, selectors.Any()))
 		}
 	}
 
@@ -441,9 +439,7 @@ func includeExchangeEvents(sel *selectors.ExchangeRestore, users, eventCalendars
 		events = selectors.Any()
 	}
 
-	fmt.Println("logging eventCalendars so the linter sees it 'used'.  Will remove asap", eventCalendars)
-
-	sel.Include(sel.Events(users, events))
+	sel.Include(sel.Events(users, eventCalendars, events))
 }
 
 // builds the info-selector filters for `backup details exchange`
