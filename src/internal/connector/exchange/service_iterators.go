@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -29,6 +30,7 @@ type displayable interface {
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
+	ctx context.Context,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -43,6 +45,7 @@ type GraphIterateFunc func(
 // objects belonging to any folder are
 // placed into a Collection based on the parent folder
 func IterateSelectAllDescendablesForCollections(
+	ctx context.Context,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -108,6 +111,7 @@ func IterateSelectAllDescendablesForCollections(
 // and storing events in collections based on
 // the calendarID which originates from M365.
 func IterateSelectAllEventsForCollections(
+	ctx context.Context,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -191,6 +195,7 @@ func IterateSelectAllEventsForCollections(
 // that places exchange mail message ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
 func IterateAndFilterMessagesForCollections(
+	ctx context.Context,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
@@ -204,6 +209,7 @@ func IterateAndFilterMessagesForCollections(
 	return func(messageItem any) bool {
 		if !isFilterSet {
 			err := CollectMailFolders(
+				ctx,
 				scope,
 				user,
 				collections,
@@ -237,6 +243,7 @@ func IterateAndFilterMessagesForCollections(
 }
 
 func IterateFilterFolderDirectoriesForCollections(
+	ctx context.Context,
 	user string,
 	scope selectors.ExchangeScope,
 	errs error,
