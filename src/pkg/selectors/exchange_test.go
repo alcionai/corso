@@ -881,8 +881,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	}
 
 	const (
-		contact = "tid/uid/contact/cfld/cid"
-		event   = "tid/uid/event/ecld/eid"
+		contact = "tid/uid/contacts/cfld/cid"
+		event   = "tid/uid/events/ecld/eid"
 		mail    = "tid/uid/mail/mfld/mid"
 	)
 

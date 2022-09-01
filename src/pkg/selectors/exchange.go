@@ -217,7 +217,7 @@ func (s *exchange) EventCalendars(users, events []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeEventCalendar, users, events),
+		makeScope[ExchangeScope](Group, ExchangeEventCalendar, users, events),
 	)
 
 	return scopes
@@ -477,7 +477,7 @@ const (
 	ExchangeEvent         exchangeCategory = "ExchangeEvent"
 	ExchangeEventCalendar exchangeCategory = "ExchangeEventCalendar"
 	ExchangeMail          exchangeCategory = "ExchangeMail"
-	ExchangeMailFolder    exchangeCategory = "ExchangeFolder"
+	ExchangeMailFolder    exchangeCategory = "ExchangeMailFolder"
 	ExchangeUser          exchangeCategory = "ExchangeUser"
 	// append new data cats here
 
