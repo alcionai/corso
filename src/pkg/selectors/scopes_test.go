@@ -244,8 +244,8 @@ func (suite *SelectorScopesSuite) TestPathTypeIn() {
 	t := suite.T()
 	assert.Equal(t, unknownPathType, pathTypeIn([]string{}), "empty")
 	assert.Equal(t, exchangeMailPath, pathTypeIn([]string{"", "", "mail"}), "mail")
-	assert.Equal(t, exchangeContactPath, pathTypeIn([]string{"", "", "contact"}), "contact")
-	assert.Equal(t, exchangeEventPath, pathTypeIn([]string{"", "", "event"}), "event")
+	assert.Equal(t, exchangeContactPath, pathTypeIn([]string{"", "", "contacts"}), "contact")
+	assert.Equal(t, exchangeEventPath, pathTypeIn([]string{"", "", "events"}), "event")
 	assert.Equal(t, unknownPathType, pathTypeIn([]string{"", "", "fnords"}), "bogus")
 }
 
