@@ -76,9 +76,10 @@ func (suite *EventSuite) TestEventInfo() {
 				bytes := mockconnector.GetMockEventBytes("Test Mock")
 				event, err := support.CreateEventFromBytes(bytes)
 				require.NoError(suite.T(), err)
-				subject := " Test MockReview + Lunch"
+				subject := " Test Mock Review + Lunch"
 				organizer := "foobar3@8qzvrj.onmicrosoft.com"
-				eventTime := time.Date(2022, time.April, 28, 3, 41, 58, 0, time.UTC)
+				future := time.Now().AddDate(0, 0, 1)
+				eventTime := time.Date(2022, future.Month(), future.Day(), 6, 0, 0, 0, time.UTC)
 				i := &details.ExchangeInfo{
 					ItemType:   details.ExchangeEvent,
 					Subject:    subject,
