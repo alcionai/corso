@@ -11,8 +11,6 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // GraphQuery represents functions which perform exchange-specific queries
@@ -126,23 +124,20 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 
 func CollectMailFolders(
 	ctx context.Context,
-	scope selectors.ExchangeScope,
-	user string,
+	info graph.QueryParams,
 	collections map[string]*Collection,
-	credentials account.M365Config,
-	failFast bool,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) error {
-	queryService, err := createService(credentials, failFast)
+	queryService, err := createService(info.Credentials, info.FailFast)
 	if err != nil {
-		return errors.New("unable to create a mail folder query service for " + user)
+		return errors.New("unable to create a mail folder query service for " + info.User)
 	}
 
-	query, err := GetAllFolderNamesForUser(queryService, user)
+	query, err := GetAllFolderNamesForUser(queryService, info.User)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to query mail folder for %s: details: %s",
-			user,
+			info.User,
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
@@ -158,18 +153,15 @@ func CollectMailFolders(
 
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
 		ctx,
-		user,
-		scope,
+		info,
 		err,
-		failFast,
-		credentials,
 		collections,
 		statusCh,
 	)
 
 	iterateFailure := pageIterator.Iterate(callbackFunc)
 	if iterateFailure != nil {
-		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
+		err = support.WrapAndAppend(info.User+" iterate failure", iterateFailure, err)
 	}
 
 	return err

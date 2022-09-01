@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/tester"
@@ -137,6 +138,13 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				&service.adapter,
 				test.transformer)
 			require.NoError(t, err)
+
+			info := graph.QueryParams{
+				User:        userID,
+				Scope:       test.scope,
+				Credentials: service.credentials,
+				FailFast:    false,
+			}
 			// Create collection for iterate test
 			collections := make(map[string]*Collection)
 			var errs error
@@ -144,10 +152,8 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
 				ctx,
-				userID,
-				test.scope,
-				errs, false,
-				service.credentials,
+				info,
+				errs,
 				collections,
 				nil)
 
