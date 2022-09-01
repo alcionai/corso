@@ -4,7 +4,7 @@ package onedrive
 import (
 	"context"
 	"io"
-	"path/filepath"
+	"strings"
 
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
@@ -77,7 +77,10 @@ func (oc *Collection) Items() <-chan data.Stream {
 }
 
 func (oc *Collection) FullPath() []string {
-	return filepath.SplitList(oc.folderPath)
+	path := oc.folderPath
+	// Remove leading `/` if any so that Split
+	// doesn't return a ""
+	return strings.Split(strings.TrimPrefix(path, "/"), "/")
 }
 
 // Item represents a single item retrieved from OneDrive
