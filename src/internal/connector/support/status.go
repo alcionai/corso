@@ -62,6 +62,37 @@ func CreateStatus(
 	return &status
 }
 
+// Function signature for a status updater
+type StatusUpdater func(*ConnectorOperationStatus)
+
+// MergeStatus combines ConnectorOperationsStatus value into a single status
+func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
+	var hasErrors bool
+	if one.lastOperation == OpUnknown {
+		return two
+	}
+
+	if two.lastOperation == OpUnknown {
+		return one
+	}
+
+	if one.incomplete || two.incomplete {
+		hasErrors = true
+	}
+
+	status := ConnectorOperationStatus{
+		lastOperation:    one.lastOperation,
+		ObjectCount:      one.ObjectCount + two.ObjectCount,
+		FolderCount:      one.FolderCount + two.FolderCount,
+		Successful:       one.Successful + two.Successful,
+		errorCount:       one.errorCount + two.errorCount,
+		incomplete:       hasErrors,
+		incompleteReason: one.incompleteReason + " " + two.incompleteReason,
+	}
+
+	return status
+}
+
 func (cos *ConnectorOperationStatus) String() string {
 	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
 		cos.Successful, cos.ObjectCount, cos.FolderCount)

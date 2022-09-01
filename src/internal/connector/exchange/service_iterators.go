@@ -35,7 +35,7 @@ type GraphIterateFunc func(
 	failFast bool,
 	credentials account.M365Config,
 	collections map[string]*Collection,
-	graphStatusChannel chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool
 
 // IterateSelectAllDescendablesForCollection utility function for
@@ -49,7 +49,7 @@ func IterateSelectAllDescendablesForCollections(
 	failFast bool,
 	credentials account.M365Config,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
 		isCategorySet  bool
@@ -92,7 +92,7 @@ func IterateSelectAllDescendablesForCollections(
 				[]string{credentials.TenantID, user, category, directory},
 				collectionType,
 				service,
-				statusCh,
+				statusUpdater,
 			)
 			collections[directory] = &edc
 		}
@@ -114,7 +114,7 @@ func IterateSelectAllEventsForCollections(
 	failFast bool,
 	credentials account.M365Config,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	return func(eventItem any) bool {
 		event, ok := eventItem.(models.Eventable)
@@ -176,7 +176,7 @@ func IterateSelectAllEventsForCollections(
 				[]string{credentials.TenantID, user, eventsCategory, directory},
 				events,
 				service,
-				statusCh,
+				statusUpdater,
 			)
 			collections[directory] = &edc
 		}
@@ -197,7 +197,7 @@ func IterateAndFilterMessagesForCollections(
 	failFast bool,
 	credentials account.M365Config,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var isFilterSet bool
 
@@ -209,7 +209,7 @@ func IterateAndFilterMessagesForCollections(
 				collections,
 				credentials,
 				failFast,
-				statusCh,
+				statusUpdater,
 			)
 			if err != nil {
 				errs = support.WrapAndAppend(user, err, errs)
@@ -243,7 +243,7 @@ func IterateFilterFolderDirectoriesForCollections(
 	failFast bool,
 	credentials account.M365Config,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
 		service graph.Service
@@ -291,7 +291,7 @@ func IterateFilterFolderDirectoriesForCollections(
 			[]string{credentials.TenantID, user, mailCategory, directory},
 			messages,
 			service,
-			statusCh,
+			statusUpdater,
 		)
 		collections[directory] = &temp
 

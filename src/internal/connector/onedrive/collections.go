@@ -20,7 +20,7 @@ type Collections struct {
 	// for a OneDrive folder
 	collectionMap map[string]data.Collection
 	service       graph.Service
-	statusCh      chan<- *support.ConnectorOperationStatus
+	statusUpdater support.StatusUpdater
 
 	// Track stats from drive enumeration
 	numItems    int
@@ -32,13 +32,13 @@ type Collections struct {
 func NewCollections(
 	user string,
 	service graph.Service,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{
 		user:          user,
 		collectionMap: map[string]data.Collection{},
 		service:       service,
-		statusCh:      statusCh,
+		statusUpdater: statusUpdater,
 	}
 }
 
@@ -80,7 +80,7 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		// Create a collection for the parent of this item
 		collectionPath := *item.GetParentReference().GetPath()
 		if _, found := c.collectionMap[collectionPath]; !found {
-			c.collectionMap[collectionPath] = NewCollection(collectionPath, driveID, c.service, c.statusCh)
+			c.collectionMap[collectionPath] = NewCollection(collectionPath, driveID, c.service, c.statusUpdater)
 		}
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
@@ -89,7 +89,7 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 			// e.g. a ".folderMetadataFile"
 			itemPath := path.Join(*item.GetParentReference().GetPath(), *item.GetName())
 			if _, found := c.collectionMap[itemPath]; !found {
-				c.collectionMap[itemPath] = NewCollection(itemPath, driveID, c.service, c.statusCh)
+				c.collectionMap[itemPath] = NewCollection(itemPath, driveID, c.service, c.statusUpdater)
 			}
 		case item.GetFile() != nil:
 			collection := c.collectionMap[collectionPath].(*Collection)

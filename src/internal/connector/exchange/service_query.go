@@ -129,7 +129,7 @@ func CollectMailFolders(
 	collections map[string]*Collection,
 	credentials account.M365Config,
 	failFast bool,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) error {
 	queryService, err := createService(credentials, failFast)
 	if err != nil {
@@ -161,7 +161,7 @@ func CollectMailFolders(
 		failFast,
 		credentials,
 		collections,
-		statusCh,
+		statusUpdater,
 	)
 
 	iterateFailure := pageIterator.Iterate(callbackFunc)
