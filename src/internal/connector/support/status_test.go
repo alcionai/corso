@@ -124,6 +124,7 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 			isIncomplete: assert.True,
 		},
 	}
+	
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			returned := MergeStatus(test.one, test.two)
