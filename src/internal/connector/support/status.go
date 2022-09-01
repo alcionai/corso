@@ -68,6 +68,7 @@ type StatusUpdater func(*ConnectorOperationStatus)
 // MergeStatus combines ConnectorOperationsStatus value into a single status
 func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 	var hasErrors bool
+	
 	if one.lastOperation == OpUnknown {
 		return two
 	}
