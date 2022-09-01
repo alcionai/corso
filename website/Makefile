@@ -8,6 +8,10 @@ dev:
 		-e AWS_SESSION_TOKEN --rm -it \
 		-v ${PWD}:/usr/src/website corso/website /bin/bash
 
+build:
+	docker run --rm -it \
+		-v ${PWD}:/usr/src/website corso/website gulp build
+
 publish:
 	docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
 		-e AWS_SESSION_TOKEN --rm -v ${PWD}:/usr/src/website corso/website \
