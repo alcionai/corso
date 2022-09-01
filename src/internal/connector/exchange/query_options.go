@@ -9,6 +9,7 @@ import (
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
+	msfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 	"github.com/pkg/errors"
@@ -218,6 +219,27 @@ func optionsForMailFolders(moreOps []string) (*msfolder.MailFoldersRequestBuilde
 		Select: selecting,
 	}
 	options := &msfolder.MailFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
+// optionsForMailFoldersItem transforms the options into a more dynamic call for MailFoldersById.
+// moreOps is a []string of options(e.g. "displayName", "isHidden")
+// Returns first call in MailFoldersById().GetWithRequestConfigurationAndResponseHandler(options, handler)
+func optionsForMailFoldersItem(
+	moreOps []string,
+) (*msfolderitem.MailFolderItemRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, folders)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &msfolderitem.MailFolderItemRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msfolderitem.MailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
