@@ -21,3 +21,4 @@
 # Build directories
 /bin
 /docker/bin
+/website/dist

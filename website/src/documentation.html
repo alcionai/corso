@@ -1,0 +1,241 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center.html")
+
+        <!-- Start Hero -->
+        <section class="relative table w-full py-32 lg:py-40 bg-gray-50 dark:bg-slate-800">
+            <div class="container">
+                <div class="grid grid-cols-1 text-center mt-10">
+                    <h3 class="text-3xl leading-normal font-semibold">Documentation</h3>
+                </div><!--end grid-->
+            </div><!--end container-->
+            
+            <div class="absolute text-center z-10 bottom-5 right-0 left-0 mx-3">
+                <ul class="breadcrumb tracking-[0.5px] mb-0 inline-block">
+                    <li class="inline breadcrumb-item uppercase text-[13px] font-bold duration-500 ease-in-out hover:text-indigo-600"><a href="index.html">Techwind</a></li>
+                    <li class="inline breadcrumb-item uppercase text-[13px] font-bold duration-500 ease-in-out hover:text-indigo-600"><a href="">Docs</a></li>
+                    <li class="inline breadcrumb-item uppercase text-[13px] font-bold text-indigo-600" aria-current="page">Documentation</li>
+                </ul>
+            </div>
+        </section><!--end section-->
+        <div class="relative">
+            <div class="shape absolute right-0 sm:-bottom-px -bottom-[2px] left-0 overflow-hidden z-1 text-white dark:text-slate-900">
+                <svg class="w-full h-auto" viewBox="0 0 2880 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0 48H1437.5H2880V0H2160C1442.5 52 720 0 720 0H0V48Z" fill="currentColor"></path>
+                </svg>
+            </div>
+        </div>
+        <!-- End Hero -->
+
+        <!-- Start Section-->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid grid-cols-1 items-center gap-[30px]">
+                    <div>
+                        <h4 class="text-3xl font-semibold mb-4">Introduction</h4>
+                        <p class="text-slate-400 text-base leading-8">Get start with <span class="text-indigo-600 font-semibold">Techwind.</span> Launch your campaign and benefit from our expertise on designing and managing conversion centered <a href="https://tailwindcss.com/" target="_blank" class="font-semibold text-indigo-600">Tailwind CSS</a> html page.</p>
+                        <p class="text-slate-400 text-base leading-8 mt-2">Techwind is a Powerful Tailwind CSS Multipurpose Landing Page Template. It is an excellent HTML template for startup, cloud hosting, business, corporate, minimal portfolio single product (Smartwatch) , Saas, Social media marketing, Digital marketing/agency, Email Templates, Marketing, Agency, Careers and Jobs, Helpcenter, and much more.</p>  
+                    </div>
+
+                    <div>
+                        <h4 class="text-3xl font-semibold mb-4">Setup HTML</h4>
+                        <h4 class="text-xl font-semibold mb-4">Introduction</h4>
+                        <p class="text-slate-400 text-base leading-8">We are using <a href="https://gulpjs.com/" class="text-indigo-600 font-semibold" target="_blank">gulp</a> which allows having complete automation for build flow. In case if you don't know Gulp then it's easy to use it. Gulp is a toolkit for automating painful or time-consuming tasks in the development workflow, so you can stop messing around while building any project. You can read it more about it <a href="https://gulpjs.com/" class="text-indigo-600 font-semibold" target="_blank">here</a>. Please follow below steps to install and setup all prerequisites:</p>
+                    
+                        <h5 class="text-xl font-semibold mb-4 mt-6">Prerequisites</h5>
+                        <p class="text-slate-400 text-base leading-8">Please follow below steps to install and setup all prerequisites:</p>
+
+                        <ul class="list-none mt-3">
+                            <li class="flex mt-2">
+                                <i class="mdi mdi-arrow-right"></i>
+                                <div class="ml-2">
+                                    <h6 class="font-semibold">Yarn</h6>
+                                    <p class="text-slate-400 text-base leading-8">Make sure to have the <a href="https://classic.yarnpkg.com/en/" class="text-indigo-600 font-semibold" target="_blank">Yarn</a> installed & running in your computer. If you already have installed Yarn on your computer, you can skip this step. We suggest you to use Yarn instead of NPM.</p>
+                                </div>
+                            </li>
+
+                            <li class="flex mt-2">
+                                <i class="mdi mdi-arrow-right"></i>
+                                <div class="ml-2">
+                                    <h6 class="font-semibold">Nodejs</h6>
+                                    <p class="text-slate-400 text-base leading-8">Make sure to have the <a href="https://nodejs.org/" class="text-indigo-600 font-semibold" target="_blank">Node.js</a> installed & running in your computer. If you already have installed Node on your computer, you can skip this step if your existing node version is greater than 16.</p>
+                                </div>
+                            </li>
+
+                            <li class="flex mt-2">
+                                <i class="mdi mdi-arrow-right"></i>
+                                <div class="ml-2">
+                                    <h6 class="font-semibold">Gulp</h6>
+                                    <p class="text-slate-400 text-base leading-8">Make sure to have the <a href="https://gulpjs.com/" class="text-indigo-600 font-semibold" target="_blank">Gulp</a> installed & running in your computer. If you already have installed gulp on run command npm install -g gulp from your terminal.</p>
+                                </div>
+                            </li>
+
+                            <li class="flex mt-2">
+                                <i class="mdi mdi-arrow-right"></i>
+                                <div class="ml-2">
+                                    <h6 class="font-semibold">Git</h6>
+                                    <p class="text-slate-400 text-base leading-8">Make sure to have the <a href="https://git-scm.com/" class="text-indigo-600 font-semibold" target="_blank">Git</a> installed globally & running on your computer. If you already have installed git on your computer, you can skip this step.</p>
+                                </div>
+                            </li>
+                        </ul>
+
+                        <h5 class="text-xl font-semibold mb-4 mt-6">Installation</h5>
+                        <p class="text-slate-400 text-base leading-8">To setup the admin theme, follow below-mentioned steps:</p>
+
+                        <ul class="list-none mt-3">
+                            <li class="flex">
+                                <i class="mdi mdi-arrow-right"></i>
+                                <div class="ml-2">
+                                    <h6 class="text-lg font-semibold mb-3">Install Prerequisites</h6>
+                                    <p class="text-slate-400 text-base leading-8">Make sure to have all above prerequisites installed & running on your computer</p>
+                                </div>
+                            </li>
+                        </ul>
+
+                        <p class="text-slate-400 text-base leading-8 mb-4 mt-6">After you finished with the above steps, you can run the following commands into the terminal / command prompt from the root directory of the project to run the project locally or build for production use:</p>
+
+                        <div class="table-responsive bg-white dark:bg-slate-900 rounded">
+                            <table class="w-full text-sm text-left">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 20%;" class="border border-gray-100 dark:border-gray-700 p-4"><i class="ti-file"></i> Command</th>
+                                        <th class="border border-gray-100 dark:border-gray-700 p-4">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="text-lg border border-gray-100 dark:border-gray-700 p-4">
+                                            <code class="text-red-600">yarn install</code>
+                                        </td>
+                                        <td class="border border-gray-100 dark:border-gray-700 p-4 text-base text-slate-400">
+                                            This would install all the required dependencies in the <code class="text-indigo-600 font-semibold">node_modules</code> folder.
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td class="text-lg border border-gray-100 dark:border-gray-700 p-4">
+                                            <code class="text-red-600">gulp</code>
+                                        </td>
+                                        <td class="border border-gray-100 dark:border-gray-700 p-4 text-base text-slate-400">
+                                            Runs the project locally, starts the development server and watches for any changes in your code, including your HTML, javascript, sass, etc. The development server is accessible at <a href="http://localhost:3000" class="text-indigo-600 font-semibold" target="_blank">http://localhost:3000</a>.
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td class="text-lg border border-gray-100 dark:border-gray-700 p-4">
+                                            <code class="text-red-600">gulp build</code>
+                                        </td>
+                                        <td class="border border-gray-100 dark:border-gray-700 p-4 text-base text-slate-400">
+                                            Generates a <code class="text-indigo-600 font-semibold">/dist</code> directory with all the production files.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <h4 class="text-3xl font-semibold mb-6">Folder & File Structure</h4>
+
+<pre class="p-6 rounded-md text-black dark:text-white shadow dark:shadow-gray-800 overflow-x-scroll">
+├── dist folder
+├── src folder
+    ├── assets
+        ├── fonts
+        ├── images
+        ├── js
+        ├── php (for contact form)
+        └── scss (Update)
+            ├── custom
+                ├── components
+                ├── pages
+                ├── icons
+                └── structure
+            ├── icons.scss
+            ├── tailwind.scss
+            └── icons.scss
+    ├── partials
+        ├── footer
+            └── All Footer partials html files
+        ├── navbar
+            └── All Navbar partials html files
+        ├── head-css.html
+        ├── main.html
+        ├── cookies.html
+        ├── switcher.html
+        ├── script-file.html
+        └── title-meta.html
+    └── all html pages
+├── gulpfile.js (Update)
+├── package.json (Update)
+├── postcss.config.js (Update)
+├── tailwind.config.js (Update)
+└── yarn.lock
+</pre>
+                    </div>
+
+                    <div class="mt-6">
+                        <h4 class="text-3xl font-semibold mb-6">Menu style for Landing Page Template</h4>
+
+                        <h6 class="text-lg font-semibold mb-4 mt-6"><i class="uil uil-angle-right-b"></i> Right Side Navbar Menu </h6>
+                        <div class="p-6 mt-6 rounded-md shadow dark:shadow-gray-800">
+                            <p class="text-slate-400 text-base leading-8">If you use right side navbar menu so please use <code class="font-semibold text-red-600">src/partials/navbar/nav-right.html</code> <br><br> otherwise <br><br> If you directly use <code class="font-semibold text-red-600">dist</code> file so please just add one class <code class="font-semibold text-red-600">justify-end</code> along with <code class="font-semibold text-red-600">navigation-menu</code></p>
+                        </div>
+
+                        <h6 class="text-lg font-semibold mb-4 mt-6"><i class="uil uil-angle-right-b"></i> Left Navbar Menu </h6>
+                        <div class="p-6 mt-6 rounded-md shadow dark:shadow-gray-800">
+                            <p class="text-slate-400 text-base leading-8">If you use left side navbar menu so please use <code class="font-semibold text-red-600">src/partials/navbar/nav-left.html</code> <br><br> otherwise <br><br> If you directly use <code class="font-semibold text-red-600">dist</code> file so please just add one class <code class="font-semibold text-red-600">justify-start</code> along with <code class="font-semibold text-red-600">navigation-menu</code></p>
+                        </div>
+
+                        <h6 class="text-lg font-semibold mb-4 mt-6"><i class="uil uil-angle-right-b"></i> Light Navbar Menu </h6>
+                        <div class="p-6 mt-6 rounded-md shadow dark:shadow-gray-800">
+                            <p class="text-slate-400 text-base leading-8">If you use Light menu so please use <code class="font-semibold text-red-600">src/partials/navbar/nav-center-light.html</code> <br><br> otherwise <br><br> If you directly use <code class="font-semibold text-red-600">dist</code> file so please just add one class <code class="font-semibold text-red-600">nav-light</code> along with <code class="font-semibold text-red-600">navigation-menu</code></p>
+                        </div>
+
+                        <h6 class="text-lg font-semibold mb-4 mt-6"><i class="uil uil-angle-right-b"></i> Light with Left Navbar Menu </h6>
+                        <div class="p-6 mt-6 rounded-md shadow dark:shadow-gray-800">
+                            <p class="text-slate-400 text-base leading-8">If you use Light with Left side navbar menu so please use <code class="font-semibold text-red-600">src/partials/navbar/nav-left-light.html</code> <br><br> otherwise <br><br> If you directly use <code class="font-semibold text-red-600">dist</code> file so please just add two class <code class="font-semibold text-red-600">justify-start nav-light</code> along with <code class="font-semibold text-red-600">navigation-menu</code></p>
+                        </div>
+
+                        <h6 class="text-lg font-semibold mb-4 mt-6"><i class="uil uil-angle-right-b"></i> Light with Right Navbar Menu </h6>
+                        <div class="p-6 mt-6 rounded-md shadow dark:shadow-gray-800">
+                            <p class="text-slate-400 text-base leading-8">If you use Light with Right side navbar menu so please use <code class="font-semibold text-red-600">src/partials/navbar/nav-right-light.html</code> <br><br> otherwise <br><br> If you directly use <code class="font-semibold text-red-600">dist</code> file so please just add two class <code class="font-semibold text-red-600">justify-end nav-light</code> along with <code class="font-semibold text-red-600">navigation-menu</code></p>
+                        </div>
+                    </div>
+                </div><!--grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Section-->
+
+        @@include("partials/footer/footer.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>

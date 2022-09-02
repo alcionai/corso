@@ -160,8 +160,7 @@ func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
 // -------------------
 // Scope Factories
 
-// Produces one or more exchange contact scopes.
-// One scope is created per combination of users,folders,contacts.
+// Contacts produces one or more exchange contact scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -177,8 +176,7 @@ func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 	return scopes
 }
 
-// Produces one or more exchange contact folder scopes.
-// One scope is created per combination of users,folders.
+// Contactfolders produces one or more exchange contact folder scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -193,24 +191,39 @@ func (s *exchange) ContactFolders(users, folders []string) []ExchangeScope {
 	return scopes
 }
 
-// Produces one or more exchange event scopes.
-// One scope is created per combination of users,events.
+// Events produces one or more exchange event scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Events(users, events []string) []ExchangeScope {
+func (s *exchange) Events(users, calendars, events []string) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeEvent, users, events),
+		makeScope[ExchangeScope](Item, ExchangeEvent, users, events).
+			set(ExchangeEventCalendar, calendars),
+	)
+
+	return scopes
+}
+
+// EventCalendars produces one or more exchange event calendar scopes.
+// Calendars act as folders to contain Events
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *exchange) EventCalendars(users, events []string) []ExchangeScope {
+	scopes := []ExchangeScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[ExchangeScope](Group, ExchangeEventCalendar, users, events),
 	)
 
 	return scopes
 }
 
 // Produces one or more mail scopes.
-// One scope is created per combination of users,folders,mails.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -227,7 +240,6 @@ func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 }
 
 // Produces one or more exchange mail folder scopes.
-// One scope is created per combination of users,folders.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -243,7 +255,7 @@ func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 }
 
 // Produces one or more exchange contact user scopes.
-// One scope is created per user entry.
+// Each user id generates three scopes, one for each data type: contact, event, and mail.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -252,7 +264,7 @@ func (s *exchange) Users(users []string) []ExchangeScope {
 
 	scopes = append(scopes,
 		makeScope[ExchangeScope](Group, ExchangeContactFolder, users, Any()),
-		makeScope[ExchangeScope](Item, ExchangeEvent, users, Any()),
+		makeScope[ExchangeScope](Item, ExchangeEventCalendar, users, Any()),
 		makeScope[ExchangeScope](Group, ExchangeMailFolder, users, Any()),
 	)
 
@@ -262,17 +274,47 @@ func (s *exchange) Users(users []string) []ExchangeScope {
 // -------------------
 // Filter Factories
 
+// ContactName produces one or more exchange contact name filter scopes.
+// Matches any contact whose name contains the provided string.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
+	return []ExchangeScope{
+		makeFilterScope[ExchangeScope](
+			ExchangeContact,
+			ExchangeFilterContactName,
+			[]string{senderID},
+			wrapFilter(filters.In)),
+	}
+}
+
+// EventSubject produces one or more exchange event subject filter scopes.
+// Matches any event where the event subject contains one of the provided strings.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *ExchangeRestore) EventOrganizer(organizer string) []ExchangeScope {
+	return []ExchangeScope{
+		makeFilterScope[ExchangeScope](
+			ExchangeEvent,
+			ExchangeFilterEventOrganizer,
+			[]string{organizer},
+			wrapFilter(filters.In)),
+	}
+}
+
 // EventRecurs produces one or more exchange event recurrence filter scopes.
 // Matches any event if the comparator flag matches the event recurrence flag.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) EventRecurs(recurs bool) []ExchangeScope {
+func (sr *ExchangeRestore) EventRecurs(recurs string) []ExchangeScope {
 	return []ExchangeScope{
 		makeFilterScope[ExchangeScope](
 			ExchangeEvent,
 			ExchangeFilterEventRecurs,
-			[]string{strconv.FormatBool(recurs)},
+			[]string{recurs},
 			wrapFilter(filters.Equal)),
 	}
 }
@@ -310,27 +352,12 @@ func (sr *ExchangeRestore) EventStartsBefore(timeStrings string) []ExchangeScope
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) EventSubject(subjectSubstrings []string) []ExchangeScope {
+func (sr *ExchangeRestore) EventSubject(subject string) []ExchangeScope {
 	return []ExchangeScope{
 		makeFilterScope[ExchangeScope](
 			ExchangeEvent,
 			ExchangeFilterEventSubject,
-			subjectSubstrings,
-			wrapFilter(filters.In)),
-	}
-}
-
-// ContactName produces one or more exchange contact name filter scopes.
-// Matches any contact whose name contains the provided string.
-// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
-// If any slice contains selectors.None, that slice is reduced to [selectors.None]
-// If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
-	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
-			ExchangeContact,
-			ExchangeFilterContactName,
-			[]string{senderID},
+			[]string{subject},
 			wrapFilter(filters.In)),
 	}
 }
@@ -368,12 +395,12 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScop
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
+func (sr *ExchangeRestore) MailSender(sender string) []ExchangeScope {
 	return []ExchangeScope{
 		makeFilterScope[ExchangeScope](
 			ExchangeMail,
 			ExchangeFilterMailSender,
-			senderIDs,
+			[]string{sender},
 			wrapFilter(filters.In)),
 	}
 }
@@ -383,12 +410,12 @@ func (sr *ExchangeRestore) MailSender(senderIDs []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *ExchangeRestore) MailSubject(subjectSubstrings []string) []ExchangeScope {
+func (sr *ExchangeRestore) MailSubject(subject string) []ExchangeScope {
 	return []ExchangeScope{
 		makeFilterScope[ExchangeScope](
 			ExchangeMail,
 			ExchangeFilterMailSubject,
-			subjectSubstrings,
+			[]string{subject},
 			wrapFilter(filters.In)),
 	}
 }
@@ -448,8 +475,9 @@ const (
 	ExchangeContact       exchangeCategory = "ExchangeContact"
 	ExchangeContactFolder exchangeCategory = "ExchangeContactFolder"
 	ExchangeEvent         exchangeCategory = "ExchangeEvent"
+	ExchangeEventCalendar exchangeCategory = "ExchangeEventCalendar"
 	ExchangeMail          exchangeCategory = "ExchangeMail"
-	ExchangeMailFolder    exchangeCategory = "ExchangeFolder"
+	ExchangeMailFolder    exchangeCategory = "ExchangeMailFolder"
 	ExchangeUser          exchangeCategory = "ExchangeUser"
 	// append new data cats here
 
@@ -459,6 +487,7 @@ const (
 	ExchangeFilterMailReceivedAfter  exchangeCategory = "ExchangeFilterMailReceivedAfter"
 	ExchangeFilterMailReceivedBefore exchangeCategory = "ExchangeFilterMailReceivedBefore"
 	ExchangeFilterContactName        exchangeCategory = "ExchangeFilterContactName"
+	ExchangeFilterEventOrganizer     exchangeCategory = "ExchangeFilterEventOrganizer"
 	ExchangeFilterEventRecurs        exchangeCategory = "ExchangeFilterEventRecurs"
 	ExchangeFilterEventStartsAfter   exchangeCategory = "ExchangeFilterEventStartsAfter"
 	ExchangeFilterEventStartsBefore  exchangeCategory = "ExchangeFilterEventStartsBefore"
@@ -471,7 +500,7 @@ const (
 // these types appear in the canonical Path for each type.
 var exchangePathSet = map[categorizer][]categorizer{
 	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
-	ExchangeEvent:   {ExchangeUser, ExchangeEvent},
+	ExchangeEvent:   {ExchangeUser, ExchangeEventCalendar, ExchangeEvent},
 	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
 	ExchangeUser:    {ExchangeUser}, // the root category must be represented
 }
@@ -492,9 +521,11 @@ func (ec exchangeCategory) leafCat() categorizer {
 	switch ec {
 	case ExchangeContact, ExchangeContactFolder, ExchangeFilterContactName:
 		return ExchangeContact
-	case ExchangeEvent, ExchangeFilterEventRecurs, ExchangeFilterEventStartsAfter,
-		ExchangeFilterEventStartsBefore, ExchangeFilterEventSubject:
+
+	case ExchangeEvent, ExchangeEventCalendar, ExchangeFilterEventOrganizer, ExchangeFilterEventRecurs,
+		ExchangeFilterEventStartsAfter, ExchangeFilterEventStartsBefore, ExchangeFilterEventSubject:
 		return ExchangeEvent
+
 	case ExchangeMail, ExchangeMailFolder, ExchangeFilterMailReceivedAfter,
 		ExchangeFilterMailReceivedBefore, ExchangeFilterMailSender, ExchangeFilterMailSubject:
 		return ExchangeMail
@@ -524,40 +555,22 @@ func (ec exchangeCategory) unknownCat() categorizer {
 // => {exchUser: userPN, exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) < 2 {
+	if len(path) < 5 {
 		return m
 	}
 
 	m[ExchangeUser] = path[1]
-	/*
-		TODO/Notice:
-		Mail and Contacts contain folder structures, identified
-		in this code as being at index 3.  This assumes a single
-		folder, while in reality users can express subfolder
-		hierarchies of arbirary depth.  Subfolder handling is coming
-		at a later time.
-	*/
+
 	switch ec {
 	case ExchangeContact:
-		if len(path) < 5 {
-			return m
-		}
-
 		m[ExchangeContactFolder] = path[3]
 		m[ExchangeContact] = path[4]
 
 	case ExchangeEvent:
-		if len(path) < 4 {
-			return m
-		}
-
-		m[ExchangeEvent] = path[3]
+		m[ExchangeEventCalendar] = path[3]
+		m[ExchangeEvent] = path[4]
 
 	case ExchangeMail:
-		if len(path) < 5 {
-			return m
-		}
-
 		m[ExchangeMailFolder] = path[3]
 		m[ExchangeMail] = path[4]
 	}
@@ -641,8 +654,13 @@ func (s ExchangeScope) setDefaults() {
 	switch s.Category() {
 	case ExchangeContactFolder:
 		s[ExchangeContact.String()] = passAny
+
+	case ExchangeEventCalendar:
+		s[ExchangeEvent.String()] = passAny
+
 	case ExchangeMailFolder:
 		s[ExchangeMail.String()] = passAny
+
 	case ExchangeUser:
 		s[ExchangeContactFolder.String()] = passAny
 		s[ExchangeContact.String()] = passAny
@@ -694,18 +712,20 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	switch filterCat {
 	case ExchangeFilterContactName:
 		i = info.ContactName
+	case ExchangeFilterEventOrganizer:
+		i = info.Organizer
+	case ExchangeFilterEventRecurs:
+		i = strconv.FormatBool(info.EventRecurs)
+	case ExchangeFilterEventStartsAfter, ExchangeFilterEventStartsBefore:
+		i = common.FormatTime(info.EventStart)
+	case ExchangeFilterEventSubject:
+		i = info.Subject
 	case ExchangeFilterMailSender:
 		i = info.Sender
 	case ExchangeFilterMailSubject:
 		i = info.Subject
 	case ExchangeFilterMailReceivedAfter, ExchangeFilterMailReceivedBefore:
 		i = common.FormatTime(info.Received)
-	case ExchangeFilterEventRecurs:
-		i = "" // TODO: add EventRecurs is added to ExchangeInfo.
-	case ExchangeFilterEventStartsAfter, ExchangeFilterEventStartsBefore:
-		i = common.FormatTime(info.EventStart)
-	case ExchangeFilterEventSubject:
-		i = info.Subject
 	}
 
 	return s.Matches(filterCat, i)

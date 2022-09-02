@@ -1,0 +1,943 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        <link href="assets/libs/tobii/css/tobii.min.css" rel="stylesheet">
+        <link href="assets/libs/tiny-slider/tiny-slider.css" rel="stylesheet">
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center.html")
+
+        <!-- Start Hero -->
+        <section class="relative mt-[74px]">
+            <div class="container-fluid">
+                <div class="grid grid-cols-1">
+                    <div class="tiny-six-item">
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden">
+                                <img src="assets/images/food/blog/m1.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute inset-0 bg-gradient-to-b to-slate-900 via-slate-900/50 from-transparent opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+
+                                <div class="absolute bottom-0 left-0 right-0 p-6 -mb-96 group-hover:mb-0 duration-500 ease-in-out">
+                                    <div class="text-center">
+                                        <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Eggs</a>
+                                        <a href="food-recipe.html" class="text-white font-semibold hover:text-indigo-600 block text-lg mt-4 duration-500 ease-in-out">Spicy Cauliflower Burgers and Salad Recipe</a>
+
+                                        <div class="flex items-center justify-center mt-4">
+                                            <img src="assets/images/client/01.jpg" class="h-10 w-10 rounded-full shadow-md dark:shadow-gray-800" alt="">
+                                            <a href="" class="font-medium text-white block ml-2">Calvin Carlo</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                    <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden">
+                                <img src="assets/images/food/blog/m6.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute inset-0 bg-gradient-to-b to-slate-900 via-slate-900/50 from-transparent opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+
+                                <div class="absolute bottom-0 left-0 right-0 p-6 -mb-96 group-hover:mb-0 duration-500 ease-in-out">
+                                    <div class="text-center">
+                                        <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Rice and Tomatos</a>
+                                        <a href="food-recipe.html" class="text-white font-semibold hover:text-indigo-600 block text-lg mt-4 duration-500 ease-in-out">Awesome Cake with Cream Cheese Frosting</a>
+
+                                        <div class="flex items-center justify-center mt-4">
+                                            <img src="assets/images/client/01.jpg" class="h-10 w-10 rounded-full shadow-md dark:shadow-gray-800" alt="">
+                                            <a href="" class="font-medium text-white block ml-2">Calvin Carlo</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                    <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden">
+                                <img src="assets/images/food/blog/m3.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute inset-0 bg-gradient-to-b to-slate-900 via-slate-900/50 from-transparent opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+
+                                <div class="absolute bottom-0 left-0 right-0 p-6 -mb-96 group-hover:mb-0 duration-500 ease-in-out">
+                                    <div class="text-center">
+                                        <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Chiken</a>
+                                        <a href="food-recipe.html" class="text-white font-semibold hover:text-indigo-600 block text-lg mt-4 duration-500 ease-in-out">Make Asian-Style Recipe ( Video and Gallery )</a>
+
+                                        <div class="flex items-center justify-center mt-4">
+                                            <img src="assets/images/client/01.jpg" class="h-10 w-10 rounded-full shadow-md dark:shadow-gray-800" alt="">
+                                            <a href="" class="font-medium text-white block ml-2">Calvin Carlo</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                    <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden">
+                                <img src="assets/images/food/blog/m4.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute inset-0 bg-gradient-to-b to-slate-900 via-slate-900/50 from-transparent opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+
+                                <div class="absolute bottom-0 left-0 right-0 p-6 -mb-96 group-hover:mb-0 duration-500 ease-in-out">
+                                    <div class="text-center">
+                                        <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Noodles</a>
+                                        <a href="food-recipe.html" class="text-white font-semibold hover:text-indigo-600 block text-lg mt-4 duration-500 ease-in-out">Chocolate Mint Dessert Brownies Recipe</a>
+
+                                        <div class="flex items-center justify-center mt-4">
+                                            <img src="assets/images/client/01.jpg" class="h-10 w-10 rounded-full shadow-md dark:shadow-gray-800" alt="">
+                                            <a href="" class="font-medium text-white block ml-2">Calvin Carlo</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                    <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden">
+                                <img src="assets/images/food/blog/m5.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute inset-0 bg-gradient-to-b to-slate-900 via-slate-900/50 from-transparent opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+
+                                <div class="absolute bottom-0 left-0 right-0 p-6 -mb-96 group-hover:mb-0 duration-500 ease-in-out">
+                                    <div class="text-center">
+                                        <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Pizzas</a>
+                                        <a href="food-recipe.html" class="text-white font-semibold hover:text-indigo-600 block text-lg mt-4 duration-500 ease-in-out">Healthy Homemade Pizza with a glass of wine</a>
+
+                                        <div class="flex items-center justify-center mt-4">
+                                            <img src="assets/images/client/01.jpg" class="h-10 w-10 rounded-full shadow-md dark:shadow-gray-800" alt="">
+                                            <a href="" class="font-medium text-white block ml-2">Calvin Carlo</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                    <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden">
+                                <img src="assets/images/food/blog/m2.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute inset-0 bg-gradient-to-b to-slate-900 via-slate-900/50 from-transparent opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+
+                                <div class="absolute bottom-0 left-0 right-0 p-6 -mb-96 group-hover:mb-0 duration-500 ease-in-out">
+                                    <div class="text-center">
+                                        <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Breads</a>
+                                        <a href="food-recipe.html" class="text-white font-semibold hover:text-indigo-600 block text-lg mt-4 duration-500 ease-in-out">Strawberry, Kiwi and Spinach Salad Recipe</a>
+
+                                        <div class="flex items-center justify-center mt-4">
+                                            <img src="assets/images/client/01.jpg" class="h-10 w-10 rounded-full shadow-md dark:shadow-gray-800" alt="">
+                                            <a href="" class="font-medium text-white block ml-2">Calvin Carlo</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                    <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div><!--end tiny slide-->
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Hero -->
+
+        <!-- Start -->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid lg:grid-cols-5 md:grid-cols-3 grid-cols-2 gap-4 justify-center">
+                    <!-- Category -->
+                    <div class="group relative rounded-md shadow-md dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/food/blog/f1.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                        <div class="absolute inset-0 bg-slate-900/60"></div>
+
+                        <div class="absolute top-1/2 -translate-y-1/2 left-0 right-0 text-center">
+                            <a href="#!" class="text-white font-semibold text-xl mb-0">Food</a>
+                        </div>
+                    </div>
+                    <!-- Category -->
+
+                    <!-- Category -->
+                    <div class="group relative rounded-md shadow-md dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/food/blog/f2.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                        <div class="absolute inset-0 bg-slate-900/60"></div>
+
+                        <div class="absolute top-1/2 -translate-y-1/2 left-0 right-0 text-center">
+                            <a href="#!" class="text-white font-semibold text-xl mb-0">Healthy</a>
+                        </div>
+                    </div>
+                    <!-- Category -->
+
+                    <!-- Category -->
+                    <div class="group relative rounded-md shadow-md dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/food/blog/f3.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                        <div class="absolute inset-0 bg-slate-900/60"></div>
+
+                        <div class="absolute top-1/2 -translate-y-1/2 left-0 right-0 text-center">
+                            <a href="#!" class="text-white font-semibold text-xl mb-0">Dinner</a>
+                        </div>
+                    </div>
+                    <!-- Category -->
+
+                    <!-- Category -->
+                    <div class="group relative rounded-md shadow-md dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/food/blog/f4.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                        <div class="absolute inset-0 bg-slate-900/60"></div>
+
+                        <div class="absolute top-1/2 -translate-y-1/2 left-0 right-0 text-center">
+                            <a href="#!" class="text-white font-semibold text-xl mb-0">Holiday</a>
+                        </div>
+                    </div>
+                    <!-- Category -->
+
+                    <!-- Category -->
+                    <div class="group relative rounded-md shadow-md dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/food/blog/f5.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                        <div class="absolute inset-0 bg-slate-900/60"></div>
+
+                        <div class="absolute top-1/2 -translate-y-1/2 left-0 right-0 text-center">
+                            <a href="#!" class="text-white font-semibold text-xl mb-0">Coffee</a>
+                        </div>
+                    </div>
+                    <!-- Category -->
+                </div>
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">Latest Blogs</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">Write your own food blog with techwind that can provide everything you need to blog, news, article, etc.</p>
+                </div><!--end grid-->
+
+                <div id="grid" class="md:flex justify-center mx-auto mt-6">
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/1.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Salad</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Giant Multi-Stuffed Soft Pretzel</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/5.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Breakfast</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Romantic Breakfast for Two</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/f1.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Breads</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Macchiato Pumpkin Soup</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/m1.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Chef</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Braised Pork Belly Adobo By Chef Leah Cohen</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/2.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Breads</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Cinnamon Buns for Two</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/6.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Cooker</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Slow Cooker Coconut Curry</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/m2.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Birthday</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Perfect for a Birthday Party</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/f2.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Eat</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">5 Recipes Almost Too Cute To Eat</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/3.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Vegetarian</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Vegetarian Breakfast for You</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/m3.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Breads</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Meal Prep Breakfast For The Week</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/7.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Cheese</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Lactose Free Homemade Cheese</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/f3.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Salad</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Mint-Pomegranate Salad</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                    
+                    <!-- Start Post -->
+                    <div class="lg:w-1/4 md:w-1/3 picture-item p-2 pb-5">
+                        <div class="group relative">
+                            <div class="relative overflow-hidden rounded-md shadow dark:shadow-gray-800">
+                                <img src="assets/images/food/blog/f4.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                <div class="absolute top-0 left-0 pt-3 pl-3">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Apple</a>
+                                </div>
+                            </div>
+
+                            <div class="p-3">
+                                <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold">Tiny Apple Pies with Cinnamon</a>
+
+                                <ul class="list-none flex items-center justify-between mt-2">
+                                    <li>
+                                        <span class="text-slate-400 block"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                    </li>
+
+                                    <li class="">
+                                        <a href="#!" class="text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a> <span class="text-slate-400">22</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+                </div><!--end grid-->
+
+                <div class="grid md:grid-cols-12 grid-cols-1 mt-6">
+                    <div class="md:col-span-12 text-center">
+                        <nav aria-label="Page navigation example">
+                            <ul class="inline-flex items-center -space-x-px">
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 bg-white dark:bg-slate-900 rounded-l-lg hover:text-white border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">
+                                        <i class="uil uil-angle-left text-[20px]"></i>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">1</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">2</a>
+                                </li>
+                                <li>
+                                    <a href="#" aria-current="page" class="z-10 w-[40px] h-[40px] inline-flex justify-center items-center text-white bg-indigo-600 border border-indigo-600">3</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">4</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">5</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 bg-white dark:bg-slate-900 rounded-r-lg hover:text-white border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">
+                                        <i class="uil uil-angle-right text-[20px]"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">Trending Posts</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">Write your own food blog with techwind that can provide everything you need to blog, news, article, etc.</p>
+                </div><!--end grid-->
+
+                <div class="grid lg:grid-cols-2 grid-cols-1 items-center mt-8 gap-4">
+                    <!-- Start Post -->
+                    <div class="group relative overflow-hidden rounded-md">
+                        <img src="assets/images/food/blog/8.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                        <div class="absolute inset-0 bg-gradient-to-b to-slate-900 via-slate-900/50 from-transparent opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+
+                        <div class="absolute bottom-0 left-0 right-0 p-6 -mb-96 group-hover:mb-0 duration-500 ease-in-out">
+                            <div class="text-center">
+                                <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Eggs</a>
+                                <a href="food-recipe.html" class="text-white font-semibold hover:text-indigo-600 block text-lg mt-4 duration-500 ease-in-out">Spicy Cauliflower Burgers and Salad Recipe</a>
+
+                                <div class="flex items-center justify-center mt-4">
+                                    <img src="assets/images/client/01.jpg" class="h-10 w-10 rounded-full shadow-md dark:shadow-gray-800" alt="">
+                                    <a href="" class="font-medium text-white block ml-2">Calvin Carlo</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                            <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                        </div>
+                    </div>
+                    <!-- End Post -->
+
+                    <div>
+                        <div class="grid grid-cols-1 gap-4">
+                            <!-- Start Post -->
+                            <div class="group md:flex items-center relative overflow-hidden">
+                                <div class="md:w-[40%] relative overflow-hidden rounded-md">
+                                    <img src="assets/images/food/blog/1.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                    <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+                                    <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                        <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                    </div>
+                                </div>
+
+                                <div class="md:w-[60%] md:pl-4 pt-4 md:pt-0">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Food</a>
+                                    <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold mt-3">Change Your Strategy: Find a Business Consultant</a>
+
+                                    <span class="text-slate-400 block mt-3"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                </div>
+                            </div>
+                            <!-- End Post -->
+
+                            <!-- Start Post -->
+                            <div class="group md:flex items-center relative overflow-hidden">
+                                <div class="md:w-[40%] relative overflow-hidden rounded-md">
+                                    <img src="assets/images/food/blog/5.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                    <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+                                    <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                        <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                    </div>
+                                </div>
+
+                                <div class="md:w-[60%] md:pl-4 pt-4 md:pt-0">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Food</a>
+                                    <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold mt-3">Creamy Garlic Parmesan Chicken Salad</a>
+
+                                    <span class="text-slate-400 block mt-3"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                </div>
+                            </div>
+                            <!-- End Post -->
+
+                            <!-- Start Post -->
+                            <div class="group md:flex items-center relative overflow-hidden">
+                                <div class="md:w-[40%] relative overflow-hidden rounded-md">
+                                    <img src="assets/images/food/blog/4.jpg" class="group-hover:scale-105 duration-500 ease-in-out" alt="">
+                                    <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 duration-500 ease-in-out"></div>
+                                    <div class="absolute right-0 top-0 p-4 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                        <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                                    </div>
+                                </div>
+
+                                <div class="md:w-[60%] md:pl-4 pt-4 md:pt-0">
+                                    <a href="" class="bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded w-fit mx-auto h-5">Food</a>
+                                    <a href="food-recipe.html" class="block hover:text-indigo-600 text-lg font-semibold mt-3">Bourbon Street Rib-Eye Steak With Cheese</a>
+
+                                    <span class="text-slate-400 block mt-3"><i class="uil uil-calendar-alt"></i> 14th July 2022</span>
+                                </div>
+                            </div>
+                            <!-- End Post -->
+                        </div>
+                    </div>
+                </div>
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End -->
+
+        <!-- Start -->
+        <section class="relative md:py-24 py-16 bg-gray-50 dark:bg-slate-800">
+            <div class="container">
+                <div class="md:flex justify-center">
+                    <div class="lg:w-2/3 text-center">
+                        <h3 class="md:text-3xl text-2xl md:leading-normal leading-normal font-semibold mb-6">Subscribe our weekly subscription</h3>
+
+                        <p class="text-slate-400 max-w-xl mx-auto">Add some text to explain benefits of subscripton on your services. We'll send you the best of our blog just once a weekly.</p>
+
+                        <div class="mt-8">
+                            <div class="text-center subcribe-form">
+                                <form class="relative mx-auto max-w-xl">
+                                    <input type="email" id="subemail" name="name" class="pt-4 pr-40 pb-4 pl-6 w-full h-[50px] outline-none text-black dark:text-white rounded-full bg-white/70 dark:bg-slate-900/70 border border-gray-100 dark:border-gray-700" placeholder="Enter your email id..">
+                                    <button type="submit" class="btn absolute top-[2px] right-[3px] h-[46px] bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-full">Subcribe Now</button>
+                                </form><!--end form-->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End -->
+
+        <!-- Insta Post Start -->
+        <div class="container-fluid relative">
+            <div class="grid grid-cols-1 relative">
+                <div class="tiny-twelve-item">
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/1.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/1.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/2.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/2.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/3.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/3.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/4.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/4.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/5.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/5.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/6.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/6.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/7.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/7.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/8.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/8.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/9.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/9.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/10.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/10.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/11.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/11.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/12.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/12.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/13.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/13.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/14.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/14.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tiny-slide">
+                        <div class="card border-0 rounded-0">
+                            <div class="card-body p-0">
+                                <a href="assets/images/food/15.jpg" class="lightbox d-inline-block" title="">
+                                    <img src="assets/images/food/15.jpg" class="" alt="Insta Post">
+                                    <div class="overlay bg-dark"></div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute top-2/4 -translate-y-2/4 left-2/4 -translate-x-2/4 text-center hidden md:block">
+                    <a href="https://www.instagram.com/shreethemes/" target="_blank" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Follow Now</a>
+                </div>
+            </div><!--end grid-->
+        </div><!--end container-->
+        <!-- Insta Post End -->
+
+        @@include("partials/footer/footer-small.html")
+
+        @@include("partials/cookies.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/shufflejs/shuffle.min.js"></script>
+        <script src="assets/libs/tobii/js/tobii.min.js"></script>
+        <script src="assets/libs/tiny-slider/min/tiny-slider.js"></script>
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>

@@ -1,0 +1,553 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        <link href="assets/libs/tobii/css/tobii.min.css" rel="stylesheet">
+        <link href="assets/libs/tiny-slider/tiny-slider.css" rel="stylesheet">
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+
+        @@include("partials/navbar/nav-center-light.html")
+
+        <!-- Start -->
+        <section class="relative md:pt-60 pt-40 md:pb-64 pb-56 flex items-center bg-[url('../../assets/images/blog/bg1.jpg')] bg-center bg-no-repeat" data-jarallax='{"speed": 0.5}'>
+            <div class="absolute inset-0 bg-slate-900/40"></div>
+            <div class="container">
+                <div class="md:flex justify-center mt-10">
+                    <div class="w-full">
+                        <span class="flex items-center">
+                            <img src="assets/images/client/05.jpg" class="h-8 rounded-full shadow dark:shadow-gray-800" alt="">
+
+                            <span class="ml-1 text-lg"><span class="text-white/80 mx-1">by</span> <a href="" class="text-white">Cristino Loly</a></span>
+                            <span class="ml-1 text-lg"><span class="text-white/80 mx-1">in</span> <a href="" class="text-white">Business</a></span>
+                        </span>
+
+                        <a href="" class="font-bold text-white leading-snug text-[30px] lg:text-[42px] mt-6 block">Establishing that <br> you have something to say</a>
+
+                        <div class="mt-8">
+                            <a href="" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Read Article <i class="uil uil-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <div class="relative">
+            <div class="shape absolute right-0 sm:-bottom-px -bottom-[2px] left-0 overflow-hidden z-1 text-white dark:text-slate-900">
+                <svg class="w-full h-auto" viewBox="0 0 2880 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0 48H1437.5H2880V0H2160C1442.5 52 720 0 720 0H0V48Z" fill="currentColor"></path>
+                </svg>
+            </div>
+        </div>
+        <!-- End -->
+
+        <!-- Start -->
+        <!-- FEATURES START -->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid grid-cols-1 justify-center">
+                    <div class="relative z-2 transition-all duration-500 ease-in-out sm:-mt-[220px] -mt-[200px] m-0">
+                        <div class="filters-group-wrap">
+                            <div class="filters-group">
+                                <ul class="mb-0 list-none container-filter-white filter-options text-center">
+                                    <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-white/70 transition duration-500 active" data-group="all">All</li>
+                                    <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-white/70 transition duration-500" data-group="business">Business</li>
+                                    <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-white/70 transition duration-500" data-group="tech">Technology</li>
+                                    <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-white/70 transition duration-500" data-group="lifestyle">Lifestyle</li>
+                                    <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-white/70 transition duration-500" data-group="food">Food</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div id="grid" class="md:flex justify-center mx-auto mt-4">
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["business"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/blog/01.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Design your apps in your own way</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["tech"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/blog/09.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">How apps is changing the IT world</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["tech"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/blog/10.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Smartest Applications for Business</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["tech"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/blog/11.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Stop Worrying About Deadlines! We Got You Covered</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["lifestyle"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/blog/12.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Change Your Strategy: Find a Business Consultant</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["food"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/food/blog/1.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Everything About Financial Modeling</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["lifestyle"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/blog/13.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">On the other hand we provide denounce</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["business"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/blog/14.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Design your apps in your own way</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                            
+                            <div class="lg:w-1/3 md:w-1/2 p-3 picture-item" data-groups='["food"]'>
+                                <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                    <img src="assets/images/food/blog/2.jpg" alt="">
+
+                                    <div class="content p-6">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">How apps is changing the IT world</a>
+                                        <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container mt-16">
+                <div class="relative bg-white dark:bg-slate-900 lg:px-8 px-6 py-10 rounded-xl shadow dark:shadow-gray-800 overflow-hidden">
+                    <div class="grid md:grid-cols-2 grid-cols-1 items-center gap-[30px]">
+                        <div class="md:text-left text-center z-1">
+                            <h3 class="md:text-3xl text-2xl md:leading-normal leading-normal font-semibold">Subscribe to Newsletter!</h3>
+                            <p class="text-slate-400 max-w-xl mx-auto mt-2">Subscribe to get latest updates and information.</p>
+                        </div>
+
+                        <div class="subcribe-form z-1">
+                            <form class="relative max-w-xl">
+                                <input type="email" id="subcribe" name="email" class="pt-4 pr-40 pb-4 pl-6 w-full h-[50px] outline-none text-black dark:text-white rounded-full bg-white dark:bg-slate-900 shadow dark:shadow-gray-800" placeholder="Your Email Address :">
+                                <button type="submit" class="btn absolute top-[2px] right-[3px] h-[46px] bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-full">Subscribe</button>
+                            </form><!--end form-->
+                        </div>
+                    </div>
+
+                    <div class="absolute -top-5 -left-5">
+                        <div class="uil uil-envelope lg:text-[150px] text-7xl text-slate-900/5 dark:text-white/5 -rotate-45"></div>
+                    </div>
+
+                    <div class="absolute -bottom-5 -right-5">
+                        <div class="uil uil-pen lg:text-[150px] text-7xl text-slate-900/5 dark:text-white/5"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="container mt-16">
+                <div class="grid md:grid-cols-12 grid-cols-1 pb-8 items-end">
+                    <div class="lg:col-span-8 md:col-span-6 md:text-left text-center">
+                        <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">Our Featured News Post</h3>
+                        <p class="text-slate-400 max-w-xl">Search your future opportunity with our categories</p>
+                    </div>
+
+                    <div class="lg:col-span-4 md:col-span-6 md:text-right hidden md:block">
+                        <a href="" class="btn btn-link text-slate-400 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">All Categories <i class="uil uil-arrow-right align-middle"></i></a>
+                    </div>
+                </div><!--end grid-->
+
+                <div class="grid md:grid-cols-12 grid-cols-1 mt-8 gap-[30px]">
+                    <div class="lg:col-span-8 md:col-span-6">
+                        <div class="grid grid-cols-1 gap-[30px]">
+                            <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                <div class="lg:flex relative">
+                                    <div class="relative md:shrink-0">
+                                        <img class="h-full w-full object-cover lg:w-52 lg:h-56" src="assets/images/blog/02.jpg" alt="">
+                                    </div>
+                                    <div class="p-6 flex flex-col lg:h-56 justify-center">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Take a break through the countryside</a>
+                                        <div class="my-auto">
+                                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+
+                            <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                <div class="lg:flex relative">
+                                    <div class="relative md:shrink-0">
+                                        <img class="h-full w-full object-cover lg:w-52 lg:h-56" src="assets/images/blog/03.jpg" alt="">
+                                    </div>
+                                    <div class="p-6 flex flex-col lg:h-56 justify-center">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">These 10 sea destinations are surprises</a>
+                                        <div class="my-auto">
+                                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+
+                            <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                <div class="lg:flex relative">
+                                    <div class="relative md:shrink-0">
+                                        <img class="h-full w-full object-cover lg:w-52 lg:h-56" src="assets/images/blog/04.jpg" alt="">
+                                    </div>
+                                    <div class="p-6 flex flex-col lg:h-56 justify-center">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">A photographer perfect day in Colorado</a>
+                                        <div class="my-auto">
+                                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+
+                            <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                <div class="lg:flex relative">
+                                    <div class="relative md:shrink-0">
+                                        <img class="h-full w-full object-cover lg:w-52 lg:h-56" src="assets/images/blog/05.jpg" alt="">
+                                    </div>
+                                    <div class="p-6 flex flex-col lg:h-56 justify-center">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">This is the world most beautiful beach</a>
+                                        <div class="my-auto">
+                                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+
+                            <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                <div class="lg:flex relative">
+                                    <div class="relative md:shrink-0">
+                                        <img class="h-full w-full object-cover lg:w-52 lg:h-56" src="assets/images/blog/06.jpg" alt="">
+                                    </div>
+                                    <div class="p-6 flex flex-col lg:h-56 justify-center">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Travel will change you for the better</a>
+                                        <div class="my-auto">
+                                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+
+                            <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                <div class="lg:flex relative">
+                                    <div class="relative md:shrink-0">
+                                        <img class="h-full w-full object-cover lg:w-52 lg:h-56" src="assets/images/blog/07.jpg" alt="">
+                                    </div>
+                                    <div class="p-6 flex flex-col lg:h-56 justify-center">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Greek beyond Athene: Where to go next</a>
+                                        <div class="my-auto">
+                                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+
+                            <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                                <div class="lg:flex relative">
+                                    <div class="relative md:shrink-0">
+                                        <img class="h-full w-full object-cover lg:w-52 lg:h-56" src="assets/images/blog/08.jpg" alt="">
+                                    </div>
+                                    <div class="p-6 flex flex-col lg:h-56 justify-center">
+                                        <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">This mountain will make you reborn</a>
+                                        <div class="my-auto">
+                                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!--end content-->
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-4 md:col-span-6">
+                        <div class="sticky top-20">
+                            <h5 class="text-lg font-semibold bg-gray-50 dark:bg-slate-800 shadow dark:shadow-gray-800 rounded-md p-2 text-center">Recent post</h5>
+                            <div class="flex items-center mt-8">
+                                <img src="assets/images/blog/06.jpg" class="h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                                <div class="ml-3">
+                                    <a href="" class="font-semibold hover:text-indigo-600">Consultant Business</a>
+                                    <p class="text-sm text-slate-400">1st May 2022</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center mt-4">
+                                <img src="assets/images/blog/07.jpg" class="h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                                <div class="ml-3">
+                                    <a href="" class="font-semibold hover:text-indigo-600">Grow Your Business</a>
+                                    <p class="text-sm text-slate-400">1st May 2022</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center mt-4">
+                                <img src="assets/images/blog/08.jpg" class="h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                                <div class="ml-3">
+                                    <a href="" class="font-semibold hover:text-indigo-600">Look On The Glorious Balance</a>
+                                    <p class="text-sm text-slate-400">1st May 2022</p>
+                                </div>
+                            </div>
+
+                            <h5 class="text-lg font-semibold bg-gray-50 dark:bg-slate-800 shadow dark:shadow-gray-800 rounded-md p-2 text-center mt-8">Social sites</h5>
+                            <ul class="list-none text-center mt-8">
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md text-slate-400 hover:border-indigo-600 hover:text-white hover:bg-indigo-600"><i data-feather="facebook" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md text-slate-400 hover:border-indigo-600 hover:text-white hover:bg-indigo-600"><i data-feather="instagram" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md text-slate-400 hover:border-indigo-600 hover:text-white hover:bg-indigo-600"><i data-feather="twitter" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md text-slate-400 hover:border-indigo-600 hover:text-white hover:bg-indigo-600"><i data-feather="linkedin" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md text-slate-400 hover:border-indigo-600 hover:text-white hover:bg-indigo-600"><i data-feather="github" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md text-slate-400 hover:border-indigo-600 hover:text-white hover:bg-indigo-600"><i data-feather="youtube" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md text-slate-400 hover:border-indigo-600 hover:text-white hover:bg-indigo-600"><i data-feather="gitlab" class="h-4 w-4"></i></a></li>
+                            </ul><!--end icon-->
+
+                            <h5 class="text-lg font-semibold bg-gray-50 dark:bg-slate-800 shadow dark:shadow-gray-800 rounded-md p-2 text-center mt-8">Tagscloud</h5>
+                            <ul class="list-none text-center mt-8">
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Business</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Finance</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Marketing</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Fashion</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Bride</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Lifestyle</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Travel</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Beauty</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Video</a></li>
+                                <li class="inline-block m-2"><a href="" class="px-3 py-1 text-slate-400 hover:text-white dark:hover:text-white bg-gray-50 dark:bg-slate-800 text-sm hover:bg-indigo-600 dark:hover:bg-indigo-600 rounded-md shadow dark:shadow-gray-800 transition-all duration-500 ease-in-out">Audio</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">Recent Posts</h3>
+                    <p class="text-slate-400 max-w-xl mx-auto">Start working with Tailwind CSS that can provide everything you need to generate awareness, drive traffic, connect.</p>
+                </div><!--end grid-->
+
+                <div class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 mt-8 gap-[30px]">
+                    <div class="flex items-center">
+                        <img src="assets/images/blog/01.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">Consultant Business</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <img src="assets/images/blog/02.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">Grow Your Business</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <img src="assets/images/blog/03.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">Look On The Glorious Balance</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center">
+                        <img src="assets/images/blog/04.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">5 incredible city to travel in Italy</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <img src="assets/images/blog/05.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">25 essentials for your travel backpack</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <img src="assets/images/blog/06.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">Amazing destination in Portugal</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center">
+                        <img src="assets/images/food/blog/1.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">Free solo travel across North Europe</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <img src="assets/images/food/blog/2.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">Explorer completes historic lakes</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <img src="assets/images/food/blog/3.jpg" class="lg:h-20 h-16 rounded-md shadow dark:shadow-gray-800" alt="">
+
+                        <div class="ml-3">
+                            <a href="" class="font-semibold hover:text-indigo-600">Dont miss these amazing side trips</a>
+                            <p class="text-sm text-slate-400 mt-1">1st May 2022</p>
+                        </div>
+                    </div>
+                </div>
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End -->
+
+        @@include("partials/footer/footer.html")
+
+        @@include("partials/cookies.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/jarallax/jarallax.min.js"></script>
+        <script src="assets/libs/shufflejs/shuffle.min.js"></script>
+        <script src="assets/libs/tobii/js/tobii.min.js"></script>
+        <script src="assets/libs/tiny-slider/min/tiny-slider.js"></script>
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>

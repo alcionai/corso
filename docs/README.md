@@ -24,6 +24,15 @@ make dev
 
 This command starts a local development server within the Docker container and will expose docs at [http://localhost:3000](http://localhost:3000).
 
+## Generating Corso CLI docs
+
+```bash
+make genclidocs
+```
+
+Corso's CLI documents are auto-generated. This command explicitly triggers generating these docs. This step will happen
+automatically for the other commands where this is relevant.
+
 ## Building static documentation
 
 ```bash

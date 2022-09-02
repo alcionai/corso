@@ -169,9 +169,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 		user = "user"
 		e1   = "e1"
 		e2   = "e2"
+		c1   = "c1"
 	)
 
-	sel.Exclude(sel.Events([]string{user}, []string{e1, e2}))
+	sel.Exclude(sel.Events([]string{user}, []string{c1}, []string{e1, e2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
@@ -179,8 +180,34 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 		t,
 		ExchangeScope(scopes[0]),
 		map[categorizer]string{
-			ExchangeUser:  user,
-			ExchangeEvent: join(e1, e2),
+			ExchangeUser:          user,
+			ExchangeEventCalendar: c1,
+			ExchangeEvent:         join(e1, e2),
+		},
+	)
+}
+
+func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars() {
+	t := suite.T()
+	sel := NewExchangeBackup()
+
+	const (
+		user = "user"
+		c1   = "c1"
+		c2   = "c2"
+	)
+
+	sel.Exclude(sel.EventCalendars([]string{user}, []string{c1, c2}))
+	scopes := sel.Excludes
+	require.Len(t, scopes, 1)
+
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeEventCalendar: join(c1, c2),
+			ExchangeEvent:         AnyTgt,
 		},
 	)
 }
@@ -193,9 +220,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 		user = "user"
 		e1   = "e1"
 		e2   = "e2"
+		c1   = "c1"
 	)
 
-	sel.Include(sel.Events([]string{user}, []string{e1, e2}))
+	sel.Include(sel.Events([]string{user}, []string{c1}, []string{e1, e2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
@@ -203,12 +231,36 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 		t,
 		ExchangeScope(scopes[0]),
 		map[categorizer]string{
-			ExchangeUser:  user,
-			ExchangeEvent: join(e1, e2),
+			ExchangeUser:          user,
+			ExchangeEventCalendar: c1,
+			ExchangeEvent:         join(e1, e2),
 		},
 	)
+}
 
-	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeEvent)
+func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars() {
+	t := suite.T()
+	sel := NewExchangeBackup()
+
+	const (
+		user = "user"
+		c1   = "c1"
+		c2   = "c2"
+	)
+
+	sel.Include(sel.EventCalendars([]string{user}, []string{c1, c2}))
+	scopes := sel.Includes
+	require.Len(t, scopes, 1)
+
+	scopeMustHave(
+		t,
+		ExchangeScope(scopes[0]),
+		map[categorizer]string{
+			ExchangeUser:          user,
+			ExchangeEventCalendar: join(c1, c2),
+			ExchangeEvent:         AnyTgt,
+		},
+	)
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
@@ -646,9 +698,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 	es := NewExchangeRestore()
 
 	const (
-		name    = "smarf mcfnords"
-		sender  = "smarf@2many.cooks"
-		subject = "I have seen the fnords!"
+		name      = "smarf mcfnords"
+		organizer = "cooks@2many.smarf"
+		sender    = "smarf@2many.cooks"
+		subject   = "I have seen the fnords!"
 	)
 
 	var (
@@ -657,11 +710,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		future = now.Add(1 * time.Minute)
 		info   = &details.ExchangeInfo{
 			ContactName: name,
+			EventRecurs: true,
 			EventStart:  now,
+			Organizer:   organizer,
 			Sender:      sender,
 			Subject:     subject,
 			Received:    now,
-			// TODO: event recurs
 		}
 	)
 
@@ -670,33 +724,37 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"any mail with a sender", es.MailSender(Any()), assert.True},
-		{"no mail, regardless of sender", es.MailSender(None()), assert.False},
-		{"mail from a different sender", es.MailSender([]string{"magoo@ma.goo"}), assert.False},
-		{"mail from the matching sender", es.MailSender([]string{sender}), assert.True},
-		{"mail with any subject", es.MailSubject(Any()), assert.True},
-		{"mail with none subject", es.MailSubject(None()), assert.False},
-		{"mail with a different subject", es.MailSubject([]string{"fancy"}), assert.False},
-		{"mail with the matching subject", es.MailSubject([]string{subject}), assert.True},
-		{"mail with a substring subject match", es.MailSubject([]string{subject[5:9]}), assert.True},
+		{"any mail with a sender", es.MailSender(AnyTgt), assert.True},
+		{"no mail, regardless of sender", es.MailSender(NoneTgt), assert.False},
+		{"mail from a different sender", es.MailSender("magoo@ma.goo"), assert.False},
+		{"mail from the matching sender", es.MailSender(sender), assert.True},
+		{"mail with any subject", es.MailSubject(AnyTgt), assert.True},
+		{"mail with none subject", es.MailSubject(NoneTgt), assert.False},
+		{"mail with a different subject", es.MailSubject("fancy"), assert.False},
+		{"mail with the matching subject", es.MailSubject(subject), assert.True},
+		{"mail with a substring subject match", es.MailSubject(subject[5:9]), assert.True},
 		{"mail received after the epoch", es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
 		{"mail received after now", es.MailReceivedAfter(common.FormatTime(now)), assert.False},
 		{"mail received after sometime later", es.MailReceivedAfter(common.FormatTime(future)), assert.False},
 		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
 		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
 		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(future)), assert.True},
-		// TODO: {"event that recurs", es.EventRecurs(true), assert.True},
-		// TODO: {"event that does not recur", es.EventRecurs(false), assert.False},
+		{"event with any organizer", es.EventOrganizer(AnyTgt), assert.True},
+		{"event with none organizer", es.EventOrganizer(NoneTgt), assert.False},
+		{"event with a different organizer", es.EventOrganizer("fancy"), assert.False},
+		{"event with the matching organizer", es.EventOrganizer(organizer), assert.True},
+		{"event that recurs", es.EventRecurs("true"), assert.True},
+		{"event that does not recur", es.EventRecurs("false"), assert.False},
 		{"event starting after the epoch", es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
 		{"event starting after now", es.EventStartsAfter(common.FormatTime(now)), assert.False},
 		{"event starting after sometime later", es.EventStartsAfter(common.FormatTime(future)), assert.False},
 		{"event starting before the epoch", es.EventStartsBefore(common.FormatTime(epoch)), assert.False},
 		{"event starting before now", es.EventStartsBefore(common.FormatTime(now)), assert.False},
 		{"event starting before sometime later", es.EventStartsBefore(common.FormatTime(future)), assert.True},
-		{"event with any subject", es.EventSubject(Any()), assert.True},
-		{"event with none subject", es.EventSubject(None()), assert.False},
-		{"event with a different subject", es.EventSubject([]string{"fancy"}), assert.False},
-		{"event with the matching subject", es.EventSubject([]string{subject}), assert.True},
+		{"event with any subject", es.EventSubject(AnyTgt), assert.True},
+		{"event with none subject", es.EventSubject(NoneTgt), assert.False},
+		{"event with a different subject", es.EventSubject("fancy"), assert.False},
+		{"event with the matching subject", es.EventSubject(subject), assert.True},
 		{"contact with a different name", es.ContactName("blarps"), assert.False},
 		{"contact with the same name", es.ContactName(name), assert.True},
 		{"contact with a subname search", es.ContactName(name[2:5]), assert.True},
@@ -823,8 +881,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	}
 
 	const (
-		contact = "tid/uid/contact/cfld/cid"
-		event   = "tid/uid/event/eid"
+		contact = "tid/uid/contacts/cfld/cid"
+		event   = "tid/uid/events/ecld/eid"
 		mail    = "tid/uid/mail/mfld/mid"
 	)
 
@@ -903,7 +961,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
-				er.Include(er.Events([]string{"uid"}, []string{"eid"}))
+				er.Include(er.Events([]string{"uid"}, []string{"ecld"}, []string{"eid"}))
 				return er
 			},
 			arr(event),
@@ -935,7 +993,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
 				er.Include(er.Users(Any()))
-				er.Exclude(er.Events([]string{"uid"}, []string{"eid"}))
+				er.Exclude(er.Events([]string{"uid"}, []string{"ecld"}, []string{"eid"}))
 				return er
 			},
 			arr(contact, mail),
@@ -967,7 +1025,7 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 		es       = NewExchangeRestore()
 		users    = es.Users(Any())
 		contacts = es.ContactFolders(Any(), Any())
-		events   = es.Events(Any(), Any())
+		events   = es.Events(Any(), Any(), Any())
 		mail     = es.MailFolders(Any(), Any())
 	)
 
@@ -1174,10 +1232,11 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 		ExchangeContactFolder: contactPath[3],
 		ExchangeContact:       contactPath[4],
 	}
-	eventPath := []string{"ten", "user", "event", "eventitem"}
+	eventPath := []string{"ten", "user", "event", "ecalendar", "eventitem"}
 	eventMap := map[categorizer]string{
-		ExchangeUser:  eventPath[1],
-		ExchangeEvent: eventPath[3],
+		ExchangeUser:          eventPath[1],
+		ExchangeEventCalendar: eventPath[3],
+		ExchangeEvent:         eventPath[4],
 	}
 	mailPath := []string{"ten", "user", "mail", "mfolder", "mailitem"}
 	mailMap := map[categorizer]string{
@@ -1206,7 +1265,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathKeys() {
 	contact := []categorizer{ExchangeUser, ExchangeContactFolder, ExchangeContact}
-	event := []categorizer{ExchangeUser, ExchangeEvent}
+	event := []categorizer{ExchangeUser, ExchangeEventCalendar, ExchangeEvent}
 	mail := []categorizer{ExchangeUser, ExchangeMailFolder, ExchangeMail}
 	user := []categorizer{ExchangeUser}
 

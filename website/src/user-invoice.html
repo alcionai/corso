@@ -1,0 +1,231 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        <link href="assets/libs/tobii/css/tobii.min.css" rel="stylesheet">
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center.html")
+
+        <!-- Start Hero -->
+        <section class="relative lg:py-24 py-16 bg-slate-50 dark:bg-slate-800">
+            <div class="container">
+                <div class="md:flex justify-center mt-24">
+                    <div class="lg:w-4/5 w-full">
+                        <div class="p-6 rounded-md shadow dark:shadow-gray-800 bg-white dark:bg-slate-900">
+                            <div class="border-b border-gray-100 dark:border-gray-700 pb-6">
+                                <div class="md:flex justify-between">
+                                    <div>
+                                        <img src="assets/images/logo-dark.png" class="block dark:hidden" alt="">
+                                        <img src="assets/images/logo-light.png" class="hidden dark:block" alt="">
+                                        <div class="flex mt-4">
+                                            <i data-feather="link" class="h-4 w-4 mr-3 mt-1"></i>
+                                            <a href="https://1.envato.market/techwind" target="_blank" class="text-indigo-600 dark:text-white font-medium">https://1.envato.market/techwind</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-6 md:mt-0 md:w-56">
+                                        <h5 class="text-lg font-semibold">Address:</h5>
+
+                                        <ul class="list-none">
+                                            <li class="flex mt-3">
+                                                <i data-feather="map-pin" class="h-4 w-4 mr-3 mt-1"></i>
+                                                <a href="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d39206.002432144705!2d-95.4973981212445!3d29.709510002925988!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8640c16de81f3ca5%3A0xf43e0b60ae539ac9!2sGerald+D.+Hines+Waterwall+Park!5e0!3m2!1sen!2sin!4v1566305861440!5m2!1sen!2sin" data-type="iframe" class="lightbox text-slate-400">1419 Riverwood Drive, <br> Redding, CA 96001</a>
+                                            </li>
+                                            
+                                            <li class="flex mt-3">
+                                                <i data-feather="mail" class="h-4 w-4 mr-3 mt-1"></i>
+                                                <a href="mailto:contact@example.com" class="text-slate-400">info@techwind.com</a>
+                                            </li>
+                                            
+                                            <li class="flex mt-3">
+                                                <i data-feather="phone" class="h-4 w-4 mr-3 mt-1"></i>
+                                                <a href="tel:+152534-468-854" class="text-slate-400">(+12) 1546-456-856</a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="md:flex justify-between">
+                                <div class="mt-6">
+                                    <h5 class="text-lg font-semibold">Invoice Details :</h5>
+
+                                    <ul class="list-none">
+                                        <li class="flex mt-3">
+                                            <span class="w-24">Invoice No. :</span>
+                                            <span class="text-slate-400">land45845621</span>
+                                        </li>
+                                        
+                                        <li class="flex mt-3">
+                                            <span class="w-24">Name :</span>
+                                            <span class="text-slate-400">Calvin Carlo</span>
+                                        </li>
+                                        
+                                        <li class="flex mt-3">
+                                            <span class="w-24">Address :</span>
+                                            <span class="text-slate-400">1962 Pike Street, <br> Diego, CA 92123</span>
+                                        </li>
+                                        
+                                        <li class="flex mt-3">
+                                            <span class="w-24">Phone :</span>
+                                            <span class="text-slate-400">(+45) 4584-458-695</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="mt-3 md:w-56">
+                                    <ul class="list-none">
+                                        <li class="flex mt-3">
+                                            <span class="w-24">Date :</span>
+                                            <span class="text-slate-400">15th Oct, 2021</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="relative overflow-x-auto shadow dark:shadow-gray-800 rounded-md mt-6">
+                                <table class="w-full text-left text-slate-500 dark:text-slate-400">
+                                    <thead class="text-sm uppercase bg-slate-50 dark:bg-slate-800">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 w-16">
+                                                No.
+                                            </th>
+                                            <th scope="col" class="px-6 py-3">
+                                                Items
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 w-20">
+                                                Qty
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 w-28">
+                                                Rate($)
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 w-20">
+                                                Total($)
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="bg-white dark:bg-slate-900">
+                                            <td class="px-6 py-4">
+                                                1
+                                            </td>
+                                            <th scope="row" class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                                                Apple MacBook Pro 17"
+                                            </th>
+                                            <td class="px-6 py-4">
+                                                1
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                280
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                $ 280
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-gray-700">
+                                            <td class="px-6 py-4">
+                                                2
+                                            </td>
+                                            <th scope="row" class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                                                Microsoft Surface Pro
+                                            </th>
+                                            <td class="px-6 py-4">
+                                                1
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                140
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                $ 140
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-gray-700">
+                                            <td class="px-6 py-4">
+                                                3
+                                            </td>
+                                            <th scope="row" class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                                                Magic Mouse 2
+                                            </th>
+                                            <td class="px-6 py-4">
+                                                2
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                50
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                $ 100
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="w-56 ml-auto p-5">
+                                <ul class="list-none">
+                                    <li class="text-slate-400 flex justify-between">
+                                        <span>Subtotal :</span>
+                                        <span>$ 520</span>
+                                    </li>
+                                    <li class="text-slate-400 flex justify-between mt-2">
+                                        <span>Taxes :</span>
+                                        <span>$ 20</span>
+                                    </li>
+                                    <li class="flex justify-between font-semibold mt-2">
+                                        <span>Total :</span>
+                                        <span>$ 540</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="invoice-footer border-t border-gray-100 dark:border-gray-700 pt-6">
+                                <div class="md:flex justify-between">
+                                    <div>
+                                        <div class="text-slate-400 text-center md:text-left">
+                                            <h6 class="mb-0">Customer Services : <a href="tel:+152534-468-854" class="text-amber-500">(+12) 1546-456-856</a></h6>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 md:mt-0">
+                                        <div class="text-slate-400 text-center md:text-right">
+                                            <h6 class="mb-0"><a href="page-terms.html" target="_blank" class="text-indigo-600">Terms & Conditions</a></h6>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Hero -->
+
+        @@include("partials/footer/footer-small.html")
+
+        <div class="fixed bottom-3 right-3">
+            <a href="" class="back-button btn btn-icon bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-full"><i data-feather="arrow-left" class="h-4 w-4"></i></a>
+        </div>
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/tobii/js/tobii.min.js"></script>
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>

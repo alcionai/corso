@@ -46,6 +46,11 @@ func AddOutputFlag(parent *cobra.Command) {
 	cobra.CheckErr(fs.MarkHidden("json-debug"))
 }
 
+// JSONFormat returns true if the printer plans to output as json.
+func JSONFormat() bool {
+	return outputAsJSON || outputAsJSONDebug
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Helper funcs
 // ---------------------------------------------------------------------------------------------------------

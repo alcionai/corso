@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"testing"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/tester"
@@ -75,6 +77,7 @@ func loadService(t *testing.T) *exchangeService {
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
+		ctx                     = context.Background()
 		t                       = suite.T()
 		mailScope, contactScope selectors.ExchangeScope
 		userID                  = tester.M365UserID(t)
@@ -135,16 +138,22 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				&service.adapter,
 				test.transformer)
 			require.NoError(t, err)
+
+			qp := graph.QueryParams{
+				User:        userID,
+				Scope:       test.scope,
+				Credentials: service.credentials,
+				FailFast:    false,
+			}
 			// Create collection for iterate test
 			collections := make(map[string]*Collection)
 			var errs error
 			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
-				userID,
-				test.scope,
-				errs, false,
-				service.credentials,
+				ctx,
+				qp,
+				errs,
 				collections,
 				nil)
 

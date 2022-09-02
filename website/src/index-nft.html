@@ -1,0 +1,719 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        <link href="assets/libs/tiny-slider/tiny-slider.css" rel="stylesheet">
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center-white-bg.html")
+
+        <!-- Start Hero -->
+        <section class="relative md:py-52 py-36 items-center overflow-hidden bg-gradient-to-br to-orange-600/20 via-fuchsia-600/20 from-indigo-600/20">
+            <div class="absolute inset-0 bg-[url('../../assets/images/nft/hero.png')] bg-no-repeat bg-bottom"></div>
+
+            <div class="container">
+                <div class="grid grid-cols-1 items-center mt-10">
+                    <h4 class="font-bold lg:leading-normal leading-normal text-4xl lg:text-5xl mb-5 text-black dark:text-white">Discover Exclusive <br> Digital collectibles</h4>
+                    <p class="text-lg max-w-xl">We are a huge marketplace dedicated to connecting great artists of all Techwind with their fans and unique token collectors!</p>
+                
+                    <div class="mt-8">
+                        <a href="" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Discover</a>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Hero -->
+
+        <!-- Start -->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-[30px]">
+                    <!-- Content -->
+                    <div class="group relative px-6 py-10 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-24 w-24 fill-indigo-600/5 group-hover:fill-white/10 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl group-hover:text-white transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-wallet"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-lg font-medium group-hover:text-white transition-all duration-500 ease-in-out">Connect your wallet</a>
+                            <p class="text-slate-400 group-hover:text-white/50 transition-all duration-500 ease-in-out mt-3">Use Trust Wallet, Metamask or any wallet to connect to the app.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="group relative px-6 py-10 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-24 w-24 fill-indigo-600/5 group-hover:fill-white/10 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl group-hover:text-white transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-image-plus"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-lg font-medium group-hover:text-white transition-all duration-500 ease-in-out">Create your NFT Item</a>
+                            <p class="text-slate-400 group-hover:text-white/50 transition-all duration-500 ease-in-out mt-3">Upload your NFTs and set a title, description and price.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="group relative px-6 py-10 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                        <div class="relative overflow-hidden text-transparent -m-3">
+                            <i data-feather="hexagon" class="h-24 w-24 fill-indigo-600/5 group-hover:fill-white/10 mx-auto"></i>
+                            <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl group-hover:text-white transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                <i class="uil uil-save"></i>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <a href="" class="text-lg font-medium group-hover:text-white transition-all duration-500 ease-in-out">List them for sale</a>
+                            <p class="text-slate-400 group-hover:text-white/50 transition-all duration-500 ease-in-out mt-3">Earn ETH and BIT for all your NFTs that you sell on our marketplace.</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid md:grid-cols-12 grid-cols-1 pb-8 items-end">
+                    <div class="lg:col-span-8 md:col-span-6 md:text-left text-center">
+                        <h3 class="mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">Best Creators & Sellers</h3>
+                        <p class="text-slate-400 max-w-xl">Best sellers of the week's NFTs</p>
+                    </div>
+
+                    <div class="lg:col-span-4 md:col-span-6 md:text-right hidden md:block">
+                        <a href="nft-creators.html" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">See More <i class="uil uil-arrow-right align-middle"></i></a>
+                    </div>
+                </div><!--end grid-->
+
+                <div class="grid grid-cols-1 mt-2 md:mt-6 relative">
+                    <div class="tiny-five-item">
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-orange-600/70 from-indigo-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/01.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Calvin Carlo</a>
+                                        <span class="text-slate-400">@calvin_carlo</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-red-600/70 from-indigo-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/02.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Tiffany Betancourt</a>
+                                        <span class="text-slate-400">@cutiegirl</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-fuchsia-600/70 from-green-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/03.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Mari Harrington</a>
+                                        <span class="text-slate-400">@norse_queen</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-pink-600/70 from-purple-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/04.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Floyd Glasgow</a>
+                                        <span class="text-slate-400">@bigbull</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-violet-600/70 from-blue-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/05.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Donna Schultz</a>
+                                        <span class="text-slate-400">@angel</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-orange-600/70 from-indigo-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/06.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Joshua Morris</a>
+                                        <span class="text-slate-400">@crazyanyone</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-sky-600/70 from-yellow-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/07.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Carl Williams</a>
+                                        <span class="text-slate-400">@looserbad</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+
+                        <!-- Slide -->
+                        <div class="tiny-slide">
+                            <div class="group relative overflow-hidden rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out m-2 mb-5">
+                                <div class="py-10 bg-gradient-to-r to-lime-600/70 from-rose-600/70"></div>
+                                <div class="p-6 pt-0 -mt-10 text-center">
+                                    <img src="assets/images/client/08.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+        
+                                    <div class="mt-4">
+                                        <a href="" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Eugene Green</a>
+                                        <span class="text-slate-400">@kristyhoney</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Slide -->
+                    </div>
+                </div><!--end grid-->
+
+                <div class="grid md:grid-cols-12 grid-cols-1 md:hidden">
+                    <div class="md:col-span-12 text-center">
+                        <a href="nft-creators.html" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">See More <i class="uil uil-arrow-right align-middle"></i></a>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-6 md:text-3xl text-2xl md:leading-normal leading-normal font-semibold">Explore Hot Products</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">We are a huge marketplace dedicated to connecting great artists of all Techwind with their fans and unique token collectors!</p>
+                </div><!--end grid-->
+
+                <div class="grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 grid-cols-1 mt-8 gap-[30px]">
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/1.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+
+                            <div class="absolute bottom-0 left-0 ml-6 mb-6 text-lg bg-gradient-to-r to-indigo-600 from-fuchsia-600 text-white rounded-full px-3">
+                                <i class="uil uil-clock align-middle"></i> <small id="auction-item-1" class="font-semibold"></small>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">Deep Sea Phantasy</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                    
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/2.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">CyberPrimal 042 LAN</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                    
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/3.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">Crypto Egg Stamp #5</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                    
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/4.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">Color Abstract Painting</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                    
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/5.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">Liquid Forest Princess</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                    
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/6.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">Spider Eyes Modern Art</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                    
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/7.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+
+                            <div class="absolute bottom-0 left-0 ml-6 mb-6 text-lg bg-gradient-to-r to-indigo-600 from-fuchsia-600 text-white rounded-full px-3">
+                                <i class="uil uil-clock align-middle"></i> <small id="auction-item-2" class="font-semibold"></small>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">Synthwave Painting</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                    
+                    <!-- Start Bid -->
+                    <div class="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-md shadow dark:shadow-gray-800 hover:shadow-lg dark:hover:shadow-gray-800 duration-500 ease-in-out">
+                        <div class="relative">
+                            <img src="assets/images/nft/items/8.jpg" alt="">
+                            <div class="absolute right-0 top-0 mt-6 mr-6 opacity-0 group-hover:opacity-100 duration-500 ease-in-out">
+                                <a href="#!" class="btn btn-icon text-lg bg-white dark:bg-slate-900 border-0 shadow dark:shadow-gray-800 rounded-full text-red-600/20 hover:text-red-600 focus:text-red-600"><i class="mdi mdi-heart"></i></a>
+                            </div>
+
+                            <div class="absolute top-1/2 -translate-y-1/2 right-0 left-0 text-center opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 duration-500 ease-in-out">
+                                <a href="nft-detail.html" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Place Bid</a>
+                            </div>
+                        </div>
+
+                        <div class="p-6 relative">
+                            <a href="nft-detail.html" class="text-lg font-semibold hover:text-indigo-600 duration-500 ease-in-out">Contemporary Abstract</a>
+
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center">
+                                    <i class="mdi mdi-ethereum text-xl leading-none text-indigo-600 mr-1"></i>
+                                    <span class="block font-semibold text-indigo-600">20.5 ETH</span>
+                                </div>
+
+                                <div>
+                                    <i class="mdi mdi-heart text-red-600"></i> <span class="text-slate-400">22</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bid -->
+                </div><!--end grid-->
+
+                <div class="grid md:grid-cols-12 grid-cols-1 mt-8">
+                    <div class="md:col-span-12 text-center">
+                        <a href="nft-explore.html" class="btn btn-link text-slate-400 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Explore All Items <i class="uil uil-arrow-right align-middle"></i></a>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End -->
+
+        <!-- Start CTA -->
+        <section class="relative md:py-24 py-16 bg-gradient-to-br to-orange-600/30 via-fuchsia-600/30 from-indigo-600/30">
+            <div class="container">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-6 md:text-3xl text-2xl md:leading-normal leading-normal font-semibold">Join the fastest growing Techwind NFTs <br> with more than 2000+ NFTs</h3>
+
+                    <p class="max-w-xl mx-auto">We are a huge marketplace dedicated to connecting great artists of all Techwind with their fans and unique token collectors!</p>
+                </div><!--end grid-->
+
+                <div class="grid md:grid-cols-2 mt-8 gap-[30px]">
+                    <div class="rounded-md bg-white dark:bg-slate-900 shadow dark:shadow-gray-800 p-6">
+                        <h5 class="text-2xl font-semibold mb-4">Join our community</h5>
+                        <p class="text-slate-400 mb-4">We are a huge marketplace dedicated to connecting great artists of all Techwind.</p>
+                        <a href="" class="btn btn-link hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right align-middle"></i></a>
+                    </div>
+
+                    <div class="rounded-md bg-white dark:bg-slate-900 shadow dark:shadow-gray-800 p-6">
+                        <h5 class="text-2xl font-semibold mb-4">Learn more about Techwind</h5>
+                        <p class="text-slate-400 mb-4">We are a huge marketplace dedicated to connecting great artists of all Techwind.</p>
+                        <a href="" class="btn btn-link hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right align-middle"></i></a>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End CTA -->
+
+        <!-- Start -->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-6 md:text-3xl text-2xl md:leading-normal leading-normal font-semibold">Collections</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">We are a huge marketplace dedicated to connecting great artists of all Techwind with their fans and unique token collectors!</p>
+                </div><!--end grid-->
+
+                <div class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 mt-8 gap-[30px]">
+                    <!-- Start Collection -->
+                    <div class="group relative overflow-hidden bg-gray-50 dark:bg-slate-800 rounded-md shadow dark:shadow-gray-800">
+                        <div class="p-2 rounded-md shadow dark:shadow-gray-800 bg-gradient-to-br to-orange-600/20 via-fuchsia-600/20 from-indigo-600/20">
+                            <div class="flex items-center">
+                                <div class="w-full p-1">
+                                    <img src="assets/images/nft/items/16.jpg" class="rounded-md" alt="">
+                                </div>
+                            </div>
+    
+                            <div class="flex items-center">
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/1.jpg" class="rounded-md" alt="">
+                                </div>
+    
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/2.jpg" class="rounded-md" alt="">
+                                </div>
+    
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/3.jpg" class="rounded-md" alt="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-6 pt-0 -mt-10 text-center">
+                            <img src="assets/images/client/01.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+
+                            <div class="mt-4">
+                                <a href="" class="text-xl leading-none font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Digital Arts</a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Collection -->
+                    
+                    <!-- Start Collection -->
+                    <div class="group relative overflow-hidden bg-gray-50 dark:bg-slate-800 rounded-md shadow dark:shadow-gray-800">
+                        <div class="p-2 rounded-md shadow dark:shadow-gray-800 bg-gradient-to-br to-orange-600/20 via-fuchsia-600/20 from-indigo-600/20">
+                            <div class="flex items-center">
+                                <div class="w-full p-1">
+                                    <img src="assets/images/nft/items/17.jpg" class="rounded-md" alt="">
+                                </div>
+                            </div>
+    
+                            <div class="flex items-center">
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/4.jpg" class="rounded-md" alt="">
+                                </div>
+    
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/5.jpg" class="rounded-md" alt="">
+                                </div>
+    
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/6.jpg" class="rounded-md" alt="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-6 pt-0 -mt-10 text-center">
+                            <img src="assets/images/client/02.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+
+                            <div class="mt-4">
+                                <a href="" class="text-xl leading-none font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Sports</a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Collection -->
+                    
+                    <!-- Start Collection -->
+                    <div class="group relative overflow-hidden bg-gray-50 dark:bg-slate-800 rounded-md shadow dark:shadow-gray-800">
+                        <div class="p-2 rounded-md shadow dark:shadow-gray-800 bg-gradient-to-br to-orange-600/20 via-fuchsia-600/20 from-indigo-600/20">
+                            <div class="flex items-center">
+                                <div class="w-full p-1">
+                                    <img src="assets/images/nft/items/18.jpg" class="rounded-md" alt="">
+                                </div>
+                            </div>
+    
+                            <div class="flex items-center">
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/7.jpg" class="rounded-md" alt="">
+                                </div>
+    
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/8.jpg" class="rounded-md" alt="">
+                                </div>
+    
+                                <div class="w-1/3 p-1">
+                                    <img src="assets/images/nft/items/9.jpg" class="rounded-md" alt="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-6 pt-0 -mt-10 text-center">
+                            <img src="assets/images/client/03.jpg" class="h-20 w-20 rounded-full shadow-lg dark:shadow-gray-800 mx-auto" alt="">
+
+                            <div class="mt-4">
+                                <a href="" class="text-xl leading-none font-semibold hover:text-indigo-600 duration-500 ease-in-out block">Photography</a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Collection -->
+                </div><!--end grid-->
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid grid-cols-1 pb-8 text-center">
+                    <h3 class="mb-6 md:text-3xl text-2xl md:leading-normal leading-normal font-semibold">Blog Or News</h3>
+
+                    <p class="text-slate-400 max-w-xl mx-auto">We are a huge marketplace dedicated to connecting great artists of all Techwind with their fans and unique token collectors!</p>
+                </div><!--end grid-->
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 mt-8 gap-[30px]">
+                    <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/nft/items/21.jpg" alt="">
+
+                        <div class="content p-6">
+                            <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mindfulness Activities for Kids & Toddlers with NFT</a>
+                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            
+                            <div class="mt-4">
+                                <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/nft/items/22.jpg" alt="">
+
+                        <div class="content p-6">
+                            <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Save Thousands Of Lives Through This NFT</a>
+                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            
+                            <div class="mt-4">
+                                <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/nft/items/23.jpg" alt="">
+
+                        <div class="content p-6">
+                            <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">A place where technology meets craftsmanship</a>
+                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            
+                            <div class="mt-4">
+                                <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End -->
+
+        @@include("partials/footer/footer.html")
+
+        @@include("partials/cookies.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/tiny-slider/min/tiny-slider.js"></script>
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>

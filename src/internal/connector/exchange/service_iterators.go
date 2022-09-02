@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -29,11 +29,9 @@ type displayable interface {
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
-	user string,
-	scope selectors.ExchangeScope,
+	ctx context.Context,
+	qp graph.QueryParams,
 	errs error,
-	failFast bool,
-	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool
@@ -43,11 +41,9 @@ type GraphIterateFunc func(
 // objects belonging to any folder are
 // placed into a Collection based on the parent folder
 func IterateSelectAllDescendablesForCollections(
-	user string,
-	scope selectors.ExchangeScope,
+	ctx context.Context,
+	qp graph.QueryParams,
 	errs error,
-	failFast bool,
-	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -60,12 +56,12 @@ func IterateSelectAllDescendablesForCollections(
 	return func(pageItem any) bool {
 		// Defines the type of collection being created within the function
 		if !isCategorySet {
-			if scope.IncludesCategory(selectors.ExchangeMail) {
+			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
 				collectionType = messages
 				category = mailCategory
 			}
 
-			if scope.IncludesCategory(selectors.ExchangeContact) {
+			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
 				collectionType = contacts
 				category = contactsCategory
 			}
@@ -75,21 +71,21 @@ func IterateSelectAllDescendablesForCollections(
 
 		entry, ok := pageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppendf(user, errors.New("descendable conversion failure"), errs)
+			errs = support.WrapAndAppendf(qp.User, errors.New("descendable conversion failure"), errs)
 			return true
 		}
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
 		if _, ok = collections[directory]; !ok {
-			service, err := createService(credentials, failFast)
+			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
+				errs = support.WrapAndAppend(qp.User, err, errs)
 				return true
 			}
 
 			edc := NewCollection(
-				user,
-				[]string{credentials.TenantID, user, category, directory},
+				qp.User,
+				[]string{qp.Credentials.TenantID, qp.User, category, directory},
 				collectionType,
 				service,
 				statusUpdater,
@@ -108,11 +104,9 @@ func IterateSelectAllDescendablesForCollections(
 // and storing events in collections based on
 // the calendarID which originates from M365.
 func IterateSelectAllEventsForCollections(
-	user string,
-	scope selectors.ExchangeScope,
+	ctx context.Context,
+	qp graph.QueryParams,
 	errs error,
-	failFast bool,
-	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -120,7 +114,7 @@ func IterateSelectAllEventsForCollections(
 		event, ok := eventItem.(models.Eventable)
 		if !ok {
 			errs = support.WrapAndAppend(
-				user,
+				qp.User,
 				errors.New("event iteration failure"),
 				errs,
 			)
@@ -133,7 +127,7 @@ func IterateSelectAllEventsForCollections(
 		value, ok := adtl["calendar@odata.associationLink"]
 		if !ok {
 			errs = support.WrapAndAppend(
-				user,
+				qp.User,
 				fmt.Errorf("%s: does not support calendar look up", *event.GetId()),
 				errs,
 			)
@@ -144,7 +138,7 @@ func IterateSelectAllEventsForCollections(
 		link, ok := value.(*string)
 		if !ok || link == nil {
 			errs = support.WrapAndAppend(
-				user,
+				qp.User,
 				fmt.Errorf("%s: unable to obtain calendar event data", *event.GetId()),
 				errs,
 			)
@@ -156,7 +150,7 @@ func IterateSelectAllEventsForCollections(
 		directory, err := parseCalendarIDFromEvent(*link)
 		if err != nil {
 			errs = support.WrapAndAppend(
-				user,
+				qp.User,
 				errors.Wrap(err, *event.GetId()),
 				errs,
 			)
@@ -165,15 +159,15 @@ func IterateSelectAllEventsForCollections(
 		}
 
 		if _, ok := collections[directory]; !ok {
-			service, err := createService(credentials, failFast)
+			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
+				errs = support.WrapAndAppend(qp.User, err, errs)
 				return true
 			}
 
 			edc := NewCollection(
-				user,
-				[]string{credentials.TenantID, user, eventsCategory, directory},
+				qp.User,
+				[]string{qp.Credentials.TenantID, qp.User, eventsCategory, directory},
 				events,
 				service,
 				statusUpdater,
@@ -191,11 +185,9 @@ func IterateSelectAllEventsForCollections(
 // that places exchange mail message ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
 func IterateAndFilterMessagesForCollections(
-	user string,
-	scope selectors.ExchangeScope,
+	ctx context.Context,
+	qp graph.QueryParams,
 	errs error,
-	failFast bool,
-	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -204,15 +196,13 @@ func IterateAndFilterMessagesForCollections(
 	return func(messageItem any) bool {
 		if !isFilterSet {
 			err := CollectMailFolders(
-				scope,
-				user,
+				ctx,
+				qp,
 				collections,
-				credentials,
-				failFast,
 				statusUpdater,
 			)
 			if err != nil {
-				errs = support.WrapAndAppend(user, err, errs)
+				errs = support.WrapAndAppend(qp.User, err, errs)
 				return false
 			}
 
@@ -221,7 +211,7 @@ func IterateAndFilterMessagesForCollections(
 
 		message, ok := messageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppend(user, errors.New("message iteration failure"), errs)
+			errs = support.WrapAndAppend(qp.User, errors.New("message iteration failure"), errs)
 			return true
 		}
 		// Saving only messages for the created directories
@@ -237,11 +227,9 @@ func IterateAndFilterMessagesForCollections(
 }
 
 func IterateFilterFolderDirectoriesForCollections(
-	user string,
-	scope selectors.ExchangeScope,
+	ctx context.Context,
+	qp graph.QueryParams,
 	errs error,
-	failFast bool,
-	credentials account.M365Config,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -254,7 +242,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		folder, ok := folderItem.(displayable)
 		if !ok {
 			errs = support.WrapAndAppend(
-				user,
+				qp.User,
 				errors.New("unable to transform folderable item"),
 				errs,
 			)
@@ -266,19 +254,19 @@ func IterateFilterFolderDirectoriesForCollections(
 			return true
 		}
 
-		if !scope.Matches(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+		if !qp.Scope.Matches(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
 			return true
 		}
 
 		directory := *folder.GetId()
 
-		service, err = createService(credentials, failFast)
+		service, err = createService(qp.Credentials, qp.FailFast)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				*folder.GetDisplayName(),
 				errors.Wrap(
 					err,
-					"unable to create service a folder query service for "+user,
+					"unable to create service a folder query service for "+qp.User,
 				),
 				errs,
 			)
@@ -287,8 +275,8 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 
 		temp := NewCollection(
-			user,
-			[]string{credentials.TenantID, user, mailCategory, directory},
+			qp.User,
+			[]string{qp.Credentials.TenantID, qp.User, mailCategory, directory},
 			messages,
 			service,
 			statusUpdater,
