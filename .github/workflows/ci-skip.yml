@@ -1,10 +1,5 @@
 name: CI Tests
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '/src/**'
-      - '/.github/**'
   pull_request:
     branches: [main]
     paths-ignore:
