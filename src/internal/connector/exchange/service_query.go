@@ -126,7 +126,7 @@ func CollectMailFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) error {
 	queryService, err := createService(qp.Credentials, qp.FailFast)
 	if err != nil {
@@ -156,7 +156,7 @@ func CollectMailFolders(
 		qp,
 		err,
 		collections,
-		statusCh,
+		statusUpdater,
 	)
 
 	iterateFailure := pageIterator.Iterate(callbackFunc)

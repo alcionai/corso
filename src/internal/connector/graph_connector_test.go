@@ -65,8 +65,6 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	newConnector := GraphConnector{
 		tenant:      "test_tenant",
 		Users:       make(map[string]string, 0),
-		status:      nil,
-		statusCh:    make(chan *support.ConnectorOperationStatus),
 		credentials: suite.connector.credentials,
 	}
 
@@ -95,8 +93,9 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	collectionList, err := connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(t, collectionList, "collection list")
 	assert.NoError(t, err)
-	assert.True(t, connector.awaitingMessages > 0)
-	assert.Nil(t, connector.status)
+	assert.Zero(t, connector.status.ObjectCount)
+	assert.Zero(t, connector.status.FolderCount)
+	assert.Zero(t, connector.status.Successful)
 
 	streams := make(map[string]<-chan data.Stream)
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
@@ -106,10 +105,8 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 		streams[testName] = temp
 	}
 
-	for i := 0; i < int(connector.awaitingMessages); i++ {
-		status := connector.AwaitStatus()
-		assert.NotNil(t, status)
-	}
+	status := connector.AwaitStatus()
+	assert.NotZero(t, status.Successful)
 
 	for name, channel := range streams {
 		suite.T().Run(name, func(t *testing.T) {
@@ -295,8 +292,8 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 // Exchange Functions
 //-------------------------------------------------------
 
-//  TestCreateAndDeleteMailFolder ensures GraphConnector has the ability
-//  to create and remove folders within the tenant
+// TestCreateAndDeleteMailFolder ensures GraphConnector has the ability
+// to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
