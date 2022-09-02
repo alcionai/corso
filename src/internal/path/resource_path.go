@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ServiceType denotes the service a path belongs to.
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
