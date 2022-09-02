@@ -10,11 +10,13 @@ func _() {
 	var x [1]struct{}
 	_ = x[UnknownCategory-0]
 	_ = x[EmailCategory-1]
+	_ = x[ContactsCategory-2]
+	_ = x[EventsCategory-3]
 }
 
-const _CategoryType_name = "UnknownCategoryemail"
+const _CategoryType_name = "UnknownCategoryemailcontactsevents"
 
-var _CategoryType_index = [...]uint8{0, 15, 20}
+var _CategoryType_index = [...]uint8{0, 15, 20, 28, 34}
 
 func (i CategoryType) String() string {
 	if i < 0 || i >= CategoryType(len(_CategoryType_index)-1) {

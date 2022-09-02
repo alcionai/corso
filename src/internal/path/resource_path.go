@@ -27,14 +27,20 @@ type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
 const (
-	UnknownCategory CategoryType = iota
-	EmailCategory                // email
+	UnknownCategory  CategoryType = iota
+	EmailCategory                 // email
+	ContactsCategory              // contacts
+	EventsCategory                // events
 )
 
 func toCategoryType(category string) CategoryType {
 	switch category {
 	case EmailCategory.String():
 		return EmailCategory
+	case ContactsCategory.String():
+		return ContactsCategory
+	case EventsCategory.String():
+		return EventsCategory
 	default:
 		return UnknownCategory
 	}
@@ -43,7 +49,9 @@ func toCategoryType(category string) CategoryType {
 // serviceCategories is a mapping of all valid service/category pairs.
 var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	ExchangeService: {
-		EmailCategory: {},
+		EmailCategory:    {},
+		ContactsCategory: {},
+		EventsCategory:   {},
 	},
 }
 
