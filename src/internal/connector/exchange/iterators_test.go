@@ -161,6 +161,10 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			assert.NoError(t, iterateError)
 			assert.NoError(t, errs)
 
+			// TODO(ashmrtn): Only check Exchange Mail folder names right now because
+			// other resolvers aren't implemented. Once they are we can expand these
+			// checks, potentially by breaking things out into separate tests per
+			// category.
 			if !test.scope.IncludesCategory(selectors.ExchangeMail) {
 				return
 			}
