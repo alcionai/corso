@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/selectors"
@@ -257,8 +258,9 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 			directory = strings.Join(dc.FullPath(), "")
 			user      = dc.FullPath()[1]
 			items     = dc.Items()
-			category  = dc.FullPath()[2]
-			exit      bool
+			// TODO(ashmrtn): Update this when we have path struct support in collections.
+			category = path.ToCategoryType(dc.FullPath()[2])
+			exit     bool
 		)
 
 		if _, ok := pathCounter[directory]; !ok {

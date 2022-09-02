@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -50,7 +51,7 @@ func IterateSelectAllDescendablesForCollections(
 	var (
 		isCategorySet  bool
 		collectionType optionIdentifier
-		category       string
+		category       path.CategoryType
 	)
 
 	return func(pageItem any) bool {
@@ -58,12 +59,12 @@ func IterateSelectAllDescendablesForCollections(
 		if !isCategorySet {
 			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
 				collectionType = messages
-				category = mailCategory
+				category = path.EmailCategory
 			}
 
 			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
 				collectionType = contacts
-				category = contactsCategory
+				category = path.ContactsCategory
 			}
 
 			isCategorySet = true
@@ -76,6 +77,8 @@ func IterateSelectAllDescendablesForCollections(
 		}
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
+		dirPath := []string{qp.Credentials.TenantID, qp.User, category.String(), directory}
+
 		if _, ok = collections[directory]; !ok {
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
@@ -85,7 +88,7 @@ func IterateSelectAllDescendablesForCollections(
 
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, category, directory},
+				[]string{qp.Credentials.TenantID, qp.User, category.String(), directory},
 				collectionType,
 				service,
 				statusCh,
@@ -167,7 +170,7 @@ func IterateSelectAllEventsForCollections(
 
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, eventsCategory, directory},
+				[]string{qp.Credentials.TenantID, qp.User, path.EventsCategory.String(), directory},
 				events,
 				service,
 				statusCh,
@@ -276,7 +279,7 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		temp := NewCollection(
 			qp.User,
-			[]string{qp.Credentials.TenantID, qp.User, mailCategory, directory},
+			[]string{qp.Credentials.TenantID, qp.User, path.EmailCategory.String(), directory},
 			messages,
 			service,
 			statusCh,

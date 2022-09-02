@@ -13,6 +13,8 @@ import (
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/internal/path"
 )
 
 //-----------------------------------------------------------------------
@@ -99,19 +101,13 @@ const (
 	contacts
 )
 
-const (
-	mailCategory     = "mail"
-	contactsCategory = "contacts"
-	eventsCategory   = "events"
-)
-
-func categoryToOptionIdentifier(category string) optionIdentifier {
+func categoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 	switch category {
-	case mailCategory:
+	case path.EmailCategory:
 		return messages
-	case contactsCategory:
+	case path.ContactsCategory:
 		return contacts
-	case eventsCategory:
+	case path.EventsCategory:
 		return events
 	default:
 		return unknown
