@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/internal/connector/mockconnector"
 	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -248,13 +249,13 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 // The result should be all successful items restored within the same folder.
 func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 	t := suite.T()
-	category := "mail"
+	category := path.EmailCategory
 	connector := loadConnector(t)
 	collection := make([]data.Collection, 0)
 
 	for i := 0; i < 3; i++ {
 		mdc := mockconnector.NewMockExchangeCollection(
-			[]string{"tenant", suite.user, category, "Inbox"},
+			[]string{"tenant", suite.user, category.String(), "Inbox"},
 			1)
 		collection = append(collection, mdc)
 	}
