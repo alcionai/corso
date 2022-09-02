@@ -18,8 +18,17 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
+const (
+	email    = "email"
+	contacts = "contacts"
+	events   = "events"
+)
+
+var backupDataSets = []string{email, contacts, events}
+
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
+	dataSet    string
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -38,7 +47,11 @@ func TestRestoreExchangeIntegrationSuite(t *testing.T) {
 		t.Skip(err)
 	}
 
-	suite.Run(t, new(RestoreExchangeIntegrationSuite))
+	for _, set := range backupDataSets {
+		s := new(RestoreExchangeIntegrationSuite)
+		s.dataSet = set
+		suite.Run(t, s)
+	}
 }
 
 func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
@@ -73,7 +86,22 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 	// restoration requires an existing backup
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"}))
+
+	var scopes []selectors.ExchangeScope
+
+	switch suite.dataSet {
+	case email:
+		scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
+
+	case contacts:
+		scopes = sel.ContactFolders([]string{suite.m365UserID}, selectors.Any())
+
+	case events:
+		scopes = sel.EventCalendars([]string{suite.m365UserID}, selectors.Any())
+	}
+
+	sel.Include(scopes)
+
 	suite.backupOp, err = suite.repo.NewBackup(
 		ctx,
 		sel.Selector,

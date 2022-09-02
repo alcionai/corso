@@ -24,12 +24,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
+const (
+	email    = "email"
+	contacts = "contacts"
+	events   = "events"
+)
+
+var backupDataSets = []string{email, contacts, events}
+
 // ---------------------------------------------------------------------------
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
 type BackupExchangeIntegrationSuite struct {
 	suite.Suite
+	dataSet    string
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -47,7 +56,11 @@ func TestBackupExchangeIntegrationSuite(t *testing.T) {
 		t.Skip(err)
 	}
 
-	suite.Run(t, new(BackupExchangeIntegrationSuite))
+	for _, set := range backupDataSets {
+		s := new(BackupExchangeIntegrationSuite)
+		s.dataSet = set
+		suite.Run(t, s)
+	}
 }
 
 func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
@@ -88,7 +101,7 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 		"backup", "create", "exchange",
 		"--config-file", suite.cfgFP,
 		"--user", suite.m365UserID,
-		"--data", "email")
+		"--data", suite.dataSet)
 	cli.BuildCommandTree(cmd)
 
 	recorder := strings.Builder{}
@@ -112,6 +125,7 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 
 type PreparedBackupExchangeIntegrationSuite struct {
 	suite.Suite
+	dataSet    string
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -130,7 +144,11 @@ func TestPreparedBackupExchangeIntegrationSuite(t *testing.T) {
 		t.Skip(err)
 	}
 
-	suite.Run(t, new(PreparedBackupExchangeIntegrationSuite))
+	for _, set := range backupDataSets {
+		s := new(PreparedBackupExchangeIntegrationSuite)
+		s.dataSet = set
+		suite.Run(t, s)
+	}
 }
 
 func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
@@ -162,9 +180,23 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
 	require.NoError(t, err)
 
-	// some tests require an existing backup
+	// switch the backup based on the test dataset
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"}))
+
+	var scopes []selectors.ExchangeScope
+
+	switch suite.dataSet {
+	case email:
+		scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
+
+	case contacts:
+		scopes = sel.ContactFolders([]string{suite.m365UserID}, selectors.Any())
+
+	case events:
+		scopes = sel.EventCalendars([]string{suite.m365UserID}, selectors.Any())
+	}
+
+	sel.Include(scopes)
 
 	suite.backupOp, err = suite.repo.NewBackup(
 		ctx,
