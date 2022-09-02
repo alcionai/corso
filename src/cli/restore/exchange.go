@@ -15,18 +15,27 @@ import (
 
 // exchange bucket info from flags
 var (
-	backupID            string
-	contact             []string
-	contactFolder       []string
+	backupID string
+	user     []string
+
+	contact       []string
+	contactFolder []string
+	contactName   string
+
 	email               []string
 	emailFolder         []string
 	emailReceivedAfter  string
 	emailReceivedBefore string
 	emailSender         string
 	emailSubject        string
-	event               []string
-	eventCalendar       []string
-	user                []string
+
+	event             []string
+	eventCalendar     []string
+	eventOrganizer    string
+	eventRecurs       string
+	eventStartsAfter  string
+	eventStartsBefore string
+	eventSubject      string
 )
 
 // called by restore.go to map parent subcommands to provider-specific handling.
@@ -69,13 +78,13 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"Restore events by calendar ID; accepts "+utils.Wildcard+" to select all event calendars")
 		fs.StringSliceVar(&user, "user", nil, "Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
 
-		// TODO: reveal these flags when their production is supported in GC
-		cobra.CheckErr(fs.MarkHidden("contact"))
-		cobra.CheckErr(fs.MarkHidden("contact-folder"))
-		cobra.CheckErr(fs.MarkHidden("event"))
-		cobra.CheckErr(fs.MarkHidden("event-calendar"))
-
 		// exchange-info flags
+		fs.StringVar(
+			&contactName,
+			"contact-name",
+			"",
+			"Restore contacts where the contact name contains this value",
+		)
 		fs.StringVar(
 			&emailReceivedAfter,
 			"email-received-after",
@@ -88,8 +97,48 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"",
 			"Restore mail where the email was received before this datetime",
 		)
-		fs.StringVar(&emailSender, "email-sender", "", "Restore mail where the email sender matches this user id")
-		fs.StringVar(&emailSubject, "email-subject", "", "Restore mail where the email subject lines contain this value")
+		fs.StringVar(
+			&emailSender,
+			"email-sender",
+			"",
+			"Restore mail where the email sender matches this user id",
+		)
+		fs.StringVar(
+			&emailSubject,
+			"email-subject",
+			"",
+			"Restore mail where the email subject lines contain this value",
+		)
+		fs.StringVar(
+			&eventOrganizer,
+			"event-organizer",
+			"",
+			"Restore events where the event organizer user id contains this value",
+		)
+		fs.StringVar(
+			&eventRecurs,
+			"event-recurs",
+			"",
+			"Restore events if the event recurs.  Use --event-recurs false to select where the event does not recur.",
+		)
+		fs.StringVar(
+			&eventStartsAfter,
+			"event-starts-after",
+			"",
+			"Restore events where the event starts after this datetime",
+		)
+		fs.StringVar(
+			&eventStartsBefore,
+			"event-starts-before",
+			"",
+			"Restore events where the event starts before this datetime",
+		)
+		fs.StringVar(
+			&eventSubject,
+			"event-subject",
+			"",
+			"Restore events where the event subject contains this value",
+		)
 
 		// others
 		options.AddOperationFlags(c)
@@ -155,10 +204,16 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		user)
 	filterExchangeRestoreInfoSelectors(
 		sel,
+		contactName,
 		emailReceivedAfter,
 		emailReceivedBefore,
 		emailSender,
-		emailSubject)
+		emailSubject,
+		eventOrganizer,
+		eventRecurs,
+		eventStartsAfter,
+		eventStartsBefore,
+		eventSubject)
 
 	// if no selector flags were specified, get all data in the service.
 	if len(sel.Scopes()) == 0 {
@@ -244,12 +299,28 @@ func includeExchangeEvents(sel *selectors.ExchangeRestore, users, eventCalendars
 // builds the info-selector filters for `restore exchange`
 func filterExchangeRestoreInfoSelectors(
 	sel *selectors.ExchangeRestore,
-	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject string,
+	contactName,
+	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject,
+	eventOrganizer, eventRecurs, eventStartsAfter, eventStartsBefore, eventSubject string,
 ) {
+	filterExchangeInfoContactName(sel, contactName)
 	filterExchangeInfoMailReceivedAfter(sel, emailReceivedAfter)
 	filterExchangeInfoMailReceivedBefore(sel, emailReceivedBefore)
 	filterExchangeInfoMailSender(sel, emailSender)
 	filterExchangeInfoMailSubject(sel, emailSubject)
+	filterExchangeInfoEventOrganizer(sel, eventOrganizer)
+	filterExchangeInfoEventRecurs(sel, eventRecurs)
+	filterExchangeInfoEventStartsAfter(sel, eventStartsAfter)
+	filterExchangeInfoEventStartsBefore(sel, eventStartsBefore)
+	filterExchangeInfoEventSubject(sel, eventSubject)
+}
+
+func filterExchangeInfoContactName(sel *selectors.ExchangeRestore, name string) {
+	if len(name) == 0 {
+		return
+	}
+
+	sel.Filter(sel.ContactName(name))
 }
 
 func filterExchangeInfoMailReceivedAfter(sel *selectors.ExchangeRestore, receivedAfter string) {
@@ -282,6 +353,46 @@ func filterExchangeInfoMailSubject(sel *selectors.ExchangeRestore, subject strin
 	}
 
 	sel.Filter(sel.MailSubject(subject))
+}
+
+func filterExchangeInfoEventOrganizer(sel *selectors.ExchangeRestore, organizer string) {
+	if len(organizer) == 0 {
+		return
+	}
+
+	sel.Filter(sel.EventOrganizer(organizer))
+}
+
+func filterExchangeInfoEventRecurs(sel *selectors.ExchangeRestore, recurs string) {
+	if len(recurs) == 0 {
+		return
+	}
+
+	sel.Filter(sel.EventRecurs(recurs))
+}
+
+func filterExchangeInfoEventStartsAfter(sel *selectors.ExchangeRestore, startsAfter string) {
+	if len(startsAfter) == 0 {
+		return
+	}
+
+	sel.Filter(sel.EventStartsAfter(startsAfter))
+}
+
+func filterExchangeInfoEventStartsBefore(sel *selectors.ExchangeRestore, startsBefore string) {
+	if len(startsBefore) == 0 {
+		return
+	}
+
+	sel.Filter(sel.EventStartsBefore(startsBefore))
+}
+
+func filterExchangeInfoEventSubject(sel *selectors.ExchangeRestore, subject string) {
+	if len(subject) == 0 {
+		return
+	}
+
+	sel.Filter(sel.EventSubject(subject))
 }
 
 // checks all flags for correctness and interdependencies
