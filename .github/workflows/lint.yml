@@ -6,7 +6,28 @@ on:
     branches: [main]
 
 jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.check.changes }}
+    steps:
+      # only run CI tests if the src folder or workflow actions have changed
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            src:
+              - 'src/**'
+            actions:
+             - '.github/**'
+      - if: steps.changes.outputs.src == 'true' || steps.changes.outputs.actions == 'true'
+        id: check
+        run: echo "::set-output name=changes::true"
+
+jobs:
   Linting:
+    needs: precheck
+    if: needs.precheck.outputs.changes == 'true'
     environment: Testing
     runs-on: ubuntu-latest
     defaults:
