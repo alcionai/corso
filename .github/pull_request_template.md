@@ -14,7 +14,7 @@ Please check the type of change your PR introduces:
 ## Issue(s)
 <!-- Can reference multiple issues. Use one of the following "magic words" - "closes, fixes" to auto-close the Github issue. -->
 
-#<issue>
+* #<issue>
 
 ## Test Plan
 
