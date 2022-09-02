@@ -17,11 +17,10 @@ corso repo connect s3 [flags]
 ### Options
 
 ```
-      --access-key string   Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).
-      --bucket string       Name of the S3 bucket (required).
-      --endpoint string     Server endpoint for S3 communication. (default "s3.amazonaws.com")
-  -h, --help                help for s3
-      --prefix string       Prefix applied to objects in the bucket.
+      --bucket string     Name of the S3 bucket (required).
+      --endpoint string   Server endpoint for S3 communication. (default "s3.amazonaws.com")
+  -h, --help              help for s3
+      --prefix string     Prefix applied to objects in the bucket.
 ```
 
 ### Options inherited from parent commands
