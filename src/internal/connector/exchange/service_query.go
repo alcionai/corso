@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -10,8 +11,6 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/selectors"
 )
 
 // GraphQuery represents functions which perform exchange-specific queries
@@ -124,23 +123,21 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 }
 
 func CollectMailFolders(
-	scope selectors.ExchangeScope,
-	user string,
+	ctx context.Context,
+	qp graph.QueryParams,
 	collections map[string]*Collection,
-	credentials account.M365Config,
-	failFast bool,
 	statusCh chan<- *support.ConnectorOperationStatus,
 ) error {
-	queryService, err := createService(credentials, failFast)
+	queryService, err := createService(qp.Credentials, qp.FailFast)
 	if err != nil {
-		return errors.New("unable to create a mail folder query service for " + user)
+		return errors.New("unable to create a mail folder query service for " + qp.User)
 	}
 
-	query, err := GetAllFolderNamesForUser(queryService, user)
+	query, err := GetAllFolderNamesForUser(queryService, qp.User)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to query mail folder for %s: details: %s",
-			user,
+			qp.User,
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
@@ -155,18 +152,16 @@ func CollectMailFolders(
 	}
 
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
-		user,
-		scope,
+		ctx,
+		qp,
 		err,
-		failFast,
-		credentials,
 		collections,
 		statusCh,
 	)
 
 	iterateFailure := pageIterator.Iterate(callbackFunc)
 	if iterateFailure != nil {
-		err = support.WrapAndAppend(user+" iterate failure", iterateFailure, err)
+		err = support.WrapAndAppend(qp.User+" iterate failure", iterateFailure, err)
 	}
 
 	return err

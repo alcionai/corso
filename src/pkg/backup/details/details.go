@@ -24,6 +24,14 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
+	if print.JSONFormat() {
+		printJSON(ctx, dm)
+	} else {
+		printTable(ctx, dm)
+	}
+}
+
+func printTable(ctx context.Context, dm DetailsModel) {
 	perType := map[itemType][]print.Printable{}
 
 	for _, de := range dm.Entries {
@@ -40,6 +48,16 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 	for _, ps := range perType {
 		print.All(ctx, ps...)
 	}
+}
+
+func printJSON(ctx context.Context, dm DetailsModel) {
+	ents := []print.Printable{}
+
+	for _, ent := range dm.Entries {
+		ents = append(ents, print.Printable(ent))
+	}
+
+	print.All(ctx, ents...)
 }
 
 // Paths returns the list of Paths extracted from the Entries slice.

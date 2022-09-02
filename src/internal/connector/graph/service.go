@@ -1,6 +1,18 @@
 package graph
 
-import msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+import (
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+
+	"github.com/alcionai/corso/pkg/account"
+	"github.com/alcionai/corso/pkg/selectors"
+)
+
+type QueryParams struct {
+	User        string
+	Scope       selectors.ExchangeScope
+	Credentials account.M365Config
+	FailFast    bool
+}
 
 type Service interface {
 	// Client() returns msgraph Service client that can be used to process and execute
