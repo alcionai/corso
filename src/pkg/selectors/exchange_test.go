@@ -777,7 +777,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	)
 
 	var (
-		path = []string{"tid", usr, "mail", fld, mail}
+		path = []string{"tid", usr, "email", fld, mail}
 		es   = NewExchangeRestore()
 	)
 
@@ -843,7 +843,7 @@ func (suite *ExchangeSelectorSuite) TestIdPath() {
 		},
 		{
 			ExchangeMail,
-			[]string{"tid", "uid", "mail", "mFld", "mid"},
+			[]string{"tid", "uid", "email", "mFld", "mid"},
 			map[exchangeCategory]string{
 				ExchangeUser:       "uid",
 				ExchangeMailFolder: "mFld",
@@ -883,7 +883,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	const (
 		contact = "tid/uid/contacts/cfld/cid"
 		event   = "tid/uid/events/ecld/eid"
-		mail    = "tid/uid/mail/mfld/mid"
+		mail    = "tid/uid/email/mfld/mid"
 	)
 
 	arr := func(s ...string) []string {
@@ -1090,7 +1090,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		mail      = setScopesToDefault(es.Mails(Any(), Any(), []string{mid}))
 		otherMail = setScopesToDefault(es.Mails(Any(), Any(), []string{"smarf"}))
 		noMail    = setScopesToDefault(es.Mails(Any(), Any(), None()))
-		path      = []string{"tid", "user", "mail", "folder", mid}
+		path      = []string{"tid", "user", "email", "folder", mid}
 	)
 
 	table := []struct {
@@ -1175,7 +1175,7 @@ func (suite *ExchangeSelectorSuite) TestIsAny() {
 		es           = NewExchangeRestore()
 		anyUser      = setScopesToDefault(es.Users(Any()))
 		noUser       = setScopesToDefault(es.Users(None()))
-		specificMail = setScopesToDefault(es.Mails(Any(), Any(), []string{"mail"}))
+		specificMail = setScopesToDefault(es.Mails(Any(), Any(), []string{"email"}))
 		anyMail      = setScopesToDefault(es.Mails(Any(), Any(), Any()))
 	)
 

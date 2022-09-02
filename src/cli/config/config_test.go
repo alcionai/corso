@@ -235,10 +235,6 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
 	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
 
-	assert.Equal(t, readS3Cfg.AccessKey, os.Getenv(credentials.AWSAccessKeyID))
-	assert.Equal(t, readS3Cfg.SecretKey, os.Getenv(credentials.AWSSecretAccessKey))
-	assert.Equal(t, readS3Cfg.SessionToken, os.Getenv(credentials.AWSSessionToken))
-
 	common, err := st.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")
 	assert.Equal(t, common.CorsoPassword, os.Getenv(credentials.CorsoPassword))
@@ -286,10 +282,6 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
 	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
-
-	assert.Equal(t, readS3Cfg.AccessKey, os.Getenv(credentials.AWSAccessKeyID))
-	assert.Equal(t, readS3Cfg.SecretKey, os.Getenv(credentials.AWSSecretAccessKey))
-	assert.Equal(t, readS3Cfg.SessionToken, os.Getenv(credentials.AWSSessionToken))
 
 	common, err := st.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")

@@ -198,6 +198,23 @@ func (pb Builder) ToDataLayerExchangeMailPath(tenant, user string, isItem bool) 
 	}, nil
 }
 
+func (pb Builder) ToDataLayerExchangePathForCategory(
+	tenant, user string,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	if err := validateServiceAndCategory(ExchangeService, category); err != nil {
+		return nil, err
+	}
+
+	switch category {
+	case EmailCategory:
+		return pb.ToDataLayerExchangeMailPath(tenant, user, isItem)
+	default:
+		return nil, errors.New("not implemented")
+	}
+}
+
 // FromDataLayerPath parses the escaped path p, validates the elements in p
 // match a resource-specific path format, and returns a Path struct for that
 // resource-specific type. If p does not match any resource-specific paths or
@@ -219,7 +236,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, errors.Errorf("path has too few segments: %s", p)
 	}
 
-	service, category, err := validateServiceAndCategory(
+	service, category, err := validateServiceAndCategoryStrings(
 		pb.elements[1],
 		pb.elements[3],
 	)

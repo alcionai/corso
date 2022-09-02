@@ -122,6 +122,54 @@ func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
 	suite.b = path.Builder{}.Append(rest...)
 }
 
+func (suite *PopulatedDataLayerResourcePath) TestToExchangeMailPathForCategory() {
+	table := []struct {
+		category path.CategoryType
+		check    assert.ErrorAssertionFunc
+	}{
+		{
+			category: path.UnknownCategory,
+			check:    assert.Error,
+		},
+		{
+			category: path.CategoryType(-1),
+			check:    assert.Error,
+		},
+		{
+			category: path.EmailCategory,
+			check:    assert.NoError,
+		},
+	}
+
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t1 *testing.T) {
+			for _, test := range table {
+				t1.Run(test.category.String(), func(t *testing.T) {
+					p, err := suite.b.ToDataLayerExchangePathForCategory(
+						testTenant,
+						testUser,
+						test.category,
+						m.isItem,
+					)
+
+					test.check(t, err)
+
+					if err != nil {
+						return
+					}
+
+					assert.Equal(t, testTenant, p.Tenant())
+					assert.Equal(t, path.ExchangeService, p.Service())
+					assert.Equal(t, test.category, p.Category())
+					assert.Equal(t, testUser, p.ResourceOwner())
+					assert.Equal(t, m.expectedFolder, p.Folder())
+					assert.Equal(t, m.expectedItem, p.Item())
+				})
+			}
+		})
+	}
+}
+
 func (suite *PopulatedDataLayerResourcePath) TestTenant() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {

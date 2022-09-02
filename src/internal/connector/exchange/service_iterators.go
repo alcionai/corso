@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/selectors"
 )
 
@@ -33,7 +34,7 @@ type GraphIterateFunc func(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	graphStatusChannel chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool
 
 // IterateSelectAllDescendablesForCollection utility function for
@@ -45,12 +46,12 @@ func IterateSelectAllDescendablesForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
 		isCategorySet  bool
 		collectionType optionIdentifier
-		category       string
+		category       path.CategoryType
 	)
 
 	return func(pageItem any) bool {
@@ -58,12 +59,12 @@ func IterateSelectAllDescendablesForCollections(
 		if !isCategorySet {
 			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
 				collectionType = messages
-				category = mailCategory
+				category = path.EmailCategory
 			}
 
 			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
 				collectionType = contacts
-				category = contactsCategory
+				category = path.ContactsCategory
 			}
 
 			isCategorySet = true
@@ -85,10 +86,10 @@ func IterateSelectAllDescendablesForCollections(
 
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, category, directory},
+				[]string{qp.Credentials.TenantID, qp.User, category.String(), directory},
 				collectionType,
 				service,
-				statusCh,
+				statusUpdater,
 			)
 			collections[directory] = &edc
 		}
@@ -108,7 +109,7 @@ func IterateSelectAllEventsForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	return func(eventItem any) bool {
 		event, ok := eventItem.(models.Eventable)
@@ -167,10 +168,10 @@ func IterateSelectAllEventsForCollections(
 
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, eventsCategory, directory},
+				[]string{qp.Credentials.TenantID, qp.User, path.EventsCategory.String(), directory},
 				events,
 				service,
-				statusCh,
+				statusUpdater,
 			)
 			collections[directory] = &edc
 		}
@@ -189,7 +190,7 @@ func IterateAndFilterMessagesForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var isFilterSet bool
 
@@ -199,7 +200,7 @@ func IterateAndFilterMessagesForCollections(
 				ctx,
 				qp,
 				collections,
-				statusCh,
+				statusUpdater,
 			)
 			if err != nil {
 				errs = support.WrapAndAppend(qp.User, err, errs)
@@ -231,7 +232,7 @@ func IterateFilterFolderDirectoriesForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
 		service graph.Service
@@ -276,10 +277,10 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		temp := NewCollection(
 			qp.User,
-			[]string{qp.Credentials.TenantID, qp.User, mailCategory, directory},
+			[]string{qp.Credentials.TenantID, qp.User, path.EmailCategory.String(), directory},
 			messages,
 			service,
-			statusCh,
+			statusUpdater,
 		)
 		collections[directory] = &temp
 
