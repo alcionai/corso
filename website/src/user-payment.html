@@ -1,0 +1,316 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center-light.html")
+
+        <!-- Start Hero -->
+        <section class="relative lg:pb-24 pb-16">
+            <div class="container-fluid">
+                <div class="profile-banner relative text-transparent">
+                    <input id="pro-banner" name="profile-banner" type="file" class="hidden" onchange="loadFile(event)" />
+                    <div class="relative shrink-0">
+                        <img src="assets/images/blog/bg.jpg" class="h-80 w-full object-cover" id="profile-banner" alt="">
+                        <div class="absolute inset-0 bg-black/70"></div>
+                        <label class="absolute inset-0 cursor-pointer" for="pro-banner"></label>
+                    </div>
+                </div>
+            </div><!--end container-->
+
+            <div class="container lg:mt-24 mt-16">
+                <div class="md:flex">
+                    <div class="lg:w-1/4 md:w-1/3 md:px-3">
+                        <div class="relative md:-mt-48 -mt-32">
+                            <div class="p-6 rounded-md shadow dark:shadow-gray-800 bg-white dark:bg-slate-900">
+                                <div class="profile-pic text-center mb-5">
+                                    <input id="pro-img" name="profile-image" type="file" class="hidden" onchange="loadFile(event)" />
+                                    <div>
+                                        <div class="relative h-28 w-28 mx-auto">
+                                            <img src="assets/images/client/05.jpg" class="rounded-full shadow dark:shadow-gray-800 ring-4 ring-slate-50 dark:ring-slate-800" id="profile-image" alt="">
+                                            <label class="absolute inset-0 cursor-pointer" for="pro-img"></label>
+                                        </div>
+
+                                        <div class="mt-4">
+                                            <h5 class="text-lg font-semibold">Jenny Jimenez</h5>
+                                            <p class="text-slate-400">jennyhot@hotmail.com</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="border-t border-gray-100 dark:border-gray-700">
+                                    <ul class="list-none sidebar-nav mb-0 mt-3" id="navmenu-nav">
+                                        <li class="navbar-item account-menu">
+                                            <a href="user-profile.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-dashboard"></i></span>
+                                                <h6 class="mb-0 font-semibold">Profile</h6>
+                                            </a>
+                                        </li>
+    
+                                        <li class="navbar-item account-menu">
+                                            <a href="user-billing.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-diary-alt"></i></span>
+                                                <h6 class="mb-0 font-semibold">Billing Info</h6>
+                                            </a>
+                                        </li>
+    
+                                        <li class="navbar-item account-menu">
+                                            <a href="user-payment.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-credit-card"></i></span>
+                                                <h6 class="mb-0 font-semibold">Payment</h6>
+                                            </a>
+                                        </li>
+    
+                                        <li class="navbar-item account-menu">
+                                            <a href="user-invoice.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-receipt"></i></span>
+                                                <h6 class="mb-0 font-semibold">Invoice</h6>
+                                            </a>
+                                        </li>
+    
+                                        <li class="navbar-item account-menu">
+                                            <a href="user-social.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-process"></i></span>
+                                                <h6 class="mb-0 font-semibold">Social Profile</h6>
+                                            </a>
+                                        </li>
+    
+                                        <li class="navbar-item account-menu">
+                                            <a href="user-notification.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-bell"></i></span>
+                                                <h6 class="mb-0 font-semibold">Notifications</h6>
+                                            </a>
+                                        </li>
+    
+                                        <li class="navbar-item account-menu">
+                                            <a href="user-setting.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-setting"></i></span>
+                                                <h6 class="mb-0 font-semibold">Settings</h6>
+                                            </a>
+                                        </li>
+    
+                                        <li class="navbar-item account-menu">
+                                            <a href="auth-lock-screen.html" class="navbar-link text-slate-400 flex items-center py-2 rounded">
+                                                <span class="mr-2 text-[18px] mb-0"><i class="uil uil-power"></i></span>
+                                                <h6 class="mb-0 font-semibold">Sign Out</h6>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:w-3/4 md:w-2/3 md:px-3 mt-[30px] md:mt-0">
+                        <div class="rounded-md shadow dark:shadow-gray-800 bg-white dark:bg-slate-900">
+                            <div class="p-6 md:flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <div class="mb-4 md:mb-0">
+                                    <h5 class="text-xl font-semibold">Current Plan</h5>
+                                </div>
+                                <a href="" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Switch to Annual Plan</a>
+                            </div>
+
+                            <div class="p-6">
+                                <h5 class="text-2xl font-bold">$18/Monthly</h5>
+                                <p class="text-slate-400 mt-2">Your next monthly charge of $18 will be applied to your primary payment method on July 20, 2022.</p>
+                            </div>
+                        </div>
+
+                        <div class="rounded-md shadow dark:shadow-gray-800 bg-white dark:bg-slate-900 mt-6">
+                            <div class="p-6 border-b border-gray-100 dark:border-gray-700">
+                                <h5 class="text-xl font-semibold">Payment Methods</h5>
+                                <p class="text-slate-400 mt-2">Primary payment method is used by default</p>
+                            </div>
+
+                            <div class="px-6">
+                                <ul>
+                                    <li class="flex justify-between items-center py-6">
+                                        <div class="flex items-center">
+                                            <img src="assets/images/payments/visa.png" class="rounded shadow dark:shadow-gray-800 w-12" alt="">
+
+                                            <div class="ml-3">
+                                                <p class="font-semibold">Visa ending in 4578</p>
+                                                <p class="text-slate-400 text-sm">Expires in 12/2022</p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <a href="" class="btn btn-icon bg-red-600/5 hover:bg-red-600 border-red-600/10 hover:border-red-600 text-red-600 hover:text-white rounded-full"><i data-feather="trash-2" class="h-4 w-4"></i></a>
+                                        </div>
+                                    </li>
+
+                                    <li class="flex justify-between items-center py-6 border-t border-gray-100 dark:border-gray-700">
+                                        <div class="flex items-center">
+                                            <img src="assets/images/payments/american-ex.png" class="rounded shadow dark:shadow-gray-800 w-12" alt="">
+
+                                            <div class="ml-3">
+                                                <p class="font-semibold">American Express ending in 4578</p>
+                                                <p class="text-slate-400 text-sm">Expires in 12/2022</p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <a href="" class="btn btn-icon bg-red-600/5 hover:bg-red-600 border-red-600/10 hover:border-red-600 text-red-600 hover:text-white rounded-full"><i data-feather="trash-2" class="h-4 w-4"></i></a>
+                                        </div>
+                                    </li>
+
+                                    <li class="flex justify-between items-center py-6 border-t border-gray-100 dark:border-gray-700">
+                                        <div class="flex items-center">
+                                            <img src="assets/images/payments/discover.png" class="rounded shadow dark:shadow-gray-800 w-12" alt="">
+
+                                            <div class="ml-3">
+                                                <p class="font-semibold">Discover ending in 4578</p>
+                                                <p class="text-slate-400 text-sm">Expires in 12/2022</p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <a href="" class="btn btn-icon bg-red-600/5 hover:bg-red-600 border-red-600/10 hover:border-red-600 text-red-600 hover:text-white rounded-full"><i data-feather="trash-2" class="h-4 w-4"></i></a>
+                                        </div>
+                                    </li>
+
+                                    <li class="flex justify-between items-center py-6 border-t border-gray-100 dark:border-gray-700">
+                                        <div class="flex items-center">
+                                            <img src="assets/images/payments/master-card.png" class="rounded shadow dark:shadow-gray-800 w-12" alt="">
+
+                                            <div class="ml-3">
+                                                <p class="font-semibold">Master Card ending in 4578</p>
+                                                <p class="text-slate-400 text-sm">Expires in 12/2022</p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <a href="" class="btn btn-icon bg-red-600/5 hover:bg-red-600 border-red-600/10 hover:border-red-600 text-red-600 hover:text-white rounded-full"><i data-feather="trash-2" class="h-4 w-4"></i></a>
+                                        </div>
+                                    </li>
+
+                                    <li class="py-6 border-t border-gray-100 dark:border-gray-700">
+                                        <a href="#!" data-modal-toggle="paymentMethod" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md">Add Payment Method</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Hero -->
+
+        <!-- Start Modal -->
+        <div id="paymentMethod" tabindex="-1" class="fixed z-50 hidden overflow-hidden inset-0 m-auto">
+            <div class="relative w-full h-auto max-w-md p-4">
+                <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-gray-800">
+                    <div class="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                        <h5 class="text-xl font-semibold">Add Payment Method</h5>
+                        <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-800 dark:hover:text-white" data-modal-toggle="paymentMethod">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>  
+                        </button>
+                    </div>
+                    <div class="p-6 text-center">
+                        <form>
+                            <div class="grid grid-cols-1">
+                                <div class="lg:col-span-6 mb-5">
+                                    <div class="text-left">
+                                        <label for="name" class="font-semibold">Your Name :</label>
+                                        <input name="name" id="name" type="text" class="form-input mt-2" required placeholder="Name :">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid lg:grid-cols-12 lg:gap-6">
+                                <div class="lg:col-span-6 mb-5">
+                                    <div class="text-left">
+                                        <label for="ex_month" class="form-label font-medium">Month :</label>
+                                        <select id="ex_month" class="form-input mt-2">
+                                            <option>Jan</option>
+                                            <option>Feb</option>
+                                            <option>Mar</option>
+                                            <option>Apr</option>
+                                            <option>May</option>
+                                            <option>June</option>
+                                            <option>July</option>
+                                            <option>Aug</option>
+                                            <option>Sep</option>
+                                            <option>Oct</option>
+                                            <option>Nov</option>
+                                            <option>Dec</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="lg:col-span-6 mb-5">
+                                    <div class="text-left">
+                                        <label for="ex_year" class="form-label font-medium">Year :</label>
+                                        <select id="ex_year" class="form-input mt-2">
+                                            <option>2022</option>
+                                            <option>2023</option>
+                                            <option>2024</option>
+                                            <option>2025</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="lg:col-span-6 mb-5">
+                                    <div class="text-left">
+                                        <label for="name" class="font-semibold">Card no. :</label>
+                                        <input name="number" id="card_number" type="number" class="form-input mt-2" required placeholder="number :">
+                                    </div>
+                                </div>
+
+                                <div class="lg:col-span-6 mb-5">
+                                    <div class="text-left">
+                                        <label for="name" class="font-semibold">CVV :</label>
+                                        <input name="number" id="cvv_number" type="number" class="form-input mt-2" required placeholder="number :">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1">
+                                <div class="mb-5">
+                                    <div class="text-left">
+                                        <label for="card_names" class="form-label font-medium">Cards :</label>
+                                        <select id="card_names" class="form-input mt-2">
+                                            <option>Visa</option>
+                                            <option>Ame. Express</option>
+                                            <option>Master</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" id="submit" name="send" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-md justify-center flex items-center">Add Card</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Modal -->
+
+        @@include("partials/footer/footer.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>

@@ -1,0 +1,815 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center.html")
+
+        <!-- Start Hero -->
+        <section class="relative table w-full py-32 lg:py-40 bg-gray-50 dark:bg-slate-800">
+            <div class="container">
+                <div class="grid grid-cols-1 text-center mt-10">
+                    <h3 class="text-3xl leading-normal font-semibold">Widget</h3>
+                </div><!--end grid-->
+            </div><!--end container-->
+            
+            <div class="absolute text-center z-10 bottom-5 right-0 left-0 mx-3">
+                <ul class="breadcrumb tracking-[0.5px] mb-0 inline-block">
+                    <li class="inline breadcrumb-item uppercase text-[13px] font-bold duration-500 ease-in-out hover:text-indigo-600"><a href="index.html">Techwind</a></li>
+                    <li class="inline breadcrumb-item uppercase text-[13px] font-bold duration-500 ease-in-out hover:text-indigo-600"><a href="">Docs</a></li>
+                    <li class="inline breadcrumb-item uppercase text-[13px] font-bold text-indigo-600" aria-current="page">Widget</li>
+                </ul>
+            </div>
+        </section><!--end section-->
+        <div class="relative">
+            <div class="shape absolute right-0 sm:-bottom-px -bottom-[2px] left-0 overflow-hidden z-1 text-white dark:text-slate-900">
+                <svg class="w-full h-auto" viewBox="0 0 2880 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0 48H1437.5H2880V0H2160C1442.5 52 720 0 720 0H0V48Z" fill="currentColor"></path>
+                </svg>
+            </div>
+        </div>
+        <!-- End Hero -->
+
+        <!-- Start Section-->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid grid-cols-1">
+                    <h5 class="text-2xl font-semibold">Features / Services</h5>
+                </div>
+
+                <div class="grid lg:grid-cols-12 md:grid-cols-2 grid-cols-1 gap-[30px] mt-10">
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+                            <div class="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
+                                <i data-feather="monitor" class="h-5 w-5 rotate-45"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="mb-0 text-lg font-medium">Fully Responsive</h4>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group p-6 md:px-4 rounded-lg shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 bg-white dark:bg-slate-900 text-center transition-all duration-500 ease-in-out">
+                            <div
+                                class="w-16 h-16 bg-indigo-600/5 text-indigo-600 rounded-lg text-2xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800 mx-auto">
+                                <i class="uil uil-presentation-line"></i>
+                            </div>
+
+                            <div class="content mt-7">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">Design & Branding</a>
+                                <p class="text-slate-400 mt-3">The most well-known which is said to have originated</p>
+
+                                <div class="mt-5">
+                                    <a href=""
+                                        class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read
+                                        More <i class="uil uil-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+                
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group flex transition-all duration-500 ease-in-out xl:p-3">
+                            <div class="flex align-middle justify-center items-center w-14 h-14 mt-1 bg-indigo-600/5 group-hover:bg-indigo-600 group-hover:text-white text-indigo-600 rounded-full text-2xl shadow-sm dark:shadow-gray-800 transition-all duration-500 ease-in-out">
+                                <i data-feather="user-check" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1 ml-4">
+                                <h4 class="mb-0 text-lg font-medium">W3c Valid Code</h4>
+                                <p class="text-slate-400 mt-3">One disadvantage of Lorum Ipsum is that in Latin frequently than others</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group relative lg:px-10 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                            <div class="relative overflow-hidden text-transparent -m-3">
+                                <i data-feather="hexagon" class="h-32 w-32 fill-indigo-600/5 mx-auto"></i>
+                                <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl transition-all duration-500 ease-in-out text-4xl flex align-middle justify-center items-center">
+                                    <i data-feather="droplet" class="h-8 w-8"></i>
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <a href="" class="text-xl font-medium transition-all duration-500 ease-in-out hover:text-indigo-600">Waterproof</a>
+                                <p class="text-slate-400 transition-all duration-500 ease-in-out mt-3">If the distribution of letters and 'words' is random, the reader will not be distracted from making.</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+                    
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group flex transition-all duration-500 ease-in-out xl:p-3">
+                            <div class="flex align-middle justify-center items-center w-14 h-14 mt-1 bg-indigo-600/5 group-hover:bg-indigo-600 group-hover:text-white border-2 border-indigo-600/20 text-indigo-600 rounded-lg text-2xl shadow-sm dark:shadow-gray-800 transition-all duration-500 ease-in-out">
+                                <i data-feather="user-check" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1 ml-4">
+                                <h4 class="mb-0 text-lg font-medium">Bluetooth Calling</h4>
+                                <p class="text-slate-400 mt-3">One disadvantage of Lorum Ipsum is that in Latin frequently than others</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="px-6 py-10 shadow hover:shadow-md dark:shadow-gray-800 dark:hover:shadow-gray-700 transition duration-500 rounded-2xl bg-white dark:bg-slate-900">
+                            <i data-feather="codesandbox" class="h-12 w-12 stroke-1 text-indigo-600"></i>
+
+                            <div class="content mt-7">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">User Friendly</a>
+                                <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                
+                                <div class="mt-5">
+                                    <a href="page-services.html" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="text-center px-6">
+                            <div class="w-20 h-20 bg-indigo-600/5 text-indigo-600 rounded-xl text-3xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800 mx-auto">
+                                <i class="uil uil-question-circle"></i>
+                            </div>
+
+                            <div class="content mt-7">
+                                <h5 class="text-xl font-semibold">Phone</h5>
+                                <p class="text-slate-400 mt-3">Start working with Techwind that can provide everything</p>
+                                
+                                <div class="mt-5">
+                                    <a href="tel:+152534-468-854" class="text-indigo-600 font-medium">+152 534-468-854</a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group relative p-6 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden text-center">
+                            <div class="relative overflow-hidden text-transparent -m-3">
+                                <i data-feather="hexagon" class="h-24 w-24 fill-indigo-600/5 group-hover:fill-white/10 mx-auto"></i>
+                                <div class="absolute top-2/4 -translate-y-2/4 left-0 right-0 mx-auto text-indigo-600 rounded-xl group-hover:text-white transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                    <i class="uil uil-chart-line"></i>
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <a href="" class="text-lg font-medium group-hover:text-white transition-all duration-500 ease-in-out">Hign Performance</a>
+                                <p class="text-slate-400 group-hover:text-white/50 transition-all duration-500 ease-in-out mt-3">It is a long established fact that a reader.</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="text-center md:px-6">
+                            <div class="w-28 h-28 bg-indigo-600/5 text-indigo-600 rounded-3xl text-4xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800 mx-auto">
+                                <i class="uil uil-airplay"></i>
+                            </div>
+
+                            <div class="content mt-7">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">Digital Marketing</a>
+                                <p class="text-slate-400 mt-3">The phrasal sequence of the Lorem Ipsum text is now so that many</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="px-3 py-10 rounded-md shadow dark:shadow-gray-800 group text-center bg-white dark:bg-slate-900 hover:bg-indigo-600/5 dark:hover:bg-indigo-600/5 transition duration-500 m-2">
+                            <div class="w-[84px] h-[84px] bg-indigo-600/5 group-hover:bg-indigo-600 text-indigo-600 group-hover:text-white rounded-full text-3xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800 transition duration-500 mx-auto">
+                                <i class="uil uil-gitlab"></i>
+                            </div>
+
+                            <div class="content mt-6">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">Business <br> Development</a>
+                                <p class="text-slate-400 mt-3">74 Jobs</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="rounded-md shadow dark:shadow-gray-800">
+                            <div class="p-6">
+                                <a href="page-job-detail.html" class="title h5 text-lg font-semibold hover:text-indigo-600">Software Engineering</a>
+                                <p class="text-slate-400 mt-2"><i class="uil uil-clock text-indigo-600"></i> Posted 3 Days ago</p>
+
+                                <div class="flex justify-between items-center mt-4">
+                                    <span class="bg-indigo-600/5 text-indigo-600 text-xs font-bold px-2.5 py-0.5 rounded h-5">Full Time</span>
+
+                                    <p class="text-slate-400"><i class="uil uil-usd-circle text-indigo-600"></i> $950 - $1100/mo</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center p-6 border-t border-gray-100 dark:border-gray-700">
+                                <img src="assets/images/client/facebook-logo-2019.png" class="h-12 w-12 shadow-md dark:shadow-gray-800 rounded-md p-2 bg-white dark:bg-slate-900" alt="">
+
+                                <div class="ml-3">
+                                    <h6 class="mb-0 font-semibold text-base">Facebook Ltd.</h6>
+                                    <span class="text-slate-400 text-sm">Australia</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group" data-groups='["break"]'>
+                            <img src="assets/images/food/1.jpg" class="rounded-full h-32 w-32 mx-auto group-hover:animate-[spin_10s_linear_infinite]" alt="">
+
+                            <div class="mt-4 text-center">
+                                <a href="" class="text-lg font-medium block hover:text-indigo-600 transition-all duration-500 ease-in-out">Black bean dip</a>
+                                <span class="text-slate-400 mt-2 block">A reader will be distracted by the readable</span>
+
+                                <h5 class="text-indigo-600 font-medium mt-4">$25.00</h5>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group relative p-6 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-all duration-500 ease-in-out rounded-xl bg-white dark:bg-slate-900 overflow-hidden">
+                            <div class="relative overflow-hidden text-transparent -m-3">
+                                <i data-feather="hexagon" class="h-24 w-24 fill-indigo-600/5 group-hover:fill-white/10"></i>
+                                <div class="absolute top-2/4 -translate-y-2/4 left-8 text-indigo-600 rounded-xl group-hover:text-white transition-all duration-500 ease-in-out text-3xl flex align-middle justify-center items-center">
+                                    <i class="uil uil-cloud-heart"></i>
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <a href="" class="text-lg font-medium group-hover:text-white transition-all duration-500 ease-in-out">Domains</a>
+                                <p class="text-slate-400 group-hover:text-white/50 transition-all duration-500 ease-in-out mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <a href="" class="group bg-white dark:bg-slate-900 block rounded-md overflow-hidden relative shadow dark:shadow-gray-800 m-2">
+                            <span class="p-4 block bg-white dark:bg-slate-900 text-center">
+                                <img src="assets/images/hosting/net.jpg" class="rounded-full shadow-md mx-auto h-16 w-16 mb-3" alt="">
+
+                                <span class="text-xl font-medium group-hover:text-amber-500 transition-all duration-500 ease-in-out">.net</span>
+                                <span class="text-slate-400 block">best price in the industry</span>
+                            </span>
+
+                            <span class="p-4 block bg-amber-500 text-center">
+                                <span class="text-white font-medium uppercase block">Sale</span>
+                                <span class="flex justify-center mt-2">
+                                    <span class="text-base text-white/70 font-semibold">$</span>
+                                    <span class="text-lg text-white font-semibold mx-1">3.99</span>
+                                    <span class="text-base text-white/70 font-semibold self-end">/year</span>
+                                </span>
+                            </span>
+                        </a>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group flex items-center relative overflow-hidden p-6 rounded-md shadow dark:shadow-gray-800 bg-gray-50 dark:bg-slate-800 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-all duration-500 ease-in-out">
+                            <span class="text-indigo-600 group-hover:text-white text-5xl font-semibold transition-all duration-500 ease-in-out">
+                                <i class="uil uil-swatchbook"></i>
+                            </span>
+                            <div class="flex-1 ml-3">
+                                <h5 class="group-hover:text-white text-xl font-semibold transition-all duration-500 ease-in-out">Enhance Security</h5>
+                                <p class="text-slate-400 group-hover:text-white/50 transition-all duration-500 ease-in-out mt-2">There are many variations of passages of Lorem Ipsum available</p>
+                            </div>
+                            <div class="absolute left-1 top-5 text-dark/[0.03] dark:text-white/[0.03] text-8xl group-hover:text-white/[0.04] transition-all duration-500 ease-in-out">
+                                <i class="uil uil-swatchbook"></i>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group relative overflow-hidden p-6 rounded-lg shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 bg-white dark:bg-slate-900 text-center transition-all duration-500 ease-in-out border-t-8 border-indigo-600/50">
+                            <img src="assets/images/gym/icon/scale.png" class="w-16 h-16 mx-auto" alt="">
+
+                            <div class="content mt-7">
+                                <h2 class="title text-xl font-semibold">Progression</h2>
+                                <p class="text-slate-400 mt-3">After you decide to start training we will make sure you get the best fitness program. Our sport experts and latest sports equipment are the winning combination.</p>
+                            </div>
+
+                            <div class="hidden group-hover:block">
+                                <div class="absolute inset-0">
+                                    <img src="assets/images/gym/fea01.jpg" alt="">
+                                    <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
+                                </div>
+
+                                <div class="absolute bottom-0 right-0 left-0 mb-6">
+                                    <a href="" class="text-white text-xl font-bold">Progression</a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="text-center p-6 shadow dark:shadow-gray-800 rounded-md">
+                            <img src="assets/images/gym/icon/bench-press.png" class="h-16 w-16 mx-auto" alt="">
+
+                            <div class="content mt-6">
+                                <h5 class="font-semibold text-lg">Deadlift</h5>
+                                <small class="text-slate-400 mb-0">06AM - 07AM</small>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group p-6 rounded-lg shadow dark:shadow-gray-800 bg-white dark:bg-slate-900 hover:-translate-y-2 transition-all duration-500 ease-in-out">
+                            <div
+                                class="w-16 h-16 bg-indigo-600/5 group-hover:bg-indigo-600 group-hover:text-white border-2 border-indigo-600/20 text-indigo-600 rounded-lg text-2xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800 transition-all duration-500 ease-in-out">
+                                <i class="uil uil-presentation-line"></i>
+                            </div>
+
+                            <div class="content mt-7">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">Digital
+                                    Marketing</a>
+                                <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign
+                                    and benefit</p>
+
+                                <div class="mt-5">
+                                    <a href=""
+                                        class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read
+                                        More <i class="uil uil-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="">
+                            <div
+                                class="w-16 h-16 bg-indigo-600/5 text-indigo-600 rounded-lg text-2xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800">
+                                <i class="uil uil-clinic-medical"></i>
+                            </div>
+
+                            <div class="content mt-6">
+                                <h5 class="text-lg font-medium">Emergency Cases</h5>
+                                <p class="text-slate-400 mt-3">This is required when, for example, the is not yet available. Dummy text is also known as 'fill text'.</p>
+
+                                <div class="mt-5">
+                                    <a href=""
+                                        class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read
+                                        More <i class="uil uil-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group text-center">
+                            <i data-feather="pie-chart" class="h-10 w-10 stroke-1 group-hover:stroke-[1.5px] group-hover:text-indigo-600 transition-all duration-500 ease-in-out mx-auto"></i>
+
+                            <div class="mt-6">
+                                <a href="" class="text-xl font-semibold group-hover:text-indigo-600 transition-all duration-500 ease-in-out">Profitable Marketing</a>
+
+                                <p class="text-slate-400 mt-4">We develop digital strategies, products and services appreciated by clients.</p>
+
+                                <div class="mt-4">
+                                    <a href="" class="btn btn-link hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right align-middle"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="p-6 hover:shadow-xl hover:shadow-gray-100 dark:hover:shadow-gray-800 transition duration-500 rounded-2xl mt-6">
+                            <div class="w-20 h-20 bg-indigo-600/5 text-indigo-600 rounded-xl text-3xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800">
+                                <i class="uil uil-airplay"></i>
+                            </div>
+
+                            <div class="content mt-7">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">UX / UI Design</a>
+                                <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                
+                                <div class="mt-5">
+                                    <a href="page-services.html" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="p-6 shadow-xl shadow-gray-100 dark:shadow-gray-800 transition duration-500 rounded-2xl mt-6">
+                            <div class="w-20 h-20 bg-indigo-600/5 text-indigo-600 rounded-xl text-3xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800">
+                                <i class="uil uil-shutter"></i>
+                            </div>
+
+                            <div class="content mt-7">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">IOS App Designer</a>
+                                <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                                
+                                <div class="mt-5">
+                                    <a href="page-services.html" class="btn btn-link text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group flex p-6 md:px-4 rounded-lg shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 bg-white dark:bg-slate-900 transition-all duration-500 ease-in-out">
+                            <div
+                                class="min-w-[64px] h-16 bg-indigo-600/5 text-indigo-600 rounded-lg text-2xl flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800 mx-auto">
+                                <i class="uil uil-presentation-line"></i>
+                            </div>
+
+                            <div class="content ml-4 flex-1">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">Best Financial Advice</a>
+                                <p class="text-slate-400 mt-2">The most well-known which is said to have originated</p>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <!-- Content -->
+                        <div class="group text-center">
+                            <div class="w-20 h-20 bg-indigo-600/5 text-indigo-600 rounded-lg rotate-[15deg] flex align-middle justify-center items-center shadow-sm dark:shadow-gray-800 mx-auto">
+                                <i data-feather="pie-chart" class="w-7 h-7 -rotate-[15deg]"></i>
+                            </div>
+
+                            <div class="mt-8">
+                                <a href="page-services.html" class="title h5 text-lg font-medium hover:text-indigo-600">Profitable Marketing</a>
+
+                                <p class="text-slate-400 mt-4">We develop digital strategies, products and services appreciated by clients.</p>
+
+                                <div class="mt-4">
+                                    <a href="" class="btn btn-link hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right align-middle"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                    </div>
+                </div><!--grid-->
+                
+                <div class="grid grid-cols-1 mt-16">
+                    <h5 class="text-2xl font-semibold">Testimonial</h5>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-[30px] mt-10">
+                    <!-- Content -->
+                    <div class="customer-testi">
+                        <div class="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
+                            <i class="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
+                            <p class="text-slate-400">" It seems that only fragments of the original text remain in the Lorem Ipsum texts used today. "</p>
+                            <ul class="list-none mb-0 text-amber-400 mt-3">
+                                <li class="inline"><i class="mdi mdi-star"></i></li>
+                                <li class="inline"><i class="mdi mdi-star"></i></li>
+                                <li class="inline"><i class="mdi mdi-star"></i></li>
+                                <li class="inline"><i class="mdi mdi-star"></i></li>
+                                <li class="inline"><i class="mdi mdi-star"></i></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="text-center mt-5">
+                            <img src="assets/images/client/01.jpg" class="h-14 w-14 rounded-full shadow-md mx-auto" alt="">
+                            <h6 class="mt-2 font-semibold">Calvin Carlo</h6>
+                            <span class="text-slate-400 text-sm">Manager</span>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="tiny-slide text-center">
+                        <img src="assets/images/client/amazon.svg" class="h-6 mx-auto" alt="">
+                        <p class="text-slate-400 mt-6">" If the distribution of letters and 'words' is random, the reader will not be distracted from making a neutral judgement on the visual impact and readability of the typefaces (typography), or the distribution of text on the page consists of a more or less random series of words or syllables. "</p>
+                        <h6 class="text-indigo-600 font-semibold mt-3">- Thomas Israel</h6>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="client-testi rounded shadow dark:shadow-gray-800 m-2 p-6">
+                        <img src="assets/images/client/amazon.svg" class="h-6 mx-auto" alt="">
+                        <p class="text-slate-400 mt-6">" It seems that only fragments of the original text remain in the Lorem Ipsum texts used today. "</p>
+                        <h6 class="text-indigo-600 font-semibold mt-3">- Thomas Israel</h6>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="lg:flex p-6 lg:p-0 relative rounded-md shadow dark:shadow-gray-800 overflow-hidden m-2">
+                        <img class="w-24 h-24 lg:w-48 lg:h-auto lg:rounded-none rounded-full mx-auto" src="assets/images/client/03.jpg" alt="" width="384" height="512">
+                        <div class="pt-6 lg:p-6 text-center lg:text-left space-y-4">
+                            <p class="text-base text-slate-400"> " One disadvantage of Lorum Ipsum is that in Latin certain letters appear more frequently than others. " </p>
+                            
+                            <div>
+                                <span class="text-indigo-600 block mb-1">Barbara McIntosh</span>
+                                <span class="text-slate-400 text-sm dark:text-white/60 block">Staff Engineer, Algolia</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Content -->
+                </div><!--grid-->
+
+                <div class="grid grid-cols-1 mt-16">
+                    <h5 class="text-2xl font-semibold">Team Member</h5>
+                </div>
+                    
+                
+                <div class="grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-[30px] mt-10">
+                    <!-- Content -->
+                    <div class="group relative rounded-md overflow-hidden shadow text-center">
+                        <img src="assets/images/gym/team1.jpg"  alt="">
+                        <div class="absolute inset-0 group-hover:bg-gradient-to-b group-hover:from-transparent group-hover:to-black transition duration-300 ease-in"></div>
+
+                        <div class="content absolute bottom-0 group-hover:bottom-6 left-0 right-0 transition-all duration-500 opacity-0 group-hover:opacity-100">
+                            <h4 class="text-lg font-medium text-white">Calvin Carlo</h4>
+                            <p class="text-white/50 relative -bottom-5 group-hover:bottom-0 transition-all duration-500">Trainer</p>
+
+                            <ul class="list-none relative -bottom-12 group-hover:bottom-0 transition-all duration-500 mt-4">
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border text-white rounded-md border-indigo-600 bg-indigo-600"><i data-feather="facebook" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border text-white rounded-md border-indigo-600 bg-indigo-600"><i data-feather="instagram" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border text-white rounded-md border-indigo-600 bg-indigo-600"><i data-feather="twitter" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border text-white rounded-md border-indigo-600 bg-indigo-600"><i data-feather="linkedin" class="h-4 w-4"></i></a></li>
+                            </ul><!--end icon-->
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="group text-center">
+                        <div class="relative inline-block mx-auto h-52 w-52 rounded-full overflow-hidden">
+                            <img src="assets/images/client/04.jpg" class="" alt="">
+                            <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black h-52 w-52 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 ease-in-out"></div>
+
+                            <ul class="list-none absolute right-0 left-0 -bottom-20 group-hover:bottom-5 transition-all duration-500 ease-in-out">
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm rounded-full border border-indigo-600 bg-indigo-600 hover:border-indigo-600 hover:bg-indigo-600 text-white"><i data-feather="facebook" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm rounded-full border border-indigo-600 bg-indigo-600 hover:border-indigo-600 hover:bg-indigo-600 text-white"><i data-feather="instagram" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm rounded-full border border-indigo-600 bg-indigo-600 hover:border-indigo-600 hover:bg-indigo-600 text-white"><i data-feather="linkedin" class="h-4 w-4"></i></a></li>
+                            </ul><!--end icon-->
+                        </div>
+
+                        <div class="content mt-3">
+                            <a href="" class="text-lg font-semibold hover:text-indigo-600 transition-all duration-500 ease-in-out">Jack John</a>
+                            <p class="text-slate-400">Designer</p>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="team p-6 rounded-md border border-gray-100 dark:border-gray-700 group bg-white dark:bg-slate-900">
+                        <img src="assets/images/client/01.jpg" class="h-24 w-24 rounded-full shadow-md dark:shadow-gray-800" alt="">
+
+                        <div class="content mt-4">
+                            <a href="" class="text-lg font-medium hover:text-indigo-600 block">Ronny Jofra</a>
+                            <span class="text-slate-400 block">Eye Care Specialist</span>
+
+                            <p class="text-slate-400 mt-4">If the distribution of letters and 'words' is random</p>
+
+                            <ul class="list-none mt-4">
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="facebook" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="instagram" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="twitter" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="linkedin" class="h-4 w-4"></i></a></li>
+                            </ul><!--end icon-->
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <div class="team p-6 rounded-md shadow-md dark:shadow-gray-800 dark:border-gray-700 bg-white dark:bg-slate-900 relative">
+                        <div class="absolute inset-0 bg-indigo-600/10 dark:bg-indigo-600/30 rounded-md -mt-[10px] -ml-[10px] h-[98%] w-[98%] -z-1"></div>
+                        <img src="assets/images/client/01.jpg" class="h-24 w-24 rounded-full shadow-md dark:shadow-gray-800" alt="">
+
+                        <div class="content mt-4">
+                            <a href="" class="text-lg font-medium hover:text-indigo-600 block">Ronny Jofra</a>
+                            <span class="text-slate-400 block">C.E.O.</span>
+
+                            <p class="text-slate-400 mt-4">If the distribution of letters and 'words' is random</p>
+
+                            <ul class="list-none mt-4">
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="facebook" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="instagram" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="twitter" class="h-4 w-4"></i></a></li>
+                                <li class="inline"><a href="" class="btn btn-icon btn-sm border border-gray-100 dark:border-gray-800 rounded-md hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"><i data-feather="linkedin" class="h-4 w-4"></i></a></li>
+                            </ul><!--end icon-->
+                        </div>
+                    </div>
+                    <!-- Content -->
+                </div><!--grid-->
+                
+                
+                <div class="grid grid-cols-1 mt-16">
+                    <h5 class="text-2xl font-semibold">Portfolios</h5>
+                </div>
+                
+                <div class="grid lg:grid-cols-4 md:grid-cols-2 gap-[30px] mt-10">
+                    <!-- Content -->
+                    <div class="">
+                        <div class="relative">
+                            <div class="shadow dark:shadow-gray-800 p-5 pb-0 rounded-md bg-indigo-600/5 dark:bg-indigo-600/30">
+                                <img src="assets/images/portfolio/pro1.jpg" class="rounded-t-md shadow" alt="">
+                            </div>
+                        </div>
+
+                        <div class="pt-4 px-3">
+                            <h5 class="mb-1 font-semibold text-lg"><a href="https://1.envato.market/techwind" target="_blank" class="hover:text-indigo-600 transition-all duration-500 ease-in-out">Techwind Personal Portfolio</a></h5>
+                            <span class="text-slate-400">Creative</span>
+                        </div>                            
+                    </div>
+
+                    <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                        <img src="assets/images/portfolio/1.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                        <div class="absolute inset-0 group-hover:bg-dark opacity-50 transition duration-500 z-0"></div>
+
+                        <div class="content">
+                            <div class="icon absolute z-10 hidden group-hover:block top-4 right-4 transition-all duration-500">
+                                <a href="assets/images/portfolio/1.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                            </div>
+
+                            <div class="title absolute z-10 hidden group-hover:block bottom-4 left-4">
+                                <a href="portfolio-detail-one.html" class="h6 text-md font-medium text-white hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                <p class="text-slate-100 tag mb-0">Abstract</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                        <a href="assets/images/portfolio/2.jpg" class="lightbox transition-all duration-500 group-hover:scale-105" title="">
+                            <img src="assets/images/portfolio/2.jpg" class="" alt="work-image">
+                        </a>
+                        <div class="absolute -bottom-52 group-hover:bottom-2 right-2 left-2 transition-all duration-500 bg-white dark:bg-slate-900 p-4 rounded shadow dark:shadow-gray-800">
+                            <a href="portfolio-detail-two.html" class="hover:text-indigo-600 text-lg transition duration-500 font-medium">Iphone mockup</a>
+                            <h6 class="text-slate-400">Branding</h6>
+                        </div>
+                    </div>
+
+                    <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                        <img src="assets/images/portfolio/1.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                        <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                        <div class="content transition-all duration-500">
+                            <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                <a href="assets/images/portfolio/1.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                            </div>
+
+                            <div class="title absolute z-10 hidden group-hover:block bottom-6 left-6">
+                                <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                <p class="text-slate-400 mb-0">Abstract</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                        <a href="portfolio-detail-one.html"><img src="assets/images/portfolio/01.jpg" class="rounded-md" alt=""></a>
+                        <div class="content pt-3">
+                            <h5 class="mb-1"><a href="portfolio-detail-one.html" class="hover:text-indigo-600 transition-all duration-500 font-semibold">Iphone mockup</a></h5>
+                            <h6 class="text-slate-400">Branding</h6>
+                        </div>
+                    </div>
+
+                    <div class="group relative block overflow-hidden rounded-md transition-all duration-700 ease-in-out">
+                        <div class="relative bg-indigo-600 overflow-hidden rounded-md">
+                            <a href="assets/images/portfolio/1.jpg" class="lightbox transition-all duration-700 ease-in-out group-hover:p-[10px]" title="">
+                                <img src="assets/images/portfolio/1.jpg" class="rounded-md" alt="">
+                            </a>
+                        </div>
+                        <div class="content transition-all duration-700 ease-in-out">
+                            <div class="bg-white dark:bg-slate-900 p-3 rounded-md absolute z-10 bottom-5 left-5 transition-all duration-700 ease-in-out scale-0 group-hover:scale-100">
+                                <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                <p class="text-slate-400 mb-0">Abstract</p>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--grid-->
+                
+
+                <div class="grid grid-cols-1 mt-16">
+                    <h5 class="text-2xl font-semibold">Blog</h5>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-[30px] mt-10">
+                    <!-- Content -->
+                    <div class="blog relative rounded-md shadow dark:shadow-gray-800 overflow-hidden">
+                        <img src="assets/images/blog/01.jpg" alt="">
+
+                        <div class="content p-6">
+                            <a href="blog-detail.html" class="title h5 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Design your apps in your own way</a>
+                            <p class="text-slate-400 mt-3">The phrasal sequence of the is now so that many campaign and benefit</p>
+                            
+                            <div class="mt-4">
+                                <a href="blog-detail.html" class="btn btn-link font-normal hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out">Read More <i class="uil uil-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div><!--grid-->
+
+                <div class="grid grid-cols-1 mt-16">
+                    <h5 class="text-2xl font-semibold">Job Candidate / Company</h5>
+                </div>
+
+                <div class="grid lg:grid-cols-3 md:grid-cols-2 gap-[30px] mt-10">
+                    <!-- Content -->
+                    <div class="group relative p-6 rounded-md shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 bg-white dark:bg-slate-900 transition duration-500 text-center h-fit">
+                        <div class="mt-8">
+                            <img src="assets/images/client/01.jpg" class="rounded-full shadow-md h-20 w-20 mx-auto block" alt="">
+
+                            <div class="mt-3">
+                                <a href="page-job-candidate-detail.html" class="text-lg font-medium hover:text-indigo-600 transition duration-500 block">Calvin Carlo</a>
+                                <span class="block text-sm text-slate-400">Web Designer</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-around my-4">
+                            <span class="text-slate-400"><i class="uil uil-map-marker text-indigo-600 mr-1"></i>London</span>
+                            <span class="text-slate-400"><i class="uil uil-dollar-sign text-indigo-600 mr-1"></i>3300/mo</span>
+                        </div>
+
+                        <a href="" class="bg-gray-100 dark:bg-gray-800 text-slate-400 text-xs font-medium px-3 py-1 rounded-lg h-[24px] inline-block m-1">PHP</a>
+                        <a href="" class="bg-gray-100 dark:bg-gray-800 text-slate-400 text-xs font-medium px-3 py-1 rounded-lg h-[24px] inline-block m-1">HTML</a>
+                        <a href="" class="bg-gray-100 dark:bg-gray-800 text-slate-400 text-xs font-medium px-3 py-1 rounded-lg h-[24px] inline-block m-1">CSS</a>
+                        <a href="" class="bg-gray-100 dark:bg-gray-800 text-slate-400 text-xs font-medium px-3 py-1 rounded-lg h-[24px] inline-block m-1">WordPress</a>
+
+                        <div class="mt-4">
+                            <a href="page-job-candidate-detail.html" class="btn bg-indigo-600/5 hover:bg-indigo-600 border-indigo-600/10 hover:border-indigo-600 text-indigo-600 hover:text-white rounded-md w-full">View Profile</a>
+                        </div>
+
+                        <div class="absolute top-6 left-6">
+                            <span class="bg-indigo-600/5 text-indigo-600 text-sm font-medium px-4 py-1 rounded-full h-[28px]">Featured</span>
+                        </div>
+                        <div class="absolute top-6 right-6">
+                            <a href="" class="btn btn-icon btn-sm bg-gray-50 hover:bg-gray-200 dark:bg-slate-900 dark:hover:bg-gray-700 hover:border-gray-100 dark:border-gray-700 dark:hover:border-gray-700 rounded-full"><i class="uil uil-bookmark"></i></a>
+                        </div>
+                    </div>
+                    <!-- Content -->
+
+                    <!-- Content -->
+                    <a href="page-job-company-detail.html" class="group bg-white dark:bg-slate-900 p-6 rounded shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 border-4 border-white dark:border-slate-900 hover:border-b-indigo-600 dark:hover:border-b-indigo-600 text-center transition duration-500 h-fit">
+                        <img src="assets/images/client/circle-logo.png" class="h-16 w-16 mx-auto p-3 rounded-full bg-gray-50 dark:bg-slate-800 shadow-md dark:shadow-gray-800" alt="">
+
+                        <div class="content mt-3">
+                            <span class="text-lg font-semibold group-hover:text-indigo-600 transition duration-500 block">CircleCI</span>
+
+                            <span class="text-base text-slate-400 block"><i class="uil uil-map-marker text-indigo-600 mr-1"></i> U.S.A.</span>
+                        </div>
+                    </a>
+                    <!-- Content -->
+                </div>
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Section-->
+
+        @@include("partials/footer/footer.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>
