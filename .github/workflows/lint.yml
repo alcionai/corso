@@ -2,8 +2,17 @@ name: Lint
 on:
   push:
     branches: [main]
+    paths:
+      - '/src/**'
+      - '/.github/**'
   pull_request:
     branches: [main]
+    paths:
+      - '/src/**'
+      - '/.github/**'
+
+permissions:
+  contents: read
 
 jobs:
   Linting:
@@ -13,7 +22,8 @@ jobs:
       run:
         working-directory: src
     steps:
-      - name: Checkout src code
+
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       # Get values for cache paths to be used in later steps

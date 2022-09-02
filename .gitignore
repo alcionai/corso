@@ -13,6 +13,7 @@
 
 # IDE
 .vscode
+*.swp
 
 # Standard configuration file names
 .corso_test.toml
