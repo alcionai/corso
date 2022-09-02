@@ -43,7 +43,10 @@ func TestOneDriveCollectionSuite(t *testing.T) {
 }
 
 // Returns a status update function that signals the specified WaitGroup when it is done
-func (suite *OneDriveCollectionSuite) testStatusUpdater(wg *sync.WaitGroup, statusToUpdate *support.ConnectorOperationStatus) support.StatusUpdater {
+func (suite *OneDriveCollectionSuite) testStatusUpdater(
+	wg *sync.WaitGroup,
+	statusToUpdate *support.ConnectorOperationStatus,
+) support.StatusUpdater {
 	return func(s *support.ConnectorOperationStatus) {
 		suite.T().Logf("Update status %v, count %d, success %d", s, s.ObjectCount, s.Successful)
 		*statusToUpdate = *s
