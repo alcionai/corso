@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -93,29 +94,39 @@ func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
 	assert.NotNil(suite.T(), dc)
 }
 
+func statusTestTask(gc *GraphConnector, objects, success, folder int) {
+	status := support.CreateStatus(
+		context.Background(),
+		support.Restore,
+		objects, success, folder,
+		support.WrapAndAppend(
+			"tres",
+			errors.New("three"),
+			support.WrapAndAppend("arc376", errors.New("one"), errors.New("two")),
+		),
+	)
+	gc.UpdateStatus(status)
+}
+
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
-	gc := GraphConnector{
-		statusCh: make(chan *support.ConnectorOperationStatus),
-	}
-	suite.Equal(len(gc.PrintableStatus()), 0)
+	gc := GraphConnector{wg: &sync.WaitGroup{}}
+
+	// Two tasks
+	gc.incrementAwaitingMessages()
 	gc.incrementAwaitingMessages()
 
-	go func() {
-		status := support.CreateStatus(
-			context.Background(),
-			support.Restore,
-			12, 9, 8,
-			support.WrapAndAppend(
-				"tres",
-				errors.New("three"),
-				support.WrapAndAppend("arc376", errors.New("one"), errors.New("two")),
-			),
-		)
-		gc.statusCh <- status
-	}()
+	// Each helper task processes 4 objects, 1 success, 3 errors, 1 folders
+	go statusTestTask(&gc, 4, 1, 1)
+	go statusTestTask(&gc, 4, 1, 1)
+
 	gc.AwaitStatus()
-	suite.Greater(len(gc.PrintableStatus()), 0)
-	suite.Greater(gc.Status().ObjectCount, 0)
+	suite.NotEmpty(gc.PrintableStatus())
+	// Expect 8 objects
+	suite.Equal(8, gc.Status().ObjectCount)
+	// Expect 2 success
+	suite.Equal(2, gc.Status().Successful)
+	// Expect 2 folders
+	suite.Equal(2, gc.Status().FolderCount)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {

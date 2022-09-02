@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/connector/graph"
+	"github.com/alcionai/corso/internal/connector/support"
 	"github.com/alcionai/corso/internal/data"
 )
 
@@ -40,9 +42,23 @@ func TestOneDriveCollectionSuite(t *testing.T) {
 	suite.Run(t, new(OneDriveCollectionSuite))
 }
 
+// Returns a status update function that signals the specified WaitGroup when it is done
+func (suite *OneDriveCollectionSuite) testStatusUpdater(
+	wg *sync.WaitGroup,
+	statusToUpdate *support.ConnectorOperationStatus,
+) support.StatusUpdater {
+	return func(s *support.ConnectorOperationStatus) {
+		suite.T().Logf("Update status %v, count %d, success %d", s, s.ObjectCount, s.Successful)
+		*statusToUpdate = *s
+		wg.Done()
+	}
+}
+
 func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
+	wg := sync.WaitGroup{}
+	collStatus := support.ConnectorOperationStatus{}
 	folderPath := "dir1/dir2/dir3"
-	coll := NewCollection(folderPath, "fakeDriveID", suite, nil)
+	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
 	require.NotNil(suite.T(), coll)
 	assert.Equal(suite.T(), filepath.SplitList(folderPath), coll.FullPath())
 
@@ -58,13 +74,16 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	}
 
 	// Read items from the collection
+	wg.Add(1)
 	readItems := []data.Stream{}
 	for item := range coll.Items() {
 		readItems = append(readItems, item)
 	}
-
+	wg.Wait()
 	// Expect only 1 item
 	require.Len(suite.T(), readItems, 1)
+	require.Equal(suite.T(), 1, collStatus.ObjectCount)
+	require.Equal(suite.T(), 1, collStatus.Successful)
 
 	// Validate item info and data
 	readItem := readItems[0]
@@ -82,7 +101,11 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 }
 
 func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
-	coll := NewCollection("folderPath", "fakeDriveID", suite, nil)
+	wg := sync.WaitGroup{}
+	collStatus := support.ConnectorOperationStatus{}
+	wg.Add(1)
+
+	coll := NewCollection("folderPath", "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
 	coll.Add("testItemID")
 
 	readError := errors.New("Test error")
@@ -91,6 +114,9 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 		return "", nil, readError
 	}
 
+	coll.Items()
+	wg.Wait()
 	// Expect no items
-	require.Len(suite.T(), coll.Items(), 0)
+	require.Equal(suite.T(), 1, collStatus.ObjectCount)
+	require.Equal(suite.T(), 0, collStatus.Successful)
 }
