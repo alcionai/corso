@@ -198,6 +198,26 @@ func (pb Builder) ToDataLayerExchangeMailPath(tenant, user string, isItem bool) 
 	}, nil
 }
 
+func (pb Builder) ToDataLayerExchangePathForCategory(
+	tenant, user string,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	if _, _, err := validateServiceAndCategory(
+		ExchangeService.String(),
+		category.String(),
+	); err != nil {
+		return nil, err
+	}
+
+	switch category {
+	case EmailCategory:
+		return pb.ToDataLayerExchangeMailPath(tenant, user, isItem)
+	default:
+		return nil, errors.New("not implemented")
+	}
+}
+
 // FromDataLayerPath parses the escaped path p, validates the elements in p
 // match a resource-specific path format, and returns a Path struct for that
 // resource-specific type. If p does not match any resource-specific paths or
