@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -12,6 +13,8 @@ import (
 	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/selectors"
 )
+
+var errNilResolver = errors.New("nil resolver")
 
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a "parent folder".
@@ -36,6 +39,71 @@ type GraphIterateFunc func(
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool
+
+// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
+// this category of data. If one is not available, returns nil so that other
+// logic in the caller can complete as long as they check if the resolver is not
+// nil. If an error occurs populating the resolver, returns an error.
+func maybeGetAndPopulateFolderResolver(
+	ctx context.Context,
+	qp graph.QueryParams,
+	category path.CategoryType,
+) (graph.ContainerResolver, error) {
+	var res graph.ContainerResolver
+
+	switch category {
+	case path.EmailCategory:
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			return nil, err
+		}
+
+		res = &mailFolderCache{
+			userID: qp.User,
+			gs:     service,
+		}
+
+	default:
+		return nil, nil
+	}
+
+	if err := res.Populate(ctx); err != nil {
+		return nil, errors.Wrap(err, "populating directory resolver")
+	}
+
+	return res, nil
+}
+
+func resolveCollectionPath(
+	ctx context.Context,
+	resolver graph.ContainerResolver,
+	tenantID, user, folderID string,
+	category path.CategoryType,
+) ([]string, error) {
+	if resolver == nil {
+		// Allows caller to default to old-style path.
+		return nil, errors.WithStack(errNilResolver)
+	}
+
+	p, err := resolver.IDToPath(ctx, folderID)
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving folder ID")
+	}
+
+	fullPath, err := p.ToDataLayerExchangePathForCategory(
+		tenantID,
+		user,
+		category,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "converting to canonical path")
+	}
+
+	// TODO(ashmrtn): This can return the path directly when Collections take
+	// path.Path.
+	return strings.Split(fullPath.String(), "/"), nil
+}
 
 // IterateSelectAllDescendablesForCollection utility function for
 // Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
