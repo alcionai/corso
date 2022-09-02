@@ -203,10 +203,7 @@ func (pb Builder) ToDataLayerExchangePathForCategory(
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if _, _, err := validateServiceAndCategory(
-		ExchangeService.String(),
-		category.String(),
-	); err != nil {
+	if err := validateServiceAndCategory(ExchangeService, category); err != nil {
 		return nil, err
 	}
 
@@ -239,7 +236,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, errors.Errorf("path has too few segments: %s", p)
 	}
 
-	service, category, err := validateServiceAndCategory(
+	service, category, err := validateServiceAndCategoryStrings(
 		pb.elements[1],
 		pb.elements[3],
 	)
