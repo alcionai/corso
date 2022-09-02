@@ -50,7 +50,7 @@ type Collection struct {
 	service graph.Service
 
 	collectionType optionIdentifier
-	statusCh       chan<- *support.ConnectorOperationStatus
+	statusUpdater  support.StatusUpdater
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath []string
@@ -62,14 +62,14 @@ func NewCollection(
 	fullPath []string,
 	collectionType optionIdentifier,
 	service graph.Service,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) Collection {
 	collection := Collection{
 		user:           user,
 		data:           make(chan data.Stream, collectionChannelBufferSize),
 		jobs:           make([]string, 0),
 		service:        service,
-		statusCh:       statusCh,
+		statusUpdater:  statusUpdater,
 		fullPath:       fullPath,
 		collectionType: collectionType,
 	}
@@ -169,7 +169,7 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, errs e
 	attempted := len(col.jobs)
 	status := support.CreateStatus(ctx, support.Backup, attempted, success, 1, errs)
 	logger.Ctx(ctx).Debug(status.String())
-	col.statusCh <- status
+	col.statusUpdater(status)
 }
 
 // GraphSerializeFunc are class of functions that are used by Collections to transform GraphRetrievalFunc
