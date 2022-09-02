@@ -2,6 +2,9 @@ name: Document Generation
 on:
   push:
     branches: [main]
+    paths:
+      - '/src/**'
+      - '/.github/**'
 
 permissions:
   contents: write
@@ -9,39 +12,14 @@ permissions:
   deployments: write
 
 jobs:
-  checkout:
-    runs-on: ubuntu-latest
-      steps:
-        # check out the repo
-        - name: Repo Code Checkout
-          uses: actions/checkout@v3
-          with:
-            ref: ${{ github.event.pull_request.head.ref }}
-
-  precheck:
-    needs: checkout
-    runs-on: ubuntu-latest
-    outputs:
-      changes: ${{ steps.check.changes }}
-    steps:
-      # only run CI tests if the src folder or workflow actions have changed
-      - uses: dorny/paths-filter@v2
-        id: changes
-        with:
-          filters: |
-            src:
-              - 'src/**'
-            actions:
-             - '.github/**'
-      - if: steps.changes.outputs.src == 'true' || steps.changes.outputs.actions == 'true'
-        id: check
-        run: echo "::set-output name=changes::true"
-
   Generate-Markdown:
-    needs: precheck
-    if: needs.precheck.outputs.changes == 'true'
     runs-on: ubuntu-latest
     steps:
+
+      - name: Repo Code Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
 
       # Get values for cache paths to be used in later steps
       - id: go-cache-paths
