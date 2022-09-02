@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/internal/tester"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
@@ -457,37 +458,37 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	tests := []struct {
 		name        string
-		option      string
+		option      path.CategoryType
 		checkError  assert.ErrorAssertionFunc
 		cleanupFunc func(graph.Service, string, string) error
 	}{
 		{
 			name:        "Establish User Restore Folder",
-			option:      "users",
+			option:      path.CategoryType(-1),
 			checkError:  assert.Error,
 			cleanupFunc: nil,
 		},
 		{
 			name:        "Establish Event Restore Location",
-			option:      "events",
+			option:      path.EventsCategory,
 			checkError:  assert.NoError,
 			cleanupFunc: DeleteCalendar,
 		},
 		{
 			name:        "Establish Restore Folder for Unknown",
-			option:      "unknown",
+			option:      path.UnknownCategory,
 			checkError:  assert.Error,
 			cleanupFunc: nil,
 		},
 		{
 			name:        "Establish Restore folder for Mail",
-			option:      "mail",
+			option:      path.EmailCategory,
 			checkError:  assert.NoError,
 			cleanupFunc: DeleteMailFolder,
 		},
 		{
 			name:        "Establish Restore folder for Contacts",
-			option:      "contacts",
+			option:      path.ContactsCategory,
 			checkError:  assert.NoError,
 			cleanupFunc: DeleteContactFolder,
 		},

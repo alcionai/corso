@@ -33,7 +33,7 @@ const (
 	EventsCategory                // events
 )
 
-func toCategoryType(category string) CategoryType {
+func ToCategoryType(category string) CategoryType {
 	switch category {
 	case EmailCategory.String():
 		return EmailCategory
@@ -59,7 +59,7 @@ func validateServiceAndCategory(s, c string) (ServiceType, CategoryType, error) 
 	// Validity of service checked on first-level lookup to serviceCategories.
 	service := toServiceType(s)
 
-	category := toCategoryType(c)
+	category := ToCategoryType(c)
 	if category == UnknownCategory {
 		return UnknownService, UnknownCategory, errors.Errorf("unknown category string %q", c)
 	}

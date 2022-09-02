@@ -566,7 +566,7 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		deets.Entries = append(
 			deets.Entries,
 			details.DetailsEntry{
-				RepoRef: fmt.Sprintf("exchange/user1/mail/inbox/mail%v", i),
+				RepoRef: fmt.Sprintf("exchange/user1/email/inbox/mail%v", i),
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
 						Sender:  "John Doe",
