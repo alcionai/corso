@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
@@ -680,10 +681,10 @@ func (s exchange) Reduce(deets *details.Details) *details.Details {
 	return reduce[ExchangeScope](
 		deets,
 		s.Selector,
-		map[pathType]exchangeCategory{
-			exchangeContactPath: ExchangeContact,
-			exchangeEventPath:   ExchangeEvent,
-			exchangeMailPath:    ExchangeMail,
+		map[path.CategoryType]exchangeCategory{
+			path.ContactsCategory: ExchangeContact,
+			path.EventsCategory:   ExchangeEvent,
+			path.EmailCategory:    ExchangeMail,
 		},
 	)
 }
