@@ -8,7 +8,14 @@ permissions:
   packages: write
 
 jobs:
+  checkout:
+    runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v3
+
   precheck:
+    needs: checkout
     runs-on: ubuntu-latest
     outputs:
       changes: ${{ steps.check.changes }}
@@ -26,7 +33,6 @@ jobs:
         id: check
         run: echo "::set-output name=changes::true"
 
-jobs:
   Per-SHA-Image:
     needs: precheck
     if: needs.precheck.outputs.changes == 'true'
@@ -37,8 +43,6 @@ jobs:
     env:
       PLATFORMS: linux/amd64,linux/arm64
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
       - name: Build Corso Binaries
         run: >

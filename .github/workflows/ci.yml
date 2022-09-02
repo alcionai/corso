@@ -12,7 +12,14 @@ permissions:
   contents: read
 
 jobs:
+  checkout:
+    runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v3
+
   precheck:
+    needs: checkout
     runs-on: ubuntu-latest
     outputs:
       changes: ${{ steps.check.changes }}
@@ -39,9 +46,6 @@ jobs:
       run:
         working-directory: src
     steps:
-
-      - name: Repo Code Checkout
-        uses: actions/checkout@v3
 
       # Get values for cache paths to be used in later steps
       - id: go-cache-paths

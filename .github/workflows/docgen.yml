@@ -9,7 +9,17 @@ permissions:
   deployments: write
 
 jobs:
+  checkout:
+    runs-on: ubuntu-latest
+      steps:
+        # check out the repo
+        - name: Repo Code Checkout
+          uses: actions/checkout@v3
+          with:
+            ref: ${{ github.event.pull_request.head.ref }}
+
   precheck:
+    needs: checkout
     runs-on: ubuntu-latest
     outputs:
       changes: ${{ steps.check.changes }}
@@ -27,19 +37,11 @@ jobs:
         id: check
         run: echo "::set-output name=changes::true"
 
-jobs:
   Generate-Markdown:
     needs: precheck
     if: needs.precheck.outputs.changes == 'true'
     runs-on: ubuntu-latest
     steps:
-
-      # check out the repo
-      - name: Repo Code Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          # persist-credentials: false
 
       # Get values for cache paths to be used in later steps
       - id: go-cache-paths
