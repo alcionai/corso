@@ -77,8 +77,6 @@ func IterateSelectAllDescendablesForCollections(
 		}
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
-		dirPath := []string{qp.Credentials.TenantID, qp.User, category.String(), directory}
-
 		if _, ok = collections[directory]; !ok {
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
