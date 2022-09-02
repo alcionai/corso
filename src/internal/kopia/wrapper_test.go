@@ -27,7 +27,7 @@ import (
 const (
 	testTenant     = "a-tenant"
 	testUser       = "user1"
-	testEmailDir   = "mail"
+	testEmailDir   = "email"
 	testInboxDir   = "inbox"
 	testArchiveDir = "archive"
 	testFileName   = "file1"

@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/internal/common"
 	"github.com/alcionai/corso/internal/connector/graph"
 	"github.com/alcionai/corso/internal/connector/support"
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/control"
 	"github.com/alcionai/corso/pkg/logger"
@@ -302,7 +303,8 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 // that defines the application the folder is created in.
 func GetRestoreContainer(
 	service graph.Service,
-	user, category string,
+	user string,
+	category path.CategoryType,
 ) (string, error) {
 	name := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	option := categoryToOptionIdentifier(category)
@@ -346,7 +348,7 @@ func GetRestoreContainer(
 func RestoreExchangeObject(
 	ctx context.Context,
 	bits []byte,
-	category string,
+	category path.CategoryType,
 	policy control.CollisionPolicy,
 	service graph.Service,
 	destination, user string,
@@ -354,7 +356,7 @@ func RestoreExchangeObject(
 	var setting optionIdentifier
 
 	switch category {
-	case mailCategory, contactsCategory:
+	case path.EmailCategory, path.ContactsCategory:
 		setting = categoryToOptionIdentifier(category)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)

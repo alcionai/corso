@@ -243,7 +243,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 func (suite *SelectorScopesSuite) TestPathTypeIn() {
 	t := suite.T()
 	assert.Equal(t, unknownPathType, pathTypeIn([]string{}), "empty")
-	assert.Equal(t, exchangeMailPath, pathTypeIn([]string{"", "", "mail"}), "mail")
+	assert.Equal(t, exchangeMailPath, pathTypeIn([]string{"", "", "email"}), "email")
 	assert.Equal(t, exchangeContactPath, pathTypeIn([]string{"", "", "contacts"}), "contact")
 	assert.Equal(t, exchangeEventPath, pathTypeIn([]string{"", "", "events"}), "event")
 	assert.Equal(t, unknownPathType, pathTypeIn([]string{"", "", "fnords"}), "bogus")

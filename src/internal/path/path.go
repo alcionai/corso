@@ -176,11 +176,11 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	return res
 }
 
-// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail folder
+// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail folder or item
 // resource with information useful to the data layer. This includes prefix
 // elements of the path such as the tenant ID, user ID, service, and service
 // category.
-func (pb Builder) ToDataLayerExchangeMailFolder(tenant, user string) (Path, error) {
+func (pb Builder) ToDataLayerExchangeMailPath(tenant, user string, isItem bool) (Path, error) {
 	if err := pb.verifyPrefix(tenant, user); err != nil {
 		return nil, err
 	}
@@ -194,29 +194,25 @@ func (pb Builder) ToDataLayerExchangeMailFolder(tenant, user string) (Path, erro
 		),
 		service:  ExchangeService,
 		category: EmailCategory,
+		hasItem:  isItem,
 	}, nil
 }
 
-// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail item
-// resource with information useful to the data layer. This includes prefix
-// elements of the path such as the tenant ID, user ID, service, and service
-// category.
-func (pb Builder) ToDataLayerExchangeMailItem(tenant, user string) (Path, error) {
-	if err := pb.verifyPrefix(tenant, user); err != nil {
+func (pb Builder) ToDataLayerExchangePathForCategory(
+	tenant, user string,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	if err := validateServiceAndCategory(ExchangeService, category); err != nil {
 		return nil, err
 	}
 
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			ExchangeService.String(),
-			user,
-			EmailCategory.String(),
-		),
-		service:  ExchangeService,
-		category: EmailCategory,
-		hasItem:  true,
-	}, nil
+	switch category {
+	case EmailCategory:
+		return pb.ToDataLayerExchangeMailPath(tenant, user, isItem)
+	default:
+		return nil, errors.New("not implemented")
+	}
 }
 
 // FromDataLayerPath parses the escaped path p, validates the elements in p
@@ -240,7 +236,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, errors.Errorf("path has too few segments: %s", p)
 	}
 
-	service, category, err := validateServiceAndCategory(
+	service, category, err := validateServiceAndCategoryStrings(
 		pb.elements[1],
 		pb.elements[3],
 	)

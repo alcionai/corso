@@ -515,64 +515,86 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 
 func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 	stub := "id-stub"
-	a := utils.Wildcard
 
 	table := []struct {
-		name                           string
-		after, before, sender, subject string
-		expectFilterLen                int
+		name                                                       string
+		contactName                                                string
+		after, before, sender, subject                             string
+		organizer, recurs, startsAfter, startsBefore, eventSubject string
+		expectFilterLen                                            int
 	}{
 		{
 			name:            "no selectors",
 			expectFilterLen: 0,
 		},
 		{
-			name:            "any receivedAfter",
-			after:           a,
+			name:            "contactName",
+			contactName:     stub,
 			expectFilterLen: 1,
 		},
 		{
-			name:            "single receivedAfter",
+			name:            "receivedAfter",
 			after:           stub,
 			expectFilterLen: 1,
 		},
 		{
-			name:            "any receivedBefore",
-			before:          a,
+			name:            "receivedAfter",
+			after:           stub,
 			expectFilterLen: 1,
 		},
 		{
-			name:            "single receivedBefore",
+			name:            "receivedBefore",
 			before:          stub,
 			expectFilterLen: 1,
 		},
 		{
-			name:            "any sender",
-			sender:          a,
-			expectFilterLen: 1,
-		},
-		{
-			name:            "single sender",
+			name:            "sender",
 			sender:          stub,
 			expectFilterLen: 1,
 		},
 		{
-			name:            "any subject",
-			subject:         a,
+			name:            "subject",
+			subject:         stub,
 			expectFilterLen: 1,
 		},
 		{
-			name:            "single subject",
-			subject:         stub,
+			name:            "organizer",
+			organizer:       stub,
+			expectFilterLen: 1,
+		},
+		{
+			name:            "recurs",
+			recurs:          stub,
+			expectFilterLen: 1,
+		},
+		{
+			name:            "startsAfter",
+			startsAfter:     stub,
+			expectFilterLen: 1,
+		},
+		{
+			name:            "startsBefore",
+			startsBefore:    stub,
+			expectFilterLen: 1,
+		},
+		{
+			name:            "eventSubject",
+			eventSubject:    stub,
 			expectFilterLen: 1,
 		},
 		{
 			name:            "one of each",
+			contactName:     stub,
 			after:           stub,
 			before:          stub,
 			sender:          stub,
 			subject:         stub,
-			expectFilterLen: 4,
+			organizer:       stub,
+			recurs:          stub,
+			startsAfter:     stub,
+			startsBefore:    stub,
+			eventSubject:    stub,
+			expectFilterLen: 10,
 		},
 	}
 	for _, test := range table {
@@ -580,10 +602,16 @@ func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 			sel := selectors.NewExchangeRestore()
 			filterExchangeBackupDetailInfoSelectors(
 				sel,
+				test.contactName,
 				test.after,
 				test.before,
 				test.sender,
-				test.subject)
+				test.subject,
+				test.organizer,
+				test.recurs,
+				test.startsAfter,
+				test.startsBefore,
+				test.eventSubject)
 			assert.Equal(t, test.expectFilterLen, len(sel.Filters))
 		})
 	}
