@@ -2,13 +2,18 @@ name: CI Tests
 on:
   push:
     branches: [main]
+    paths:
+      - '/src/**'
+      - '/.github/**'
   pull_request:
     branches: [main]
+    paths:
+      - '/src/**'
+      - '/.github/**'
 
 permissions:
   # required to retrieve AWS credentials
   id-token: write
-  # required to retrieve repository
   contents: read
 
 jobs:
@@ -19,7 +24,8 @@ jobs:
       run:
         working-directory: src
     steps:
-      - name: Repo Code Checkout
+
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       # Get values for cache paths to be used in later steps
