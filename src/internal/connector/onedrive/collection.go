@@ -34,10 +34,10 @@ type Collection struct {
 	// M365 IDs of file items within this collection
 	driveItemIDs []string
 	// M365 ID of the drive this collection was created from
-	driveID    string
-	service    graph.Service
-	statusCh   chan<- *support.ConnectorOperationStatus
-	itemReader itemReaderFunc
+	driveID       string
+	service       graph.Service
+	statusUpdater support.StatusUpdater
+	itemReader    itemReaderFunc
 }
 
 // itemReadFunc returns a reader for the specified item
@@ -49,15 +49,15 @@ type itemReaderFunc func(
 
 // NewCollection creates a Collection
 func NewCollection(folderPath, driveID string, service graph.Service,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) *Collection {
 	c := &Collection{
-		folderPath:   folderPath,
-		driveItemIDs: []string{},
-		driveID:      driveID,
-		service:      service,
-		data:         make(chan data.Stream, collectionChannelBufferSize),
-		statusCh:     statusCh,
+		folderPath:    folderPath,
+		driveItemIDs:  []string{},
+		driveID:       driveID,
+		service:       service,
+		data:          make(chan data.Stream, collectionChannelBufferSize),
+		statusUpdater: statusUpdater,
 	}
 	// Allows tests to set a mock populator
 	c.itemReader = driveItemReader
@@ -133,5 +133,5 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		1,                    // num folders (always 1)
 		errs)
 	logger.Ctx(ctx).Debug(status.String())
-	oc.statusCh <- status
+	oc.statusUpdater(status)
 }

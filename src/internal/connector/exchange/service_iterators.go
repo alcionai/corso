@@ -33,7 +33,7 @@ type GraphIterateFunc func(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	graphStatusChannel chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool
 
 // IterateSelectAllDescendablesForCollection utility function for
@@ -45,7 +45,7 @@ func IterateSelectAllDescendablesForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
 		isCategorySet  bool
@@ -88,7 +88,7 @@ func IterateSelectAllDescendablesForCollections(
 				[]string{qp.Credentials.TenantID, qp.User, category, directory},
 				collectionType,
 				service,
-				statusCh,
+				statusUpdater,
 			)
 			collections[directory] = &edc
 		}
@@ -108,7 +108,7 @@ func IterateSelectAllEventsForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	return func(eventItem any) bool {
 		event, ok := eventItem.(models.Eventable)
@@ -170,7 +170,7 @@ func IterateSelectAllEventsForCollections(
 				[]string{qp.Credentials.TenantID, qp.User, eventsCategory, directory},
 				events,
 				service,
-				statusCh,
+				statusUpdater,
 			)
 			collections[directory] = &edc
 		}
@@ -189,7 +189,7 @@ func IterateAndFilterMessagesForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var isFilterSet bool
 
@@ -199,7 +199,7 @@ func IterateAndFilterMessagesForCollections(
 				ctx,
 				qp,
 				collections,
-				statusCh,
+				statusUpdater,
 			)
 			if err != nil {
 				errs = support.WrapAndAppend(qp.User, err, errs)
@@ -231,7 +231,7 @@ func IterateFilterFolderDirectoriesForCollections(
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
-	statusCh chan<- *support.ConnectorOperationStatus,
+	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
 		service graph.Service
@@ -279,7 +279,7 @@ func IterateFilterFolderDirectoriesForCollections(
 			[]string{qp.Credentials.TenantID, qp.User, mailCategory, directory},
 			messages,
 			service,
-			statusCh,
+			statusUpdater,
 		)
 		collections[directory] = &temp
 

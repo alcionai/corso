@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync/atomic"
+	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -28,16 +28,19 @@ import (
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	graphService
-	tenant           string
-	Users            map[string]string                 // key<email> value<id>
-	status           *support.ConnectorOperationStatus // contains the status of the last run status
-	statusCh         chan *support.ConnectorOperationStatus
-	awaitingMessages int32
-	credentials      account.M365Config
+	tenant      string
+	Users       map[string]string // key<email> value<id>
+	credentials account.M365Config
+
+	// wg is used to track completion of GC tasks
+	wg *sync.WaitGroup
+	// mutex used to synchronize updates to `status`
+	mu     sync.Mutex
+	status support.ConnectorOperationStatus // contains the status of the last run status
 }
 
 // Service returns the GC's embedded graph.Service
-func (gc GraphConnector) Service() graph.Service {
+func (gc *GraphConnector) Service() graph.Service {
 	return gc.graphService
 }
 
@@ -70,8 +73,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 	gc := GraphConnector{
 		tenant:      m365.TenantID,
 		Users:       make(map[string]string, 0),
-		status:      nil,
-		statusCh:    make(chan *support.ConnectorOperationStatus),
+		wg:          &sync.WaitGroup{},
 		credentials: m365,
 	}
 
@@ -204,7 +206,8 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // ExchangeDataStream returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
 // Assumption: User exists
-//  Add iota to this call -> mail, contacts, calendar,  etc.
+//
+//	Add iota to this call -> mail, contacts, calendar,  etc.
 func (gc *GraphConnector) ExchangeDataCollection(
 	ctx context.Context,
 	selector selectors.Selector,
@@ -303,10 +306,7 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 	gc.incrementAwaitingMessages()
 
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
-	// set the channel asynchronously so that this func doesn't block.
-	go func(cos *support.ConnectorOperationStatus) {
-		gc.statusCh <- cos
-	}(status)
+	gc.UpdateStatus(status)
 
 	return errs
 }
@@ -356,7 +356,7 @@ func (gc *GraphConnector) createCollections(
 		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(ctx, qp, errs, collections, gc.statusCh)
+		callbackFunc := gIter(ctx, qp, errs, collections, gc.UpdateStatus)
 		iterateError := pageIterator.Iterate(callbackFunc)
 
 		if iterateError != nil {
@@ -377,32 +377,32 @@ func (gc *GraphConnector) createCollections(
 	return allCollections, errs
 }
 
-// AwaitStatus updates status field based on item within statusChannel.
+// AwaitStatus waits for all gc tasks to complete and then returns status
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
-	if gc.awaitingMessages > 0 {
-		atomic.AddInt32(&gc.awaitingMessages, -1)
-		gc.status = <-gc.statusCh
-	}
+	gc.wg.Wait()
+	return &gc.status
+}
 
-	return gc.status
+// UpdateStatus is used by gc initiated tasks to indicate completion
+func (gc *GraphConnector) UpdateStatus(status *support.ConnectorOperationStatus) {
+	gc.mu.Lock()
+	defer gc.mu.Unlock()
+	gc.status = support.MergeStatus(gc.status, *status)
+	gc.wg.Done()
 }
 
 // Status returns the current status of the graphConnector operaion.
-func (gc *GraphConnector) Status() *support.ConnectorOperationStatus {
+func (gc *GraphConnector) Status() support.ConnectorOperationStatus {
 	return gc.status
 }
 
 // PrintableStatus returns a string formatted version of the GC status.
 func (gc *GraphConnector) PrintableStatus() string {
-	if gc.status == nil {
-		return ""
-	}
-
 	return gc.status.String()
 }
 
 func (gc *GraphConnector) incrementAwaitingMessages() {
-	atomic.AddInt32(&gc.awaitingMessages, 1)
+	gc.wg.Add(1)
 }
 
 // IsRecoverableError returns true iff error is a RecoverableGCEerror
