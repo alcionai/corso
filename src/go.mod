@@ -6,7 +6,7 @@ replace github.com/kopia/kopia => github.com/kopia/kopia v0.11.4-0.2022082219422
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.0.0
-	github.com/aws/aws-sdk-go v1.44.75
+	github.com/aws/aws-sdk-go v1.44.81
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.11.1
