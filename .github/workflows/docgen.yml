@@ -2,6 +2,9 @@ name: Document Generation
 on:
   push:
     branches: [main]
+    paths:
+      - '/src/**'
+      - '/.github/**'
 
 permissions:
   contents: write
@@ -13,12 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      # check out the repo
       - name: Repo Code Checkout
         uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.ref }}
-          # persist-credentials: false
 
       # Get values for cache paths to be used in later steps
       - id: go-cache-paths
