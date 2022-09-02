@@ -63,6 +63,8 @@ func CreateStatus(
 }
 
 // Function signature for a status updater
+// Used to define a function that an async connector task can call
+// to on completion with its ConnectorOperationStatus
 type StatusUpdater func(*ConnectorOperationStatus)
 
 // MergeStatus combines ConnectorOperationsStatus value into a single status
