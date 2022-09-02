@@ -1,0 +1,350 @@
+@@include("partials/main.html")
+    <head>
+        @@include("partials/title-meta.html", {"title": "Techwind"})
+
+        <!-- Css -->
+        <link href="assets/libs/tobii/css/tobii.min.css" rel="stylesheet">
+        @@include("partials/head-css.html")
+    </head>
+    
+    @@include("partials/body.html")
+        <!-- Loader Start -->
+        <!-- <div id="preloader">
+            <div id="status">
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+            </div>
+        </div> -->
+        <!-- Loader End -->
+        
+        @@include("partials/navbar/nav-center-light.html")
+
+        <!-- Start Hero -->
+        <section class="relative table w-full py-32 lg:py-40 bg-[url('../../assets/images/portfolio/bg-inner.jpg')] bg-no-repeat bg-center">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black"></div>
+            <div class="container">
+                <div class="grid grid-cols-1 pb-8 text-center mt-10">
+                    <h3 class="mb-3 text-3xl leading-normal font-medium text-white">Portfolio & Works</h3>
+
+                    <p class="text-slate-300 text-lg max-w-xl mx-auto">Showcase of Our Awesome Works in Two Columns</p>
+                </div><!--end grid-->
+            </div><!--end container-->
+            
+            <div class="absolute text-center z-10 bottom-5 right-0 left-0 mx-3">
+                <ul class="breadcrumb tracking-[0.5px] breadcrumb-light mb-0 inline-block">
+                   <li class="inline breadcrumb-item uppercase text-[13px] font-bold duration-500 ease-in-out text-white/50 hover:text-white"><a href="index.html">Techwind</a></li>
+                   <li class="inline breadcrumb-item uppercase text-[13px] font-bold duration-500 ease-in-out text-white/50 hover:text-white"><a href="">Portfolio</a></li>
+                    <li class="inline breadcrumb-item uppercase text-[13px] font-bold duration-500 ease-in-out text-white" aria-current="page">Modern</li>
+                </ul>
+            </div>
+        </section><!--end section-->
+        <div class="relative">
+            <div class="shape absolute right-0 sm:-bottom-px -bottom-[2px] left-0 overflow-hidden z-1 text-white dark:text-slate-900">
+                <svg class="w-full h-auto" viewBox="0 0 2880 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0 48H1437.5H2880V0H2160C1442.5 52 720 0 720 0H0V48Z" fill="currentColor"></path>
+                </svg>
+            </div>
+        </div>
+        <!-- End Hero -->
+
+        <!-- Start Section-->
+        <section class="relative md:py-24 py-16">
+            <div class="container">
+                <div class="grid grid-cols-1 items-center gap-[30px]">
+                    <div class="filters-group-wrap text-center">
+                        <div class="filters-group">
+                            <ul class="mb-0 list-none container-filter-border-bottom filter-options">
+                                <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-slate-400 transition duration-500 active" data-group="all">All</li>
+                                <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-slate-400 transition duration-500" data-group="branding">Branding</li>
+                                <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-slate-400 transition duration-500" data-group="designing">Designing</li>
+                                <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-slate-400 transition duration-500" data-group="photography">Photography</li>
+                                <li class="inline-block text-lg font-semibold mx-2 mb-3 cursor-pointer relative border-b border-transparent text-slate-400 transition duration-500" data-group="development">Development</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div><!--grid-->
+
+                <div id="grid" class="md:flex lg:w-3/4 w-full justify-center mx-auto mt-4">
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["branding"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/1.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/1.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="title absolute z-10 hidden group-hover:block bottom-6 left-6">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["designing"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/2.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/2.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["photography"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/3.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/3.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["development"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/4.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/4.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["branding"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/5.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/5.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["branding"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/6.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/6.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["designing"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/7.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/7.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["development"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/8.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/8.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["photography"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/20.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/20.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["photography"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/21.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/21.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["branding"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/22.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/22.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:w-1/2 p-4 picture-item" data-groups='["branding"]'>
+                        <div class="group relative block overflow-hidden rounded-md transition-all duration-500">
+                            <img src="assets/images/portfolio/23.jpg" class="group-hover:origin-center group-hover:scale-110 group-hover:rotate-3 transition duration-500" alt="">
+                            <div class="absolute inset-2 group-hover:bg-white/90 dark:group-hover:bg-slate-900/90 transition duration-500 z-0 rounded-md"></div>
+
+                            <div class="content transition-all duration-500">
+                                <div class="icon absolute z-10 hidden group-hover:block top-6 right-6 transition-all duration-500">
+                                    <a href="assets/images/portfolio/23.jpg" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white btn-icon rounded-full lightbox"><i class="uil uil-camera"></i></a>
+                                </div>
+
+                                <div class="absolute z-10 hidden group-hover:block bottom-6 left-6 transition-all duration-500">
+                                    <a href="portfolio-detail-three.html" class="h6 text-lg font-medium hover:text-indigo-600 duration-500 ease-in-out">Mockup Collection</a>
+                                    <p class="text-slate-400 mb-0">Abstract</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-12 grid-cols-1 mt-8">
+                    <div class="md:col-span-12 text-center">
+                        <nav aria-label="Page navigation example">
+                            <ul class="inline-flex items-center -space-x-px">
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 bg-white dark:bg-slate-900 rounded-l-lg hover:text-white border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">
+                                        <i class="uil uil-angle-left text-[20px]"></i>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">1</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">2</a>
+                                </li>
+                                <li>
+                                    <a href="#" aria-current="page" class="z-10 w-[40px] h-[40px] inline-flex justify-center items-center text-white bg-indigo-600 border border-indigo-600">3</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">4</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 hover:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">5</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="w-[40px] h-[40px] inline-flex justify-center items-center text-slate-400 bg-white dark:bg-slate-900 rounded-r-lg hover:text-white border border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-600">
+                                        <i class="uil uil-angle-right text-[20px]"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div><!--end container-->
+
+            <div class="container md:mt-24 mt-16">
+                <div class="grid grid-cols-1 text-center">
+                    <span class="text-slate-400 mb-4">Available for freelance projects</span>
+                    <h3 class="md:text-3xl text-2xl md:leading-normal leading-normal font-semibold">Do you have designing project? <br> Let's talk.</h3>
+
+                    <div class="mt-6">
+                        <a href="contact-one.html" class="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 text-white rounded-full"><i class="uil uil-phone"></i> Contact us</a>
+                    </div>
+                </div><!--end grid-->
+            </div><!--end container-->
+        </section><!--end section-->
+        <!-- End Section-->
+
+        @@include("partials/footer/footer.html")
+
+        <!-- Back to top -->
+        <a href="#" onclick="topFunction()" id="back-to-top" class="back-to-top fixed hidden text-lg rounded-full z-10 bottom-5 right-5 h-9 w-9 text-center bg-indigo-600 text-white leading-9"><i class="uil uil-arrow-up"></i></a>
+        <!-- Back to top -->
+
+        @@include("partials/switcher.html")
+
+        <!-- JAVASCRIPTS -->
+        <script src="assets/libs/shufflejs/shuffle.min.js"></script>
+        <script src="assets/libs/tobii/js/tobii.min.js"></script>
+        <script src="assets/libs/feather-icons/feather.min.js"></script>
+        @@include("partials/script-file.html")
+        <!-- JAVASCRIPTS -->
+    </body>
+</html>
