@@ -111,15 +111,16 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 }
 
 func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
-	t := suite.T()
+	suite.T().Run(suite.dataSet, func(t *testing.T) {
+		ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
-	cmd := tester.StubRootCmd(
-		"restore", "exchange",
-		"--config-file", suite.cfgFP,
-		"--backup", string(suite.backupOp.Results.BackupID))
-	cli.BuildCommandTree(cmd)
+		cmd := tester.StubRootCmd(
+			"restore", "exchange",
+			"--config-file", suite.cfgFP,
+			"--backup", string(suite.backupOp.Results.BackupID))
+		cli.BuildCommandTree(cmd)
 
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+		// run the command
+		require.NoError(t, cmd.ExecuteContext(ctx))
+	})
 }

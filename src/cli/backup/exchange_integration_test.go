@@ -94,29 +94,30 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 }
 
 func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
-	t := suite.T()
+	suite.T().Run(suite.dataSet, func(t *testing.T) {
+		ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
-	cmd := tester.StubRootCmd(
-		"backup", "create", "exchange",
-		"--config-file", suite.cfgFP,
-		"--user", suite.m365UserID,
-		"--data", suite.dataSet)
-	cli.BuildCommandTree(cmd)
+		cmd := tester.StubRootCmd(
+			"backup", "create", "exchange",
+			"--config-file", suite.cfgFP,
+			"--user", suite.m365UserID,
+			"--data", suite.dataSet)
+		cli.BuildCommandTree(cmd)
 
-	recorder := strings.Builder{}
-	cmd.SetOut(&recorder)
+		recorder := strings.Builder{}
+		cmd.SetOut(&recorder)
 
-	ctx = print.SetRootCmd(ctx, cmd)
+		ctx = print.SetRootCmd(ctx, cmd)
 
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+		// run the command
+		require.NoError(t, cmd.ExecuteContext(ctx))
 
-	// as an offhand check: the result should contain a string with the current hour
-	result := recorder.String()
-	assert.Contains(t, result, time.Now().UTC().Format("2006-01-02T15"))
-	// and the m365 user id
-	assert.Contains(t, result, suite.m365UserID)
+		// as an offhand check: the result should contain a string with the current hour
+		result := recorder.String()
+		assert.Contains(t, result, time.Now().UTC().Format("2006-01-02T15"))
+		// and the m365 user id
+		assert.Contains(t, result, suite.m365UserID)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -207,57 +208,59 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 }
 
 func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
-	t := suite.T()
+	suite.T().Run(suite.dataSet, func(t *testing.T) {
+		ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
-	cmd := tester.StubRootCmd(
-		"backup", "list", "exchange",
-		"--config-file", suite.cfgFP)
-	cli.BuildCommandTree(cmd)
+		cmd := tester.StubRootCmd(
+			"backup", "list", "exchange",
+			"--config-file", suite.cfgFP)
+		cli.BuildCommandTree(cmd)
 
-	recorder := strings.Builder{}
-	cmd.SetOut(&recorder)
+		recorder := strings.Builder{}
+		cmd.SetOut(&recorder)
 
-	ctx = print.SetRootCmd(ctx, cmd)
+		ctx = print.SetRootCmd(ctx, cmd)
 
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+		// run the command
+		require.NoError(t, cmd.ExecuteContext(ctx))
 
-	// compare the output
-	result := recorder.String()
-	assert.Contains(t, result, suite.backupOp.Results.BackupID)
+		// compare the output
+		result := recorder.String()
+		assert.Contains(t, result, suite.backupOp.Results.BackupID)
+	})
 }
 
 func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
-	t := suite.T()
+	suite.T().Run(suite.dataSet, func(t *testing.T) {
+		ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
-	// fetch the details from the repo first
-	deets, _, err := suite.repo.BackupDetails(ctx, string(suite.backupOp.Results.BackupID))
-	require.NoError(t, err)
+		// fetch the details from the repo first
+		deets, _, err := suite.repo.BackupDetails(ctx, string(suite.backupOp.Results.BackupID))
+		require.NoError(t, err)
 
-	cmd := tester.StubRootCmd(
-		"backup", "details", "exchange",
-		"--config-file", suite.cfgFP,
-		"--backup", string(suite.backupOp.Results.BackupID))
-	cli.BuildCommandTree(cmd)
+		cmd := tester.StubRootCmd(
+			"backup", "details", "exchange",
+			"--config-file", suite.cfgFP,
+			"--backup", string(suite.backupOp.Results.BackupID))
+		cli.BuildCommandTree(cmd)
 
-	recorder := strings.Builder{}
-	cmd.SetOut(&recorder)
+		recorder := strings.Builder{}
+		cmd.SetOut(&recorder)
 
-	ctx = print.SetRootCmd(ctx, cmd)
+		ctx = print.SetRootCmd(ctx, cmd)
 
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+		// run the command
+		require.NoError(t, cmd.ExecuteContext(ctx))
 
-	// compare the output
-	result := recorder.String()
+		// compare the output
+		result := recorder.String()
 
-	for i, ent := range deets.Entries {
-		t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
-			assert.Contains(t, result, ent.RepoRef)
-		})
-	}
+		for i, ent := range deets.Entries {
+			t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
+				assert.Contains(t, result, ent.RepoRef)
+			})
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------
