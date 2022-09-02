@@ -120,6 +120,7 @@ func IterateSelectAllDescendablesForCollections(
 		isCategorySet  bool
 		collectionType optionIdentifier
 		category       path.CategoryType
+		resolver       graph.ContainerResolver
 	)
 
 	return func(pageItem any) bool {
@@ -135,6 +136,16 @@ func IterateSelectAllDescendablesForCollections(
 				category = path.ContactsCategory
 			}
 
+			if r, err := maybeGetAndPopulateFolderResolver(ctx, qp, category); err != nil {
+				errs = support.WrapAndAppend(
+					"getting folder resolver for category "+category.String(),
+					err,
+					errs,
+				)
+			} else {
+				resolver = r
+			}
+
 			isCategorySet = true
 		}
 
@@ -143,9 +154,29 @@ func IterateSelectAllDescendablesForCollections(
 			errs = support.WrapAndAppendf(qp.User, errors.New("descendable conversion failure"), errs)
 			return true
 		}
+
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
+		dirPath := []string{qp.Credentials.TenantID, qp.User, category.String(), directory}
+
 		if _, ok = collections[directory]; !ok {
+			newPath, err := resolveCollectionPath(
+				ctx,
+				resolver,
+				qp.Credentials.TenantID,
+				qp.User,
+				directory,
+				category,
+			)
+
+			if err != nil {
+				if !errors.Is(err, errNilResolver) {
+					errs = support.WrapAndAppend("", err, errs)
+				}
+			} else {
+				dirPath = newPath
+			}
+
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
 				errs = support.WrapAndAppend(qp.User, err, errs)
@@ -154,7 +185,7 @@ func IterateSelectAllDescendablesForCollections(
 
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, category.String(), directory},
+				dirPath,
 				collectionType,
 				service,
 				statusUpdater,
@@ -307,6 +338,15 @@ func IterateFilterFolderDirectoriesForCollections(
 		err     error
 	)
 
+	resolver, err := maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
+	if err != nil {
+		errs = support.WrapAndAppend(
+			"getting folder resolver for category email",
+			err,
+			errs,
+		)
+	}
+
 	return func(folderItem any) bool {
 		folder, ok := folderItem.(displayable)
 		if !ok {
@@ -328,6 +368,29 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 
 		directory := *folder.GetId()
+		dirPath := []string{
+			qp.Credentials.TenantID,
+			qp.User,
+			path.EmailCategory.String(),
+			directory,
+		}
+
+		p, err := resolveCollectionPath(
+			ctx,
+			resolver,
+			qp.Credentials.TenantID,
+			qp.User,
+			directory,
+			path.EmailCategory,
+		)
+
+		if err != nil {
+			if !errors.Is(err, errNilResolver) {
+				errs = support.WrapAndAppend("", err, errs)
+			}
+		} else {
+			dirPath = p
+		}
 
 		service, err = createService(qp.Credentials, qp.FailFast)
 		if err != nil {
@@ -345,7 +408,7 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		temp := NewCollection(
 			qp.User,
-			[]string{qp.Credentials.TenantID, qp.User, path.EmailCategory.String(), directory},
+			dirPath,
 			messages,
 			service,
 			statusUpdater,
