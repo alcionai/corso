@@ -14,7 +14,7 @@ import (
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/path"
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 //-----------------------------------------------------------------------

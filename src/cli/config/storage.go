@@ -8,10 +8,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
-	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // prerequisite: readRepoConfig must have been run prior to this to populate the global viper values.

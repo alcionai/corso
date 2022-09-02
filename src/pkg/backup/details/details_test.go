@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // ------------------------------------------------------------

@@ -3,7 +3,7 @@ package storage
 import (
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type CommonConfig struct {

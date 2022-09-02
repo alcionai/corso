@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/cli"
+	"github.com/alcionai/corso/src/cli"
 )
 
 type CliSuite struct {

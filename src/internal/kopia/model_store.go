@@ -8,7 +8,7 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/src/internal/model"
 )
 
 const stableIDKey = "stableID"

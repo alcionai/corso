@@ -15,9 +15,9 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/pkg/backup/details"
-	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 const (

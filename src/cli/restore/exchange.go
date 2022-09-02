@@ -5,12 +5,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/cli/config"
-	"github.com/alcionai/corso/cli/options"
-	. "github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/pkg/repository"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/options"
+	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // exchange bucket info from flags

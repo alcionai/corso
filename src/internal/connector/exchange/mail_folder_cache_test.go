@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 const (

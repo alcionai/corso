@@ -8,10 +8,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var errNilResolver = errors.New("nil resolver")

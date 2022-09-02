@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/alcionai/corso/cli"
+	"github.com/alcionai/corso/src/cli"
 )
 
 func main() {

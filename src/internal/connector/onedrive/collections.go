@@ -7,9 +7,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 )
 
 // Collections is used to retrieve OneDrive data for a

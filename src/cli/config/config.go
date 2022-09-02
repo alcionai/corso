@@ -11,10 +11,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	. "github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/logger"
-	"github.com/alcionai/corso/pkg/storage"
+	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (

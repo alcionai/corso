@@ -14,14 +14,14 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/exchange"
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
