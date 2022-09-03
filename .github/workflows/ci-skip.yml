@@ -2,9 +2,9 @@ name: CI Tests
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '/src/**'
-      - '/.github/**'
+    paths:
+      - '!/src/**'
+      - '!/.github/**'
 
 # Intentional no-op used to tell the build system that
 # required actions like Test-Suite and Linting have passed
