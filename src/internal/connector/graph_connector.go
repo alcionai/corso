@@ -432,7 +432,8 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 
 // OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
 // for the specified user
-func (gc *GraphConnector) OneDriveDataCollections(ctx context.Context,
+func (gc *GraphConnector) OneDriveDataCollections(
+        ctx context.Context,
 	selector selectors.Selector,
 ) ([]data.Collection, error) {
 	odb, err := selector.ToOneDriveBackup()
