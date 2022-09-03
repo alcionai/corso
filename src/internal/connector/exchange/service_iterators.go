@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -12,6 +13,8 @@ import (
 	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/selectors"
 )
+
+var errNilResolver = errors.New("nil resolver")
 
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a "parent folder".
@@ -37,6 +40,71 @@ type GraphIterateFunc func(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool
 
+// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
+// this category of data. If one is not available, returns nil so that other
+// logic in the caller can complete as long as they check if the resolver is not
+// nil. If an error occurs populating the resolver, returns an error.
+func maybeGetAndPopulateFolderResolver(
+	ctx context.Context,
+	qp graph.QueryParams,
+	category path.CategoryType,
+) (graph.ContainerResolver, error) {
+	var res graph.ContainerResolver
+
+	switch category {
+	case path.EmailCategory:
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			return nil, err
+		}
+
+		res = &mailFolderCache{
+			userID: qp.User,
+			gs:     service,
+		}
+
+	default:
+		return nil, nil
+	}
+
+	if err := res.Populate(ctx); err != nil {
+		return nil, errors.Wrap(err, "populating directory resolver")
+	}
+
+	return res, nil
+}
+
+func resolveCollectionPath(
+	ctx context.Context,
+	resolver graph.ContainerResolver,
+	tenantID, user, folderID string,
+	category path.CategoryType,
+) ([]string, error) {
+	if resolver == nil {
+		// Allows caller to default to old-style path.
+		return nil, errors.WithStack(errNilResolver)
+	}
+
+	p, err := resolver.IDToPath(ctx, folderID)
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving folder ID")
+	}
+
+	fullPath, err := p.ToDataLayerExchangePathForCategory(
+		tenantID,
+		user,
+		category,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "converting to canonical path")
+	}
+
+	// TODO(ashmrtn): This can return the path directly when Collections take
+	// path.Path.
+	return strings.Split(fullPath.String(), "/"), nil
+}
+
 // IterateSelectAllDescendablesForCollection utility function for
 // Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
 // objects belonging to any folder are
@@ -52,6 +120,7 @@ func IterateSelectAllDescendablesForCollections(
 		isCategorySet  bool
 		collectionType optionIdentifier
 		category       path.CategoryType
+		resolver       graph.ContainerResolver
 	)
 
 	return func(pageItem any) bool {
@@ -67,6 +136,16 @@ func IterateSelectAllDescendablesForCollections(
 				category = path.ContactsCategory
 			}
 
+			if r, err := maybeGetAndPopulateFolderResolver(ctx, qp, category); err != nil {
+				errs = support.WrapAndAppend(
+					"getting folder resolver for category "+category.String(),
+					err,
+					errs,
+				)
+			} else {
+				resolver = r
+			}
+
 			isCategorySet = true
 		}
 
@@ -75,9 +154,29 @@ func IterateSelectAllDescendablesForCollections(
 			errs = support.WrapAndAppendf(qp.User, errors.New("descendable conversion failure"), errs)
 			return true
 		}
+
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
+		dirPath := []string{qp.Credentials.TenantID, qp.User, category.String(), directory}
+
 		if _, ok = collections[directory]; !ok {
+			newPath, err := resolveCollectionPath(
+				ctx,
+				resolver,
+				qp.Credentials.TenantID,
+				qp.User,
+				directory,
+				category,
+			)
+
+			if err != nil {
+				if !errors.Is(err, errNilResolver) {
+					errs = support.WrapAndAppend("", err, errs)
+				}
+			} else {
+				dirPath = newPath
+			}
+
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
 				errs = support.WrapAndAppend(qp.User, err, errs)
@@ -86,7 +185,7 @@ func IterateSelectAllDescendablesForCollections(
 
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, category.String(), directory},
+				dirPath,
 				collectionType,
 				service,
 				statusUpdater,
@@ -239,6 +338,15 @@ func IterateFilterFolderDirectoriesForCollections(
 		err     error
 	)
 
+	resolver, err := maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
+	if err != nil {
+		errs = support.WrapAndAppend(
+			"getting folder resolver for category email",
+			err,
+			errs,
+		)
+	}
+
 	return func(folderItem any) bool {
 		folder, ok := folderItem.(displayable)
 		if !ok {
@@ -260,6 +368,29 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 
 		directory := *folder.GetId()
+		dirPath := []string{
+			qp.Credentials.TenantID,
+			qp.User,
+			path.EmailCategory.String(),
+			directory,
+		}
+
+		p, err := resolveCollectionPath(
+			ctx,
+			resolver,
+			qp.Credentials.TenantID,
+			qp.User,
+			directory,
+			path.EmailCategory,
+		)
+
+		if err != nil {
+			if !errors.Is(err, errNilResolver) {
+				errs = support.WrapAndAppend("", err, errs)
+			}
+		} else {
+			dirPath = p
+		}
 
 		service, err = createService(qp.Credentials, qp.FailFast)
 		if err != nil {
@@ -277,7 +408,7 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		temp := NewCollection(
 			qp.User,
-			[]string{qp.Credentials.TenantID, qp.User, path.EmailCategory.String(), directory},
+			dirPath,
 			messages,
 			service,
 			statusUpdater,
