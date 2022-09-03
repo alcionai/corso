@@ -1,8 +1,11 @@
 package graph
 
 import (
+	"context"
+
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/account"
 	"github.com/alcionai/corso/pkg/selectors"
 )
@@ -23,4 +26,16 @@ type Service interface {
 	Adapter() *msgraphsdk.GraphRequestAdapter
 	// ErrPolicy returns if the service is implementing a Fast-Fail policy or not
 	ErrPolicy() bool
+}
+
+// ContainerResolver houses functions for getting information about containers
+// from remote APIs (i.e. resolve folder paths with Graph API). Resolvers may
+// cache information about containers.
+type ContainerResolver interface {
+	// IDToPath takes an m365 container ID and converts it to a hierarchical path
+	// to that container. The path has a similar format to paths on the local
+	// file system.
+	IDToPath(ctx context.Context, m365ID string) (*path.Builder, error)
+	// Populate performs any setup logic the resolver may need.
+	Populate(context.Context) error
 }
