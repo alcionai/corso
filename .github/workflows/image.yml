@@ -6,9 +6,15 @@ on:
 permissions:
   contents: read
   packages: write
+  pull-requests: read
 
 jobs:
+  precheck:
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@issue-744-alt
+
   Per-SHA-Image:
+    needs: precheck
+    if: needs.precheck.outputs.fileschanged == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -16,7 +22,6 @@ jobs:
     env:
       PLATFORMS: linux/amd64,linux/arm64
     steps:
-    
       - name: Checkout repository
         uses: actions/checkout@v3
 

@@ -9,10 +9,14 @@ permissions:
   deployments: write
 
 jobs:
+  precheck:
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@issue-744-alt
+
   Generate-Markdown:
+    needs: precheck
+    if: needs.precheck.outputs.fileschanged == 'true'
     runs-on: ubuntu-latest
     steps:
-
       - name: Repo Code Checkout
         uses: actions/checkout@v3
         with:
