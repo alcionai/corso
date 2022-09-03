@@ -447,7 +447,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 
 	var errs error
 
-	// for each scope that includes mail messages, get all
+	// for each scope that includes oneDrive items, get all
 	for _, scope := range scopes {
 		for _, user := range scope.Get(selectors.OneDriveUser) {
 			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
