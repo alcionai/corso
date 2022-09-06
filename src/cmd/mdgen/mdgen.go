@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/cobra/doc"
+	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/cli"
 )
@@ -27,12 +29,6 @@ var cmd = &cobra.Command{
 	Run:               genDocs,
 }
 
-const fmTemplate = `---
-title: "%s"
-hide_title: true
----
-`
-
 func main() {
 	cmd.
 		PersistentFlags().
@@ -48,22 +44,13 @@ func main() {
 }
 
 func genDocs(cmd *cobra.Command, args []string) {
-	identity := func(s string) string { return s }
-	filePrepender := func(filename string) string {
-		name := filepath.Base(filename)
-		base := strings.TrimSuffix(name, filepath.Ext(name))
-
-		return fmt.Sprintf(fmTemplate, strings.Replace(base, "_", " ", -1))
-	}
-
 	if err := makeDir(cliMarkdownDir); err != nil {
 		fatal(errors.Wrap(err, "preparing directory for markdown generation"))
 	}
 
 	corsoCmd := cli.CorsoCommand()
-	corsoCmd.DisableAutoGenTag = true
 
-	err := doc.GenMarkdownTreeCustom(corsoCmd, cliMarkdownDir, filePrepender, identity)
+	err := genMarkdownCorso(corsoCmd, cliMarkdownDir)
 	if err != nil {
 		fatal(errors.Wrap(err, "generating the Corso CLI markdown"))
 	}
@@ -96,4 +83,112 @@ func makeDir(dir string) error {
 func fatal(err error) {
 	fmt.Fprintf(os.Stderr, "ERR: %v\n", err)
 	os.Exit(1)
+}
+
+// Adapted from https://github.com/spf13/cobra/blob/main/doc/md_docs.go for Corso specific formatting
+func genMarkdownCorso(cmd *cobra.Command, dir string) error {
+	for _, c := range cmd.Commands() {
+		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
+			continue
+		}
+		if err := genMarkdownCorso(c, dir); err != nil {
+			return err
+		}
+	}
+
+	// Skip docs for non-leaf commands
+	if !cmd.Runnable() || cmd.HasSubCommands() {
+		return nil
+	}
+
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
+	filename := filepath.Join(dir, basename)
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := genMarkdownCustomCorso(cmd, f); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
+	cmd.InitDefaultHelpCmd()
+	cmd.InitDefaultHelpFlag()
+
+	buf := new(bytes.Buffer)
+	name := cmd.CommandPath()
+
+	//frontMatter section
+	buf.WriteString("---\n")
+	buf.WriteString(fmt.Sprintf("title: %s\n", name))
+	buf.WriteString("hide_title: true\n")
+	buf.WriteString("---\n")
+
+	//actual markdown
+	buf.WriteString("## " + name + "\n\n")
+	if len(cmd.Long) > 0 {
+		buf.WriteString(cmd.Long + "\n\n")
+	} else {
+		buf.WriteString(cmd.Short + "\n\n")
+	}
+
+	if cmd.Runnable() {
+		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n", cmd.UseLine()))
+	}
+
+	flags := cmd.NonInheritedFlags()
+	if flags.HasAvailableFlags() {
+		buf.WriteString("\n")
+		buf.WriteString("### Flags\n\n")
+		printFlags(buf, flags)
+	}
+
+	parentFlags := cmd.InheritedFlags()
+	if parentFlags.HasAvailableFlags() {
+		buf.WriteString("\n")
+		buf.WriteString("### Global and inherited flags\n\n")
+		printFlags(buf, parentFlags)
+	}
+
+	if len(cmd.Example) > 0 {
+		buf.WriteString("\n### Examples\n\n")
+		buf.WriteString(fmt.Sprintf("```\n%s\n```\n\n", cmd.Example))
+	}
+
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+func printFlags(buf *bytes.Buffer, flags *pflag.FlagSet) {
+	if !flags.HasAvailableFlags() {
+		return
+	}
+
+	buf.WriteString("|Flag|Short|Default|Help\n")
+	buf.WriteString("|:----|:-----|:-------|:----\n")
+
+	flags.VisitAll(func(flag *pflag.Flag) {
+		if flag.Hidden {
+			return
+		}
+
+		buf.WriteString("|")
+		buf.WriteString(fmt.Sprintf("`--%s`", flag.Name))
+		buf.WriteString("|")
+		if flag.Shorthand != "" && flag.ShorthandDeprecated == "" {
+			buf.WriteString(fmt.Sprintf("`-%s`", flag.Shorthand))
+		}
+		buf.WriteString("|")
+		if flag.DefValue != "" {
+			buf.WriteString(fmt.Sprintf("`%s`", flag.DefValue))
+		} 
+		buf.WriteString("|")
+		buf.WriteString(flag.Usage)
+		buf.WriteString("\n")
+	})
 }
