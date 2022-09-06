@@ -356,7 +356,7 @@ func RestoreExchangeObject(
 	var setting optionIdentifier
 
 	switch category {
-	case path.EmailCategory, path.ContactsCategory:
+	case path.EmailCategory, path.ContactsCategory, path.EventsCategory:
 		setting = categoryToOptionIdentifier(category)
 	default:
 		return fmt.Errorf("type: %s not supported for exchange restore", category)
