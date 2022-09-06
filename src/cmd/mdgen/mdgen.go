@@ -186,7 +186,7 @@ func printFlags(buf *bytes.Buffer, flags *pflag.FlagSet) {
 		buf.WriteString("|")
 		if flag.DefValue != "" {
 			buf.WriteString(fmt.Sprintf("`%s`", flag.DefValue))
-		} 
+		}
 		buf.WriteString("|")
 		buf.WriteString(flag.Usage)
 		buf.WriteString("\n")
