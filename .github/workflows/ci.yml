@@ -2,14 +2,8 @@ name: CI Tests
 on:
   push:
     branches: [main]
-    paths:
-      - '/src/**'
-      - '/.github/**'
   pull_request:
     branches: [main]
-    paths:
-      - '/src/**'
-      - '/.github/**'
 
 permissions:
   # required to retrieve AWS credentials

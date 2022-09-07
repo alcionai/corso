@@ -252,7 +252,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 
 	for i := 0; i < 3; i++ {
 		mdc := mockconnector.NewMockExchangeCollection(
-			[]string{"tenant", suite.user, category.String(), "Inbox"},
+			[]string{"tenant", path.ExchangeService.String(), suite.user, category.String(), "Inbox"},
 			1)
 		collection = append(collection, mdc)
 	}
