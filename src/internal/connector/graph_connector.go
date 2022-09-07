@@ -16,11 +16,13 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -417,4 +419,53 @@ func IsRecoverableError(e error) bool {
 func IsNonRecoverableError(e error) bool {
 	var nonRecoverable support.NonRecoverableGCError
 	return errors.As(e, &nonRecoverable)
+}
+
+func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
+	switch sels.Service {
+	case selectors.ServiceExchange:
+		return gc.ExchangeDataCollection(ctx, sels)
+	case selectors.ServiceOneDrive:
+		return gc.OneDriveDataCollections(ctx, sels)
+	default:
+		return nil, errors.Errorf("Service %s not supported", sels)
+	}
+}
+
+// OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
+// for the specified user
+func (gc *GraphConnector) OneDriveDataCollections(
+	ctx context.Context,
+	selector selectors.Selector,
+) ([]data.Collection, error) {
+	odb, err := selector.ToOneDriveBackup()
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting onedrive data")
+	}
+
+	collections := []data.Collection{}
+
+	scopes := odb.DiscreteScopes(gc.GetUsers())
+
+	var errs error
+
+	// for each scope that includes oneDrive items, get all
+	for _, scope := range scopes {
+		for _, user := range scope.Get(selectors.OneDriveUser) {
+			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
+
+			odcs, err := onedrive.NewCollections(user, &gc.graphService, gc.UpdateStatus).Get(ctx)
+			if err != nil {
+				return nil, support.WrapAndAppend(user, err, errs)
+			}
+
+			collections = append(collections, odcs...)
+		}
+	}
+
+	for range collections {
+		gc.incrementAwaitingMessages()
+	}
+
+	return collections, errs
 }

@@ -59,8 +59,8 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	}
 
 	collections := make([]data.Collection, 0, len(c.collectionMap))
-	for _, c := range c.collectionMap {
-		collections = append(collections, c)
+	for _, coll := range c.collectionMap {
+		collections = append(collections, coll)
 	}
 
 	return collections, nil
@@ -73,6 +73,10 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		err := c.stats(item)
 		if err != nil {
 			return err
+		}
+		if item.GetRoot() != nil {
+			// Skip the root item
+			continue
 		}
 		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
 			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())

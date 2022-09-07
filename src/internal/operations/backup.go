@@ -106,7 +106,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	cs, err := gc.ExchangeDataCollection(ctx, op.Selectors)
+	cs, err := gc.DataCollections(ctx, op.Selectors)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
 		opStats.readErr = err
