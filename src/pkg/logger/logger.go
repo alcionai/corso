@@ -43,6 +43,13 @@ func singleton(level logLevel) *zap.SugaredLogger {
 		return loggerton
 	}
 
+	// when testing, ensure debug logging matches the test.v setting
+	for _, arg := range os.Args {
+		if arg == `--test.v=true` {
+			level = Development
+		}
+	}
+
 	// set up a logger core to use as a fallback
 	levelFilter := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		switch level {

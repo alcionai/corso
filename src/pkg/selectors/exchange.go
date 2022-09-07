@@ -555,24 +555,24 @@ func (ec exchangeCategory) unknownCat() categorizer {
 // => {exchUser: userPN, exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) < 5 {
+	if len(path) < 6 {
 		return m
 	}
 
-	m[ExchangeUser] = path[1]
+	m[ExchangeUser] = path[2]
 
 	switch ec {
 	case ExchangeContact:
-		m[ExchangeContactFolder] = path[3]
-		m[ExchangeContact] = path[4]
+		m[ExchangeContactFolder] = path[4]
+		m[ExchangeContact] = path[5]
 
 	case ExchangeEvent:
-		m[ExchangeEventCalendar] = path[3]
-		m[ExchangeEvent] = path[4]
+		m[ExchangeEventCalendar] = path[4]
+		m[ExchangeEvent] = path[5]
 
 	case ExchangeMail:
-		m[ExchangeMailFolder] = path[3]
-		m[ExchangeMail] = path[4]
+		m[ExchangeMailFolder] = path[4]
+		m[ExchangeMail] = path[5]
 	}
 
 	return m
