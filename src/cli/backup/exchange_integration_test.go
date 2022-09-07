@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -24,10 +25,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-const (
-	email    = "email"
-	contacts = "contacts"
-	events   = "events"
+var (
+	email    = path.EmailCategory.String()
+	contacts = path.ContactsCategory.String()
+	events   = path.EventsCategory.String()
 )
 
 var backupDataSets = []string{email, contacts, events}
