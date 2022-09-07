@@ -259,7 +259,7 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 	for _, dc := range dcs {
 		var (
 			directory = strings.Join(dc.FullPath(), "")
-			user      = dc.FullPath()[1]
+			user      = dc.FullPath()[2]
 			items     = dc.Items()
 			// TODO(ashmrtn): Update this when we have path struct support in collections.
 			category = path.ToCategoryType(dc.FullPath()[3])

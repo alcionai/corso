@@ -143,10 +143,14 @@ func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 	}
 }
 
+// stubPath ensures test path production matches that of fullPath design,
+// stubbing out static values where necessary.
 func stubPath(service path.ServiceType, data path.CategoryType, resourceOwner, folders, item string) []string {
 	return []string{"tid", service.String(), resourceOwner, data.String(), folders, item}
 }
 
+// stubRepoRef ensures test path production matches that of repoRef design,
+// stubbing out static values where necessary.
 func stubRepoRef(service path.ServiceType, data path.CategoryType, resourceOwner, folders, item string) string {
 	return strings.Join([]string{"tid", service.String(), resourceOwner, data.String(), folders, item}, "/")
 }
