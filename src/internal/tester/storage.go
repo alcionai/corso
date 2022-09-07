@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 var AWSStorageCredEnvs = []string{
@@ -30,7 +30,6 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	st, err := storage.NewStorage(
 		storage.ProviderS3,
 		storage.S3Config{
-			AWS:    credentials.GetAWS(nil),
 			Bucket: cfg[TestCfgBucket],
 			Prefix: t.Name() + "-" + now,
 		},

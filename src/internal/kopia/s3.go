@@ -6,7 +6,7 @@ import (
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/blob/s3"
 
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
@@ -25,12 +25,9 @@ func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error)
 	}
 
 	opts := s3.Options{
-		AccessKeyID:     cfg.AccessKey,
-		BucketName:      cfg.Bucket,
-		Endpoint:        endpoint,
-		Prefix:          cfg.Prefix,
-		SecretAccessKey: cfg.SecretKey,
-		SessionToken:    cfg.SessionToken,
+		BucketName: cfg.Bucket,
+		Endpoint:   endpoint,
+		Prefix:     cfg.Prefix,
 	}
 
 	return s3.New(ctx, &opts)

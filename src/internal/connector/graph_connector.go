@@ -14,15 +14,16 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/exchange"
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/onedrive"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/logger"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
@@ -260,10 +261,11 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 	for _, dc := range dcs {
 		var (
 			directory = strings.Join(dc.FullPath(), "")
-			user      = dc.FullPath()[1]
+			user      = dc.FullPath()[2]
 			items     = dc.Items()
-			category  = dc.FullPath()[2]
-			exit      bool
+			// TODO(ashmrtn): Update this when we have path struct support in collections.
+			category = path.ToCategoryType(dc.FullPath()[3])
+			exit     bool
 		)
 
 		if _, ok := pathCounter[directory]; !ok {
@@ -433,7 +435,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 // OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
 // for the specified user
 func (gc *GraphConnector) OneDriveDataCollections(
-        ctx context.Context,
+	ctx context.Context,
 	selector selectors.Selector,
 ) ([]data.Collection, error) {
 	odb, err := selector.ToOneDriveBackup()

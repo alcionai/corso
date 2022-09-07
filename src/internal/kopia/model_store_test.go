@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type fooModel struct {
@@ -566,7 +566,7 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		deets.Entries = append(
 			deets.Entries,
 			details.DetailsEntry{
-				RepoRef: fmt.Sprintf("exchange/user1/mail/inbox/mail%v", i),
+				RepoRef: fmt.Sprintf("exchange/user1/email/inbox/mail%v", i),
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
 						Sender:  "John Doe",

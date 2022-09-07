@@ -4,8 +4,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const unknownServiceCombination = "unknown service/category combination %q/%q"
-
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
@@ -27,14 +25,20 @@ type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
 const (
-	UnknownCategory CategoryType = iota
-	EmailCategory                // email
+	UnknownCategory  CategoryType = iota
+	EmailCategory                 // email
+	ContactsCategory              // contacts
+	EventsCategory                // events
 )
 
-func toCategoryType(category string) CategoryType {
+func ToCategoryType(category string) CategoryType {
 	switch category {
 	case EmailCategory.String():
 		return EmailCategory
+	case ContactsCategory.String():
+		return ContactsCategory
+	case EventsCategory.String():
+		return EventsCategory
 	default:
 		return UnknownCategory
 	}
@@ -43,33 +47,45 @@ func toCategoryType(category string) CategoryType {
 // serviceCategories is a mapping of all valid service/category pairs.
 var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	ExchangeService: {
-		EmailCategory: {},
+		EmailCategory:    {},
+		ContactsCategory: {},
+		EventsCategory:   {},
 	},
 }
 
-func validateServiceAndCategory(s, c string) (ServiceType, CategoryType, error) {
-	// Validity of service checked on first-level lookup to serviceCategories.
+func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, error) {
 	service := toServiceType(s)
+	if service == UnknownService {
+		return UnknownService, UnknownCategory, errors.Errorf("unknown service string %q", s)
+	}
 
-	category := toCategoryType(c)
+	category := ToCategoryType(c)
 	if category == UnknownCategory {
 		return UnknownService, UnknownCategory, errors.Errorf("unknown category string %q", c)
 	}
 
+	if err := validateServiceAndCategory(service, category); err != nil {
+		return UnknownService, UnknownCategory, err
+	}
+
+	return service, category, nil
+}
+
+func validateServiceAndCategory(service ServiceType, category CategoryType) error {
 	cats, ok := serviceCategories[service]
 	if !ok {
-		return UnknownService, UnknownCategory, errors.Errorf("unknown service string %q", s)
+		return errors.New("unsupported service")
 	}
 
 	if _, ok := cats[category]; !ok {
-		return UnknownService, UnknownCategory, errors.Errorf(
-			unknownServiceCombination,
+		return errors.Errorf(
+			"unknown service/category combination %q/%q",
 			service,
 			category,
 		)
 	}
 
-	return service, category, nil
+	return nil
 }
 
 // dataLayerResourcePath allows callers to extract information from a

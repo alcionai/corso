@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/mockconnector"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ExchangeIteratorSuite struct {
@@ -158,7 +158,34 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				nil)
 
 			iterateError := pageIterator.Iterate(callbackFunc)
-			require.NoError(t, iterateError)
+			assert.NoError(t, iterateError)
+			assert.NoError(t, errs)
+
+			// TODO(ashmrtn): Only check Exchange Mail folder names right now because
+			// other resolvers aren't implemented. Once they are we can expand these
+			// checks, potentially by breaking things out into separate tests per
+			// category.
+			if !test.scope.IncludesCategory(selectors.ExchangeMail) {
+				return
+			}
+
+			expectedFolderNames := map[string]struct{}{
+				"Inbox":         {},
+				"Sent Items":    {},
+				"Deleted Items": {},
+			}
+
+			for _, c := range collections {
+				// TODO(ashmrtn): Update these checks when collections support path.Path.
+				require.Greater(t, len(c.FullPath()), 4)
+
+				folder := c.FullPath()[4]
+				if _, ok := expectedFolderNames[folder]; ok {
+					delete(expectedFolderNames, folder)
+				}
+			}
+
+			assert.Empty(t, expectedFolderNames)
 		})
 	}
 }

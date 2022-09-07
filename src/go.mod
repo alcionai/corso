@@ -1,4 +1,4 @@
-module github.com/alcionai/corso
+module github.com/alcionai/corso/src
 
 go 1.18
 
@@ -6,6 +6,7 @@ replace github.com/kopia/kopia => github.com/kopia/kopia v0.11.4-0.2022082219422
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.0.0
+	github.com/aws/aws-sdk-go v1.44.81
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.11.1
@@ -58,6 +59,7 @@ require (
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect

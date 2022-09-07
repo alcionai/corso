@@ -3,8 +3,9 @@ package selectors
 import (
 	"strings"
 
-	"github.com/alcionai/corso/pkg/backup/details"
-	"github.com/alcionai/corso/pkg/filters"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -240,16 +241,16 @@ func reduce[T scopeT, C categoryT](
 	// for each entry, compare that entry against the scopes of the same data type
 	for _, ent := range deets.Entries {
 		// todo: use Path pkg for this
-		path := strings.Split(ent.RepoRef, "/")
+		repoPath := strings.Split(ent.RepoRef, "/")
 
-		dc, ok := dataCategories[pathTypeIn(path)]
+		dc, ok := dataCategories[pathTypeIn(repoPath)]
 		if !ok {
 			continue
 		}
 
 		passed := passes(
 			dc,
-			dc.pathValues(path),
+			dc.pathValues(repoPath),
 			ent,
 			excls[dc],
 			filts[dc],
@@ -283,19 +284,19 @@ const (
 // package.  It should get handled in paths, since that's where service- and
 // data-type-specific assertions are owned.
 // Ideally, we'd use something like path.DataType() instead of this func.
-func pathTypeIn(path []string) pathType {
+func pathTypeIn(p []string) pathType {
 	// not all paths will be len=3.  Most should be longer.
 	// This just protects us from panicing below.
-	if len(path) < 3 {
+	if len(p) < 4 {
 		return unknownPathType
 	}
 
-	switch path[2] {
-	case "mail":
+	switch p[3] {
+	case path.EmailCategory.String():
 		return exchangeMailPath
-	case "contacts":
+	case path.ContactsCategory.String():
 		return exchangeContactPath
-	case "events":
+	case path.EventsCategory.String():
 		return exchangeEventPath
 	}
 

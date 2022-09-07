@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/alcionai/corso/cli/print"
+	"github.com/alcionai/corso/src/cli/print"
 )
 
 var (
@@ -41,6 +41,13 @@ func AddLogLevelFlag(parent *cobra.Command) {
 func singleton(level logLevel) *zap.SugaredLogger {
 	if loggerton != nil {
 		return loggerton
+	}
+
+	// when testing, ensure debug logging matches the test.v setting
+	for _, arg := range os.Args {
+		if arg == `--test.v=true` {
+			level = Development
+		}
 	}
 
 	// set up a logger core to use as a fallback

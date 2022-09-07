@@ -1,0 +1,239 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #2e8555;
+  --ifm-color-primary-dark: #29784c;
+  --ifm-color-primary-darker: #277148;
+  --ifm-color-primary-darkest: #205d3b;
+  --ifm-color-primary-light: #33925d;
+  --ifm-color-primary-lighter: #359962;
+  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #25c2a0;
+  --ifm-color-primary-dark: #21af90;
+  --ifm-color-primary-darker: #1fa588;
+  --ifm-color-primary-darkest: #1a8870;
+  --ifm-color-primary-light: #29d5b0;
+  --ifm-color-primary-lighter: #32d8b4;
+  --ifm-color-primary-lightest: #4fddbf;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+.guideImages {
+  max-width: 650px;
+  width: 100%;
+  border: 1px solid #80808029
+}
+
+.markdown {
+  code {
+    border-color: transparent;
+    vertical-align: initial;
+    font-size: var(--ifm-code-font-size) !important;
+  }
+
+  blockquote {
+    background-color: var(--rn-note-background);
+    border-left: 8px solid var(--ifm-color-warning);
+    padding: 15px 30px 15px 15px;
+
+    code {
+      background-color: rgba(0, 0, 0, 0.07);
+    }
+
+    a code {
+      background-color: transparent;
+      white-space: pre;
+    }
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  table {
+    border-collapse: collapse;
+    display: table;
+    margin: 20px 0;
+    width: 100%;
+
+    thead tr {
+      background-color: var(--divider);
+      border: 0;
+
+      > .cliFlagsCol {
+        width: 20%;
+      }
+
+      > .cliShortCol {
+          width: 5%;
+      }
+
+      > .cliDefaultCol {
+        width: 20%;
+      }
+
+      > .cliHelpCol {
+          width: 55%;
+      }
+
+
+
+    }
+
+    tr th {
+      text-transform: uppercase;
+      padding: 6px 10px;
+      font-size: 0.7rem;
+      text-align: left;
+    }
+
+    tr td {
+      font-size: 90%;
+      line-height: 1.3em;
+      padding: 10px;
+      text-align: left;
+
+      code {
+        display: inline-block;
+        line-height: 1.2em;
+        vertical-align: top;
+        color: #e74c3c;
+        background-color: unset;
+      }
+
+      ul {
+        margin: 8px 0 0 0;
+        padding: 4px 0 4px 20px;
+      }
+    }
+
+    hr {
+      margin: 12px 0;
+    }
+
+    .wideColumn {
+      width: 128px;
+    }
+
+    .widerColumn {
+      width: 180px;
+    }
+
+    .table-heading {
+      font-weight: var(--ifm-table-head-font-weight);
+      border-bottom: 2px solid var(--ifm-table-border-color);
+    }
+
+    div[class*="codeBlockContainer"] {
+      &,
+      & pre {
+        margin-bottom: 0;
+      }
+
+      pre code {
+        padding: 12px 16px;
+        white-space: break-spaces;
+      }
+
+      button {
+        display: none;
+      }
+    }
+  }
+
+  figure {
+    text-align: center;
+    padding: 8px;
+
+    figcaption {
+      padding: 8px;
+      font-size: 0.9rem;
+      color: var(--subtle);
+
+      code {
+        color: var(--subtle);
+      }
+    }
+  }
+
+  .docusaurus-highlight-code-line {
+    background-color: var(--light);
+  }
+
+  div[class*="codeBlockContainer"] {
+    box-shadow: none;
+    border-radius: 8px;
+
+    pre {
+      border-radius: 8px;
+    }
+
+    button {
+      border-color: var(--light);
+      background: var(--deepdark);
+    }
+  }
+
+  div[class*="codeBlockContent"] {
+    display: grid;
+    min-width: 100%;
+  }
+
+  div[class*="codeBlockLines"] {
+    font-size: 80%;
+  }
+
+  div[class*="codeBlockTitle"] {
+    color: var(--subtle);
+    background-color: var(--ifm-color-emphasis-300);
+  }
+
+  .tabs {
+    border-bottom: 1px solid var(--ifm-table-border-color);
+    color: var(--ifm-font-color-base);
+
+    .tabs__item {
+      font-weight: normal;
+      font-size: 15px;
+      color: var(--ifm-font-color-base);
+      user-select: none;
+
+      &:hover {
+        border-radius: var(--ifm-global-radius) var(--ifm-global-radius) 0 0;
+      }
+
+      &.tabs__item--active {
+        font-weight: 700;
+      }
+    }
+  }
+}
+
+html[class*='docs-doc-id-cli'] .markdown table thead tr {
+  :nth-of-type(1) {
+    width: 20%;
+  }
+
+  :nth-of-type(2) {
+    width: 5%;
+  }
+
+  :nth-of-type(3) {
+    width: 20%;
+  }
+
+  :nth-of-type(4) {
+    width: 50%;
+  }
+}

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 )
 
 type DataSupportSuite struct {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 const (

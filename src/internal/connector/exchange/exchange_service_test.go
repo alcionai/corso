@@ -9,13 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/mockconnector"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ExchangeServiceSuite struct {
@@ -457,37 +458,37 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	tests := []struct {
 		name        string
-		option      string
+		option      path.CategoryType
 		checkError  assert.ErrorAssertionFunc
 		cleanupFunc func(graph.Service, string, string) error
 	}{
 		{
 			name:        "Establish User Restore Folder",
-			option:      "users",
+			option:      path.CategoryType(-1),
 			checkError:  assert.Error,
 			cleanupFunc: nil,
 		},
 		{
 			name:        "Establish Event Restore Location",
-			option:      "events",
+			option:      path.EventsCategory,
 			checkError:  assert.NoError,
 			cleanupFunc: DeleteCalendar,
 		},
 		{
 			name:        "Establish Restore Folder for Unknown",
-			option:      "unknown",
+			option:      path.UnknownCategory,
 			checkError:  assert.Error,
 			cleanupFunc: nil,
 		},
 		{
 			name:        "Establish Restore folder for Mail",
-			option:      "mail",
+			option:      path.EmailCategory,
 			checkError:  assert.NoError,
 			cleanupFunc: DeleteMailFolder,
 		},
 		{
 			name:        "Establish Restore folder for Contacts",
-			option:      "contacts",
+			option:      path.ContactsCategory,
 			checkError:  assert.NoError,
 			cleanupFunc: DeleteContactFolder,
 		},
@@ -504,6 +505,80 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 				err = test.cleanupFunc(suite.es, userID, containerID)
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+// TestRestoreExchangeObject verifies path.Category usage for restored objects
+func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
+	ctx := context.Background()
+	t := suite.T()
+	userID := tester.M365UserID(t)
+	service := loadService(t)
+	now := time.Now()
+	tests := []struct {
+		name        string
+		bytes       []byte
+		category    path.CategoryType
+		cleanupFunc func(graph.Service, string, string) error
+		destination func() string
+	}{
+		{
+			name:        "Test Mail",
+			bytes:       mockconnector.GetMockMessageBytes("Restore Exchange Object"),
+			category:    path.EmailCategory,
+			cleanupFunc: DeleteMailFolder,
+			destination: func() string {
+				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateMailFolder(suite.es, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name:        "Test Contact",
+			bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
+			category:    path.ContactsCategory,
+			cleanupFunc: DeleteContactFolder,
+			destination: func() string {
+				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateContactFolder(suite.es, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name:        "Test Events",
+			bytes:       mockconnector.GetMockEventBytes("Restored Event Object"),
+			category:    path.EventsCategory,
+			cleanupFunc: DeleteCalendar,
+			destination: func() string {
+				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
+				calendar, err := CreateCalendar(suite.es, userID, calendarName)
+				require.NoError(t, err)
+
+				return *calendar.GetId()
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			destination := test.destination()
+			err := RestoreExchangeObject(
+				ctx,
+				test.bytes,
+				test.category,
+				control.Copy,
+				service,
+				destination,
+				userID,
+			)
+			assert.NoError(t, err)
+			cleanupError := test.cleanupFunc(service, userID, destination)
+			assert.NoError(t, cleanupError)
 		})
 	}
 }

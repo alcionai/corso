@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/repository"
 )
 
 const (

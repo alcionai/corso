@@ -34,7 +34,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategoryBadStringEr
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, _, err := validateServiceAndCategory(test.service, test.category)
+			_, _, err := validateServiceAndCategoryStrings(test.service, test.category)
 			assert.Error(suite.T(), err)
 		})
 	}
@@ -81,10 +81,26 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			expectedCategory: EmailCategory,
 			check:            assert.NoError,
 		},
+		{
+			name:             "ExchangeContacts",
+			service:          ExchangeService.String(),
+			category:         ContactsCategory.String(),
+			expectedService:  ExchangeService,
+			expectedCategory: ContactsCategory,
+			check:            assert.NoError,
+		},
+		{
+			name:             "ExchangeEvents",
+			service:          ExchangeService.String(),
+			category:         EventsCategory.String(),
+			expectedService:  ExchangeService,
+			expectedCategory: EventsCategory,
+			check:            assert.NoError,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			s, c, err := validateServiceAndCategory(test.service, test.category)
+			s, c, err := validateServiceAndCategoryStrings(test.service, test.category)
 			test.check(t, err)
 
 			if err != nil {

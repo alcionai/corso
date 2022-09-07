@@ -20,7 +20,7 @@ ARG TARGETARCH
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /corso .
 
 ## Deploy
-FROM gcr.io/distroless/base-debian10
+FROM alpine:3.16
 
 COPY --from=build /corso /
 

@@ -5,8 +5,8 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // EventInfo searchable metadata for stored event objects.

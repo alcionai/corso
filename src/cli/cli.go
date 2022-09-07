@@ -6,13 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/cli/backup"
-	"github.com/alcionai/corso/cli/config"
-	"github.com/alcionai/corso/cli/help"
-	"github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/cli/repo"
-	"github.com/alcionai/corso/cli/restore"
-	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/src/cli/backup"
+	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/help"
+	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
+	"github.com/alcionai/corso/src/cli/restore"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ------------------------------------------------------------------------------------------

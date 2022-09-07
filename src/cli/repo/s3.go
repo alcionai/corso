@@ -5,19 +5,17 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/cli/config"
-	. "github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/alcionai/corso/pkg/repository"
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/cli/config"
+	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // s3 bucket info from flags
 var (
-	accessKey       string
 	bucket          string
 	endpoint        string
 	prefix          string
@@ -38,7 +36,6 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, s3ConnectCmd())
 	}
 
-	fs.StringVar(&accessKey, "access-key", "", "Access key ID (replaces the AWS_ACCESS_KEY_ID env variable).")
 	fs.StringVar(&bucket, "bucket", "", "Name of the S3 bucket (required).")
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "Server endpoint for S3 communication.")
@@ -169,7 +166,6 @@ func s3Overrides() map[string]string {
 	return map[string]string{
 		config.AccountProviderTypeKey: account.ProviderM365.String(),
 		config.StorageProviderTypeKey: storage.ProviderS3.String(),
-		credentials.AWSAccessKeyID:    accessKey,
 		storage.Bucket:                bucket,
 		storage.Endpoint:              endpoint,
 		storage.Prefix:                prefix,

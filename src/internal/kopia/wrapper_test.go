@@ -17,17 +17,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/mockconnector"
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/internal/kopia/mockkopia"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia/mockkopia"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 const (
 	testTenant     = "a-tenant"
 	testUser       = "user1"
-	testEmailDir   = "mail"
+	testEmailDir   = "email"
 	testInboxDir   = "inbox"
 	testArchiveDir = "archive"
 	testFileName   = "file1"

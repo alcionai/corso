@@ -5,9 +5,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/store"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // opStatus describes the current status of an operation.

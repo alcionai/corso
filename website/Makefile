@@ -4,15 +4,15 @@ buildimage:
 	docker build -t "corso/website:latest" .
 
 dev:
-	docker run --rm -it -p 3000:3000 \
-		-v ${PWD}:/usr/src/website corso/website gulp
+	docker run --rm -it --init -p 3000:3000 -p 3001:3001 \
+		-v ${PWD}:/usr/src/website corso/website gulp 
 
 shell:
-	docker run --rm -it -p 3000:3000 \
+	docker run --rm -it -p 3000:3000 -p 3001:3001 \
 		-v ${PWD}:/usr/src/website corso/website /bin/bash
 
 build:
-	docker run --rm -it \
+	docker run --rm -it --init \
 		-v ${PWD}:/usr/src/website corso/website gulp build
 
 publish: build
@@ -22,4 +22,4 @@ publish: build
 
 sync:
 	aws s3 sync /usr/src/website/dist/ s3://corsobackup.io/ --exclude ".git/*" --delete
-	aws cloudfront create-invalidation --distribution-id ESFSMEIU1TDEN --paths "/*"
+	aws cloudfront create-invalidation --distribution-id XXXXX --paths "/*"
