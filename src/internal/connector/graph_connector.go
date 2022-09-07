@@ -262,7 +262,7 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 			user      = dc.FullPath()[1]
 			items     = dc.Items()
 			// TODO(ashmrtn): Update this when we have path struct support in collections.
-			category = path.ToCategoryType(dc.FullPath()[2])
+			category = path.ToCategoryType(dc.FullPath()[3])
 			exit     bool
 		)
 
