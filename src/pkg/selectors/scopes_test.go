@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/filters"
 )
@@ -241,12 +242,43 @@ func (suite *SelectorScopesSuite) TestReduce() {
 }
 
 func (suite *SelectorScopesSuite) TestPathTypeIn() {
-	t := suite.T()
-	assert.Equal(t, unknownPathType, pathTypeIn([]string{}), "empty")
-	assert.Equal(t, exchangeMailPath, pathTypeIn([]string{"", "", "email"}), "email")
-	assert.Equal(t, exchangeContactPath, pathTypeIn([]string{"", "", "contacts"}), "contact")
-	assert.Equal(t, exchangeEventPath, pathTypeIn([]string{"", "", "events"}), "event")
-	assert.Equal(t, unknownPathType, pathTypeIn([]string{"", "", "fnords"}), "bogus")
+	table := []struct {
+		name     string
+		pathType pathType
+		pth      []string
+	}{
+		{
+			name:     "empty",
+			pathType: unknownPathType,
+			pth:      []string{},
+		},
+		{
+			name:     "email",
+			pathType: exchangeMailPath,
+			pth:      stubPath(path.ExchangeService, path.EmailCategory, "", "", ""),
+		},
+		{
+			name:     "contact",
+			pathType: exchangeContactPath,
+			pth:      stubPath(path.ExchangeService, path.ContactsCategory, "", "", ""),
+		},
+		{
+			name:     "event",
+			pathType: exchangeEventPath,
+			pth:      stubPath(path.ExchangeService, path.EventsCategory, "", "", ""),
+		},
+		{
+			name:     "bogus",
+			pathType: unknownPathType,
+			pth:      []string{"", "", "", "fnords", "", ""},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := pathTypeIn(test.pth)
+			assert.Equal(t, test.pathType, result)
+		})
+	}
 }
 
 func (suite *SelectorScopesSuite) TestScopesByCategory() {

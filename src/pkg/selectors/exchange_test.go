@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/internal/path"
 	"github.com/alcionai/corso/pkg/backup/details"
 	"github.com/alcionai/corso/pkg/filters"
 )
@@ -777,8 +778,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	)
 
 	var (
-		path = []string{"tid", usr, "email", fld, mail}
-		es   = NewExchangeRestore()
+		pth = stubPath(path.ExchangeService, path.EmailCategory, usr, fld, mail)
+		es  = NewExchangeRestore()
 	)
 
 	table := []struct {
@@ -807,7 +808,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			scopes := setScopesToDefault(test.scope)
 			var aMatch bool
 			for _, scope := range scopes {
-				pv := ExchangeMail.pathValues(path)
+				pv := ExchangeMail.pathValues(pth)
 				if matchesPathValues(scope, ExchangeMail, pv) {
 					aMatch = true
 					break
@@ -821,12 +822,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 func (suite *ExchangeSelectorSuite) TestIdPath() {
 	table := []struct {
 		cat    exchangeCategory
-		path   []string
+		pth    []string
 		expect map[exchangeCategory]string
 	}{
 		{
 			ExchangeContact,
-			[]string{"tid", "uid", "contact", "cFld", "cid"},
+			stubPath(path.ExchangeService, path.ContactsCategory, "uid", "cFld", "cid"),
 			map[exchangeCategory]string{
 				ExchangeUser:          "uid",
 				ExchangeContactFolder: "cFld",
@@ -835,15 +836,16 @@ func (suite *ExchangeSelectorSuite) TestIdPath() {
 		},
 		{
 			ExchangeEvent,
-			[]string{"tid", "uid", "event", "eid"},
+			stubPath(path.ExchangeService, path.EventsCategory, "uid", "eCld", "eid"),
 			map[exchangeCategory]string{
-				ExchangeUser:  "uid",
-				ExchangeEvent: "eid",
+				ExchangeUser:          "uid",
+				ExchangeEventCalendar: "eCld",
+				ExchangeEvent:         "eid",
 			},
 		},
 		{
 			ExchangeMail,
-			[]string{"tid", "uid", "email", "mFld", "mid"},
+			stubPath(path.ExchangeService, path.EmailCategory, "uid", "mFld", "mid"),
 			map[exchangeCategory]string{
 				ExchangeUser:       "uid",
 				ExchangeMailFolder: "mFld",
@@ -852,7 +854,7 @@ func (suite *ExchangeSelectorSuite) TestIdPath() {
 		},
 		{
 			ExchangeCategoryUnknown,
-			[]string{"tid", "uid", "contact", "cFld", "cid"},
+			stubPath(path.ExchangeService, path.UnknownCategory, "u", "f", "i"),
 			map[exchangeCategory]string{
 				ExchangeUser: "uid",
 			},
@@ -880,10 +882,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 		return deets
 	}
 
-	const (
-		contact = "tid/uid/contacts/cfld/cid"
-		event   = "tid/uid/events/ecld/eid"
-		mail    = "tid/uid/email/mfld/mid"
+	var (
+		contact = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
+		event   = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
+		mail    = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "mfld", "mid")
 	)
 
 	arr := func(s ...string) []string {
@@ -1090,7 +1092,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		mail      = setScopesToDefault(es.Mails(Any(), Any(), []string{mid}))
 		otherMail = setScopesToDefault(es.Mails(Any(), Any(), []string{"smarf"}))
 		noMail    = setScopesToDefault(es.Mails(Any(), Any(), None()))
-		path      = []string{"tid", "user", "email", "folder", mid}
+		pth       = stubPath(path.ExchangeService, path.EmailCategory, "user", "folder", mid)
 	)
 
 	table := []struct {
@@ -1121,7 +1123,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			result := passes(
 				cat,
-				cat.pathValues(path),
+				cat.pathValues(pth),
 				deets,
 				test.excludes,
 				test.filters,
@@ -1226,23 +1228,23 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_leafCat() {
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
-	contactPath := []string{"ten", "user", "contact", "cfolder", "contactitem"}
+	contactPath := stubPath(path.ExchangeService, path.ContactsCategory, "user", "cfolder", "contactitem")
 	contactMap := map[categorizer]string{
-		ExchangeUser:          contactPath[1],
-		ExchangeContactFolder: contactPath[3],
-		ExchangeContact:       contactPath[4],
+		ExchangeUser:          contactPath[2],
+		ExchangeContactFolder: contactPath[4],
+		ExchangeContact:       contactPath[5],
 	}
-	eventPath := []string{"ten", "user", "event", "ecalendar", "eventitem"}
+	eventPath := stubPath(path.ExchangeService, path.EventsCategory, "user", "ecalendar", "eventitem")
 	eventMap := map[categorizer]string{
-		ExchangeUser:          eventPath[1],
-		ExchangeEventCalendar: eventPath[3],
-		ExchangeEvent:         eventPath[4],
+		ExchangeUser:          eventPath[2],
+		ExchangeEventCalendar: eventPath[4],
+		ExchangeEvent:         eventPath[5],
 	}
-	mailPath := []string{"ten", "user", "mail", "mfolder", "mailitem"}
+	mailPath := stubPath(path.ExchangeService, path.EmailCategory, "user", "mfolder", "mailitem")
 	mailMap := map[categorizer]string{
-		ExchangeUser:       contactPath[1],
-		ExchangeMailFolder: mailPath[3],
-		ExchangeMail:       mailPath[4],
+		ExchangeUser:       contactPath[2],
+		ExchangeMailFolder: mailPath[4],
+		ExchangeMail:       mailPath[5],
 	}
 
 	table := []struct {
