@@ -488,6 +488,11 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
 	}
+	//Update items not available on creation
+	err = service.Client().UsersById(user).MessagesById(*sentMessage.GetId()).Patch(message)
+	if err != nil {
+		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
+	}
 
 	return nil
 }
