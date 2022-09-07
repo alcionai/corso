@@ -353,18 +353,11 @@ func RestoreExchangeObject(
 	service graph.Service,
 	destination, user string,
 ) error {
-	var setting optionIdentifier
-
-	switch category {
-	case path.EmailCategory, path.ContactsCategory:
-		setting = categoryToOptionIdentifier(category)
-	default:
-		return fmt.Errorf("type: %s not supported for exchange restore", category)
-	}
-
 	if policy != control.Copy {
 		return fmt.Errorf("restore policy: %s not supported", policy)
 	}
+
+	setting := categoryToOptionIdentifier(category)
 
 	switch setting {
 	case messages:
