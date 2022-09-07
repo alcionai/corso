@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/src/internal/model"
 )
 
 type ModelUnitSuite struct {

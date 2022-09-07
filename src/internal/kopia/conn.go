@@ -13,8 +13,8 @@ import (
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (

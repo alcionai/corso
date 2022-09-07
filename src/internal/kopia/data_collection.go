@@ -3,7 +3,7 @@ package kopia
 import (
 	"io"
 
-	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/src/internal/data"
 )
 
 var (

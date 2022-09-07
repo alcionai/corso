@@ -8,17 +8,17 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/internal/stats"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/logger"
-	"github.com/alcionai/corso/pkg/selectors"
-	"github.com/alcionai/corso/pkg/store"
+	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // RestoreOperation wraps an operation with restore-specific props.

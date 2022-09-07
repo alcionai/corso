@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/mockconnector"
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ExchangeServiceSuite struct {

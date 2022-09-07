@@ -5,13 +5,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/cli/config"
-	. "github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/repository"
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/cli/config"
+	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // s3 bucket info from flags

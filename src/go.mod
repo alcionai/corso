@@ -1,4 +1,4 @@
-module github.com/alcionai/corso
+module github.com/alcionai/corso/src
 
 go 1.18
 

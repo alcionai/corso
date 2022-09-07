@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/alcionai/corso/cli/print"
+	"github.com/alcionai/corso/src/cli/print"
 )
 
 var (

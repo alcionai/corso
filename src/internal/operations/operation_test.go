@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/store"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 type OperationSuite struct {

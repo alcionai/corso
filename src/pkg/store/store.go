@@ -5,8 +5,8 @@ import (
 
 	"github.com/kopia/kopia/repo/manifest"
 
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/model"
 )
 
 var _ Storer = &kopia.ModelStore{}
