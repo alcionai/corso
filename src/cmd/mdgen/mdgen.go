@@ -91,6 +91,7 @@ func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
 			continue
 		}
+
 		if err := genMarkdownCorso(c, dir); err != nil {
 			return err
 		}
@@ -107,13 +108,12 @@ func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
+
 	defer f.Close()
 
-	if err := genMarkdownCustomCorso(cmd, f); err != nil {
-		return err
-	}
-
-	return nil
+	err := genMarkdownCustomCorso(cmd, f); err != nil {
+	
+	return err
 }
 
 func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
@@ -162,6 +162,7 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 	}
 
 	_, err := buf.WriteTo(w)
+
 	return err
 }
 
