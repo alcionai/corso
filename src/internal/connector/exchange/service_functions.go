@@ -488,8 +488,18 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
 	}
+
 	//Update items not available on creation
-	err = service.Client().UsersById(user).MessagesById(*sentMessage.GetId()).Patch(message)
+	valueID := RestorePropertyTag
+	enableValue := RestoreCanonicalEnableValue
+	sv := models.NewSingleValueLegacyExtendedProperty()
+	sv.SetId(&valueID)
+	sv.SetValue(&enableValue)
+	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
+	sentMessage.SetSingleValueExtendedProperties(svlep)
+	sentMessage.SetReceivedDateTime(message.GetReceivedDateTime())
+	sentMessage.SetSentDateTime(message.GetReceivedDateTime())
+	err = service.Client().UsersById(user).MessagesById(*sentMessage.GetId()).Patch(sentMessage)
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}

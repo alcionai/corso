@@ -407,6 +407,33 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	}
 }
 
+// Restore Functions
+// TestRestoreMessages uses mock data to ensure GraphConnector
+// is able to restore a several messageable item to a Mailbox.
+// The result should be all successful items restored within the same folder.
+func (suite *ExchangeServiceSuite) TestRestoreMessages() {
+	t := suite.T()
+	userID := tester.M365UserID(t)
+	now := time.Now()
+
+	folderName := "TestRestoreMessage: " + common.FormatSimpleDateTime(now)
+	folder, err := CreateMailFolder(suite.es, userID, folderName)
+	require.NoError(t, err)
+
+	folderID := *folder.GetId()
+
+	err = RestoreMailMessage(context.Background(),
+		mockconnector.GetMockMessageBytes("Exchange Service Mail Test"),
+		suite.es,
+		control.Copy,
+		folderID,
+		userID,
+	)
+	require.NoError(t, err)
+	//err = DeleteMailFolder(folderID)
+
+}
+
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
