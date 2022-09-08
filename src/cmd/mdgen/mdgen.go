@@ -110,7 +110,7 @@ func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 	}
 
 	defer f.Close()
-	
+
 	return genMarkdownCustomCorso(cmd, f)
 }
 
