@@ -8,7 +8,7 @@ import (
 const (
 	StandardTimeFormat                = time.RFC3339Nano
 	SimpleDateTimeFormat              = "02-Jan-2006_15:04:05"
-	SingleValueExtendedPropertyFormat = time.RFC3339
+	LegacyFormat = time.RFC3339
 )
 
 // FormatNow produces the current time in UTC using the provided
