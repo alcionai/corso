@@ -104,6 +104,7 @@ func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 
 	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
 	filename := filepath.Join(dir, basename)
+
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
