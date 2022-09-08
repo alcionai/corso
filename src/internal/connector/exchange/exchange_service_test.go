@@ -430,8 +430,8 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 		userID,
 	)
 	require.NoError(t, err)
-	//err = DeleteMailFolder(folderID)
-
+	err = DeleteMailFolder(suite.es, userID, folderID)
+	assert.NoError(t, err)
 }
 
 // TestRestoreContact ensures contact object can be created, placed into
