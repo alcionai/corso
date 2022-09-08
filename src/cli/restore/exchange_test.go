@@ -163,7 +163,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeRestoreDataSelectors() {
 	}{
 		{
 			name:             "no selectors",
-			expectIncludeLen: 0,
+			expectIncludeLen: 3,
 		},
 		{
 			name:             "any users",

@@ -20,23 +20,22 @@ import (
 )
 
 var (
-	email    = path.EmailCategory.String()
-	contacts = path.ContactsCategory.String()
-	events   = path.EventsCategory.String()
+	email    = path.EmailCategory
+	contacts = path.ContactsCategory
+	events   = path.EventsCategory
 )
 
-var backupDataSets = []string{email, contacts, events}
+var backupDataSets = []path.CategoryType{email, contacts, events}
 
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
-	dataSet    string
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
 	repo       *repository.Repository
 	m365UserID string
-	backupOp   operations.BackupOperation
+	backupOps  map[path.CategoryType]operations.BackupOperation
 }
 
 func TestRestoreExchangeIntegrationSuite(t *testing.T) {
@@ -48,11 +47,7 @@ func TestRestoreExchangeIntegrationSuite(t *testing.T) {
 		t.Skip(err)
 	}
 
-	for _, set := range backupDataSets {
-		s := new(RestoreExchangeIntegrationSuite)
-		s.dataSet = set
-		suite.Run(t, s)
-	}
+	suite.Run(t, new(RestoreExchangeIntegrationSuite))
 }
 
 func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
@@ -85,43 +80,57 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
 	require.NoError(t, err)
 
-	// restoration requires an existing backup
-	sel := selectors.NewExchangeBackup()
+	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)
 
-	var scopes []selectors.ExchangeScope
+	for _, set := range backupDataSets {
+		var (
+			sel    = selectors.NewExchangeBackup()
+			scopes []selectors.ExchangeScope
+		)
 
-	switch suite.dataSet {
-	case email:
-		scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
+		switch set {
+		case email:
+			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
 
-	case contacts:
-		scopes = sel.ContactFolders([]string{suite.m365UserID}, selectors.Any())
+		case contacts:
+			scopes = sel.ContactFolders([]string{suite.m365UserID}, selectors.Any())
 
-	case events:
-		scopes = sel.EventCalendars([]string{suite.m365UserID}, selectors.Any())
+		case events:
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, selectors.Any())
+		}
+
+		sel.Include(scopes)
+
+		bop, err := suite.repo.NewBackup(
+			ctx,
+			sel.Selector,
+			control.NewOptions(false))
+		require.NoError(t, bop.Run(ctx))
+		require.NoError(t, err)
+
+		suite.backupOps[set] = bop
+
+		// sanity check, ensure we can find the backup and its details immediately
+		_, err = suite.repo.Backup(ctx, bop.Results.BackupID)
+		require.NoError(t, err, "retrieving recent backup by ID")
+		_, _, err = suite.repo.BackupDetails(ctx, string(bop.Results.BackupID))
+		require.NoError(t, err, "retrieving recent backup details by ID")
 	}
-
-	sel.Include(scopes)
-
-	suite.backupOp, err = suite.repo.NewBackup(
-		ctx,
-		sel.Selector,
-		control.NewOptions(false))
-	require.NoError(t, suite.backupOp.Run(ctx))
-	require.NoError(t, err)
 }
 
 func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
-	suite.T().Run(suite.dataSet, func(t *testing.T) {
-		ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	for _, set := range backupDataSets {
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
-		cmd := tester.StubRootCmd(
-			"restore", "exchange",
-			"--config-file", suite.cfgFP,
-			"--backup", string(suite.backupOp.Results.BackupID))
-		cli.BuildCommandTree(cmd)
+			cmd := tester.StubRootCmd(
+				"restore", "exchange",
+				"--config-file", suite.cfgFP,
+				"--backup", string(suite.backupOps[set].Results.BackupID))
+			cli.BuildCommandTree(cmd)
 
-		// run the command
-		require.NoError(t, cmd.ExecuteContext(ctx))
-	})
+			// run the command
+			require.NoError(t, cmd.ExecuteContext(ctx))
+		})
+	}
 }
