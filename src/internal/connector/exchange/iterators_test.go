@@ -77,6 +77,7 @@ func loadService(t *testing.T) *exchangeService {
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
+		expectedFolderNames     = make(map[string]struct{}, 0)
 		ctx                     = context.Background()
 		t                       = suite.T()
 		mailScope, contactScope selectors.ExchangeScope
@@ -169,10 +170,20 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				return
 			}
 
-			expectedFolderNames := map[string]struct{}{
-				"Inbox":         {},
-				"Sent Items":    {},
-				"Deleted Items": {},
+			// Mail Version
+			if test.name == "Mail Iterative Check" {
+				expectedFolderNames = map[string]struct{}{
+					"Inbox":      {},
+					"Sent Items": {},
+				}
+			}
+
+			if test.name == "Folder Iterative Check" {
+				expectedFolderNames = map[string]struct{}{
+					"Inbox":         {},
+					"Sent Items":    {},
+					"Deleted Items": {},
+				}
 			}
 
 			for _, c := range collections {
