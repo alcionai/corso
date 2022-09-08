@@ -38,6 +38,7 @@ func CloneMessageableFields(orig, message models.Messageable) models.Messageable
 	message.SetInternetMessageId(orig.GetInternetMessageId())
 	message.SetInternetMessageHeaders(orig.GetInternetMessageHeaders())
 	message.SetIsDeliveryReceiptRequested(orig.GetIsDeliveryReceiptRequested())
+	message.SetIsDraft(orig.GetIsDraft())
 	message.SetIsRead(orig.GetIsRead())
 	message.SetIsReadReceiptRequested(orig.GetIsReadReceiptRequested())
 	message.SetParentFolderId(orig.GetParentFolderId())
