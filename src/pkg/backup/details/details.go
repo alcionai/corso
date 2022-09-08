@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/model"
+	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/model"
 )
 
 // --------------------------------------------------------------------------------

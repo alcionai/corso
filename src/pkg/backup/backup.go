@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/internal/stats"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // Backup represents the result of a backup operation

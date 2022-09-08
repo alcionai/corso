@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"path/filepath"
 	"sync"
 	"testing"
 
@@ -14,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 )
 
 type OneDriveCollectionSuite struct {
@@ -60,7 +59,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	folderPath := "dir1/dir2/dir3"
 	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
 	require.NotNil(suite.T(), coll)
-	assert.Equal(suite.T(), filepath.SplitList(folderPath), coll.FullPath())
+	assert.Equal(suite.T(), []string{"dir1", "dir2", "dir3"}, coll.FullPath())
 
 	testItemID := "fakeItemID"
 	testItemName := "itemName"

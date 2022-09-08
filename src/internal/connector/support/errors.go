@@ -9,7 +9,7 @@ import (
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 // GraphConnector has two types of errors that are exported

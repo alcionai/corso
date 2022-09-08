@@ -3,7 +3,7 @@ package exchange
 import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // ContactInfo translate models.Contactable metadata into searchable content

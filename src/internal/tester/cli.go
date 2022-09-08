@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 // StubRootCmd builds a stub cobra command to be used as

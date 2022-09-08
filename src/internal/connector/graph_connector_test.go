@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/connector/exchange"
-	"github.com/alcionai/corso/internal/connector/mockconnector"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type GraphConnectorIntegrationSuite struct {
@@ -252,7 +252,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
 
 	for i := 0; i < 3; i++ {
 		mdc := mockconnector.NewMockExchangeCollection(
-			[]string{"tenant", suite.user, category.String(), "Inbox"},
+			[]string{"tenant", path.ExchangeService.String(), suite.user, category.String(), "Inbox"},
 			1)
 		collection = append(collection, mdc)
 	}

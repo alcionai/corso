@@ -7,7 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type MessageSuite struct {
