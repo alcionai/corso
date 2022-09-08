@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	StandardTimeFormat   = time.RFC3339Nano
-	SimpleDateTimeFormat = "02-Jan-2006_15:04:05"
-	LegacyFormat         = time.RFC3339
+	StandardTimeFormat      = time.RFC3339Nano
+	SimpleDateTimeFormat    = "02-Jan-2006_15:04:05"
+	LegacyTimeFormat        = time.RFC3339
+	TabularOutputTimeFormat = "2016-01-02T15:04:05Z"
 )
 
 // FormatNow produces the current time in UTC using the provided
@@ -29,10 +30,17 @@ func FormatSimpleDateTime(t time.Time) string {
 	return t.UTC().Format(SimpleDateTimeFormat)
 }
 
+// FormatTabularDisplayTime produces the standard format for displaying
+// a timestamp as part of user-readable cli output.
+// "2016-01-02T15:04:05Z"
+func FormatTabularDisplayTime(t time.Time) string {
+	return t.UTC().Format(TabularOutputTimeFormat)
+}
+
 // FormatLegacyTime produces standard format for string values
 // that are placed in SingleValueExtendedProperty tags
 func FormatLegacyTime(t time.Time) string {
-	return t.UTC().Format(LegacyFormat)
+	return t.UTC().Format(LegacyTimeFormat)
 }
 
 // ParseTime makes a best attempt to produce a time value from
