@@ -121,13 +121,13 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 	buf := new(bytes.Buffer)
 	name := cmd.CommandPath()
 
-	//frontMatter section
+	// frontMatter section
 	buf.WriteString("---\n")
 	buf.WriteString(fmt.Sprintf("title: %s\n", name))
 	buf.WriteString("hide_title: true\n")
 	buf.WriteString("---\n")
 
-	//actual markdown
+	// actual markdown
 	buf.WriteString("## " + name + "\n\n")
 
 	if len(cmd.Long) > 0 {
