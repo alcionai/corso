@@ -131,6 +131,7 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 
 	//actual markdown
 	buf.WriteString("## " + name + "\n\n")
+
 	if len(cmd.Long) > 0 {
 		buf.WriteString(cmd.Long + "\n\n")
 	} else {
@@ -180,13 +181,17 @@ func printFlags(buf *bytes.Buffer, flags *pflag.FlagSet) {
 		buf.WriteString("|")
 		buf.WriteString(fmt.Sprintf("`--%s`", flag.Name))
 		buf.WriteString("|")
+
 		if flag.Shorthand != "" && flag.ShorthandDeprecated == "" {
 			buf.WriteString(fmt.Sprintf("`-%s`", flag.Shorthand))
 		}
+
 		buf.WriteString("|")
+
 		if flag.DefValue != "" {
 			buf.WriteString(fmt.Sprintf("`%s`", flag.DefValue))
 		}
+
 		buf.WriteString("|")
 		buf.WriteString(flag.Usage)
 		buf.WriteString("\n")
