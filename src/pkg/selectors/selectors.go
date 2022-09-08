@@ -19,7 +19,10 @@ const (
 	ServiceOneDrive                // OneDrive
 )
 
-var ErrorBadSelectorCast = errors.New("wrong selector service type")
+var (
+	ErrorBadSelectorCast = errors.New("wrong selector service type")
+	ErrorNoMatchingItems = errors.New("no items in the backup match the selectors")
+)
 
 const (
 	scopeKeyCategory   = "category"

@@ -132,7 +132,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		// format the details and retrieve the items from kopia
 		fds = er.Reduce(ctx, d)
 		if len(fds.Entries) == 0 {
-			return errors.New("nothing to restore: no items in the backup match the provided selectors")
+			return selectors.ErrorNoMatchingItems
 		}
 
 	case selectors.ServiceOneDrive:
