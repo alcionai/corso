@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alcionai/corso/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 type ConnectorOperationStatus struct {

@@ -8,13 +8,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	. "github.com/alcionai/corso/cli/print"
-	"github.com/alcionai/corso/cli/utils"
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/connector"
-	"github.com/alcionai/corso/internal/connector/exchange"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/credentials"
+	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 var purgeCmd = &cobra.Command{

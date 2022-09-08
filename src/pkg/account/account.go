@@ -3,7 +3,7 @@ package account
 import (
 	"errors"
 
-	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 type accountProvider int

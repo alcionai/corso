@@ -7,9 +7,9 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/pkg/backup"
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // ------------------------------------------------------------

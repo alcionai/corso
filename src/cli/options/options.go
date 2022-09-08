@@ -3,7 +3,7 @@ package options
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 var fastFail bool

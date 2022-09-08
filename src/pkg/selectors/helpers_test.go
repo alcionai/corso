@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/pkg/backup/details"
-	"github.com/alcionai/corso/pkg/filters"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------

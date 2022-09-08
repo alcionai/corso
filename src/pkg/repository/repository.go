@@ -7,16 +7,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/internal/operations"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/backup"
-	"github.com/alcionai/corso/pkg/backup/details"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/selectors"
-	"github.com/alcionai/corso/pkg/storage"
-	"github.com/alcionai/corso/pkg/store"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/storage"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // Repository contains storage provider information.

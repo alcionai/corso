@@ -8,8 +8,8 @@ import (
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/delta"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/path"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 const (

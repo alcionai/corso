@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/mockconnector"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ExchangeIteratorSuite struct {

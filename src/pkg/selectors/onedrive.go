@@ -1,7 +1,7 @@
 package selectors
 
 import (
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 type FiltersSuite struct {

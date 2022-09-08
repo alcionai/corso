@@ -5,9 +5,9 @@ import (
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type QueryParams struct {

@@ -3,9 +3,9 @@ package selectors
 import (
 	"strconv"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/pkg/backup/details"
-	"github.com/alcionai/corso/pkg/filters"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/common"
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 type CommonConfigsSuite struct {
