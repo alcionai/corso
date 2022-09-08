@@ -455,14 +455,29 @@ func RestoreMailMessage(
 	clone := support.ToMessage(originalMessage)
 	valueID := RestorePropertyTag
 	enableValue := RestoreCanonicalEnableValue
-	sv := models.NewSingleValueLegacyExtendedProperty()
-	sv.SetId(&valueID)
-	sv.SetValue(&enableValue)
-	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-	clone.SetSingleValueExtendedProperties(svlep)
 
-	draft := false
-	clone.SetIsDraft(&draft)
+	// Set Extended Properties:
+	// 1st: No transmission
+	// 2nd: Send Date
+	// 3rd: Recv Date
+	sv1 := models.NewSingleValueLegacyExtendedProperty()
+	sv1.SetId(&valueID)
+	sv1.SetValue(&enableValue)
+
+	sv2 := models.NewSingleValueLegacyExtendedProperty()
+	sendPropertyValue := common.FormatLegacyTime(*clone.GetSentDateTime())
+	sendPropertyTag := "SystemTime 0x0039"
+	sv2.SetId(&sendPropertyTag)
+	sv2.SetValue(&sendPropertyValue)
+
+	sv3 := models.NewSingleValueLegacyExtendedProperty()
+	recvPropertyValue := common.FormatLegacyTime(*clone.GetReceivedDateTime())
+	recvPropertyTag := "SystemTime 0x0E06"
+	sv3.SetId(&recvPropertyTag)
+	sv3.SetValue(&recvPropertyValue)
+
+	svlep := []models.SingleValueLegacyExtendedPropertyable{sv1, sv2, sv3}
+	clone.SetSingleValueExtendedProperties(svlep)
 
 	// Switch workflow based on collision policy
 	switch cp {
@@ -489,17 +504,6 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 		return errors.New("message not Sent: blocked by server")
 	}
 
-	//Update items not available on creation
-	valueID := RestorePropertyTag
-	enableValue := RestoreCanonicalEnableValue
-	sv := models.NewSingleValueLegacyExtendedProperty()
-	sv.SetId(&valueID)
-	sv.SetValue(&enableValue)
-	svlep := []models.SingleValueLegacyExtendedPropertyable{sv}
-	sentMessage.SetSingleValueExtendedProperties(svlep)
-	sentMessage.SetReceivedDateTime(message.GetReceivedDateTime())
-	sentMessage.SetSentDateTime(message.GetReceivedDateTime())
-	err = service.Client().UsersById(user).MessagesById(*sentMessage.GetId()).Patch(sentMessage)
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
