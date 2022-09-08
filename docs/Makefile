@@ -52,7 +52,7 @@ genclidocs: ${MDGEN_BINARY}
 		golang:1.18 \
 		--cli-folder ${CLI_DOCS_CONTAINER}
 
-${MDGEN_BINARY}: ${CORSO_REPO}/src/** ${CORSO_REPO}/src/**/*.go
+${MDGEN_BINARY}: $(shell find ../src -type f -name *.go) $(shell find ../src -type d )
 	@echo 'Re-building Corso CLI docs auto-gen tooling...'
 	docker run --rm -it \
 		-v ${CORSO_REPO}:${CORSO_REPO_CONTAINER} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \

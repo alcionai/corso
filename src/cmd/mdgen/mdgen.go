@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 
-	"github.com/alcionai/corso/cli"
+	"github.com/alcionai/corso/src/cli"
 )
 
 // generate markdown files in the given.

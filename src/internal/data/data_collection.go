@@ -3,7 +3,7 @@ package data
 import (
 	"io"
 
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // A Collection represents a compilation of data from the

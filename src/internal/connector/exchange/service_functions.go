@@ -11,14 +11,14 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/connector/graph"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/logger"
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var ErrFolderNotFound = errors.New("folder not found")
@@ -353,18 +353,11 @@ func RestoreExchangeObject(
 	service graph.Service,
 	destination, user string,
 ) error {
-	var setting optionIdentifier
-
-	switch category {
-	case path.EmailCategory, path.ContactsCategory:
-		setting = categoryToOptionIdentifier(category)
-	default:
-		return fmt.Errorf("type: %s not supported for exchange restore", category)
-	}
-
 	if policy != control.Copy {
 		return fmt.Errorf("restore policy: %s not supported", policy)
 	}
+
+	setting := categoryToOptionIdentifier(category)
 
 	switch setting {
 	case messages:

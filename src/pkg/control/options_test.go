@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type OptionsSuite struct {

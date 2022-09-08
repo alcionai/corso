@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 var AWSStorageCredEnvs = []string{

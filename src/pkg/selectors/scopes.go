@@ -3,9 +3,9 @@ package selectors
 import (
 	"strings"
 
-	"github.com/alcionai/corso/internal/path"
-	"github.com/alcionai/corso/pkg/backup/details"
-	"github.com/alcionai/corso/pkg/filters"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -287,11 +287,11 @@ const (
 func pathTypeIn(p []string) pathType {
 	// not all paths will be len=3.  Most should be longer.
 	// This just protects us from panicing below.
-	if len(p) < 3 {
+	if len(p) < 4 {
 		return unknownPathType
 	}
 
-	switch p[2] {
+	switch p[3] {
 	case path.EmailCategory.String():
 		return exchangeMailPath
 	case path.ContactsCategory.String():

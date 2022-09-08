@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 //revive:disable:context-as-argument

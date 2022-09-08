@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/selectors"
-	"github.com/alcionai/corso/pkg/store"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -206,4 +206,54 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			assert.Zero(t, bo.Results.WriteErrors)
 		})
 	}
+}
+
+func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
+	t := suite.T()
+	ctx := context.Background()
+
+	m365UserID := tester.M365UserID(t)
+	acct := tester.NewM365Account(t)
+
+	// need to initialize the repository before we can test connecting to it.
+	st := tester.NewPrefixedS3Storage(t)
+
+	k := kopia.NewConn(st)
+	require.NoError(t, k.Initialize(ctx))
+
+	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
+	// to close here.
+	defer k.Close(ctx)
+
+	kw, err := kopia.NewWrapper(k)
+	require.NoError(t, err)
+
+	defer kw.Close(ctx)
+
+	ms, err := kopia.NewModelStore(k)
+	require.NoError(t, err)
+
+	defer ms.Close(ctx)
+
+	sw := store.NewKopiaStore(ms)
+
+	sel := selectors.NewOneDriveBackup()
+	sel.Include(sel.Users([]string{m365UserID}))
+
+	bo, err := NewBackupOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		sel.Selector)
+	require.NoError(t, err)
+
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results)
+	require.NotEmpty(t, bo.Results.BackupID)
+	assert.Equal(t, bo.Status, Completed)
+	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
+	assert.NoError(t, bo.Results.ReadErrors)
+	assert.NoError(t, bo.Results.WriteErrors)
 }

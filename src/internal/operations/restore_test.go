@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/internal/connector/exchange"
-	"github.com/alcionai/corso/internal/connector/support"
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/internal/kopia"
-	"github.com/alcionai/corso/internal/model"
-	"github.com/alcionai/corso/internal/tester"
-	"github.com/alcionai/corso/pkg/account"
-	"github.com/alcionai/corso/pkg/control"
-	"github.com/alcionai/corso/pkg/selectors"
-	"github.com/alcionai/corso/pkg/store"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ---------------------------------------------------------------------------

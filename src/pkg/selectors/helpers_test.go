@@ -1,12 +1,14 @@
 package selectors
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/pkg/backup/details"
-	"github.com/alcionai/corso/pkg/filters"
+	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -40,7 +42,7 @@ func (mc mockCategorizer) unknownCat() categorizer {
 	return unknownCatStub
 }
 
-func (mc mockCategorizer) pathValues(path []string) map[categorizer]string {
+func (mc mockCategorizer) pathValues(pth []string) map[categorizer]string {
 	return map[categorizer]string{rootCatStub: "stub"}
 }
 
@@ -139,4 +141,16 @@ func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 			assert.Equal(t, getCatValue(sc, k), split(v), "Key: %s", k)
 		})
 	}
+}
+
+// stubPath ensures test path production matches that of fullPath design,
+// stubbing out static values where necessary.
+func stubPath(service path.ServiceType, data path.CategoryType, resourceOwner, folders, item string) []string {
+	return []string{"tid", service.String(), resourceOwner, data.String(), folders, item}
+}
+
+// stubRepoRef ensures test path production matches that of repoRef design,
+// stubbing out static values where necessary.
+func stubRepoRef(service path.ServiceType, data path.CategoryType, resourceOwner, folders, item string) string {
+	return strings.Join([]string{"tid", service.String(), resourceOwner, data.String(), folders, item}, "/")
 }

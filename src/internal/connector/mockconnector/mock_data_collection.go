@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/internal/common"
-	"github.com/alcionai/corso/internal/data"
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox

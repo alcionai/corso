@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/pkg/credentials"
-	"github.com/alcionai/corso/pkg/storage"
+	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 type CommonCfgSuite struct {

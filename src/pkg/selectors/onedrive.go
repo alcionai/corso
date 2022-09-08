@@ -1,7 +1,7 @@
 package selectors
 
 import (
-	"github.com/alcionai/corso/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // ---------------------------------------------------------------------------
@@ -188,15 +188,15 @@ func (c oneDriveCategory) unknownCat() categorizer {
 // => {odUser: userPN, odFolder: folder, odFileID: fileID}
 func (c oneDriveCategory) pathValues(path []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) < 2 {
+	if len(path) < 3 {
 		return m
 	}
 
-	m[OneDriveUser] = path[1]
+	m[OneDriveUser] = path[2]
 	/*
 		TODO/Notice:
 		Files contain folder structures, identified
-		in this code as being at index 3.  This assumes a single
+		in this code as being at index 4.  This assumes a single
 		folder, while in reality users can express subfolder
 		hierarchies of arbirary depth.  Subfolder handling is coming
 		at a later time.
