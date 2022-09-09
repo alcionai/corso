@@ -433,6 +433,10 @@ func iterateFindContainerID(
 	errs error,
 ) func(any) bool {
 	return func(entry any) bool {
+		if entry == nil {
+			return true // True when pagination needs more time to get additional responses
+		}
+
 		if isCalendar {
 			entry = CreateCalendarDisplayable(entry)
 
@@ -451,6 +455,7 @@ func iterateFindContainerID(
 
 			return true
 		}
+
 		// Display name not set on folder
 		if folder.GetDisplayName() == nil {
 			return true
