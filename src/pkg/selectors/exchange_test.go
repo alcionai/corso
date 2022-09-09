@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -883,8 +884,11 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	}
 
 	var (
-		contact = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
-		event   = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
+		// TODO: contacts and events currently do not comply with the mail path pattern
+		// contact = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
+		// event   = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
+		contact = strings.Join([]string{"tid", "uid", path.ContactsCategory.String(), "cfld", "cid"}, "/")
+		event   = strings.Join([]string{"tid", "uid", path.EventsCategory.String(), "ecld", "eid"}, "/")
 		mail    = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "mfld", "mid")
 	)
 
@@ -1228,23 +1232,36 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_leafCat() {
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
-	contactPath := stubPath(path.ExchangeService, path.ContactsCategory, "user", "cfolder", "contactitem")
-	contactMap := map[categorizer]string{
-		ExchangeUser:          contactPath[2],
-		ExchangeContactFolder: contactPath[4],
-		ExchangeContact:       contactPath[5],
-	}
-	eventPath := stubPath(path.ExchangeService, path.EventsCategory, "user", "ecalendar", "eventitem")
-	eventMap := map[categorizer]string{
-		ExchangeUser:          eventPath[2],
-		ExchangeEventCalendar: eventPath[4],
-		ExchangeEvent:         eventPath[5],
-	}
+	// TODO: currently events and contacts are non-compliant with email path patterns
+	// contactPath := stubPath(path.ExchangeService, path.ContactsCategory, "user", "cfolder", "contactitem")
+	// contactMap := map[categorizer]string{
+	// 	ExchangeUser:          contactPath[2],
+	// 	ExchangeContactFolder: contactPath[4],
+	// 	ExchangeContact:       contactPath[5],
+	// }
+	// eventPath := stubPath(path.ExchangeService, path.EventsCategory, "user", "ecalendar", "eventitem")
+	// eventMap := map[categorizer]string{
+	// 	ExchangeUser:          eventPath[2],
+	// 	ExchangeEventCalendar: eventPath[4],
+	// 	ExchangeEvent:         eventPath[5],
+	// }
 	mailPath := stubPath(path.ExchangeService, path.EmailCategory, "user", "mfolder", "mailitem")
 	mailMap := map[categorizer]string{
-		ExchangeUser:       contactPath[2],
+		ExchangeUser:       mailPath[2],
 		ExchangeMailFolder: mailPath[4],
 		ExchangeMail:       mailPath[5],
+	}
+	contactPath := []string{"tid", "user", path.ContactsCategory.String(), "cfolder", "contactitem"}
+	contactMap := map[categorizer]string{
+		ExchangeUser:          contactPath[1],
+		ExchangeContactFolder: contactPath[3],
+		ExchangeContact:       contactPath[4],
+	}
+	eventPath := []string{"tid", "user", path.EventsCategory.String(), "ecalendar", "eventitem"}
+	eventMap := map[categorizer]string{
+		ExchangeUser:          eventPath[1],
+		ExchangeEventCalendar: eventPath[3],
+		ExchangeEvent:         eventPath[4],
 	}
 
 	table := []struct {

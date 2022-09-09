@@ -1,31 +1,26 @@
 ---
-title: "corso backup delete exchange"
+title: corso backup delete exchange
 hide_title: true
 ---
 ## corso backup delete exchange
 
 Delete backed-up M365 Exchange service data
 
-```
+```bash
 corso backup delete exchange [flags]
 ```
 
-### Options
+### Flags
 
-```
-      --backup string   ID of the backup containing the details to be shown
-  -h, --help            help for exchange
-```
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--backup`|||ID of the backup containing the details to be shown
+|`--help`|`-h`|`false`|help for exchange
 
-### Options inherited from parent commands
+### Global and inherited flags
 
-```
-      --config-file string   config file (default is $HOME/.corso) (default "/home/runner/.corso.toml")
-      --json                 output data in JSON format
-      --log-level string     set the log level to debug|info|warn|error (default "info")
-```
-
-### SEE ALSO
-
-* [corso backup delete](corso_backup_delete.md)	 - Deletes a backup for a service
-
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--config-file`||`/home/runner/.corso.toml`|config file (default is $HOME/.corso)
+|`--json`||`false`|output data in JSON format
+|`--log-level`||`info`|set the log level to debug|info|warn|error

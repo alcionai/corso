@@ -300,6 +300,16 @@ func pathTypeIn(p []string) pathType {
 		return exchangeEventPath
 	}
 
+	// fallback for unmigrated events and contacts paths
+	switch p[2] {
+	case path.EmailCategory.String():
+		return exchangeMailPath
+	case path.ContactsCategory.String():
+		return exchangeContactPath
+	case path.EventsCategory.String():
+		return exchangeEventPath
+	}
+
 	return unknownPathType
 }
 
