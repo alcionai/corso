@@ -106,30 +106,12 @@ func resolveCollectionPath(
 	return strings.Split(fullPath.String(), "/"), nil
 }
 
-// panicRecoveryWrapper protects the provided iterator callback func with a
-// panic recovery.  Panics will add an error to errs and then return false to
-// stop the iteration.
-func panicRecoveryWrapper(
-	ctx context.Context,
-	errs error,
-	iterator func(any) bool,
-) func(any) bool {
-	return func(pageItem any) bool {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.
-					Ctx(ctx).
-					Errorw("panic during page iteration", "err", r.(error))
-
-				errs = support.WrapAndAppend(
-					"panic during page iteration",
-					r.(error),
-					errs,
-				)
-			}
-		}()
-
-		return iterator(pageItem)
+// iteratorPanicRecovery recovers from a panic by logging and adding an error.
+func iteratorPanicRecovery(ctx context.Context) {
+	if r := recover(); r != nil {
+		logger.
+			Ctx(ctx).
+			Errorw("panic during page iteration", "err", r.(error))
 	}
 }
 
@@ -151,7 +133,9 @@ func IterateSelectAllDescendablesForCollections(
 		resolver       graph.ContainerResolver
 	)
 
-	i := func(pageItem any) bool {
+	return func(pageItem any) bool {
+		defer iteratorPanicRecovery(ctx, errs)
+
 		// Defines the type of collection being created within the function
 		if !isCategorySet {
 			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
@@ -225,8 +209,6 @@ func IterateSelectAllDescendablesForCollections(
 
 		return true
 	}
-
-	return panicRecoveryWrapper(ctx, errs, i)
 }
 
 // IterateSelectAllEventsForCollections
@@ -240,7 +222,9 @@ func IterateSelectAllEventsForCollections(
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
-	i := func(eventItem any) bool {
+	return func(eventItem any) bool {
+		defer iteratorPanicRecovery(ctx, errs)
+
 		event, ok := eventItem.(models.Eventable)
 		if !ok {
 			errs = support.WrapAndAppend(
@@ -309,8 +293,6 @@ func IterateSelectAllEventsForCollections(
 
 		return true
 	}
-
-	return panicRecoveryWrapper(ctx, errs, i)
 }
 
 // IterateAndFilterMessagesForCollections is a filtering GraphIterateFunc
@@ -325,7 +307,9 @@ func IterateAndFilterMessagesForCollections(
 ) func(any) bool {
 	var isFilterSet bool
 
-	i := func(messageItem any) bool {
+	return func(messageItem any) bool {
+		defer iteratorPanicRecovery(ctx, errs)
+
 		if !isFilterSet {
 			err := CollectMailFolders(
 				ctx,
@@ -356,8 +340,6 @@ func IterateAndFilterMessagesForCollections(
 
 		return true
 	}
-
-	return panicRecoveryWrapper(ctx, errs, i)
 }
 
 func IterateFilterFolderDirectoriesForCollections(
@@ -381,7 +363,9 @@ func IterateFilterFolderDirectoriesForCollections(
 		)
 	}
 
-	i := func(folderItem any) bool {
+	return func(folderItem any) bool {
+		defer iteratorPanicRecovery(ctx, errs)
+
 		folder, ok := folderItem.(displayable)
 		if !ok {
 			errs = support.WrapAndAppend(
@@ -451,8 +435,6 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		return true
 	}
-
-	return panicRecoveryWrapper(ctx, errs, i)
 }
 
 // iterateFindContainerID is a utility function that supports finding
@@ -469,7 +451,9 @@ func iterateFindContainerID(
 	isCalendar bool,
 	errs error,
 ) func(any) bool {
-	i := func(entry any) bool {
+	return func(entry any) bool {
+		defer iteratorPanicRecovery(ctx, errs)
+
 		if isCalendar {
 			entry = CreateCalendarDisplayable(entry)
 		}
@@ -508,6 +492,4 @@ func iterateFindContainerID(
 
 		return true
 	}
-
-	return panicRecoveryWrapper(ctx, errs, i)
 }
