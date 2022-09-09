@@ -8,6 +8,7 @@ import (
 const (
 	StandardTimeFormat   = time.RFC3339Nano
 	SimpleDateTimeFormat = "02-Jan-2006_15:04:05"
+	LegacyFormat         = time.RFC3339
 )
 
 // FormatNow produces the current time in UTC using the provided
@@ -26,6 +27,12 @@ func FormatTime(t time.Time) string {
 // "02-Jan-2006_15:04:05"
 func FormatSimpleDateTime(t time.Time) string {
 	return t.UTC().Format(SimpleDateTimeFormat)
+}
+
+// FormatLegacyTime produces standard format for string values
+// that are placed in SingleValueExtendedProperty tags
+func FormatLegacyTime(t time.Time) string {
+	return t.UTC().Format(LegacyFormat)
 }
 
 // ParseTime makes a best attempt to produce a time value from
