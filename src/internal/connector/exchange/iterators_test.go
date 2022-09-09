@@ -77,7 +77,6 @@ func loadService(t *testing.T) *exchangeService {
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
-		expectedFolderNames     = make(map[string]struct{}, 0)
 		ctx                     = context.Background()
 		t                       = suite.T()
 		mailScope, contactScope selectors.ExchangeScope
@@ -109,6 +108,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		iterativeFunction GraphIterateFunc
 		scope             selectors.ExchangeScope
 		transformer       absser.ParsableFactory
+		folderNames       map[string]struct{}
 	}{
 		{
 			name:              "Mail Iterative Check",
@@ -116,6 +116,10 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             mailScope,
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
+			folderNames: map[string]struct{}{
+				"Inbox":      {},
+				"Sent Items": {},
+			},
 		}, {
 			name:              "Contacts Iterative Check",
 			queryFunction:     GetAllContactsForUser,
@@ -128,6 +132,11 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
 			scope:             mailScope,
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
+			folderNames: map[string]struct{}{
+				"Inbox":         {},
+				"Sent Items":    {},
+				"Deleted Items": {},
+			},
 		},
 	}
 	for _, test := range tests {
@@ -170,33 +179,17 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				return
 			}
 
-			// Mail Version
-			if test.name == "Mail Iterative Check" {
-				expectedFolderNames = map[string]struct{}{
-					"Inbox":      {},
-					"Sent Items": {},
-				}
-			}
-
-			if test.name == "Folder Iterative Check" {
-				expectedFolderNames = map[string]struct{}{
-					"Inbox":         {},
-					"Sent Items":    {},
-					"Deleted Items": {},
-				}
-			}
-
 			for _, c := range collections {
 				// TODO(ashmrtn): Update these checks when collections support path.Path.
 				require.Greater(t, len(c.FullPath()), 4)
 
 				folder := c.FullPath()[4]
-				if _, ok := expectedFolderNames[folder]; ok {
-					delete(expectedFolderNames, folder)
+				if _, ok := test.folderNames[folder]; ok {
+					delete(test.folderNames, folder)
 				}
 			}
 
-			assert.Empty(t, expectedFolderNames)
+			assert.Empty(t, test.folderNames)
 		})
 	}
 }
