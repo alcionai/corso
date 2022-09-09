@@ -86,10 +86,23 @@ func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete()
 }
 
-type MailFolder struct {
+type idName struct {
 	ID          string
 	DisplayName string
 }
+
+func (in idName) GetID() string {
+	return in.ID
+}
+
+func (in idName) GetDisplayName() string {
+	return in.DisplayName
+}
+
+type (
+	MailFolder struct{ idName }
+	Calendar   struct{ idName }
+)
 
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
@@ -152,8 +165,10 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
 		if include {
 			mfs = append(mfs, MailFolder{
-				ID:          *folder.GetId(),
-				DisplayName: *folder.GetDisplayName(),
+				idName: idName{
+					ID:          *folder.GetId(),
+					DisplayName: *folder.GetDisplayName(),
+				},
 			})
 		}
 
@@ -165,6 +180,54 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 	}
 
 	return mfs, err
+}
+
+// GetAllCalendars retrieves all event calendars for the specified user.
+// If nameContains is populated, only returns calendars matching that property.
+// Returns a slice of {ID, DisplayName} tuples.
+func GetAllCalendars(gs graph.Service, user, nameContains string) ([]Calendar, error) {
+	var (
+		cs  = []Calendar{}
+		err error
+	)
+
+	resp, err := GetAllCalendarNamesForUser(gs, user)
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, gs.Adapter(), models.CreateCalendarCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+
+	cb := func(calItem any) bool {
+		cal, ok := calItem.(models.Calendarable)
+		if !ok {
+			err = errors.New("HasCalendar() iteration failure")
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			(len(nameContains) > 0 && strings.Contains(*cal.GetName(), nameContains))
+		if include {
+			cs = append(cs, Calendar{
+				idName: idName{
+					ID:          *cal.GetId(),
+					DisplayName: *cal.GetName(),
+				},
+			})
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(cb); err != nil {
+		return nil, err
+	}
+
+	return cs, err
 }
 
 // GetContainerID query function to retrieve a container's M365 ID.
