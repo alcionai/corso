@@ -116,10 +116,6 @@ func RetrieveEventDataForUser(gs graph.Service, user, m365ID string) (absser.Par
 	return gs.Client().UsersById(user).EventsById(m365ID).Get()
 }
 
-func RetrieveFullCalendarForUser(gs graph.Service, user, m365ID string) (absser.Parsable, error) {
-	return gs.Client().UsersById(user).CalendarsById(m365ID).Get()
-}
-
 // RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
 // Attachment field is omitted due to size.
 func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.Parsable, error) {
