@@ -55,7 +55,7 @@ func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, e
 }
 
 func GetAllCalendarNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	options, err := optionsForCalendars([]string{"name"})
+	options, err := optionsForCalendars([]string{"name", "owner"})
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +114,10 @@ func RetrieveContactDataForUser(gs graph.Service, user, m365ID string) (absser.P
 // Calendarable and attachment fields are omitted due to size
 func RetrieveEventDataForUser(gs graph.Service, user, m365ID string) (absser.Parsable, error) {
 	return gs.Client().UsersById(user).EventsById(m365ID).Get()
+}
+
+func RetrieveFullCalendarForUser(gs graph.Service, user, m365ID string) (absser.Parsable, error) {
+	return gs.Client().UsersById(user).CalendarsById(m365ID).Get()
 }
 
 // RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
