@@ -128,7 +128,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	t := suite.T()
 	connector := loadConnector(t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{suite.user}, selectors.Any()))
+	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
 
