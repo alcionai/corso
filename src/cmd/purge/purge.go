@@ -36,6 +36,12 @@ var eventsCmd = &cobra.Command{
 	RunE:  handleCalendarFolderPurge,
 }
 
+var contactsCmd = &cobra.Command{
+	Use:   "contacts",
+	Short: "Purges contacts folders",
+	RunE:  handleContactsFolderPurge,
+}
+
 var (
 	before string
 	user   string
@@ -59,6 +65,7 @@ func main() {
 
 	purgeCmd.AddCommand(mailCmd)
 	purgeCmd.AddCommand(eventsCmd)
+	purgeCmd.AddCommand(contactsCmd)
 
 	if err := purgeCmd.ExecuteContext(ctx); err != nil {
 		Info(purgeCmd.Context(), "Error: ", err.Error())
@@ -91,6 +98,11 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 	err = purgeCalendarFolders(ctx, gc, t)
 	if err != nil {
 		return errors.Wrap(err, "purging calendar folders")
+	}
+
+	err = purgeContactFolders(ctx, gc, t)
+	if err != nil {
+		return errors.Wrap(err, "purging contacts folders")
 	}
 
 	return nil
@@ -132,6 +144,22 @@ func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
 	return purgeCalendarFolders(ctx, gc, t)
 }
 
+func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	gc, err := getGC(ctx)
+	if err != nil {
+		return err
+	}
+
+	t, err := getBoundaryTime(ctx)
+	if err != nil {
+		return err
+	}
+
+	return purgeContactFolders(ctx, gc, t)
+}
+
 // ------------------------------------------------------------------------------------------
 // Purge Controllers
 // ------------------------------------------------------------------------------------------
@@ -156,8 +184,8 @@ func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundar
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, mfid string) error {
-		return exchange.DeleteMailFolder(gs, uid, mfid)
+	deleter := func(gs graph.Service, uid, fid string) error {
+		return exchange.DeleteMailFolder(gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "mail", getter, deleter)
@@ -183,11 +211,38 @@ func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, bou
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, mfid string) error {
-		return exchange.DeleteCalendar(gs, uid, mfid)
+	deleter := func(gs graph.Service, uid, fid string) error {
+		return exchange.DeleteCalendar(gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "calendar", getter, deleter)
+}
+
+// ----- contacts
+
+var _ purgable = &exchange.ContactFolder{}
+
+func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
+	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
+		cfs, err := exchange.GetAllContactFolders(gs, uid, prefix)
+		if err != nil {
+			return nil, err
+		}
+
+		purgables := make([]purgable, len(cfs))
+
+		for i, v := range cfs {
+			purgables[i] = v
+		}
+
+		return purgables, nil
+	}
+
+	deleter := func(gs graph.Service, uid, fid string) error {
+		return exchange.DeleteContactFolder(gs, uid, fid)
+	}
+
+	return purgeFolders(ctx, gc, boundary, "contact", getter, deleter)
 }
 
 // ----- controller
