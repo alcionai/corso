@@ -298,7 +298,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		transform = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
 	case contacts:
 		query = GetAllContactFolderNamesForUser
-		transform = models.CreateContactFolderFromDiscriminatorValue
+		transform = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
 	case events:
 		query = GetAllCalendarNamesForUser
 		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
