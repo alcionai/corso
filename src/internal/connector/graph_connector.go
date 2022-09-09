@@ -260,13 +260,28 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 
 	for _, dc := range dcs {
 		var (
+			user      string
+			category  path.CategoryType
 			directory = strings.Join(dc.FullPath(), "")
-			user      = dc.FullPath()[2]
 			items     = dc.Items()
 			// TODO(ashmrtn): Update this when we have path struct support in collections.
-			category = path.ToCategoryType(dc.FullPath()[3])
-			exit     bool
+			exit bool
 		)
+
+		// email uses the new path format
+		category = path.ToCategoryType(dc.FullPath()[3])
+		if category == path.UnknownCategory {
+			// events and calendar use the old path format
+			category = path.ToCategoryType(dc.FullPath()[2])
+		}
+
+		// get the user from the path index based on the path pattern.
+		switch category {
+		case path.EmailCategory:
+			user = dc.FullPath()[2]
+		case path.ContactsCategory, path.EventsCategory:
+			user = dc.FullPath()[1]
+		}
 
 		if _, ok := pathCounter[directory]; !ok {
 			pathCounter[directory] = true
