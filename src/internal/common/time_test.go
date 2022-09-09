@@ -26,6 +26,13 @@ func (suite *CommonTimeUnitSuite) TestFormatTime() {
 	assert.Equal(t, now.UTC().Format(time.RFC3339Nano), result)
 }
 
+func (suite *CommonTimeUnitSuite) TestLegacyTime() {
+	t := suite.T()
+	now := time.Now()
+	result := common.FormatLegacyTime(now)
+	assert.Equal(t, now.UTC().Format(time.RFC3339), result)
+}
+
 func (suite *CommonTimeUnitSuite) TestParseTime() {
 	t := suite.T()
 	now := time.Now()

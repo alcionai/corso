@@ -14,10 +14,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -238,32 +236,6 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 	status := connector.AwaitStatus()
 	suite.NotNil(status)
 	suite.Equal(status.ObjectCount, status.Successful)
-}
-
-// Restore Functions
-// TestRestoreMessages uses mock data to ensure GraphConnector
-// is able to restore a several messageable item to a Mailbox.
-// The result should be all successful items restored within the same folder.
-func (suite *GraphConnectorIntegrationSuite) TestRestoreMessages() {
-	t := suite.T()
-	category := path.EmailCategory
-	connector := loadConnector(t)
-	collection := make([]data.Collection, 0)
-
-	for i := 0; i < 3; i++ {
-		mdc := mockconnector.NewMockExchangeCollection(
-			[]string{"tenant", path.ExchangeService.String(), suite.user, category.String(), "Inbox"},
-			1)
-		collection = append(collection, mdc)
-	}
-
-	err := connector.RestoreExchangeDataCollection(context.Background(), collection)
-	assert.NoError(suite.T(), err)
-
-	status := connector.AwaitStatus()
-	assert.NotNil(t, status)
-	assert.Equal(t, status.ObjectCount, status.Successful)
-	assert.Equal(t, status.FolderCount, 1)
 }
 
 // TestAccessOfInboxAllUsers verifies that GraphConnector can
