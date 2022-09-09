@@ -398,6 +398,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := GetContainerID(
+				context.Background(),
 				suite.es,
 				test.containerName,
 				userID,
@@ -525,7 +526,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			containerID, err := GetRestoreContainer(suite.es, userID, test.option)
+			containerID, err := GetRestoreContainer(context.Background(), suite.es, userID, test.option)
 			require.True(t, test.checkError(t, err))
 
 			if test.cleanupFunc != nil {

@@ -285,7 +285,7 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 
 		if _, ok := pathCounter[directory]; !ok {
 			pathCounter[directory] = true
-			folderID, errs = exchange.GetRestoreContainer(&gc.graphService, user, category)
+			folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
 
 			if errs != nil {
 				return errs

@@ -171,7 +171,12 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 // @param containerName is the target's name, user-readable and case sensitive
 // @param category switches query and iteration to support  multiple exchange applications
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetContainerID(service graph.Service, containerName, user string, category optionIdentifier) (*string, error) {
+func GetContainerID(
+	ctx context.Context,
+	service graph.Service,
+	containerName, user string,
+	category optionIdentifier,
+) (*string, error) {
 	var (
 		errs       error
 		targetID   *string
@@ -214,6 +219,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 	}
 
 	callbackFunc := iterateFindContainerID(
+		ctx,
 		&targetID,
 		containerName,
 		service.Adapter().GetBaseUrl(),
@@ -302,6 +308,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 // @param category: input from fullPath()[2]
 // that defines the application the folder is created in.
 func GetRestoreContainer(
+	ctx context.Context,
 	service graph.Service,
 	user string,
 	category path.CategoryType,
@@ -309,7 +316,7 @@ func GetRestoreContainer(
 	name := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	option := categoryToOptionIdentifier(category)
 
-	folderID, err := GetContainerID(service, name, user, option)
+	folderID, err := GetContainerID(ctx, service, name, user, option)
 	if err == nil {
 		return *folderID, nil
 	}
