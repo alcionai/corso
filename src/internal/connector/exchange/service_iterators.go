@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -106,12 +107,14 @@ func resolveCollectionPath(
 	return strings.Split(fullPath.String(), "/"), nil
 }
 
-// iteratorPanicRecovery recovers from a panic by logging and adding an error.
+// iteratorPanicRecovery recovers from a panic and logs the error.
 func iteratorPanicRecovery(ctx context.Context) {
 	if r := recover(); r != nil {
 		logger.
 			Ctx(ctx).
-			Errorw("panic during page iteration", "err", r.(error))
+			Errorw("panic during page iteration",
+				"err", r.(error),
+				"stack", string(debug.Stack()))
 	}
 }
 
