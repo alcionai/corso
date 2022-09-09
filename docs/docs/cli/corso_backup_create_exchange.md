@@ -1,33 +1,28 @@
 ---
-title: "corso backup create exchange"
+title: corso backup create exchange
 hide_title: true
 ---
 ## corso backup create exchange
 
 Backup M365 Exchange service data
 
-```
+```bash
 corso backup create exchange [flags]
 ```
 
-### Options
+### Flags
 
-```
-      --all            Backup all Exchange data for all users
-      --data strings   Select one or more types of data to backup: email, contacts, or events
-  -h, --help           help for exchange
-      --user strings   Backup Exchange data by user ID; accepts * to select all users
-```
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--all`||`false`|Backup all Exchange data for all users
+|`--data`||`[]`|Select one or more types of data to backup: email, contacts, or events
+|`--help`|`-h`|`false`|help for exchange
+|`--user`||`[]`|Backup Exchange data by user ID; accepts * to select all users
 
-### Options inherited from parent commands
+### Global and inherited flags
 
-```
-      --config-file string   config file (default is $HOME/.corso) (default "/home/runner/.corso.toml")
-      --json                 output data in JSON format
-      --log-level string     set the log level to debug|info|warn|error (default "info")
-```
-
-### SEE ALSO
-
-* [corso backup create](corso_backup_create.md)	 - Backup an M365 Service
-
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--config-file`||`/home/runner/.corso.toml`|config file (default is $HOME/.corso)
+|`--json`||`false`|output data in JSON format
+|`--log-level`||`info`|set the log level to debug|info|warn|error
