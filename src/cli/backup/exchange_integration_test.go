@@ -190,10 +190,10 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{suite.m365UserID}, selectors.Any())
+			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{"Contacts"})
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, selectors.Any())
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{"Calendar"})
 		}
 
 		sel.Include(scopes)
