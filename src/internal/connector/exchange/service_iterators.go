@@ -137,7 +137,7 @@ func IterateSelectAllDescendablesForCollections(
 	)
 
 	return func(pageItem any) bool {
-		defer iteratorPanicRecovery(ctx, errs)
+		defer iteratorPanicRecovery(ctx)
 
 		// Defines the type of collection being created within the function
 		if !isCategorySet {
@@ -226,7 +226,7 @@ func IterateSelectAllEventsForCollections(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	return func(eventItem any) bool {
-		defer iteratorPanicRecovery(ctx, errs)
+		defer iteratorPanicRecovery(ctx)
 
 		event, ok := eventItem.(models.Eventable)
 		if !ok {
@@ -311,7 +311,7 @@ func IterateAndFilterMessagesForCollections(
 	var isFilterSet bool
 
 	return func(messageItem any) bool {
-		defer iteratorPanicRecovery(ctx, errs)
+		defer iteratorPanicRecovery(ctx)
 
 		if !isFilterSet {
 			err := CollectMailFolders(
@@ -367,7 +367,7 @@ func IterateFilterFolderDirectoriesForCollections(
 	}
 
 	return func(folderItem any) bool {
-		defer iteratorPanicRecovery(ctx, errs)
+		defer iteratorPanicRecovery(ctx)
 
 		folder, ok := folderItem.(displayable)
 		if !ok {
@@ -455,7 +455,7 @@ func iterateFindContainerID(
 	errs error,
 ) func(any) bool {
 	return func(entry any) bool {
-		defer iteratorPanicRecovery(ctx, errs)
+		defer iteratorPanicRecovery(ctx)
 
 		if isCalendar {
 			entry = CreateCalendarDisplayable(entry)
