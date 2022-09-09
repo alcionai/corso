@@ -3,7 +3,7 @@ package utils
 import (
 	"errors"
 
-	"github.com/alcionai/corso/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // AddExchangeInclude adds the scope of the provided values to the selector's
@@ -88,19 +88,19 @@ func IncludeExchangeRestoreDataSelectors(
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
 	lev, lec := len(events), len(eventCalendars)
-	lu := len(users)
 
-	if lc+lcf+le+lef+lev+lec+lu == 0 {
-		return
-	}
+	// either scope the request to a set of users
+	if lc+lcf+le+lef+lev+lec == 0 {
+		if len(users) == 0 {
+			users = selectors.Any()
+		}
 
-	// if only users are provided, we only get one selector
-	if lu > 0 && lc+lcf+le+lef+lev+lec == 0 {
 		sel.Include(sel.Users(users))
+
 		return
 	}
 
-	// otherwise, add selectors for each type of data
+	// or add selectors for each type of data
 	AddExchangeInclude(sel, users, contactFolders, contacts, sel.Contacts)
 	AddExchangeInclude(sel, users, emailFolders, emails, sel.Mails)
 	AddExchangeInclude(sel, users, eventCalendars, events, sel.Events)
