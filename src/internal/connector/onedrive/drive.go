@@ -2,8 +2,10 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
+	"github.com/microsoftgraph/msgraph-sdk-go/me/drives/item/items"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -15,7 +17,8 @@ import (
 const (
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
-	nextLinkKey = "@odata.nextLink"
+	nextLinkKey           = "@odata.nextLink"
+	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0//drives/%s/items/%s/children"
 )
 
 // Enumerates the drives for the specified user
@@ -31,7 +34,7 @@ func drives(ctx context.Context, service graph.Service, user string) ([]models.D
 }
 
 // itemCollector functions collect the items found in a drive
-type itemCollector func(ctx context.Context, driveID string, items []models.DriveItemable) error
+type itemCollector func(ctx context.Context, driveID string, driveItems []models.DriveItemable) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
@@ -69,4 +72,64 @@ func collectItems(
 		builder = delta.NewDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 	return nil
+}
+
+// getFolder will lookup the specified folder name under `parentFolderID`
+func getFolder(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
+	folderName string,
+) (models.DriveItemable, error) {
+	children, err := service.Client().DrivesById(driveID).ItemsById(parentFolderID).Children().Get()
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"failed to get children. details: %s",
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	for _, item := range children.GetValue() {
+		if item.GetFolder() == nil || item.GetName() == nil || *item.GetName() != folderName {
+			continue
+		}
+
+		return item, nil
+	}
+
+	return nil, errors.Errorf("folder %s not found in drive(%s) parentFolder(%s)", folderName, driveID, parentFolderID)
+}
+
+// Create a new item in the specified folder
+func createItem(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
+	item models.DriveItemable,
+) (models.DriveItemable, error) {
+	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
+	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
+	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
+
+	builder := items.NewItemsRequestBuilder(rawURL, service.Adapter())
+
+	newItem, err := builder.Post(item)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"failed to create folder. details: %s",
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	return newItem, nil
+}
+
+// newItem initializes a `models.DriveItemable` that can be used as input to `createItem`
+func newItem(name string, folder bool) models.DriveItemable {
+	item := models.NewDriveItem()
+	item.SetName(&name)
+
+	if folder {
+		item.SetFolder(models.NewFolder())
+	} else {
+		item.SetFile(models.NewFile())
+	}
+
+	return item
 }
