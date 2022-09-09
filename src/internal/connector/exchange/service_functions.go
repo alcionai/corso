@@ -100,8 +100,9 @@ func (in idName) GetDisplayName() string {
 }
 
 type (
-	MailFolder struct{ idName }
-	Calendar   struct{ idName }
+	MailFolder    struct{ idName }
+	Calendar      struct{ idName }
+	ContactFolder struct{ idName }
 )
 
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
@@ -154,10 +155,10 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		return nil, err
 	}
 
-	cb := func(folderItem any) bool {
-		folder, ok := folderItem.(models.MailFolderable)
+	cb := func(item any) bool {
+		folder, ok := item.(models.MailFolderable)
 		if !ok {
-			err = errors.New("HasFolder() iteration failure")
+			err = errors.New("casting item to models.MailFolderable")
 			return false
 		}
 
@@ -202,10 +203,10 @@ func GetAllCalendars(gs graph.Service, user, nameContains string) ([]Calendar, e
 		return nil, err
 	}
 
-	cb := func(calItem any) bool {
-		cal, ok := calItem.(models.Calendarable)
+	cb := func(item any) bool {
+		cal, ok := item.(models.Calendarable)
 		if !ok {
-			err = errors.New("HasCalendar() iteration failure")
+			err = errors.New("casting item to models.Calendarable")
 			return false
 		}
 
@@ -216,6 +217,54 @@ func GetAllCalendars(gs graph.Service, user, nameContains string) ([]Calendar, e
 				idName: idName{
 					ID:          *cal.GetId(),
 					DisplayName: *cal.GetName(),
+				},
+			})
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(cb); err != nil {
+		return nil, err
+	}
+
+	return cs, err
+}
+
+// GetAllContactFolders retrieves all contacts folders for the specified user.
+// If nameContains is populated, only returns folders matching that property.
+// Returns a slice of {ID, DisplayName} tuples.
+func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]ContactFolder, error) {
+	var (
+		cs  = []ContactFolder{}
+		err error
+	)
+
+	resp, err := GetAllContactFolderNamesForUser(gs, user)
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, gs.Adapter(), models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+
+	cb := func(item any) bool {
+		cal, ok := item.(models.ContactFolderable)
+		if !ok {
+			err = errors.New("casting item to models.ContactFolderable")
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			(len(nameContains) > 0 && strings.Contains(*cal.GetDisplayName(), nameContains))
+		if include {
+			cs = append(cs, ContactFolder{
+				idName: idName{
+					ID:          *cal.GetId(),
+					DisplayName: *cal.GetDisplayName(),
 				},
 			})
 		}
