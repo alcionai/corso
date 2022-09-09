@@ -1,30 +1,25 @@
 ---
-title: "corso backup list exchange"
+title: corso backup list exchange
 hide_title: true
 ---
 ## corso backup list exchange
 
 List the history of M365 Exchange service backups
 
-```
+```bash
 corso backup list exchange [flags]
 ```
 
-### Options
+### Flags
 
-```
-  -h, --help   help for exchange
-```
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--help`|`-h`|`false`|help for exchange
 
-### Options inherited from parent commands
+### Global and inherited flags
 
-```
-      --config-file string   config file (default is $HOME/.corso) (default "/home/runner/.corso.toml")
-      --json                 output data in JSON format
-      --log-level string     set the log level to debug|info|warn|error (default "info")
-```
-
-### SEE ALSO
-
-* [corso backup list](corso_backup_list.md)	 - List the history of backups for a service
-
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--config-file`||`/home/runner/.corso.toml`|config file (default is $HOME/.corso)
+|`--json`||`false`|output data in JSON format
+|`--log-level`||`info`|set the log level to debug|info|warn|error
