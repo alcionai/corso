@@ -1,34 +1,25 @@
 ---
-title: "corso env"
+title: corso env
 hide_title: true
 ---
 ## corso env
 
-env var guide
-
-### Synopsis
-
 A guide to using environment variables in Corso.
 
-```
+```bash
 corso env [flags]
 ```
 
-### Options
+### Flags
 
-```
-  -h, --help   help for env
-```
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--help`|`-h`|`false`|help for env
 
-### Options inherited from parent commands
+### Global and inherited flags
 
-```
-      --config-file string   config file (default is $HOME/.corso) (default "/home/runner/.corso.toml")
-      --json                 output data in JSON format
-      --log-level string     set the log level to debug|info|warn|error (default "info")
-```
-
-### SEE ALSO
-
-* [corso](corso.md)	 - Protect your Microsoft 365 data.
-
+|Flag|Short|Default|Help
+|:----|:-----|:-------|:----
+|`--config-file`||`/home/runner/.corso.toml`|config file (default is $HOME/.corso)
+|`--json`||`false`|output data in JSON format
+|`--log-level`||`info`|set the log level to debug|info|warn|error
