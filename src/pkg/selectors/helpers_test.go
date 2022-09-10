@@ -88,8 +88,7 @@ func (ms mockScope) matchesEntry(
 func (ms mockScope) setDefaults() {}
 
 const (
-	shouldMatch  = "should-match-entry"
-	stubResource = "stubResource"
+	shouldMatch = "should-match-entry"
 )
 
 // helper funcs
