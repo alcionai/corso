@@ -92,7 +92,7 @@ func (b Backup) MinimumPrintable() any {
 		StartedAt:  b.StartedAt,
 		Status:     b.Status,
 		Version:    "0",
-		Selectors:  b.Selectors.Printable(),
+		Selectors:  b.Selectors.ToPrintable(),
 	}
 }
 
@@ -117,6 +117,6 @@ func (b Backup) Values() []string {
 		common.FormatTime(b.StartedAt),
 		string(b.ID),
 		status,
-		b.Selectors.Printable().Resources(),
+		b.Selectors.ToPrintable().Resources(),
 	}
 }

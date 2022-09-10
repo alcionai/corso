@@ -90,7 +90,7 @@ func (suite *BackupSuite) TestBackup_MinimumPrintable() {
 	assert.Equal(t, now, result.StartedAt, "started at")
 	assert.Equal(t, b.Status, result.Status, "status")
 
-	bselp := b.Selectors.Printable()
+	bselp := b.Selectors.ToPrintable()
 	assert.Equal(t, bselp, result.Selectors, "selectors")
 	assert.Equal(t, bselp.Resources(), result.Selectors.Resources(), "selector resources")
 }
