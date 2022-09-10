@@ -64,7 +64,7 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 	hs := b.Headers()
 	assert.Equal(t, expectHs, hs)
 
-	nowFmt := common.FormatTime(now)
+	nowFmt := common.FormatTabularDisplayTime(now)
 	expectVs := []string{
 		nowFmt,
 		"id",

@@ -33,6 +33,13 @@ func (suite *CommonTimeUnitSuite) TestLegacyTime() {
 	assert.Equal(t, now.UTC().Format(time.RFC3339), result)
 }
 
+func (suite *CommonTimeUnitSuite) TestFormatTabularDisplayTime() {
+	t := suite.T()
+	now := time.Now()
+	result := common.FormatTabularDisplayTime(now)
+	assert.Equal(t, now.UTC().Format(common.TabularOutputTimeFormat), result)
+}
+
 func (suite *CommonTimeUnitSuite) TestParseTime() {
 	t := suite.T()
 	now := time.Now()

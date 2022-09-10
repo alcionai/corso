@@ -114,7 +114,7 @@ func (b Backup) Values() []string {
 	status := fmt.Sprintf("%s (%d errors)", b.Status, errCount)
 
 	return []string{
-		common.FormatTime(b.StartedAt),
+		common.FormatTabularDisplayTime(b.StartedAt),
 		string(b.ID),
 		status,
 		b.Selectors.ToPrintable().Resources(),
