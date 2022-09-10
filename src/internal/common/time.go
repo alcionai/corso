@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	StandardTimeFormat      = time.RFC3339Nano
-	SimpleDateTimeFormat    = "02-Jan-2006_15:04:05"
 	LegacyTimeFormat        = time.RFC3339
-	TabularOutputTimeFormat = "2016-01-02T15:04:05Z"
+	SimpleDateTimeFormat    = "02-Jan-2006_15:04:05"
+	StandardTimeFormat      = time.RFC3339Nano
+	TabularOutputTimeFormat = "2006-01-02T15:04:05Z"
 )
 
 // FormatNow produces the current time in UTC using the provided
