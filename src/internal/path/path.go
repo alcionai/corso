@@ -227,16 +227,13 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		pb.elements[1],
 		pb.elements[3],
 	)
-	if err != nil {
-		return nil, errors.Wrapf(err, templateErrPathParsing, p)
-	}
 
 	return &dataLayerResourcePath{
 		Builder:  *pb,
 		service:  service,
 		category: category,
 		hasItem:  isItem,
-	}, nil
+	}, err
 }
 
 // escapeElement takes a single path element and escapes all characters that

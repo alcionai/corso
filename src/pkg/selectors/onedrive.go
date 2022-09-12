@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -183,31 +184,14 @@ func (c oneDriveCategory) unknownCat() categorizer {
 }
 
 // pathValues transforms a path to a map of identified properties.
-// TODO: this should use service-specific funcs in the Paths pkg.  Instead of
-// peeking at the path directly, the caller should compare against values like
-// path.UserPN() and path.Folders().
 //
-// Malformed (ie, short len) paths will return incomplete results.
 // Example:
-// [tenantID, userPN, "files", folder, fileID]
+// [tenantID, service, userPN, category, folder, fileID]
 // => {odUser: userPN, odFolder: folder, odFileID: fileID}
-func (c oneDriveCategory) pathValues(path []string) map[categorizer]string {
-	m := map[categorizer]string{}
-	if len(path) < 3 {
-		return m
+func (c oneDriveCategory) pathValues(p path.Path) map[categorizer]string {
+	return map[categorizer]string{
+		OneDriveUser: p.ResourceOwner(),
 	}
-
-	m[OneDriveUser] = path[2]
-	/*
-		TODO/Notice:
-		Files contain folder structures, identified
-		in this code as being at index 4.  This assumes a single
-		folder, while in reality users can express subfolder
-		hierarchies of arbirary depth.  Subfolder handling is coming
-		at a later time.
-	*/
-	// TODO: populate path values when known.
-	return m
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.

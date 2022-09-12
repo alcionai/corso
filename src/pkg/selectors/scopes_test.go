@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -216,7 +217,15 @@ func (suite *SelectorScopesSuite) TestReduce() {
 		return details.Details{
 			DetailsModel: details.DetailsModel{
 				Entries: []details.DetailsEntry{
-					{RepoRef: rootCatStub.String() + "/stub/" + leafCatStub.String()},
+					{
+						RepoRef: stubRepoRef(
+							path.UnknownService,
+							path.UnknownCategory,
+							rootCatStub.String(),
+							"stub",
+							leafCatStub.String(),
+						),
+					},
 				},
 			},
 		}
@@ -228,49 +237,13 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	for _, test := range reduceTestTable {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ds := deets()
-			result := reduce[mockScope](&ds, test.sel().Selector, dataCats)
+			result := reduce[mockScope](
+				context.Background(),
+				&ds,
+				test.sel().Selector,
+				dataCats)
 			require.NotNil(t, result)
 			assert.Len(t, result.Entries, test.expectLen)
-		})
-	}
-}
-
-func (suite *SelectorScopesSuite) TestPathTypeIn() {
-	table := []struct {
-		name     string
-		pathType path.CategoryType
-		pth      []string
-	}{
-		{
-			name:     "empty",
-			pathType: path.UnknownCategory,
-			pth:      []string{},
-		},
-		{
-			name:     "email",
-			pathType: path.EmailCategory,
-			pth:      stubPath(path.ExchangeService, path.EmailCategory, "", "", ""),
-		},
-		{
-			name:     "contact",
-			pathType: path.ContactsCategory,
-			pth:      stubPath(path.ExchangeService, path.ContactsCategory, "", "", ""),
-		},
-		{
-			name:     "event",
-			pathType: path.EventsCategory,
-			pth:      stubPath(path.ExchangeService, path.EventsCategory, "", "", ""),
-		},
-		{
-			name:     "bogus",
-			pathType: path.UnknownCategory,
-			pth:      []string{"", "", "", "fnords", "", ""},
-		},
-	}
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			result := pathTypeIn(test.pth)
-			assert.Equal(t, test.pathType, result)
 		})
 	}
 }

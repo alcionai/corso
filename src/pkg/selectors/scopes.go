@@ -1,11 +1,14 @@
 package selectors
 
 import (
-	"strings"
+	"context"
+	"errors"
+	"fmt"
 
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -32,17 +35,16 @@ type (
 		unknownCat() categorizer
 
 		// pathValues should produce a map of category:string pairs populated by extracting
-		// values out of the path that match the given categorizer.
+		// values out of the path.Path struct.
 		//
-		// Ex: given a path like "tenant/service/root/dataType/folder/itemID", the func should
-		// autodetect the data type using 'service' and 'dataType', and use the remaining
-		// details to construct a map similar to this:
+		// Ex: given a path builder like ["tenant", 'service", "resource", "dataType", "folder", "itemID"],
+		// the func should use the path to construct a map similar to this:
 		// {
-		//   rootCat:   root,
+		//   rootCat:   resource,
 		//   folderCat: folder,
 		//   itemCat:   itemID,
 		// }
-		pathValues([]string) map[categorizer]string
+		pathValues(path.Path) map[categorizer]string
 
 		// pathKeys produces a list of categorizers that can be used as keys in the pathValues
 		// map.  The combination of the two funcs generically interprets the context of the
@@ -207,6 +209,7 @@ func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
 // inclusions, filters, and exclusions in the selector.
 //
 func reduce[T scopeT, C categoryT](
+	ctx context.Context,
 	deets *details.Details,
 	s Selector,
 	dataCategories map[path.CategoryType]C,
@@ -224,13 +227,22 @@ func reduce[T scopeT, C categoryT](
 
 	// for each entry, compare that entry against the scopes of the same data type
 	for _, ent := range deets.Entries {
-		// todo: use Path pkg for this
-		repoPath := strings.Split(ent.RepoRef, "/")
+		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 
-		dc, ok := dataCategories[pathTypeIn(repoPath)]
+		// TODO(keepers): the error checks here are just to allow testing, until repoRef becomes a path struct.
+		if err != nil &&
+			!(errors.Is(err, path.ErrorUnknownService) || errors.Is(err, path.ErrorUnknownCategory)) {
+			logger.Ctx(ctx).Debugw("transforming repoRef to path", "err", err)
+
+			continue
+		}
+
+		dc, ok := dataCategories[repoPath.Category()]
 		if !ok {
 			continue
 		}
+
+		fmt.Printf("\n-----\nchecking passes\n-----\n")
 
 		passed := passes(
 			dc,
@@ -249,34 +261,6 @@ func reduce[T scopeT, C categoryT](
 	reduced.Entries = ents
 
 	return reduced
-}
-
-// return the service data type of the path.
-// TODO: this is a hack.  We don't want this identification to occur in this
-// package.  It should get handled in paths, since that's where service- and
-// data-type-specific assertions are owned.
-// Ideally, we'd use something like path.DataType() instead of this func.
-func pathTypeIn(p []string) path.CategoryType {
-	// not all paths will be len=3.  Most should be longer.
-	// This just protects us from panicing below.
-	if len(p) < 4 {
-		return path.UnknownCategory
-	}
-
-	if c := path.ToCategoryType(p[3]); c != path.UnknownCategory {
-		return c
-	}
-
-	switch p[2] {
-	case path.EmailCategory.String():
-		return path.EmailCategory
-	case path.ContactsCategory.String():
-		return path.ContactsCategory
-	case path.EventsCategory.String():
-		return path.EventsCategory
-	}
-
-	return path.UnknownCategory
 }
 
 // groups each scope by its category of data (specified by the service-selector).
