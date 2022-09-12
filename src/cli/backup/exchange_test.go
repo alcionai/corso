@@ -303,7 +303,7 @@ func (suite *ExchangeSuite) TestValidateBackupDetailFlags() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, validateExchangeBackupDetailFlags(
+			test.expect(t, utils.ValidateExchangeRestoreFlags(
 				test.contacts,
 				test.contactFolders,
 				test.emails,
@@ -499,7 +499,7 @@ func (suite *ExchangeSuite) TestIncludeExchangeBackupDetailDataSelectors() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewExchangeRestore()
-			includeExchangeBackupDetailDataSelectors(
+			utils.IncludeExchangeRestoreDataSelectors(
 				sel,
 				test.contacts,
 				test.contactFolders,
@@ -600,7 +600,7 @@ func (suite *ExchangeSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewExchangeRestore()
-			filterExchangeBackupDetailInfoSelectors(
+			utils.FilterExchangeRestoreInfoSelectors(
 				sel,
 				test.contactName,
 				test.after,

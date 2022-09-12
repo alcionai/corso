@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -203,79 +202,88 @@ func IterateSelectAllDescendablesForCollections(
 // utility function for iterating through events
 // and storing events in collections based on
 // the calendarID which originates from M365.
-func IterateSelectAllEventsForCollections(
+func IterateSelectAllEventsFromCalendars(
 	ctx context.Context,
 	qp graph.QueryParams,
 	errs error,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
-	return func(eventItem any) bool {
-		event, ok := eventItem.(models.Eventable)
+	return func(pageItem any) bool {
+		if pageItem == nil {
+			return true
+		}
+
+		shell, ok := pageItem.(models.Calendarable)
 		if !ok {
 			errs = support.WrapAndAppend(
 				qp.User,
-				errors.New("event iteration failure"),
-				errs,
-			)
+				errors.New("calendar event"),
+				errs)
 
 			return true
 		}
 
-		adtl := event.GetAdditionalData()
-
-		value, ok := adtl["calendar@odata.associationLink"]
-		if !ok {
-			errs = support.WrapAndAppend(
-				qp.User,
-				fmt.Errorf("%s: does not support calendar look up", *event.GetId()),
-				errs,
-			)
-
-			return true
-		}
-
-		link, ok := value.(*string)
-		if !ok || link == nil {
-			errs = support.WrapAndAppend(
-				qp.User,
-				fmt.Errorf("%s: unable to obtain calendar event data", *event.GetId()),
-				errs,
-			)
-
-			return true
-		}
-		// calendars and events are not easily correlated
-		// helper function retrieves calendarID from url
-		directory, err := parseCalendarIDFromEvent(*link)
+		service, err := createService(qp.Credentials, qp.FailFast)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.User,
-				errors.Wrap(err, *event.GetId()),
+				errors.Wrap(err, "unable to create service during IterateSelectAllEventsFromCalendars"),
 				errs,
 			)
 
 			return true
 		}
 
-		if _, ok := collections[directory]; !ok {
+		eventResponseable, err := service.Client().
+			UsersById(qp.User).
+			CalendarsById(*shell.GetId()).
+			Events().Get()
+		if err != nil {
+			errs = support.WrapAndAppend(
+				qp.User,
+				err,
+				errs,
+			)
+		}
+
+		directory := shell.GetName()
+		owner := shell.GetOwner()
+
+		// Conditional Guard Checks
+		if eventResponseable == nil ||
+			directory == nil ||
+			owner == nil {
+			return true
+		}
+
+		eventables := eventResponseable.GetValue()
+		// Clause is true when Calendar has does not have any events
+		if eventables == nil {
+			return true
+		}
+
+		if _, ok := collections[*directory]; !ok {
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
 				errs = support.WrapAndAppend(qp.User, err, errs)
+
 				return true
 			}
 
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, path.EventsCategory.String(), directory},
+				[]string{qp.Credentials.TenantID, qp.User, path.EventsCategory.String(), *directory},
 				events,
 				service,
 				statusUpdater,
 			)
-			collections[directory] = &edc
+			collections[*directory] = &edc
 		}
 
-		collections[directory].AddJob(*event.GetId())
+		for _, event := range eventables {
+			collections[*directory].AddJob(*event.GetId())
+		}
 
 		return true
 	}

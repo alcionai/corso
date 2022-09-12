@@ -53,13 +53,21 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p := sel.Printable()
 	res := p.Resources()
 
-	assert.Equal(t, stubResource, res, "resource should state only the stub")
+	assert.Equal(t, "All", res, "stub starts out as an all-pass")
+
+	stubWithResource := func(resource string) scope {
+		ss := stubScope("")
+		ss[rootCatStub.String()] = filterize(resource)
+
+		return scope(ss)
+	}
 
 	sel.Includes = []scope{
-		scope(stubScope("")),
-		{scopeKeyResource: filterize("smarf"), scopeKeyDataType: filterize(unknownCatStub.String())},
-		{scopeKeyResource: filterize("smurf"), scopeKeyDataType: filterize(unknownCatStub.String())},
+		stubWithResource("foo"),
+		stubWithResource("smarf"),
+		stubWithResource("fnords"),
 	}
+
 	p = sel.Printable()
 	res = p.Resources()
 
@@ -68,12 +76,12 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	p.Includes = nil
 	res = p.Resources()
 
-	assert.Equal(t, stubResource, res, "resource on filters should state only the stub")
+	assert.Equal(t, "All", res, "filters is also an all-pass")
 
 	p.Filters = nil
 	res = p.Resources()
 
-	assert.Equal(t, "All", res, "resource with no Includes or Filters should state All")
+	assert.Equal(t, "None", res, "resource with no Includes or Filters should state None")
 }
 
 func (suite *SelectorSuite) TestToResourceTypeMap() {
@@ -86,7 +94,7 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			name:  "single scope",
 			input: []scope{scope(stubScope(""))},
 			expect: map[string][]string{
-				stubResource: {rootCatStub.String()},
+				"All": {rootCatStub.String()},
 			},
 		},
 		{
@@ -94,13 +102,13 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			input: []scope{
 				scope(stubScope("")),
 				{
-					scopeKeyResource: filterize("smarf"),
-					scopeKeyDataType: filterize(unknownCatStub.String()),
+					rootCatStub.String(): filterize("smarf"),
+					scopeKeyDataType:     filterize(unknownCatStub.String()),
 				},
 			},
 			expect: map[string][]string{
-				stubResource: {rootCatStub.String()},
-				"smarf":      {unknownCatStub.String()},
+				"All":   {rootCatStub.String()},
+				"smarf": {unknownCatStub.String()},
 			},
 		},
 		{
@@ -108,18 +116,18 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			input: []scope{
 				scope(stubScope("")),
 				{
-					scopeKeyResource: filterize(stubResource),
-					scopeKeyDataType: filterize("other"),
+					rootCatStub.String(): filterize(AnyTgt),
+					scopeKeyDataType:     filterize("other"),
 				},
 			},
 			expect: map[string][]string{
-				stubResource: {rootCatStub.String(), "other"},
+				"All": {rootCatStub.String(), "other"},
 			},
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			rtm := toResourceTypeMap(test.input)
+			rtm := toResourceTypeMap[mockScope](test.input)
 			assert.Equal(t, test.expect, rtm)
 		})
 	}

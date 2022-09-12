@@ -80,6 +80,11 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 	return &src, nil
 }
 
+// Printable creates the minimized display of a selector, formatted for human readability.
+func (s exchange) Printable() Printable {
+	return toPrintable[ExchangeScope](s.Selector)
+}
+
 // -------------------
 // Exclude/Includes
 
@@ -169,7 +174,7 @@ func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeContact, users, contacts).
+		makeScope[ExchangeScope](ExchangeContact, users, contacts).
 			set(ExchangeContactFolder, folders),
 	)
 
@@ -185,7 +190,7 @@ func (s *exchange) ContactFolders(users, folders []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Group, ExchangeContactFolder, users, folders),
+		makeScope[ExchangeScope](ExchangeContactFolder, users, folders),
 	)
 
 	return scopes
@@ -200,7 +205,7 @@ func (s *exchange) Events(users, calendars, events []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeEvent, users, events).
+		makeScope[ExchangeScope](ExchangeEvent, users, events).
 			set(ExchangeEventCalendar, calendars),
 	)
 
@@ -217,7 +222,7 @@ func (s *exchange) EventCalendars(users, events []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Group, ExchangeEventCalendar, users, events),
+		makeScope[ExchangeScope](ExchangeEventCalendar, users, events),
 	)
 
 	return scopes
@@ -232,7 +237,7 @@ func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeMail, users, mails).
+		makeScope[ExchangeScope](ExchangeMail, users, mails).
 			set(ExchangeMailFolder, folders),
 	)
 
@@ -248,7 +253,7 @@ func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Group, ExchangeMailFolder, users, folders),
+		makeScope[ExchangeScope](ExchangeMailFolder, users, folders),
 	)
 
 	return scopes
@@ -263,9 +268,9 @@ func (s *exchange) Users(users []string) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(scopes,
-		makeScope[ExchangeScope](Group, ExchangeContactFolder, users, Any()),
-		makeScope[ExchangeScope](Item, ExchangeEventCalendar, users, Any()),
-		makeScope[ExchangeScope](Group, ExchangeMailFolder, users, Any()),
+		makeScope[ExchangeScope](ExchangeContactFolder, users, Any()),
+		makeScope[ExchangeScope](ExchangeEventCalendar, users, Any()),
+		makeScope[ExchangeScope](ExchangeMailFolder, users, Any()),
 	)
 
 	return scopes
@@ -616,12 +621,6 @@ func (s ExchangeScope) Matches(cat exchangeCategory, target string) bool {
 // If the scope is not a filter type, returns ExchangeUnknownCategory.
 func (s ExchangeScope) FilterCategory() exchangeCategory {
 	return exchangeCategory(getFilterCategory(s))
-}
-
-// Granularity describes the granularity (directory || item)
-// of the data in scope.
-func (s ExchangeScope) Granularity() string {
-	return getGranularity(s)
 }
 
 // IncludeCategory checks whether the scope includes a certain category of data.
