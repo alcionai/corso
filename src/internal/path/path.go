@@ -176,28 +176,6 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	return res
 }
 
-// ToDataLayerExchangeMailFolder returns a Path for an Exchange mail folder or item
-// resource with information useful to the data layer. This includes prefix
-// elements of the path such as the tenant ID, user ID, service, and service
-// category.
-func (pb Builder) ToDataLayerExchangeMailPath(tenant, user string, isItem bool) (Path, error) {
-	if err := pb.verifyPrefix(tenant, user); err != nil {
-		return nil, err
-	}
-
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			ExchangeService.String(),
-			user,
-			EmailCategory.String(),
-		),
-		service:  ExchangeService,
-		category: EmailCategory,
-		hasItem:  isItem,
-	}, nil
-}
-
 func (pb Builder) ToDataLayerExchangePathForCategory(
 	tenant, user string,
 	category CategoryType,
@@ -207,12 +185,21 @@ func (pb Builder) ToDataLayerExchangePathForCategory(
 		return nil, err
 	}
 
-	switch category {
-	case EmailCategory:
-		return pb.ToDataLayerExchangeMailPath(tenant, user, isItem)
-	default:
-		return nil, errors.New("not implemented")
+	if err := pb.verifyPrefix(tenant, user); err != nil {
+		return nil, err
 	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			ExchangeService.String(),
+			user,
+			category.String(),
+		),
+		service:  ExchangeService,
+		category: category,
+		hasItem:  isItem,
+	}, nil
 }
 
 // FromDataLayerPath parses the escaped path p, validates the elements in p
