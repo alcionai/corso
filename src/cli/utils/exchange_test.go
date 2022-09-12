@@ -248,7 +248,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeExchangeBackupDetailDataSelectors() 
 				test.events,
 				test.eventCalendars,
 				test.users)
-			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
+			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}
 }
@@ -352,7 +352,7 @@ func (suite *ExchangeUtilsSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 				test.startsAfter,
 				test.startsBefore,
 				test.eventSubject)
-			assert.Equal(t, test.expectFilterLen, len(sel.Filters))
+			assert.Len(t, sel.Filters, test.expectFilterLen)
 		})
 	}
 }
