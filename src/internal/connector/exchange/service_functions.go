@@ -186,7 +186,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		transform = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
 	case contacts:
 		query = GetAllContactFolderNamesForUser
-		transform = models.CreateContactFolderFromDiscriminatorValue
+		transform = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
 	case events:
 		query = GetAllCalendarNamesForUser
 		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
@@ -281,9 +281,9 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
-		return models.CreateEventCollectionResponseFromDiscriminatorValue,
-			GetAllEventsForUser,
-			IterateSelectAllEventsForCollections,
+		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
+			GetAllCalendarNamesForUser,
+			IterateSelectAllEventsFromCalendars,
 			nil
 	}
 

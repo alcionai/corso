@@ -92,7 +92,7 @@ func (b Backup) MinimumPrintable() any {
 		StartedAt:  b.StartedAt,
 		Status:     b.Status,
 		Version:    "0",
-		Selectors:  b.Selectors.Printable(),
+		Selectors:  b.Selectors.ToPrintable(),
 	}
 }
 
@@ -114,9 +114,9 @@ func (b Backup) Values() []string {
 	status := fmt.Sprintf("%s (%d errors)", b.Status, errCount)
 
 	return []string{
-		common.FormatTime(b.StartedAt),
+		common.FormatTabularDisplayTime(b.StartedAt),
 		string(b.ID),
 		status,
-		b.Selectors.Printable().Resources(),
+		b.Selectors.ToPrintable().Resources(),
 	}
 }
