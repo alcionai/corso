@@ -386,31 +386,25 @@ func (suite *ExchangeServiceSuite) TestRetrievalFunctions() {
 			case *models.MessageCollectionResponse:
 				transform := output.(models.MessageCollectionResponseable)
 				response := transform.GetValue()
-				if len(response) == 0 {
-					return // no messages
-				}
+				require.Greater(t, len(response), 0)
 
 				objectID = *response[0].GetId()
 			case *models.ContactCollectionResponse:
 				transform := output.(models.ContactCollectionResponseable)
 				response := transform.GetValue()
-				if len(response) == 0 {
-					return // no contacts
-				}
+				require.Greater(t, len(response), 0)
 
 				objectID = *response[0].GetId()
 			case *models.EventCollectionResponse:
 				transform := output.(models.EventCollectionResponseable)
 				response := transform.GetValue()
-				if len(response) == 0 {
-					return // no events
-				}
+				require.Greater(t, len(response), 0)
 
 				objectID = *response[0].GetId()
 			default:
 				t.Logf("What is this type: %T\n", v)
 			}
-			require.NotEqual(t, objectID, "", "retrieval test dependency failure: objectId is empty")
+			require.NotEmpty(t, objectID)
 			retrieved, err := test.retrieveFunc(suite.es, userID, objectID)
 			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 			assert.NotNil(t, retrieved)
