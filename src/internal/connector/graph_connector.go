@@ -268,7 +268,6 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 			exit bool
 		)
 
-
 		category = path.ToCategoryType(dc.FullPath()[3])
 		user = dc.FullPath()[2]
 
