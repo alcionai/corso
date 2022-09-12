@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -342,6 +344,32 @@ func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := parseCalendarIDFromEvent(test.input)
 			test.checkError(t, err)
+		})
+	}
+}
+
+func (suite *ExchangeServiceSuite) TestRetrievalFunctions() {
+	userID := tester.M365UserID(suite.T())
+	tests := []struct {
+		name         string
+		query        GraphQuery
+		retrieveFunc GraphRetrievalFunc
+		transformer  absser.Parsable
+	}{
+		{
+			name:         "Test Retrieve Message Function",
+			query:        GetAllEventsForUser,
+			retrieveFunc: RetrieveMessageDataForUser,
+			transformer:  models.MessageCollectionResponseable,
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			output, err := test.query(suite.es, userID)
+			require.NoError(t, err)
+			response, ok := output.(test.transformer)
+			response.GetValue
+
 		})
 	}
 }
