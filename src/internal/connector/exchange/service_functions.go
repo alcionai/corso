@@ -232,32 +232,6 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 	return targetID, errs
 }
 
-// parseCalendarIDFromEvent returns the M365 ID for a calendar
-// @param reference: string from additionalData map of an event
-// References should follow the form `https://... calendars('ID')/$ref`
-// If the reference does not follow form an error is returned
-func parseCalendarIDFromEvent(reference string) (string, error) {
-	stringArray := strings.Split(reference, "calendars('")
-	if len(stringArray) < 2 {
-		return "", errors.New("calendarID not found")
-	}
-
-	temp := stringArray[1]
-	stringArray = strings.Split(temp, "')/$ref")
-
-	if len(stringArray) < 2 {
-		return "", errors.New("calendarID not found")
-	}
-
-	calendarID := stringArray[0]
-
-	if len(calendarID) == 0 {
-		return "", errors.New("calendarID empty")
-	}
-
-	return calendarID, nil
-}
-
 // SetupExchangeCollectionVars is a helper function returns a sets
 // Exchange.Type specific functions based on scope
 func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
