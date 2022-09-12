@@ -67,7 +67,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 	}
 
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
-	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassword); err != nil {
+	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassphrase); err != nil {
 		if errors.Is(err, repo.ErrAlreadyInitialized) {
 			return RepoAlreadyExistsError(err)
 		}
@@ -79,7 +79,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 		ctx,
 		cfg.KopiaCfgDir,
 		bst,
-		cfg.CorsoPassword,
+		cfg.CorsoPassphrase,
 		defaultCompressor,
 	)
 }
@@ -100,7 +100,7 @@ func (w *conn) Connect(ctx context.Context) error {
 		ctx,
 		cfg.KopiaCfgDir,
 		bst,
-		cfg.CorsoPassword,
+		cfg.CorsoPassphrase,
 		defaultCompressor,
 	)
 }

@@ -20,7 +20,7 @@ func TestCommonCfgSuite(t *testing.T) {
 
 var goodCommonConfig = storage.CommonConfig{
 	Corso: credentials.Corso{
-		CorsoPassword: "passwd",
+		CorsoPassphrase: "passph",
 	},
 }
 
@@ -33,7 +33,7 @@ func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 		key    string
 		expect string
 	}{
-		{"common_corsoPassword", cfg.CorsoPassword},
+		{"common_corsoPassphrase", cfg.CorsoPassphrase},
 	}
 	for _, test := range table {
 		suite.T().Run(test.key, func(t *testing.T) {
@@ -51,7 +51,7 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig() {
 	out, err := s.CommonConfig()
 	assert.NoError(t, err)
 
-	assert.Equal(t, in.CorsoPassword, out.CorsoPassword)
+	assert.Equal(t, in.CorsoPassphrase, out.CorsoPassphrase)
 }
 
 func (suite *CommonCfgSuite) TestStorage_CommonConfig_InvalidCases() {
@@ -60,7 +60,7 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig_InvalidCases() {
 		name string
 		cfg  storage.CommonConfig
 	}{
-		{"missing password", storage.CommonConfig{}},
+		{"missing passphrase", storage.CommonConfig{}},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -75,9 +75,9 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig_InvalidCases() {
 		amend func(storage.Storage)
 	}{
 		{
-			"missing password",
+			"missing passphrase",
 			func(s storage.Storage) {
-				s.Config["common_corsoPassword"] = ""
+				s.Config["common_corsoPassphrase"] = ""
 			},
 		},
 	}

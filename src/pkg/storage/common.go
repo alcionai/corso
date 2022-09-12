@@ -7,15 +7,15 @@ import (
 )
 
 type CommonConfig struct {
-	credentials.Corso // requires: CorsoPassword
+	credentials.Corso // requires: CorsoPassphrase
 
 	KopiaCfgDir string
 }
 
 // config key consts
 const (
-	keyCommonCorsoPassword = "common_corsoPassword"
-	keyCommonKopiaCfgDir   = "common_kopiaCfgDir"
+	keyCommonCorsoPassphrase = "common_corsoPassphrase"
+	keyCommonKopiaCfgDir     = "common_kopiaCfgDir"
 )
 
 // StringConfig transforms a commonConfig struct into a plain
@@ -23,8 +23,8 @@ const (
 // serialize into the map are expected to be strings.
 func (c CommonConfig) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
-		keyCommonCorsoPassword: c.CorsoPassword,
-		keyCommonKopiaCfgDir:   c.KopiaCfgDir,
+		keyCommonCorsoPassphrase: c.CorsoPassphrase,
+		keyCommonKopiaCfgDir:     c.KopiaCfgDir,
 	}
 
 	return cfg, c.validate()
@@ -35,7 +35,7 @@ func (s Storage) CommonConfig() (CommonConfig, error) {
 	c := CommonConfig{}
 
 	if len(s.Config) > 0 {
-		c.CorsoPassword = orEmptyString(s.Config[keyCommonCorsoPassword])
+		c.CorsoPassphrase = orEmptyString(s.Config[keyCommonCorsoPassphrase])
 		c.KopiaCfgDir = orEmptyString(s.Config[keyCommonKopiaCfgDir])
 	}
 
@@ -44,8 +44,8 @@ func (s Storage) CommonConfig() (CommonConfig, error) {
 
 // ensures all required properties are present
 func (c CommonConfig) validate() error {
-	if len(c.CorsoPassword) == 0 {
-		return errors.Wrap(errMissingRequired, credentials.CorsoPassword)
+	if len(c.CorsoPassphrase) == 0 {
+		return errors.Wrap(errMissingRequired, credentials.CorsoPassphrase)
 	}
 
 	// kopiaCfgFilePath is not required

@@ -79,7 +79,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           CORSO_CI_TESTS: true 
           CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_M356_TEST_USER_ID }}
-          CORSO_PASSWORD: ${{ secrets.INTEGRATION_TEST_CORSO_PASSWORD }}
+          CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           set -euo pipefail
