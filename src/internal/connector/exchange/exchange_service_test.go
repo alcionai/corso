@@ -304,49 +304,6 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 	}
 }
 
-// TestParseCalendarIDFromEvent verifies that parse function
-// works on the current accepted reference format of
-// additional data["calendar@odata.associationLink"]
-func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
-	tests := []struct {
-		name       string
-		input      string
-		checkError assert.ErrorAssertionFunc
-	}{
-		{
-			name:       "Empty string",
-			input:      "",
-			checkError: assert.Error,
-		},
-		{
-			name:       "Invalid string",
-			input:      "https://github.com/whyNot/calendarNot Used",
-			checkError: assert.Error,
-		},
-		{
-			name: "Missing calendarID not found",
-			input: "https://graph.microsoft.com/v1.0/users" +
-				"('invalid@onmicrosoft.com')/calendars(" +
-				"'')/$ref",
-			checkError: assert.Error,
-		},
-		{
-			name: "Valid string",
-			input: "https://graph.microsoft.com/v1.0/users" +
-				"('valid@onmicrosoft.com')/calendars(" +
-				"'AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAA" +
-				"DCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEGAADSEBNbUIB9RL6ePDeF3FIYAAAZkDq1AAA=')/$ref",
-			checkError: assert.NoError,
-		},
-	}
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := parseCalendarIDFromEvent(test.input)
-			test.checkError(t, err)
-		})
-	}
-}
-
 // TestGetMailFolderID verifies the ability to retrieve folder ID of folders
 // at the top level of the file tree
 func (suite *ExchangeServiceSuite) TestGetContainerID() {
