@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
@@ -558,27 +559,27 @@ func (ec exchangeCategory) unknownCat() categorizer {
 // Example:
 // [tenantID, userPN, "mail", mailFolder, mailID]
 // => {exchUser: userPN, exchMailFolder: mailFolder, exchMail: mailID}
-func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
+func (ec exchangeCategory) pathValues(p []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) < 5 {
+	if len(p) < 5 {
 		return m
 	}
 
 	switch ec {
 	case ExchangeContact:
-		m[ExchangeUser] = path[1]
-		m[ExchangeContactFolder] = path[3]
-		m[ExchangeContact] = path[4]
+		m[ExchangeUser] = p[1]
+		m[ExchangeContactFolder] = p[3]
+		m[ExchangeContact] = p[4]
 
 	case ExchangeEvent:
-		m[ExchangeUser] = path[1]
-		m[ExchangeEventCalendar] = path[3]
-		m[ExchangeEvent] = path[4]
+		m[ExchangeUser] = p[1]
+		m[ExchangeEventCalendar] = p[3]
+		m[ExchangeEvent] = p[4]
 
 	case ExchangeMail:
-		m[ExchangeUser] = path[2]
-		m[ExchangeMailFolder] = path[4]
-		m[ExchangeMail] = path[5]
+		m[ExchangeUser] = p[2]
+		m[ExchangeMailFolder] = p[4]
+		m[ExchangeMail] = p[5]
 	}
 
 	return m
@@ -680,10 +681,10 @@ func (s exchange) Reduce(deets *details.Details) *details.Details {
 	return reduce[ExchangeScope](
 		deets,
 		s.Selector,
-		map[pathType]exchangeCategory{
-			exchangeContactPath: ExchangeContact,
-			exchangeEventPath:   ExchangeEvent,
-			exchangeMailPath:    ExchangeMail,
+		map[path.CategoryType]exchangeCategory{
+			path.ContactsCategory: ExchangeContact,
+			path.EventsCategory:   ExchangeEvent,
+			path.EmailCategory:    ExchangeMail,
 		},
 	)
 }
