@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -348,28 +348,72 @@ func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
 	}
 }
 
+// TestRetrievalFunctions ensures that utility functions used
+// to transform work within the current version of GraphAPI.
 func (suite *ExchangeServiceSuite) TestRetrievalFunctions() {
-	userID := tester.M365UserID(suite.T())
+	var (
+		userID   = tester.M365UserID(suite.T())
+		objectID string
+	)
+
 	tests := []struct {
 		name         string
 		query        GraphQuery
 		retrieveFunc GraphRetrievalFunc
-		transformer  absser.Parsable
 	}{
 		{
 			name:         "Test Retrieve Message Function",
-			query:        GetAllEventsForUser,
+			query:        GetAllMessagesForUser,
 			retrieveFunc: RetrieveMessageDataForUser,
-			transformer:  models.MessageCollectionResponseable,
+		},
+		{
+			name:         "Test Retrieve Contact Function",
+			query:        GetAllContactsForUser,
+			retrieveFunc: RetrieveContactDataForUser,
+		},
+		{
+			name:         "Test Retrieve Event Function",
+			query:        GetAllEventsForUser,
+			retrieveFunc: RetrieveEventDataForUser,
 		},
 	}
+
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			output, err := test.query(suite.es, userID)
 			require.NoError(t, err)
-			response, ok := output.(test.transformer)
-			response.GetValue
+			switch v := output.(type) {
+			case *models.MessageCollectionResponse:
+				transform := output.(models.MessageCollectionResponseable)
+				response := transform.GetValue()
+				if len(response) == 0 {
+					return // no messages
+				}
 
+				objectID = *response[0].GetId()
+			case *models.ContactCollectionResponse:
+				transform := output.(models.ContactCollectionResponseable)
+				response := transform.GetValue()
+				if len(response) == 0 {
+					return // no contacts
+				}
+
+				objectID = *response[0].GetId()
+			case *models.EventCollectionResponse:
+				transform := output.(models.EventCollectionResponseable)
+				response := transform.GetValue()
+				if len(response) == 0 {
+					return // no events
+				}
+
+				objectID = *response[0].GetId()
+			default:
+				t.Logf("What is this type: %T\n", v)
+			}
+			require.NotEqual(t, objectID, "", "retrieval test dependency failure: objectId is empty")
+			retrieved, err := test.retrieveFunc(suite.es, userID, objectID)
+			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+			assert.NotNil(t, retrieved)
 		})
 	}
 }
