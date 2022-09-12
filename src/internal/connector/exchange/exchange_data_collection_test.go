@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 type ExchangeDataCollectionSuite struct {
@@ -44,31 +47,65 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
+	t := suite.T()
+	tenant := "a-tenant"
 	user := "a-user"
-	fullPath := []string{"a-tenant", user, "emails"}
+	folder := "a-folder"
+	expected := []string{
+		tenant,
+		path.ExchangeService.String(),
+		user,
+		path.EmailCategory.String(),
+		folder,
+	}
+
+	fullPath, err := path.Builder{}.Append(folder).ToDataLayerExchangePathForCategory(
+		tenant,
+		user,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
 	edc := Collection{
 		user:     user,
 		fullPath: fullPath,
 	}
-	assert.Equal(suite.T(), edc.FullPath(), fullPath)
+
+	// TODO(ashmrtn): Update when data.Collection.FullPath returns path.Path.
+	assert.Equal(t, expected, edc.FullPath())
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchangeDataCollection() {
+	tenant := "a-tenant"
+	user := "a-user"
+	folder := "a-folder"
 	name := "User"
+
+	fullPath, err := path.Builder{}.Append(folder).ToDataLayerExchangePathForCategory(
+		tenant,
+		user,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(suite.T(), err)
+
 	edc := Collection{
 		user:     name,
-		fullPath: []string{"Directory", "File", "task"},
+		fullPath: fullPath,
 	}
 	suite.Equal(name, edc.user)
-	suite.Contains(edc.FullPath(), "Directory")
-	suite.Contains(edc.FullPath(), "File")
-	suite.Contains(edc.FullPath(), "task")
+	suite.Contains(edc.FullPath(), fullPath.Tenant())
+	suite.Contains(edc.FullPath(), fullPath.Service().String())
+	suite.Contains(edc.FullPath(), fullPath.Category().String())
+	suite.Contains(edc.FullPath(), fullPath.ResourceOwner())
+	suite.Contains(edc.FullPath(), fullPath.Folder())
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 	eoc := Collection{
 		user:     "Dexter",
-		fullPath: []string{"Today", "is", "currently", "different"},
+		fullPath: nil,
 	}
 	suite.Zero(len(eoc.jobs))
 
