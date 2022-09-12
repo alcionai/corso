@@ -268,20 +268,9 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 			exit bool
 		)
 
-		// email uses the new path format
-		category = path.ToCategoryType(dc.FullPath()[3])
-		if category == path.UnknownCategory {
-			// events and calendar use the old path format
-			category = path.ToCategoryType(dc.FullPath()[2])
-		}
 
-		// get the user from the path index based on the path pattern.
-		switch category {
-		case path.EmailCategory:
-			user = dc.FullPath()[2]
-		case path.ContactsCategory, path.EventsCategory:
-			user = dc.FullPath()[1]
-		}
+		category = path.ToCategoryType(dc.FullPath()[3])
+		user = dc.FullPath()[2]
 
 		if _, ok := pathCounter[directory]; !ok {
 			pathCounter[directory] = true
