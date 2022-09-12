@@ -117,15 +117,12 @@ type (
 
 // makeScope produces a well formatted, typed scope that ensures all base values are populated.
 func makeScope[T scopeT](
-	granularity string,
 	cat categorizer,
 	resources, vs []string,
 ) T {
 	s := T{
 		scopeKeyCategory:       filters.Identity(cat.String()),
 		scopeKeyDataType:       filters.Identity(cat.leafCat().String()),
-		scopeKeyGranularity:    filters.Identity(granularity),
-		scopeKeyResource:       filters.Identity(join(resources...)),
 		cat.String():           filterize(vs...),
 		cat.rootCat().String(): filterize(resources...),
 	}
@@ -141,12 +138,10 @@ func makeFilterScope[T scopeT](
 	f func([]string) filters.Filter,
 ) T {
 	return T{
-		scopeKeyCategory:    filters.Identity(cat.String()),
-		scopeKeyDataType:    filters.Identity(cat.leafCat().String()),
-		scopeKeyGranularity: filters.Identity(Filter),
-		scopeKeyInfoFilter:  filters.Identity(filterCat.String()),
-		scopeKeyResource:    filters.Identity(Filter),
-		filterCat.String():  f(clean(vs)),
+		scopeKeyCategory:   filters.Identity(cat.String()),
+		scopeKeyDataType:   filters.Identity(cat.leafCat().String()),
+		scopeKeyInfoFilter: filters.Identity(filterCat.String()),
+		filterCat.String(): f(clean(vs)),
 	}
 }
 
@@ -179,11 +174,6 @@ func getFilterCategory[T scopeT](s T) string {
 	return s[scopeKeyInfoFilter].Target
 }
 
-// getGranularity returns the scope's granularity value.
-func getGranularity[T scopeT](s T) string {
-	return s[scopeKeyGranularity].Target
-}
-
 // getCatValue takes the value of s[cat], split it by the standard
 // delimiter, and returns the slice.  If s[cat] is nil, returns
 // None().
@@ -201,12 +191,6 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 func set[T scopeT](s T, cat categorizer, v []string) T {
 	s[cat.String()] = filterize(v...)
 	return s
-}
-
-// granularity describes the granularity (directory || item)
-// of the data in scope.
-func granularity[T scopeT](s T) string {
-	return s[scopeKeyGranularity].Target
 }
 
 // returns true if the category is included in the scope's category type,
