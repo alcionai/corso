@@ -86,25 +86,6 @@ func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete()
 }
 
-type idName struct {
-	ID          string
-	DisplayName string
-}
-
-func (in idName) GetID() string {
-	return in.ID
-}
-
-func (in idName) GetDisplayName() string {
-	return in.DisplayName
-}
-
-type (
-	MailFolder    struct{ idName }
-	Calendar      struct{ idName }
-	ContactFolder struct{ idName }
-)
-
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
 func CreateCalendar(gs graph.Service, user, calendarName string) (models.Calendarable, error) {
@@ -138,9 +119,9 @@ func DeleteContactFolder(gs graph.Service, user, folderID string) error {
 // GetAllMailFolders retrieves all mail folders for the specified user.
 // If nameContains is populated, only returns mail matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolder, error) {
+func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]models.MailFolderable, error) {
 	var (
-		mfs = []MailFolder{}
+		mfs = []models.MailFolderable{}
 		err error
 	)
 
@@ -165,12 +146,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		include := len(nameContains) == 0 ||
 			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
 		if include {
-			mfs = append(mfs, MailFolder{
-				idName: idName{
-					ID:          *folder.GetId(),
-					DisplayName: *folder.GetDisplayName(),
-				},
-			})
+			mfs = append(mfs, folder)
 		}
 
 		return true
@@ -186,9 +162,9 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 // GetAllCalendars retrieves all event calendars for the specified user.
 // If nameContains is populated, only returns calendars matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllCalendars(gs graph.Service, user, nameContains string) ([]Calendar, error) {
+func GetAllCalendars(gs graph.Service, user, nameContains string) ([]CalendarDisplayable, error) {
 	var (
-		cs  = []Calendar{}
+		cs  = []CalendarDisplayable{}
 		err error
 	)
 
@@ -213,12 +189,7 @@ func GetAllCalendars(gs graph.Service, user, nameContains string) ([]Calendar, e
 		include := len(nameContains) == 0 ||
 			(len(nameContains) > 0 && strings.Contains(*cal.GetName(), nameContains))
 		if include {
-			cs = append(cs, Calendar{
-				idName: idName{
-					ID:          *cal.GetId(),
-					DisplayName: *cal.GetName(),
-				},
-			})
+			cs = append(cs, *CreateCalendarDisplayable(cal))
 		}
 
 		return true
@@ -234,9 +205,9 @@ func GetAllCalendars(gs graph.Service, user, nameContains string) ([]Calendar, e
 // GetAllContactFolders retrieves all contacts folders for the specified user.
 // If nameContains is populated, only returns folders matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]ContactFolder, error) {
+func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]models.ContactFolderable, error) {
 	var (
-		cs  = []ContactFolder{}
+		cs  = []models.ContactFolderable{}
 		err error
 	)
 
@@ -252,21 +223,16 @@ func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]Contac
 	}
 
 	cb := func(item any) bool {
-		cal, ok := item.(models.ContactFolderable)
+		folder, ok := item.(models.ContactFolderable)
 		if !ok {
 			err = errors.New("casting item to models.ContactFolderable")
 			return false
 		}
 
 		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*cal.GetDisplayName(), nameContains))
+			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
 		if include {
-			cs = append(cs, ContactFolder{
-				idName: idName{
-					ID:          *cal.GetId(),
-					DisplayName: *cal.GetDisplayName(),
-				},
-			})
+			cs = append(cs, folder)
 		}
 
 		return true

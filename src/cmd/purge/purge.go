@@ -164,9 +164,12 @@ func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 // Purge Controllers
 // ------------------------------------------------------------------------------------------
 
-// ----- mail
+type purgable interface {
+	GetDisplayName() *string
+	GetId() *string
+}
 
-var _ purgable = &exchange.MailFolder{}
+// ----- mail
 
 func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
@@ -193,8 +196,6 @@ func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundar
 
 // ----- calendars
 
-var _ purgable = &exchange.Calendar{}
-
 func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
 		cfs, err := exchange.GetAllCalendars(gs, uid, prefix)
@@ -219,8 +220,6 @@ func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, bou
 }
 
 // ----- contacts
-
-var _ purgable = &exchange.ContactFolder{}
 
 func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
@@ -247,11 +246,6 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 
 // ----- controller
 
-type purgable interface {
-	GetDisplayName() string
-	GetID() string
-}
-
 func purgeFolders(
 	ctx context.Context,
 	gc *connector.GraphConnector,
@@ -273,7 +267,7 @@ func purgeFolders(
 		// compare the folder time to the deletion boundary time first
 		var (
 			del         bool
-			displayName = fld.GetDisplayName()
+			displayName = *fld.GetDisplayName()
 			dnLen       = len(displayName)
 		)
 
@@ -295,7 +289,7 @@ func purgeFolders(
 
 		Infof(ctx, "Deleting %s folder: %s", data, displayName)
 
-		err = deleter(gc.Service(), user, fld.GetID())
+		err = deleter(gc.Service(), user, *fld.GetId())
 		if err != nil {
 			Info(ctx, errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName))
 		}
