@@ -117,15 +117,12 @@ type (
 
 // makeScope produces a well formatted, typed scope that ensures all base values are populated.
 func makeScope[T scopeT](
-	granularity string,
 	cat categorizer,
 	resources, vs []string,
 ) T {
 	s := T{
 		scopeKeyCategory:       filters.Identity(cat.String()),
 		scopeKeyDataType:       filters.Identity(cat.leafCat().String()),
-		scopeKeyGranularity:    filters.Identity(granularity),
-		scopeKeyResource:       filters.Identity(join(resources...)),
 		cat.String():           filterize(vs...),
 		cat.rootCat().String(): filterize(resources...),
 	}
@@ -141,12 +138,10 @@ func makeFilterScope[T scopeT](
 	f func([]string) filters.Filter,
 ) T {
 	return T{
-		scopeKeyCategory:    filters.Identity(cat.String()),
-		scopeKeyDataType:    filters.Identity(cat.leafCat().String()),
-		scopeKeyGranularity: filters.Identity(Filter),
-		scopeKeyInfoFilter:  filters.Identity(filterCat.String()),
-		scopeKeyResource:    filters.Identity(Filter),
-		filterCat.String():  f(clean(vs)),
+		scopeKeyCategory:   filters.Identity(cat.String()),
+		scopeKeyDataType:   filters.Identity(cat.leafCat().String()),
+		scopeKeyInfoFilter: filters.Identity(filterCat.String()),
+		filterCat.String(): f(clean(vs)),
 	}
 }
 
@@ -179,11 +174,6 @@ func getFilterCategory[T scopeT](s T) string {
 	return s[scopeKeyInfoFilter].Target
 }
 
-// getGranularity returns the scope's granularity value.
-func getGranularity[T scopeT](s T) string {
-	return s[scopeKeyGranularity].Target
-}
-
 // getCatValue takes the value of s[cat], split it by the standard
 // delimiter, and returns the slice.  If s[cat] is nil, returns
 // None().
@@ -203,12 +193,6 @@ func set[T scopeT](s T, cat categorizer, v []string) T {
 	return s
 }
 
-// granularity describes the granularity (directory || item)
-// of the data in scope.
-func granularity[T scopeT](s T) string {
-	return s[scopeKeyGranularity].Target
-}
-
 // returns true if the category is included in the scope's category type,
 // and the value is set to Any().
 func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
@@ -225,7 +209,7 @@ func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
 func reduce[T scopeT, C categoryT](
 	deets *details.Details,
 	s Selector,
-	dataCategories map[pathType]C,
+	dataCategories map[path.CategoryType]C,
 ) *details.Details {
 	if deets == nil {
 		return nil
@@ -267,50 +251,32 @@ func reduce[T scopeT, C categoryT](
 	return reduced
 }
 
-// TODO: this is a hack.  We don't want these values declared here- it will get
-// unwieldy to have all of them for all services.  They should be declared in
-// paths, since that's where service- and data-type-specific assertions are owned.
-type pathType int
-
-const (
-	unknownPathType pathType = iota
-	exchangeEventPath
-	exchangeContactPath
-	exchangeMailPath
-)
-
 // return the service data type of the path.
 // TODO: this is a hack.  We don't want this identification to occur in this
 // package.  It should get handled in paths, since that's where service- and
 // data-type-specific assertions are owned.
 // Ideally, we'd use something like path.DataType() instead of this func.
-func pathTypeIn(p []string) pathType {
+func pathTypeIn(p []string) path.CategoryType {
 	// not all paths will be len=3.  Most should be longer.
 	// This just protects us from panicing below.
 	if len(p) < 4 {
-		return unknownPathType
+		return path.UnknownCategory
 	}
 
-	switch p[3] {
-	case path.EmailCategory.String():
-		return exchangeMailPath
-	case path.ContactsCategory.String():
-		return exchangeContactPath
-	case path.EventsCategory.String():
-		return exchangeEventPath
+	if c := path.ToCategoryType(p[3]); c != path.UnknownCategory {
+		return c
 	}
 
-	// fallback for unmigrated events and contacts paths
 	switch p[2] {
 	case path.EmailCategory.String():
-		return exchangeMailPath
+		return path.EmailCategory
 	case path.ContactsCategory.String():
-		return exchangeContactPath
+		return path.ContactsCategory
 	case path.EventsCategory.String():
-		return exchangeEventPath
+		return path.EventsCategory
 	}
 
-	return unknownPathType
+	return path.UnknownCategory
 }
 
 // groups each scope by its category of data (specified by the service-selector).
@@ -319,7 +285,7 @@ func pathTypeIn(p []string) pathType {
 // so long as "mail" and "event" are contained in cats.
 func scopesByCategory[T scopeT, C categoryT](
 	scopes []scope,
-	cats map[pathType]C,
+	cats map[path.CategoryType]C,
 ) map[C][]T {
 	m := map[C][]T{}
 	for _, cat := range cats {

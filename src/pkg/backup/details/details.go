@@ -234,13 +234,18 @@ func (i ExchangeInfo) Headers() []string {
 func (i ExchangeInfo) Values() []string {
 	switch i.ItemType {
 	case ExchangeEvent:
-		return []string{i.Organizer, i.Subject, common.FormatTime(i.EventStart), strconv.FormatBool(i.EventRecurs)}
+		return []string{
+			i.Organizer,
+			i.Subject,
+			common.FormatTabularDisplayTime(i.EventStart),
+			strconv.FormatBool(i.EventRecurs),
+		}
 
 	case ExchangeContact:
 		return []string{i.ContactName}
 
 	case ExchangeMail:
-		return []string{i.Sender, i.Subject, common.FormatTime(i.Received)}
+		return []string{i.Sender, i.Subject, common.FormatTabularDisplayTime(i.Received)}
 	}
 
 	return []string{}

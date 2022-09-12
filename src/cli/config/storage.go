@@ -92,8 +92,8 @@ func configureStorage(
 
 	// ensure required properties are present
 	if err := utils.RequireProps(map[string]string{
-		storage.Bucket:            s3Cfg.Bucket,
-		credentials.CorsoPassword: corso.CorsoPassword,
+		storage.Bucket:              s3Cfg.Bucket,
+		credentials.CorsoPassphrase: corso.CorsoPassphrase,
 	}); err != nil {
 		return storage.Storage{}, err
 	}

@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
@@ -78,6 +79,11 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 	src := ExchangeRestore{exchange{s}}
 
 	return &src, nil
+}
+
+// Printable creates the minimized display of a selector, formatted for human readability.
+func (s exchange) Printable() Printable {
+	return toPrintable[ExchangeScope](s.Selector)
 }
 
 // -------------------
@@ -169,7 +175,7 @@ func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeContact, users, contacts).
+		makeScope[ExchangeScope](ExchangeContact, users, contacts).
 			set(ExchangeContactFolder, folders),
 	)
 
@@ -185,7 +191,7 @@ func (s *exchange) ContactFolders(users, folders []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Group, ExchangeContactFolder, users, folders),
+		makeScope[ExchangeScope](ExchangeContactFolder, users, folders),
 	)
 
 	return scopes
@@ -200,7 +206,7 @@ func (s *exchange) Events(users, calendars, events []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeEvent, users, events).
+		makeScope[ExchangeScope](ExchangeEvent, users, events).
 			set(ExchangeEventCalendar, calendars),
 	)
 
@@ -217,7 +223,7 @@ func (s *exchange) EventCalendars(users, events []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Group, ExchangeEventCalendar, users, events),
+		makeScope[ExchangeScope](ExchangeEventCalendar, users, events),
 	)
 
 	return scopes
@@ -232,7 +238,7 @@ func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Item, ExchangeMail, users, mails).
+		makeScope[ExchangeScope](ExchangeMail, users, mails).
 			set(ExchangeMailFolder, folders),
 	)
 
@@ -248,7 +254,7 @@ func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](Group, ExchangeMailFolder, users, folders),
+		makeScope[ExchangeScope](ExchangeMailFolder, users, folders),
 	)
 
 	return scopes
@@ -263,9 +269,9 @@ func (s *exchange) Users(users []string) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(scopes,
-		makeScope[ExchangeScope](Group, ExchangeContactFolder, users, Any()),
-		makeScope[ExchangeScope](Item, ExchangeEventCalendar, users, Any()),
-		makeScope[ExchangeScope](Group, ExchangeMailFolder, users, Any()),
+		makeScope[ExchangeScope](ExchangeContactFolder, users, Any()),
+		makeScope[ExchangeScope](ExchangeEventCalendar, users, Any()),
+		makeScope[ExchangeScope](ExchangeMailFolder, users, Any()),
 	)
 
 	return scopes
@@ -553,27 +559,27 @@ func (ec exchangeCategory) unknownCat() categorizer {
 // Example:
 // [tenantID, userPN, "mail", mailFolder, mailID]
 // => {exchUser: userPN, exchMailFolder: mailFolder, exchMail: mailID}
-func (ec exchangeCategory) pathValues(path []string) map[categorizer]string {
+func (ec exchangeCategory) pathValues(p []string) map[categorizer]string {
 	m := map[categorizer]string{}
-	if len(path) < 5 {
+	if len(p) < 5 {
 		return m
 	}
 
 	switch ec {
 	case ExchangeContact:
-		m[ExchangeUser] = path[1]
-		m[ExchangeContactFolder] = path[3]
-		m[ExchangeContact] = path[4]
+		m[ExchangeUser] = p[1]
+		m[ExchangeContactFolder] = p[3]
+		m[ExchangeContact] = p[4]
 
 	case ExchangeEvent:
-		m[ExchangeUser] = path[1]
-		m[ExchangeEventCalendar] = path[3]
-		m[ExchangeEvent] = path[4]
+		m[ExchangeUser] = p[1]
+		m[ExchangeEventCalendar] = p[3]
+		m[ExchangeEvent] = p[4]
 
 	case ExchangeMail:
-		m[ExchangeUser] = path[2]
-		m[ExchangeMailFolder] = path[4]
-		m[ExchangeMail] = path[5]
+		m[ExchangeUser] = p[2]
+		m[ExchangeMailFolder] = p[4]
+		m[ExchangeMail] = p[5]
 	}
 
 	return m
@@ -616,12 +622,6 @@ func (s ExchangeScope) Matches(cat exchangeCategory, target string) bool {
 // If the scope is not a filter type, returns ExchangeUnknownCategory.
 func (s ExchangeScope) FilterCategory() exchangeCategory {
 	return exchangeCategory(getFilterCategory(s))
-}
-
-// Granularity describes the granularity (directory || item)
-// of the data in scope.
-func (s ExchangeScope) Granularity() string {
-	return getGranularity(s)
 }
 
 // IncludeCategory checks whether the scope includes a certain category of data.
@@ -681,10 +681,10 @@ func (s exchange) Reduce(deets *details.Details) *details.Details {
 	return reduce[ExchangeScope](
 		deets,
 		s.Selector,
-		map[pathType]exchangeCategory{
-			exchangeContactPath: ExchangeContact,
-			exchangeEventPath:   ExchangeEvent,
-			exchangeMailPath:    ExchangeMail,
+		map[path.CategoryType]exchangeCategory{
+			path.ContactsCategory: ExchangeContact,
+			path.EventsCategory:   ExchangeEvent,
+			path.EmailCategory:    ExchangeMail,
 		},
 	)
 }

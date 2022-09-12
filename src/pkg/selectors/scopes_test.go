@@ -110,12 +110,6 @@ func (suite *SelectorScopesSuite) TestGetCatValue() {
 	assert.Equal(t, None(), getCatValue(stub, leafCatStub))
 }
 
-func (suite *SelectorScopesSuite) TestGranularity() {
-	t := suite.T()
-	stub := stubScope("")
-	assert.Equal(t, Item, granularity(stub))
-}
-
 func (suite *SelectorScopesSuite) TestIsAnyTarget() {
 	t := suite.T()
 	stub := stubScope("")
@@ -125,13 +119,13 @@ func (suite *SelectorScopesSuite) TestIsAnyTarget() {
 
 var reduceTestTable = []struct {
 	name         string
-	sel          func() Selector
+	sel          func() mockSel
 	expectLen    int
 	expectPasses assert.BoolAssertionFunc
 }{
 	{
 		name: "include all",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Filters = nil
 			sel.Excludes = nil
@@ -142,7 +136,7 @@ var reduceTestTable = []struct {
 	},
 	{
 		name: "include none",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Includes[0] = scope(stubScope("none"))
 			sel.Filters = nil
@@ -154,7 +148,7 @@ var reduceTestTable = []struct {
 	},
 	{
 		name: "filter and include all",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Excludes = nil
 			return sel
@@ -164,7 +158,7 @@ var reduceTestTable = []struct {
 	},
 	{
 		name: "include all filter none",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Filters[0] = scope(stubScope("none"))
 			sel.Excludes = nil
@@ -175,7 +169,7 @@ var reduceTestTable = []struct {
 	},
 	{
 		name: "include all exclude all",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Filters = nil
 			return sel
@@ -185,7 +179,7 @@ var reduceTestTable = []struct {
 	},
 	{
 		name: "include all exclude none",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Filters = nil
 			sel.Excludes[0] = scope(stubScope("none"))
@@ -196,7 +190,7 @@ var reduceTestTable = []struct {
 	},
 	{
 		name: "filter all exclude all",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Includes = nil
 			return sel
@@ -206,7 +200,7 @@ var reduceTestTable = []struct {
 	},
 	{
 		name: "filter all exclude none",
-		sel: func() Selector {
+		sel: func() mockSel {
 			sel := stubSelector()
 			sel.Includes = nil
 			sel.Excludes[0] = scope(stubScope("none"))
@@ -227,14 +221,14 @@ func (suite *SelectorScopesSuite) TestReduce() {
 			},
 		}
 	}
-	dataCats := map[pathType]mockCategorizer{
-		unknownPathType: rootCatStub,
+	dataCats := map[path.CategoryType]mockCategorizer{
+		path.UnknownCategory: rootCatStub,
 	}
 
 	for _, test := range reduceTestTable {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ds := deets()
-			result := reduce[mockScope](&ds, test.sel(), dataCats)
+			result := reduce[mockScope](&ds, test.sel().Selector, dataCats)
 			require.NotNil(t, result)
 			assert.Len(t, result.Entries, test.expectLen)
 		})
@@ -244,32 +238,32 @@ func (suite *SelectorScopesSuite) TestReduce() {
 func (suite *SelectorScopesSuite) TestPathTypeIn() {
 	table := []struct {
 		name     string
-		pathType pathType
+		pathType path.CategoryType
 		pth      []string
 	}{
 		{
 			name:     "empty",
-			pathType: unknownPathType,
+			pathType: path.UnknownCategory,
 			pth:      []string{},
 		},
 		{
 			name:     "email",
-			pathType: exchangeMailPath,
+			pathType: path.EmailCategory,
 			pth:      stubPath(path.ExchangeService, path.EmailCategory, "", "", ""),
 		},
 		{
 			name:     "contact",
-			pathType: exchangeContactPath,
+			pathType: path.ContactsCategory,
 			pth:      stubPath(path.ExchangeService, path.ContactsCategory, "", "", ""),
 		},
 		{
 			name:     "event",
-			pathType: exchangeEventPath,
+			pathType: path.EventsCategory,
 			pth:      stubPath(path.ExchangeService, path.EventsCategory, "", "", ""),
 		},
 		{
 			name:     "bogus",
-			pathType: unknownPathType,
+			pathType: path.UnknownCategory,
 			pth:      []string{"", "", "", "fnords", "", ""},
 		},
 	}
@@ -288,8 +282,8 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	s2[scopeKeyCategory] = filterize(unknownCatStub.String())
 	result := scopesByCategory[mockScope](
 		[]scope{scope(s1), scope(s2)},
-		map[pathType]mockCategorizer{
-			unknownPathType: rootCatStub,
+		map[path.CategoryType]mockCategorizer{
+			path.UnknownCategory: rootCatStub,
 		})
 	assert.Len(t, result, 1)
 	assert.Len(t, result[rootCatStub], 1)

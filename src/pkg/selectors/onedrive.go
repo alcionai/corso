@@ -46,6 +46,11 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 	return &src, nil
 }
 
+// Printable creates the minimized display of a selector, formatted for human readability.
+func (s oneDrive) Printable() Printable {
+	return toPrintable[OneDriveScope](s.Selector)
+}
+
 // -------------------
 // Scope Factories
 
@@ -113,7 +118,7 @@ func (s *oneDrive) Filter(scopes ...[]OneDriveScope) {
 func (s *oneDrive) Users(users []string) []OneDriveScope {
 	scopes := []OneDriveScope{}
 
-	scopes = append(scopes, makeScope[OneDriveScope](Group, OneDriveUser, users, users))
+	scopes = append(scopes, makeScope[OneDriveScope](OneDriveUser, users, users))
 
 	return scopes
 }
@@ -236,12 +241,6 @@ func (s OneDriveScope) categorizer() categorizer {
 // If the scope is not a filter type, returns OneDriveUnknownCategory.
 func (s OneDriveScope) FilterCategory() oneDriveCategory {
 	return oneDriveCategory(getFilterCategory(s))
-}
-
-// Granularity describes the granularity (directory || item)
-// of the data in scope.
-func (s OneDriveScope) Granularity() string {
-	return getGranularity(s)
 }
 
 // IncludeCategory checks whether the scope includes a

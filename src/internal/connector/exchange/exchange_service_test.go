@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -526,7 +527,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			containerID, err := GetRestoreContainer(suite.es, userID, test.option)
-			require.True(t, test.checkError(t, err))
+			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
 
 			if test.cleanupFunc != nil {
 				err = test.cleanupFunc(suite.es, userID, containerID)

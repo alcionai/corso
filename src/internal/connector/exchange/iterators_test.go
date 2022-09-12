@@ -77,12 +77,12 @@ func loadService(t *testing.T) *exchangeService {
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
-		ctx                     = context.Background()
-		t                       = suite.T()
-		mailScope, contactScope selectors.ExchangeScope
-		userID                  = tester.M365UserID(t)
-		sel                     = selectors.NewExchangeBackup()
-		service                 = loadService(t)
+		ctx                                 = context.Background()
+		t                                   = suite.T()
+		mailScope, contactScope, eventScope selectors.ExchangeScope
+		userID                              = tester.M365UserID(t)
+		sel                                 = selectors.NewExchangeBackup()
+		service                             = loadService(t)
 	)
 
 	sel.Include(sel.Users([]string{userID}))
@@ -99,6 +99,10 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 
 		if scope.IncludesCategory(selectors.ExchangeMail) {
 			mailScope = scope
+		}
+
+		if scope.IncludesCategory(selectors.ExchangeEvent) {
+			eventScope = scope
 		}
 	}
 
@@ -126,6 +130,12 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			iterativeFunction: IterateSelectAllDescendablesForCollections,
 			scope:             contactScope,
 			transformer:       models.CreateContactFromDiscriminatorValue,
+		}, {
+			name:              "Events Iterative Check",
+			queryFunction:     GetAllCalendarNamesForUser,
+			iterativeFunction: IterateSelectAllEventsFromCalendars,
+			scope:             eventScope,
+			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Folder Iterative Check",
 			queryFunction:     GetAllFolderNamesForUser,

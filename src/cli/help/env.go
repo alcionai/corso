@@ -63,7 +63,7 @@ const (
 
 var (
 	corsoEVs = []envVar{
-		{corso, "CORSO_PASSWORD", "Passphrase to protect repository encryption material." +
+		{corso, "CORSO_PASSPHRASE", "Passphrase to protect repository encryption material." +
 			"It is impossible to use the repository or recover any backups without this key."},
 	}
 	azureEVs = []envVar{
