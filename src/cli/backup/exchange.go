@@ -336,16 +336,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(
-		contact,
-		contactFolder,
-		email,
-		emailFolder,
-		event,
-		eventCalendar,
-		user,
-		backupID,
-	); err != nil {
+	if err := utils.ValidateExchangeRestoreFlags(backupID); err != nil {
 		return err
 	}
 
@@ -396,7 +387,8 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ds := sel.Reduce(d)
 	if len(ds.Entries) == 0 {
-		return Only(ctx, errors.New("nothing to display: no items in the backup match the provided selectors"))
+		Info(ctx, "nothing to display: no items in the backup match the provided selectors")
+		return nil
 	}
 
 	ds.PrintEntries(ctx)
