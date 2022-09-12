@@ -237,7 +237,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 
 	common, err := st.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")
-	assert.Equal(t, common.CorsoPassword, os.Getenv(credentials.CorsoPassword))
+	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
 	readM365, err := ac.M365Config()
 	require.NoError(t, err, "reading m365 config from account")
@@ -285,7 +285,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 
 	common, err := st.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")
-	assert.Equal(t, common.CorsoPassword, os.Getenv(credentials.CorsoPassword))
+	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
 	readM365, err := ac.M365Config()
 	require.NoError(t, err, "reading m365 config from account")

@@ -8,28 +8,28 @@ import (
 
 // envvar consts
 const (
-	CorsoPassword = "CORSO_PASSWORD"
+	CorsoPassphrase = "CORSO_PASSPHRASE"
 )
 
 // Corso aggregates corso credentials from flag and env_var values.
 type Corso struct {
-	CorsoPassword string // required
+	CorsoPassphrase string // required
 }
 
 // GetCorso is a helper for aggregating Corso secrets and credentials.
 func GetCorso() Corso {
 	// todo (rkeeprs): read from either corso config file or env vars.
 	// https://github.com/alcionai/corso/issues/120
-	corsoPasswd := os.Getenv(CorsoPassword)
+	corsoPassph := os.Getenv(CorsoPassphrase)
 
 	return Corso{
-		CorsoPassword: corsoPasswd,
+		CorsoPassphrase: corsoPassph,
 	}
 }
 
 func (c Corso) Validate() error {
 	check := map[string]string{
-		CorsoPassword: c.CorsoPassword,
+		CorsoPassphrase: c.CorsoPassphrase,
 	}
 
 	for k, v := range check {

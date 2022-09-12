@@ -592,7 +592,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			containerID, err := GetRestoreContainer(suite.es, userID, test.option)
-			require.True(t, test.checkError(t, err))
+			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
 
 			if test.cleanupFunc != nil {
 				err = test.cleanupFunc(suite.es, userID, containerID)
