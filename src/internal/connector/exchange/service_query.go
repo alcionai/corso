@@ -55,7 +55,7 @@ func GetAllFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, e
 }
 
 func GetAllCalendarNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	options, err := optionsForCalendars([]string{"name"})
+	options, err := optionsForCalendars([]string{"name", "owner"})
 	if err != nil {
 		return nil, err
 	}
