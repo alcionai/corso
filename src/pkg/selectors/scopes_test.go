@@ -221,8 +221,8 @@ func (suite *SelectorScopesSuite) TestReduce() {
 			},
 		}
 	}
-	dataCats := map[pathType]mockCategorizer{
-		unknownPathType: rootCatStub,
+	dataCats := map[path.CategoryType]mockCategorizer{
+		path.UnknownCategory: rootCatStub,
 	}
 
 	for _, test := range reduceTestTable {
@@ -238,32 +238,32 @@ func (suite *SelectorScopesSuite) TestReduce() {
 func (suite *SelectorScopesSuite) TestPathTypeIn() {
 	table := []struct {
 		name     string
-		pathType pathType
+		pathType path.CategoryType
 		pth      []string
 	}{
 		{
 			name:     "empty",
-			pathType: unknownPathType,
+			pathType: path.UnknownCategory,
 			pth:      []string{},
 		},
 		{
 			name:     "email",
-			pathType: exchangeMailPath,
+			pathType: path.EmailCategory,
 			pth:      stubPath(path.ExchangeService, path.EmailCategory, "", "", ""),
 		},
 		{
 			name:     "contact",
-			pathType: exchangeContactPath,
+			pathType: path.ContactsCategory,
 			pth:      stubPath(path.ExchangeService, path.ContactsCategory, "", "", ""),
 		},
 		{
 			name:     "event",
-			pathType: exchangeEventPath,
+			pathType: path.EventsCategory,
 			pth:      stubPath(path.ExchangeService, path.EventsCategory, "", "", ""),
 		},
 		{
 			name:     "bogus",
-			pathType: unknownPathType,
+			pathType: path.UnknownCategory,
 			pth:      []string{"", "", "", "fnords", "", ""},
 		},
 	}
@@ -282,8 +282,8 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	s2[scopeKeyCategory] = filterize(unknownCatStub.String())
 	result := scopesByCategory[mockScope](
 		[]scope{scope(s1), scope(s2)},
-		map[pathType]mockCategorizer{
-			unknownPathType: rootCatStub,
+		map[path.CategoryType]mockCategorizer{
+			path.UnknownCategory: rootCatStub,
 		})
 	assert.Len(t, result, 1)
 	assert.Len(t, result[rootCatStub], 1)
