@@ -21,8 +21,12 @@ type mockCategorizer string
 
 const (
 	unknownCatStub mockCategorizer = ""
-	rootCatStub    mockCategorizer = "rootCatStub"
-	leafCatStub    mockCategorizer = "leafCatStub"
+	// wrap Exchange data here to get around path pkg assertions about path content.
+	rootCatStub mockCategorizer = mockCategorizer(ExchangeUser)
+	leafCatStub mockCategorizer = mockCategorizer(ExchangeEvent)
+
+	pathServiceStub = path.ExchangeService
+	pathCatStub     = path.EmailCategory
 )
 
 var _ categorizer = unknownCatStub

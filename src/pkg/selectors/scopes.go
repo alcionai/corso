@@ -2,8 +2,6 @@ package selectors
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -228,12 +226,8 @@ func reduce[T scopeT, C categoryT](
 	// for each entry, compare that entry against the scopes of the same data type
 	for _, ent := range deets.Entries {
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
-
-		// TODO(keepers): the error checks here are just to allow testing, until repoRef becomes a path struct.
-		if err != nil &&
-			!(errors.Is(err, path.ErrorUnknownService) || errors.Is(err, path.ErrorUnknownCategory)) {
+		if err != nil {
 			logger.Ctx(ctx).Debugw("transforming repoRef to path", "err", err)
-
 			continue
 		}
 
@@ -241,8 +235,6 @@ func reduce[T scopeT, C categoryT](
 		if !ok {
 			continue
 		}
-
-		fmt.Printf("\n-----\nchecking passes\n-----\n")
 
 		passed := passes(
 			dc,
