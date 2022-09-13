@@ -21,7 +21,8 @@ const (
 )
 
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
-// with Azure identity package. Adapter is
+// with Azure identity package. An adapter object is a necessary to component
+// to create  *msgraphsdk.GraphServiceClient
 func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := az.NewClientSecretCredential(tenant, client, secret, nil)
