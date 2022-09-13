@@ -147,16 +147,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(
-		contact,
-		contactFolder,
-		email,
-		emailFolder,
-		event,
-		eventCalendar,
-		user,
-		backupID,
-	); err != nil {
+	if err := utils.ValidateExchangeRestoreFlags(backupID); err != nil {
 		return err
 	}
 

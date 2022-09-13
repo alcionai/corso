@@ -81,11 +81,6 @@ func DeleteMailFolder(gs graph.Service, user, folderID string) error {
 	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete()
 }
 
-type MailFolder struct {
-	ID          string
-	DisplayName string
-}
-
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
 func CreateCalendar(gs graph.Service, user, calendarName string) (models.Calendarable, error) {
@@ -119,9 +114,9 @@ func DeleteContactFolder(gs graph.Service, user, folderID string) error {
 // GetAllMailFolders retrieves all mail folders for the specified user.
 // If nameContains is populated, only returns mail matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolder, error) {
+func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]models.MailFolderable, error) {
 	var (
-		mfs = []MailFolder{}
+		mfs = []models.MailFolderable{}
 		err error
 	)
 
@@ -136,20 +131,17 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 		return nil, err
 	}
 
-	cb := func(folderItem any) bool {
-		folder, ok := folderItem.(models.MailFolderable)
+	cb := func(item any) bool {
+		folder, ok := item.(models.MailFolderable)
 		if !ok {
-			err = errors.New("HasFolder() iteration failure")
+			err = errors.New("casting item to models.MailFolderable")
 			return false
 		}
 
 		include := len(nameContains) == 0 ||
 			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
 		if include {
-			mfs = append(mfs, MailFolder{
-				ID:          *folder.GetId(),
-				DisplayName: *folder.GetDisplayName(),
-			})
+			mfs = append(mfs, folder)
 		}
 
 		return true
@@ -160,6 +152,92 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]MailFolde
 	}
 
 	return mfs, err
+}
+
+// GetAllCalendars retrieves all event calendars for the specified user.
+// If nameContains is populated, only returns calendars matching that property.
+// Returns a slice of {ID, DisplayName} tuples.
+func GetAllCalendars(gs graph.Service, user, nameContains string) ([]CalendarDisplayable, error) {
+	var (
+		cs  = []CalendarDisplayable{}
+		err error
+	)
+
+	resp, err := GetAllCalendarNamesForUser(gs, user)
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, gs.Adapter(), models.CreateCalendarCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+
+	cb := func(item any) bool {
+		cal, ok := item.(models.Calendarable)
+		if !ok {
+			err = errors.New("casting item to models.Calendarable")
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			(len(nameContains) > 0 && strings.Contains(*cal.GetName(), nameContains))
+		if include {
+			cs = append(cs, *CreateCalendarDisplayable(cal))
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(cb); err != nil {
+		return nil, err
+	}
+
+	return cs, err
+}
+
+// GetAllContactFolders retrieves all contacts folders for the specified user.
+// If nameContains is populated, only returns folders matching that property.
+// Returns a slice of {ID, DisplayName} tuples.
+func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]models.ContactFolderable, error) {
+	var (
+		cs  = []models.ContactFolderable{}
+		err error
+	)
+
+	resp, err := GetAllContactFolderNamesForUser(gs, user)
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, gs.Adapter(), models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, err
+	}
+
+	cb := func(item any) bool {
+		folder, ok := item.(models.ContactFolderable)
+		if !ok {
+			err = errors.New("casting item to models.ContactFolderable")
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
+		if include {
+			cs = append(cs, folder)
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(cb); err != nil {
+		return nil, err
+	}
+
+	return cs, err
 }
 
 // GetContainerID query function to retrieve a container's M365 ID.

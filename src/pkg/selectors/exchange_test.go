@@ -1054,10 +1054,10 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 
 		return mss
 	}
-	cats := map[pathType]exchangeCategory{
-		exchangeContactPath: ExchangeContact,
-		exchangeEventPath:   ExchangeEvent,
-		exchangeMailPath:    ExchangeMail,
+	cats := map[path.CategoryType]exchangeCategory{
+		path.ContactsCategory: ExchangeContact,
+		path.EventsCategory:   ExchangeEvent,
+		path.EmailCategory:    ExchangeMail,
 	}
 
 	table := []struct {
