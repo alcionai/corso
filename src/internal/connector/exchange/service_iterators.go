@@ -428,7 +428,7 @@ func IterateSelectAllContactsForCollections(
 		if !ok {
 			errs = support.WrapAndAppend(
 				qp.User,
-				errors.New("contact folder iteration failure"),
+				errors.New("casting folderItem to models.ContactFolderable"),
 				errs,
 			)
 		}
@@ -582,7 +582,8 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, m365ID string) ([]str
 	response, err := gs.Client().
 		UsersById(user).
 		ContactFoldersById(m365ID).
-		Contacts().GetWithRequestConfigurationAndResponseHandler(options, nil)
+		Contacts().
+		GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +597,7 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, m365ID string) ([]str
 	callbackFunc := func(pageItem any) bool {
 		entry, ok := pageItem.(models.Contactable)
 		if !ok {
-			err = errors.New("iterate error ReturnContactListFromDirectory ")
+			err = errors.New("casting pageItem to models.Contactable")
 			return false
 		}
 

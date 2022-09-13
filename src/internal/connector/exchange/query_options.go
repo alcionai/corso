@@ -244,7 +244,7 @@ func optionsForMailFoldersItem(
 }
 
 // optionsForContactFoldersItem is the same as optionsForContacts.
-// TODO: Remove after Issue #828
+// TODO: Remove after Issue #828; requires updating msgraph to v0.34
 func optionsForContactFoldersItem(
 	moreOps []string,
 ) (*mscontactfolderitem.ContactsRequestBuilderGetRequestConfiguration, error) {
