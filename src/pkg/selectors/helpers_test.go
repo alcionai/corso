@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -20,8 +21,12 @@ type mockCategorizer string
 
 const (
 	unknownCatStub mockCategorizer = ""
-	rootCatStub    mockCategorizer = "rootCatStub"
-	leafCatStub    mockCategorizer = "leafCatStub"
+	// wrap Exchange data here to get around path pkg assertions about path content.
+	rootCatStub mockCategorizer = mockCategorizer(ExchangeUser)
+	leafCatStub mockCategorizer = mockCategorizer(ExchangeEvent)
+
+	pathServiceStub = path.ExchangeService
+	pathCatStub     = path.EmailCategory
 )
 
 var _ categorizer = unknownCatStub
@@ -42,7 +47,7 @@ func (mc mockCategorizer) unknownCat() categorizer {
 	return unknownCatStub
 }
 
-func (mc mockCategorizer) pathValues(pth []string) map[categorizer]string {
+func (mc mockCategorizer) pathValues(pth path.Path) map[categorizer]string {
 	return map[categorizer]string{rootCatStub: "stub"}
 }
 
@@ -152,8 +157,13 @@ func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 
 // stubPath ensures test path production matches that of fullPath design,
 // stubbing out static values where necessary.
-func stubPath(service path.ServiceType, data path.CategoryType, resourceOwner, folders, item string) []string {
-	return []string{"tid", service.String(), resourceOwner, data.String(), folders, item}
+func stubPath(t *testing.T, user string, s []string, cat path.CategoryType) path.Path {
+	pth, err := path.Builder{}.
+		Append(s...).
+		ToDataLayerExchangePathForCategory("tid", user, cat, true)
+	require.NoError(t, err)
+
+	return pth
 }
 
 // stubRepoRef ensures test path production matches that of repoRef design,
