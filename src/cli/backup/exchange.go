@@ -385,7 +385,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	ds := sel.Reduce(d)
+	ds := sel.Reduce(ctx, d)
 	if len(ds.Entries) == 0 {
 		Info(ctx, "nothing to display: no items in the backup match the provided selectors")
 		return nil

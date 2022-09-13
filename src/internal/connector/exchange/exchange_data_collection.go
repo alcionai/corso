@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -49,13 +51,13 @@ type Collection struct {
 	statusUpdater  support.StatusUpdater
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
-	fullPath []string
+	fullPath path.Path
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
 	user string,
-	fullPath []string,
+	fullPath path.Path,
 	collectionType optionIdentifier,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
@@ -103,7 +105,11 @@ func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, Graph
 
 // FullPath returns the Collection's fullPath []string
 func (col *Collection) FullPath() []string {
-	return append([]string{}, col.fullPath...)
+	// TODO(ashmrtn): Remove this when data.Collection.FullPath returns a
+	// path.Path. This assumes we don't have adversarial users that use '/' in
+	// their folder names.
+	r := col.fullPath.String()
+	return strings.Split(r, "/")
 }
 
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize

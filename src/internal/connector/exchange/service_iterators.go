@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"strings"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -65,7 +64,7 @@ func resolveCollectionPath(
 	resolver graph.ContainerResolver,
 	tenantID, user, folderID string,
 	category path.CategoryType,
-) ([]string, error) {
+) (path.Path, error) {
 	if resolver == nil {
 		// Allows caller to default to old-style path.
 		return nil, errors.WithStack(errNilResolver)
@@ -76,19 +75,12 @@ func resolveCollectionPath(
 		return nil, errors.Wrap(err, "resolving folder ID")
 	}
 
-	fullPath, err := p.ToDataLayerExchangePathForCategory(
+	return p.ToDataLayerExchangePathForCategory(
 		tenantID,
 		user,
 		category,
 		false,
 	)
-	if err != nil {
-		return nil, errors.Wrap(err, "converting to canonical path")
-	}
-
-	// TODO(ashmrtn): This can return the path directly when Collections take
-	// path.Path.
-	return strings.Split(fullPath.String(), "/"), nil
 }
 
 // IterateSelectAllDescendablesForCollection utility function for
@@ -143,7 +135,18 @@ func IterateSelectAllDescendablesForCollections(
 
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
-		dirPath := []string{qp.Credentials.TenantID, qp.User, category.String(), directory}
+
+		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+		if err != nil {
+			errs = support.WrapAndAppend("converting to resource path", err, errs)
+			// This really shouldn't be happening unless we have a bad category.
+			return true
+		}
 
 		if _, ok = collections[directory]; !ok {
 			newPath, err := resolveCollectionPath(
@@ -258,9 +261,21 @@ func IterateSelectAllEventsFromCalendars(
 				return true
 			}
 
+			dirPath, err := path.Builder{}.Append(*directory).ToDataLayerExchangePathForCategory(
+				qp.Credentials.TenantID,
+				qp.User,
+				path.EventsCategory,
+				false,
+			)
+			if err != nil {
+				// This really shouldn't be happening.
+				errs = support.WrapAndAppend("converting to resource path", err, errs)
+				return true
+			}
+
 			edc := NewCollection(
 				qp.User,
-				[]string{qp.Credentials.TenantID, qp.User, path.EventsCategory.String(), *directory},
+				dirPath,
 				events,
 				service,
 				statusUpdater,
@@ -363,11 +378,17 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 
 		directory := *folder.GetId()
-		dirPath := []string{
+
+		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
 			qp.Credentials.TenantID,
 			qp.User,
-			path.EmailCategory.String(),
-			directory,
+			path.EmailCategory,
+			false,
+		)
+		if err != nil {
+			// This really shouldn't be happening.
+			errs = support.WrapAndAppend("converting to resource path", err, errs)
+			return true
 		}
 
 		p, err := resolveCollectionPath(

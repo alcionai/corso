@@ -4,6 +4,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var ErrorUnknownService = errors.New("unknown service string")
+
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
@@ -20,6 +22,8 @@ func toServiceType(service string) ServiceType {
 		return UnknownService
 	}
 }
+
+var ErrorUnknownCategory = errors.New("unknown category string")
 
 type CategoryType int
 
@@ -56,12 +60,12 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, error) {
 	service := toServiceType(s)
 	if service == UnknownService {
-		return UnknownService, UnknownCategory, errors.Errorf("unknown service string %q", s)
+		return UnknownService, UnknownCategory, errors.Wrapf(ErrorUnknownService, "%q", s)
 	}
 
 	category := ToCategoryType(c)
 	if category == UnknownCategory {
-		return UnknownService, UnknownCategory, errors.Errorf("unknown category string %q", c)
+		return UnknownService, UnknownCategory, errors.Wrapf(ErrorUnknownCategory, "%q", c)
 	}
 
 	if err := validateServiceAndCategory(service, category); err != nil {
