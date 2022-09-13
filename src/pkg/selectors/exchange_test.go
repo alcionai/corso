@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/path"
-	pmock "github.com/alcionai/corso/src/internal/path/mock"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
@@ -854,13 +853,6 @@ func (suite *ExchangeSelectorSuite) TestIdPath() {
 				ExchangeMail:       "mid",
 			},
 		},
-		{
-			ExchangeCategoryUnknown,
-			pmock.MockEmptyPath(),
-			map[exchangeCategory]string{
-				ExchangeUser: "uid",
-			},
-		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {})
@@ -1250,15 +1242,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 		ExchangeMailFolder: mailPath.Folder(),
 		ExchangeMail:       mailPath.Item(),
 	}
-	badPath := pmock.MockPath([]string{"a"}, true, path.UnknownService, path.UnknownCategory)
 
 	table := []struct {
 		cat    exchangeCategory
 		path   path.Path
 		expect map[categorizer]string
 	}{
-		{ExchangeCategoryUnknown, pmock.MockEmptyPath(), map[categorizer]string{}},
-		{ExchangeCategoryUnknown, badPath, map[categorizer]string{}},
 		{ExchangeContact, contactPath, contactMap},
 		{ExchangeEvent, eventPath, eventMap},
 		{ExchangeMail, mailPath, mailMap},
