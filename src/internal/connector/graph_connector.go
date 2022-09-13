@@ -463,7 +463,12 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		for _, user := range scope.Get(selectors.OneDriveUser) {
 			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
-			odcs, err := onedrive.NewCollections(user, &gc.graphService, gc.UpdateStatus).Get(ctx)
+			odcs, err := onedrive.NewCollections(
+				gc.credentials.TenantID,
+				user,
+				&gc.graphService,
+				gc.UpdateStatus,
+			).Get(ctx)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}

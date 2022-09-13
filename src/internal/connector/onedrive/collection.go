@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -30,7 +31,7 @@ type Collection struct {
 	data chan data.Stream
 	// folderPath indicates what level in the hierarchy this collection
 	// represents
-	folderPath string
+	folderPath path.Path
 	// M365 IDs of file items within this collection
 	driveItemIDs []string
 	// M365 ID of the drive this collection was created from
@@ -48,7 +49,10 @@ type itemReaderFunc func(
 ) (name string, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
-func NewCollection(folderPath, driveID string, service graph.Service,
+func NewCollection(
+	folderPath path.Path,
+	driveID string,
+	service graph.Service,
 	statusUpdater support.StatusUpdater,
 ) *Collection {
 	c := &Collection{
@@ -77,10 +81,9 @@ func (oc *Collection) Items() <-chan data.Stream {
 }
 
 func (oc *Collection) FullPath() []string {
-	path := oc.folderPath
-	// Remove leading `/` if any so that Split
-	// doesn't return a ""
-	return strings.Split(strings.TrimPrefix(path, "/"), "/")
+	// TODO(ashmrtn): Update this when data.Collection.FullPath has support for
+	// path.Path.
+	return strings.Split(oc.folderPath.String(), "/")
 }
 
 // Item represents a single item retrieved from OneDrive
@@ -125,7 +128,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			info: &details.OneDriveInfo{
 				ItemType:   details.OneDriveItem,
 				ItemName:   itemName,
-				ParentPath: oc.folderPath,
+				ParentPath: oc.folderPath.String(),
 			},
 		}
 	}
