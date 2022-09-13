@@ -97,6 +97,14 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			expectedCategory: EventsCategory,
 			check:            assert.NoError,
 		},
+		{
+			name:             "OneDriveFiles",
+			service:          OneDriveService.String(),
+			category:         FilesCategory.String(),
+			expectedService:  OneDriveService,
+			expectedCategory: FilesCategory,
+			check:            assert.NoError,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
