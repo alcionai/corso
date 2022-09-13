@@ -202,6 +202,27 @@ func (pb Builder) ToDataLayerExchangePathForCategory(
 	}, nil
 }
 
+func (pb Builder) ToDataLayerOneDrivePath(
+	tenant, user string,
+	isItem bool,
+) (Path, error) {
+	if err := pb.verifyPrefix(tenant, user); err != nil {
+		return nil, err
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			OneDriveService.String(),
+			user,
+			FilesCategory.String(),
+		),
+		service:  OneDriveService,
+		category: FilesCategory,
+		hasItem:  isItem,
+	}, nil
+}
+
 // FromDataLayerPath parses the escaped path p, validates the elements in p
 // match a resource-specific path format, and returns a Path struct for that
 // resource-specific type. If p does not match any resource-specific paths or
