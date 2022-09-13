@@ -2,7 +2,8 @@ package onedrive
 
 import (
 	"context"
-	"path"
+	stdpath "path"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -10,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 // Collections is used to retrieve OneDrive data for a
@@ -66,6 +68,17 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	return collections, nil
 }
 
+func getCanonicalPath(p, tenant, user string) (path.Path, error) {
+	pathBuilder := path.Builder{}.Append(strings.Split(p, "/")...)
+
+	res, err := pathBuilder.ToDataLayerOneDrivePath(tenant, user, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "converting to canonical path")
+	}
+
+	return res, nil
+}
+
 // updateCollections initializes and adds the provided OneDrive items to Collections
 // A new collection is created for every OneDrive folder (or package)
 func (c *Collections) updateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
@@ -91,7 +104,7 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 			// For folders and packages we also create a collection to represent those
 			// TODO: This is where we might create a "special file" to represent these in the backup repository
 			// e.g. a ".folderMetadataFile"
-			itemPath := path.Join(*item.GetParentReference().GetPath(), *item.GetName())
+			itemPath := stdpath.Join(*item.GetParentReference().GetPath(), *item.GetName())
 			if _, found := c.collectionMap[itemPath]; !found {
 				c.collectionMap[itemPath] = NewCollection(itemPath, driveID, c.service, c.statusUpdater)
 			}
