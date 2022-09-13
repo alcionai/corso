@@ -467,7 +467,14 @@ func RestoreExchangeContact(
 		return err
 	}
 
-	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
+	var response models.Contactable
+	for count := 0; count < numberOfRetries; count++ {
+		response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
+		if err == nil && response != nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
@@ -491,7 +498,15 @@ func RestoreExchangeEvent(
 		return err
 	}
 
-	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
+	var response models.Eventable
+
+	for count := 0; count < numberOfRetries; count++ {
+		response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
+		if err == nil && response != nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
