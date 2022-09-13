@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"testing"
 
@@ -54,12 +55,20 @@ func (suite *OneDriveCollectionSuite) testStatusUpdater(
 }
 
 func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
+	t := suite.T()
 	wg := sync.WaitGroup{}
 	collStatus := support.ConnectorOperationStatus{}
-	folderPath := "dir1/dir2/dir3"
+
+	folderPath, err := getCanonicalPath("dir1/dir2/dir3", "a-tenant", "a-user")
+	require.NoError(t, err)
+
 	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
-	require.NotNil(suite.T(), coll)
-	assert.Equal(suite.T(), []string{"dir1", "dir2", "dir3"}, coll.FullPath())
+	require.NotNil(t, coll)
+	assert.Equal(
+		t,
+		strings.Split(folderPath.String(), "/"),
+		coll.FullPath(),
+	)
 
 	testItemID := "fakeItemID"
 	testItemName := "itemName"
@@ -80,31 +89,35 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	}
 	wg.Wait()
 	// Expect only 1 item
-	require.Len(suite.T(), readItems, 1)
-	require.Equal(suite.T(), 1, collStatus.ObjectCount)
-	require.Equal(suite.T(), 1, collStatus.Successful)
+	require.Len(t, readItems, 1)
+	require.Equal(t, 1, collStatus.ObjectCount)
+	require.Equal(t, 1, collStatus.Successful)
 
 	// Validate item info and data
 	readItem := readItems[0]
 	readItemInfo := readItem.(data.StreamInfo)
 
-	assert.Equal(suite.T(), testItemID, readItem.UUID())
+	assert.Equal(t, testItemID, readItem.UUID())
 	readData, err := io.ReadAll(readItem.ToReader())
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
-	assert.Equal(suite.T(), testItemData, readData)
-	require.NotNil(suite.T(), readItemInfo.Info())
-	require.NotNil(suite.T(), readItemInfo.Info().OneDrive)
-	assert.Equal(suite.T(), testItemName, readItemInfo.Info().OneDrive.ItemName)
-	assert.Equal(suite.T(), folderPath, readItemInfo.Info().OneDrive.ParentPath)
+	assert.Equal(t, testItemData, readData)
+	require.NotNil(t, readItemInfo.Info())
+	require.NotNil(t, readItemInfo.Info().OneDrive)
+	assert.Equal(t, testItemName, readItemInfo.Info().OneDrive.ItemName)
+	assert.Equal(t, folderPath.String(), readItemInfo.Info().OneDrive.ParentPath)
 }
 
 func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
+	t := suite.T()
 	wg := sync.WaitGroup{}
 	collStatus := support.ConnectorOperationStatus{}
 	wg.Add(1)
 
-	coll := NewCollection("folderPath", "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
+	folderPath, err := getCanonicalPath("folderPath", "a-tenant", "a-user")
+	require.NoError(t, err)
+
+	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
 	coll.Add("testItemID")
 
 	readError := errors.New("Test error")
@@ -116,6 +129,6 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 	coll.Items()
 	wg.Wait()
 	// Expect no items
-	require.Equal(suite.T(), 1, collStatus.ObjectCount)
-	require.Equal(suite.T(), 0, collStatus.Successful)
+	require.Equal(t, 1, collStatus.ObjectCount)
+	require.Equal(t, 0, collStatus.Successful)
 }
