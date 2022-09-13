@@ -566,7 +566,18 @@ func RestoreMailMessage(
 // @param destination represents M365 ID of a folder within the users's space
 // @param message is a models.Messageable interface from "github.com/microsoftgraph/msgraph-sdk-go/models"
 func SendMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
-	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
+	var (
+		sentMessage models.Messageable
+		err         error
+	)
+
+	for count := 0; count < numberOfRetries; count++ {
+		sentMessage, err = service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
+		if err == nil && sentMessage != nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
