@@ -67,7 +67,7 @@ func GetAllCalendarNamesForUser(gs graph.Service, user string) (absser.Parsable,
 // and display names for contacts. All other information is omitted.
 // Does not return the primary Contact Folder
 func GetAllContactFolderNamesForUser(gs graph.Service, user string) (absser.Parsable, error) {
-	options, err := optionsForContactFolders([]string{"displayName"})
+	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
 	if err != nil {
 		return nil, err
 	}
