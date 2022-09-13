@@ -2,7 +2,7 @@ package kopia
 
 import (
 	"context"
-	"path"
+	stdpath "path"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -163,7 +163,7 @@ func getStreamItemFunc(
 					return errs.ErrorOrNil()
 				}
 
-				itemPath := path.Join(append(streamedEnts.FullPath(), e.UUID())...)
+				itemPath := stdpath.Join(append(streamedEnts.FullPath(), e.UUID())...)
 
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
@@ -179,7 +179,7 @@ func getStreamItemFunc(
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				p := path.Join(append(streamedEnts.FullPath()[1:], e.UUID())...)
+				p := stdpath.Join(append(streamedEnts.FullPath()[1:], e.UUID())...)
 				d := &itemDetails{info: ei.Info(), repoRef: itemPath}
 
 				progress.put(p, d)

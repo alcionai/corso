@@ -5,7 +5,7 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
-	"path"
+	stdpath "path"
 	"testing"
 
 	"github.com/google/uuid"
@@ -71,7 +71,7 @@ func testForFiles(
 		for s := range c.Items() {
 			count++
 
-			fullPath := path.Join(append(c.FullPath(), s.UUID())...)
+			fullPath := stdpath.Join(append(c.FullPath(), s.UUID())...)
 
 			expected, ok := expected[fullPath]
 			require.True(t, ok, "unexpected file with path %q", fullPath)
@@ -517,8 +517,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	require.NoError(t, k.Compression(ctx, "gzip"))
 
 	expected := map[string][]byte{
-		path.Join(fp1...): dc1.Data[0],
-		path.Join(fp2...): dc2.Data[0],
+		stdpath.Join(fp1...): dc1.Data[0],
+		stdpath.Join(fp2...): dc2.Data[0],
 	}
 
 	result, err := w.RestoreMultipleItems(
@@ -667,14 +667,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	// path.Join doesn't like (testPath..., testFileName).
 	suite.inboxExpectedFiles = map[string][]byte{
-		path.Join(append(testPath, testFileName)...):  testFileData,
-		path.Join(append(testPath, testFileName2)...): testFileData2,
+		stdpath.Join(append(testPath, testFileName)...):  testFileData,
+		stdpath.Join(append(testPath, testFileName2)...): testFileData2,
 	}
 	suite.archiveExpectedFiles = map[string][]byte{
-		path.Join(append(testPath2, testFileName3)...): testFileData3,
-		path.Join(append(testPath2, testFileName4)...): testFileData4,
-		path.Join(append(testPath2, testFileName5)...): testFileData5,
-		path.Join(append(testPath2, testFileName6)...): testFileData6,
+		stdpath.Join(append(testPath2, testFileName3)...): testFileData3,
+		stdpath.Join(append(testPath2, testFileName4)...): testFileData4,
+		stdpath.Join(append(testPath2, testFileName5)...): testFileData5,
+		stdpath.Join(append(testPath2, testFileName6)...): testFileData6,
 	}
 
 	suite.allExpectedFiles = map[string][]byte{}
@@ -780,8 +780,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	require.NoError(t, err)
 
 	expected := map[string][]byte{
-		path.Join(fp1...): dc1.Data[0],
-		path.Join(fp2...): dc2.Data[0],
+		stdpath.Join(fp1...): dc1.Data[0],
+		stdpath.Join(fp2...): dc2.Data[0],
 	}
 
 	result, err := w.RestoreMultipleItems(
