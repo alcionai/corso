@@ -5,7 +5,7 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
-	"path"
+	stdpath "path"
 	"testing"
 
 	"github.com/google/uuid"
@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia/mockkopia"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -26,7 +27,6 @@ import (
 const (
 	testTenant     = "a-tenant"
 	testUser       = "user1"
-	testEmailDir   = "email"
 	testInboxDir   = "inbox"
 	testArchiveDir = "archive"
 	testFileName   = "file1"
@@ -38,8 +38,21 @@ const (
 )
 
 var (
-	testPath      = []string{testTenant, testUser, testEmailDir, testInboxDir}
-	testPath2     = []string{testTenant, testUser, testEmailDir, testArchiveDir}
+	testEmailDir = path.EmailCategory.String()
+	testPath     = []string{
+		testTenant,
+		path.ExchangeService.String(),
+		testUser,
+		path.EmailCategory.String(),
+		testInboxDir,
+	}
+	testPath2 = []string{
+		testTenant,
+		path.ExchangeService.String(),
+		testUser,
+		path.EmailCategory.String(),
+		testArchiveDir,
+	}
 	testFileData  = []byte("abcdefghijklmnopqrstuvwxyz")
 	testFileData2 = []byte("zyxwvutsrqponmlkjihgfedcba")
 	testFileData3 = []byte("foo")
@@ -71,7 +84,7 @@ func testForFiles(
 		for s := range c.Items() {
 			count++
 
-			fullPath := path.Join(append(c.FullPath(), s.UUID())...)
+			fullPath := stdpath.Join(append(c.FullPath(), s.UUID())...)
 
 			expected, ok := expected[fullPath]
 			require.True(t, ok, "unexpected file with path %q", fullPath)
@@ -503,8 +516,20 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	w := &Wrapper{k}
 
 	tid := uuid.NewString()
-	p1 := []string{tid, "uid", "emails", "fid"}
-	p2 := []string{tid, "uid2", "emails", "fid"}
+	p1 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid",
+		path.EmailCategory.String(),
+		"fid",
+	}
+	p2 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid2",
+		path.EmailCategory.String(),
+		"fid",
+	}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
 
@@ -517,8 +542,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	require.NoError(t, k.Compression(ctx, "gzip"))
 
 	expected := map[string][]byte{
-		path.Join(fp1...): dc1.Data[0],
-		path.Join(fp2...): dc2.Data[0],
+		stdpath.Join(fp1...): dc1.Data[0],
+		stdpath.Join(fp2...): dc2.Data[0],
 	}
 
 	result, err := w.RestoreMultipleItems(
@@ -534,10 +559,29 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
+	tmpBuilder := path.Builder{}.Append(testInboxDir)
+
+	p1, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	tmpBuilder = path.Builder{}.Append(testArchiveDir)
+
+	p2, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
 
 	collections := []data.Collection{
 		&kopiaDataCollection{
-			path: testPath,
+			path: p1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
@@ -550,7 +594,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 			},
 		},
 		&kopiaDataCollection{
-			path: testPath2,
+			path: p2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
@@ -577,7 +621,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	assert.Equal(t, 0, stats.ErrorCount)
 	assert.Equal(t, 5, stats.TotalFileCount)
-	assert.Equal(t, 5, stats.TotalDirectoryCount)
+	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
 	assert.Len(t, rp.Entries, 5)
@@ -616,10 +660,29 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.NoError(t, err)
 
 	suite.w = &Wrapper{c}
+	tmpBuilder := path.Builder{}.Append(testInboxDir)
+
+	p1, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	tmpBuilder = path.Builder{}.Append(testArchiveDir)
+
+	p2, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
 
 	collections := []data.Collection{
 		&kopiaDataCollection{
-			path: testPath,
+			path: p1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
@@ -632,7 +695,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			},
 		},
 		&kopiaDataCollection{
-			path: testPath2,
+			path: p2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
@@ -658,7 +721,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, 6)
-	require.Equal(t, stats.TotalDirectoryCount, 5)
+	require.Equal(t, stats.TotalDirectoryCount, 6)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
 	assert.Len(t, rp.Entries, 6)
@@ -667,14 +730,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	// path.Join doesn't like (testPath..., testFileName).
 	suite.inboxExpectedFiles = map[string][]byte{
-		path.Join(append(testPath, testFileName)...):  testFileData,
-		path.Join(append(testPath, testFileName2)...): testFileData2,
+		stdpath.Join(append(testPath, testFileName)...):  testFileData,
+		stdpath.Join(append(testPath, testFileName2)...): testFileData2,
 	}
 	suite.archiveExpectedFiles = map[string][]byte{
-		path.Join(append(testPath2, testFileName3)...): testFileData3,
-		path.Join(append(testPath2, testFileName4)...): testFileData4,
-		path.Join(append(testPath2, testFileName5)...): testFileData5,
-		path.Join(append(testPath2, testFileName6)...): testFileData6,
+		stdpath.Join(append(testPath2, testFileName3)...): testFileData3,
+		stdpath.Join(append(testPath2, testFileName4)...): testFileData4,
+		stdpath.Join(append(testPath2, testFileName5)...): testFileData5,
+		stdpath.Join(append(testPath2, testFileName6)...): testFileData6,
 	}
 
 	suite.allExpectedFiles = map[string][]byte{}
@@ -768,8 +831,20 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	w := &Wrapper{k}
 
 	tid := uuid.NewString()
-	p1 := []string{tid, "uid", "emails", "fid"}
-	p2 := []string{tid, "uid2", "emails", "fid"}
+	p1 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid",
+		path.EmailCategory.String(),
+		"fid",
+	}
+	p2 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid2",
+		path.EmailCategory.String(),
+		"fid",
+	}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
 
@@ -780,8 +855,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	require.NoError(t, err)
 
 	expected := map[string][]byte{
-		path.Join(fp1...): dc1.Data[0],
-		path.Join(fp2...): dc2.Data[0],
+		stdpath.Join(fp1...): dc1.Data[0],
+		stdpath.Join(fp2...): dc2.Data[0],
 	}
 
 	result, err := w.RestoreMultipleItems(

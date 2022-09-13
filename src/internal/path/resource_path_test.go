@@ -1,6 +1,7 @@
 package path_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -135,6 +136,66 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 
 			assert.Empty(t, p.Folder())
 			assert.Equal(t, item, p.Item())
+		})
+	}
+}
+
+func (suite *DataLayerResourcePath) TestPopFront() {
+	expected := path.Builder{}.Append(append(
+		[]string{path.ExchangeService.String(), testUser, path.EmailCategory.String()},
+		rest...,
+	)...)
+
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t *testing.T) {
+			pb := path.Builder{}.Append(rest...)
+			p, err := pb.ToDataLayerExchangePathForCategory(
+				testTenant,
+				testUser,
+				path.EmailCategory,
+				m.isItem,
+			)
+			require.NoError(t, err)
+
+			b := p.PopFront()
+			assert.Equal(t, expected.String(), b.String())
+		})
+	}
+}
+
+func (suite *DataLayerResourcePath) TestDir() {
+	elements := []string{
+		testTenant,
+		path.ExchangeService.String(),
+		testUser,
+		path.EmailCategory.String(),
+	}
+
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t1 *testing.T) {
+			pb := path.Builder{}.Append(rest...)
+			p, err := pb.ToDataLayerExchangePathForCategory(
+				testTenant,
+				testUser,
+				path.EmailCategory,
+				m.isItem,
+			)
+			require.NoError(t1, err)
+
+			for i := 1; i <= len(rest); i++ {
+				t1.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+					p, err = p.Dir()
+					require.NoError(t, err)
+
+					expected := path.Builder{}.Append(elements...).Append(rest[:len(rest)-i]...)
+					assert.Equal(t, expected.String(), p.String())
+				})
+			}
+
+			t1.Run("All", func(t *testing.T) {
+				p, err = p.Dir()
+				assert.Error(t, err)
+			})
 		})
 	}
 }

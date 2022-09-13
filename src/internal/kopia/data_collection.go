@@ -2,8 +2,10 @@ package kopia
 
 import (
 	"io"
+	"strings"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 var (
@@ -12,7 +14,7 @@ var (
 )
 
 type kopiaDataCollection struct {
-	path    []string
+	path    path.Path
 	streams []data.Stream
 }
 
@@ -31,7 +33,9 @@ func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
 }
 
 func (kdc kopiaDataCollection) FullPath() []string {
-	return append([]string{}, kdc.path...)
+	// TODO(ashmrtn): Update this once data.Collection.FullPath supports
+	// path.Path. Assumes no adversarial users that use "/" in their folder names.
+	return strings.Split(kdc.path.String(), "/")
 }
 
 type kopiaDataStream struct {
