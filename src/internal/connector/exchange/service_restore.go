@@ -172,7 +172,7 @@ func RestoreMailMessage(
 	}
 	// Sets fields from original message from storage
 	clone := support.ToMessage(originalMessage)
-	valueID := RestorePropertyTag
+	valueID := MailRestorePropertyTag
 	enableValue := RestoreCanonicalEnableValue
 
 	// Set Extended Properties:
@@ -185,13 +185,13 @@ func RestoreMailMessage(
 
 	sv2 := models.NewSingleValueLegacyExtendedProperty()
 	sendPropertyValue := common.FormatLegacyTime(*clone.GetSentDateTime())
-	sendPropertyTag := "SystemTime 0x0039"
+	sendPropertyTag := MailSendDateTimeOverrideProperty
 	sv2.SetId(&sendPropertyTag)
 	sv2.SetValue(&sendPropertyValue)
 
 	sv3 := models.NewSingleValueLegacyExtendedProperty()
 	recvPropertyValue := common.FormatLegacyTime(*clone.GetReceivedDateTime())
-	recvPropertyTag := "SystemTime 0x0E06"
+	recvPropertyTag := MailReceiveDateTimeOverriveProperty
 	sv3.SetId(&recvPropertyTag)
 	sv3.SetValue(&recvPropertyValue)
 
