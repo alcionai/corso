@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -550,39 +551,33 @@ func (ec exchangeCategory) unknownCat() categorizer {
 	return ExchangeCategoryUnknown
 }
 
-// transforms a path to a map of identified properties.
-// TODO: this should use service-specific funcs in the Paths pkg.  Instead of
-// peeking at the path directly, the caller should compare against values like
-// path.UserPN() and path.Folders().
+// pathValues transforms a path to a map of identified properties.
 //
-// Malformed (ie, short len) paths will return incomplete results.
 // Example:
-// [tenantID, userPN, "mail", mailFolder, mailID]
+// [tenantID, service, userPN, category, mailFolder, mailID]
 // => {exchUser: userPN, exchMailFolder: mailFolder, exchMail: mailID}
-func (ec exchangeCategory) pathValues(p []string) map[categorizer]string {
-	m := map[categorizer]string{}
-	if len(p) < 5 {
-		return m
-	}
+func (ec exchangeCategory) pathValues(p path.Path) map[categorizer]string {
+	var folderCat, itemCat categorizer
 
 	switch ec {
 	case ExchangeContact:
-		m[ExchangeUser] = p[1]
-		m[ExchangeContactFolder] = p[3]
-		m[ExchangeContact] = p[4]
+		folderCat, itemCat = ExchangeContactFolder, ExchangeContact
 
 	case ExchangeEvent:
-		m[ExchangeUser] = p[1]
-		m[ExchangeEventCalendar] = p[3]
-		m[ExchangeEvent] = p[4]
+		folderCat, itemCat = ExchangeEventCalendar, ExchangeEvent
 
 	case ExchangeMail:
-		m[ExchangeUser] = p[2]
-		m[ExchangeMailFolder] = p[4]
-		m[ExchangeMail] = p[5]
+		folderCat, itemCat = ExchangeMailFolder, ExchangeMail
+
+	default:
+		return map[categorizer]string{}
 	}
 
-	return m
+	return map[categorizer]string{
+		ExchangeUser: p.ResourceOwner(),
+		folderCat:    p.Folder(),
+		itemCat:      p.Item(),
+	}
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
@@ -677,8 +672,9 @@ func (s ExchangeScope) setDefaults() {
 
 // Reduce filters the entries in a details struct to only those that match the
 // inclusions, filters, and exclusions in the selector.
-func (s exchange) Reduce(deets *details.Details) *details.Details {
+func (s exchange) Reduce(ctx context.Context, deets *details.Details) *details.Details {
 	return reduce[ExchangeScope](
+		ctx,
 		deets,
 		s.Selector,
 		map[path.CategoryType]exchangeCategory{
