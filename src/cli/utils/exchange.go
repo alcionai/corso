@@ -7,17 +7,30 @@ import (
 )
 
 // AddExchangeInclude adds the scope of the provided values to the selector's
-// inclusion set.
+// inclusion set.  Any unpopulated slice will be replaced with selectors.Any()
+// to act as a wildcard.
 func AddExchangeInclude(
 	sel *selectors.ExchangeRestore,
 	resource, folders, items []string,
 	incl func([]string, []string, []string) []selectors.ExchangeScope,
 ) {
-	if len(folders) == 0 {
+	lf, li := len(folders), len(items)
+
+	// only use the inclusion if either a folder or item of
+	// this type is specified.
+	if lf+li == 0 {
 		return
 	}
 
-	if len(items) == 0 {
+	if len(resource) == 0 {
+		resource = selectors.Any()
+	}
+
+	if lf == 0 {
+		folders = selectors.Any()
+	}
+
+	if li == 0 {
 		items = selectors.Any()
 	}
 
@@ -39,41 +52,9 @@ func AddExchangeFilter(
 }
 
 // ValidateExchangeRestoreFlags checks common flags for correctness and interdependencies
-func ValidateExchangeRestoreFlags(
-	contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string,
-	backupID string,
-) error {
+func ValidateExchangeRestoreFlags(backupID string) error {
 	if len(backupID) == 0 {
 		return errors.New("a backup ID is required")
-	}
-
-	lu := len(users)
-	lc, lcf := len(contacts), len(contactFolders)
-	le, lef := len(emails), len(emailFolders)
-	lev, lec := len(events), len(eventCalendars)
-
-	// if only the backupID is populated, that's the same as --all
-	if lu+lc+lcf+le+lef+lev+lec == 0 {
-		return nil
-	}
-
-	if lu == 0 {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
-	}
-
-	if lc > 0 && lcf == 0 {
-		return errors.New(
-			"one or more --contact-folder ids or the wildcard --contact-folder * must be included to specify a --contact")
-	}
-
-	if le > 0 && lef == 0 {
-		return errors.New(
-			"one or more --email-folder ids or the wildcard --email-folder * must be included to specify an --email")
-	}
-
-	if lev > 0 && lec == 0 {
-		return errors.New(
-			"one or more --event-calendar ids or the wildcard --event-calendar * must be included to specify an --event")
 	}
 
 	return nil
@@ -88,7 +69,6 @@ func IncludeExchangeRestoreDataSelectors(
 	lc, lcf := len(contacts), len(contactFolders)
 	le, lef := len(emails), len(emailFolders)
 	lev, lec := len(events), len(eventCalendars)
-
 	// either scope the request to a set of users
 	if lc+lcf+le+lef+lev+lec == 0 {
 		if len(users) == 0 {
