@@ -15,6 +15,7 @@ const (
 	// RestoreCanonicalEnableValue marks message as sent via RopSubmitMessage
 	// Defined: https://interoperability.blob.core.windows.net/files/MS-OXCMSG/%5bMS-OXCMSG%5d.pdf
 	// Section: 2.2.1.6 PidTagMessageFlags Property
+	//nolint:lll
 	// Additional Information: https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtagmessageflags-canonical-property
 	RestoreCanonicalEnableValue = "4"
 
