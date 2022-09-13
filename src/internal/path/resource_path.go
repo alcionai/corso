@@ -12,12 +12,15 @@ type ServiceType int
 const (
 	UnknownService  ServiceType = iota
 	ExchangeService             // exchange
+	OneDriveService             // onedrive
 )
 
 func toServiceType(service string) ServiceType {
 	switch service {
 	case ExchangeService.String():
 		return ExchangeService
+	case OneDriveService.String():
+		return OneDriveService
 	default:
 		return UnknownService
 	}
@@ -33,6 +36,7 @@ const (
 	EmailCategory                 // email
 	ContactsCategory              // contacts
 	EventsCategory                // events
+	FilesCategory                 // files
 )
 
 func ToCategoryType(category string) CategoryType {
@@ -43,6 +47,8 @@ func ToCategoryType(category string) CategoryType {
 		return ContactsCategory
 	case EventsCategory.String():
 		return EventsCategory
+	case FilesCategory.String():
+		return FilesCategory
 	default:
 		return UnknownCategory
 	}
@@ -54,6 +60,9 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		EmailCategory:    {},
 		ContactsCategory: {},
 		EventsCategory:   {},
+	},
+	OneDriveService: {
+		FilesCategory: {},
 	},
 }
 
@@ -135,6 +144,9 @@ func (rp dataLayerResourcePath) ResourceOwner() string {
 // Folder returns the folder segment embedded in the dataLayerResourcePath.
 func (rp dataLayerResourcePath) Folder() string {
 	endIdx := len(rp.Builder.elements)
+	if endIdx == 4 {
+		return ""
+	}
 
 	if rp.hasItem {
 		endIdx--
@@ -151,4 +163,17 @@ func (rp dataLayerResourcePath) Item() string {
 	}
 
 	return ""
+}
+
+func (rp dataLayerResourcePath) Dir() (Path, error) {
+	if len(rp.elements) <= 4 {
+		return nil, errors.Errorf("unable to shorten path %q", rp)
+	}
+
+	return &dataLayerResourcePath{
+		Builder:  *rp.dir(),
+		service:  rp.service,
+		category: rp.category,
+		hasItem:  false,
+	}, nil
 }

@@ -1,6 +1,7 @@
 package path_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -67,22 +68,39 @@ var (
 		},
 	}
 
-	// Set of acceptable service/category mixtures for exchange.
-	exchangeServiceCategories = []struct {
+	// Set of acceptable service/category mixtures.
+	serviceCategories = []struct {
 		service  path.ServiceType
 		category path.CategoryType
+		pathFunc func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error)
 	}{
 		{
 			service:  path.ExchangeService,
 			category: path.EmailCategory,
+			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerExchangePathForCategory(tenant, user, path.EmailCategory, isItem)
+			},
 		},
 		{
 			service:  path.ExchangeService,
 			category: path.ContactsCategory,
+			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerExchangePathForCategory(tenant, user, path.ContactsCategory, isItem)
+			},
 		},
 		{
 			service:  path.ExchangeService,
 			category: path.EventsCategory,
+			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerExchangePathForCategory(tenant, user, path.EventsCategory, isItem)
+			},
+		},
+		{
+			service:  path.OneDriveService,
+			category: path.FilesCategory,
+			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerOneDrivePath(tenant, user, isItem)
+			},
 		},
 	}
 )
@@ -96,7 +114,7 @@ func TestDataLayerResourcePath(t *testing.T) {
 }
 
 func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
-	for _, types := range exchangeServiceCategories {
+	for _, types := range serviceCategories {
 		suite.T().Run(types.service.String()+types.category.String(), func(t1 *testing.T) {
 			for _, m := range modes {
 				t1.Run(m.name, func(t2 *testing.T) {
@@ -104,10 +122,10 @@ func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 						t2.Run(test.name, func(t *testing.T) {
 							b := path.Builder{}.Append(test.rest...)
 
-							_, err := b.ToDataLayerExchangePathForCategory(
+							_, err := types.pathFunc(
+								b,
 								test.tenant,
 								test.user,
-								types.category,
 								m.isItem,
 							)
 							assert.Error(t, err)
@@ -123,18 +141,78 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 	item := "item"
 	b := path.Builder{}.Append(item)
 
-	for _, types := range exchangeServiceCategories {
+	for _, types := range serviceCategories {
 		suite.T().Run(types.service.String()+types.category.String(), func(t *testing.T) {
-			p, err := b.ToDataLayerExchangePathForCategory(
+			p, err := types.pathFunc(
+				b,
 				testTenant,
 				testUser,
-				types.category,
 				true,
 			)
 			require.NoError(t, err)
 
 			assert.Empty(t, p.Folder())
 			assert.Equal(t, item, p.Item())
+		})
+	}
+}
+
+func (suite *DataLayerResourcePath) TestPopFront() {
+	expected := path.Builder{}.Append(append(
+		[]string{path.ExchangeService.String(), testUser, path.EmailCategory.String()},
+		rest...,
+	)...)
+
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t *testing.T) {
+			pb := path.Builder{}.Append(rest...)
+			p, err := pb.ToDataLayerExchangePathForCategory(
+				testTenant,
+				testUser,
+				path.EmailCategory,
+				m.isItem,
+			)
+			require.NoError(t, err)
+
+			b := p.PopFront()
+			assert.Equal(t, expected.String(), b.String())
+		})
+	}
+}
+
+func (suite *DataLayerResourcePath) TestDir() {
+	elements := []string{
+		testTenant,
+		path.ExchangeService.String(),
+		testUser,
+		path.EmailCategory.String(),
+	}
+
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t1 *testing.T) {
+			pb := path.Builder{}.Append(rest...)
+			p, err := pb.ToDataLayerExchangePathForCategory(
+				testTenant,
+				testUser,
+				path.EmailCategory,
+				m.isItem,
+			)
+			require.NoError(t1, err)
+
+			for i := 1; i <= len(rest); i++ {
+				t1.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+					p, err = p.Dir()
+					require.NoError(t, err)
+
+					expected := path.Builder{}.Append(elements...).Append(rest[:len(rest)-i]...)
+					assert.Equal(t, expected.String(), p.String())
+				})
+			}
+
+			t1.Run("All", func(t *testing.T) {
+				p, err = p.Dir()
+				assert.Error(t, err)
+			})
 		})
 	}
 }

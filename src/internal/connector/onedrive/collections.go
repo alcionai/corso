@@ -2,7 +2,8 @@ package onedrive
 
 import (
 	"context"
-	"path"
+	stdpath "path"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -10,12 +11,14 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 // Collections is used to retrieve OneDrive data for a
 // specified user
 type Collections struct {
-	user string
+	tenant string
+	user   string
 	// collectionMap allows lookup of the data.Collection
 	// for a OneDrive folder
 	collectionMap map[string]data.Collection
@@ -30,11 +33,13 @@ type Collections struct {
 }
 
 func NewCollections(
+	tenant string,
 	user string,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{
+		tenant:        tenant,
 		user:          user,
 		collectionMap: map[string]data.Collection{},
 		service:       service,
@@ -66,6 +71,17 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	return collections, nil
 }
 
+func getCanonicalPath(p, tenant, user string) (path.Path, error) {
+	pathBuilder := path.Builder{}.Append(strings.Split(p, "/")...)
+
+	res, err := pathBuilder.ToDataLayerOneDrivePath(tenant, user, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "converting to canonical path")
+	}
+
+	return res, nil
+}
+
 // updateCollections initializes and adds the provided OneDrive items to Collections
 // A new collection is created for every OneDrive folder (or package)
 func (c *Collections) updateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
@@ -81,22 +97,52 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
 			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())
 		}
+
 		// Create a collection for the parent of this item
-		collectionPath := *item.GetParentReference().GetPath()
-		if _, found := c.collectionMap[collectionPath]; !found {
-			c.collectionMap[collectionPath] = NewCollection(collectionPath, driveID, c.service, c.statusUpdater)
+		collectionPath, err := getCanonicalPath(
+			*item.GetParentReference().GetPath(),
+			c.tenant,
+			c.user,
+		)
+		if err != nil {
+			return err
+		}
+
+		if _, found := c.collectionMap[collectionPath.String()]; !found {
+			c.collectionMap[collectionPath.String()] = NewCollection(
+				collectionPath,
+				driveID,
+				c.service,
+				c.statusUpdater,
+			)
 		}
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
 			// For folders and packages we also create a collection to represent those
 			// TODO: This is where we might create a "special file" to represent these in the backup repository
 			// e.g. a ".folderMetadataFile"
-			itemPath := path.Join(*item.GetParentReference().GetPath(), *item.GetName())
-			if _, found := c.collectionMap[itemPath]; !found {
-				c.collectionMap[itemPath] = NewCollection(itemPath, driveID, c.service, c.statusUpdater)
+			itemPath, err := getCanonicalPath(
+				stdpath.Join(
+					*item.GetParentReference().GetPath(),
+					*item.GetName(),
+				),
+				c.tenant,
+				c.user,
+			)
+			if err != nil {
+				return err
+			}
+
+			if _, found := c.collectionMap[itemPath.String()]; !found {
+				c.collectionMap[itemPath.String()] = NewCollection(
+					itemPath,
+					driveID,
+					c.service,
+					c.statusUpdater,
+				)
 			}
 		case item.GetFile() != nil:
-			collection := c.collectionMap[collectionPath].(*Collection)
+			collection := c.collectionMap[collectionPath.String()].(*Collection)
 			collection.Add(*item.GetId())
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
