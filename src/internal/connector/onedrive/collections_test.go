@@ -7,8 +7,22 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
+func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
+	res := make([]string, 0, len(rest))
+
+	for _, r := range rest {
+		p, err := getCanonicalPath(r, tenant, user)
+		require.NoError(t, err)
+
+		res = append(res, p.String())
+	}
+
+	return res
+}
 
 type OneDriveCollectionsSuite struct {
 	suite.Suite
@@ -19,6 +33,8 @@ func TestOneDriveCollectionsSuite(t *testing.T) {
 }
 
 func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
+	tenant := "tenant"
+	user := "user"
 	tests := []struct {
 		testCase                string
 		items                   []models.DriveItemable
@@ -41,30 +57,47 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			items: []models.DriveItemable{
 				driveItem("file", "/root", true, false, false),
 			},
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{"/root"},
-			expectedItemCount:       1,
-			expectedFileCount:       1,
+			expect: assert.NoError,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				"root",
+			),
+			expectedItemCount: 1,
+			expectedFileCount: 1,
 		},
 		{
 			testCase: "Single Folder",
 			items: []models.DriveItemable{
 				driveItem("folder", "/root", false, true, false),
 			},
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{"/root", "/root/folder"},
-			expectedItemCount:       1,
-			expectedFolderCount:     1,
+			expect: assert.NoError,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				"/root",
+				"/root/folder",
+			),
+			expectedItemCount:   1,
+			expectedFolderCount: 1,
 		},
 		{
 			testCase: "Single Package",
 			items: []models.DriveItemable{
 				driveItem("package", "/root", false, false, true),
 			},
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{"/root", "/root/package"},
-			expectedItemCount:       1,
-			expectedPackageCount:    1,
+			expect: assert.NoError,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				"/root",
+				"/root/package",
+			),
+			expectedItemCount:    1,
+			expectedPackageCount: 1,
 		},
 		{
 			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
@@ -75,17 +108,24 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInFolder", "/root/folder", true, false, false),
 				driveItem("fileInPackage", "/root/package", true, false, false),
 			},
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{"/root", "/root/folder", "/root/package"},
-			expectedItemCount:       5,
-			expectedFileCount:       3,
-			expectedFolderCount:     1,
-			expectedPackageCount:    1,
+			expect: assert.NoError,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				"/root",
+				"/root/folder",
+				"/root/package",
+			),
+			expectedItemCount:    5,
+			expectedFileCount:    3,
+			expectedFolderCount:  1,
+			expectedPackageCount: 1,
 		},
 	}
 	for _, tt := range tests {
 		suite.T().Run(tt.testCase, func(t *testing.T) {
-			c := NewCollections("user", &MockGraphService{}, nil)
+			c := NewCollections(tenant, user, &MockGraphService{}, nil)
 			err := c.updateCollections(context.Background(), "driveID", tt.items)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.collectionMap))
