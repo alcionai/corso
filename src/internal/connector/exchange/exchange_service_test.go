@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -343,6 +344,70 @@ func (suite *ExchangeServiceSuite) TestParseCalendarIDFromEvent() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := parseCalendarIDFromEvent(test.input)
 			test.checkError(t, err)
+		})
+	}
+}
+
+// TestRetrievalFunctions ensures that utility functions used
+// to transform work within the current version of GraphAPI.
+func (suite *ExchangeServiceSuite) TestRetrievalFunctions() {
+	var (
+		userID   = tester.M365UserID(suite.T())
+		objectID string
+	)
+
+	tests := []struct {
+		name         string
+		query        GraphQuery
+		retrieveFunc GraphRetrievalFunc
+	}{
+		{
+			name:         "Test Retrieve Message Function",
+			query:        GetAllMessagesForUser,
+			retrieveFunc: RetrieveMessageDataForUser,
+		},
+		{
+			name:         "Test Retrieve Contact Function",
+			query:        GetAllContactsForUser,
+			retrieveFunc: RetrieveContactDataForUser,
+		},
+		{
+			name:         "Test Retrieve Event Function",
+			query:        GetAllEventsForUser,
+			retrieveFunc: RetrieveEventDataForUser,
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			output, err := test.query(suite.es, userID)
+			require.NoError(t, err)
+			switch v := output.(type) {
+			case *models.MessageCollectionResponse:
+				transform := output.(models.MessageCollectionResponseable)
+				response := transform.GetValue()
+				require.Greater(t, len(response), 0)
+
+				objectID = *response[0].GetId()
+			case *models.ContactCollectionResponse:
+				transform := output.(models.ContactCollectionResponseable)
+				response := transform.GetValue()
+				require.Greater(t, len(response), 0)
+
+				objectID = *response[0].GetId()
+			case *models.EventCollectionResponse:
+				transform := output.(models.EventCollectionResponseable)
+				response := transform.GetValue()
+				require.Greater(t, len(response), 0)
+
+				objectID = *response[0].GetId()
+			default:
+				t.Logf("What is this type: %T\n", v)
+			}
+			require.NotEmpty(t, objectID)
+			retrieved, err := test.retrieveFunc(suite.es, userID, objectID)
+			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+			assert.NotNil(t, retrieved)
 		})
 	}
 }
