@@ -481,8 +481,8 @@ func IterateSelectAllContactsForCollections(
 		}
 
 		folderID := *folder.GetId()
-		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, folderID)
 
+		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, folderID)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.User,
@@ -510,7 +510,6 @@ func IterateSelectAllContactsForCollections(
 		collections[directory] = &edc
 
 		return true
-
 	}
 }
 
