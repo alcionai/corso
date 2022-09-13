@@ -10,12 +10,15 @@ type ServiceType int
 const (
 	UnknownService  ServiceType = iota
 	ExchangeService             // exchange
+	OneDriveService             // onedrive
 )
 
 func toServiceType(service string) ServiceType {
 	switch service {
 	case ExchangeService.String():
 		return ExchangeService
+	case OneDriveService.String():
+		return OneDriveService
 	default:
 		return UnknownService
 	}
@@ -29,6 +32,7 @@ const (
 	EmailCategory                 // email
 	ContactsCategory              // contacts
 	EventsCategory                // events
+	FilesCategory                 // files
 )
 
 func ToCategoryType(category string) CategoryType {
@@ -39,6 +43,8 @@ func ToCategoryType(category string) CategoryType {
 		return ContactsCategory
 	case EventsCategory.String():
 		return EventsCategory
+	case FilesCategory.String():
+		return FilesCategory
 	default:
 		return UnknownCategory
 	}
@@ -50,6 +56,9 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		EmailCategory:    {},
 		ContactsCategory: {},
 		EventsCategory:   {},
+	},
+	OneDriveService: {
+		FilesCategory: {},
 	},
 }
 
