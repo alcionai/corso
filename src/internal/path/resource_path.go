@@ -135,6 +135,9 @@ func (rp dataLayerResourcePath) ResourceOwner() string {
 // Folder returns the folder segment embedded in the dataLayerResourcePath.
 func (rp dataLayerResourcePath) Folder() string {
 	endIdx := len(rp.Builder.elements)
+	if endIdx == 4 {
+		return ""
+	}
 
 	if rp.hasItem {
 		endIdx--
@@ -151,4 +154,17 @@ func (rp dataLayerResourcePath) Item() string {
 	}
 
 	return ""
+}
+
+func (rp dataLayerResourcePath) Dir() (Path, error) {
+	if len(rp.elements) <= 4 {
+		return nil, errors.Errorf("unable to shorten path %q", rp)
+	}
+
+	return &dataLayerResourcePath{
+		Builder:  *rp.dir(),
+		service:  rp.service,
+		category: rp.category,
+		hasItem:  false,
+	}, nil
 }
