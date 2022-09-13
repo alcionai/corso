@@ -6,6 +6,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
+	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -236,6 +237,26 @@ func optionsForMailFoldersItem(
 		Select: selecting,
 	}
 	options := &msfolderitem.MailFolderItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
+// optionsForContactFoldersItem is the same as optionsForContacts.
+// TODO: Remove after Issue #828
+func optionsForContactFoldersItem(
+	moreOps []string,
+) (*mscontactfolderitem.ContactsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, contacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &mscontactfolderitem.ContactsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontactfolderitem.ContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
