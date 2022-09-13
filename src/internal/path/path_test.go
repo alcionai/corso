@@ -294,6 +294,77 @@ func (suite *PathUnitSuite) TestTrailingEscapeChar() {
 	}
 }
 
+func (suite *PathUnitSuite) TestElements() {
+	table := []struct {
+		name     string
+		input    []string
+		output   []string
+		pathFunc func(elements []string) (*Builder, error)
+	}{
+		{
+			name:   "SimpleEscapedPath",
+			input:  []string{"this", "is", "a", "path"},
+			output: []string{"this", "is", "a", "path"},
+			pathFunc: func(elements []string) (*Builder, error) {
+				return Builder{}.UnescapeAndAppend(elements...)
+			},
+		},
+		{
+			name:   "SimpleUnescapedPath",
+			input:  []string{"this", "is", "a", "path"},
+			output: []string{"this", "is", "a", "path"},
+			pathFunc: func(elements []string) (*Builder, error) {
+				return Builder{}.Append(elements...), nil
+			},
+		},
+		{
+			name:   "EscapedPath",
+			input:  []string{"this", `is\/`, "a", "path"},
+			output: []string{"this", "is/", "a", "path"},
+			pathFunc: func(elements []string) (*Builder, error) {
+				return Builder{}.UnescapeAndAppend(elements...)
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p, err := test.pathFunc(test.input)
+			require.NoError(t, err)
+
+			assert.Equal(t, test.output, p.Elements())
+		})
+	}
+}
+
+func (suite *PathUnitSuite) TestPopFront() {
+	table := []struct {
+		name           string
+		base           *Builder
+		expectedString string
+	}{
+		{
+			name:           "Empty",
+			base:           &Builder{},
+			expectedString: "",
+		},
+		{
+			name:           "OneElement",
+			base:           Builder{}.Append("something"),
+			expectedString: "",
+		},
+		{
+			name:           "TwoElements",
+			base:           Builder{}.Append("something", "else"),
+			expectedString: "else",
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedString, test.base.PopFront().String())
+		})
+	}
+}
+
 func (suite *PathUnitSuite) TestFromStringErrors() {
 	table := []struct {
 		name        string
