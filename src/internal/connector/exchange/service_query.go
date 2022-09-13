@@ -17,7 +17,7 @@ import (
 // into M365 backstore. Responses -> returned items will only contain the information
 // that is included in the options
 // TODO: use selector or path for granularity into specific folders or specific date ranges
-type GraphQuery func(graph.Service, string) (absser.Parsable, error)
+type GraphQuery func(gs graph.Service, userID string) (absser.Parsable, error)
 
 // GetAllMessagesForUser is a GraphQuery function for receiving all messages for a single user
 func GetAllMessagesForUser(gs graph.Service, user string) (absser.Parsable, error) {
