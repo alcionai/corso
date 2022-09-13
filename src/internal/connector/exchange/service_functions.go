@@ -520,7 +520,7 @@ func RestoreMailMessage(
 	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "restore mail message rcvd: %v", bits)
 	}
 	// Sets fields from original message from storage
 	clone := support.ToMessage(originalMessage)
