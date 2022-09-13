@@ -446,25 +446,10 @@ func (w Wrapper) collectItems(
 	ctx context.Context,
 	snapshotID string,
 	itemPath []string,
-	isDirectory bool,
 ) ([]data.Collection, error) {
 	e, err := w.getEntry(ctx, snapshotID, itemPath)
 	if err != nil {
 		return nil, err
-	}
-
-	// The paths passed below is the path up to (but not including) the
-	// file/directory passed.
-	if isDirectory {
-		dir, ok := e.(fs.Directory)
-		if !ok {
-			return nil, errors.New("requested object is not a directory")
-		}
-
-		c, err := restoreSubtree(ctx, dir, itemPath[:len(itemPath)-1])
-		// For some reason tests error out if the multierror is nil but we don't
-		// call ErrorOrNil.
-		return c, err.ErrorOrNil()
 	}
 
 	f, ok := e.(fs.File)
@@ -492,7 +477,7 @@ func (w Wrapper) RestoreSingleItem(
 	snapshotID string,
 	itemPath []string,
 ) (data.Collection, error) {
-	c, err := w.collectItems(ctx, snapshotID, itemPath, false)
+	c, err := w.collectItems(ctx, snapshotID, itemPath)
 	if err != nil {
 		return nil, err
 	}
@@ -526,126 +511,6 @@ func restoreSingleItem(
 		},
 		path: itemPath,
 	}, nil
-}
-
-func walkDirectory(
-	ctx context.Context,
-	dir fs.Directory,
-) ([]fs.File, []fs.Directory, *multierror.Error) {
-	var errs *multierror.Error
-
-	files := []fs.File{}
-	dirs := []fs.Directory{}
-
-	err := dir.IterateEntries(ctx, func(innerCtx context.Context, e fs.Entry) error {
-		// Early exit on context cancel.
-		if err := innerCtx.Err(); err != nil {
-			return err
-		}
-
-		switch e := e.(type) {
-		case fs.Directory:
-			dirs = append(dirs, e)
-		case fs.File:
-			files = append(files, e)
-		default:
-			errs = multierror.Append(errs, errors.Errorf("unexpected item type %T", e))
-			logger.Ctx(ctx).Errorw(
-				"unexpected item type; skipping", "type", e)
-		}
-
-		return nil
-	})
-	if err != nil {
-		// If the iterator itself had an error add it to the list.
-		errs = multierror.Append(errs, errors.Wrap(err, "getting directory data"))
-	}
-
-	return files, dirs, errs
-}
-
-// restoreSubtree returns DataCollections for each subdirectory (or the
-// directory itself) that contains files. The FullPath of each returned
-// DataCollection is the path from the root of the kopia directory structure to
-// the directory. The UUID of each DataStream in each DataCollection is the name
-// of the kopia file the data is sourced from.
-func restoreSubtree(
-	ctx context.Context,
-	dir fs.Directory,
-	relativePath []string,
-) ([]data.Collection, *multierror.Error) {
-	var errs *multierror.Error
-
-	collections := []data.Collection{}
-	// Want a local copy of relativePath with our new element.
-	fullPath := append(append([]string{}, relativePath...), dir.Name())
-
-	files, dirs, err := walkDirectory(ctx, dir)
-	if err != nil {
-		errs = multierror.Append(
-			errs, errors.Wrapf(err, "walking directory %q", path.Join(fullPath...)))
-	}
-
-	if len(files) > 0 {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			errs = multierror.Append(errs, errors.WithStack(ctxErr))
-			return nil, errs
-		}
-
-		streams := make([]data.Stream, 0, len(files))
-
-		for _, f := range files {
-			r, err := f.Open(ctx)
-			if err != nil {
-				fileFullPath := path.Join(append(append([]string{}, fullPath...), f.Name())...)
-				errs = multierror.Append(
-					errs, errors.Wrapf(err, "getting reader for file %q", fileFullPath))
-
-				logger.Ctx(ctx).Errorw(
-					"unable to get file reader; skipping", "path", fileFullPath)
-
-				continue
-			}
-
-			streams = append(streams, &kopiaDataStream{
-				reader: r,
-				uuid:   f.Name(),
-			})
-		}
-
-		collections = append(collections, &kopiaDataCollection{
-			streams: streams,
-			path:    fullPath,
-		})
-	}
-
-	for _, d := range dirs {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			errs = multierror.Append(errs, errors.WithStack(ctxErr))
-			return nil, errs
-		}
-
-		c, err := restoreSubtree(ctx, d, fullPath)
-		if err != nil {
-			errs = multierror.Append(errs, errors.Wrapf(
-				err,
-				"traversing subdirectory %q",
-				path.Join(append(append([]string{}, fullPath...), d.Name())...),
-			))
-		}
-
-		collections = append(collections, c...)
-	}
-
-	return collections, errs
-}
-
-func (w Wrapper) RestoreDirectory(
-	ctx context.Context,
-	snapshotID string,
-	basePath []string,
-) ([]data.Collection, error) {
-	return w.collectItems(ctx, snapshotID, basePath, true)
 }
 
 // RestoreSingleItem looks up all paths- assuming each is an item declaration,
