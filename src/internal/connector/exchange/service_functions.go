@@ -467,23 +467,7 @@ func RestoreExchangeContact(
 		return err
 	}
 
-	var response models.Contactable
-	for count := 0; count < numberOfRetries; count++ {
-		response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
-		if err == nil && response != nil {
-			break
-		}
-	}
-
-	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
-
-	if response == nil {
-		return errors.New("msgraph contact post fail: REST response not received")
-	}
-
-	return nil
+	return SendObjectToBackStore(service, user, destination, contact, contacts)
 }
 
 func RestoreExchangeEvent(
@@ -498,24 +482,7 @@ func RestoreExchangeEvent(
 		return err
 	}
 
-	var response models.Eventable
-
-	for count := 0; count < numberOfRetries; count++ {
-		response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
-		if err == nil && response != nil {
-			break
-		}
-	}
-
-	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
-
-	if response == nil {
-		return errors.New("msgraph event post fail: REST response not received")
-	}
-
-	return nil
+	return SendObjectToBackStore(service, user, destination, event, events)
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -572,7 +539,7 @@ func RestoreMailMessage(
 			"policy", cp)
 		fallthrough
 	case control.Copy:
-		return SendMailToBackStore(service, user, destination, clone)
+		return SendObjectToBackStore(service, user, destination, clone, messages)
 	}
 }
 
@@ -580,25 +547,56 @@ func RestoreMailMessage(
 // @param user string represents M365 ID of user within the tenant
 // @param destination represents M365 ID of a folder within the users's space
 // @param message is a models.Messageable interface from "github.com/microsoftgraph/msgraph-sdk-go/models"
-func SendMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
+func SendObjectToBackStore(service graph.Service,
+	user, destination string,
+	m365Object any,
+	category optionIdentifier,
+) error {
 	var (
-		sentMessage models.Messageable
-		err         error
+		err               error
+		conversionFailure = fmt.Errorf("id %s: unable to convert %s to send object", user, category)
 	)
 
-	for count := 0; count < numberOfRetries; count++ {
-		sentMessage, err = service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
-		if err == nil && sentMessage != nil {
-			break
+	switch category {
+	case messages:
+		var resp models.Messageable
+
+		message, ok := m365Object.(models.Messageable)
+		if !ok {
+			return conversionFailure
 		}
-	}
 
-	if err != nil {
-		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
-	}
+		err = retrier(func() (bool, error) {
+			// variable declaration to avoid shadowing resp
+			resp, err = service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
+			return resp != nil, err
+		})
+	case events:
+		var resp models.Eventable
 
-	if sentMessage == nil {
-		return errors.New("message not Sent: blocked by server")
+		event, ok := m365Object.(models.Eventable)
+		if !ok {
+			return conversionFailure
+		}
+
+		err = retrier(func() (bool, error) {
+			resp, err = service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
+			return resp != nil, err
+		})
+	case contacts:
+		var resp models.Contactable
+
+		contact, ok := m365Object.(models.Contactable)
+		if !ok {
+			return conversionFailure
+		}
+
+		err = retrier(func() (bool, error) {
+			resp, err = service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
+			return resp != nil, err
+		})
+	default:
+		return errors.New("unsupported category: %s attempted to send to M365 backstore")
 	}
 
 	if err != nil {
@@ -606,4 +604,25 @@ func SendMailToBackStore(service graph.Service, user, destination string, messag
 	}
 
 	return nil
+}
+
+// retrier is a helper function resending M365 objects to the back store.
+// If the attempt is successful, the function will exit early. Otherwise,
+// the function will continue attempting until either successful or the attempts are exceeded.
+func retrier(f func() (ok bool, err error)) error {
+	var lastError error
+
+	for count := 0; count < numberOfRetries; count++ {
+		ok, err := f()
+		if err == nil && ok {
+			break
+		}
+
+		if count > numberOfRetries-1 &&
+			err == nil {
+			lastError = errors.New("object not sent. Blocked by server")
+		}
+	}
+
+	return lastError
 }
