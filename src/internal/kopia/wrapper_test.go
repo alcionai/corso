@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia/mockkopia"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -26,7 +27,6 @@ import (
 const (
 	testTenant     = "a-tenant"
 	testUser       = "user1"
-	testEmailDir   = "email"
 	testInboxDir   = "inbox"
 	testArchiveDir = "archive"
 	testFileName   = "file1"
@@ -38,8 +38,21 @@ const (
 )
 
 var (
-	testPath      = []string{testTenant, testUser, testEmailDir, testInboxDir}
-	testPath2     = []string{testTenant, testUser, testEmailDir, testArchiveDir}
+	testEmailDir = path.EmailCategory.String()
+	testPath     = []string{
+		testTenant,
+		path.ExchangeService.String(),
+		testUser,
+		path.EmailCategory.String(),
+		testInboxDir,
+	}
+	testPath2 = []string{
+		testTenant,
+		path.ExchangeService.String(),
+		testUser,
+		path.EmailCategory.String(),
+		testArchiveDir,
+	}
 	testFileData  = []byte("abcdefghijklmnopqrstuvwxyz")
 	testFileData2 = []byte("zyxwvutsrqponmlkjihgfedcba")
 	testFileData3 = []byte("foo")
@@ -503,8 +516,20 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	w := &Wrapper{k}
 
 	tid := uuid.NewString()
-	p1 := []string{tid, "uid", "emails", "fid"}
-	p2 := []string{tid, "uid2", "emails", "fid"}
+	p1 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid",
+		path.EmailCategory.String(),
+		"fid",
+	}
+	p2 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid2",
+		path.EmailCategory.String(),
+		"fid",
+	}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
 
@@ -768,8 +793,20 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	w := &Wrapper{k}
 
 	tid := uuid.NewString()
-	p1 := []string{tid, "uid", "emails", "fid"}
-	p2 := []string{tid, "uid2", "emails", "fid"}
+	p1 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid",
+		path.EmailCategory.String(),
+		"fid",
+	}
+	p2 := []string{
+		tid,
+		path.ExchangeService.String(),
+		"uid2",
+		path.EmailCategory.String(),
+		"fid",
+	}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
 
