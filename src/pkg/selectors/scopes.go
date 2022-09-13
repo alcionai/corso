@@ -35,7 +35,7 @@ type (
 		// pathValues should produce a map of category:string pairs populated by extracting
 		// values out of the path.Path struct.
 		//
-		// Ex: given a path builder like ["tenant", 'service", "resource", "dataType", "folder", "itemID"],
+		// Ex: given a path builder like ["tenant", "service", "resource", "dataType", "folder", "itemID"],
 		// the func should use the path to construct a map similar to this:
 		// {
 		//   rootCat:   resource,

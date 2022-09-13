@@ -135,81 +135,81 @@ var reduceTestTable = []struct {
 		expectLen:    1,
 		expectPasses: assert.True,
 	},
-	// {
-	// 	name: "include none",
-	// 	sel: func() mockSel {
-	// 		sel := stubSelector()
-	// 		sel.Includes[0] = scope(stubScope("none"))
-	// 		sel.Filters = nil
-	// 		sel.Excludes = nil
-	// 		return sel
-	// 	},
-	// 	expectLen:    0,
-	// 	expectPasses: assert.False,
-	// },
-	// {
-	// 	name: "filter and include all",
-	// 	sel: func() mockSel {
-	// 		sel := stubSelector()
-	// 		sel.Excludes = nil
-	// 		return sel
-	// 	},
-	// 	expectLen:    1,
-	// 	expectPasses: assert.True,
-	// },
-	// {
-	// 	name: "include all filter none",
-	// 	sel: func() mockSel {
-	// 		sel := stubSelector()
-	// 		sel.Filters[0] = scope(stubScope("none"))
-	// 		sel.Excludes = nil
-	// 		return sel
-	// 	},
-	// 	expectLen:    0,
-	// 	expectPasses: assert.False,
-	// },
-	// {
-	// 	name: "include all exclude all",
-	// 	sel: func() mockSel {
-	// 		sel := stubSelector()
-	// 		sel.Filters = nil
-	// 		return sel
-	// 	},
-	// 	expectLen:    0,
-	// 	expectPasses: assert.False,
-	// },
-	// {
-	// 	name: "include all exclude none",
-	// 	sel: func() mockSel {
-	// 		sel := stubSelector()
-	// 		sel.Filters = nil
-	// 		sel.Excludes[0] = scope(stubScope("none"))
-	// 		return sel
-	// 	},
-	// 	expectLen:    1,
-	// 	expectPasses: assert.True,
-	// },
-	// {
-	// 	name: "filter all exclude all",
-	// 	sel: func() mockSel {
-	// 		sel := stubSelector()
-	// 		sel.Includes = nil
-	// 		return sel
-	// 	},
-	// 	expectLen:    0,
-	// 	expectPasses: assert.False,
-	// },
-	// {
-	// 	name: "filter all exclude none",
-	// 	sel: func() mockSel {
-	// 		sel := stubSelector()
-	// 		sel.Includes = nil
-	// 		sel.Excludes[0] = scope(stubScope("none"))
-	// 		return sel
-	// 	},
-	// 	expectLen:    1,
-	// 	expectPasses: assert.True,
-	// },
+	{
+		name: "include none",
+		sel: func() mockSel {
+			sel := stubSelector()
+			sel.Includes[0] = scope(stubScope("none"))
+			sel.Filters = nil
+			sel.Excludes = nil
+			return sel
+		},
+		expectLen:    0,
+		expectPasses: assert.False,
+	},
+	{
+		name: "filter and include all",
+		sel: func() mockSel {
+			sel := stubSelector()
+			sel.Excludes = nil
+			return sel
+		},
+		expectLen:    1,
+		expectPasses: assert.True,
+	},
+	{
+		name: "include all filter none",
+		sel: func() mockSel {
+			sel := stubSelector()
+			sel.Filters[0] = scope(stubScope("none"))
+			sel.Excludes = nil
+			return sel
+		},
+		expectLen:    0,
+		expectPasses: assert.False,
+	},
+	{
+		name: "include all exclude all",
+		sel: func() mockSel {
+			sel := stubSelector()
+			sel.Filters = nil
+			return sel
+		},
+		expectLen:    0,
+		expectPasses: assert.False,
+	},
+	{
+		name: "include all exclude none",
+		sel: func() mockSel {
+			sel := stubSelector()
+			sel.Filters = nil
+			sel.Excludes[0] = scope(stubScope("none"))
+			return sel
+		},
+		expectLen:    1,
+		expectPasses: assert.True,
+	},
+	{
+		name: "filter all exclude all",
+		sel: func() mockSel {
+			sel := stubSelector()
+			sel.Includes = nil
+			return sel
+		},
+		expectLen:    0,
+		expectPasses: assert.False,
+	},
+	{
+		name: "filter all exclude none",
+		sel: func() mockSel {
+			sel := stubSelector()
+			sel.Includes = nil
+			sel.Excludes[0] = scope(stubScope("none"))
+			return sel
+		},
+		expectLen:    1,
+		expectPasses: assert.True,
+	},
 }
 
 func (suite *SelectorScopesSuite) TestReduce() {
