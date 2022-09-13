@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
+	stdpath "path"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -260,19 +260,25 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 
 	for _, dc := range dcs {
 		var (
-			user      string
-			category  path.CategoryType
-			directory = strings.Join(dc.FullPath(), "")
-			items     = dc.Items()
-			// TODO(ashmrtn): Update this when we have path struct support in collections.
-			exit bool
+			items = dc.Items()
+			exit  bool
 		)
 
-		category = path.ToCategoryType(dc.FullPath()[3])
-		user = dc.FullPath()[2]
+		// TODO(ashmrtn): Remove this when data.Collection.FullPath supports path.Path
+		directory, err := path.FromDataLayerPath(
+			stdpath.Join(dc.FullPath()...),
+			false,
+		)
+		if err != nil {
+			errs = support.WrapAndAppend("parsing Collection path", err, errs)
+			continue
+		}
 
-		if _, ok := pathCounter[directory]; !ok {
-			pathCounter[directory] = true
+		category := directory.Category()
+		user := directory.ResourceOwner()
+
+		if _, ok := pathCounter[directory.String()]; !ok {
+			pathCounter[directory.String()] = true
 			folderID, errs = exchange.GetRestoreContainer(&gc.graphService, user, category)
 
 			if errs != nil {
