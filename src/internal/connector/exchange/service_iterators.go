@@ -477,10 +477,25 @@ func IterateSelectAllContactsForCollections(
 				return true
 			}
 
+			dirPath, err := path.Builder{}.Append(*folder.GetParentFolderId()).ToDataLayerExchangePathForCategory(
+				qp.Credentials.TenantID,
+				qp.User,
+				path.ContactsCategory,
+				false,
+			)
+			if err != nil {
+				errs = support.WrapAndAppend(
+					qp.User,
+					err,
+					errs,
+				)
+
+				return true
+			}
+
 			edc := NewCollection(
 				qp.User,
-
-				[]string{qp.Credentials.TenantID, qp.User, path.ContactsCategory.String(), "Contacts"},
+				dirPath,
 				contacts,
 				service,
 				statusUpdater,
@@ -519,16 +534,30 @@ func IterateSelectAllContactsForCollections(
 			return true // Invalid state TODO: How should this be named
 		}
 
-		directory := *folder.GetDisplayName()
+		dirPath, err := path.Builder{}.Append(*folder.GetId()).ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			path.EventsCategory,
+			false,
+		)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				qp.User,
+				err,
+				errs,
+			)
+			return true
+		}
+
 		edc := NewCollection(
 			qp.User,
-			[]string{qp.Credentials.TenantID, qp.User, path.ContactsCategory.String(), directory},
+			dirPath,
 			contacts,
 			service,
 			statusUpdater,
 		)
 		edc.jobs = append(edc.jobs, listOfIDs...)
-		collections[directory] = &edc
+		collections[*folder.GetId()] = &edc
 
 		return true
 	}
