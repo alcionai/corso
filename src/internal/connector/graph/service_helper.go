@@ -5,6 +5,7 @@ import (
 	nethttp "net/http"
 	"net/http/httputil"
 	"os"
+	"time"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -39,7 +40,12 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 	// If the "LOG_GRAPH_REQUESTS" environment variable is not set, return
 	// the default client
 	if os.Getenv(logGraphRequestsEnvKey) == "" {
-		return msgraphsdk.NewGraphRequestAdapter(auth)
+		clientOptions := msgraphsdk.GetDefaultClientOptions()
+		defaultMiddlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
+		httpClient := msgraphgocore.GetDefaultClient(&clientOptions, defaultMiddlewares...)
+		httpClient.Timeout = time.Second * 90
+		return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+			auth, nil, nil, httpClient)
 	}
 
 	// Create a client with logging middleware
