@@ -12,11 +12,12 @@ func _() {
 	_ = x[EmailCategory-1]
 	_ = x[ContactsCategory-2]
 	_ = x[EventsCategory-3]
+	_ = x[FilesCategory-4]
 }
 
-const _CategoryType_name = "UnknownCategoryemailcontactsevents"
+const _CategoryType_name = "UnknownCategoryemailcontactseventsfiles"
 
-var _CategoryType_index = [...]uint8{0, 15, 20, 28, 34}
+var _CategoryType_index = [...]uint8{0, 15, 20, 28, 34, 39}
 
 func (i CategoryType) String() string {
 	if i < 0 || i >= CategoryType(len(_CategoryType_index)-1) {
