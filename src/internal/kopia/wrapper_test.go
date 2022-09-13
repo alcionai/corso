@@ -559,10 +559,29 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
+	tmpBuilder := path.Builder{}.Append(testInboxDir)
+
+	p1, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	tmpBuilder = path.Builder{}.Append(testArchiveDir)
+
+	p2, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
 
 	collections := []data.Collection{
 		&kopiaDataCollection{
-			path: testPath,
+			path: p1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
@@ -575,7 +594,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 			},
 		},
 		&kopiaDataCollection{
-			path: testPath2,
+			path: p2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
@@ -602,7 +621,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	assert.Equal(t, 0, stats.ErrorCount)
 	assert.Equal(t, 5, stats.TotalFileCount)
-	assert.Equal(t, 5, stats.TotalDirectoryCount)
+	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
 	assert.Len(t, rp.Entries, 5)
@@ -641,10 +660,29 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.NoError(t, err)
 
 	suite.w = &Wrapper{c}
+	tmpBuilder := path.Builder{}.Append(testInboxDir)
+
+	p1, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	tmpBuilder = path.Builder{}.Append(testArchiveDir)
+
+	p2, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
 
 	collections := []data.Collection{
 		&kopiaDataCollection{
-			path: testPath,
+			path: p1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
@@ -657,7 +695,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			},
 		},
 		&kopiaDataCollection{
-			path: testPath2,
+			path: p2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
@@ -683,7 +721,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, 6)
-	require.Equal(t, stats.TotalDirectoryCount, 5)
+	require.Equal(t, stats.TotalDirectoryCount, 6)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
 	assert.Len(t, rp.Entries, 6)

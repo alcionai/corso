@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -411,9 +412,9 @@ func (w Wrapper) makeSnapshotWithRoot(
 func (w Wrapper) getEntry(
 	ctx context.Context,
 	snapshotID string,
-	itemPath []string,
+	itemPath path.Path,
 ) (fs.Entry, error) {
-	if len(itemPath) == 0 {
+	if itemPath == nil {
 		return nil, errors.New("no restore path given")
 	}
 
@@ -428,7 +429,11 @@ func (w Wrapper) getEntry(
 	}
 
 	// GetNestedEntry handles nil properly.
-	e, err := snapshotfs.GetNestedEntry(ctx, rootDirEntry, itemPath[1:])
+	e, err := snapshotfs.GetNestedEntry(
+		ctx,
+		rootDirEntry,
+		itemPath.PopFront().Elements(),
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting nested object handle")
 	}
@@ -447,7 +452,19 @@ func (w Wrapper) collectItems(
 	snapshotID string,
 	itemPath []string,
 ) ([]data.Collection, error) {
-	e, err := w.getEntry(ctx, snapshotID, itemPath)
+	// TODO(ashmrtn): Remove this extra parsing once selectors pass path.Path to
+	// this function.
+	pth, err := path.FromDataLayerPath(stdpath.Join(itemPath...), true)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing to path struct")
+	}
+
+	parentDir, err := pth.Dir()
+	if err != nil {
+		return nil, errors.Wrap(err, "getting parent directory from path")
+	}
+
+	e, err := w.getEntry(ctx, snapshotID, pth)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +474,7 @@ func (w Wrapper) collectItems(
 		return nil, errors.New("requested object is not a file")
 	}
 
-	c, err := restoreSingleItem(ctx, f, itemPath[:len(itemPath)-1])
+	c, err := restoreSingleItem(ctx, f, parentDir)
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +512,7 @@ func (w Wrapper) RestoreSingleItem(
 func restoreSingleItem(
 	ctx context.Context,
 	f fs.File,
-	itemPath []string,
+	itemDir path.Path,
 ) (data.Collection, error) {
 	r, err := f.Open(ctx)
 	if err != nil {
@@ -509,7 +526,7 @@ func restoreSingleItem(
 				reader: r,
 			},
 		},
-		path: itemPath,
+		path: itemDir,
 	}, nil
 }
 
