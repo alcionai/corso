@@ -10,9 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -84,14 +82,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 	suite.Contains(last, "Bundy")
 	suite.Contains(last, "Ripley")
 	suite.Contains(last, "Foley")
-}
-
-func (suite *DisconnectedGraphConnectorSuite) TestInterfaceAlignment() {
-	var dc data.Collection
-
-	concrete := mockconnector.NewMockExchangeCollection([]string{"a", "path"}, 1)
-	dc = concrete
-	assert.NotNil(suite.T(), dc)
 }
 
 func statusTestTask(gc *GraphConnector, objects, success, folder int) {

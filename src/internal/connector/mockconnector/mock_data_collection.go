@@ -10,12 +10,13 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox
 type MockExchangeDataCollection struct {
-	fullPath     []string
+	fullPath     path.Path
 	messageCount int
 	Data         [][]byte
 	Names        []string
@@ -29,7 +30,7 @@ var (
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
 // mock messages when iterated. Exchange type mail
-func NewMockExchangeCollection(pathRepresentation []string, numMessagesToReturn int) *MockExchangeDataCollection {
+func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn int) *MockExchangeDataCollection {
 	c := &MockExchangeDataCollection{
 		fullPath:     pathRepresentation,
 		messageCount: numMessagesToReturn,
@@ -46,8 +47,8 @@ func NewMockExchangeCollection(pathRepresentation []string, numMessagesToReturn 
 	return c
 }
 
-func (medc *MockExchangeDataCollection) FullPath() []string {
-	return append([]string{}, medc.fullPath...)
+func (medc *MockExchangeDataCollection) FullPath() path.Path {
+	return medc.fullPath
 }
 
 // Items returns a channel that has the next items in the collection. The
