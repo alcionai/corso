@@ -152,19 +152,6 @@ func getStreamItemFunc(
 			return nil
 		}
 
-		itemPath, err := path.FromDataLayerPath(
-			stdpath.Join(streamedEnts.FullPath()...),
-			false,
-		)
-		if err != nil {
-			err = errors.Wrap(err, "parsing collection path")
-			errs = multierror.Append(errs, err)
-
-			logger.Ctx(ctx).Error(err)
-
-			return errs.ErrorOrNil()
-		}
-
 		items := streamedEnts.Items()
 
 		for {
@@ -178,7 +165,7 @@ func getStreamItemFunc(
 				}
 
 				// For now assuming that item IDs don't need escaping.
-				itemPath, err := itemPath.Append(e.UUID(), true)
+				itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
 				if err != nil {
 					err = errors.Wrap(err, "getting full item path")
 					errs = multierror.Append(errs, err)
@@ -264,7 +251,11 @@ func inflateDirTree(
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
-		itemPath := s.FullPath()
+		if s.FullPath() == nil {
+			return nil, errors.New("no identifier for collection")
+		}
+
+		itemPath := s.FullPath().Elements()
 
 		if len(itemPath) == 0 {
 			return nil, errors.New("no identifier for collection")

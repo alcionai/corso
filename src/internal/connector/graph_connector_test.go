@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -99,7 +98,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
 	for _, collection := range collectionList {
 		temp := collection.Items()
-		testName := collection.FullPath()[2]
+		testName := collection.FullPath().ResourceOwner()
 		streams[testName] = temp
 	}
 
@@ -116,9 +115,6 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 			}
 		})
 	}
-
-	exchangeData := collectionList[0]
-	suite.Greater(len(exchangeData.FullPath()), 2)
 }
 
 // TestMailSerializationRegression verifies that all mail data stored in the
@@ -139,8 +135,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	require.NoError(t, err)
 
 	for _, edc := range collection {
-		testName := strings.Join(edc.FullPath(), " ")
-		suite.T().Run(testName, func(t *testing.T) {
+		suite.T().Run(edc.FullPath().String(), func(t *testing.T) {
 			streamChannel := edc.Items()
 			// Verify that each message can be restored
 			for stream := range streamChannel {
@@ -181,7 +176,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	number := 0
 
 	for _, edc := range collections {
-		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath()[1], number)
+		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath().ResourceOwner(), number)
 		suite.T().Run(testName, func(t *testing.T) {
 			streamChannel := edc.Items()
 			for stream := range streamChannel {
@@ -220,7 +215,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 		number := 0
 
 		for stream := range streamChannel {
-			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath()[2], number)
+			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath().ResourceOwner(), number)
 			suite.T().Run(testName, func(t *testing.T) {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())

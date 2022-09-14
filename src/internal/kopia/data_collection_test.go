@@ -27,16 +27,6 @@ func TestKopiaDataCollectionUnitSuite(t *testing.T) {
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	t := suite.T()
-	expected := []string{
-		"a-tenant",
-		path.ExchangeService.String(),
-		"a-user",
-		path.EmailCategory.String(),
-		"some",
-		"path",
-		"for",
-		"data",
-	}
 
 	b := path.Builder{}.Append("some", "path", "for", "data")
 	pth, err := b.ToDataLayerExchangePathForCategory(
@@ -52,8 +42,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 		path:    pth,
 	}
 
-	// TODO(ashmrtn): Update when data.Collection.FullPath supports path.Path
-	assert.Equal(t, expected, c.FullPath())
+	assert.Equal(t, pth, c.FullPath())
 }
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
