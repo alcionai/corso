@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   precheck:
-    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@issue-744-alt
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
 
   Linting:
     needs: precheck
