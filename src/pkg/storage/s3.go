@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 )
 
@@ -24,10 +26,17 @@ const (
 	Prefix   = "prefix"
 )
 
+func (c S3Config) Normalize() S3Config {
+	// Minio doesn't accept scheme prefixes.
+	c.Bucket = strings.TrimPrefix(c.Bucket, "s3://")
+	return c
+}
+
 // StringConfig transforms a s3Config struct into a plain
 // map[string]string.  All values in the original struct which
 // serialize into the map are expected to be strings.
 func (c S3Config) StringConfig() (map[string]string, error) {
+	c = c.Normalize()
 	cfg := map[string]string{
 		keyS3Bucket:   c.Bucket,
 		keyS3Endpoint: c.Endpoint,

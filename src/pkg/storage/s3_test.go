@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -63,7 +64,7 @@ func makeTestS3Cfg(ak, bkt, end, pre, sk, tkn string) storage.S3Config {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_InvalidCases() {
+func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 	// missing required properties
 	table := []struct {
 		name string
@@ -99,4 +100,57 @@ func (suite *S3CfgSuite) TestStorage_S3Config_InvalidCases() {
 			assert.Error(t, err)
 		})
 	}
+}
+
+func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
+	table := []struct {
+		name   string
+		input  storage.S3Config
+		expect map[string]string
+	}{
+		{
+			name:  "standard",
+			input: goodS3Config,
+			expect: map[string]string{
+				"s3_bucket":   goodS3Config.Bucket,
+				"s3_endpoint": goodS3Config.Endpoint,
+				"s3_prefix":   goodS3Config.Prefix,
+			},
+		},
+		{
+			name: "normalized bucket name",
+			input: storage.S3Config{
+				Bucket:   "s3://bkt",
+				Endpoint: "end",
+				Prefix:   "pre",
+			},
+			expect: map[string]string{
+				"s3_bucket":   goodS3Config.Bucket,
+				"s3_endpoint": goodS3Config.Endpoint,
+				"s3_prefix":   goodS3Config.Prefix,
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result, err := test.input.StringConfig()
+			require.NoError(t, err)
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
+func (suite *S3CfgSuite) TestStorage_S3Config_Normalize() {
+	const (
+		prefixedBkt = "s3://bkt"
+		normalBkt   = "bkt"
+	)
+
+	st := storage.S3Config{
+		Bucket: prefixedBkt,
+	}
+
+	result := st.Normalize()
+	assert.Equal(suite.T(), normalBkt, result.Bucket)
+	assert.NotEqual(suite.T(), st.Bucket, result.Bucket)
 }
