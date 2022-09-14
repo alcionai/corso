@@ -52,17 +52,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - id: hash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
       # deploy the image
       - name: Build image and push to GitHub Container Registry
         env:
-          sha: git_hash=$(git rev-parse --short "$GITHUB_SHA")
+          imageName: ghcr.io/alcionai/corso
         uses: docker/build-push-action@v3
         with:
           context: .
           file: ./build/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: ghcr.io/alcionai/corso:${{ env.sha }}
+          tags: ${{ env.imageName }}:latest,${{ env.imageName }}:${{ steps.hash.outputs.sha_short }}
           # use the github cache
           cache-from: type=gha
           cache-to: type=gha,mode=max
