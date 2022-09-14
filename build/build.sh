@@ -63,7 +63,7 @@ do
     --env GOARCH=${GOARCH}                                                      \
     --entrypoint /usr/local/go/bin/go                                           \
     golang:${GOVER}                                                             \
-    build ${CORSO_BUILD_ARGS}
+    build -o corso ${CORSO_BUILD_ARGS}
   set +x
 
   mkdir -p ${PROJECT_ROOT}/bin/${GOOS}-${GOARCH}
