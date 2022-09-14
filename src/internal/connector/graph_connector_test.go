@@ -275,6 +275,9 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 	if aFolder != nil {
 		err = exchange.DeleteMailFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
+		if err != nil {
+			suite.T().Log(support.ConnectorStackErrorTrace(err))
+		}
 	}
 }
 
@@ -289,6 +292,9 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() 
 	if aFolder != nil {
 		err = exchange.DeleteContactFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
+		if err != nil {
+			suite.T().Log(support.ConnectorStackErrorTrace(err))
+		}
 	}
 }
 
@@ -304,5 +310,8 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 	if calendar != nil {
 		err = exchange.DeleteCalendar(service, suite.user, *calendar.GetId())
 		assert.NoError(suite.T(), err)
+		if err != nil {
+			suite.T().Log(support.ConnectorStackErrorTrace(err))
+		}
 	}
 }

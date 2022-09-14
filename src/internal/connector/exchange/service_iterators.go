@@ -33,7 +33,7 @@ type displayable interface {
 type GraphIterateFunc func(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errs error,
+	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool
@@ -103,7 +103,7 @@ func resolveCollectionPath(
 func IterateSelectAllDescendablesForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errs error,
+	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -128,11 +128,7 @@ func IterateSelectAllDescendablesForCollections(
 			}
 
 			if r, err := maybeGetAndPopulateFolderResolver(ctx, qp, category); err != nil {
-				errs = support.WrapAndAppend(
-					"getting folder resolver for category "+category.String(),
-					err,
-					errs,
-				)
+				errUpdater("getting folder resolver for category "+category.String(), err)
 			} else {
 				resolver = r
 			}
@@ -142,7 +138,7 @@ func IterateSelectAllDescendablesForCollections(
 
 		entry, ok := pageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppendf(qp.User, errors.New("descendable conversion failure"), errs)
+			errUpdater(qp.User, errors.New("descendable conversion failure"))
 			return true
 		}
 
@@ -156,8 +152,8 @@ func IterateSelectAllDescendablesForCollections(
 			false,
 		)
 		if err != nil {
-			errs = support.WrapAndAppend("converting to resource path", err, errs)
-			// This really shouldn't be happening unless we have a bad category.
+			// This really shouldn't happen unless we have a bad category.
+			errUpdater("converting to resource path", err)
 			return true
 		}
 
@@ -173,7 +169,7 @@ func IterateSelectAllDescendablesForCollections(
 
 			if err != nil {
 				if !errors.Is(err, errNilResolver) {
-					errs = support.WrapAndAppend("", err, errs)
+					errUpdater("", err)
 				}
 			} else {
 				dirPath = newPath
@@ -181,7 +177,7 @@ func IterateSelectAllDescendablesForCollections(
 
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errs = support.WrapAndAppend(qp.User, err, errs)
+				errUpdater(qp.User, err)
 				return true
 			}
 
@@ -208,7 +204,7 @@ func IterateSelectAllDescendablesForCollections(
 func IterateSelectAllEventsFromCalendars(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errs error,
+	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -219,21 +215,15 @@ func IterateSelectAllEventsFromCalendars(
 
 		shell, ok := pageItem.(models.Calendarable)
 		if !ok {
-			errs = support.WrapAndAppend(
-				qp.User,
-				errors.New("calendar event"),
-				errs)
-
+			errUpdater(qp.User, errors.New("casting pageItem to models.Calendarable"))
 			return true
 		}
 
 		service, err := createService(qp.Credentials, qp.FailFast)
 		if err != nil {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				qp.User,
-				errors.Wrap(err, "unable to create service during IterateSelectAllEventsFromCalendars"),
-				errs,
-			)
+				errors.Wrap(err, "creating service for IterateSelectAllEventsFromCalendars"))
 
 			return true
 		}
@@ -243,11 +233,7 @@ func IterateSelectAllEventsFromCalendars(
 			CalendarsById(*shell.GetId()).
 			Events().Get()
 		if err != nil {
-			errs = support.WrapAndAppend(
-				qp.User,
-				err,
-				errs,
-			)
+			errUpdater(qp.User, err)
 		}
 
 		directory := shell.GetName()
@@ -269,7 +255,7 @@ func IterateSelectAllEventsFromCalendars(
 		if _, ok := collections[*directory]; !ok {
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errs = support.WrapAndAppend(qp.User, err, errs)
+				errUpdater(qp.User, err)
 
 				return true
 			}
@@ -281,8 +267,8 @@ func IterateSelectAllEventsFromCalendars(
 				false,
 			)
 			if err != nil {
-				// This really shouldn't be happening.
-				errs = support.WrapAndAppend("converting to resource path", err, errs)
+				// we shouldn't ever hit this error
+				errUpdater("converting to resource path", err)
 				return true
 			}
 
@@ -310,7 +296,7 @@ func IterateSelectAllEventsFromCalendars(
 func IterateAndFilterMessagesForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errs error,
+	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -325,7 +311,7 @@ func IterateAndFilterMessagesForCollections(
 				statusUpdater,
 			)
 			if err != nil {
-				errs = support.WrapAndAppend(qp.User, err, errs)
+				errUpdater(qp.User, err)
 				return false
 			}
 
@@ -334,7 +320,7 @@ func IterateAndFilterMessagesForCollections(
 
 		message, ok := messageItem.(descendable)
 		if !ok {
-			errs = support.WrapAndAppend(qp.User, errors.New("message iteration failure"), errs)
+			errUpdater(qp.User, errors.New("casting messageItem to descendable"))
 			return true
 		}
 		// Saving only messages for the created directories
@@ -352,7 +338,7 @@ func IterateAndFilterMessagesForCollections(
 func IterateFilterFolderDirectoriesForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errs error,
+	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -363,22 +349,13 @@ func IterateFilterFolderDirectoriesForCollections(
 
 	resolver, err := maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
 	if err != nil {
-		errs = support.WrapAndAppend(
-			"getting folder resolver for category email",
-			err,
-			errs,
-		)
+		errUpdater("getting folder resolver for category email", err)
 	}
 
 	return func(folderItem any) bool {
 		folder, ok := folderItem.(displayable)
 		if !ok {
-			errs = support.WrapAndAppend(
-				qp.User,
-				errors.New("unable to transform folderable item"),
-				errs,
-			)
-
+			errUpdater(qp.User, errors.New("casting folderItem to displayable"))
 			return true
 		}
 		// Continue to iterate if folder name is empty
@@ -399,8 +376,8 @@ func IterateFilterFolderDirectoriesForCollections(
 			false,
 		)
 		if err != nil {
-			// This really shouldn't be happening.
-			errs = support.WrapAndAppend("converting to resource path", err, errs)
+			// we shouldn't ever hit this error.
+			errUpdater("converting to resource path", err)
 			return true
 		}
 
@@ -415,7 +392,7 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		if err != nil {
 			if !errors.Is(err, errNilResolver) {
-				errs = support.WrapAndAppend("", err, errs)
+				errUpdater("", err)
 			}
 		} else {
 			dirPath = p
@@ -423,14 +400,9 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		service, err = createService(qp.Credentials, qp.FailFast)
 		if err != nil {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				*folder.GetDisplayName(),
-				errors.Wrap(
-					err,
-					"unable to create service a folder query service for "+qp.User,
-				),
-				errs,
-			)
+				errors.Wrap(err, "creating service to iterate filterFolder directories for user: "+qp.User))
 
 			return true
 		}

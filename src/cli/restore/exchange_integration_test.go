@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -127,6 +128,8 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	for _, set := range backupDataSets {
 		suite.T().Run(set.String(), func(t *testing.T) {
 			ctx := config.SetViper(tester.NewContext(), suite.vpr)
+			ctx, lgr := logger.SeedLevel(ctx, logger.Development)
+			defer lgr.Sync()
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
