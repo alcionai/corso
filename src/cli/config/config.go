@@ -40,14 +40,14 @@ func AddConfigFlags(cmd *cobra.Command) {
 
 	_, err := os.Stat(defaultDir)
 	if err != nil {
-		Err(cmd.Context(), "finding /app/corso directory (default) for config file")
+		Err(cmd.Context(), "finding "+defaultDir+" directory (default) for config file")
 	}
 
 	fs.StringVar(
 		&configFilePath,
 		"config-file",
 		filepath.Join(defaultDir, ".corso.toml"),
-		"config file (default is /app/corso/.corso.toml)")
+		"config file (default is "+defaultDir+".corso.toml)")
 }
 
 // ---------------------------------------------------------------------------------------------------------
