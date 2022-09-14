@@ -15,7 +15,7 @@ type Collection interface {
 	// The channel is closed when there are no more items in the collection or if
 	// an unrecoverable error caused an early termination in the sender.
 	Items() <-chan Stream
-	// FullPath returns a slice of strings that act as metadata tags for this
+	// FullPath returns a path struct that acts as a metadata tag for this
 	// DataCollection. Returned items should be ordered from most generic to least
 	// generic. For example, a DataCollection for emails from a specific user
 	// would be {"<tenant id>", "exchange", "<user ID>", "emails"}.
