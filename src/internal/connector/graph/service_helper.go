@@ -5,6 +5,7 @@ import (
 	nethttp "net/http"
 	"net/http/httputil"
 	"os"
+	"time"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -20,7 +21,8 @@ const (
 )
 
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
-// with Azure identity package.
+// with Azure identity package. An adapter object is a necessary to component
+// to create  *msgraphsdk.GraphServiceClient
 func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := az.NewClientSecretCredential(tenant, client, secret, nil)
@@ -36,18 +38,16 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 		return nil, err
 	}
 
-	// If the "LOG_GRAPH_REQUESTS" environment variable is not set, return
-	// the default client
-	if os.Getenv(logGraphRequestsEnvKey) == "" {
-		return msgraphsdk.NewGraphRequestAdapter(auth)
+	clientOptions := msgraphsdk.GetDefaultClientOptions()
+	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
+
+	// When true, additional logging middleware support added for http request
+	if os.Getenv(logGraphRequestsEnvKey) != "" {
+		middlewares = append(middlewares, &LoggingMiddleware{})
 	}
 
-	// Create a client with logging middleware
-	clientOptions := msgraphsdk.GetDefaultClientOptions()
-	defaultMiddlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
-	middlewares := []khttp.Middleware{&LoggingMiddleware{}}
-	middlewares = append(middlewares, defaultMiddlewares...)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
+	httpClient.Timeout = time.Second * 90
 
 	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth, nil, nil, httpClient)

@@ -107,7 +107,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	}
 
 	// format the details and retrieve the items from kopia
-	fds := er.Reduce(d)
+	fds := er.Reduce(ctx, d)
 	if len(fds.Entries) == 0 {
 		return errors.New("nothing to restore: no items in the backup match the provided selectors")
 	}
@@ -139,7 +139,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	err = gc.RestoreExchangeDataCollection(ctx, dcs)
+	err = gc.RestoreDataCollections(ctx, dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err

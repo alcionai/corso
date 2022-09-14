@@ -5,7 +5,7 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
-	"path"
+	stdpath "path"
 	"testing"
 
 	"github.com/google/uuid"
@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia/mockkopia"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -26,7 +27,6 @@ import (
 const (
 	testTenant     = "a-tenant"
 	testUser       = "user1"
-	testEmailDir   = "email"
 	testInboxDir   = "inbox"
 	testArchiveDir = "archive"
 	testFileName   = "file1"
@@ -38,8 +38,22 @@ const (
 )
 
 var (
-	testPath      = []string{testTenant, testUser, testEmailDir, testInboxDir}
-	testPath2     = []string{testTenant, testUser, testEmailDir, testArchiveDir}
+	service  = path.ExchangeService.String()
+	category = path.EmailCategory.String()
+	testPath = []string{
+		testTenant,
+		service,
+		testUser,
+		category,
+		testInboxDir,
+	}
+	testPath2 = []string{
+		testTenant,
+		service,
+		testUser,
+		category,
+		testArchiveDir,
+	}
 	testFileData  = []byte("abcdefghijklmnopqrstuvwxyz")
 	testFileData2 = []byte("zyxwvutsrqponmlkjihgfedcba")
 	testFileData3 = []byte("foo")
@@ -49,16 +63,6 @@ var (
 	// (contrast to behavior of snapshotfs.TreeWalker).
 	testFileData6 = testFileData
 )
-
-func entriesToNames(entries []fs.Entry) []string {
-	res := make([]string, 0, len(entries))
-
-	for _, e := range entries {
-		res = append(res, e.Name())
-	}
-
-	return res
-}
 
 func testForFiles(
 	t *testing.T,
@@ -71,7 +75,7 @@ func testForFiles(
 		for s := range c.Items() {
 			count++
 
-			fullPath := path.Join(append(c.FullPath(), s.UUID())...)
+			fullPath := stdpath.Join(append(c.FullPath(), s.UUID())...)
 
 			expected, ok := expected[fullPath]
 			require.True(t, ok, "unexpected file with path %q", fullPath)
@@ -84,6 +88,42 @@ func testForFiles(
 	}
 
 	assert.Equal(t, len(expected), count)
+}
+
+func expectDirs(
+	t *testing.T,
+	entries []fs.Entry,
+	dirs []string,
+	exactly bool,
+) {
+	t.Helper()
+
+	if exactly {
+		require.Len(t, entries, len(dirs))
+	}
+
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+
+	assert.Subset(t, names, dirs)
+}
+
+//revive:disable:context-as-argument
+func getDirEntriesForEntry(
+	t *testing.T,
+	ctx context.Context,
+	entry fs.Entry,
+) []fs.Entry {
+	//revive:enable:context-as-argument
+	d, ok := entry.(fs.Directory)
+	require.True(t, ok, "returned entry is not a directory")
+
+	entries, err := fs.GetAllEntries(ctx, d)
+	require.NoError(t, err)
+
+	return entries
 }
 
 // ---------------
@@ -190,11 +230,11 @@ func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	tester.LogTimeOfTest(suite.T())
 
+	t := suite.T()
 	ctx := context.Background()
 	tenant := "a-tenant"
-	user1 := "user1"
+	user1 := testUser
 	user2 := "user2"
-	emails := "emails"
 
 	expectedFileCount := map[string]int{
 		user1: 5,
@@ -205,48 +245,49 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
-			[]string{tenant, user1, emails},
+			[]string{tenant, service, user1, category, testInboxDir},
 			expectedFileCount[user1],
 		),
 		mockconnector.NewMockExchangeCollection(
-			[]string{tenant, user2, emails},
+			[]string{tenant, service, user2, category, testInboxDir},
 			expectedFileCount[user2],
 		),
 	}
 
 	// Returned directory structure should look like:
 	// - a-tenant
-	//   - user1
-	//     - emails
-	//       - 5 separate files
-	//   - user2
-	//     - emails
-	//       - 42 separate files
+	//   - exchange
+	//     - user1
+	//       - emails
+	//         - Inbox
+	//           - 5 separate files
+	//     - user2
+	//       - emails
+	//         - Inbox
+	//           - 42 separate files
 	dirTree, err := inflateDirTree(ctx, collections, progress)
-	require.NoError(suite.T(), err)
-	assert.Equal(suite.T(), dirTree.Name(), tenant)
+	require.NoError(t, err)
+	assert.Equal(t, testTenant, dirTree.Name())
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
-	names := entriesToNames(entries)
-	assert.Len(suite.T(), names, 2)
-	assert.Contains(suite.T(), names, user1)
-	assert.Contains(suite.T(), names, user2)
+	expectDirs(t, entries, []string{service}, true)
+
+	entries = getDirEntriesForEntry(t, ctx, entries[0])
+	expectDirs(t, entries, []string{user1, user2}, true)
 
 	for _, entry := range entries {
-		dir, ok := entry.(fs.Directory)
-		require.True(suite.T(), ok)
+		userName := entry.Name()
 
-		subEntries, err := fs.GetAllEntries(ctx, dir)
-		require.NoError(suite.T(), err)
-		require.Len(suite.T(), subEntries, 1)
-		assert.Contains(suite.T(), subEntries[0].Name(), emails)
+		entries = getDirEntriesForEntry(t, ctx, entry)
+		expectDirs(t, entries, []string{category}, true)
 
-		subDir := subEntries[0].(fs.Directory)
-		emailFiles, err := fs.GetAllEntries(ctx, subDir)
-		require.NoError(suite.T(), err)
-		assert.Len(suite.T(), emailFiles, expectedFileCount[entry.Name()])
+		entries = getDirEntriesForEntry(t, ctx, entries[0])
+		expectDirs(t, entries, []string{testInboxDir}, true)
+
+		entries = getDirEntriesForEntry(t, ctx, entries[0])
+		assert.Len(t, entries, expectedFileCount[userName])
 	}
 
 	totalFileCount := 0
@@ -254,45 +295,22 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		totalFileCount += c
 	}
 
-	assert.Len(suite.T(), progress.pending, totalFileCount)
-}
-
-func (suite *KopiaUnitSuite) TestBuildDirectoryTree_NoAncestorDirs() {
-	tester.LogTimeOfTest(suite.T())
-
-	ctx := context.Background()
-	emails := "emails"
-	expectedFileCount := 42
-
-	progress := &corsoProgress{pending: map[string]*itemDetails{}}
-	collections := []data.Collection{
-		mockconnector.NewMockExchangeCollection(
-			[]string{emails},
-			expectedFileCount,
-		),
-	}
-
-	// Returned directory structure should look like:
-	// - emails
-	//   - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, progress)
-	require.NoError(suite.T(), err)
-	assert.Equal(suite.T(), dirTree.Name(), emails)
-
-	entries, err := fs.GetAllEntries(ctx, dirTree)
-	require.NoError(suite.T(), err)
-	assert.Len(suite.T(), entries, expectedFileCount)
+	assert.Len(t, progress.pending, totalFileCount)
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 	ctx := context.Background()
+	subdir := "subfolder"
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
 	// - a-tenant
-	//   - user1
-	//     - emails
-	//       - 5 separate files
-	//     - 42 separate files
+	//   - exchange
+	//     - user1
+	//       - emails
+	//         - Inbox
+	//           - subfolder
+	//             - 5 separate files
+	//           - 42 separate files
 	table := []struct {
 		name   string
 		layout []data.Collection
@@ -301,11 +319,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 			name: "SubdirFirst",
 			layout: []data.Collection{
 				mockconnector.NewMockExchangeCollection(
-					[]string{testTenant, testUser, testEmailDir},
+					[]string{testTenant, service, testUser, category, testInboxDir, subdir},
 					5,
 				),
 				mockconnector.NewMockExchangeCollection(
-					[]string{testTenant, testUser},
+					[]string{testTenant, service, testUser, category, testInboxDir},
 					42,
 				),
 			},
@@ -314,11 +332,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 			name: "SubdirLast",
 			layout: []data.Collection{
 				mockconnector.NewMockExchangeCollection(
-					[]string{testTenant, testUser},
+					[]string{testTenant, service, testUser, category, testInboxDir},
 					42,
 				),
 				mockconnector.NewMockExchangeCollection(
-					[]string{testTenant, testUser, testEmailDir},
+					[]string{testTenant, service, testUser, category, testInboxDir, subdir},
 					5,
 				),
 			},
@@ -335,14 +353,19 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 
 			entries, err := fs.GetAllEntries(ctx, dirTree)
 			require.NoError(t, err)
-			require.Len(t, entries, 1)
-			assert.Equal(t, testUser, entries[0].Name())
 
-			d, ok := entries[0].(fs.Directory)
-			require.True(t, ok, "returned entry is not a directory")
+			expectDirs(t, entries, []string{service}, true)
 
-			entries, err = fs.GetAllEntries(ctx, d)
-			require.NoError(t, err)
+			entries = getDirEntriesForEntry(t, ctx, entries[0])
+			expectDirs(t, entries, []string{testUser}, true)
+
+			entries = getDirEntriesForEntry(t, ctx, entries[0])
+			expectDirs(t, entries, []string{category}, true)
+
+			entries = getDirEntriesForEntry(t, ctx, entries[0])
+			expectDirs(t, entries, []string{testInboxDir}, true)
+
+			entries = getDirEntriesForEntry(t, ctx, entries[0])
 			// 42 files and 1 subdirectory.
 			assert.Len(t, entries, 43)
 
@@ -355,13 +378,12 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 				}
 
 				subDirs = append(subDirs, d)
-				assert.Equal(t, testEmailDir, e.Name())
+				assert.Equal(t, "subfolder", d.Name())
 			}
 
 			require.Len(t, subDirs, 1)
 
-			entries, err = fs.GetAllEntries(ctx, subDirs[0])
-			assert.NoError(t, err)
+			entries = getDirEntriesForEntry(t, ctx, entries[0])
 			assert.Len(t, entries, 5)
 		})
 	}
@@ -472,11 +494,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
-			[]string{"a-tenant", "user1", "emails"},
+			[]string{"a-tenant", service, "user1", category, testInboxDir},
 			5,
 		),
 		mockconnector.NewMockExchangeCollection(
-			[]string{"a-tenant", "user2", "emails"},
+			[]string{"a-tenant", service, "user2", category, testInboxDir},
 			42,
 		),
 	}
@@ -484,7 +506,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
 	assert.NoError(t, err)
 	assert.Equal(t, stats.TotalFileCount, 47)
-	assert.Equal(t, stats.TotalDirectoryCount, 5)
+	assert.Equal(t, stats.TotalDirectoryCount, 8)
 	assert.Equal(t, stats.IgnoredErrorCount, 0)
 	assert.Equal(t, stats.ErrorCount, 0)
 	assert.False(t, stats.Incomplete)
@@ -503,8 +525,20 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	w := &Wrapper{k}
 
 	tid := uuid.NewString()
-	p1 := []string{tid, "uid", "emails", "fid"}
-	p2 := []string{tid, "uid2", "emails", "fid"}
+	p1 := []string{
+		tid,
+		service,
+		"uid",
+		category,
+		"fid",
+	}
+	p2 := []string{
+		tid,
+		service,
+		"uid2",
+		category,
+		"fid",
+	}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
 
@@ -517,8 +551,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	require.NoError(t, k.Compression(ctx, "gzip"))
 
 	expected := map[string][]byte{
-		path.Join(fp1...): dc1.Data[0],
-		path.Join(fp2...): dc2.Data[0],
+		stdpath.Join(fp1...): dc1.Data[0],
+		stdpath.Join(fp2...): dc2.Data[0],
 	}
 
 	result, err := w.RestoreMultipleItems(
@@ -534,10 +568,29 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
+	tmpBuilder := path.Builder{}.Append(testInboxDir)
+
+	p1, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	tmpBuilder = path.Builder{}.Append(testArchiveDir)
+
+	p2, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
 
 	collections := []data.Collection{
 		&kopiaDataCollection{
-			path: testPath,
+			path: p1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
@@ -550,7 +603,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 			},
 		},
 		&kopiaDataCollection{
-			path: testPath2,
+			path: p2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
@@ -577,7 +630,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	assert.Equal(t, 0, stats.ErrorCount)
 	assert.Equal(t, 5, stats.TotalFileCount)
-	assert.Equal(t, 5, stats.TotalDirectoryCount)
+	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
 	assert.Len(t, rp.Entries, 5)
@@ -616,10 +669,29 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.NoError(t, err)
 
 	suite.w = &Wrapper{c}
+	tmpBuilder := path.Builder{}.Append(testInboxDir)
+
+	p1, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	tmpBuilder = path.Builder{}.Append(testArchiveDir)
+
+	p2, err := tmpBuilder.ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
 
 	collections := []data.Collection{
 		&kopiaDataCollection{
-			path: testPath,
+			path: p1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
@@ -632,7 +704,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			},
 		},
 		&kopiaDataCollection{
-			path: testPath2,
+			path: p2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
@@ -658,7 +730,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, 6)
-	require.Equal(t, stats.TotalDirectoryCount, 5)
+	require.Equal(t, stats.TotalDirectoryCount, 6)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
 	assert.Len(t, rp.Entries, 6)
@@ -667,14 +739,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	// path.Join doesn't like (testPath..., testFileName).
 	suite.inboxExpectedFiles = map[string][]byte{
-		path.Join(append(testPath, testFileName)...):  testFileData,
-		path.Join(append(testPath, testFileName2)...): testFileData2,
+		stdpath.Join(append(testPath, testFileName)...):  testFileData,
+		stdpath.Join(append(testPath, testFileName2)...): testFileData2,
 	}
 	suite.archiveExpectedFiles = map[string][]byte{
-		path.Join(append(testPath2, testFileName3)...): testFileData3,
-		path.Join(append(testPath2, testFileName4)...): testFileData4,
-		path.Join(append(testPath2, testFileName5)...): testFileData5,
-		path.Join(append(testPath2, testFileName6)...): testFileData6,
+		stdpath.Join(append(testPath2, testFileName3)...): testFileData3,
+		stdpath.Join(append(testPath2, testFileName4)...): testFileData4,
+		stdpath.Join(append(testPath2, testFileName5)...): testFileData5,
+		stdpath.Join(append(testPath2, testFileName6)...): testFileData6,
 	}
 
 	suite.allExpectedFiles = map[string][]byte{}
@@ -768,8 +840,20 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	w := &Wrapper{k}
 
 	tid := uuid.NewString()
-	p1 := []string{tid, "uid", "emails", "fid"}
-	p2 := []string{tid, "uid2", "emails", "fid"}
+	p1 := []string{
+		tid,
+		service,
+		"uid",
+		category,
+		"fid",
+	}
+	p2 := []string{
+		tid,
+		service,
+		"uid2",
+		category,
+		"fid",
+	}
 	dc1 := mockconnector.NewMockExchangeCollection(p1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(p2, 1)
 
@@ -780,8 +864,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	require.NoError(t, err)
 
 	expected := map[string][]byte{
-		path.Join(fp1...): dc1.Data[0],
-		path.Join(fp2...): dc2.Data[0],
+		stdpath.Join(fp1...): dc1.Data[0],
+		stdpath.Join(fp2...): dc2.Data[0],
 	}
 
 	result, err := w.RestoreMultipleItems(
@@ -839,13 +923,13 @@ func (suite *KopiaIntegrationSuite) TestDeleteSnapshot() {
 	t := suite.T()
 
 	dc1 := mockconnector.NewMockExchangeCollection(
-		[]string{"a-tenant", "user1", "emails"},
+		[]string{"a-tenant", service, "user1", category, testInboxDir},
 		5,
 	)
 	collections := []data.Collection{
 		dc1,
 		mockconnector.NewMockExchangeCollection(
-			[]string{"a-tenant", "user2", "emails"},
+			[]string{"a-tenant", service, "user2", category, testInboxDir},
 			42,
 		),
 	}

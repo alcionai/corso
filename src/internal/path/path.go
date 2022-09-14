@@ -66,6 +66,18 @@ type Path interface {
 	ResourceOwner() string
 	Folder() string
 	Item() string
+	// PopFront returns a Builder object with the first element (left-side)
+	// removed. As the resulting set of elements is no longer a valid resource
+	// path a Builder is returned instead.
+	PopFront() *Builder
+	// Dir returns a Path object with the right-most element removed if possible.
+	// If removing the right-most element would discard one of the required prefix
+	// elements then an error is returned.
+	Dir() (Path, error)
+	// Append returns a new Path object with the given element added to the end of
+	// the old Path if possible. If the old Path is an item Path then Append
+	// returns an error.
+	Append(element string, isItem bool) (Path, error)
 }
 
 // Builder is a simple path representation that only tracks path elements. It
@@ -136,6 +148,30 @@ func (pb *Builder) appendElements(escaped bool, elements []string) error {
 	return nil
 }
 
+func (pb Builder) PopFront() *Builder {
+	if len(pb.elements) <= 1 {
+		return &Builder{}
+	}
+
+	elements := make([]string, len(pb.elements)-1)
+	copy(elements, pb.elements[1:])
+
+	return &Builder{
+		elements: elements,
+	}
+}
+
+func (pb Builder) dir() *Builder {
+	if len(pb.elements) <= 1 {
+		return &Builder{}
+	}
+
+	return &Builder{
+		// Safe to use the same elements because Builders are immutable.
+		elements: pb.elements[:len(pb.elements)-1],
+	}
+}
+
 // String returns a string that contains all path elements joined together.
 // Elements of the path that need escaping are escaped.
 func (pb Builder) String() string {
@@ -146,6 +182,13 @@ func (pb Builder) String() string {
 	}
 
 	return join(escaped)
+}
+
+// Elements returns all the elements in the path. This is a temporary function
+// and will likely be updated to handle encoded elements instead of clear-text
+// elements in the future.
+func (pb Builder) Elements() []string {
+	return append([]string{}, pb.elements...)
 }
 
 //nolint:unused
@@ -198,6 +241,27 @@ func (pb Builder) ToDataLayerExchangePathForCategory(
 		),
 		service:  ExchangeService,
 		category: category,
+		hasItem:  isItem,
+	}, nil
+}
+
+func (pb Builder) ToDataLayerOneDrivePath(
+	tenant, user string,
+	isItem bool,
+) (Path, error) {
+	if err := pb.verifyPrefix(tenant, user); err != nil {
+		return nil, err
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			OneDriveService.String(),
+			user,
+			FilesCategory.String(),
+		),
+		service:  OneDriveService,
+		category: FilesCategory,
 		hasItem:  isItem,
 	}, nil
 }

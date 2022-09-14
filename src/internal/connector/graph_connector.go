@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
+	stdpath "path"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -242,10 +242,9 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	return collections, errs
 }
 
-// RestoreExchangeDataCollection: Utility function to connect to M365 backstore
-// and upload messages from DataCollection.
-// FullPath: tenantId, userId, <collectionCategory>, FolderId
-func (gc *GraphConnector) RestoreExchangeDataCollection(
+// RestoreDataCollections restores data from the specified collections
+// into M365
+func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
 	dcs []data.Collection,
 ) error {
@@ -260,32 +259,39 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 
 	for _, dc := range dcs {
 		var (
-			user      string
-			category  path.CategoryType
-			directory = strings.Join(dc.FullPath(), "")
-			items     = dc.Items()
-			// TODO(ashmrtn): Update this when we have path struct support in collections.
-			exit bool
+			items = dc.Items()
+			exit  bool
 		)
 
-		// email uses the new path format
-		category = path.ToCategoryType(dc.FullPath()[3])
-		if category == path.UnknownCategory {
-			// events and calendar use the old path format
-			category = path.ToCategoryType(dc.FullPath()[2])
+		// TODO(ashmrtn): Remove this when data.Collection.FullPath supports path.Path
+		directory, err := path.FromDataLayerPath(
+			stdpath.Join(dc.FullPath()...),
+			false,
+		)
+		if err != nil {
+			errs = support.WrapAndAppend("parsing Collection path", err, errs)
+			continue
 		}
 
-		// get the user from the path index based on the path pattern.
-		switch category {
-		case path.EmailCategory:
-			user = dc.FullPath()[2]
-		case path.ContactsCategory, path.EventsCategory:
-			user = dc.FullPath()[1]
+		category := directory.Category()
+		user := directory.ResourceOwner()
+		service := directory.Service()
+
+		// Check whether restoring data into the specified service is supported
+		switch service {
+		case path.ExchangeService:
+			// Supported
+		default:
+			return errors.Errorf("restore data from service %s not supported", service.String())
 		}
 
-		if _, ok := pathCounter[directory]; !ok {
-			pathCounter[directory] = true
-			folderID, errs = exchange.GetRestoreContainer(&gc.graphService, user, category)
+		if _, ok := pathCounter[directory.String()]; !ok {
+			pathCounter[directory.String()] = true
+
+			switch service {
+			case path.ExchangeService:
+				folderID, errs = exchange.GetRestoreContainer(&gc.graphService, user, category)
+			}
 
 			if errs != nil {
 				return errs
@@ -311,7 +317,10 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 					continue
 				}
 
-				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
+				switch service {
+				case path.ExchangeService:
+					err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
+				}
 
 				if err != nil {
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
@@ -469,7 +478,12 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		for _, user := range scope.Get(selectors.OneDriveUser) {
 			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
-			odcs, err := onedrive.NewCollections(user, &gc.graphService, gc.UpdateStatus).Get(ctx)
+			odcs, err := onedrive.NewCollections(
+				gc.credentials.TenantID,
+				user,
+				&gc.graphService,
+				gc.UpdateStatus,
+			).Get(ctx)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)
 			}

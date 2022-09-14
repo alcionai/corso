@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 // ---------------
@@ -26,15 +27,33 @@ func TestKopiaDataCollectionUnitSuite(t *testing.T) {
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	t := suite.T()
+	expected := []string{
+		"a-tenant",
+		path.ExchangeService.String(),
+		"a-user",
+		path.EmailCategory.String(),
+		"some",
+		"path",
+		"for",
+		"data",
+	}
 
-	path := []string{"some", "path", "for", "data"}
+	b := path.Builder{}.Append("some", "path", "for", "data")
+	pth, err := b.ToDataLayerExchangePathForCategory(
+		"a-tenant",
+		"a-user",
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
 
 	c := kopiaDataCollection{
 		streams: []data.Stream{},
-		path:    path,
+		path:    pth,
 	}
 
-	assert.Equal(t, c.FullPath(), path)
+	// TODO(ashmrtn): Update when data.Collection.FullPath supports path.Path
+	assert.Equal(t, expected, c.FullPath())
 }
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
@@ -80,7 +99,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			c := kopiaDataCollection{
 				streams: test.streams,
-				path:    []string{},
+				path:    nil,
 			}
 
 			count := 0

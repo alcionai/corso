@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[UnknownService-0]
 	_ = x[ExchangeService-1]
+	_ = x[OneDriveService-2]
 }
 
-const _ServiceType_name = "UnknownServiceexchange"
+const _ServiceType_name = "UnknownServiceexchangeonedrive"
 
-var _ServiceType_index = [...]uint8{0, 14, 22}
+var _ServiceType_index = [...]uint8{0, 14, 22, 30}
 
 func (i ServiceType) String() string {
 	if i < 0 || i >= ServiceType(len(_ServiceType_index)-1) {

@@ -4,22 +4,29 @@ import (
 	"github.com/pkg/errors"
 )
 
+var ErrorUnknownService = errors.New("unknown service string")
+
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
 const (
 	UnknownService  ServiceType = iota
 	ExchangeService             // exchange
+	OneDriveService             // onedrive
 )
 
 func toServiceType(service string) ServiceType {
 	switch service {
 	case ExchangeService.String():
 		return ExchangeService
+	case OneDriveService.String():
+		return OneDriveService
 	default:
 		return UnknownService
 	}
 }
+
+var ErrorUnknownCategory = errors.New("unknown category string")
 
 type CategoryType int
 
@@ -29,6 +36,7 @@ const (
 	EmailCategory                 // email
 	ContactsCategory              // contacts
 	EventsCategory                // events
+	FilesCategory                 // files
 )
 
 func ToCategoryType(category string) CategoryType {
@@ -39,6 +47,8 @@ func ToCategoryType(category string) CategoryType {
 		return ContactsCategory
 	case EventsCategory.String():
 		return EventsCategory
+	case FilesCategory.String():
+		return FilesCategory
 	default:
 		return UnknownCategory
 	}
@@ -51,17 +61,20 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		ContactsCategory: {},
 		EventsCategory:   {},
 	},
+	OneDriveService: {
+		FilesCategory: {},
+	},
 }
 
 func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, error) {
 	service := toServiceType(s)
 	if service == UnknownService {
-		return UnknownService, UnknownCategory, errors.Errorf("unknown service string %q", s)
+		return UnknownService, UnknownCategory, errors.Wrapf(ErrorUnknownService, "%q", s)
 	}
 
 	category := ToCategoryType(c)
 	if category == UnknownCategory {
-		return UnknownService, UnknownCategory, errors.Errorf("unknown category string %q", c)
+		return UnknownService, UnknownCategory, errors.Wrapf(ErrorUnknownCategory, "%q", c)
 	}
 
 	if err := validateServiceAndCategory(service, category); err != nil {
@@ -131,6 +144,9 @@ func (rp dataLayerResourcePath) ResourceOwner() string {
 // Folder returns the folder segment embedded in the dataLayerResourcePath.
 func (rp dataLayerResourcePath) Folder() string {
 	endIdx := len(rp.Builder.elements)
+	if endIdx == 4 {
+		return ""
+	}
 
 	if rp.hasItem {
 		endIdx--
@@ -147,4 +163,33 @@ func (rp dataLayerResourcePath) Item() string {
 	}
 
 	return ""
+}
+
+func (rp dataLayerResourcePath) Dir() (Path, error) {
+	if len(rp.elements) <= 4 {
+		return nil, errors.Errorf("unable to shorten path %q", rp)
+	}
+
+	return &dataLayerResourcePath{
+		Builder:  *rp.dir(),
+		service:  rp.service,
+		category: rp.category,
+		hasItem:  false,
+	}, nil
+}
+
+func (rp dataLayerResourcePath) Append(
+	element string,
+	isItem bool,
+) (Path, error) {
+	if rp.hasItem {
+		return nil, errors.New("appending to an item path")
+	}
+
+	return &dataLayerResourcePath{
+		Builder:  *rp.Builder.Append(element),
+		service:  rp.service,
+		category: rp.category,
+		hasItem:  isItem,
+	}, nil
 }
