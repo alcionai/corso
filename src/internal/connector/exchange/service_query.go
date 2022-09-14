@@ -151,10 +151,14 @@ func CollectMailFolders(
 		return errors.Wrap(err, "unable to create iterator during mail folder query service")
 	}
 
+	errUpdater := func(id string, e error) {
+		err = support.WrapAndAppend(id, err, e)
+	}
+
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
 		ctx,
 		qp,
-		err,
+		errUpdater,
 		collections,
 		statusUpdater,
 	)
