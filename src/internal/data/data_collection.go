@@ -3,6 +3,7 @@ package data
 import (
 	"io"
 
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -17,8 +18,8 @@ type Collection interface {
 	// FullPath returns a slice of strings that act as metadata tags for this
 	// DataCollection. Returned items should be ordered from most generic to least
 	// generic. For example, a DataCollection for emails from a specific user
-	// would be {"<tenant id>", "<user ID>", "emails"}.
-	FullPath() []string
+	// would be {"<tenant id>", "exchange", "<user ID>", "emails"}.
+	FullPath() path.Path
 }
 
 // DataStream represents a single item within a DataCollection
