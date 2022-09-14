@@ -6,9 +6,15 @@ on:
 permissions:
   contents: read
   packages: write
+  pull-requests: read
 
 jobs:
+  precheck:
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
+
   Per-SHA-Image:
+    needs: precheck
+    if: needs.precheck.outputs.fileschanged == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -16,7 +22,6 @@ jobs:
     env:
       PLATFORMS: linux/amd64,linux/arm64
     steps:
-    
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -47,17 +52,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - id: hash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
       # deploy the image
       - name: Build image and push to GitHub Container Registry
         env:
-          sha: git_hash=$(git rev-parse --short "$GITHUB_SHA")
+          imageName: ghcr.io/alcionai/corso
         uses: docker/build-push-action@v3
         with:
           context: .
           file: ./build/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: ghcr.io/alcionai/corso:${{ env.sha }}
+          tags: ${{ env.imageName }}:latest,${{ env.imageName }}:${{ steps.hash.outputs.sha_short }}
           # use the github cache
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -28,6 +28,10 @@ func SetRootCmd(ctx context.Context, root *cobra.Command) context.Context {
 // Gets the root cobra command from the context.
 // If no command is found, returns a new, blank command.
 func getRootCmd(ctx context.Context) *cobra.Command {
+	if ctx == nil {
+		return &cobra.Command{}
+	}
+
 	cmdIface := ctx.Value(rootCmdCtx{})
 	cmd, ok := cmdIface.(*cobra.Command)
 
