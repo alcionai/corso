@@ -617,11 +617,9 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	result, err := w.RestoreMultipleItems(
 		ctx,
 		string(stats.SnapshotID),
-		[][]string{
-			// TODO(ashmrtn): Remove when selectors passes paths to wrapper for
-			// restore.
-			fp1.Elements(),
-			fp2.Elements(),
+		[]path.Path{
+			fp1,
+			fp2,
 		})
 
 	require.NoError(t, err)
@@ -815,10 +813,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	t := suite.T()
 
+	itemPath, err := suite.testPath1.Append(testFileName, true)
+	require.NoError(t, err)
+
 	c, err := suite.w.RestoreSingleItem(
 		suite.ctx,
 		string(suite.snapshotID),
-		append(testPath, testFileName),
+		itemPath,
 	)
 	require.NoError(t, err)
 
@@ -840,30 +841,41 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 // TestBackupAndRestoreSingleItem_Errors exercises the public RestoreSingleItem
 // function.
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
+	itemPath, err := suite.testPath1.Append(testFileName, true)
+	require.NoError(suite.T(), err)
+
+	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		true,
+	)
+	require.NoError(suite.T(), err)
+
 	table := []struct {
 		name       string
 		snapshotID string
-		path       []string
+		path       path.Path
 	}{
 		{
 			"EmptyPath",
 			string(suite.snapshotID),
-			[]string{},
+			nil,
 		},
 		{
 			"NoSnapshot",
 			"foo",
-			append(testPath, testFileName),
+			itemPath,
 		},
 		{
 			"TargetNotAFile",
 			string(suite.snapshotID),
-			testPath[:2],
+			suite.testPath1,
 		},
 		{
 			"NonExistentFile",
 			string(suite.snapshotID),
-			append(testPath, "subdir", "foo"),
+			doesntExist,
 		},
 	}
 
@@ -908,10 +920,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	result, err := w.RestoreMultipleItems(
 		ctx,
 		string(stats.SnapshotID),
-		[][]string{
-			// TODO(ashmrtn): Remove when selectors pass path to kopia restore.
-			fp1.Elements(),
-			fp2.Elements(),
+		[]path.Path{
+			fp1,
+			fp2,
 		})
 
 	require.NoError(t, err)
@@ -921,30 +932,46 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
+	itemPath, err := suite.testPath1.Append(testFileName, true)
+	require.NoError(suite.T(), err)
+
+	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		true,
+	)
+	require.NoError(suite.T(), err)
+
 	table := []struct {
 		name       string
 		snapshotID string
-		paths      [][]string
+		paths      []path.Path
 	}{
+		{
+			"NilPaths",
+			string(suite.snapshotID),
+			nil,
+		},
 		{
 			"EmptyPaths",
 			string(suite.snapshotID),
-			[][]string{{}},
+			[]path.Path{},
 		},
 		{
 			"NoSnapshot",
 			"foo",
-			[][]string{append(testPath, testFileName)},
+			[]path.Path{itemPath},
 		},
 		{
 			"TargetNotAFile",
 			string(suite.snapshotID),
-			[][]string{testPath[:2]},
+			[]path.Path{suite.testPath1},
 		},
 		{
 			"NonExistentFile",
 			string(suite.snapshotID),
-			[][]string{append(testPath, "subdir", "foo")},
+			[]path.Path{doesntExist},
 		},
 	}
 
@@ -966,8 +993,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 	assert.NoError(t, suite.w.DeleteSnapshot(suite.ctx, string(suite.snapshotID)))
 
 	// assert the deletion worked
-	itemPath := append(testPath, testFileName)
-	_, err := suite.w.RestoreSingleItem(suite.ctx, string(suite.snapshotID), itemPath)
+	itemPath, err := suite.testPath1.Append(testFileName, true)
+	require.NoError(t, err)
+
+	_, err = suite.w.RestoreSingleItem(suite.ctx, string(suite.snapshotID), itemPath)
 	assert.Error(t, err, "snapshot should be deleted")
 }
 

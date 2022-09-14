@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	stdpath "path"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -28,7 +27,10 @@ const (
 	corsoUser = "corso"
 )
 
-var errNotConnected = errors.New("not connected to repo")
+var (
+	errNotConnected  = errors.New("not connected to repo")
+	errNoRestorePath = errors.New("no restore path given")
+)
 
 type BackupStats struct {
 	SnapshotID          string
@@ -428,7 +430,7 @@ func (w Wrapper) getEntry(
 	itemPath path.Path,
 ) (fs.Entry, error) {
 	if itemPath == nil {
-		return nil, errors.New("no restore path given")
+		return nil, errors.WithStack(errNoRestorePath)
 	}
 
 	man, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
@@ -463,21 +465,18 @@ func (w Wrapper) getEntry(
 func (w Wrapper) collectItems(
 	ctx context.Context,
 	snapshotID string,
-	itemPath []string,
+	itemPath path.Path,
 ) ([]data.Collection, error) {
-	// TODO(ashmrtn): Remove this extra parsing once selectors pass path.Path to
-	// this function.
-	pth, err := path.FromDataLayerPath(stdpath.Join(itemPath...), true)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing to path struct")
+	if itemPath == nil {
+		return nil, errors.WithStack(errNoRestorePath)
 	}
 
-	parentDir, err := pth.Dir()
+	parentDir, err := itemPath.Dir()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting parent directory from path")
 	}
 
-	e, err := w.getEntry(ctx, snapshotID, pth)
+	e, err := w.getEntry(ctx, snapshotID, itemPath)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +504,7 @@ func (w Wrapper) collectItems(
 func (w Wrapper) RestoreSingleItem(
 	ctx context.Context,
 	snapshotID string,
-	itemPath []string,
+	itemPath path.Path,
 ) (data.Collection, error) {
 	c, err := w.collectItems(ctx, snapshotID, itemPath)
 	if err != nil {
@@ -553,8 +552,12 @@ func restoreSingleItem(
 func (w Wrapper) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
-	paths [][]string,
+	paths []path.Path,
 ) ([]data.Collection, error) {
+	if len(paths) == 0 {
+		return nil, errors.WithStack(errNoRestorePath)
+	}
+
 	var (
 		dcs  = []data.Collection{}
 		errs *multierror.Error
