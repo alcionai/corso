@@ -152,6 +152,19 @@ func getStreamItemFunc(
 			return nil
 		}
 
+		itemPath, err := path.FromDataLayerPath(
+			stdpath.Join(streamedEnts.FullPath()...),
+			false,
+		)
+		if err != nil {
+			err = errors.Wrap(err, "parsing collection path")
+			errs = multierror.Append(errs, err)
+
+			logger.Ctx(ctx).Error(err)
+
+			return errs.ErrorOrNil()
+		}
+
 		items := streamedEnts.Items()
 
 		for {
@@ -164,7 +177,16 @@ func getStreamItemFunc(
 					return errs.ErrorOrNil()
 				}
 
-				itemPath := stdpath.Join(append(streamedEnts.FullPath(), e.UUID())...)
+				// For now assuming that item IDs don't need escaping.
+				itemPath, err := itemPath.Append(e.UUID(), true)
+				if err != nil {
+					err = errors.Wrap(err, "getting full item path")
+					errs = multierror.Append(errs, err)
+
+					logger.Ctx(ctx).Error(err)
+
+					continue
+				}
 
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
@@ -180,8 +202,8 @@ func getStreamItemFunc(
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				p := stdpath.Join(append(streamedEnts.FullPath()[1:], e.UUID())...)
-				d := &itemDetails{info: ei.Info(), repoRef: itemPath}
+				p := itemPath.PopFront().String()
+				d := &itemDetails{info: ei.Info(), repoRef: itemPath.String()}
 
 				progress.put(p, d)
 
