@@ -346,7 +346,7 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	for _, entry := range options {
 		_, ok := allowedOptions[entry]
 		if !ok {
-			return nil, fmt.Errorf("unsupported option: %v", entry)
+			return nil, fmt.Errorf("unsupported element passed to buildOptions: %v", entry)
 		}
 
 		returnedOptions = append(returnedOptions, entry)
