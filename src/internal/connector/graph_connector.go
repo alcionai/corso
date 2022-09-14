@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	stdpath "path"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -242,10 +241,9 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	return collections, errs
 }
 
-// RestoreExchangeDataCollection: Utility function to connect to M365 backstore
-// and upload messages from DataCollection.
-// FullPath: tenantId, userId, <collectionCategory>, FolderId
-func (gc *GraphConnector) RestoreExchangeDataCollection(
+// RestoreDataCollections restores data from the specified collections
+// into M365
+func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
 	dcs []data.Collection,
 ) error {
@@ -260,26 +258,29 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 
 	for _, dc := range dcs {
 		var (
-			items = dc.Items()
-			exit  bool
+			items     = dc.Items()
+			directory = dc.FullPath()
+			service   = directory.Service()
+			category  = directory.Category()
+			user      = directory.ResourceOwner()
+			exit      bool
 		)
 
-		// TODO(ashmrtn): Remove this when data.Collection.FullPath supports path.Path
-		directory, err := path.FromDataLayerPath(
-			stdpath.Join(dc.FullPath()...),
-			false,
-		)
-		if err != nil {
-			errs = support.WrapAndAppend("parsing Collection path", err, errs)
-			continue
+		// Check whether restoring data into the specified service is supported
+		switch service {
+		case path.ExchangeService:
+			// Supported
+		default:
+			return errors.Errorf("restore data from service %s not supported", service.String())
 		}
-
-		category := directory.Category()
-		user := directory.ResourceOwner()
 
 		if _, ok := pathCounter[directory.String()]; !ok {
 			pathCounter[directory.String()] = true
-			folderID, errs = exchange.GetRestoreContainer(&gc.graphService, user, category)
+
+			switch service {
+			case path.ExchangeService:
+				folderID, errs = exchange.GetRestoreContainer(&gc.graphService, user, category)
+			}
 
 			if errs != nil {
 				return errs
@@ -305,7 +306,10 @@ func (gc *GraphConnector) RestoreExchangeDataCollection(
 					continue
 				}
 
-				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
+				switch service {
+				case path.ExchangeService:
+					err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
+				}
 
 				if err != nil {
 					errs = support.WrapAndAppend(itemData.UUID(), err, errs)

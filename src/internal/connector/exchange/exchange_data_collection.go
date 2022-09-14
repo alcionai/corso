@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
@@ -104,12 +103,8 @@ func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, Graph
 }
 
 // FullPath returns the Collection's fullPath []string
-func (col *Collection) FullPath() []string {
-	// TODO(ashmrtn): Remove this when data.Collection.FullPath returns a
-	// path.Path. This assumes we don't have adversarial users that use '/' in
-	// their folder names.
-	r := col.fullPath.String()
-	return strings.Split(r, "/")
+func (col *Collection) FullPath() path.Path {
+	return col.fullPath
 }
 
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize

@@ -164,7 +164,16 @@ func getStreamItemFunc(
 					return errs.ErrorOrNil()
 				}
 
-				itemPath := stdpath.Join(append(streamedEnts.FullPath(), e.UUID())...)
+				// For now assuming that item IDs don't need escaping.
+				itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
+				if err != nil {
+					err = errors.Wrap(err, "getting full item path")
+					errs = multierror.Append(errs, err)
+
+					logger.Ctx(ctx).Error(err)
+
+					continue
+				}
 
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
@@ -180,8 +189,8 @@ func getStreamItemFunc(
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				p := stdpath.Join(append(streamedEnts.FullPath()[1:], e.UUID())...)
-				d := &itemDetails{info: ei.Info(), repoRef: itemPath}
+				p := itemPath.PopFront().String()
+				d := &itemDetails{info: ei.Info(), repoRef: itemPath.String()}
 
 				progress.put(p, d)
 
@@ -242,7 +251,11 @@ func inflateDirTree(
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
-		itemPath := s.FullPath()
+		if s.FullPath() == nil {
+			return nil, errors.New("no identifier for collection")
+		}
+
+		itemPath := s.FullPath().Elements()
 
 		if len(itemPath) == 0 {
 			return nil, errors.New("no identifier for collection")
