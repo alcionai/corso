@@ -128,8 +128,8 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	for _, set := range backupDataSets {
 		suite.T().Run(set.String(), func(t *testing.T) {
 			ctx := config.SetViper(tester.NewContext(), suite.vpr)
-			ctx, lgr := logger.SeedLevel(ctx, logger.Development)
-			defer lgr.Sync()
+			ctx, _ = logger.SeedLevel(ctx, logger.Development)
+			defer logger.Flush(ctx)
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
