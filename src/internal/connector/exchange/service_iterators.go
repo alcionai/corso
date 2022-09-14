@@ -454,7 +454,7 @@ func IterateSelectAllContactsForCollections(
 			)
 		}
 
-		if !isPrimarySet {
+		if !isPrimarySet && folder.GetParentFolderId() != nil {
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
 				errs = support.WrapAndAppend(
