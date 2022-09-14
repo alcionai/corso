@@ -31,8 +31,8 @@ const (
 	Status                = "status"
 )
 
-// bus handles all event communication into the events package.
-type bus struct {
+// Bus handles all event communication into the events package.
+type Bus struct {
 	client analytics.Client
 
 	repoID  string // one-way hash that uniquely identifies the repo.
@@ -44,7 +44,7 @@ var (
 	DataPlaneURL string
 )
 
-func NewBus(repoProvider, bucket, prefix, tenantID string) bus {
+func NewBus(repoProvider, bucket, prefix, tenantID string) Bus {
 	hash := repoHash(repoProvider, bucket, prefix, tenantID)
 
 	envWK := os.Getenv("RUDDERSTACK_CORSO_WRITE_KEY")
@@ -62,14 +62,14 @@ func NewBus(repoProvider, bucket, prefix, tenantID string) bus {
 		client = analytics.New(WriteKey, DataPlaneURL)
 	}
 
-	return bus{
+	return Bus{
 		client:  client,
 		repoID:  hash,
 		version: "vTODO", // TODO: corso versioning implementation
 	}
 }
 
-func (b bus) Close() error {
+func (b Bus) Close() error {
 	if b.client == nil {
 		return nil
 	}
@@ -77,7 +77,7 @@ func (b bus) Close() error {
 	return b.client.Close()
 }
 
-func (b bus) Event(key string, data map[string]any) {
+func (b Bus) Event(key string, data map[string]any) {
 	if b.client == nil {
 		return
 	}

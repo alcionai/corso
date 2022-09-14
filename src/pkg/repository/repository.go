@@ -25,8 +25,10 @@ type Repository struct {
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
-	Account    account.Account // the user's m365 account connection details
-	Storage    storage.Storage // the storage provider details and configuration
+	Account account.Account // the user's m365 account connection details
+	Storage storage.Storage // the storage provider details and configuration
+
+	// Bus        events.Bus
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
 }
