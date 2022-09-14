@@ -546,6 +546,7 @@ func IterateSelectAllContactsForCollections(
 				err,
 				errs,
 			)
+
 			return true
 		}
 
