@@ -100,7 +100,8 @@ func (d *Details) Add(repoRef string, info ItemInfo) {
 type DetailsEntry struct {
 	// TODO: `RepoRef` is currently the full path to the item in Kopia
 	// This can be optimized.
-	RepoRef string `json:"repoRef"`
+	RepoRef  string `json:"repoRef"`
+	ShortRef string `json:"shortRef"`
 	ItemInfo
 }
 
@@ -120,7 +121,7 @@ func (de DetailsEntry) MinimumPrintable() any {
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
 func (de DetailsEntry) Headers() []string {
-	hs := []string{"Repo Ref"}
+	hs := []string{"Short Ref"}
 
 	if de.ItemInfo.Exchange != nil {
 		hs = append(hs, de.ItemInfo.Exchange.Headers()...)
@@ -139,7 +140,7 @@ func (de DetailsEntry) Headers() []string {
 
 // Values returns the values matching the Headers list.
 func (de DetailsEntry) Values() []string {
-	vs := []string{de.RepoRef}
+	vs := []string{de.ShortRef}
 
 	if de.ItemInfo.Exchange != nil {
 		vs = append(vs, de.ItemInfo.Exchange.Values()...)
