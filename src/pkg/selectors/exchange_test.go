@@ -779,30 +779,34 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	)
 
 	var (
-		pth = stubPath(suite.T(), usr, []string{fld, mail}, path.EmailCategory)
-		es  = NewExchangeRestore()
+		pth   = stubPath(suite.T(), usr, []string{fld, mail}, path.EmailCategory)
+		short = "thisisahashofsomekind"
+		es    = NewExchangeRestore()
 	)
 
 	table := []struct {
-		name   string
-		scope  []ExchangeScope
-		expect assert.BoolAssertionFunc
+		name     string
+		scope    []ExchangeScope
+		shortRef string
+		expect   assert.BoolAssertionFunc
 	}{
-		{"all user's items", es.Users(Any()), assert.True},
-		{"no user's items", es.Users(None()), assert.False},
-		{"matching user", es.Users([]string{usr}), assert.True},
-		{"non-matching user", es.Users([]string{"smarf"}), assert.False},
-		{"one of multiple users", es.Users([]string{"smarf", usr}), assert.True},
-		{"all folders", es.MailFolders(Any(), Any()), assert.True},
-		{"no folders", es.MailFolders(Any(), None()), assert.False},
-		{"matching folder", es.MailFolders(Any(), []string{fld}), assert.True},
-		{"non-matching folder", es.MailFolders(Any(), []string{"smarf"}), assert.False},
-		{"one of multiple folders", es.MailFolders(Any(), []string{"smarf", fld}), assert.True},
-		{"all mail", es.Mails(Any(), Any(), Any()), assert.True},
-		{"no mail", es.Mails(Any(), Any(), None()), assert.False},
-		{"matching mail", es.Mails(Any(), Any(), []string{mail}), assert.True},
-		{"non-matching mail", es.Mails(Any(), Any(), []string{"smarf"}), assert.False},
-		{"one of multiple mails", es.Mails(Any(), Any(), []string{"smarf", mail}), assert.True},
+		{"all user's items", es.Users(Any()), "", assert.True},
+		{"no user's items", es.Users(None()), "", assert.False},
+		{"matching user", es.Users([]string{usr}), "", assert.True},
+		{"non-matching user", es.Users([]string{"smarf"}), "", assert.False},
+		{"one of multiple users", es.Users([]string{"smarf", usr}), "", assert.True},
+		{"all folders", es.MailFolders(Any(), Any()), "", assert.True},
+		{"no folders", es.MailFolders(Any(), None()), "", assert.False},
+		{"matching folder", es.MailFolders(Any(), []string{fld}), "", assert.True},
+		{"non-matching folder", es.MailFolders(Any(), []string{"smarf"}), "", assert.False},
+		{"one of multiple folders", es.MailFolders(Any(), []string{"smarf", fld}), "", assert.True},
+		{"all mail", es.Mails(Any(), Any(), Any()), "", assert.True},
+		{"no mail", es.Mails(Any(), Any(), None()), "", assert.False},
+		{"matching mail", es.Mails(Any(), Any(), []string{mail}), "", assert.True},
+		{"non-matching mail", es.Mails(Any(), Any(), []string{"smarf"}), "", assert.False},
+		{"one of multiple mails", es.Mails(Any(), Any(), []string{"smarf", mail}), "", assert.True},
+		{"mail short ref", es.Mails(Any(), Any(), []string{short}), short, assert.True},
+		{"non-leaf short ref", es.Mails([]string{short}, []string{short}, []string{"foo"}), short, assert.False},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -810,7 +814,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			var aMatch bool
 			for _, scope := range scopes {
 				pv := ExchangeMail.pathValues(pth)
-				if matchesPathValues(scope, ExchangeMail, pv) {
+				if matchesPathValues(scope, ExchangeMail, pv, short) {
 					aMatch = true
 					break
 				}
@@ -1072,7 +1076,8 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 }
 
 func (suite *ExchangeSelectorSuite) TestPasses() {
-	deets := details.DetailsEntry{}
+	short := "thisisahashofsomekind"
+	entry := details.DetailsEntry{ShortRef: short}
 
 	const (
 		mid = "mailID"
@@ -1118,7 +1123,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 			result := passes(
 				cat,
 				cat.pathValues(pth),
-				deets,
+				entry,
 				test.excludes,
 				test.filters,
 				test.includes)
