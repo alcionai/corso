@@ -125,7 +125,7 @@ func (de DetailsEntry) MinimumPrintable() any {
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
 func (de DetailsEntry) Headers() []string {
-	hs := []string{"Short Ref"}
+	hs := []string{"Reference"}
 
 	if de.ItemInfo.Exchange != nil {
 		hs = append(hs, de.ItemInfo.Exchange.Headers()...)
