@@ -27,7 +27,10 @@ const (
 	corsoUser = "corso"
 )
 
-var errNotConnected = errors.New("not connected to repo")
+var (
+	errNotConnected  = errors.New("not connected to repo")
+	errNoRestorePath = errors.New("no restore path given")
+)
 
 type BackupStats struct {
 	SnapshotID          string
@@ -427,7 +430,7 @@ func (w Wrapper) getEntry(
 	itemPath path.Path,
 ) (fs.Entry, error) {
 	if itemPath == nil {
-		return nil, errors.New("no restore path given")
+		return nil, errors.WithStack(errNoRestorePath)
 	}
 
 	man, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
@@ -464,6 +467,10 @@ func (w Wrapper) collectItems(
 	snapshotID string,
 	itemPath path.Path,
 ) ([]data.Collection, error) {
+	if itemPath == nil {
+		return nil, errors.WithStack(errNoRestorePath)
+	}
+
 	parentDir, err := itemPath.Dir()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting parent directory from path")
@@ -547,6 +554,10 @@ func (w Wrapper) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 ) ([]data.Collection, error) {
+	if len(paths) == 0 {
+		return nil, errors.WithStack(errNoRestorePath)
+	}
+
 	var (
 		dcs  = []data.Collection{}
 		errs *multierror.Error
