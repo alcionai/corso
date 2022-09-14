@@ -42,7 +42,6 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 		path:    pth,
 	}
 
-	// TODO(ashmrtn): Update when data.Collection.FullPath supports path.Path
 	assert.Equal(t, pth, c.FullPath())
 }
 
