@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	stdpath "path"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -259,23 +258,13 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	for _, dc := range dcs {
 		var (
-			items = dc.Items()
-			exit  bool
+			items     = dc.Items()
+			directory = dc.FullPath()
+			service   = directory.Service()
+			category  = directory.Category()
+			user      = directory.ResourceOwner()
+			exit      bool
 		)
-
-		// TODO(ashmrtn): Remove this when data.Collection.FullPath supports path.Path
-		directory, err := path.FromDataLayerPath(
-			stdpath.Join(dc.FullPath()...),
-			false,
-		)
-		if err != nil {
-			errs = support.WrapAndAppend("parsing Collection path", err, errs)
-			continue
-		}
-
-		category := directory.Category()
-		user := directory.ResourceOwner()
-		service := directory.Service()
 
 		// Check whether restoring data into the specified service is supported
 		switch service {
