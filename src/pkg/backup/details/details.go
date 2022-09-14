@@ -86,10 +86,14 @@ type Details struct {
 	mu sync.Mutex `json:"-"`
 }
 
-func (d *Details) Add(repoRef string, info ItemInfo) {
+func (d *Details) Add(repoRef, shortRef string, info ItemInfo) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.Entries = append(d.Entries, DetailsEntry{RepoRef: repoRef, ItemInfo: info})
+	d.Entries = append(d.Entries, DetailsEntry{
+		RepoRef:  repoRef,
+		ShortRef: shortRef,
+		ItemInfo: info,
+	})
 }
 
 // --------------------------------------------------------------------------------
