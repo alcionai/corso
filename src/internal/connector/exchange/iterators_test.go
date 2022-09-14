@@ -131,6 +131,12 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			scope:             contactScope,
 			transformer:       models.CreateContactFromDiscriminatorValue,
 		}, {
+			name:              "Contact Folder Traversal",
+			queryFunction:     GetAllContactFolderNamesForUser,
+			iterativeFunction: IterateSelectAllContactsForCollections,
+			scope:             contactScope,
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+		}, {
 			name:              "Events Iterative Check",
 			queryFunction:     GetAllCalendarNamesForUser,
 			iterativeFunction: IterateSelectAllEventsFromCalendars,
