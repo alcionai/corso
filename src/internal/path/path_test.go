@@ -365,6 +365,35 @@ func (suite *PathUnitSuite) TestPopFront() {
 	}
 }
 
+func (suite *PathUnitSuite) TestShortRef() {
+	pb := Builder{}.Append("this", "is", "a", "path")
+	ref := pb.ShortRef()
+	assert.Len(suite.T(), ref, shortRefCharacters)
+}
+
+func (suite *PathUnitSuite) TestShortRefIsStable() {
+	t := suite.T()
+	pb := Builder{}.Append("this", "is", "a", "path")
+	prevRef := pb.ShortRef()
+	assert.Len(t, prevRef, shortRefCharacters)
+
+	for i := 0; i < 5; i++ {
+		ref := pb.ShortRef()
+		assert.Len(t, ref, shortRefCharacters)
+		assert.Equal(t, prevRef, ref, "ShortRef changed between calls")
+
+		prevRef = ref
+	}
+}
+
+func (suite *PathUnitSuite) TestShortRefIsUnique() {
+	pb1 := Builder{}.Append("this", "is", "a", "path")
+	pb2 := pb1.Append("also")
+
+	require.NotEqual(suite.T(), pb1, pb2)
+	assert.NotEqual(suite.T(), pb1.ShortRef(), pb2.ShortRef())
+}
+
 func (suite *PathUnitSuite) TestFromStringErrors() {
 	table := []struct {
 		name        string
