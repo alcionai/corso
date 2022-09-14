@@ -152,7 +152,7 @@ func CollectMailFolders(
 	}
 
 	errUpdater := func(id string, e error) {
-		err = support.WrapAndAppend(id, err, e)
+		err = support.WrapAndAppend(id, e, err)
 	}
 
 	callbackFunc := IterateFilterFolderDirectoriesForCollections(
