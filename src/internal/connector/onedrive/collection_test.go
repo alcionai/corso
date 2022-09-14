@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"strings"
 	"sync"
 	"testing"
 
@@ -64,11 +63,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 
 	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
 	require.NotNil(t, coll)
-	assert.Equal(
-		t,
-		strings.Split(folderPath.String(), "/"),
-		coll.FullPath(),
-	)
+	assert.Equal(t, folderPath, coll.FullPath())
 
 	testItemID := "fakeItemID"
 	testItemName := "itemName"

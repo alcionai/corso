@@ -51,13 +51,6 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 	tenant := "a-tenant"
 	user := "a-user"
 	folder := "a-folder"
-	expected := []string{
-		tenant,
-		path.ExchangeService.String(),
-		user,
-		path.EmailCategory.String(),
-		folder,
-	}
 
 	fullPath, err := path.Builder{}.Append(folder).ToDataLayerExchangePathForCategory(
 		tenant,
@@ -72,8 +65,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 		fullPath: fullPath,
 	}
 
-	// TODO(ashmrtn): Update when data.Collection.FullPath returns path.Path.
-	assert.Equal(t, expected, edc.FullPath())
+	assert.Equal(t, fullPath, edc.FullPath())
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchangeDataCollection() {
@@ -95,11 +87,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 		fullPath: fullPath,
 	}
 	suite.Equal(name, edc.user)
-	suite.Contains(edc.FullPath(), fullPath.Tenant())
-	suite.Contains(edc.FullPath(), fullPath.Service().String())
-	suite.Contains(edc.FullPath(), fullPath.Category().String())
-	suite.Contains(edc.FullPath(), fullPath.ResourceOwner())
-	suite.Contains(edc.FullPath(), fullPath.Folder())
+	suite.Equal(fullPath, edc.FullPath())
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {

@@ -24,7 +24,7 @@ func TestMockExchangeCollectionSuite(t *testing.T) {
 }
 
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
-	mdc := mockconnector.NewMockExchangeCollection([]string{"foo", "bar"}, 2)
+	mdc := mockconnector.NewMockExchangeCollection(nil, 2)
 
 	messagesRead := 0
 
@@ -41,7 +41,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 // functions by verifying no failures on (de)serializing steps using kiota serialization library
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
 	t := suite.T()
-	mdc := mockconnector.NewMockExchangeCollection([]string{"foo", "bar"}, 3)
+	mdc := mockconnector.NewMockExchangeCollection(nil, 3)
 	buf := &bytes.Buffer{}
 
 	for stream := range mdc.Items() {
