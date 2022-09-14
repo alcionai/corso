@@ -623,7 +623,7 @@ func iterateFindContainerID(
 type UpdateListFunc func(gs graph.Service, user, m365ID string) ([]string, error)
 
 func ReturnContactIDsFromDirectory(gs graph.Service, user, m365ID string) ([]string, error) {
-	options, err := optionsForContactFoldersItem([]string{""})
+	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
 	if err != nil {
 		return nil, err
 	}
