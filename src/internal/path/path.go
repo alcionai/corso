@@ -74,6 +74,10 @@ type Path interface {
 	// If removing the right-most element would discard one of the required prefix
 	// elements then an error is returned.
 	Dir() (Path, error)
+	// Append returns a new Path object with the given element added to the end of
+	// the old Path if possible. If the old Path is an item Path then Append
+	// returns an error.
+	Append(element string, isItem bool) (Path, error)
 }
 
 // Builder is a simple path representation that only tracks path elements. It

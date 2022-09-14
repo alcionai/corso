@@ -177,3 +177,19 @@ func (rp dataLayerResourcePath) Dir() (Path, error) {
 		hasItem:  false,
 	}, nil
 }
+
+func (rp dataLayerResourcePath) Append(
+	element string,
+	isItem bool,
+) (Path, error) {
+	if rp.hasItem {
+		return nil, errors.New("appending to an item path")
+	}
+
+	return &dataLayerResourcePath{
+		Builder:  *rp.Builder.Append(element),
+		service:  rp.service,
+		category: rp.category,
+		hasItem:  isItem,
+	}, nil
+}

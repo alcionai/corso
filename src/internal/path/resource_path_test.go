@@ -348,3 +348,49 @@ func (suite *PopulatedDataLayerResourcePath) TestItem() {
 		})
 	}
 }
+
+func (suite *PopulatedDataLayerResourcePath) TestAppend() {
+	newElement := "someElement"
+	isItem := []struct {
+		name    string
+		hasItem bool
+		// Used if the starting path is a folder.
+		expectedFolder string
+		expectedItem   string
+	}{
+		{
+			name:           "Item",
+			hasItem:        true,
+			expectedFolder: strings.Join(rest, "/"),
+			expectedItem:   newElement,
+		},
+		{
+			name:    "Directory",
+			hasItem: false,
+			expectedFolder: strings.Join(
+				append(append([]string{}, rest...), newElement),
+				"/",
+			),
+			expectedItem: "",
+		},
+	}
+
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t1 *testing.T) {
+			for _, test := range isItem {
+				t1.Run(test.name, func(t *testing.T) {
+					newPath, err := suite.paths[m.isItem].Append(newElement, test.hasItem)
+
+					// Items don't allow appending.
+					if m.isItem {
+						assert.Error(t, err)
+						return
+					}
+
+					assert.Equal(t, test.expectedFolder, newPath.Folder())
+					assert.Equal(t, test.expectedItem, newPath.Item())
+				})
+			}
+		})
+	}
+}
