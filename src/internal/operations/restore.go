@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -13,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -112,22 +112,36 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return errors.New("nothing to restore: no items in the backup match the provided selectors")
 	}
 
-	// todo: use path pkg for this
 	fdsPaths := fds.Paths()
-	paths := make([][]string, len(fdsPaths))
+	paths := make([]path.Path, len(fdsPaths))
+
+	var parseErrs *multierror.Error
 
 	for i := range fdsPaths {
-		paths[i] = strings.Split(fdsPaths[i], "/")
+		p, err := path.FromDataLayerPath(fdsPaths[i], true)
+		if err != nil {
+			parseErrs = multierror.Append(
+				parseErrs,
+				errors.Wrap(err, "parsing backed up path"),
+			)
+
+			continue
+		}
+
+		paths[i] = p
 	}
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
-		opStats.readErr = err
+
+		parseErrs = multierror.Append(parseErrs, err)
+		opStats.readErr = parseErrs.ErrorOrNil()
 
 		return err
 	}
 
+	opStats.readErr = parseErrs.ErrorOrNil()
 	opStats.cs = dcs
 
 	// restore those collections using graph

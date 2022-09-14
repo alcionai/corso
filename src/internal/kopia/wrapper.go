@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	stdpath "path"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -463,21 +462,14 @@ func (w Wrapper) getEntry(
 func (w Wrapper) collectItems(
 	ctx context.Context,
 	snapshotID string,
-	itemPath []string,
+	itemPath path.Path,
 ) ([]data.Collection, error) {
-	// TODO(ashmrtn): Remove this extra parsing once selectors pass path.Path to
-	// this function.
-	pth, err := path.FromDataLayerPath(stdpath.Join(itemPath...), true)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing to path struct")
-	}
-
-	parentDir, err := pth.Dir()
+	parentDir, err := itemPath.Dir()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting parent directory from path")
 	}
 
-	e, err := w.getEntry(ctx, snapshotID, pth)
+	e, err := w.getEntry(ctx, snapshotID, itemPath)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +497,7 @@ func (w Wrapper) collectItems(
 func (w Wrapper) RestoreSingleItem(
 	ctx context.Context,
 	snapshotID string,
-	itemPath []string,
+	itemPath path.Path,
 ) (data.Collection, error) {
 	c, err := w.collectItems(ctx, snapshotID, itemPath)
 	if err != nil {
@@ -553,7 +545,7 @@ func restoreSingleItem(
 func (w Wrapper) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
-	paths [][]string,
+	paths []path.Path,
 ) ([]data.Collection, error) {
 	var (
 		dcs  = []data.Collection{}
