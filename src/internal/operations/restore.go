@@ -122,7 +122,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		if err != nil {
 			parseErrs = multierror.Append(
 				parseErrs,
-				errors.Wrap(err, "parsing backed up path"),
+				errors.Wrap(err, "parsing details entry path"),
 			)
 
 			continue
