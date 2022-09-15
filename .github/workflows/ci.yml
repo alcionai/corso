@@ -82,6 +82,8 @@ jobs:
           CORSO_CI_TESTS: true 
           CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_M356_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          RUDDERSTACK_CORSO_WRITE_KEY: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
+          RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           set -euo pipefail
