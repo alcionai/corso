@@ -66,16 +66,37 @@ func printJSON(ctx context.Context, dm DetailsModel) {
 	print.All(ctx, ents...)
 }
 
-// Paths returns the list of Paths extracted from the Entries slice.
+// Paths returns the list of Paths for non-folder items extracted from the
+// Entries slice.
 func (dm DetailsModel) Paths() []string {
-	ents := dm.Entries
-	r := make([]string, len(ents))
+	r := make([]string, 0, len(dm.Entries))
 
-	for i := range ents {
-		r[i] = ents[i].RepoRef
+	for _, ent := range dm.Entries {
+		if ent.Folder != nil {
+			continue
+		}
+
+		r = append(r, ent.RepoRef)
 	}
 
 	return r
+}
+
+// Items returns a slice of *ItemInfo that does not contain any FolderInfo
+// entries. Required because not all folders in the details are valid resource
+// paths.
+func (dm DetailsModel) Items() []*DetailsEntry {
+	res := make([]*DetailsEntry, 0, len(dm.Entries))
+
+	for i := 0; i < len(dm.Entries); i++ {
+		if dm.Entries[i].Folder != nil {
+			continue
+		}
+
+		res = append(res, &dm.Entries[i])
+	}
+
+	return res
 }
 
 // --------------------------------------------------------------------------------
