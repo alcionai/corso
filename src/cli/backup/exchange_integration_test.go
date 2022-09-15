@@ -270,11 +270,25 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 			// compare the output
 			result := recorder.String()
 
-			for i, ent := range deets.Entries {
+			i := 0
+			foundFolders := 0
+
+			for _, ent := range deets.Entries {
+				// Skip folders as they don't mean anything to the end user.
+				if ent.Folder != nil {
+					foundFolders++
+					continue
+				}
+
 				t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
 					assert.Contains(t, result, ent.ShortRef)
 				})
+
+				i++
 			}
+
+			// At least the prefix of the path should be encoded as folders.
+			assert.Greater(suite.T(), foundFolders, 4)
 		})
 	}
 }
