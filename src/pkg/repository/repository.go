@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -30,7 +31,7 @@ type Repository struct {
 	Storage storage.Storage // the storage provider details and configuration
 	Opts    control.Options
 
-	Bus        events.Bus
+	Bus        common.Eventer
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
 }
@@ -72,7 +73,7 @@ func Initialize(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct, opts),
+		Bus:        events.NewBus(s, acct.ID(), opts),
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -116,7 +117,7 @@ func Connect(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct, opts),
+		Bus:        events.NewBus(s, acct.ID(), opts),
 		dataLayer:  w,
 		modelStore: ms,
 	}

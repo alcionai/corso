@@ -9,7 +9,6 @@ import (
 
 	analytics "github.com/rudderlabs/analytics-go"
 
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -54,12 +53,12 @@ var (
 	DataPlaneURL string
 )
 
-func NewBus(s storage.Storage, a account.Account, opts control.Options) Bus {
+func NewBus(s storage.Storage, tenID string, opts control.Options) Bus {
 	if opts.DisableMetrics {
 		return Bus{}
 	}
 
-	hash := repoHash(s, a)
+	hash := repoHash(s, tenID)
 
 	envWK := os.Getenv("RUDDERSTACK_CORSO_WRITE_KEY")
 	if len(envWK) > 0 {
@@ -132,25 +131,9 @@ func storageID(s storage.Storage) string {
 	return id
 }
 
-func accountID(a account.Account) string {
-	var id string
-
-	switch a.Provider {
-	case account.ProviderM365:
-		m, err := a.M365Config()
-		if err != nil {
-			return id
-		}
-
-		id += m.TenantID
-	}
-
-	return id
-}
-
-func repoHash(s storage.Storage, a account.Account) string {
+func repoHash(s storage.Storage, tenID string) string {
 	sum := md5.Sum(
-		[]byte(storageID(s) + accountID(a)),
+		[]byte(storageID(s) + tenID),
 	)
 
 	return fmt.Sprintf("%x", sum)
