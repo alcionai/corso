@@ -80,6 +80,3 @@ issues:
       linters:
       - revive
       text: "import-shadowing:.*'suite' shadows"
-    # Temporarily skip linting wsl on `connector` package until fixes are merged.
-    - path: internal/connector/onedrive
-      linters: wsl
