@@ -22,7 +22,7 @@ func AddOperationFlags(parent *cobra.Command) {
 // AddGlobalOperationFlags adds the global operations flag set.
 func AddGlobalOperationFlags(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
-	fs.BoolVar(&noMetrics, "noMetrics", false, "disable anonymous information gathering")
+	fs.BoolVar(&noMetrics, "no-metrics", false, "disable anonymous usage information gathering")
 }
 
 // Control produces the control options based on the user's flags.
