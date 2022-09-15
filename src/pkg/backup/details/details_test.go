@@ -217,12 +217,14 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 			name: "MultipleFolders",
 			folders: []details.FolderEntry{
 				{
-					RepoRef:  "rr1",
-					ShortRef: "sr1",
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
 				},
 				{
-					RepoRef:  "rr2",
-					ShortRef: "sr2",
+					RepoRef:   "rr2",
+					ShortRef:  "sr2",
+					ParentRef: "pr2",
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2"},
@@ -231,20 +233,24 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 			name: "MultipleFoldersWithRepeats",
 			folders: []details.FolderEntry{
 				{
-					RepoRef:  "rr1",
-					ShortRef: "sr1",
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
 				},
 				{
-					RepoRef:  "rr2",
-					ShortRef: "sr2",
+					RepoRef:   "rr2",
+					ShortRef:  "sr2",
+					ParentRef: "pr2",
 				},
 				{
-					RepoRef:  "rr1",
-					ShortRef: "sr1",
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
 				},
 				{
-					RepoRef:  "rr3",
-					ShortRef: "sr3",
+					RepoRef:   "rr3",
+					ShortRef:  "sr3",
+					ParentRef: "pr3",
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2", "sr3"},

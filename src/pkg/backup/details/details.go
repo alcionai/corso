@@ -114,13 +114,14 @@ type Details struct {
 	knownFolders map[string]struct{} `json:"-"`
 }
 
-func (d *Details) Add(repoRef, shortRef string, info ItemInfo) {
+func (d *Details) Add(repoRef, shortRef, parentRef string, info ItemInfo) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Entries = append(d.Entries, DetailsEntry{
-		RepoRef:  repoRef,
-		ShortRef: shortRef,
-		ItemInfo: info,
+		RepoRef:   repoRef,
+		ShortRef:  shortRef,
+		ParentRef: parentRef,
+		ItemInfo:  info,
 	})
 }
 
@@ -142,9 +143,10 @@ func (d *Details) AddFolders(folders []FolderEntry) {
 
 		d.knownFolders[folder.ShortRef] = struct{}{}
 		d.Entries = append(d.Entries, DetailsEntry{
-			RepoRef:  folder.RepoRef,
-			ShortRef: folder.ShortRef,
-			ItemInfo: folder.Info,
+			RepoRef:   folder.RepoRef,
+			ShortRef:  folder.ShortRef,
+			ParentRef: folder.ParentRef,
+			ItemInfo:  folder.Info,
 		})
 	}
 }
@@ -157,8 +159,9 @@ func (d *Details) AddFolders(folders []FolderEntry) {
 type DetailsEntry struct {
 	// TODO: `RepoRef` is currently the full path to the item in Kopia
 	// This can be optimized.
-	RepoRef  string `json:"repoRef"`
-	ShortRef string `json:"shortRef"`
+	RepoRef   string `json:"repoRef"`
+	ShortRef  string `json:"shortRef"`
+	ParentRef string `json:"parentRef,omitempty"`
 	ItemInfo
 }
 
