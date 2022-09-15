@@ -366,9 +366,29 @@ func (suite *PathUnitSuite) TestPopFront() {
 }
 
 func (suite *PathUnitSuite) TestShortRef() {
-	pb := Builder{}.Append("this", "is", "a", "path")
-	ref := pb.ShortRef()
-	assert.Len(suite.T(), ref, shortRefCharacters)
+	table := []struct {
+		name          string
+		inputElements []string
+		expectedLen   int
+	}{
+		{
+			name:          "PopulatedPath",
+			inputElements: []string{"this", "is", "a", "path"},
+			expectedLen:   shortRefCharacters,
+		},
+		{
+			name:          "EmptyPath",
+			inputElements: nil,
+			expectedLen:   0,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			pb := Builder{}.Append(test.inputElements...)
+			ref := pb.ShortRef()
+			assert.Len(suite.T(), ref, test.expectedLen)
+		})
+	}
 }
 
 func (suite *PathUnitSuite) TestShortRefIsStable() {

@@ -279,10 +279,11 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 			switch service {
 			case path.ExchangeService:
-				folderID, errs = exchange.GetRestoreContainer(&gc.graphService, user, category)
+				folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
 			}
 
 			if errs != nil {
+				fmt.Println("RestoreContainer Failed")
 				return errs
 			}
 		}
@@ -294,7 +295,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 			case itemData, ok := <-items:
 				if !ok {
 					exit = true
-					break
+					continue
 				}
 				attempts++
 
@@ -302,7 +303,12 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 				_, err := buf.ReadFrom(itemData.ToReader())
 				if err != nil {
-					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
+					errs = support.WrapAndAppend(
+						itemData.UUID()+": byteReadError during RestoreDataCollection",
+						err,
+						errs,
+					)
+
 					continue
 				}
 
@@ -312,7 +318,13 @@ func (gc *GraphConnector) RestoreDataCollections(
 				}
 
 				if err != nil {
-					errs = support.WrapAndAppend(itemData.UUID(), err, errs)
+					//  More information to be here
+					errs = support.WrapAndAppend(
+						itemData.UUID()+": failed to upload RestoreExchangeObject: "+service.String()+"-"+category.String(),
+						err,
+						errs,
+					)
+
 					continue
 				}
 				successes++

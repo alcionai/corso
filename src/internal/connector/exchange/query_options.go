@@ -6,6 +6,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
+	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -242,6 +243,26 @@ func optionsForMailFoldersItem(
 	return options, nil
 }
 
+// optionsForContactFoldersItem is the same as optionsForContacts.
+// TODO: Remove after Issue #828; requires updating msgraph to v0.34
+func optionsForContactFoldersItem(
+	moreOps []string,
+) (*mscontactfolderitem.ContactsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, contacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &mscontactfolderitem.ContactsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontactfolderitem.ContactsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
 // optionsForEvents ensures valid option inputs for exchange.Events
 // @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForEvents(moreOps []string) (*msevents.EventsRequestBuilderGetRequestConfiguration, error) {
@@ -325,7 +346,7 @@ func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
 	for _, entry := range options {
 		_, ok := allowedOptions[entry]
 		if !ok {
-			return nil, fmt.Errorf("unsupported option: %v", entry)
+			return nil, fmt.Errorf("unsupported element passed to buildOptions: %v", entry)
 		}
 
 		returnedOptions = append(returnedOptions, entry)

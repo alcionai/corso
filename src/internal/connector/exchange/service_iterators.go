@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -13,20 +14,6 @@ import (
 )
 
 var errNilResolver = errors.New("nil resolver")
-
-// descendable represents objects that implement msgraph-sdk-go/models.entityable
-// and have the concept of a "parent folder".
-type descendable interface {
-	GetId() *string
-	GetParentFolderId() *string
-}
-
-// displayable represents objects that implement msgraph-sdk-fo/models.entityable
-// and have the concept of a display name.
-type displayable interface {
-	GetId() *string
-	GetDisplayName() *string
-}
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
@@ -420,6 +407,128 @@ func IterateFilterFolderDirectoriesForCollections(
 	}
 }
 
+func IterateSelectAllContactsForCollections(
+	ctx context.Context,
+	qp graph.QueryParams,
+	errUpdater func(string, error),
+	collections map[string]*Collection,
+	statusUpdater support.StatusUpdater,
+) func(any) bool {
+	var isPrimarySet bool
+
+	return func(folderItem any) bool {
+		folder, ok := folderItem.(models.ContactFolderable)
+		if !ok {
+			errUpdater(
+				qp.User,
+				errors.New("casting folderItem to models.ContactFolderable"),
+			)
+		}
+
+		if !isPrimarySet && folder.GetParentFolderId() != nil {
+			service, err := createService(qp.Credentials, qp.FailFast)
+			if err != nil {
+				errUpdater(
+					qp.User,
+					errors.Wrap(err, "unable to create service during IterateSelectAllContactsForCollections"),
+				)
+
+				return true
+			}
+
+			contactIDS, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetParentFolderId())
+			if err != nil {
+				errUpdater(
+					qp.User,
+					err,
+				)
+
+				return true
+			}
+
+			dirPath, err := path.Builder{}.Append(*folder.GetParentFolderId()).ToDataLayerExchangePathForCategory(
+				qp.Credentials.TenantID,
+				qp.User,
+				path.ContactsCategory,
+				false,
+			)
+			if err != nil {
+				errUpdater(
+					qp.User,
+					err,
+				)
+
+				return true
+			}
+
+			edc := NewCollection(
+				qp.User,
+				dirPath,
+				contacts,
+				service,
+				statusUpdater,
+			)
+			edc.jobs = append(edc.jobs, contactIDS...)
+			collections["Contacts"] = &edc
+			isPrimarySet = true
+		}
+
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			errUpdater(
+				qp.User,
+				err,
+			)
+
+			return true
+		}
+
+		folderID := *folder.GetId()
+
+		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, folderID)
+		if err != nil {
+			errUpdater(
+				qp.User,
+				err,
+			)
+
+			return true
+		}
+
+		if folder.GetDisplayName() == nil ||
+			listOfIDs == nil {
+			return true // Invalid state TODO: How should this be named
+		}
+
+		dirPath, err := path.Builder{}.Append(*folder.GetId()).ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			path.ContactsCategory,
+			false,
+		)
+		if err != nil {
+			errUpdater(
+				qp.User,
+				err,
+			)
+
+			return true
+		}
+
+		edc := NewCollection(
+			qp.User,
+			dirPath,
+			contacts,
+			service,
+			statusUpdater,
+		)
+		edc.jobs = append(edc.jobs, listOfIDs...)
+		collections[*folder.GetId()] = &edc
+
+		return true
+	}
+}
+
 // iterateFindContainerID is a utility function that supports finding
 // M365 folders objects that matches the folderName. Iterator callback function
 // will work on folderCollection responses whose objects implement
@@ -431,7 +540,7 @@ func iterateFindContainerID(
 	containerID **string,
 	containerName, errorIdentifier string,
 	isCalendar bool,
-	errs error,
+	errUpdater func(string, error),
 ) func(any) bool {
 	return func(entry any) bool {
 		if isCalendar {
@@ -446,10 +555,9 @@ func iterateFindContainerID(
 
 		folder, ok := entry.(displayable)
 		if !ok {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				errorIdentifier,
 				errors.New("struct does not implement displayable"),
-				errs,
 			)
 
 			return true
@@ -472,4 +580,56 @@ func iterateFindContainerID(
 
 		return true
 	}
+}
+
+// IDistFunc collection of helper functions which return a list of strings
+// from a response.
+type IDListFunc func(gs graph.Service, user, m365ID string) ([]string, error)
+
+// ReturnContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
+// of the targeted directory
+func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) ([]string, error) {
+	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
+	if err != nil {
+		return nil, err
+	}
+
+	stringArray := []string{}
+
+	response, err := gs.Client().
+		UsersById(user).
+		ContactFoldersById(directoryID).
+		Contacts().
+		GetWithRequestConfigurationAndResponseHandler(options, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	pageIterator, err := msgraphgocore.NewPageIterator(
+		response,
+		gs.Adapter(),
+		models.CreateContactCollectionResponseFromDiscriminatorValue,
+	)
+
+	callbackFunc := func(pageItem any) bool {
+		entry, ok := pageItem.(models.Contactable)
+		if !ok {
+			err = errors.New("casting pageItem to models.Contactable")
+			return false
+		}
+
+		stringArray = append(stringArray, *entry.GetId())
+
+		return true
+	}
+
+	if iterateErr := pageIterator.Iterate(callbackFunc); iterateErr != nil {
+		return nil, iterateErr
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return stringArray, nil
 }
