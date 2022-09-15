@@ -38,11 +38,7 @@ func AddLogLevelFlag(parent *cobra.Command) {
 	fs.StringVar(&llFlag, "log-level", "info", "set the log level to debug|info|warn|error")
 }
 
-func singleton(level logLevel) *zap.SugaredLogger {
-	if loggerton != nil {
-		return loggerton
-	}
-
+func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
 	// when testing, ensure debug logging matches the test.v setting
 	for _, arg := range os.Args {
 		if arg == `--test.v=true` {
@@ -68,7 +64,6 @@ func singleton(level logLevel) *zap.SugaredLogger {
 	core := zapcore.NewTee(
 		zapcore.NewCore(consoleEncoder, out, levelFilter),
 	)
-	logCore = &core
 
 	// then try to set up a logger directly
 	var (
@@ -96,7 +91,22 @@ func singleton(level logLevel) *zap.SugaredLogger {
 		lgr = zap.New(*logCore)
 	}
 
-	loggerton = lgr.Sugar()
+	return &core, lgr.Sugar()
+}
+
+func singleton(level logLevel) *zap.SugaredLogger {
+	if loggerton != nil {
+		return loggerton
+	}
+
+	if logCore != nil {
+		lgr := zap.New(*logCore)
+		loggerton = lgr.Sugar()
+
+		return loggerton
+	}
+
+	logCore, loggerton = genLogger(level)
 
 	return loggerton
 }
@@ -141,6 +151,14 @@ func Seed(ctx context.Context) (ctxOut context.Context, zsl *zap.SugaredLogger) 
 	return // return values handled in defer
 }
 
+// SeedLevel embeds a logger into the context with the given log-level.
+func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.SugaredLogger) {
+	_, zsl := genLogger(level)
+	ctxWV := context.WithValue(ctx, ctxKey, zsl)
+
+	return ctxWV, zsl
+}
+
 // Ctx retrieves the logger embedded in the context.
 func Ctx(ctx context.Context) *zap.SugaredLogger {
 	l := ctx.Value(ctxKey)
@@ -163,4 +181,9 @@ func levelOf(lvl string) logLevel {
 	}
 
 	return Info
+}
+
+// Flush writes out all buffered logs.
+func Flush(ctx context.Context) {
+	_ = Ctx(ctx).Sync()
 }

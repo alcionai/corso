@@ -370,10 +370,14 @@ func (gc *GraphConnector) createCollections(
 			return nil, err
 		}
 
+		errUpdater := func(id string, err error) {
+			errs = support.WrapAndAppend(id, err, errs)
+		}
+
 		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(ctx, qp, errs, collections, gc.UpdateStatus)
+		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus)
 		iterateError := pageIterator.Iterate(callbackFunc)
 
 		if iterateError != nil {
