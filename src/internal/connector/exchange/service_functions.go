@@ -251,6 +251,9 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		query      GraphQuery
 		transform  absser.ParsableFactory
 		isCalendar bool
+		errUpdater = func(id string, err error) {
+			errs = support.WrapAndAppend(id, err, errs)
+		}
 	)
 
 	switch category {
@@ -291,7 +294,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		containerName,
 		service.Adapter().GetBaseUrl(),
 		isCalendar,
-		errs,
+		errUpdater,
 	)
 
 	if err := pageIterator.Iterate(callbackFunc); err != nil {

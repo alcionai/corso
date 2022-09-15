@@ -410,7 +410,7 @@ func IterateFilterFolderDirectoriesForCollections(
 func IterateSelectAllContactsForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errs error,
+	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
@@ -419,20 +419,18 @@ func IterateSelectAllContactsForCollections(
 	return func(folderItem any) bool {
 		folder, ok := folderItem.(models.ContactFolderable)
 		if !ok {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				qp.User,
 				errors.New("casting folderItem to models.ContactFolderable"),
-				errs,
 			)
 		}
 
 		if !isPrimarySet && folder.GetParentFolderId() != nil {
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errs = support.WrapAndAppend(
+				errUpdater(
 					qp.User,
 					errors.Wrap(err, "unable to create service during IterateSelectAllContactsForCollections"),
-					errs,
 				)
 
 				return true
@@ -440,10 +438,9 @@ func IterateSelectAllContactsForCollections(
 
 			contactIDS, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetParentFolderId())
 			if err != nil {
-				errs = support.WrapAndAppend(
+				errUpdater(
 					qp.User,
 					err,
-					errs,
 				)
 
 				return true
@@ -456,10 +453,9 @@ func IterateSelectAllContactsForCollections(
 				false,
 			)
 			if err != nil {
-				errs = support.WrapAndAppend(
+				errUpdater(
 					qp.User,
 					err,
-					errs,
 				)
 
 				return true
@@ -479,10 +475,9 @@ func IterateSelectAllContactsForCollections(
 
 		service, err := createService(qp.Credentials, qp.FailFast)
 		if err != nil {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				qp.User,
 				err,
-				errs,
 			)
 
 			return true
@@ -492,10 +487,9 @@ func IterateSelectAllContactsForCollections(
 
 		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, folderID)
 		if err != nil {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				qp.User,
 				err,
-				errs,
 			)
 
 			return true
@@ -513,10 +507,9 @@ func IterateSelectAllContactsForCollections(
 			false,
 		)
 		if err != nil {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				qp.User,
 				err,
-				errs,
 			)
 
 			return true
@@ -547,7 +540,7 @@ func iterateFindContainerID(
 	containerID **string,
 	containerName, errorIdentifier string,
 	isCalendar bool,
-	errs error,
+	errUpdater func(string, error),
 ) func(any) bool {
 	return func(entry any) bool {
 		if isCalendar {
@@ -562,10 +555,9 @@ func iterateFindContainerID(
 
 		folder, ok := entry.(displayable)
 		if !ok {
-			errs = support.WrapAndAppend(
+			errUpdater(
 				errorIdentifier,
 				errors.New("struct does not implement displayable"),
-				errs,
 			)
 
 			return true
