@@ -174,12 +174,15 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			// Create collection for iterate test
 			collections := make(map[string]*Collection)
 			var errs error
+			errUpdater := func(id string, err error) {
+				errs = support.WrapAndAppend(id, err, errs)
+			}
 			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
 				ctx,
 				qp,
-				errs,
+				errUpdater,
 				collections,
 				nil)
 
