@@ -31,23 +31,46 @@ const (
 
 var (
 	configFilePath string
-	defaultDir     = filepath.Join("app", "corso")
+	configDir      string
+	defaultDir     string
 )
+
+// Attempts to set the default dir and config file path.
+// Default is always $HOME.
+func init() {
+	envDir := os.Getenv("CORSO_CONFIG_DIR")
+	if len(envDir) > 0 {
+		if _, err := os.Stat(envDir); err != nil {
+			Infof(context.Background(), "cannot stat CORSO_CONFIG_DIR [%s]: %v", envDir, err)
+		} else {
+			configDir = envDir
+			configFilePath = filepath.Join(configDir, ".corso.toml")
+		}
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		Infof(context.Background(), "cannot stat user's $HOME directory: %v", err)
+	}
+
+	defaultDir = homeDir
+
+	if len(configDir) == 0 {
+		configDir = homeDir
+		configFilePath = filepath.Join(configDir, ".corso.toml")
+	}
+}
 
 // adds the persistent flag --config-file to the provided command.
 func AddConfigFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 
-	_, err := os.Stat(defaultDir)
-	if err != nil {
-		Err(cmd.Context(), "finding "+defaultDir+" directory (default) for config file")
+	def := configFilePath
+	if len(def) == 0 {
+		filepath.Join(defaultDir, ".corso.toml")
 	}
 
-	fs.StringVar(
-		&configFilePath,
-		"config-file",
-		filepath.Join(defaultDir, ".corso.toml"),
-		"config file (default is "+defaultDir+".corso.toml)")
+	fs.StringVar(&configFilePath, "config-file", def, "config file location (default is "+defaultDir+".corso.toml)")
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -73,13 +96,13 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 	// Configure default config file location
 	if configFP == "" {
 		// Find home directory.
-		_, err := os.Stat(defaultDir)
+		_, err := os.Stat(configDir)
 		if err != nil {
 			return err
 		}
 
 		// Search config in home directory with name ".corso" (without extension).
-		vpr.AddConfigPath(defaultDir)
+		vpr.AddConfigPath(configDir)
 		vpr.SetConfigType("toml")
 		vpr.SetConfigName(".corso")
 

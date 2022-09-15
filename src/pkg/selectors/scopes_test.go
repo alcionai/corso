@@ -301,12 +301,15 @@ func toMockScope(sc []scope) []mockScope {
 func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 	cat := rootCatStub
 	pvs := stubPathValues()
+	short := "brunheelda"
 
 	table := []struct {
-		name    string
-		rootVal string
-		leafVal string
-		expect  assert.BoolAssertionFunc
+		name     string
+		cat      mockCategorizer
+		rootVal  string
+		leafVal  string
+		shortRef string
+		expect   assert.BoolAssertionFunc
 	}{
 		{
 			name:    "matching values",
@@ -332,6 +335,20 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 			leafVal: "smarf",
 			expect:  assert.False,
 		},
+		{
+			name:     "leaf matches shortRef",
+			rootVal:  rootCatStub.String(),
+			leafVal:  short,
+			shortRef: short,
+			expect:   assert.True,
+		},
+		{
+			name:     "root matches shortRef",
+			rootVal:  short,
+			leafVal:  leafCatStub.String(),
+			shortRef: short,
+			expect:   assert.False,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -339,7 +356,7 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 			sc[rootCatStub.String()] = filterize(test.rootVal)
 			sc[leafCatStub.String()] = filterize(test.leafVal)
 
-			test.expect(t, matchesPathValues(sc, cat, pvs))
+			test.expect(t, matchesPathValues(sc, cat, pvs, test.shortRef))
 		})
 	}
 }

@@ -32,6 +32,10 @@ type (
 		// unknownType returns the unknown category value
 		unknownCat() categorizer
 
+		// isLeaf returns true if the category is one of the leaf categories.
+		// eg: in a resourceOwner/folder/item structure, the item is the leaf.
+		isLeaf() bool
+
 		// pathValues should produce a map of category:string pairs populated by extracting
 		// values out of the path.Path struct.
 		//
@@ -205,7 +209,6 @@ func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
 
 // reduce filters the entries in the details to only those that match the
 // inclusions, filters, and exclusions in the selector.
-//
 func reduce[T scopeT, C categoryT](
 	ctx context.Context,
 	deets *details.Details,
@@ -337,6 +340,7 @@ func matchesPathValues[T scopeT, C categoryT](
 	sc T,
 	cat C,
 	pathValues map[categorizer]string,
+	shortRef string,
 ) bool {
 	// if scope specifies a filter category,
 	// path checking is automatically skipped.
@@ -362,7 +366,12 @@ func matchesPathValues[T scopeT, C categoryT](
 		// all parts of the scope must match
 		cc := c.(C)
 		if !isAnyTarget(sc, cc) {
-			if filters.NotContains(join(scopeVals...)).Compare(pathVal) {
+			notMatch := filters.NotContains(join(scopeVals...))
+			if c.isLeaf() && len(shortRef) > 0 {
+				if notMatch.Compare(pathVal) && notMatch.Compare(shortRef) {
+					return false
+				}
+			} else if notMatch.Compare(pathVal) {
 				return false
 			}
 		}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -46,9 +47,10 @@ func NewBackupOperation(
 	sw *store.Wrapper,
 	acct account.Account,
 	selector selectors.Selector,
+	bus events.Bus,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation: newOperation(opts, kw, sw),
+		operation: newOperation(opts, bus, kw, sw),
 		Selectors: selector,
 		Version:   "v0",
 		account:   acct,
@@ -80,12 +82,23 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	var (
 		opStats       backupStats
 		backupDetails *details.Details
+		startTime     = time.Now()
 	)
 	// TODO: persist initial state of backupOperation in modelstore
 
+	op.bus.Event(
+		ctx,
+		events.BackupStart,
+		map[string]any{
+			events.StartTime: startTime,
+			// TODO: initial backup ID,
+			// TODO: events.ExchangeResources: <count of resources>,
+		},
+	)
+
 	// persist operation results to the model store on exit
 	defer func() {
-		err = op.persistResults(time.Now(), &opStats)
+		err = op.persistResults(startTime, &opStats)
 		if err != nil {
 			return
 		}
@@ -184,6 +197,21 @@ func (op *BackupOperation) createBackupModels(
 	}
 
 	op.Results.BackupID = b.ID
+
+	op.bus.Event(
+		ctx,
+		events.BackupEnd,
+		map[string]any{
+			events.BackupID:  b.ID,
+			events.Status:    op.Status,
+			events.StartTime: op.Results.StartedAt,
+			events.EndTime:   op.Results.CompletedAt,
+			events.Duration:  op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			// TODO: events.ExchangeResources: <count of resources>,
+			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
+			// TODO: events.ExchangeDataStored: <amount of data stored>,
+		},
+	)
 
 	return nil
 }
