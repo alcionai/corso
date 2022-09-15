@@ -1,12 +1,15 @@
 package events
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"os"
 	"time"
 
 	analytics "github.com/rudderlabs/analytics-go"
+
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // keys for ease of use
@@ -77,7 +80,7 @@ func (b Bus) Close() error {
 	return b.client.Close()
 }
 
-func (b Bus) Event(key string, data map[string]any) {
+func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 	if b.client == nil {
 		return
 	}
@@ -88,11 +91,14 @@ func (b Bus) Event(key string, data map[string]any) {
 		Set(corsoVersion, b.version).
 		Set(payload, data)
 
-	b.client.Enqueue(analytics.Track{
+	err := b.client.Enqueue(analytics.Track{
 		Event:      key,
 		Timestamp:  time.Now().UTC(),
 		Properties: props,
 	})
+	if err != nil {
+		logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
+	}
 }
 
 func repoHash(repoProvider, bucket, prefix, tenantID string) string {
