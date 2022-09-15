@@ -278,7 +278,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 
 			for i, ent := range deets.Entries {
 				t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
-					assert.Contains(t, result, ent.RepoRef)
+					assert.Contains(t, result, ent.ShortRef)
 				})
 			}
 		})

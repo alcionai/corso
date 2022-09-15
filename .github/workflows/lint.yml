@@ -7,9 +7,19 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: ci-linting-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  precheck:
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
+
   Linting:
+    needs: precheck
     environment: Testing
     runs-on: ubuntu-latest
     defaults:
@@ -21,39 +31,45 @@ jobs:
         uses: actions/checkout@v3
 
       # Get values for cache paths to be used in later steps
-      - id: go-cache-paths
+      - name: Local Cache Setup
+        if: needs.precheck.outputs.fileschanged == 'true'
+        id: go-cache-paths
         run: |
           echo "::set-output name=go-build::$(go env GOCACHE)"
           echo "::set-output name=go-mod::$(go env GOMODCACHE)"
 
       - name: Golang Setup
+        if: needs.precheck.outputs.fileschanged == 'true'
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
       
       - name: Cache Go Mod
+        if: needs.precheck.outputs.fileschanged == 'true'
+        id: modcache
         uses: actions/cache@v3
-        id: cache
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
       - name: Download package dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: needs.precheck.outputs.fileschanged == 'true' && steps.modcache.outputs.cache-hit != 'true'
         run: go mod download
 
       - name: Cache Go build
+        if: needs.precheck.outputs.fileschanged == 'true'
+        id: gocache
         uses: actions/cache@v3
-        id: mybuild
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
 
       - name: Build for Lint
-        if: steps.mybuild.outputs.cache-hit != 'true'
+        if: needs.precheck.outputs.fileschanged == 'true' && steps.gocache.outputs.cache-hit != 'true'
         run: go build ./...
 
       - name: Go Lint
+        if: needs.precheck.outputs.fileschanged == 'true'
         uses: golangci/golangci-lint-action@v3.2.0
         with:
           version: v1.45.2
@@ -64,7 +80,9 @@ jobs:
 
       # check licenses
       - name: Get go-licenses
+        if: needs.precheck.outputs.fileschanged == 'true'
         run: go install github.com/google/go-licenses@latest
 
       - name: Run go-licenses
+        if: needs.precheck.outputs.fileschanged == 'true'
         run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
