@@ -198,6 +198,10 @@ func (pb Builder) String() string {
 }
 
 func (pb Builder) ShortRef() string {
+	if len(pb.elements) == 0 {
+		return ""
+	}
+
 	data := bytes.Buffer{}
 
 	for _, element := range pb.elements {
