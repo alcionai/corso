@@ -41,7 +41,7 @@ func GetRestoreContainer(
 	case messages:
 		fold, err := CreateMailFolder(service, user, name)
 		if err != nil {
-			return "", support.WrapAndAppend(user+"failure during CreateMailFolder during restore Mail", err, err)
+			return "", support.WrapAndAppend(fmt.Sprintf("creating folder %s for user %s", name, user), err, err)
 		}
 
 		return *fold.GetId(), nil
