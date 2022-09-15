@@ -10,12 +10,13 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox
 type MockExchangeDataCollection struct {
-	fullPath     []string
+	fullPath     path.Path
 	messageCount int
 	Data         [][]byte
 	Names        []string
@@ -29,7 +30,7 @@ var (
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
 // mock messages when iterated. Exchange type mail
-func NewMockExchangeCollection(pathRepresentation []string, numMessagesToReturn int) *MockExchangeDataCollection {
+func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn int) *MockExchangeDataCollection {
 	c := &MockExchangeDataCollection{
 		fullPath:     pathRepresentation,
 		messageCount: numMessagesToReturn,
@@ -46,8 +47,8 @@ func NewMockExchangeCollection(pathRepresentation []string, numMessagesToReturn 
 	return c
 }
 
-func (medc *MockExchangeDataCollection) FullPath() []string {
-	return append([]string{}, medc.fullPath...)
+func (medc *MockExchangeDataCollection) FullPath() path.Path {
+	return medc.fullPath
 }
 
 // Items returns a channel that has the next items in the collection. The
@@ -133,10 +134,7 @@ func GetMockEventBytes(subject string) []byte {
 		"\"calendar@odata.associationLink\":\"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')/$ref\"," +
 		"\"@odata.etag\":\"W/\\\"0hATW1CAfUS+njw3hdxSGAAAJIxNug==\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('foobar%408qzvrj.onmicrosoft.com')/events/$entity\",\"categories\":[],\"changeKey\":\"0hATW1CAfUS+njw3hdxSGAAAJIxNug==\"," +
 		"\"createdDateTime\":\"2022-03-28T03:42:03Z\",\"lastModifiedDateTime\":\"2022-05-26T19:25:58Z\",\"allowNewTimeProposals\":true,\"attendees\"" +
-		":[{\"emailAddress\":{\"address\":\"TestContact@8qzvrj.onmicrosoft.com\",\"name\":\"Fuu Gu\"},\"type\":\"required\",\"status\"" +
-		":{\"response\":\"none\",\"time\":\"0001-01-01T00:00:00Z\"}},{\"emailAddress\":{\"address\":\"TestRoom@8qzvrj.onmicrosoft.com\",\"name\":\"Fuu Bar\"},\"type\":\"required\"" +
-		",\"status\":{\"response\":\"none\",\"time\":\"0001-01-01T00:00:00Z\"}},{\"emailAddress\":{\"address\":\"testevents@8qzvrj.onmicrosoft.com\",\"name\":\"Ru Buu\"}," +
-		"\"type\":\"required\",\"status\":{\"response\":\"none\",\"time\":\"0001-01-01T00:00:00Z\"}}],\"body\":{\"content\":\"<html>\\r\\n<head>\\r\\n<meta http-equiv=\\\"Content-Type\\\" content=\\\"text/html; charset=utf-8\\\">\\r\\n</head>\\r\\n<body>\\r\\n" +
+		":[],\"body\":{\"content\":\"<html>\\r\\n<head>\\r\\n<meta http-equiv=\\\"Content-Type\\\" content=\\\"text/html; charset=utf-8\\\">\\r\\n</head>\\r\\n<body>\\r\\n" +
 		"<p>This meeting is to review the latest Tailspin Toys project proposal.<br>\\r\\nBut why not eat some sushi while we’re at it? :)</p>\\r\\n</body>\\r\\n</html>\\r\\n\"" +
 		",\"contentType\":\"html\"},\"bodyPreview\":\"This meeting is to review the latest Tailspin Toys project proposal.\\r\\nBut why not eat some sushi while we’re at it? :)\"," +
 		"\"end\":{\"dateTime\":\"" + timeSlice[0] + "T07:00:00.0000000\",\"timeZone\":\"UTC\"},\"hasAttachments\":false,\"hideAttendees\":false,\"iCalUId\":" +

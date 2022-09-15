@@ -46,7 +46,7 @@ do
   cd ${PROJECT_ROOT}/src; \
   GOOS=${GOOS}            \
   GOARCH=${GOARCH}        \
-  go build -o ${OS_ARCH_DIR} "$CORSO_BUILD_ARGS"
+  go build -o ${OS_ARCH_DIR}/corso $CORSO_BUILD_ARGS
 
   set +x
 

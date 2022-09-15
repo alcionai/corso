@@ -37,15 +37,17 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		{
 			name: "no info",
 			entry: details.DetailsEntry{
-				RepoRef: "reporef",
+				RepoRef:  "reporef",
+				ShortRef: "deadbeef",
 			},
-			expectHs: []string{"Repo Ref"},
-			expectVs: []string{"reporef"},
+			expectHs: []string{"Reference"},
+			expectVs: []string{"deadbeef"},
 		},
 		{
 			name: "exchange event info",
 			entry: details.DetailsEntry{
-				RepoRef: "reporef",
+				RepoRef:  "reporef",
+				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
 						ItemType:    details.ExchangeEvent,
@@ -56,13 +58,14 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Repo Ref", "Organizer", "Subject", "Starts", "Recurring"},
-			expectVs: []string{"reporef", "organizer", "subject", nowStr, "true"},
+			expectHs: []string{"Reference", "Organizer", "Subject", "Starts", "Recurring"},
+			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, "true"},
 		},
 		{
 			name: "exchange contact info",
 			entry: details.DetailsEntry{
-				RepoRef: "reporef",
+				RepoRef:  "reporef",
+				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
 						ItemType:    details.ExchangeContact,
@@ -70,13 +73,14 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Repo Ref", "Contact Name"},
-			expectVs: []string{"reporef", "contactName"},
+			expectHs: []string{"Reference", "Contact Name"},
+			expectVs: []string{"deadbeef", "contactName"},
 		},
 		{
 			name: "exchange mail info",
 			entry: details.DetailsEntry{
-				RepoRef: "reporef",
+				RepoRef:  "reporef",
+				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
 						ItemType: details.ExchangeMail,
@@ -86,24 +90,26 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Repo Ref", "Sender", "Subject", "Received"},
-			expectVs: []string{"reporef", "sender", "subject", nowStr},
+			expectHs: []string{"Reference", "Sender", "Subject", "Received"},
+			expectVs: []string{"deadbeef", "sender", "subject", nowStr},
 		},
 		{
 			name: "sharepoint info",
 			entry: details.DetailsEntry{
-				RepoRef: "reporef",
+				RepoRef:  "reporef",
+				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					Sharepoint: &details.SharepointInfo{},
 				},
 			},
-			expectHs: []string{"Repo Ref"},
-			expectVs: []string{"reporef"},
+			expectHs: []string{"Reference"},
+			expectVs: []string{"deadbeef"},
 		},
 		{
 			name: "oneDrive info",
 			entry: details.DetailsEntry{
-				RepoRef: "reporef",
+				RepoRef:  "reporef",
+				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					OneDrive: &details.OneDriveInfo{
 						ItemName:   "itemName",
@@ -111,8 +117,8 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Repo Ref", "ItemName", "ParentPath"},
-			expectVs: []string{"reporef", "itemName", "parentPath"},
+			expectHs: []string{"Reference", "ItemName", "ParentPath"},
+			expectVs: []string{"deadbeef", "itemName", "parentPath"},
 		},
 	}
 

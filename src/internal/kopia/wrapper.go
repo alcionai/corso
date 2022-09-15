@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	stdpath "path"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -28,7 +27,10 @@ const (
 	corsoUser = "corso"
 )
 
-var errNotConnected = errors.New("not connected to repo")
+var (
+	errNotConnected  = errors.New("not connected to repo")
+	errNoRestorePath = errors.New("no restore path given")
+)
 
 type BackupStats struct {
 	SnapshotID          string
@@ -53,8 +55,8 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 }
 
 type itemDetails struct {
-	info    details.ItemInfo
-	repoRef string
+	info     details.ItemInfo
+	repoPath path.Path
 }
 
 type corsoProgress struct {
@@ -87,7 +89,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	cp.deets.Add(d.repoRef, d.info)
+	cp.deets.Add(d.repoPath.String(), d.repoPath.ShortRef(), d.info)
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {
@@ -152,19 +154,6 @@ func getStreamItemFunc(
 			return nil
 		}
 
-		itemPath, err := path.FromDataLayerPath(
-			stdpath.Join(streamedEnts.FullPath()...),
-			false,
-		)
-		if err != nil {
-			err = errors.Wrap(err, "parsing collection path")
-			errs = multierror.Append(errs, err)
-
-			logger.Ctx(ctx).Error(err)
-
-			return errs.ErrorOrNil()
-		}
-
 		items := streamedEnts.Items()
 
 		for {
@@ -178,7 +167,7 @@ func getStreamItemFunc(
 				}
 
 				// For now assuming that item IDs don't need escaping.
-				itemPath, err := itemPath.Append(e.UUID(), true)
+				itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
 				if err != nil {
 					err = errors.Wrap(err, "getting full item path")
 					errs = multierror.Append(errs, err)
@@ -203,7 +192,7 @@ func getStreamItemFunc(
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
 				p := itemPath.PopFront().String()
-				d := &itemDetails{info: ei.Info(), repoRef: itemPath.String()}
+				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
 
 				progress.put(p, d)
 
@@ -264,7 +253,11 @@ func inflateDirTree(
 	roots := make(map[string]*treeMap)
 
 	for _, s := range collections {
-		itemPath := s.FullPath()
+		if s.FullPath() == nil {
+			return nil, errors.New("no identifier for collection")
+		}
+
+		itemPath := s.FullPath().Elements()
 
 		if len(itemPath) == 0 {
 			return nil, errors.New("no identifier for collection")
@@ -437,7 +430,7 @@ func (w Wrapper) getEntry(
 	itemPath path.Path,
 ) (fs.Entry, error) {
 	if itemPath == nil {
-		return nil, errors.New("no restore path given")
+		return nil, errors.WithStack(errNoRestorePath)
 	}
 
 	man, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
@@ -472,21 +465,18 @@ func (w Wrapper) getEntry(
 func (w Wrapper) collectItems(
 	ctx context.Context,
 	snapshotID string,
-	itemPath []string,
+	itemPath path.Path,
 ) ([]data.Collection, error) {
-	// TODO(ashmrtn): Remove this extra parsing once selectors pass path.Path to
-	// this function.
-	pth, err := path.FromDataLayerPath(stdpath.Join(itemPath...), true)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing to path struct")
+	if itemPath == nil {
+		return nil, errors.WithStack(errNoRestorePath)
 	}
 
-	parentDir, err := pth.Dir()
+	parentDir, err := itemPath.Dir()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting parent directory from path")
 	}
 
-	e, err := w.getEntry(ctx, snapshotID, pth)
+	e, err := w.getEntry(ctx, snapshotID, itemPath)
 	if err != nil {
 		return nil, err
 	}
@@ -514,7 +504,7 @@ func (w Wrapper) collectItems(
 func (w Wrapper) RestoreSingleItem(
 	ctx context.Context,
 	snapshotID string,
-	itemPath []string,
+	itemPath path.Path,
 ) (data.Collection, error) {
 	c, err := w.collectItems(ctx, snapshotID, itemPath)
 	if err != nil {
@@ -562,8 +552,12 @@ func restoreSingleItem(
 func (w Wrapper) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
-	paths [][]string,
+	paths []path.Path,
 ) ([]data.Collection, error) {
+	if len(paths) == 0 {
+		return nil, errors.WithStack(errNoRestorePath)
+	}
+
 	var (
 		dcs  = []data.Collection{}
 		errs *multierror.Error

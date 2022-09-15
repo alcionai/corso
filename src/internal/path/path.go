@@ -36,6 +36,9 @@
 package path
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -46,6 +49,8 @@ const templateErrPathParsing = "parsing resource path from %s"
 const (
 	escapeCharacter = '\\'
 	pathSeparator   = '/'
+
+	shortRefCharacters = 12
 )
 
 var charactersToEscape = map[rune]struct{}{
@@ -74,10 +79,18 @@ type Path interface {
 	// If removing the right-most element would discard one of the required prefix
 	// elements then an error is returned.
 	Dir() (Path, error)
+	// Elements returns all the elements in the path. This is a temporary function
+	// and will likely be updated to handle encoded elements instead of clear-text
+	// elements in the future.
+	Elements() []string
 	// Append returns a new Path object with the given element added to the end of
 	// the old Path if possible. If the old Path is an item Path then Append
 	// returns an error.
 	Append(element string, isItem bool) (Path, error)
+	// ShortRef returns a short reference representing this path. The short
+	// reference is guaranteed to be unique. No guarantees are made about whether
+	// a short reference can be converted back into the Path that generated it.
+	ShortRef() string
 }
 
 // Builder is a simple path representation that only tracks path elements. It
@@ -182,6 +195,25 @@ func (pb Builder) String() string {
 	}
 
 	return join(escaped)
+}
+
+func (pb Builder) ShortRef() string {
+	data := bytes.Buffer{}
+
+	for _, element := range pb.elements {
+		data.WriteString(element)
+	}
+
+	sum := sha256.Sum256(data.Bytes())
+
+	// Some conversions to get the right number of characters in the output. This
+	// outputs hex, so we need to take the target number of characters and do the
+	// equivalent of (shortRefCharacters * 4) / 8. This is
+	// <number of bits represented> / <bits per byte> which gets us how many bytes
+	// to give to our format command.
+	numBytes := shortRefCharacters / 2
+
+	return fmt.Sprintf("%x", sum[:numBytes])
 }
 
 // Elements returns all the elements in the path. This is a temporary function

@@ -1,0 +1,37 @@
+name: Filechange Checker
+
+on:
+  workflow_call:
+    outputs:
+      fileschanged:
+        description: "'true' if src/** or .github/workflows/** files have changed in the branch"
+        value: ${{ jobs.file-change-check.outputs.fileschanged }}
+
+jobs:
+  file-change-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      fileschanged: ${{ steps.checker.outputs.fileschanged }}
+    steps:
+      - uses: actions/checkout@v3
+
+      # only run CI tests if the src folder or workflow actions have changed
+      - name: Check for file changes in src/ or .github/workflows/
+        uses: dorny/paths-filter@v2
+        id: dornycheck
+        with:
+          list-files: json
+          filters: |
+            src:
+              - 'src/**'
+            actions:
+              - '.github/workflows/**'
+      - name: Check dorny for changes in specified filepaths
+        id: checker
+        if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.actions == 'true'
+        run: |
+          echo "src or workflow file changes occurred"
+          echo ::set-output name=fileschanged::true

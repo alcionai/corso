@@ -193,10 +193,9 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			}
 
 			for _, c := range collections {
-				// TODO(ashmrtn): Update these checks when collections support path.Path.
-				require.Greater(t, len(c.FullPath()), 4)
+				require.NotEmpty(t, c.FullPath().Folder())
 
-				folder := c.FullPath()[4]
+				folder := c.FullPath().Folder()
 				if _, ok := test.folderNames[folder]; ok {
 					delete(test.folderNames, folder)
 				}
