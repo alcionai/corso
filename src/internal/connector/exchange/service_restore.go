@@ -20,6 +20,7 @@ import (
 // @param category: input from fullPath()[2]
 // that defines the application the folder is created in.
 func GetRestoreContainer(
+	ctx context.Context,
 	service graph.Service,
 	user string,
 	category path.CategoryType,
@@ -27,39 +28,39 @@ func GetRestoreContainer(
 	name := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	option := categoryToOptionIdentifier(category)
 
-	folderID, err := GetContainerID(service, name, user, option)
+	folderID, err := GetContainerID(ctx, service, name, user, option)
 	if err == nil {
 		return *folderID, nil
 	}
 	// Experienced error other than folder does not exist
 	if !errors.Is(err, ErrFolderNotFound) {
-		return "", support.WrapAndAppend(user, err, err)
+		return "", support.WrapAndAppend(user+": lookup failue during GetContainerID", err, err)
 	}
 
 	switch option {
 	case messages:
 		fold, err := CreateMailFolder(service, user, name)
 		if err != nil {
-			return "", support.WrapAndAppend(user, err, err)
+			return "", support.WrapAndAppend(user+"failure during CreateMailFolder during restore Mail", err, err)
 		}
 
 		return *fold.GetId(), nil
 	case contacts:
 		fold, err := CreateContactFolder(service, user, name)
 		if err != nil {
-			return "", support.WrapAndAppend(user, err, err)
+			return "", support.WrapAndAppend(user+"failure during CreateContactFolder during restore Contact", err, err)
 		}
 
 		return *fold.GetId(), nil
 	case events:
 		calendar, err := CreateCalendar(service, user, name)
 		if err != nil {
-			return "", support.WrapAndAppend(user, err, err)
+			return "", support.WrapAndAppend(user+"failure during CreateCalendar during restore Event", err, err)
 		}
 
 		return *calendar.GetId(), nil
 	default:
-		return "", fmt.Errorf("category: %s not supported for folder creation", option)
+		return "", fmt.Errorf("category: %s not supported for folder creation: GetRestoreContainer", option)
 	}
 }
 
@@ -75,7 +76,7 @@ func RestoreExchangeObject(
 	destination, user string,
 ) error {
 	if policy != control.Copy {
-		return fmt.Errorf("restore policy: %s not supported", policy)
+		return fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
 	}
 
 	setting := categoryToOptionIdentifier(category)
@@ -88,7 +89,7 @@ func RestoreExchangeObject(
 	case events:
 		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user)
 	default:
-		return fmt.Errorf("type: %s not supported for exchange restore", category)
+		return fmt.Errorf("type: %s not supported for RestoreExchangeObject", category)
 	}
 }
 
@@ -107,12 +108,12 @@ func RestoreExchangeContact(
 ) error {
 	contact, err := support.CreateContactFromBytes(bits)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failure to create contact from bytes: RestoreExchangeContact")
 	}
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
 	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return errors.Wrap(err, "failure to create Contact during RestoreExchangeContact: "+support.ConnectorStackErrorTrace(err))
 	}
 
 	if response == nil {
@@ -142,7 +143,9 @@ func RestoreExchangeEvent(
 
 	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
 	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return errors.Wrap(err,
+			fmt.Sprintf("failure to event creation failure during RestoreExchangeEvent: %s", support.ConnectorStackErrorTrace(err)),
+		)
 	}
 
 	if response == nil {
@@ -202,7 +205,7 @@ func RestoreMailMessage(
 	// Switch workflow based on collision policy
 	switch cp {
 	default:
-		logger.Ctx(ctx).DPanicw("unrecognized restore policy; defaulting to copy",
+		logger.Ctx(ctx).DPanicw("restoreMailMessage received unrecognized restore policy; defaulting to copy",
 			"policy", cp)
 		fallthrough
 	case control.Copy:
@@ -217,15 +220,13 @@ func RestoreMailMessage(
 func SendMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
 	if err != nil {
-		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
+		return errors.Wrap(err,
+			*message.GetId()+": failure sendMailAPI:  "+support.ConnectorStackErrorTrace(err),
+		)
 	}
 
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
-	}
-
-	if err != nil {
-		return support.WrapAndAppend(": "+support.ConnectorStackErrorTrace(err), err, nil)
 	}
 
 	return nil
