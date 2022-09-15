@@ -503,7 +503,7 @@ func IterateSelectAllContactsForCollections(
 		dirPath, err := path.Builder{}.Append(*folder.GetId()).ToDataLayerExchangePathForCategory(
 			qp.Credentials.TenantID,
 			qp.User,
-			path.EventsCategory,
+			path.ContactsCategory,
 			false,
 		)
 		if err != nil {
