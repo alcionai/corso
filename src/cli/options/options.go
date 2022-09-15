@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	fastFail  bool
-	noMetrics bool
+	fastFail bool
+	noStats  bool
 )
 
 // AddOperationFlags adds command-local operation flags
@@ -22,7 +22,7 @@ func AddOperationFlags(parent *cobra.Command) {
 // AddGlobalOperationFlags adds the global operations flag set.
 func AddGlobalOperationFlags(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
-	fs.BoolVar(&noMetrics, "no-metrics", false, "disable anonymous usage information gathering")
+	fs.BoolVar(&noStats, "no-stats", false, "disable anonymous usage statistics gathering")
 }
 
 // Control produces the control options based on the user's flags.
@@ -33,7 +33,7 @@ func Control() control.Options {
 		opt.FailFast = true
 	}
 
-	if noMetrics {
+	if noStats {
 		opt.DisableMetrics = true
 	}
 
