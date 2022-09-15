@@ -11,6 +11,12 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 )
 
+type FolderEntry struct {
+	RepoRef  string
+	ShortRef string
+	Info     ItemInfo
+}
+
 // --------------------------------------------------------------------------------
 // Model
 // --------------------------------------------------------------------------------
@@ -83,7 +89,8 @@ type Details struct {
 	DetailsModel
 
 	// internal
-	mu sync.Mutex `json:"-"`
+	mu           sync.Mutex          `json:"-"`
+	knownFolders map[string]struct{} `json:"-"`
 }
 
 func (d *Details) Add(repoRef, shortRef string, info ItemInfo) {
@@ -94,6 +101,31 @@ func (d *Details) Add(repoRef, shortRef string, info ItemInfo) {
 		ShortRef: shortRef,
 		ItemInfo: info,
 	})
+}
+
+// AddFolders adds entries for the given folders. It skips adding entries that
+// have been added by previous calls.
+func (d *Details) AddFolders(folders []FolderEntry) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.knownFolders == nil {
+		d.knownFolders = map[string]struct{}{}
+	}
+
+	for _, folder := range folders {
+		if _, ok := d.knownFolders[folder.ShortRef]; ok {
+			// Entry already exists, nothing to do.
+			continue
+		}
+
+		d.knownFolders[folder.ShortRef] = struct{}{}
+		d.Entries = append(d.Entries, DetailsEntry{
+			RepoRef:  folder.RepoRef,
+			ShortRef: folder.ShortRef,
+			ItemInfo: folder.Info,
+		})
+	}
 }
 
 // --------------------------------------------------------------------------------
@@ -127,6 +159,10 @@ func (de DetailsEntry) MinimumPrintable() any {
 func (de DetailsEntry) Headers() []string {
 	hs := []string{"Reference"}
 
+	if de.ItemInfo.Folder != nil {
+		hs = append(hs, de.ItemInfo.Folder.Headers()...)
+	}
+
 	if de.ItemInfo.Exchange != nil {
 		hs = append(hs, de.ItemInfo.Exchange.Headers()...)
 	}
@@ -145,6 +181,10 @@ func (de DetailsEntry) Headers() []string {
 // Values returns the values matching the Headers list.
 func (de DetailsEntry) Values() []string {
 	vs := []string{de.ShortRef}
+
+	if de.ItemInfo.Folder != nil {
+		vs = append(vs, de.ItemInfo.Folder.Values()...)
+	}
 
 	if de.ItemInfo.Exchange != nil {
 		vs = append(vs, de.ItemInfo.Exchange.Values()...)
@@ -174,11 +214,14 @@ const (
 	SharepointItem itemType = iota + 100
 
 	OneDriveItem itemType = iota + 200
+
+	FolderItem itemType = iota + 300
 )
 
 // ItemInfo is a oneOf that contains service specific
 // information about the item it tracks
 type ItemInfo struct {
+	Folder     *FolderInfo     `json:"folder,omitempty"`
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
 	Sharepoint *SharepointInfo `json:"sharepoint,omitempty"`
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
@@ -192,6 +235,9 @@ type ItemInfo struct {
 // calendar event).
 func (i ItemInfo) infoType() itemType {
 	switch {
+	case i.Folder != nil:
+		return i.Folder.ItemType
+
 	case i.Exchange != nil:
 		return i.Exchange.ItemType
 
@@ -203,6 +249,19 @@ func (i ItemInfo) infoType() itemType {
 	}
 
 	return UnknownType
+}
+
+type FolderInfo struct {
+	ItemType    itemType
+	DisplayName string `json:"displayName"`
+}
+
+func (i FolderInfo) Headers() []string {
+	return []string{"Display Name"}
+}
+
+func (i FolderInfo) Values() []string {
+	return []string{i.DisplayName}
 }
 
 // ExchangeInfo describes an exchange item
