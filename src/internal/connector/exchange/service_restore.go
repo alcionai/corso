@@ -113,7 +113,11 @@ func RestoreExchangeContact(
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
 	if err != nil {
-		return errors.Wrap(err, "failure to create Contact during RestoreExchangeContact: "+support.ConnectorStackErrorTrace(err))
+		return errors.Wrap(
+			err,
+			"failure to create Contact during RestoreExchangeContact: "+
+				support.ConnectorStackErrorTrace(err),
+		)
 	}
 
 	if response == nil {
@@ -144,7 +148,9 @@ func RestoreExchangeEvent(
 	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
 	if err != nil {
 		return errors.Wrap(err,
-			fmt.Sprintf("failure to event creation failure during RestoreExchangeEvent: %s", support.ConnectorStackErrorTrace(err)),
+			fmt.Sprintf(
+				"failure to event creation failure during RestoreExchangeEvent: %s",
+				support.ConnectorStackErrorTrace(err)),
 		)
 	}
 
