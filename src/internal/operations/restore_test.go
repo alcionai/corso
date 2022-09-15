@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -56,10 +57,18 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewRestoreOperation(ctx, control.Options{}, kw, sw, acct, "foo", selectors.Selector{})
+	op, err := NewRestoreOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		"foo",
+		selectors.Selector{},
+		events.Bus{})
 	require.NoError(t, err)
 
-	require.NoError(t, op.persistResults(now, &stats))
+	require.NoError(t, op.persistResults(ctx, now, &stats))
 
 	assert.Equal(t, op.Status.String(), Completed.String(), "status")
 	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
@@ -138,7 +147,8 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		kw,
 		sw,
 		acct,
-		bsel.Selector)
+		bsel.Selector,
+		events.Bus{})
 	require.NoError(t, err)
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results.BackupID)
@@ -189,7 +199,8 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.sw,
 				test.acct,
 				"backup-id",
-				selectors.Selector{})
+				selectors.Selector{},
+				events.Bus{})
 			test.errCheck(t, err)
 		})
 	}
@@ -209,7 +220,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		suite.sw,
 		tester.NewM365Account(t),
 		suite.backupID,
-		rsel.Selector)
+		rsel.Selector,
+		events.Bus{})
 	require.NoError(t, err)
 
 	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
@@ -236,7 +248,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		suite.sw,
 		tester.NewM365Account(t),
 		suite.backupID,
-		rsel.Selector)
+		rsel.Selector,
+		events.Bus{})
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
 }

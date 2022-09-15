@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/pkg/errors"
@@ -246,6 +247,16 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 
 // ----- controller
 
+var secfmt = regexp.MustCompile(`.+:0-9{2}:0-9{2}`)
+
+func normalizeDisplayName(dn string) string {
+	if !secfmt.MatchString(dn) {
+		dn += ":00"
+	}
+
+	return dn
+}
+
 func purgeFolders(
 	ctx context.Context,
 	gc *connector.GraphConnector,
@@ -268,13 +279,14 @@ func purgeFolders(
 		var (
 			del         bool
 			displayName = *fld.GetDisplayName()
-			dnLen       = len(displayName)
+			normName    = normalizeDisplayName(*fld.GetDisplayName())
+			dnLen       = len(normName)
 		)
 
 		if dnLen > stLen {
-			dnSuff := displayName[dnLen-stLen:]
+			suff := normName[dnLen-stLen:]
 
-			dnTime, err := common.ParseTime(dnSuff)
+			dnTime, err := common.ParseTime(suff)
 			if err != nil {
 				Info(ctx, errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName))
 				continue

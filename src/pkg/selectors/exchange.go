@@ -551,6 +551,11 @@ func (ec exchangeCategory) unknownCat() categorizer {
 	return ExchangeCategoryUnknown
 }
 
+// isLeaf is true if the category is a mail, event, or contact category.
+func (ec exchangeCategory) isLeaf() bool {
+	return ec == ec.leafCat()
+}
+
 // pathValues transforms a path to a map of identified properties.
 //
 // Example:
@@ -692,7 +697,7 @@ func (s ExchangeScope) matchesEntry(
 	entry details.DetailsEntry,
 ) bool {
 	// matchesPathValues can be handled generically, thanks to SCIENCE.
-	return matchesPathValues(s, cat.(exchangeCategory), pathValues) || s.matchesInfo(entry.Exchange)
+	return matchesPathValues(s, cat.(exchangeCategory), pathValues, entry.ShortRef) || s.matchesInfo(entry.Exchange)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an ExchangeFilter

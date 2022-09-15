@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -53,7 +54,14 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		}
 	)
 
-	op, err := NewBackupOperation(ctx, control.Options{}, kw, sw, acct, selectors.Selector{})
+	op, err := NewBackupOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		selectors.Selector{},
+		events.Bus{})
 	require.NoError(t, err)
 
 	require.NoError(t, op.persistResults(now, &stats))
@@ -119,7 +127,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.kw,
 				test.sw,
 				test.acct,
-				selectors.Selector{})
+				selectors.Selector{},
+				events.Bus{})
 			test.errCheck(t, err)
 		})
 	}
@@ -193,7 +202,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 				sw,
 				acct,
 				*selected,
-			)
+				events.Bus{})
 			require.NoError(t, err)
 
 			require.NoError(t, bo.Run(ctx))
@@ -246,7 +255,8 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 		kw,
 		sw,
 		acct,
-		sel.Selector)
+		sel.Selector,
+		events.Bus{})
 	require.NoError(t, err)
 
 	require.NoError(t, bo.Run(ctx))

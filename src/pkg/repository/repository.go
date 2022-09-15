@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -28,7 +29,7 @@ type Repository struct {
 	Account account.Account // the user's m365 account connection details
 	Storage storage.Storage // the storage provider details and configuration
 
-	// Bus        events.Bus
+	Bus        events.Bus
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
 }
@@ -69,9 +70,12 @@ func Initialize(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
+		Bus:        events.NewBus(s, acct),
 		dataLayer:  w,
 		modelStore: ms,
 	}
+
+	r.Bus.Event(ctx, events.RepoInit, nil)
 
 	return &r, nil
 }
@@ -109,6 +113,7 @@ func Connect(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
+		Bus:        events.NewBus(s, acct),
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -117,23 +122,27 @@ func Connect(
 }
 
 func (r *Repository) Close(ctx context.Context) error {
+	if err := r.Bus.Close(); err != nil {
+		logger.Ctx(ctx).Debugw("closing the event bus", "err", err)
+	}
+
 	if r.dataLayer != nil {
-		err := r.dataLayer.Close(ctx)
-		r.dataLayer = nil
-
-		if err != nil {
-			return errors.Wrap(err, "closing corso DataLayer")
+		if err := r.dataLayer.Close(ctx); err != nil {
+			logger.Ctx(ctx).Debugw("closing Datalayer", "err", err)
 		}
+
+		r.dataLayer = nil
 	}
 
-	if r.modelStore == nil {
-		return nil
+	if r.modelStore != nil {
+		if err := r.modelStore.Close(ctx); err != nil {
+			logger.Ctx(ctx).Debugw("closing modelStore", "err", err)
+		}
+
+		r.modelStore = nil
 	}
 
-	err := r.modelStore.Close(ctx)
-	r.modelStore = nil
-
-	return errors.Wrap(err, "closing corso ModelStore")
+	return nil
 }
 
 // NewBackup generates a BackupOperation runner.
@@ -148,7 +157,8 @@ func (r Repository) NewBackup(
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		r.Account,
-		selector)
+		selector,
+		r.Bus)
 }
 
 // NewRestore generates a restoreOperation runner.
@@ -165,7 +175,8 @@ func (r Repository) NewRestore(
 		store.NewKopiaStore(r.modelStore),
 		r.Account,
 		model.StableID(backupID),
-		sel)
+		sel,
+		r.Bus)
 }
 
 // backups lists a backup by id

@@ -183,6 +183,11 @@ func (c oneDriveCategory) unknownCat() categorizer {
 	return OneDriveCategoryUnknown
 }
 
+// isLeaf is true if the category is a mail, event, or contact category.
+func (c oneDriveCategory) isLeaf() bool {
+	return c == c.leafCat()
+}
+
 // pathValues transforms a path to a map of identified properties.
 //
 // Example:
@@ -271,7 +276,7 @@ func (s OneDriveScope) matchesEntry(
 	entry details.DetailsEntry,
 ) bool {
 	// matchesPathValues can be handled generically, thanks to SCIENCE.
-	return matchesPathValues(s, cat.(oneDriveCategory), pathValues) || s.matchesInfo(entry.OneDrive)
+	return matchesPathValues(s, cat.(oneDriveCategory), pathValues, entry.ShortRef) || s.matchesInfo(entry.OneDrive)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an oneDriveInfo

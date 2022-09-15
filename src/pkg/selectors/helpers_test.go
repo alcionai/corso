@@ -47,6 +47,10 @@ func (mc mockCategorizer) unknownCat() categorizer {
 	return unknownCatStub
 }
 
+func (mc mockCategorizer) isLeaf() bool {
+	return mc == leafCatStub
+}
+
 func (mc mockCategorizer) pathValues(pth path.Path) map[categorizer]string {
 	return map[categorizer]string{rootCatStub: "stub"}
 }
