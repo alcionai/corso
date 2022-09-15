@@ -86,7 +86,7 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err)
 }
 
@@ -177,7 +177,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err)
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)
@@ -201,10 +201,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(
-			ctx,
-			sel.Selector,
-			control.NewOptions(false))
+		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
 		require.NoError(t, bop.Run(ctx))
 		require.NoError(t, err)
 
@@ -336,7 +333,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err)
 
 	m365UserID := tester.M365UserID(t)
@@ -345,10 +342,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
 
-	suite.backupOp, err = suite.repo.NewBackup(
-		ctx,
-		sel.Selector,
-		control.NewOptions(false))
+	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
 }

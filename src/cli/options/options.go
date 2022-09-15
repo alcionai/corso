@@ -6,9 +6,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 )
 
-var fastFail bool
+var (
+	fastFail  bool
+	noMetrics bool
+)
 
-// AddFlags adds the operation option flags
+// AddOperationFlags adds command-local operation flags
 func AddOperationFlags(parent *cobra.Command) {
 	fs := parent.Flags()
 	fs.BoolVar(&fastFail, "fast-fail", false, "stop processing immediately if any error occurs")
@@ -16,7 +19,23 @@ func AddOperationFlags(parent *cobra.Command) {
 	cobra.CheckErr(fs.MarkHidden("fast-fail"))
 }
 
+// AddGlobalOperationFlags adds the global operations flag set.
+func AddGlobalOperationFlags(parent *cobra.Command) {
+	fs := parent.PersistentFlags()
+	fs.BoolVar(&noMetrics, "noMetrics", false, "disable anonymous information gathering")
+}
+
 // Control produces the control options based on the user's flags.
 func Control() control.Options {
-	return control.NewOptions(fastFail)
+	opt := control.Defaults()
+
+	if fastFail {
+		opt.FailFast = true
+	}
+
+	if noMetrics {
+		opt.DisableMetrics = true
+	}
+
+	return opt
 }

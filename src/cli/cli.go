@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/cli/backup"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/help"
+	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
@@ -62,6 +63,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	config.AddConfigFlags(cmd)
 	print.AddOutputFlag(cmd)
 	logger.AddLogLevelFlag(cmd)
+	options.AddGlobalOperationFlags(cmd)
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
 
