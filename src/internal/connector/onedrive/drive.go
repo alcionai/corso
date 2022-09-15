@@ -18,7 +18,7 @@ const (
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
 	nextLinkKey           = "@odata.nextLink"
-	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0//drives/%s/items/%s/children"
+	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 )
 
 // Enumerates the drives for the specified user

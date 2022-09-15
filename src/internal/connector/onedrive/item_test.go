@@ -1,6 +1,7 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"testing"
@@ -148,9 +149,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	require.NotNil(suite.T(), newItem.GetId())
 
 	// Initialize a 100KB mockDataProvider
-	td := &mockDataProvider{size: 100 * 1024}
-
-	writeSize := td.size
+	td, writeSize := mockDataReader(int64(100 * 1024))
 
 	w, err := driveItemWriter(ctx, suite, driveID, *newItem.GetId(), writeSize)
 	require.NoError(suite.T(), err)
@@ -166,36 +165,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	require.Equal(suite.T(), writeSize, size)
 }
 
-// mockDataProvider implements an `io.Reader` that can be used to
-// read the specified amount of mock data
-type mockDataProvider struct {
-	size              int64
-	currentReadOffset int64
-}
-
-func (td *mockDataProvider) Read(p []byte) (n int, err error) {
-	// If we've already read all the mock data, return EOF
-	if td.currentReadOffset == td.size {
-		return 0, io.EOF
-	}
-
-	// Check how much data is left to read
-	toRead := td.size - td.currentReadOffset
-
-	// If the remaining data doesn't fit in the buffer,
-	// only read len(buffer)
-	if toRead > int64(len(p)) {
-		toRead = int64(len(p))
-	}
-
-	// Fill the buffer with mock data.
-	// Currently we just write the character `D`
-	for i := int64(0); i < toRead; i++ {
-		p[i] = byte('D')
-	}
-
-	// Track how much data was read
-	td.currentReadOffset += int64(toRead)
-
-	return int(toRead), nil
+func mockDataReader(size int64) (io.Reader, int64) {
+	data := bytes.Repeat([]byte("D"), int(size))
+	return bytes.NewReader(data), size
 }
