@@ -283,6 +283,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 			}
 
 			if errs != nil {
+				fmt.Println("RestoreContainer Failed")
 				return errs
 			}
 		}
@@ -322,6 +323,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	gc.incrementAwaitingMessages()
 
+	fmt.Printf("Errors:  %v\n", errs)
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	gc.UpdateStatus(status)
 
