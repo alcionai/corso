@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/path"
@@ -48,9 +49,10 @@ func NewRestoreOperation(
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
+	bus events.Bus,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, kw, sw),
+		operation: newOperation(opts, bus, kw, sw),
 		BackupID:  backupID,
 		Selectors: sel,
 		Version:   "v0",
@@ -80,12 +82,28 @@ type restoreStats struct {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (err error) {
+	startTime := time.Now()
+
 	// TODO: persist initial state of restoreOperation in modelstore
+	op.bus.Event(
+		ctx,
+		events.RestoreStart,
+		map[string]any{
+			events.StartTime: startTime,
+			events.BackupID:  op.BackupID,
+			// TODO: initial backup ID,
+			// TODO: events.ExchangeResources: <count of resources>,
+			// TODO: source backup time,
+			// TODO: restore options,
+		},
+	)
+
 	// persist operation results to the model store on exit
 	opStats := restoreStats{}
 	// TODO: persist results?
+
 	defer func() {
-		err = op.persistResults(time.Now(), &opStats)
+		err = op.persistResults(ctx, startTime, &opStats)
 		if err != nil {
 			return
 		}
@@ -170,6 +188,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 
 // writes the restoreOperation outcome to the modelStore.
 func (op *RestoreOperation) persistResults(
+	ctx context.Context,
 	started time.Time,
 	opStats *restoreStats,
 ) error {
@@ -191,6 +210,23 @@ func (op *RestoreOperation) persistResults(
 	op.Results.WriteErrors = opStats.writeErr
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
+
+	op.bus.Event(
+		ctx,
+		events.RestoreEnd,
+		map[string]any{
+			// TODO: RestoreID
+			events.BackupID:     op.BackupID,
+			events.Status:       op.Status,
+			events.StartTime:    op.Results.StartedAt,
+			events.EndTime:      op.Results.CompletedAt,
+			events.Duration:     op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.ItemsRead:    op.Results.ItemsRead,
+			events.ItemsWritten: op.Results.ItemsWritten,
+			// TODO: events.ExchangeResources: <count of resources>,
+			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
+		},
+	)
 
 	return nil
 }

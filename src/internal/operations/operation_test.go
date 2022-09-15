@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -22,7 +23,7 @@ func TestOperationSuite(t *testing.T) {
 
 func (suite *OperationSuite) TestNewOperation() {
 	t := suite.T()
-	op := newOperation(control.Options{}, nil, nil)
+	op := newOperation(control.Options{}, events.Bus{}, nil, nil)
 	assert.Greater(t, op.CreatedAt, time.Time{})
 }
 
@@ -42,7 +43,7 @@ func (suite *OperationSuite) TestOperation_Validate() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			op := newOperation(control.Options{}, test.kw, test.sw)
+			op := newOperation(control.Options{}, events.Bus{}, test.kw, test.sw)
 			test.errCheck(t, op.validate())
 		})
 	}
