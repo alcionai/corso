@@ -27,3 +27,17 @@ const (
 	// Section: 2.789 PidTagMessageDeliveryTime
 	MailReceiveDateTimeOverriveProperty = "SystemTime 0x0E06"
 )
+
+// descendable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a "parent folder".
+type descendable interface {
+	GetId() *string
+	GetParentFolderId() *string
+}
+
+// displayable represents objects that implement msgraph-sdk-fo/models.entityable
+// and have the concept of a display name.
+type displayable interface {
+	GetId() *string
+	GetDisplayName() *string
+}

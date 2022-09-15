@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -100,7 +101,8 @@ func DeleteCalendar(gs graph.Service, user, calendarID string) error {
 // If successful, returns the created folder object.
 func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
-	requestBody.SetDisplayName(&folderName)
+	temp := folderName
+	requestBody.SetDisplayName(&temp)
 
 	return gs.Client().UsersById(user).ContactFolders().Post(requestBody)
 }
@@ -244,13 +246,22 @@ func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]models
 // @param containerName is the target's name, user-readable and case sensitive
 // @param category switches query and iteration to support  multiple exchange applications
 // @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetContainerID(service graph.Service, containerName, user string, category optionIdentifier) (*string, error) {
+func GetContainerID(
+	ctx context.Context,
+	service graph.Service,
+	containerName,
+	user string,
+	category optionIdentifier,
+) (*string, error) {
 	var (
 		errs       error
 		targetID   *string
 		query      GraphQuery
 		transform  absser.ParsableFactory
 		isCalendar bool
+		errUpdater = func(id string, err error) {
+			errs = support.WrapAndAppend(id, err, errs)
+		}
 	)
 
 	switch category {
@@ -291,7 +302,7 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 		containerName,
 		service.Adapter().GetBaseUrl(),
 		isCalendar,
-		errs,
+		errUpdater,
 	)
 
 	if err := pageIterator.Iterate(callbackFunc); err != nil {
@@ -303,32 +314,6 @@ func GetContainerID(service graph.Service, containerName, user string, category 
 	}
 
 	return targetID, errs
-}
-
-// parseCalendarIDFromEvent returns the M365 ID for a calendar
-// @param reference: string from additionalData map of an event
-// References should follow the form `https://... calendars('ID')/$ref`
-// If the reference does not follow form an error is returned
-func parseCalendarIDFromEvent(reference string) (string, error) {
-	stringArray := strings.Split(reference, "calendars('")
-	if len(stringArray) < 2 {
-		return "", errors.New("calendarID not found")
-	}
-
-	temp := stringArray[1]
-	stringArray = strings.Split(temp, "')/$ref")
-
-	if len(stringArray) < 2 {
-		return "", errors.New("calendarID not found")
-	}
-
-	calendarID := stringArray[0]
-
-	if len(calendarID) == 0 {
-		return "", errors.New("calendarID empty")
-	}
-
-	return calendarID, nil
 }
 
 // SetupExchangeCollectionVars is a helper function returns a sets
@@ -361,9 +346,9 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
-		return models.CreateContactFromDiscriminatorValue,
-			GetAllContactsForUser,
-			IterateSelectAllDescendablesForCollections,
+		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+			GetAllContactFolderNamesForUser,
+			IterateSelectAllContactsForCollections,
 			nil
 	}
 
