@@ -9,7 +9,9 @@ import (
 
 	analytics "github.com/rudderlabs/analytics-go"
 
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // keys for ease of use
@@ -19,9 +21,11 @@ const (
 	payload      = "payload"
 
 	// Event Keys
-	RepoInit    = "repo-init"
-	BackupStart = "backup-start"
-	BackupEnd   = "backup-end"
+	RepoInit     = "repo-init"
+	BackupStart  = "backup-start"
+	BackupEnd    = "backup-end"
+	RestoreStart = "restore-start"
+	RestoreEnd   = "restore-end"
 
 	// Event Data Keys
 	BackupID              = "backup-id"
@@ -32,6 +36,8 @@ const (
 	StartTime             = "start-time"
 	Duration              = "duration"
 	Status                = "status"
+	ItemsRead             = "items-read"
+	ItemsWritten          = "items-written"
 )
 
 // Bus handles all event communication into the events package.
@@ -47,8 +53,8 @@ var (
 	DataPlaneURL string
 )
 
-func NewBus(repoProvider, bucket, prefix, tenantID string) Bus {
-	hash := repoHash(repoProvider, bucket, prefix, tenantID)
+func NewBus(s storage.Storage, a account.Account) Bus {
+	hash := repoHash(s, a)
 
 	envWK := os.Getenv("RUDDERSTACK_CORSO_WRITE_KEY")
 	if len(envWK) > 0 {
@@ -88,11 +94,15 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 	props := analytics.
 		NewProperties().
 		Set(repoID, b.repoID).
-		Set(corsoVersion, b.version).
-		Set(payload, data)
+		Set(corsoVersion, b.version)
+
+	if len(data) > 0 {
+		props.Set(payload, data)
+	}
 
 	err := b.client.Enqueue(analytics.Track{
 		Event:      key,
+		UserId:     b.repoID,
 		Timestamp:  time.Now().UTC(),
 		Properties: props,
 	})
@@ -101,9 +111,41 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 	}
 }
 
-func repoHash(repoProvider, bucket, prefix, tenantID string) string {
+func storageID(s storage.Storage) string {
+	id := s.Provider.String()
+
+	switch s.Provider {
+	case storage.ProviderS3:
+		s3, err := s.S3Config()
+		if err != nil {
+			return id
+		}
+
+		id += s3.Bucket + s3.Prefix
+	}
+
+	return id
+}
+
+func accountID(a account.Account) string {
+	var id string
+
+	switch a.Provider {
+	case account.ProviderM365:
+		m, err := a.M365Config()
+		if err != nil {
+			return id
+		}
+
+		id += m.TenantID
+	}
+
+	return id
+}
+
+func repoHash(s storage.Storage, a account.Account) string {
 	sum := md5.Sum(
-		[]byte(repoProvider + bucket + prefix + tenantID),
+		[]byte(storageID(s) + accountID(a)),
 	)
 
 	return fmt.Sprintf("%x", sum)

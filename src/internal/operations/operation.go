@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -41,18 +42,21 @@ type operation struct {
 	Options   control.Options `json:"options"`
 	Status    opStatus        `json:"status"`
 
+	bus   events.Bus
 	kopia *kopia.Wrapper
 	store *store.Wrapper
 }
 
 func newOperation(
 	opts control.Options,
+	bus events.Bus,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
 		Options:   opts,
+		bus:       bus,
 		kopia:     kw,
 		store:     sw,
 		Status:    InProgress,
