@@ -582,11 +582,13 @@ func iterateFindContainerID(
 	}
 }
 
-// UpdateListFunc collection of functions which return a list of strings
+// IDistFunc collection of helper functions which return a list of strings
 // from a response.
-type UpdateListFunc func(gs graph.Service, user, m365ID string) ([]string, error)
+type IDListFunc func(gs graph.Service, user, m365ID string) ([]string, error)
 
-func ReturnContactIDsFromDirectory(gs graph.Service, user, m365ID string) ([]string, error) {
+// ReturnContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
+// of the targeted directory
+func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) ([]string, error) {
 	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
 	if err != nil {
 		return nil, err
@@ -596,7 +598,7 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, m365ID string) ([]str
 
 	response, err := gs.Client().
 		UsersById(user).
-		ContactFoldersById(m365ID).
+		ContactFoldersById(directoryID).
 		Contacts().
 		GetWithRequestConfigurationAndResponseHandler(options, nil)
 	if err != nil {
