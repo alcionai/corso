@@ -55,8 +55,8 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 }
 
 type itemDetails struct {
-	info    details.ItemInfo
-	repoRef string
+	info     details.ItemInfo
+	repoPath path.Path
 }
 
 type corsoProgress struct {
@@ -89,7 +89,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	cp.deets.Add(d.repoRef, d.info)
+	cp.deets.Add(d.repoPath.String(), d.repoPath.ShortRef(), d.info)
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {
@@ -192,7 +192,7 @@ func getStreamItemFunc(
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
 				p := itemPath.PopFront().String()
-				d := &itemDetails{info: ei.Info(), repoRef: itemPath.String()}
+				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
 
 				progress.put(p, d)
 

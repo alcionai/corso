@@ -29,22 +29,25 @@ const (
 	TenantIDKey            = "tenantid"
 )
 
-var configFilePath string
+var (
+	configFilePath string
+	defaultDir     = filepath.Join("app", "corso")
+)
 
 // adds the persistent flag --config-file to the provided command.
 func AddConfigFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 
-	homeDir, err := os.UserHomeDir()
+	_, err := os.Stat(defaultDir)
 	if err != nil {
-		Err(cmd.Context(), "finding $HOME directory (default) for config file")
+		Err(cmd.Context(), "finding "+defaultDir+" directory (default) for config file")
 	}
 
 	fs.StringVar(
 		&configFilePath,
 		"config-file",
-		filepath.Join(homeDir, ".corso.toml"),
-		"config file (default is $HOME/.corso)")
+		filepath.Join(defaultDir, ".corso.toml"),
+		"config file (default is "+defaultDir+".corso.toml)")
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -70,13 +73,13 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 	// Configure default config file location
 	if configFP == "" {
 		// Find home directory.
-		home, err := os.UserHomeDir()
+		_, err := os.Stat(defaultDir)
 		if err != nil {
 			return err
 		}
 
 		// Search config in home directory with name ".corso" (without extension).
-		vpr.AddConfigPath(home)
+		vpr.AddConfigPath(defaultDir)
 		vpr.SetConfigType("toml")
 		vpr.SetConfigName(".corso")
 

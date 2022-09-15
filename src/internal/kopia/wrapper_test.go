@@ -144,8 +144,22 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 		err  error
 	}
 
-	targetFileName := "testFile"
-	deets := &itemDetails{details.ItemInfo{}, targetFileName}
+	targetFilePath, err := path.Builder{}.Append(
+		"Inbox",
+		"testFile",
+	).ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		true,
+	)
+	require.NoError(suite.T(), err)
+
+	relativePath, err := targetFilePath.Dir()
+	require.NoError(suite.T(), err)
+
+	targetFileName := relativePath.String()
+	deets := &itemDetails{details.ItemInfo{}, targetFilePath}
 
 	table := []struct {
 		name        string
