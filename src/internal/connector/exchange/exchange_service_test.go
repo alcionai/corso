@@ -308,6 +308,7 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 // at the top level of the file tree
 func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	userID := tester.M365UserID(suite.T())
+	ctx := context.Background()
 	tests := []struct {
 		name          string
 		containerName string
@@ -356,6 +357,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := GetContainerID(
+				ctx,
 				suite.es,
 				test.containerName,
 				userID,
@@ -441,6 +443,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // TestGetRestoreContainer checks the ability to Create a "container" for the
 // GraphConnector's Restore Workflow based on OptionIdentifier.
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
+	ctx := context.Background()
 	tests := []struct {
 		name        string
 		option      path.CategoryType
@@ -483,7 +486,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			containerID, err := GetRestoreContainer(suite.es, userID, test.option)
+			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option)
 			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
 
 			if test.cleanupFunc != nil {
