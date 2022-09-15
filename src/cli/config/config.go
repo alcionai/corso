@@ -38,11 +38,6 @@ var (
 func AddConfigFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 
-	_, err := os.Stat(defaultDir)
-	if err != nil {
-		Err(cmd.Context(), "finding "+defaultDir+" directory (default) for config file")
-	}
-
 	fs.StringVar(
 		&configFilePath,
 		"config-file",
