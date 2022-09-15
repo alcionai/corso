@@ -12,9 +12,10 @@ import (
 )
 
 type FolderEntry struct {
-	RepoRef  string
-	ShortRef string
-	Info     ItemInfo
+	RepoRef   string
+	ShortRef  string
+	ParentRef string
+	Info      ItemInfo
 }
 
 // --------------------------------------------------------------------------------
