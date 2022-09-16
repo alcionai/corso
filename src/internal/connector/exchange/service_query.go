@@ -122,18 +122,36 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 	return gs.Client().UsersById(user).MessagesById(m365ID).Get()
 }
 
-func CollectMailFolders(
+func CollectFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) error {
-	queryService, err := createService(qp.Credentials, qp.FailFast)
+	var (
+		query             GraphQuery
+		transformer       absser.ParsableFactory
+		queryService, err = createService(qp.Credentials, qp.FailFast)
+	)
+
 	if err != nil {
-		return errors.New("unable to create a mail folder query service for " + qp.User)
+		return errors.Wrapf(
+			err,
+			"unable to create graph.Service within CollectFolders service for "+qp.User,
+		)
+	}
+	switch selectorToOptionIdentifier(qp.Scope) {
+	case messages:
+		query = GetAllFolderNamesForUser
+		transformer = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
+	case contacts:
+		query = GetAllContactFolderNamesForUser
+		transformer = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
+	default:
+		return fmt.Errorf("unsupported option %s used in CollectFolders")
 	}
 
-	query, err := GetAllFolderNamesForUser(queryService, qp.User)
+	response, err := query(queryService, qp.User)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to query mail folder for %s: details: %s",
@@ -144,9 +162,9 @@ func CollectMailFolders(
 	// Iterator required to ensure all potential folders are inspected
 	// when the breadth of the folder space is large
 	pageIterator, err := msgraphgocore.NewPageIterator(
-		query,
+		response,
 		&queryService.adapter,
-		models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
+		transformer)
 	if err != nil {
 		return errors.Wrap(err, "unable to create iterator during mail folder query service")
 	}
