@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -51,7 +51,7 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 		total, restored      int
 		restoreErrors        error
 		copyBuffer           = make([]byte, copyBufferSize)
-		restoreContainerName = fmt.Sprintf("Corso_Restore_%s", time.Now().Format("2006-01-02T15-04-05"))
+		restoreContainerName = fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormatOneDrive))
 	)
 
 	// Iterate through the data collections and restore the contents of each
