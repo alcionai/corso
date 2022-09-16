@@ -27,6 +27,7 @@ var (
 )
 
 var (
+	// clipped formats must appear last, else they take priority over the regular Simple format.
 	formats = []string{
 		StandardTimeFormat, SimpleDateTimeFormat, LegacyTimeFormat, TabularOutputTimeFormat, ClippedSimpleTimeFormat,
 	}
@@ -82,7 +83,7 @@ func ParseTime(s string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, errors.New("unable to format time string: " + s)
+	return time.Time{}, errors.New("unable to parse time string: " + s)
 }
 
 // ExtractTime greedily retrieves a timestamp substring from the provided string.

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/pkg/errors"
@@ -246,8 +245,6 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 }
 
 // ----- controller
-
-var secfmt = regexp.MustCompile(`.+:0-9{2}:0-9{2}`)
 
 func purgeFolders(
 	ctx context.Context,
