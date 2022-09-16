@@ -206,10 +206,10 @@ func IterateSelectAllEventsFromCalendars(
 	}
 }
 
-// IterateAndFilterMessagesForCollections is a filtering GraphIterateFunc
-// that places exchange mail message ids belonging to specific directories
+// IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
+// that places exchange objectsids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
-func IterateAndFilterMessagesForCollections(
+func IterateAndFilterDescendablesForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	errUpdater func(string, error),
@@ -218,7 +218,7 @@ func IterateAndFilterMessagesForCollections(
 ) func(any) bool {
 	var isFilterSet bool
 
-	return func(messageItem any) bool {
+	return func(descendItem any) bool {
 		if !isFilterSet {
 			err := CollectFolders(
 				ctx,
@@ -234,7 +234,7 @@ func IterateAndFilterMessagesForCollections(
 			isFilterSet = true
 		}
 
-		message, ok := messageItem.(descendable)
+		message, ok := descendItem.(descendable)
 		if !ok {
 			errUpdater(qp.User, errors.New("casting messageItem to descendable"))
 			return true

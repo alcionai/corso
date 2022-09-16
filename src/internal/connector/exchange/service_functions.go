@@ -335,7 +335,21 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
-			IterateAndFilterMessagesForCollections,
+			IterateAndFilterDescendablesForCollections,
+			nil
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeContact) {
+		if scope.IsAny(selectors.ExchangeContactFolder) {
+			return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+				GetAllContactFolderNamesForUser,
+				IterateSelectAllContactsForCollections,
+				nil
+		}
+
+		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+			GetAllContactFolderNamesForUser,
+			IterateAndFilterDescendablesForCollections,
 			nil
 	}
 
@@ -343,13 +357,6 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 			GetAllCalendarNamesForUser,
 			IterateSelectAllEventsFromCalendars,
-			nil
-	}
-
-	if scope.IncludesCategory(selectors.ExchangeContact) {
-		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-			GetAllContactFolderNamesForUser,
-			IterateSelectAllContactsForCollections,
 			nil
 	}
 
