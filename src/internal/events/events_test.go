@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -18,7 +19,7 @@ type EventsIntegrationSuite struct {
 }
 
 func TestMetricsIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoCITests, "floob"); err != nil {
+	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
 		t.Skip(err)
 	}
 
@@ -49,8 +50,11 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 	)
 	require.NoError(t, err)
 
-	b := events.NewBus(s, a)
+	b := events.NewBus(s, a, control.Options{})
 	require.NotEmpty(t, b)
-
 	require.NoError(t, b.Close())
+
+	b2 := events.NewBus(s, a, control.Options{DisableMetrics: true})
+	require.Empty(t, b2)
+	require.NoError(t, b2.Close())
 }

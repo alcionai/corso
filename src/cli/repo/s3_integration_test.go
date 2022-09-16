@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
@@ -102,7 +103,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 	ctx = config.SetViper(ctx, vpr)
 
 	// init the repo first
-	_, err = repository.Initialize(ctx, account.Account{}, st)
+	_, err = repository.Initialize(ctx, account.Account{}, st, control.Options{})
 	require.NoError(t, err)
 
 	// then test it

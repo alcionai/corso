@@ -156,7 +156,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, a, s)
+	r, err := repository.Connect(ctx, a, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -191,7 +191,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector, options.Control())
+	ro, err := r.NewRestore(ctx, backupID, sel.Selector)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange restore"))
 	}

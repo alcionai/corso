@@ -28,6 +28,7 @@ type Repository struct {
 
 	Account account.Account // the user's m365 account connection details
 	Storage storage.Storage // the storage provider details and configuration
+	Opts    control.Options
 
 	Bus        events.Bus
 	dataLayer  *kopia.Wrapper
@@ -46,6 +47,7 @@ func Initialize(
 	ctx context.Context,
 	acct account.Account,
 	s storage.Storage,
+	opts control.Options,
 ) (*Repository, error) {
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
@@ -70,7 +72,7 @@ func Initialize(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct),
+		Bus:        events.NewBus(s, acct, opts),
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -89,6 +91,7 @@ func Connect(
 	ctx context.Context,
 	acct account.Account,
 	s storage.Storage,
+	opts control.Options,
 ) (*Repository, error) {
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
@@ -113,7 +116,7 @@ func Connect(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct),
+		Bus:        events.NewBus(s, acct, opts),
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -149,11 +152,10 @@ func (r *Repository) Close(ctx context.Context) error {
 func (r Repository) NewBackup(
 	ctx context.Context,
 	selector selectors.Selector,
-	opts control.Options,
 ) (operations.BackupOperation, error) {
 	return operations.NewBackupOperation(
 		ctx,
-		opts,
+		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		r.Account,
@@ -166,11 +168,10 @@ func (r Repository) NewRestore(
 	ctx context.Context,
 	backupID string,
 	sel selectors.Selector,
-	opts control.Options,
 ) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
-		opts,
+		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		r.Account,

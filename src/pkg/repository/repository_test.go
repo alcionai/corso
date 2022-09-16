@@ -48,7 +48,7 @@ func (suite *RepositorySuite) TestInitialize() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			st, err := test.storage()
 			assert.NoError(t, err)
-			_, err = repository.Initialize(context.Background(), test.account, st)
+			_, err = repository.Initialize(context.Background(), test.account, st, control.Options{})
 			test.errCheck(t, err, "")
 		})
 	}
@@ -76,7 +76,7 @@ func (suite *RepositorySuite) TestConnect() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			st, err := test.storage()
 			assert.NoError(t, err)
-			_, err = repository.Connect(context.Background(), test.account, st)
+			_, err = repository.Connect(context.Background(), test.account, st, control.Options{})
 			test.errCheck(t, err)
 		})
 	}
@@ -127,7 +127,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			st := test.storage(t)
-			r, err := repository.Initialize(ctx, test.account, st)
+			r, err := repository.Initialize(ctx, test.account, st, control.Options{})
 			if err == nil {
 				defer func() {
 					assert.NoError(t, r.Close(ctx))
@@ -146,11 +146,11 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	_, err := repository.Initialize(ctx, account.Account{}, st)
+	_, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
 	require.NoError(t, err)
 
 	// now re-connect
-	_, err = repository.Connect(ctx, account.Account{}, st)
+	_, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
 	assert.NoError(t, err)
 }
 
@@ -163,10 +163,10 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	r, err := repository.Initialize(ctx, acct, st)
+	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err)
 
-	bo, err := r.NewBackup(ctx, selectors.Selector{}, control.Options{})
+	bo, err := r.NewBackup(ctx, selectors.Selector{})
 	require.NoError(t, err)
 	require.NotNil(t, bo)
 }
@@ -180,10 +180,10 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	r, err := repository.Initialize(ctx, acct, st)
+	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err)
 
-	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{}, control.Options{})
+	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{})
 	require.NoError(t, err)
 	require.NotNil(t, ro)
 }
