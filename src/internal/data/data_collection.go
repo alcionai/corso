@@ -22,7 +22,7 @@ type Collection interface {
 	FullPath() path.Path
 }
 
-// DataStream represents a single item within a DataCollection
+// Stream represents a single item within a Collection
 // that can be consumed as a stream (it embeds io.Reader)
 type Stream interface {
 	// ToReader returns an io.Reader for the DataStream
@@ -31,8 +31,14 @@ type Stream interface {
 	UUID() string
 }
 
-// DataStreamInfo is used to provide service specific
-// information about the DataStream
+// StreamInfo is used to provide service specific
+// information about the Stream
 type StreamInfo interface {
 	Info() details.ItemInfo
+}
+
+// StreamSize is used to provide size
+// information about the Stream
+type StreamSize interface {
+	Size() int64
 }

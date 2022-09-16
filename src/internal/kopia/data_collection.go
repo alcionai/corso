@@ -38,6 +38,7 @@ func (kdc kopiaDataCollection) FullPath() path.Path {
 type kopiaDataStream struct {
 	reader io.ReadCloser
 	uuid   string
+	size   int64
 }
 
 func (kds kopiaDataStream) ToReader() io.ReadCloser {
@@ -46,4 +47,8 @@ func (kds kopiaDataStream) ToReader() io.ReadCloser {
 
 func (kds kopiaDataStream) UUID() string {
 	return kds.uuid
+}
+
+func (kds kopiaDataStream) Size() int64 {
+	return kds.size
 }
