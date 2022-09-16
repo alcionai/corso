@@ -428,16 +428,6 @@ func getCollectionPath(
 	directory string,
 	category path.CategoryType,
 ) (path.Path, error) {
-	var returnPath path.Path
-
-	aPath, err1 := path.Builder{}.Append(directory).
-		ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-
 	returnPath, err := resolveCollectionPath(
 		ctx,
 		resolver,
@@ -446,24 +436,29 @@ func getCollectionPath(
 		directory,
 		category,
 	)
-
-	// err1 should only be present in the case of invalid category
-	if err != nil && err1 != nil {
-		return nil,
-			support.WrapAndAppend(
-				fmt.Sprintf(
-					"both path generate functions failed for %s:%s:%s",
-					qp.User,
-					category,
-					directory),
-				err,
-				err1,
-			)
+	if err == nil {
+		return returnPath, nil
 	}
 
-	if err != nil && err1 == nil {
-		returnPath = aPath
+	aPath, err1 := path.Builder{}.Append(directory).
+		ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+	if err1 == nil {
+		return aPath, nil
 	}
 
-	return returnPath, nil
+	return nil,
+		support.WrapAndAppend(
+			fmt.Sprintf(
+				"both path generate functions failed for %s:%s:%s",
+				qp.User,
+				category,
+				directory),
+			err,
+			err1,
+		)
 }
