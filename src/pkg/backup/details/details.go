@@ -12,9 +12,10 @@ import (
 )
 
 type FolderEntry struct {
-	RepoRef  string
-	ShortRef string
-	Info     ItemInfo
+	RepoRef   string
+	ShortRef  string
+	ParentRef string
+	Info      ItemInfo
 }
 
 // --------------------------------------------------------------------------------
@@ -66,16 +67,37 @@ func printJSON(ctx context.Context, dm DetailsModel) {
 	print.All(ctx, ents...)
 }
 
-// Paths returns the list of Paths extracted from the Entries slice.
+// Paths returns the list of Paths for non-folder items extracted from the
+// Entries slice.
 func (dm DetailsModel) Paths() []string {
-	ents := dm.Entries
-	r := make([]string, len(ents))
+	r := make([]string, 0, len(dm.Entries))
 
-	for i := range ents {
-		r[i] = ents[i].RepoRef
+	for _, ent := range dm.Entries {
+		if ent.Folder != nil {
+			continue
+		}
+
+		r = append(r, ent.RepoRef)
 	}
 
 	return r
+}
+
+// Items returns a slice of *ItemInfo that does not contain any FolderInfo
+// entries. Required because not all folders in the details are valid resource
+// paths.
+func (dm DetailsModel) Items() []*DetailsEntry {
+	res := make([]*DetailsEntry, 0, len(dm.Entries))
+
+	for i := 0; i < len(dm.Entries); i++ {
+		if dm.Entries[i].Folder != nil {
+			continue
+		}
+
+		res = append(res, &dm.Entries[i])
+	}
+
+	return res
 }
 
 // --------------------------------------------------------------------------------
@@ -93,13 +115,14 @@ type Details struct {
 	knownFolders map[string]struct{} `json:"-"`
 }
 
-func (d *Details) Add(repoRef, shortRef string, info ItemInfo) {
+func (d *Details) Add(repoRef, shortRef, parentRef string, info ItemInfo) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Entries = append(d.Entries, DetailsEntry{
-		RepoRef:  repoRef,
-		ShortRef: shortRef,
-		ItemInfo: info,
+		RepoRef:   repoRef,
+		ShortRef:  shortRef,
+		ParentRef: parentRef,
+		ItemInfo:  info,
 	})
 }
 
@@ -121,9 +144,10 @@ func (d *Details) AddFolders(folders []FolderEntry) {
 
 		d.knownFolders[folder.ShortRef] = struct{}{}
 		d.Entries = append(d.Entries, DetailsEntry{
-			RepoRef:  folder.RepoRef,
-			ShortRef: folder.ShortRef,
-			ItemInfo: folder.Info,
+			RepoRef:   folder.RepoRef,
+			ShortRef:  folder.ShortRef,
+			ParentRef: folder.ParentRef,
+			ItemInfo:  folder.Info,
 		})
 	}
 }
@@ -136,8 +160,9 @@ func (d *Details) AddFolders(folders []FolderEntry) {
 type DetailsEntry struct {
 	// TODO: `RepoRef` is currently the full path to the item in Kopia
 	// This can be optimized.
-	RepoRef  string `json:"repoRef"`
-	ShortRef string `json:"shortRef"`
+	RepoRef   string `json:"repoRef"`
+	ShortRef  string `json:"shortRef"`
+	ParentRef string `json:"parentRef,omitempty"`
 	ItemInfo
 }
 

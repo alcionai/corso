@@ -89,7 +89,35 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	cp.deets.Add(d.repoPath.String(), d.repoPath.ShortRef(), d.info)
+	parent := d.repoPath.ToBuilder().Dir()
+
+	cp.deets.Add(
+		d.repoPath.String(),
+		d.repoPath.ShortRef(),
+		parent.ShortRef(),
+		d.info,
+	)
+
+	folders := []details.FolderEntry{}
+
+	for len(parent.Elements()) > 0 {
+		nextParent := parent.Dir()
+
+		folders = append(folders, details.FolderEntry{
+			RepoRef:   parent.String(),
+			ShortRef:  parent.ShortRef(),
+			ParentRef: nextParent.ShortRef(),
+			Info: details.ItemInfo{
+				Folder: &details.FolderInfo{
+					DisplayName: parent.Elements()[len(parent.Elements())-1],
+				},
+			},
+		})
+
+		parent = nextParent
+	}
+
+	cp.deets.AddFolders(folders)
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {

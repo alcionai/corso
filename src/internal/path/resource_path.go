@@ -171,7 +171,7 @@ func (rp dataLayerResourcePath) Dir() (Path, error) {
 	}
 
 	return &dataLayerResourcePath{
-		Builder:  *rp.dir(),
+		Builder:  *rp.Builder.Dir(),
 		service:  rp.service,
 		category: rp.category,
 		hasItem:  false,
@@ -192,4 +192,9 @@ func (rp dataLayerResourcePath) Append(
 		category: rp.category,
 		hasItem:  isItem,
 	}, nil
+}
+
+func (rp dataLayerResourcePath) ToBuilder() *Builder {
+	// Safe to directly return the Builder because Builders are immutable.
+	return &rp.Builder
 }

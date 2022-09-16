@@ -91,6 +91,8 @@ type Path interface {
 	// reference is guaranteed to be unique. No guarantees are made about whether
 	// a short reference can be converted back into the Path that generated it.
 	ShortRef() string
+	// ToBuilder returns a Builder instance that represents the current Path.
+	ToBuilder() *Builder
 }
 
 // Builder is a simple path representation that only tracks path elements. It
@@ -174,7 +176,7 @@ func (pb Builder) PopFront() *Builder {
 	}
 }
 
-func (pb Builder) dir() *Builder {
+func (pb Builder) Dir() *Builder {
 	if len(pb.elements) <= 1 {
 		return &Builder{}
 	}

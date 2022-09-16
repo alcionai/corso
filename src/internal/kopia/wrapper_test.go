@@ -132,20 +132,17 @@ func getDirEntriesForEntry(
 // ---------------
 type CorsoProgressUnitSuite struct {
 	suite.Suite
+	targetFilePath path.Path
+	targetFileName string
 }
 
 func TestCorsoProgressUnitSuite(t *testing.T) {
 	suite.Run(t, new(CorsoProgressUnitSuite))
 }
 
-func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
-	type testInfo struct {
-		info *itemDetails
-		err  error
-	}
-
-	targetFilePath, err := path.Builder{}.Append(
-		"Inbox",
+func (suite *CorsoProgressUnitSuite) SetupSuite() {
+	p, err := path.Builder{}.Append(
+		testInboxDir,
 		"testFile",
 	).ToDataLayerExchangePathForCategory(
 		testTenant,
@@ -155,11 +152,17 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	)
 	require.NoError(suite.T(), err)
 
-	relativePath, err := targetFilePath.Dir()
-	require.NoError(suite.T(), err)
+	suite.targetFilePath = p
+	suite.targetFileName = suite.targetFilePath.ToBuilder().Dir().String()
+}
 
-	targetFileName := relativePath.String()
-	deets := &itemDetails{details.ItemInfo{}, targetFilePath}
+func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
+	type testInfo struct {
+		info *itemDetails
+		err  error
+	}
+
+	deets := &itemDetails{details.ItemInfo{}, suite.targetFilePath}
 
 	table := []struct {
 		name        string
@@ -170,17 +173,18 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 		{
 			name: "DetailsExist",
 			cachedItems: map[string]testInfo{
-				targetFileName: {
+				suite.targetFileName: {
 					info: deets,
 					err:  nil,
 				},
 			},
-			expectedLen: 1,
+			// 1 file and 5 folders.
+			expectedLen: 6,
 		},
 		{
 			name: "PendingNoDetails",
 			cachedItems: map[string]testInfo{
-				targetFileName: {
+				suite.targetFileName: {
 					info: nil,
 					err:  nil,
 				},
@@ -190,7 +194,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 		{
 			name: "HadError",
 			cachedItems: map[string]testInfo{
-				targetFileName: {
+				suite.targetFileName: {
 					info: deets,
 					err:  assert.AnError,
 				},
@@ -225,6 +229,65 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 			assert.Len(t, bd.Entries, test.expectedLen)
 		})
 	}
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
+	t := suite.T()
+	// Order of folders in hierarchy from root to leaf (excluding the item).
+	expectedFolderOrder := suite.targetFilePath.ToBuilder().Dir().Elements()
+
+	// Setup stuff.
+	bd := &details.Details{}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
+	}
+
+	deets := &itemDetails{details.ItemInfo{}, suite.targetFilePath}
+	cp.put(suite.targetFileName, deets)
+	require.Len(t, cp.pending, 1)
+
+	cp.FinishedFile(suite.targetFileName, nil)
+
+	// Gather information about the current state.
+	var (
+		curRef     *details.DetailsEntry
+		refToEntry = map[string]*details.DetailsEntry{}
+	)
+
+	for i := 0; i < len(bd.Entries); i++ {
+		e := &bd.Entries[i]
+		if e.Folder == nil {
+			continue
+		}
+
+		refToEntry[e.ShortRef] = e
+
+		if e.Folder.DisplayName == expectedFolderOrder[len(expectedFolderOrder)-1] {
+			curRef = e
+		}
+	}
+
+	// Actual tests start here.
+	var rootRef *details.DetailsEntry
+
+	// Traverse the details entries from leaf to root, following the ParentRef
+	// fields. At the end rootRef should point to the root of the path.
+	for i := len(expectedFolderOrder) - 1; i >= 0; i-- {
+		name := expectedFolderOrder[i]
+
+		require.NotNil(t, curRef)
+		assert.Equal(t, name, curRef.Folder.DisplayName)
+
+		rootRef = curRef
+		curRef = refToEntry[curRef.ParentRef]
+	}
+
+	// Hierarchy root's ParentRef = "" and map will return nil.
+	assert.Nil(t, curRef)
+	require.NotNil(t, rootRef)
+	assert.Empty(t, rootRef.ParentRef)
 }
 
 type KopiaUnitSuite struct {
@@ -595,7 +658,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	assert.Equal(t, stats.IgnoredErrorCount, 0)
 	assert.Equal(t, stats.ErrorCount, 0)
 	assert.False(t, stats.Incomplete)
-	assert.Len(t, rp.Entries, 47)
+	// 47 file and 6 folder entries.
+	assert.Len(t, rp.Entries, 47+6)
 }
 
 func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
@@ -690,7 +754,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
-	assert.Len(t, rp.Entries, 5)
+	// 5 file and 6 folder entries.
+	assert.Len(t, rp.Entries, 5+6)
 }
 
 type KopiaSimpleRepoIntegrationSuite struct {
@@ -794,7 +859,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.TotalDirectoryCount, 6)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	assert.Len(t, rp.Entries, 6)
+	// 6 file and 6 folder entries.
+	assert.Len(t, rp.Entries, 6+6)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 

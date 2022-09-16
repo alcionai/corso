@@ -227,7 +227,7 @@ func reduce[T scopeT, C categoryT](
 	ents := []details.DetailsEntry{}
 
 	// for each entry, compare that entry against the scopes of the same data type
-	for _, ent := range deets.Entries {
+	for _, ent := range deets.Items() {
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 		if err != nil {
 			logger.Ctx(ctx).Debugw("transforming repoRef to path", "err", err)
@@ -242,13 +242,13 @@ func reduce[T scopeT, C categoryT](
 		passed := passes(
 			dc,
 			dc.pathValues(repoPath),
-			ent,
+			*ent,
 			excls[dc],
 			filts[dc],
 			incls[dc],
 		)
 		if passed {
-			ents = append(ents, ent)
+			ents = append(ents, *ent)
 		}
 	}
 

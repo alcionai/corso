@@ -132,41 +132,77 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	}
 }
 
+var pathItemsTable = []struct {
+	name       string
+	ents       []details.DetailsEntry
+	expectRefs []string
+}{
+	{
+		name:       "nil entries",
+		ents:       nil,
+		expectRefs: []string{},
+	},
+	{
+		name: "single entry",
+		ents: []details.DetailsEntry{
+			{RepoRef: "abcde"},
+		},
+		expectRefs: []string{"abcde"},
+	},
+	{
+		name: "multiple entries",
+		ents: []details.DetailsEntry{
+			{RepoRef: "abcde"},
+			{RepoRef: "12345"},
+		},
+		expectRefs: []string{"abcde", "12345"},
+	},
+	{
+		name: "multiple entries with folder",
+		ents: []details.DetailsEntry{
+			{RepoRef: "abcde"},
+			{RepoRef: "12345"},
+			{
+				RepoRef: "deadbeef",
+				ItemInfo: details.ItemInfo{
+					Folder: &details.FolderInfo{
+						DisplayName: "test folder",
+					},
+				},
+			},
+		},
+		expectRefs: []string{"abcde", "12345"},
+	},
+}
+
 func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
-	table := []struct {
-		name   string
-		ents   []details.DetailsEntry
-		expect []string
-	}{
-		{
-			name:   "nil entries",
-			ents:   nil,
-			expect: []string{},
-		},
-		{
-			name: "single entry",
-			ents: []details.DetailsEntry{
-				{RepoRef: "abcde"},
-			},
-			expect: []string{"abcde"},
-		},
-		{
-			name: "multiple entries",
-			ents: []details.DetailsEntry{
-				{RepoRef: "abcde"},
-				{RepoRef: "12345"},
-			},
-			expect: []string{"abcde", "12345"},
-		},
-	}
-	for _, test := range table {
+	for _, test := range pathItemsTable {
 		suite.T().Run(test.name, func(t *testing.T) {
 			d := details.Details{
 				DetailsModel: details.DetailsModel{
 					Entries: test.ents,
 				},
 			}
-			assert.Equal(t, test.expect, d.Paths())
+			assert.Equal(t, test.expectRefs, d.Paths())
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
+	for _, test := range pathItemsTable {
+		suite.T().Run(test.name, func(t *testing.T) {
+			d := details.Details{
+				DetailsModel: details.DetailsModel{
+					Entries: test.ents,
+				},
+			}
+
+			ents := d.Items()
+			assert.Len(t, ents, len(test.expectRefs))
+
+			for _, e := range ents {
+				assert.Contains(t, test.expectRefs, e.RepoRef)
+			}
 		})
 	}
 }
@@ -181,12 +217,14 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 			name: "MultipleFolders",
 			folders: []details.FolderEntry{
 				{
-					RepoRef:  "rr1",
-					ShortRef: "sr1",
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
 				},
 				{
-					RepoRef:  "rr2",
-					ShortRef: "sr2",
+					RepoRef:   "rr2",
+					ShortRef:  "sr2",
+					ParentRef: "pr2",
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2"},
@@ -195,20 +233,24 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 			name: "MultipleFoldersWithRepeats",
 			folders: []details.FolderEntry{
 				{
-					RepoRef:  "rr1",
-					ShortRef: "sr1",
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
 				},
 				{
-					RepoRef:  "rr2",
-					ShortRef: "sr2",
+					RepoRef:   "rr2",
+					ShortRef:  "sr2",
+					ParentRef: "pr2",
 				},
 				{
-					RepoRef:  "rr1",
-					ShortRef: "sr1",
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
 				},
 				{
-					RepoRef:  "rr3",
-					ShortRef: "sr3",
+					RepoRef:   "rr3",
+					ShortRef:  "sr3",
+					ParentRef: "pr3",
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2", "sr3"},
