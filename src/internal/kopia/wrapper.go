@@ -564,6 +564,7 @@ func restoreSingleItem(
 			&kopiaDataStream{
 				uuid:   f.Name(),
 				reader: r,
+				size:   f.Size(),
 			},
 		},
 		path: itemDir,
