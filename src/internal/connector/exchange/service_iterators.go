@@ -431,7 +431,9 @@ func IterateSelectAllContactsForCollections(
 			return true // Invalid state TODO: How should this be named
 		}
 
-		dirPath, err := path.Builder{}.Append(*folder.GetId()).ToDataLayerExchangePathForCategory(
+		directory := *folder.GetDisplayName()
+
+		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
 			qp.Credentials.TenantID,
 			qp.User,
 			path.ContactsCategory,
@@ -454,7 +456,7 @@ func IterateSelectAllContactsForCollections(
 			statusUpdater,
 		)
 		edc.jobs = append(edc.jobs, listOfIDs...)
-		collections[*folder.GetId()] = &edc
+		collections[directory] = &edc
 
 		return true
 	}

@@ -161,6 +161,7 @@ func CollectFolders(
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
+
 	// Iterator required to ensure all potential folders are inspected
 	// when the breadth of the folder space is large
 	pageIterator, err := msgraphgocore.NewPageIterator(
