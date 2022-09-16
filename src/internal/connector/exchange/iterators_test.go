@@ -201,7 +201,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			// checks, potentially by breaking things out into separate tests per
 			// category.
 			for _, dad := range collections {
-
 				t.Logf("Collections: %v\n", dad.FullPath().Folder())
 			}
 			if !test.scope.IncludesCategory(selectors.ExchangeMail) {
