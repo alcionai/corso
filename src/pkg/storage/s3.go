@@ -27,10 +27,11 @@ const (
 )
 
 func (c S3Config) Normalize() S3Config {
-	// Minio doesn't accept scheme prefixes.
-	//nolint:modifies-value-receiver method returns value copy of receiver
-	c.Bucket = strings.TrimPrefix(c.Bucket, "s3://")
-	return c
+	return S3Config{
+		Bucket:   strings.TrimPrefix(c.Bucket, "s3://"),
+		Endpoint: c.Endpoint,
+		Prefix:   c.Prefix,
+	}
 }
 
 // StringConfig transforms a s3Config struct into a plain
