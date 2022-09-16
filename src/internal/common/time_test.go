@@ -55,3 +55,97 @@ func (suite *CommonTimeUnitSuite) TestParseTime() {
 	_, err = common.ParseTime("flablabls")
 	require.Error(t, err)
 }
+
+func (suite *CommonTimeUnitSuite) TestExtractTime() {
+	clipSimpleTime := func(t string) string {
+		return t[:len(t)-3]
+	}
+
+	comparable := func(t *testing.T, tt time.Time, clipped bool) time.Time {
+		ts := common.FormatLegacyTime(tt.UTC())
+
+		if clipped {
+			ts = tt.UTC().Format(common.ClippedSimpleTimeFormat)
+		}
+
+		c, err := common.ParseTime(ts)
+
+		require.NoError(t, err)
+
+		return c
+	}
+
+	parseT := func(v string) time.Time {
+		t, err := time.Parse(time.RFC3339, v)
+		require.NoError(suite.T(), err)
+
+		return t
+	}
+
+	inputs := []time.Time{
+		time.Now().UTC(),
+		time.Now().UTC().Add(-12 * time.Hour),
+		parseT("2006-01-02T00:00:00Z"),
+		parseT("2006-01-02T12:00:00Z"),
+		parseT("2006-01-02T03:01:00Z"),
+		parseT("2006-01-02T13:00:02Z"),
+		parseT("2006-01-02T03:03:00+01:00"),
+		parseT("2006-01-02T03:00:04-01:00"),
+	}
+
+	type timeFormatter func(time.Time) string
+
+	var (
+		clippedF = func(t time.Time) string {
+			return clipSimpleTime(common.FormatSimpleDateTime(t))
+		}
+		legacyF    = common.FormatLegacyTime
+		simpleF    = common.FormatSimpleDateTime
+		stdF       = common.FormatTime
+		tabularF   = common.FormatTabularDisplayTime
+		formatters = []timeFormatter{legacyF, simpleF, stdF, tabularF, clippedF}
+	)
+
+	type presuf struct {
+		prefix string
+		suffix string
+	}
+
+	pss := []presuf{
+		{"foo", "bar"},
+		{"", "bar"},
+		{"foo", ""},
+		{"", ""},
+	}
+
+	type testable struct {
+		input   string
+		expect  time.Time
+		clipped bool
+	}
+
+	table := []testable{}
+
+	// test matrix: for each input, in each format, with each prefix/suffix, run the test.
+	for _, in := range inputs {
+		for i, f := range formatters {
+			v := f(in)
+
+			for _, ps := range pss {
+				table = append(table, testable{
+					input:   ps.prefix + v + ps.suffix,
+					expect:  comparable(suite.T(), in, i == 4),
+					clipped: i == 4,
+				})
+			}
+		}
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.input, func(t *testing.T) {
+			result, err := common.ExtractTime(test.input)
+			require.NoError(t, err)
+			assert.Equal(t, test.expect, comparable(t, result, test.clipped))
+		})
+	}
+}

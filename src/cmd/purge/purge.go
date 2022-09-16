@@ -249,14 +249,6 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 
 var secfmt = regexp.MustCompile(`.+:0-9{2}:0-9{2}`)
 
-func normalizeDisplayName(dn string) string {
-	if !secfmt.MatchString(dn) {
-		dn += ":00"
-	}
-
-	return dn
-}
-
 func purgeFolders(
 	ctx context.Context,
 	gc *connector.GraphConnector,
@@ -271,31 +263,18 @@ func purgeFolders(
 		return Only(ctx, errors.Wrapf(err, "retrieving %s folders", data))
 	}
 
-	stLen := len(common.SimpleDateTimeFormat)
-
 	// delete any that don't meet the boundary
 	for _, fld := range fs {
 		// compare the folder time to the deletion boundary time first
-		var (
-			del         bool
-			displayName = *fld.GetDisplayName()
-			normName    = normalizeDisplayName(*fld.GetDisplayName())
-			dnLen       = len(normName)
-		)
+		displayName := *fld.GetDisplayName()
 
-		if dnLen > stLen {
-			suff := normName[dnLen-stLen:]
-
-			dnTime, err := common.ParseTime(suff)
-			if err != nil {
-				Info(ctx, errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName))
-				continue
-			}
-
-			del = dnTime.Before(boundary)
+		dnTime, err := common.ExtractTime(displayName)
+		if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+			Info(ctx, errors.Wrapf(err, "Error: parsing %s folder name [%s]", data, displayName))
+			continue
 		}
 
-		if !del {
+		if !dnTime.Before(boundary) || dnTime == (time.Time{}) {
 			continue
 		}
 
