@@ -66,6 +66,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 				&kopiaDataStream{
 					reader: io.NopCloser(bytes.NewReader(testData[0])),
 					uuid:   uuids[0],
+					size:   int64(len(testData[0])),
 				},
 			},
 		},
@@ -75,10 +76,12 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 				&kopiaDataStream{
 					reader: io.NopCloser(bytes.NewReader(testData[0])),
 					uuid:   uuids[0],
+					size:   int64(len(testData[0])),
 				},
 				&kopiaDataStream{
 					reader: io.NopCloser(bytes.NewReader(testData[1])),
 					uuid:   uuids[1],
+					size:   int64(len(testData[1])),
 				},
 			},
 		},
@@ -100,6 +103,9 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 				buf, err := ioutil.ReadAll(returnedStream.ToReader())
 				require.NoError(t, err)
 				assert.Equal(t, buf, testData[count])
+				require.Implements(t, (*data.StreamSize)(nil), returnedStream)
+				ss := returnedStream.(data.StreamSize)
+				assert.Equal(t, len(buf), int(ss.Size()))
 
 				count++
 			}
