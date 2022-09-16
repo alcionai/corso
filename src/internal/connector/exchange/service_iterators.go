@@ -220,7 +220,7 @@ func IterateAndFilterMessagesForCollections(
 
 	return func(messageItem any) bool {
 		if !isFilterSet {
-			err := CollectMailFolders(
+			err := CollectFolders(
 				ctx,
 				qp,
 				collections,
@@ -259,16 +259,31 @@ func IterateFilterFolderDirectoriesForCollections(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
-		service graph.Service
-		err     error
+		resolver graph.ContainerResolver
+		isSet    bool
+		err      error
+		option   optionIdentifier
+		category path.CategoryType
 	)
 
-	resolver, err := maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
-	if err != nil {
-		errUpdater("getting folder resolver for category email", err)
-	}
-
 	return func(folderItem any) bool {
+		if !isSet {
+			option = selectorToOptionIdentifier(qp.Scope)
+			switch option {
+			case messages:
+				category = path.EmailCategory
+			case contacts:
+				category = path.ContactsCategory
+			}
+
+			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
+			if err != nil {
+				errUpdater("getting folder resolver for category email", err)
+			}
+
+			isSet = true
+		}
+
 		folder, ok := folderItem.(displayable)
 		if !ok {
 			errUpdater(qp.User, errors.New("casting folderItem to displayable"))
@@ -301,7 +316,7 @@ func IterateFilterFolderDirectoriesForCollections(
 			return true
 		}
 
-		service, err = createService(qp.Credentials, qp.FailFast)
+		service, err := createService(qp.Credentials, qp.FailFast)
 		if err != nil {
 			errUpdater(
 				*folder.GetDisplayName(),
@@ -313,7 +328,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		temp := NewCollection(
 			qp.User,
 			dirPath,
-			messages,
+			option,
 			service,
 			statusUpdater,
 		)
