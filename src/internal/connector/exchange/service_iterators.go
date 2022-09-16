@@ -259,53 +259,66 @@ func IterateFilterFolderDirectoriesForCollections(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
-		resolver graph.ContainerResolver
-		isSet    bool
-		err      error
-		option   optionIdentifier
-		category path.CategoryType
+		resolver    graph.ContainerResolver
+		isSet       bool
+		collectPath string
+		err         error
+		option      optionIdentifier
+		category    path.CategoryType
+		validate    func(string) bool
 	)
 
 	return func(folderItem any) bool {
-		if !isSet {
-			option = selectorToOptionIdentifier(qp.Scope)
-			switch option {
-			case messages:
-				category = path.EmailCategory
-			case contacts:
-				category = path.ContactsCategory
-			}
-
-			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
-			if err != nil {
-				errUpdater("getting folder resolver for category email", err)
-			}
-
-			isSet = true
-		}
-
 		folder, ok := folderItem.(displayable)
 		if !ok {
 			errUpdater(qp.User, errors.New("casting folderItem to displayable"))
 			return true
 		}
+
+		if !isSet {
+			option = selectorToOptionIdentifier(qp.Scope)
+			switch option {
+			case messages:
+				category = path.EmailCategory
+				validate = func(name string) bool {
+					return !qp.Scope.Matches(selectors.ExchangeMailFolder, name)
+				}
+			case contacts:
+				category = path.ContactsCategory
+				validate = func(name string) bool {
+					return !qp.Scope.Matches(selectors.ExchangeContactFolder, name)
+				}
+			}
+
+			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
+			if err != nil {
+				errUpdater("getting folder resolver for category "+category.String(), err)
+			}
+
+			isSet = true
+		}
+
 		// Continue to iterate if folder name is empty
 		if folder.GetDisplayName() == nil {
 			return true
 		}
 
-		if !qp.Scope.Matches(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+		if validate(*folder.GetDisplayName()) {
 			return true
 		}
 
-		directory := *folder.GetId()
+		if option == contacts {
+			collectPath = *folder.GetDisplayName()
+		} else {
+			collectPath = *folder.GetId()
+		}
 
 		dirPath, err := getCollectionPath(
 			ctx,
 			qp,
 			resolver,
-			directory,
-			path.EmailCategory,
+			collectPath,
+			category,
 		)
 		if err != nil {
 			errUpdater(
@@ -332,7 +345,7 @@ func IterateFilterFolderDirectoriesForCollections(
 			service,
 			statusUpdater,
 		)
-		collections[directory] = &temp
+		collections[*folder.GetId()] = &temp
 
 		return true
 	}

@@ -143,7 +143,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			scope:             eventScope,
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 		}, {
-			name:              "Folder Iterative Check",
+			name:              "Folder Iterative Check Mail",
 			queryFunction:     GetAllFolderNamesForUser,
 			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
 			scope:             mailScope,
@@ -153,6 +153,12 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				"Sent Items":    {},
 				"Deleted Items": {},
 			},
+		}, {
+			name:              "Folder Iterative Check Contacts",
+			queryFunction:     GetAllContactFolderNamesForUser,
+			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			scope:             contactScope,
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},
 	}
 	for _, test := range tests {
@@ -194,6 +200,10 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			// other resolvers aren't implemented. Once they are we can expand these
 			// checks, potentially by breaking things out into separate tests per
 			// category.
+			for _, dad := range collections {
+
+				t.Logf("Collections: %v\n", dad.FullPath().Folder())
+			}
 			if !test.scope.IncludesCategory(selectors.ExchangeMail) {
 				return
 			}
