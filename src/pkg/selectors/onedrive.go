@@ -22,6 +22,13 @@ type (
 	OneDriveBackup struct {
 		oneDrive
 	}
+
+	// OneDriveRestorep provides an api for selecting
+	// data scopes applicable to the OneDrive service,
+	// plus restore-specific methods.
+	OneDriveRestore struct {
+		oneDrive
+	}
 )
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
@@ -43,6 +50,29 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 	}
 
 	src := OneDriveBackup{oneDrive{s}}
+
+	return &src, nil
+}
+
+// NewOneDriveRestore produces a new Selector with the service set to ServiceOneDrive.
+func NewOneDriveRestore() *OneDriveRestore {
+	src := OneDriveRestore{
+		oneDrive{
+			newSelector(ServiceOneDrive),
+		},
+	}
+
+	return &src
+}
+
+// ToOneDriveRestore transforms the generic selector into an OneDriveRestore.
+// Errors if the service defined by the selector is not ServiceOneDrive.
+func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
+	if s.Service != ServiceOneDrive {
+		return nil, badCastErr(ServiceOneDrive, s.Service)
+	}
+
+	src := OneDriveRestore{oneDrive{s}}
 
 	return &src, nil
 }
