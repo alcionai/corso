@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -353,4 +354,109 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	}
 
 	return nil, nil, nil, errors.New("exchange scope option not supported")
+}
+
+// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
+// this category of data. If one is not available, returns nil so that other
+// logic in the caller can complete as long as they check if the resolver is not
+// nil. If an error occurs populating the resolver, returns an error.
+func maybeGetAndPopulateFolderResolver(
+	ctx context.Context,
+	qp graph.QueryParams,
+	category path.CategoryType,
+) (graph.ContainerResolver, error) {
+	var res graph.ContainerResolver
+
+	switch category {
+	case path.EmailCategory:
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			return nil, err
+		}
+
+		res = &mailFolderCache{
+			userID: qp.User,
+			gs:     service,
+		}
+
+	default:
+		return nil, nil
+	}
+
+	if err := res.Populate(ctx); err != nil {
+		return nil, errors.Wrap(err, "populating directory resolver")
+	}
+
+	return res, nil
+}
+
+func resolveCollectionPath(
+	ctx context.Context,
+	resolver graph.ContainerResolver,
+	tenantID, user, folderID string,
+	category path.CategoryType,
+) (path.Path, error) {
+	if resolver == nil {
+		// Allows caller to default to old-style path.
+		return nil, errors.WithStack(errNilResolver)
+	}
+
+	p, err := resolver.IDToPath(ctx, folderID)
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving folder ID")
+	}
+
+	return p.ToDataLayerExchangePathForCategory(
+		tenantID,
+		user,
+		category,
+		false,
+	)
+}
+
+func getCollectionPath(
+	ctx context.Context,
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+	directory string,
+	category path.CategoryType,
+) (path.Path, error) {
+	var returnPath path.Path
+
+	aPath, err1 := path.Builder{}.Append(directory).
+		ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+
+	returnPath, err := resolveCollectionPath(
+		ctx,
+		resolver,
+		qp.Credentials.TenantID,
+		qp.User,
+		directory,
+		category,
+	)
+
+	// err1 should only be present in the case of invalid category
+	if err != nil && err1 != nil {
+		return nil,
+			support.WrapAndAppend(
+				fmt.Sprintf(
+					"both path generate functions failed for %s:%s:%s",
+					qp.User,
+					category,
+					directory),
+				err,
+				err1,
+			)
+	}
+
+	if err != nil && err1 == nil {
+		returnPath = aPath
+	}
+
+	return returnPath, nil
 }
