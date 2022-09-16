@@ -140,7 +140,9 @@ func CollectFolders(
 			"unable to create graph.Service within CollectFolders service for "+qp.User,
 		)
 	}
-	switch selectorToOptionIdentifier(qp.Scope) {
+
+	option := selectorToOptionIdentifier(qp.Scope)
+	switch option {
 	case messages:
 		query = GetAllFolderNamesForUser
 		transformer = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
@@ -148,7 +150,7 @@ func CollectFolders(
 		query = GetAllContactFolderNamesForUser
 		transformer = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
 	default:
-		return fmt.Errorf("unsupported option %s used in CollectFolders")
+		return fmt.Errorf("unsupported option %s used in CollectFolders", option)
 	}
 
 	response, err := query(queryService, qp.User)
