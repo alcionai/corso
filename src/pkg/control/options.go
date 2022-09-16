@@ -13,12 +13,14 @@ const (
 
 // Options holds the optional configurations for a process
 type Options struct {
-	FailFast  bool            `json:"failFast"`
-	Collision CollisionPolicy `json:"-"`
+	Collision      CollisionPolicy `json:"-"`
+	DisableMetrics bool            `json:"disableMetrics"`
+	FailFast       bool            `json:"failFast"`
 }
 
-func NewOptions(failFast bool) Options {
+// Defaults provides an Options with the default values set.
+func Defaults() Options {
 	return Options{
-		FailFast: failFast,
+		FailFast: true,
 	}
 }

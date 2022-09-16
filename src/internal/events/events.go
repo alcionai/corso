@@ -10,6 +10,7 @@ import (
 	analytics "github.com/rudderlabs/analytics-go"
 
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -53,7 +54,11 @@ var (
 	DataPlaneURL string
 )
 
-func NewBus(s storage.Storage, a account.Account) Bus {
+func NewBus(s storage.Storage, a account.Account, opts control.Options) Bus {
+	if opts.DisableMetrics {
+		return Bus{}
+	}
+
 	hash := repoHash(s, a)
 
 	envWK := os.Getenv("RUDDERSTACK_CORSO_WRITE_KEY")

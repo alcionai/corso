@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -88,7 +89,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, a, s)
+	r, err := repository.Initialize(ctx, a, s, options.Control())
 	if err != nil {
 		if succeedIfExists && kopia.IsRepoAlreadyExistsError(err) {
 			return nil
@@ -146,7 +147,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Connect(ctx, a, s)
+	r, err := repository.Connect(ctx, a, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to the S3 repository"))
 	}

@@ -83,7 +83,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st)
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err)
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)
@@ -107,10 +107,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(
-			ctx,
-			sel.Selector,
-			control.NewOptions(false))
+		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
 		require.NoError(t, bop.Run(ctx))
 		require.NoError(t, err)
 
