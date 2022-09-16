@@ -86,7 +86,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
