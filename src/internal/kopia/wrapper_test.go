@@ -18,7 +18,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia/mockkopia"
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -548,21 +547,6 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 	}
 }
 
-func (suite *KopiaUnitSuite) TestRestoreItem() {
-	ctx := context.Background()
-
-	file := &mockkopia.MockFile{
-		Entry: &mockkopia.MockEntry{
-			EntryName: testFileName2,
-			EntryMode: mockkopia.DefaultPermissions,
-		},
-		OpenErr: assert.AnError,
-	}
-
-	_, err := restoreSingleItem(ctx, file, nil)
-	assert.Error(suite.T(), err)
-}
-
 // ---------------
 // integration tests that use kopia
 // ---------------
@@ -903,97 +887,59 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
 	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
 }
 
-func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
-	t := suite.T()
-
-	item := suite.files[suite.testPath1.String()][0]
-	expected := map[string][]byte{
-		item.itemPath.String(): item.data,
-	}
-
-	c, err := suite.w.RestoreSingleItem(
-		suite.ctx,
-		string(suite.snapshotID),
-		item.itemPath,
-	)
-	require.NoError(t, err)
-
-	assert.Equal(t, suite.testPath1, c.FullPath())
-	testForFiles(t, expected, []data.Collection{c})
-}
-
-// TestBackupAndRestoreSingleItem_Errors exercises the public RestoreSingleItem
-// function.
-func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
-	itemPath := suite.files[suite.testPath1.String()][0].itemPath
-
-	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
-		testTenant,
-		testUser,
-		path.EmailCategory,
-		true,
-	)
-	require.NoError(suite.T(), err)
-
+func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	table := []struct {
-		name       string
-		snapshotID string
-		path       path.Path
+		name string
+		// This is both input and can be used to lookup expected output information.
+		items               []*backedupFile
+		expectedCollections int
 	}{
 		{
-			"EmptyPath",
-			string(suite.snapshotID),
-			nil,
+			name: "SingleItem",
+			items: []*backedupFile{
+				suite.files[suite.testPath1.String()][0],
+			},
+			expectedCollections: 1,
 		},
 		{
-			"NoSnapshot",
-			"foo",
-			itemPath,
+			name: "MultipleItemsSameCollection",
+			items: []*backedupFile{
+				suite.files[suite.testPath1.String()][0],
+				suite.files[suite.testPath1.String()][1],
+			},
+			expectedCollections: 1,
 		},
 		{
-			"TargetNotAFile",
-			string(suite.snapshotID),
-			suite.testPath1,
-		},
-		{
-			"NonExistentFile",
-			string(suite.snapshotID),
-			doesntExist,
+			name: "MultipleItemsDifferentCollections",
+			items: []*backedupFile{
+				suite.files[suite.testPath1.String()][0],
+				suite.files[suite.testPath2.String()][0],
+			},
+			expectedCollections: 2,
 		},
 	}
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := suite.w.RestoreSingleItem(
+			inputPaths := make([]path.Path, 0, len(test.items))
+			expected := make(map[string][]byte, len(test.items))
+
+			for _, item := range test.items {
+				inputPaths = append(inputPaths, item.itemPath)
+				expected[item.itemPath.String()] = suite.filesByPath[item.itemPath.String()].data
+			}
+
+			result, err := suite.w.RestoreMultipleItems(
 				suite.ctx,
-				test.snapshotID,
-				test.path,
+				string(suite.snapshotID),
+				inputPaths,
 			)
-			require.Error(t, err)
+			require.NoError(t, err)
+
+			assert.Len(t, result, test.expectedCollections)
+			testForFiles(t, expected, result)
 		})
 	}
-}
-
-func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
-	t := suite.T()
-	inputPaths := []path.Path{}
-	expected := map[string][]byte{}
-
-	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
-		item := suite.files[parent.String()][0]
-
-		inputPaths = append(inputPaths, item.itemPath)
-		expected[item.itemPath.String()] = item.data
-	}
-
-	result, err := suite.w.RestoreMultipleItems(
-		suite.ctx,
-		string(suite.snapshotID),
-		inputPaths,
-	)
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(result))
-	testForFiles(t, expected, result)
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
