@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
@@ -116,9 +115,7 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 			result := recorder.String()
 			t.Log("backup results", result)
 
-			// as an offhand check: the result should contain a string with the current hour
-			assert.Contains(t, result, time.Now().UTC().Format("2006-01-02T15"))
-			// and the m365 user id
+			// as an offhand check: the result should contain the m365 user id
 			assert.Contains(t, result, suite.m365UserID)
 		})
 	}

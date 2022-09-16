@@ -170,3 +170,60 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
 		})
 	}
 }
+
+func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
+	table := []struct {
+		name              string
+		folders           []details.FolderEntry
+		expectedShortRefs []string
+	}{
+		{
+			name: "MultipleFolders",
+			folders: []details.FolderEntry{
+				{
+					RepoRef:  "rr1",
+					ShortRef: "sr1",
+				},
+				{
+					RepoRef:  "rr2",
+					ShortRef: "sr2",
+				},
+			},
+			expectedShortRefs: []string{"sr1", "sr2"},
+		},
+		{
+			name: "MultipleFoldersWithRepeats",
+			folders: []details.FolderEntry{
+				{
+					RepoRef:  "rr1",
+					ShortRef: "sr1",
+				},
+				{
+					RepoRef:  "rr2",
+					ShortRef: "sr2",
+				},
+				{
+					RepoRef:  "rr1",
+					ShortRef: "sr1",
+				},
+				{
+					RepoRef:  "rr3",
+					ShortRef: "sr3",
+				},
+			},
+			expectedShortRefs: []string{"sr1", "sr2", "sr3"},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			deets := details.Details{}
+			deets.AddFolders(test.folders)
+
+			assert.Len(t, deets.Entries, len(test.expectedShortRefs))
+
+			for _, e := range deets.Entries {
+				assert.Contains(t, test.expectedShortRefs, e.ShortRef)
+			}
+		})
+	}
+}
