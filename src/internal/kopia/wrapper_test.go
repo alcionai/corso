@@ -38,22 +38,8 @@ const (
 )
 
 var (
-	service  = path.ExchangeService.String()
-	category = path.EmailCategory.String()
-	testPath = []string{
-		testTenant,
-		service,
-		testUser,
-		category,
-		testInboxDir,
-	}
-	testPath2 = []string{
-		testTenant,
-		service,
-		testUser,
-		category,
-		testArchiveDir,
-	}
+	service       = path.ExchangeService.String()
+	category      = path.EmailCategory.String()
 	testFileData  = []byte("abcdefghijklmnopqrstuvwxyz")
 	testFileData2 = []byte("zyxwvutsrqponmlkjihgfedcba")
 	testFileData3 = []byte("foo")
@@ -69,6 +55,8 @@ func testForFiles(
 	expected map[string][]byte,
 	collections []data.Collection,
 ) {
+	t.Helper()
+
 	count := 0
 
 	for _, c := range collections {
@@ -758,17 +746,25 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Len(t, rp.Entries, 5+6)
 }
 
+type backedupFile struct {
+	parentPath path.Path
+	itemPath   path.Path
+	data       []byte
+}
+
 type KopiaSimpleRepoIntegrationSuite struct {
 	suite.Suite
-	w                    *Wrapper
-	ctx                  context.Context
-	snapshotID           manifest.ID
-	inboxExpectedFiles   map[string][]byte
-	archiveExpectedFiles map[string][]byte
-	allExpectedFiles     map[string][]byte
+	w          *Wrapper
+	ctx        context.Context
+	snapshotID manifest.ID
 
 	testPath1 path.Path
 	testPath2 path.Path
+
+	// List of files per parent directory.
+	files map[string][]*backedupFile
+	// Set of files by file path.
+	filesByPath map[string]*backedupFile
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
@@ -805,85 +801,102 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 	require.NoError(suite.T(), err)
 
 	suite.testPath2 = tmp
+
+	suite.files = map[string][]*backedupFile{}
+	suite.filesByPath = map[string]*backedupFile{}
+
+	filesInfo := []struct {
+		parentPath path.Path
+		name       string
+		data       []byte
+	}{
+		{
+			parentPath: suite.testPath1,
+			name:       testFileName,
+			data:       testFileData,
+		},
+		{
+			parentPath: suite.testPath1,
+			name:       testFileName2,
+			data:       testFileData2,
+		},
+		{
+			parentPath: suite.testPath2,
+			name:       testFileName3,
+			data:       testFileData3,
+		},
+		{
+			parentPath: suite.testPath2,
+			name:       testFileName4,
+			data:       testFileData4,
+		},
+		{
+			parentPath: suite.testPath2,
+			name:       testFileName5,
+			data:       testFileData5,
+		},
+		{
+			parentPath: suite.testPath2,
+			name:       testFileName6,
+			data:       testFileData6,
+		},
+	}
+
+	for _, item := range filesInfo {
+		pth, err := item.parentPath.Append(item.name, true)
+		require.NoError(suite.T(), err)
+
+		mapKey := item.parentPath.String()
+		f := &backedupFile{
+			parentPath: item.parentPath,
+			itemPath:   pth,
+			data:       item.data,
+		}
+
+		suite.files[mapKey] = append(suite.files[mapKey], f)
+		suite.filesByPath[pth.String()] = f
+	}
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	t := suite.T()
+	expectedDirs := 6
+	expectedFiles := len(suite.filesByPath)
 	suite.ctx = context.Background()
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
 
 	suite.w = &Wrapper{c}
 
-	collections := []data.Collection{
-		&kopiaDataCollection{
-			path: suite.testPath1,
-			streams: []data.Stream{
+	collections := []data.Collection{}
+
+	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
+		collection := &kopiaDataCollection{path: parent}
+
+		for _, item := range suite.files[parent.String()] {
+			collection.streams = append(
+				collection.streams,
 				&mockconnector.MockExchangeData{
-					ID:     testFileName,
-					Reader: io.NopCloser(bytes.NewReader(testFileData)),
+					ID:     item.itemPath.Item(),
+					Reader: io.NopCloser(bytes.NewReader(item.data)),
 				},
-				&mockconnector.MockExchangeData{
-					ID:     testFileName2,
-					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
-				},
-			},
-		},
-		&kopiaDataCollection{
-			path: suite.testPath2,
-			streams: []data.Stream{
-				&mockconnector.MockExchangeData{
-					ID:     testFileName3,
-					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
-				},
-				&mockconnector.MockExchangeData{
-					ID:     testFileName4,
-					Reader: io.NopCloser(bytes.NewReader(testFileData4)),
-				},
-				&mockconnector.MockExchangeData{
-					ID:     testFileName5,
-					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
-				},
-				&mockconnector.MockExchangeData{
-					ID:     testFileName6,
-					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
-				},
-			},
-		},
+			)
+		}
+
+		collections = append(collections, collection)
 	}
 
 	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
-	require.Equal(t, stats.TotalFileCount, 6)
-	require.Equal(t, stats.TotalDirectoryCount, 6)
+	require.Equal(t, stats.TotalFileCount, expectedFiles)
+	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
 	// 6 file and 6 folder entries.
-	assert.Len(t, rp.Entries, 6+6)
+	assert.Len(t, rp.Entries, expectedFiles+expectedDirs)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
-
-	// path.Join doesn't like (testPath..., testFileName).
-	suite.inboxExpectedFiles = map[string][]byte{
-		stdpath.Join(append(testPath, testFileName)...):  testFileData,
-		stdpath.Join(append(testPath, testFileName2)...): testFileData2,
-	}
-	suite.archiveExpectedFiles = map[string][]byte{
-		stdpath.Join(append(testPath2, testFileName3)...): testFileData3,
-		stdpath.Join(append(testPath2, testFileName4)...): testFileData4,
-		stdpath.Join(append(testPath2, testFileName5)...): testFileData5,
-		stdpath.Join(append(testPath2, testFileName6)...): testFileData6,
-	}
-
-	suite.allExpectedFiles = map[string][]byte{}
-	for k, v := range suite.inboxExpectedFiles {
-		suite.allExpectedFiles[k] = v
-	}
-
-	for k, v := range suite.archiveExpectedFiles {
-		suite.allExpectedFiles[k] = v
-	}
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
@@ -893,36 +906,26 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem() {
 	t := suite.T()
 
-	itemPath, err := suite.testPath1.Append(testFileName, true)
-	require.NoError(t, err)
+	item := suite.files[suite.testPath1.String()][0]
+	expected := map[string][]byte{
+		item.itemPath.String(): item.data,
+	}
 
 	c, err := suite.w.RestoreSingleItem(
 		suite.ctx,
 		string(suite.snapshotID),
-		itemPath,
+		item.itemPath,
 	)
 	require.NoError(t, err)
 
 	assert.Equal(t, suite.testPath1, c.FullPath())
-
-	count := 0
-
-	for resultStream := range c.Items() {
-		buf, err := ioutil.ReadAll(resultStream.ToReader())
-		require.NoError(t, err)
-		assert.Equal(t, buf, testFileData)
-
-		count++
-	}
-
-	assert.Equal(t, 1, count)
+	testForFiles(t, expected, []data.Collection{c})
 }
 
 // TestBackupAndRestoreSingleItem_Errors exercises the public RestoreSingleItem
 // function.
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Errors() {
-	itemPath, err := suite.testPath1.Append(testFileName, true)
-	require.NoError(suite.T(), err)
+	itemPath := suite.files[suite.testPath1.String()][0].itemPath
 
 	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
 		testTenant,
@@ -973,41 +976,23 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupAndRestoreSingleItem_Err
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	t := suite.T()
-	ctx := context.Background()
+	inputPaths := []path.Path{}
+	expected := map[string][]byte{}
 
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
+		item := suite.files[parent.String()][0]
 
-	w := &Wrapper{k}
-
-	dc1 := mockconnector.NewMockExchangeCollection(suite.testPath1, 1)
-	dc2 := mockconnector.NewMockExchangeCollection(suite.testPath2, 1)
-
-	fp1, err := suite.testPath1.Append(dc1.Names[0], true)
-	require.NoError(t, err)
-
-	fp2, err := suite.testPath2.Append(dc2.Names[0], true)
-	require.NoError(t, err)
-
-	stats, _, err := w.BackupCollections(ctx, []data.Collection{dc1, dc2})
-	require.NoError(t, err)
-
-	expected := map[string][]byte{
-		fp1.String(): dc1.Data[0],
-		fp2.String(): dc2.Data[0],
+		inputPaths = append(inputPaths, item.itemPath)
+		expected[item.itemPath.String()] = item.data
 	}
 
-	result, err := w.RestoreMultipleItems(
-		ctx,
-		string(stats.SnapshotID),
-		[]path.Path{
-			fp1,
-			fp2,
-		})
-
+	result, err := suite.w.RestoreMultipleItems(
+		suite.ctx,
+		string(suite.snapshotID),
+		inputPaths,
+	)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(result))
-
 	testForFiles(t, expected, result)
 }
 
@@ -1073,10 +1058,12 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 	assert.NoError(t, suite.w.DeleteSnapshot(suite.ctx, string(suite.snapshotID)))
 
 	// assert the deletion worked
-	itemPath, err := suite.testPath1.Append(testFileName, true)
-	require.NoError(t, err)
-
-	_, err = suite.w.RestoreSingleItem(suite.ctx, string(suite.snapshotID), itemPath)
+	itemPath := suite.files[suite.testPath1.String()][0].itemPath
+	_, err := suite.w.RestoreMultipleItems(
+		suite.ctx,
+		string(suite.snapshotID),
+		[]path.Path{itemPath},
+	)
 	assert.Error(t, err, "snapshot should be deleted")
 }
 
