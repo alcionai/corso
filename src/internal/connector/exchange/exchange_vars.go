@@ -26,6 +26,13 @@ const (
 	// MailReceiveDateTimeOverrideProperty allows receive date time to be updated.
 	// Section: 2.789 PidTagMessageDeliveryTime
 	MailReceiveDateTimeOverriveProperty = "SystemTime 0x0E06"
+
+	//----------------------------------
+	// Default Folder Names
+	//------------------------
+	DefaultMailFolder    = "Inbox"
+	DefaultContactFolder = "Contacts"
+	DefaultCalendar      = "Calendar"
 )
 
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
