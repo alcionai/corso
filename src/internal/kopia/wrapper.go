@@ -219,12 +219,10 @@ func getStreamItemFunc(
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				p := itemPath.PopFront().String()
 				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
+				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
-				progress.put(p, d)
-
-				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
+				entry := virtualfs.StreamingFileFromReader(encodeAsPath(e.UUID()), e.ToReader())
 				if err := cb(ctx, entry); err != nil {
 					// Kopia's uploader swallows errors in most cases, so if we see
 					// something here it's probably a big issue and we should return.
@@ -253,7 +251,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 	}
 
 	return virtualfs.NewStreamingDirectory(
-		dirName,
+		encodeAsPath(dirName),
 		getStreamItemFunc(childDirs, dir.collection, progress),
 	), nil
 }
@@ -448,65 +446,42 @@ func (w Wrapper) makeSnapshotWithRoot(
 	return &res, nil
 }
 
-// getEntry returns the item that the restore operation is rooted at. For
-// single-item restores, this is the kopia file the data is sourced from. For
-// restores of directories or subtrees it is the directory at the root of the
-// subtree.
-func (w Wrapper) getEntry(
+func (w Wrapper) getSnapshotRoot(
 	ctx context.Context,
 	snapshotID string,
-	itemPath path.Path,
 ) (fs.Entry, error) {
-	if itemPath == nil {
-		return nil, errors.WithStack(errNoRestorePath)
-	}
-
 	man, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
 	if err != nil {
 		return nil, errors.Wrap(err, "getting snapshot handle")
 	}
 
 	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, man)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting root directory")
+
+	return rootDirEntry, errors.Wrap(err, "getting root directory")
+}
+
+// getItemStream looks up the item at the given path starting from snapshotRoot.
+// If the item is a file in kopia then it returns a data.Stream of the item. If
+// the item does not exist in kopia or is not a file an error is returned. The
+// UUID of the returned data.Stream will be the name of the kopia file the data
+// is sourced from.
+func getItemStream(
+	ctx context.Context,
+	itemPath path.Path,
+	snapshotRoot fs.Entry,
+) (data.Stream, error) {
+	if itemPath == nil {
+		return nil, errors.WithStack(errNoRestorePath)
 	}
 
 	// GetNestedEntry handles nil properly.
 	e, err := snapshotfs.GetNestedEntry(
 		ctx,
-		rootDirEntry,
-		itemPath.PopFront().Elements(),
+		snapshotRoot,
+		encodeElements(itemPath.PopFront().Elements()...),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting nested object handle")
-	}
-
-	return e, nil
-}
-
-// CollectItems pulls data from kopia for the given items in the snapshot with
-// ID snapshotID. If isDirectory is true, it returns a slice of DataCollections
-// with data from directories in the subtree rooted at itemPath. If isDirectory
-// is false it returns a DataCollection (in a slice) with a single item for each
-// requested item. If the item does not exist or a file is found when a directory
-// is expected (or the opposite) it returns an error.
-func (w Wrapper) collectItems(
-	ctx context.Context,
-	snapshotID string,
-	itemPath path.Path,
-) ([]data.Collection, error) {
-	if itemPath == nil {
-		return nil, errors.WithStack(errNoRestorePath)
-	}
-
-	parentDir, err := itemPath.Dir()
-	if err != nil {
-		return nil, errors.Wrap(err, "getting parent directory from path")
-	}
-
-	e, err := w.getEntry(ctx, snapshotID, itemPath)
-	if err != nil {
-		return nil, err
 	}
 
 	f, ok := e.(fs.File)
@@ -514,64 +489,23 @@ func (w Wrapper) collectItems(
 		return nil, errors.New("requested object is not a file")
 	}
 
-	c, err := restoreSingleItem(ctx, f, parentDir)
-	if err != nil {
-		return nil, err
-	}
-
-	return []data.Collection{c}, nil
-}
-
-// RestoreSingleItem looks up the item at the given path in the snapshot with id
-// snapshotID. The path should be the full path of the item from the root.
-// If the item is a file in kopia then it returns a DataCollection with the item
-// as its sole element and DataCollection.FullPath() set to
-// split(dirname(itemPath), "/"). If the item does not exist in kopia or is not
-// a file an error is returned. The UUID of the returned DataStreams will be the
-// name of the kopia file the data is sourced from.
-func (w Wrapper) RestoreSingleItem(
-	ctx context.Context,
-	snapshotID string,
-	itemPath path.Path,
-) (data.Collection, error) {
-	c, err := w.collectItems(ctx, snapshotID, itemPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return c[0], nil
-}
-
-// restoreSingleItem looks up the item at the given path starting from rootDir
-// where rootDir is the root of a snapshot. If the item is a file in kopia then
-// it returns a DataCollection with the item as its sole element and
-// DataCollection.FullPath() set to split(dirname(itemPath), "/"). If the item
-// does not exist in kopia or is not a file an error is returned. The UUID of
-// the returned DataStreams will be the name of the kopia file the data is
-// sourced from.
-func restoreSingleItem(
-	ctx context.Context,
-	f fs.File,
-	itemDir path.Path,
-) (data.Collection, error) {
 	r, err := f.Open(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "opening file")
 	}
 
-	return &kopiaDataCollection{
-		streams: []data.Stream{
-			&kopiaDataStream{
-				uuid:   f.Name(),
-				reader: r,
-				size:   f.Size(),
-			},
-		},
-		path: itemDir,
+	decodedName, err := decodeElement(f.Name())
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding file name")
+	}
+
+	return &kopiaDataStream{
+		uuid:   decodedName,
+		reader: r,
 	}, nil
 }
 
-// RestoreSingleItem looks up all paths- assuming each is an item declaration,
+// RestoreMultipleItems looks up all paths- assuming each is an item declaration,
 // not a directory- in the snapshot with id snapshotID. The path should be the
 // full path of the item from the root.  Returns the results as a slice of single-
 // item DataCollections, where the DataCollection.FullPath() matches the path.
@@ -587,21 +521,45 @@ func (w Wrapper) RestoreMultipleItems(
 		return nil, errors.WithStack(errNoRestorePath)
 	}
 
+	snapshotRoot, err := w.getSnapshotRoot(ctx, snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
 	var (
-		dcs  = []data.Collection{}
 		errs *multierror.Error
+		// Maps short ID of parent path to data collection for that folder.
+		cols = map[string]*kopiaDataCollection{}
 	)
 
 	for _, itemPath := range paths {
-		dc, err := w.RestoreSingleItem(ctx, snapshotID, itemPath)
+		ds, err := getItemStream(ctx, itemPath, snapshotRoot)
 		if err != nil {
 			errs = multierror.Append(errs, err)
-		} else {
-			dcs = append(dcs, dc)
+			continue
 		}
+
+		parentPath, err := itemPath.Dir()
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
+			continue
+		}
+
+		c, ok := cols[parentPath.ShortRef()]
+		if !ok {
+			cols[parentPath.ShortRef()] = &kopiaDataCollection{path: parentPath}
+			c = cols[parentPath.ShortRef()]
+		}
+
+		c.streams = append(c.streams, ds)
 	}
 
-	return dcs, errs.ErrorOrNil()
+	res := make([]data.Collection, 0, len(cols))
+	for _, c := range cols {
+		res = append(res, c)
+	}
+
+	return res, errs.ErrorOrNil()
 }
 
 // DeleteSnapshot removes the provided manifest from kopia.

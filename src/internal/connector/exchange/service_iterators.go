@@ -25,64 +25,6 @@ type GraphIterateFunc func(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool
 
-// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
-// this category of data. If one is not available, returns nil so that other
-// logic in the caller can complete as long as they check if the resolver is not
-// nil. If an error occurs populating the resolver, returns an error.
-func maybeGetAndPopulateFolderResolver(
-	ctx context.Context,
-	qp graph.QueryParams,
-	category path.CategoryType,
-) (graph.ContainerResolver, error) {
-	var res graph.ContainerResolver
-
-	switch category {
-	case path.EmailCategory:
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			return nil, err
-		}
-
-		res = &mailFolderCache{
-			userID: qp.User,
-			gs:     service,
-		}
-
-	default:
-		return nil, nil
-	}
-
-	if err := res.Populate(ctx); err != nil {
-		return nil, errors.Wrap(err, "populating directory resolver")
-	}
-
-	return res, nil
-}
-
-func resolveCollectionPath(
-	ctx context.Context,
-	resolver graph.ContainerResolver,
-	tenantID, user, folderID string,
-	category path.CategoryType,
-) (path.Path, error) {
-	if resolver == nil {
-		// Allows caller to default to old-style path.
-		return nil, errors.WithStack(errNilResolver)
-	}
-
-	p, err := resolver.IDToPath(ctx, folderID)
-	if err != nil {
-		return nil, errors.Wrap(err, "resolving folder ID")
-	}
-
-	return p.ToDataLayerExchangePathForCategory(
-		tenantID,
-		user,
-		category,
-		false,
-	)
-}
-
 // IterateSelectAllDescendablesForCollection utility function for
 // Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
 // objects belonging to any folder are
@@ -99,6 +41,8 @@ func IterateSelectAllDescendablesForCollections(
 		collectionType optionIdentifier
 		category       path.CategoryType
 		resolver       graph.ContainerResolver
+		dirPath        path.Path
+		err            error
 	)
 
 	return func(pageItem any) bool {
@@ -132,34 +76,19 @@ func IterateSelectAllDescendablesForCollections(
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
 
-		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-		if err != nil {
-			// This really shouldn't happen unless we have a bad category.
-			errUpdater("converting to resource path", err)
-			return true
-		}
-
 		if _, ok = collections[directory]; !ok {
-			newPath, err := resolveCollectionPath(
+			dirPath, err = getCollectionPath(
 				ctx,
+				qp,
 				resolver,
-				qp.Credentials.TenantID,
-				qp.User,
 				directory,
 				category,
 			)
-
 			if err != nil {
-				if !errors.Is(err, errNilResolver) {
-					errUpdater("", err)
-				}
-			} else {
-				dirPath = newPath
+				errUpdater(
+					"failure during IterateSelectAllDescendablesForCollections",
+					err,
+				)
 			}
 
 			service, err := createService(qp.Credentials, qp.FailFast)
@@ -254,7 +183,7 @@ func IterateSelectAllEventsFromCalendars(
 				false,
 			)
 			if err != nil {
-				// we shouldn't ever hit this error
+				// we should never hit this error
 				errUpdater("converting to resource path", err)
 				return true
 			}
@@ -277,10 +206,10 @@ func IterateSelectAllEventsFromCalendars(
 	}
 }
 
-// IterateAndFilterMessagesForCollections is a filtering GraphIterateFunc
-// that places exchange mail message ids belonging to specific directories
+// IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
+// that places exchange objectsids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
-func IterateAndFilterMessagesForCollections(
+func IterateAndFilterDescendablesForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	errUpdater func(string, error),
@@ -289,9 +218,9 @@ func IterateAndFilterMessagesForCollections(
 ) func(any) bool {
 	var isFilterSet bool
 
-	return func(messageItem any) bool {
+	return func(descendItem any) bool {
 		if !isFilterSet {
-			err := CollectMailFolders(
+			err := CollectFolders(
 				ctx,
 				qp,
 				collections,
@@ -305,7 +234,7 @@ func IterateAndFilterMessagesForCollections(
 			isFilterSet = true
 		}
 
-		message, ok := messageItem.(descendable)
+		message, ok := descendItem.(descendable)
 		if !ok {
 			errUpdater(qp.User, errors.New("casting messageItem to descendable"))
 			return true
@@ -330,14 +259,14 @@ func IterateFilterFolderDirectoriesForCollections(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
-		service graph.Service
-		err     error
+		resolver    graph.ContainerResolver
+		isSet       bool
+		collectPath string
+		err         error
+		option      optionIdentifier
+		category    path.CategoryType
+		validate    func(string) bool
 	)
-
-	resolver, err := maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
-	if err != nil {
-		errUpdater("getting folder resolver for category email", err)
-	}
 
 	return func(folderItem any) bool {
 		folder, ok := folderItem.(displayable)
@@ -345,47 +274,62 @@ func IterateFilterFolderDirectoriesForCollections(
 			errUpdater(qp.User, errors.New("casting folderItem to displayable"))
 			return true
 		}
+
+		if !isSet {
+			option = scopeToOptionIdentifier(qp.Scope)
+			switch option {
+			case messages:
+				category = path.EmailCategory
+				validate = func(name string) bool {
+					return !qp.Scope.Matches(selectors.ExchangeMailFolder, name)
+				}
+			case contacts:
+				category = path.ContactsCategory
+				validate = func(name string) bool {
+					return !qp.Scope.Matches(selectors.ExchangeContactFolder, name)
+				}
+			}
+
+			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
+			if err != nil {
+				errUpdater("getting folder resolver for category "+category.String(), err)
+			}
+
+			isSet = true
+		}
+
 		// Continue to iterate if folder name is empty
 		if folder.GetDisplayName() == nil {
 			return true
 		}
 
-		if !qp.Scope.Matches(selectors.ExchangeMailFolder, *folder.GetDisplayName()) {
+		if validate(*folder.GetDisplayName()) {
 			return true
 		}
 
-		directory := *folder.GetId()
-
-		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			path.EmailCategory,
-			false,
-		)
-		if err != nil {
-			// we shouldn't ever hit this error.
-			errUpdater("converting to resource path", err)
-			return true
-		}
-
-		p, err := resolveCollectionPath(
-			ctx,
-			resolver,
-			qp.Credentials.TenantID,
-			qp.User,
-			directory,
-			path.EmailCategory,
-		)
-
-		if err != nil {
-			if !errors.Is(err, errNilResolver) {
-				errUpdater("", err)
-			}
+		if option == contacts {
+			collectPath = *folder.GetDisplayName()
 		} else {
-			dirPath = p
+			collectPath = *folder.GetId()
 		}
 
-		service, err = createService(qp.Credentials, qp.FailFast)
+		dirPath, err := getCollectionPath(
+			ctx,
+			qp,
+			resolver,
+			collectPath,
+			category,
+		)
+		if err != nil {
+			errUpdater(
+				"failure converting path during IterateFilterFolderDirectoriesForCollections",
+				err,
+			)
+
+			return true
+		}
+
+		service, err := createService(qp.Credentials, qp.FailFast)
 		if err != nil {
 			errUpdater(
 				*folder.GetDisplayName(),
@@ -397,11 +341,11 @@ func IterateFilterFolderDirectoriesForCollections(
 		temp := NewCollection(
 			qp.User,
 			dirPath,
-			messages,
+			option,
 			service,
 			statusUpdater,
 		)
-		collections[directory] = &temp
+		collections[*folder.GetId()] = &temp
 
 		return true
 	}
@@ -414,7 +358,10 @@ func IterateSelectAllContactsForCollections(
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
-	var isPrimarySet bool
+	var (
+		isPrimarySet bool
+		service      graph.Service
+	)
 
 	return func(folderItem any) bool {
 		folder, ok := folderItem.(models.ContactFolderable)
@@ -426,7 +373,18 @@ func IterateSelectAllContactsForCollections(
 		}
 
 		if !isPrimarySet && folder.GetParentFolderId() != nil {
-			service, err := createService(qp.Credentials, qp.FailFast)
+			err := CollectFolders(
+				ctx,
+				qp,
+				collections,
+				statusUpdater,
+			)
+			if err != nil {
+				errUpdater(qp.User, err)
+				return false
+			}
+
+			service, err = createService(qp.Credentials, qp.FailFast)
 			if err != nil {
 				errUpdater(
 					qp.User,
@@ -436,44 +394,58 @@ func IterateSelectAllContactsForCollections(
 				return true
 			}
 
-			contactIDS, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetParentFolderId())
-			if err != nil {
-				errUpdater(
+			// Create and Populate Default Contacts folder Collection if true
+			if qp.Scope.Matches(selectors.ExchangeContactFolder, DefaultContactFolder) {
+				dirPath, err := path.Builder{}.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
+					qp.Credentials.TenantID,
 					qp.User,
-					err,
+					path.ContactsCategory,
+					false,
+				)
+				if err != nil {
+					errUpdater(
+						qp.User,
+						err,
+					)
+
+					return false
+				}
+
+				edc := NewCollection(
+					qp.User,
+					dirPath,
+					contacts,
+					service,
+					statusUpdater,
 				)
 
-				return true
+				listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetParentFolderId())
+				if err != nil {
+					errUpdater(
+						qp.User,
+						err,
+					)
+
+					return false
+				}
+
+				edc.jobs = append(edc.jobs, listOfIDs...)
+				collections[DefaultContactFolder] = &edc
+				isPrimarySet = true
 			}
-
-			dirPath, err := path.Builder{}.Append(*folder.GetParentFolderId()).ToDataLayerExchangePathForCategory(
-				qp.Credentials.TenantID,
-				qp.User,
-				path.ContactsCategory,
-				false,
-			)
-			if err != nil {
-				errUpdater(
-					qp.User,
-					err,
-				)
-
-				return true
-			}
-
-			edc := NewCollection(
-				qp.User,
-				dirPath,
-				contacts,
-				service,
-				statusUpdater,
-			)
-			edc.jobs = append(edc.jobs, contactIDS...)
-			collections["Contacts"] = &edc
-			isPrimarySet = true
 		}
 
-		service, err := createService(qp.Credentials, qp.FailFast)
+		if folder.GetDisplayName() == nil {
+			// This should never happen. Skipping to avoid kernel panic
+			return true
+		}
+
+		collection, ok := collections[*folder.GetDisplayName()]
+		if !ok {
+			return true // Not included
+		}
+
+		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetId())
 		if err != nil {
 			errUpdater(
 				qp.User,
@@ -483,49 +455,7 @@ func IterateSelectAllContactsForCollections(
 			return true
 		}
 
-		folderID := *folder.GetId()
-
-		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, folderID)
-		if err != nil {
-			errUpdater(
-				qp.User,
-				err,
-			)
-
-			return true
-		}
-
-		if folder.GetDisplayName() == nil ||
-			listOfIDs == nil {
-			return true // Invalid state TODO: How should this be named
-		}
-
-		directory := *folder.GetDisplayName()
-
-		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			path.ContactsCategory,
-			false,
-		)
-		if err != nil {
-			errUpdater(
-				qp.User,
-				err,
-			)
-
-			return true
-		}
-
-		edc := NewCollection(
-			qp.User,
-			dirPath,
-			contacts,
-			service,
-			statusUpdater,
-		)
-		edc.jobs = append(edc.jobs, listOfIDs...)
-		collections[directory] = &edc
+		collection.jobs = append(collection.jobs, listOfIDs...)
 
 		return true
 	}

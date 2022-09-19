@@ -157,3 +157,20 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 		)
 	}
 }
+
+func (suite *OneDriveSelectorSuite) TestNewOneDriveRestore() {
+	t := suite.T()
+	or := NewOneDriveRestore()
+	assert.Equal(t, or.Service, ServiceOneDrive)
+	assert.NotZero(t, or.Scopes())
+}
+
+func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
+	t := suite.T()
+	eb := NewOneDriveRestore()
+	s := eb.Selector
+	or, err := s.ToOneDriveRestore()
+	require.NoError(t, err)
+	assert.Equal(t, or.Service, ServiceOneDrive)
+	assert.NotZero(t, or.Scopes())
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -118,16 +119,27 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	er, err := op.Selectors.ToExchangeRestore()
-	if err != nil {
-		opStats.readErr = err
-		return err
-	}
+	var fds *details.Details
 
-	// format the details and retrieve the items from kopia
-	fds := er.Reduce(ctx, d)
-	if len(fds.Entries) == 0 {
-		return errors.New("nothing to restore: no items in the backup match the provided selectors")
+	switch op.Selectors.Service {
+	case selectors.ServiceExchange:
+		er, err := op.Selectors.ToExchangeRestore()
+		if err != nil {
+			opStats.readErr = err
+			return err
+		}
+
+		// format the details and retrieve the items from kopia
+		fds = er.Reduce(ctx, d)
+		if len(fds.Entries) == 0 {
+			return errors.New("nothing to restore: no items in the backup match the provided selectors")
+		}
+
+	case selectors.ServiceOneDrive:
+		// TODO: Reduce `details` here when we add support for OneDrive restore filters
+		fds = d
+	default:
+		return errors.Errorf("Service %s not supported", op.Selectors.Service)
 	}
 
 	fdsPaths := fds.Paths()
