@@ -124,7 +124,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	t := suite.T()
 	connector := loadConnector(t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
+	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
 
@@ -243,7 +243,7 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	t := suite.T()
 	connector := loadConnector(t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders(selectors.Any(), []string{"Inbox"}))
+	sel.Include(sel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}))
 	scopes := sel.DiscreteScopes(connector.GetUsers())
 
 	for _, scope := range scopes {
