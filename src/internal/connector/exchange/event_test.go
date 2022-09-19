@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -37,7 +38,7 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Empty event",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				i := &details.ExchangeInfo{ItemType: details.ExchangeEvent}
+				i := &details.ExchangeInfo{ItemType: path.EventsCategory}
 				return models.NewEvent(), i
 			},
 		},
@@ -51,7 +52,7 @@ func (suite *EventSuite) TestEventInfo() {
 				full, err := time.Parse(common.StandardTimeFormat, now)
 				require.NoError(suite.T(), err)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeEvent,
+					ItemType: path.EventsCategory,
 					Received: full,
 				}
 				return event, i
@@ -64,7 +65,7 @@ func (suite *EventSuite) TestEventInfo() {
 				event := models.NewEvent()
 				event.SetSubject(&subject)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeEvent,
+					ItemType: path.EventsCategory,
 					Subject:  subject,
 				}
 				return event, i
@@ -81,7 +82,7 @@ func (suite *EventSuite) TestEventInfo() {
 				future := time.Now().AddDate(0, 0, 1)
 				eventTime := time.Date(2022, future.Month(), future.Day(), 6, 0, 0, 0, time.UTC)
 				i := &details.ExchangeInfo{
-					ItemType:   details.ExchangeEvent,
+					ItemType:   path.EventsCategory,
 					Subject:    subject,
 					Organizer:  organizer,
 					EventStart: eventTime,

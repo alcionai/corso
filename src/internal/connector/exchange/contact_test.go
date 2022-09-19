@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -26,7 +27,7 @@ func (suite *ContactSuite) TestContactInfo() {
 		{
 			name: "Empty Contact",
 			contactAndRP: func() (models.Contactable, *details.ExchangeInfo) {
-				i := &details.ExchangeInfo{ItemType: details.ExchangeContact}
+				i := &details.ExchangeInfo{ItemType: path.ContactsCategory}
 				return models.NewContact(), i
 			},
 		}, {
@@ -36,7 +37,7 @@ func (suite *ContactSuite) TestContactInfo() {
 				contact := models.NewContact()
 				contact.SetDisplayName(&aPerson)
 				i := &details.ExchangeInfo{
-					ItemType:    details.ExchangeContact,
+					ItemType:    path.ContactsCategory,
 					ContactName: aPerson,
 				}
 				return contact, i

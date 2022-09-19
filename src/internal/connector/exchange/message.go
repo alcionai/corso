@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -28,7 +29,7 @@ func MessageInfo(msg models.Messageable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
-		ItemType: details.ExchangeMail,
+		ItemType: path.EmailCategory,
 		Sender:   sender,
 		Subject:  subject,
 		Received: received,

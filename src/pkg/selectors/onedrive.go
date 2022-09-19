@@ -299,23 +299,14 @@ func (s OneDriveScope) setDefaults() {
 	// no-op while no child scope types below user are identified
 }
 
-// matchesEntry returns true if either the path or the info in the oneDriveEntry matches the scope details.
-func (s OneDriveScope) matchesEntry(
-	cat categorizer,
-	pathValues map[categorizer]string,
-	entry details.DetailsEntry,
-) bool {
-	// matchesPathValues can be handled generically, thanks to SCIENCE.
-	return matchesPathValues(s, cat.(oneDriveCategory), pathValues, entry.ShortRef) || s.matchesInfo(entry.OneDrive)
-}
-
 // matchesInfo handles the standard behavior when comparing a scope and an oneDriveInfo
 // returns true if the scope and info match for the provided category.
-func (s OneDriveScope) matchesInfo(info *details.OneDriveInfo) bool {
-	// we need values to match against
+func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
+	info := dii.OneDrive
 	if info == nil {
 		return false
 	}
+
 	// the scope must define targets to match on
 	filterCat := s.FilterCategory()
 	targets := s.Get(filterCat)

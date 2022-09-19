@@ -7,6 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -26,7 +27,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 		{
 			name: "Empty message",
 			msgAndRP: func() (models.Messageable, *details.ExchangeInfo) {
-				i := &details.ExchangeInfo{ItemType: details.ExchangeMail}
+				i := &details.ExchangeInfo{ItemType: path.EmailCategory}
 				return models.NewMessage(), i
 			},
 		},
@@ -41,7 +42,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 				sr.SetEmailAddress(sea)
 				msg.SetSender(sr)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
+					ItemType: path.EmailCategory,
 					Sender:   sender,
 				}
 				return msg, i
@@ -54,7 +55,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 				msg := models.NewMessage()
 				msg.SetSubject(&subject)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
+					ItemType: path.EmailCategory,
 					Subject:  subject,
 				}
 				return msg, i
@@ -67,7 +68,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 				msg := models.NewMessage()
 				msg.SetReceivedDateTime(&now)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
+					ItemType: path.EmailCategory,
 					Received: now,
 				}
 				return msg, i
@@ -88,7 +89,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 				msg.SetSubject(&subject)
 				msg.SetReceivedDateTime(&now)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
+					ItemType: path.EmailCategory,
 					Sender:   sender,
 					Subject:  subject,
 					Received: now,

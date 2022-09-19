@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -50,7 +51,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
-						ItemType:    details.ExchangeEvent,
+						ItemType:    path.EventsCategory,
 						EventStart:  now,
 						Organizer:   "organizer",
 						EventRecurs: true,
@@ -68,7 +69,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
-						ItemType:    details.ExchangeContact,
+						ItemType:    path.ContactsCategory,
 						ContactName: "contactName",
 					},
 				},
@@ -83,7 +84,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
-						ItemType: details.ExchangeMail,
+						ItemType: path.EmailCategory,
 						Sender:   "sender",
 						Subject:  "subject",
 						Received: now,

@@ -3,6 +3,7 @@ package exchange
 import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -15,7 +16,7 @@ func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
-		ItemType:    details.ExchangeContact,
+		ItemType:    path.ContactsCategory,
 		ContactName: name,
 	}
 }
