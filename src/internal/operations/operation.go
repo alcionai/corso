@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -42,14 +42,14 @@ type operation struct {
 	Options   control.Options `json:"options"`
 	Status    opStatus        `json:"status"`
 
-	bus   common.Eventer
+	bus   events.Eventer
 	kopia *kopia.Wrapper
 	store *store.Wrapper
 }
 
 func newOperation(
 	opts control.Options,
-	bus common.Eventer,
+	bus events.Eventer,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 ) operation {

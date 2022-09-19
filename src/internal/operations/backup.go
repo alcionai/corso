@@ -7,7 +7,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/events"
@@ -48,7 +47,7 @@ func NewBackupOperation(
 	sw *store.Wrapper,
 	acct account.Account,
 	selector selectors.Selector,
-	bus common.Eventer,
+	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
 		operation: newOperation(opts, bus, kw, sw),

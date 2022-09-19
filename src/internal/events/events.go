@@ -40,6 +40,11 @@ const (
 	ItemsWritten          = "items-written"
 )
 
+type Eventer interface {
+	Event(context.Context, string, map[string]any)
+	Close() error
+}
+
 // Bus handles all event communication into the events package.
 type Bus struct {
 	client analytics.Client

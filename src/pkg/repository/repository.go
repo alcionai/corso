@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -31,7 +30,7 @@ type Repository struct {
 	Storage storage.Storage // the storage provider details and configuration
 	Opts    control.Options
 
-	Bus        common.Eventer
+	Bus        events.Eventer
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
 }
