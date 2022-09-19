@@ -123,7 +123,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			id:   itemID,
 			data: itemData,
 			info: &details.OneDriveInfo{
-				ItemType:   path.FilesCategory,
+				ItemType:   details.OneDriveItem,
 				ItemName:   itemName,
 				ParentPath: oc.folderPath.String(),
 			},

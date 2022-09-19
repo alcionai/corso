@@ -712,7 +712,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		future = now.Add(1 * time.Minute)
 	)
 
-	infoWith := func(itype path.CategoryType) details.ItemInfo {
+	infoWith := func(itype details.ItemType) details.ItemInfo {
 		return details.ItemInfo{
 			Exchange: &details.ExchangeInfo{
 				ItemType:    itype,
@@ -729,69 +729,74 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 
 	table := []struct {
 		name   string
-		itype  path.CategoryType
+		itype  details.ItemType
 		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"any mail with a sender", path.EmailCategory, es.MailSender(AnyTgt), assert.True},
-		{"no mail, regardless of sender", path.EmailCategory, es.MailSender(NoneTgt), assert.False},
-		{"mail from a different sender", path.EmailCategory, es.MailSender("magoo@ma.goo"), assert.False},
-		{"mail from the matching sender", path.EmailCategory, es.MailSender(sender), assert.True},
-		{"mail with any subject", path.EmailCategory, es.MailSubject(AnyTgt), assert.True},
-		{"mail with none subject", path.EmailCategory, es.MailSubject(NoneTgt), assert.False},
-		{"mail with a different subject", path.EmailCategory, es.MailSubject("fancy"), assert.False},
-		{"mail with the matching subject", path.EmailCategory, es.MailSubject(subject), assert.True},
-		{"mail with a substring subject match", path.EmailCategory, es.MailSubject(subject[5:9]), assert.True},
-		{"mail received after the epoch", path.EmailCategory, es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
-		{"mail received after now", path.EmailCategory, es.MailReceivedAfter(common.FormatTime(now)), assert.False},
+		{"any mail with a sender", details.ExchangeMail, es.MailSender(AnyTgt), assert.True},
+		{"no mail, regardless of sender", details.ExchangeMail, es.MailSender(NoneTgt), assert.False},
+		{"mail from a different sender", details.ExchangeMail, es.MailSender("magoo@ma.goo"), assert.False},
+		{"mail from the matching sender", details.ExchangeMail, es.MailSender(sender), assert.True},
+		{"mail with any subject", details.ExchangeMail, es.MailSubject(AnyTgt), assert.True},
+		{"mail with none subject", details.ExchangeMail, es.MailSubject(NoneTgt), assert.False},
+		{"mail with a different subject", details.ExchangeMail, es.MailSubject("fancy"), assert.False},
+		{"mail with the matching subject", details.ExchangeMail, es.MailSubject(subject), assert.True},
+		{"mail with a substring subject match", details.ExchangeMail, es.MailSubject(subject[5:9]), assert.True},
+		{"mail received after the epoch", details.ExchangeMail, es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
+		{"mail received after now", details.ExchangeMail, es.MailReceivedAfter(common.FormatTime(now)), assert.False},
 		{
 			"mail received after sometime later",
-			path.EmailCategory,
+			details.ExchangeMail,
 			es.MailReceivedAfter(common.FormatTime(future)),
 			assert.False,
 		},
-		{"mail received before the epoch", path.EmailCategory, es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
-		{"mail received before now", path.EmailCategory, es.MailReceivedBefore(common.FormatTime(now)), assert.False},
+		{
+			"mail received before the epoch",
+			details.ExchangeMail,
+			es.MailReceivedBefore(common.FormatTime(epoch)),
+			assert.False,
+		},
+		{"mail received before now", details.ExchangeMail, es.MailReceivedBefore(common.FormatTime(now)), assert.False},
 		{
 			"mail received before sometime later",
-			path.EmailCategory,
+			details.ExchangeMail,
 			es.MailReceivedBefore(common.FormatTime(future)),
 			assert.True,
 		},
-		{"event with any organizer", path.EventsCategory, es.EventOrganizer(AnyTgt), assert.True},
-		{"event with none organizer", path.EventsCategory, es.EventOrganizer(NoneTgt), assert.False},
-		{"event with a different organizer", path.EventsCategory, es.EventOrganizer("fancy"), assert.False},
-		{"event with the matching organizer", path.EventsCategory, es.EventOrganizer(organizer), assert.True},
-		{"event that recurs", path.EventsCategory, es.EventRecurs("true"), assert.True},
-		{"event that does not recur", path.EventsCategory, es.EventRecurs("false"), assert.False},
-		{"event starting after the epoch", path.EventsCategory, es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
-		{"event starting after now", path.EventsCategory, es.EventStartsAfter(common.FormatTime(now)), assert.False},
+		{"event with any organizer", details.ExchangeEvent, es.EventOrganizer(AnyTgt), assert.True},
+		{"event with none organizer", details.ExchangeEvent, es.EventOrganizer(NoneTgt), assert.False},
+		{"event with a different organizer", details.ExchangeEvent, es.EventOrganizer("fancy"), assert.False},
+		{"event with the matching organizer", details.ExchangeEvent, es.EventOrganizer(organizer), assert.True},
+		{"event that recurs", details.ExchangeEvent, es.EventRecurs("true"), assert.True},
+		{"event that does not recur", details.ExchangeEvent, es.EventRecurs("false"), assert.False},
+		{"event starting after the epoch", details.ExchangeEvent, es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
+		{"event starting after now", details.ExchangeEvent, es.EventStartsAfter(common.FormatTime(now)), assert.False},
 		{
 			"event starting after sometime later",
-			path.EventsCategory,
+			details.ExchangeEvent,
 			es.EventStartsAfter(common.FormatTime(future)),
 			assert.False,
 		},
 		{
 			"event starting before the epoch",
-			path.EventsCategory,
+			details.ExchangeEvent,
 			es.EventStartsBefore(common.FormatTime(epoch)),
 			assert.False,
 		},
-		{"event starting before now", path.EventsCategory, es.EventStartsBefore(common.FormatTime(now)), assert.False},
+		{"event starting before now", details.ExchangeEvent, es.EventStartsBefore(common.FormatTime(now)), assert.False},
 		{
 			"event starting before sometime later",
-			path.EventsCategory,
+			details.ExchangeEvent,
 			es.EventStartsBefore(common.FormatTime(future)),
 			assert.True,
 		},
-		{"event with any subject", path.EventsCategory, es.EventSubject(AnyTgt), assert.True},
-		{"event with none subject", path.EventsCategory, es.EventSubject(NoneTgt), assert.False},
-		{"event with a different subject", path.EventsCategory, es.EventSubject("fancy"), assert.False},
-		{"event with the matching subject", path.EventsCategory, es.EventSubject(subject), assert.True},
-		{"contact with a different name", path.ContactsCategory, es.ContactName("blarps"), assert.False},
-		{"contact with the same name", path.ContactsCategory, es.ContactName(name), assert.True},
-		{"contact with a subname search", path.ContactsCategory, es.ContactName(name[2:5]), assert.True},
+		{"event with any subject", details.ExchangeEvent, es.EventSubject(AnyTgt), assert.True},
+		{"event with none subject", details.ExchangeEvent, es.EventSubject(NoneTgt), assert.False},
+		{"event with a different subject", details.ExchangeEvent, es.EventSubject("fancy"), assert.False},
+		{"event with the matching subject", details.ExchangeEvent, es.EventSubject(subject), assert.True},
+		{"contact with a different name", details.ExchangeContact, es.ContactName("blarps"), assert.False},
+		{"contact with the same name", details.ExchangeContact, es.ContactName(name), assert.True},
+		{"contact with a subname search", details.ExchangeContact, es.ContactName(name[2:5]), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -910,15 +915,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 		}
 
 		for _, r := range refs {
-			itype := path.UnknownCategory
+			itype := details.UnknownType
 
 			switch r {
 			case contact:
-				itype = path.ContactsCategory
+				itype = details.ExchangeContact
 			case event:
-				itype = path.EventsCategory
+				itype = details.ExchangeEvent
 			case mail:
-				itype = path.EmailCategory
+				itype = details.ExchangeMail
 			}
 
 			deets.Entries = append(deets.Entries, details.DetailsEntry{
@@ -1377,28 +1382,33 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathKeys() {
 
 func (suite *ExchangeSelectorSuite) TestCategoryFromPathCat() {
 	table := []struct {
-		input  path.CategoryType
+		name   string
+		input  details.ItemType
 		expect exchangeCategory
 	}{
 		{
-			input:  path.ContactsCategory,
+			name:   "contact",
+			input:  details.ExchangeContact,
 			expect: ExchangeContact,
 		},
 		{
-			input:  path.EventsCategory,
+			name:   "event",
+			input:  details.ExchangeEvent,
 			expect: ExchangeEvent,
 		},
 		{
-			input:  path.EmailCategory,
+			name:   "mail",
+			input:  details.ExchangeMail,
 			expect: ExchangeMail,
 		},
 		{
-			input:  path.CategoryType(-1),
+			name:   "unknown",
+			input:  details.UnknownType,
 			expect: ExchangeCategoryUnknown,
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input.String(), func(t *testing.T) {
+		suite.T().Run(test.name, func(t *testing.T) {
 			result := categoryFromPathCat(test.input)
 			assert.Equal(t, test.expect, result)
 		})

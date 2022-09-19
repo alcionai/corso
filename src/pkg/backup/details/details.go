@@ -9,7 +9,6 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/path"
 )
 
 type FolderEntry struct {
@@ -40,7 +39,7 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 }
 
 func printTable(ctx context.Context, dm DetailsModel) {
-	perType := map[path.CategoryType][]print.Printable{}
+	perType := map[ItemType][]print.Printable{}
 
 	for _, de := range dm.Entries {
 		it := de.infoType()
@@ -227,6 +226,23 @@ func (de DetailsEntry) Values() []string {
 	return vs
 }
 
+type ItemType int
+
+const (
+	UnknownType ItemType = iota
+
+	// separate each service by a factor of 100 for padding
+	ExchangeContact
+	ExchangeEvent
+	ExchangeMail
+
+	SharepointItem ItemType = iota + 100
+
+	OneDriveItem ItemType = iota + 200
+
+	FolderItem ItemType = iota + 300
+)
+
 // ItemInfo is a oneOf that contains service specific
 // information about the item it tracks
 type ItemInfo struct {
@@ -242,7 +258,7 @@ type ItemInfo struct {
 // infoType provides internal categorization for collecting like-typed ItemInfos.
 // It should return the most granular value type (ex: "event" for an exchange
 // calendar event).
-func (i ItemInfo) infoType() path.CategoryType {
+func (i ItemInfo) infoType() ItemType {
 	switch {
 	case i.Folder != nil:
 		return i.Folder.ItemType
@@ -257,12 +273,12 @@ func (i ItemInfo) infoType() path.CategoryType {
 		return i.OneDrive.ItemType
 	}
 
-	return path.UnknownCategory
+	return UnknownType
 }
 
 type FolderInfo struct {
-	ItemType    path.CategoryType `json:"itemType,omitempty"`
-	DisplayName string            `json:"displayName"`
+	ItemType    ItemType `json:"itemType,omitempty"`
+	DisplayName string   `json:"displayName"`
 }
 
 func (i FolderInfo) Headers() []string {
@@ -275,27 +291,27 @@ func (i FolderInfo) Values() []string {
 
 // ExchangeInfo describes an exchange item
 type ExchangeInfo struct {
-	ItemType    path.CategoryType `json:"itemType,omitempty"`
-	Sender      string            `json:"sender,omitempty"`
-	Subject     string            `json:"subject,omitempty"`
-	Received    time.Time         `json:"received,omitempty"`
-	EventStart  time.Time         `json:"eventStart,omitempty"`
-	Organizer   string            `json:"organizer,omitempty"`
-	ContactName string            `json:"contactName,omitempty"`
-	EventRecurs bool              `json:"eventRecurs,omitempty"`
+	ItemType    ItemType  `json:"itemType,omitempty"`
+	Sender      string    `json:"sender,omitempty"`
+	Subject     string    `json:"subject,omitempty"`
+	Received    time.Time `json:"received,omitempty"`
+	EventStart  time.Time `json:"eventStart,omitempty"`
+	Organizer   string    `json:"organizer,omitempty"`
+	ContactName string    `json:"contactName,omitempty"`
+	EventRecurs bool      `json:"eventRecurs,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in an ExchangeInfo
 // for printing out to a terminal in a columnar display.
 func (i ExchangeInfo) Headers() []string {
 	switch i.ItemType {
-	case path.EventsCategory:
+	case ExchangeEvent:
 		return []string{"Organizer", "Subject", "Starts", "Recurring"}
 
-	case path.ContactsCategory:
+	case ExchangeContact:
 		return []string{"Contact Name"}
 
-	case path.EmailCategory:
+	case ExchangeMail:
 		return []string{"Sender", "Subject", "Received"}
 	}
 
@@ -306,7 +322,7 @@ func (i ExchangeInfo) Headers() []string {
 // out to a terminal in a columnar display.
 func (i ExchangeInfo) Values() []string {
 	switch i.ItemType {
-	case path.EventsCategory:
+	case ExchangeEvent:
 		return []string{
 			i.Organizer,
 			i.Subject,
@@ -314,10 +330,10 @@ func (i ExchangeInfo) Values() []string {
 			strconv.FormatBool(i.EventRecurs),
 		}
 
-	case path.ContactsCategory:
+	case ExchangeContact:
 		return []string{i.ContactName}
 
-	case path.EmailCategory:
+	case ExchangeMail:
 		return []string{i.Sender, i.Subject, common.FormatTabularDisplayTime(i.Received)}
 	}
 
@@ -328,7 +344,7 @@ func (i ExchangeInfo) Values() []string {
 // TODO: Implement this. This is currently here
 // just to illustrate usage
 type SharepointInfo struct {
-	ItemType path.CategoryType `json:"itemType,omitempty"`
+	ItemType ItemType `json:"itemType,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharepointInfo
@@ -345,9 +361,9 @@ func (i SharepointInfo) Values() []string {
 
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
-	ItemType   path.CategoryType `json:"itemType,omitempty"`
-	ParentPath string            `json:"parentPath"`
-	ItemName   string            `json:"itemName"`
+	ItemType   ItemType `json:"itemType,omitempty"`
+	ParentPath string   `json:"parentPath"`
+	ItemName   string   `json:"itemName"`
 }
 
 // Headers returns the human-readable names of properties in a OneDriveInfo

@@ -731,13 +731,13 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 
 // categoryFromPathCat interprets the category represented by the ExchangeInfo
 // struct.  Since every ExchangeInfo can hold all exchange data types, and
-func categoryFromPathCat(pct path.CategoryType) exchangeCategory {
+func categoryFromPathCat(pct details.ItemType) exchangeCategory {
 	switch pct {
-	case path.ContactsCategory:
+	case details.ExchangeContact:
 		return ExchangeContact
-	case path.EmailCategory:
+	case details.ExchangeMail:
 		return ExchangeMail
-	case path.EventsCategory:
+	case details.ExchangeEvent:
 		return ExchangeEvent
 	}
 

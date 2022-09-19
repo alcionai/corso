@@ -6,7 +6,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -47,7 +46,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	}
 
 	return &details.ExchangeInfo{
-		ItemType:    path.EventsCategory,
+		ItemType:    details.ExchangeEvent,
 		Organizer:   organizer,
 		Subject:     subject,
 		EventStart:  start,
