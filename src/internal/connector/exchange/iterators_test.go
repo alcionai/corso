@@ -143,7 +143,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			scope:             eventScope,
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 		}, {
-			name:              "Folder Iterative Check",
+			name:              "Folder Iterative Check Mail",
 			queryFunction:     GetAllFolderNamesForUser,
 			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
 			scope:             mailScope,
@@ -153,6 +153,12 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				"Sent Items":    {},
 				"Deleted Items": {},
 			},
+		}, {
+			name:              "Folder Iterative Check Contacts",
+			queryFunction:     GetAllContactFolderNamesForUser,
+			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			scope:             contactScope,
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},
 	}
 	for _, test := range tests {
