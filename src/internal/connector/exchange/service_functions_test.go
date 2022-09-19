@@ -1,20 +1,20 @@
-package exchange_test
+package exchange
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ServiceFunctionsIntegrationSuite struct {
 	suite.Suite
-	gc         *connector.GraphConnector
 	m365UserID string
 }
 
@@ -29,22 +29,8 @@ func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(ServiceFunctionsIntegrationSuite))
 }
 
-func (suite *ServiceFunctionsIntegrationSuite) SetupSuite() {
-	t := suite.T()
-
-	_, err := tester.GetRequiredEnvSls(tester.AWSStorageCredEnvs)
-	require.NoError(t, err)
-
-	acct := tester.NewM365Account(t)
-	gc, err := connector.NewGraphConnector(acct)
-	require.NoError(t, err)
-
-	suite.gc = gc
-	suite.m365UserID = tester.M365UserID(t)
-}
-
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
-	gs := suite.gc.Service()
+	gs := loadService(suite.T())
 
 	table := []struct {
 		name, contains, user string
@@ -80,7 +66,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := exchange.GetAllCalendars(gs, test.user, test.contains)
+			cals, err := GetAllCalendars(gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -88,7 +74,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
-	gs := suite.gc.Service()
+	gs := loadService(suite.T())
 
 	table := []struct {
 		name, contains, user string
@@ -124,7 +110,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := exchange.GetAllContactFolders(gs, test.user, test.contains)
+			cals, err := GetAllContactFolders(gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -132,7 +118,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
-	gs := suite.gc.Service()
+	gs := loadService(suite.T())
 
 	table := []struct {
 		name, contains, user string
@@ -168,9 +154,89 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := exchange.GetAllMailFolders(gs, test.user, test.contains)
+			cals, err := GetAllMailFolders(gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
+		})
+	}
+}
+
+func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
+	ctx := context.Background()
+	failFast := false
+	containerCount := 1
+	t := suite.T()
+	user := tester.M365UserID(t)
+	a := tester.NewM365Account(t)
+	credentials, err := a.M365Config()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name, contains string
+		getScope       func() selectors.ExchangeScope
+		expectedCount  assert.ComparisonAssertionFunc
+	}{
+		{
+			name:          "All Events",
+			contains:      "Birthdays",
+			expectedCount: assert.Greater,
+			getScope: func() selectors.ExchangeScope {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{user}, selectors.Any()))
+
+				scopes := sel.Scopes()
+				assert.Equal(t, len(scopes), 1)
+
+				return scopes[0]
+			},
+		}, {
+			name:          "Default Calendar",
+			contains:      DefaultCalendar,
+			expectedCount: assert.Equal,
+			getScope: func() selectors.ExchangeScope {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{user}, []string{DefaultCalendar}))
+
+				scopes := sel.Scopes()
+				assert.Equal(t, len(scopes), 1)
+
+				return scopes[0]
+			},
+		}, {
+			name:          "Default Mail",
+			contains:      DefaultMailFolder,
+			expectedCount: assert.Equal,
+			getScope: func() selectors.ExchangeScope {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{user}, []string{DefaultMailFolder}))
+
+				scopes := sel.Scopes()
+				assert.Equal(t, len(scopes), 1)
+
+				return scopes[0]
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			qp := graph.QueryParams{
+				User:        user,
+				Scope:       test.getScope(),
+				FailFast:    failFast,
+				Credentials: credentials,
+			}
+			collections := make(map[string]*Collection)
+			err := CollectFolders(ctx, qp, collections, nil)
+			assert.NoError(t, err)
+			test.expectedCount(t, len(collections), containerCount)
+
+			keys := make([]string, 0, len(collections))
+			for k := range collections {
+				keys = append(keys, k)
+			}
+			t.Logf("Collections Made: %v\n", keys)
+			assert.Contains(t, keys, test.contains)
 		})
 	}
 }
