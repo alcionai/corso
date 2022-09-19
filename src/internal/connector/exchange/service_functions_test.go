@@ -31,6 +31,7 @@ func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	gs := loadService(suite.T())
+	user := tester.M365UserID(suite.T())
 
 	table := []struct {
 		name, contains, user string
@@ -39,14 +40,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	}{
 		{
 			name:        "plain lookup",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
 		{
 			name:        "root calendar",
 			contains:    "Calendar",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
@@ -59,7 +60,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 		{
 			name:        "nonsense matcher",
 			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 		},
@@ -75,6 +76,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	gs := loadService(suite.T())
+	user := tester.M365UserID(suite.T())
 
 	table := []struct {
 		name, contains, user string
@@ -83,14 +85,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	}{
 		{
 			name:        "plain lookup",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
 		{
 			name:        "root folder",
 			contains:    "Contact",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
@@ -103,7 +105,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 		{
 			name:        "nonsense matcher",
 			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 		},
@@ -119,6 +121,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 	gs := loadService(suite.T())
+	user := tester.M365UserID(suite.T())
 
 	table := []struct {
 		name, contains, user string
@@ -127,14 +130,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 	}{
 		{
 			name:        "plain lookup",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
 		{
 			name:        "Root folder",
 			contains:    "Inbox",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
@@ -147,7 +150,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 		{
 			name:        "nonsense matcher",
 			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
-			user:        suite.m365UserID,
+			user:        user,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 		},
