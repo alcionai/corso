@@ -58,12 +58,7 @@ func (suite *ExchangeIteratorSuite) TestDescendable() {
 }
 
 func loadService(t *testing.T) *exchangeService {
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(t, err)
-
 	a := tester.NewM365Account(t)
-	require.NoError(t, err)
-
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
