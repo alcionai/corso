@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/events"
+	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -61,7 +62,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		sw,
 		acct,
 		selectors.Selector{},
-		events.Bus{})
+		evmock.NewBus())
 	require.NoError(t, err)
 
 	require.NoError(t, op.persistResults(now, &stats))
@@ -128,7 +129,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.sw,
 				test.acct,
 				selectors.Selector{},
-				events.Bus{})
+				evmock.NewBus())
 			test.errCheck(t, err)
 		})
 	}
@@ -193,6 +194,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			require.NoError(t, err)
 			defer ms.Close(ctx)
 
+			mb := evmock.NewBus()
+
 			sw := store.NewKopiaStore(ms)
 			selected := test.selectFunc()
 			bo, err := NewBackupOperation(
@@ -202,7 +205,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 				sw,
 				acct,
 				*selected,
-				events.Bus{})
+				mb)
 			require.NoError(t, err)
 
 			require.NoError(t, bo.Run(ctx))
@@ -213,6 +216,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			assert.Greater(t, bo.Results.ItemsWritten, 0)
 			assert.Zero(t, bo.Results.ReadErrors)
 			assert.Zero(t, bo.Results.WriteErrors)
+			assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
+			assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
 		})
 	}
 }
@@ -246,6 +251,8 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 
 	sw := store.NewKopiaStore(ms)
 
+	mb := evmock.NewBus()
+
 	sel := selectors.NewOneDriveBackup()
 	sel.Include(sel.Users([]string{m365UserID}))
 
@@ -256,7 +263,7 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 		sw,
 		acct,
 		sel.Selector,
-		events.Bus{})
+		mb)
 	require.NoError(t, err)
 
 	require.NoError(t, bo.Run(ctx))
@@ -266,4 +273,6 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
 	assert.NoError(t, bo.Results.ReadErrors)
 	assert.NoError(t, bo.Results.WriteErrors)
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
 }

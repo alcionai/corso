@@ -30,7 +30,7 @@ type Repository struct {
 	Storage storage.Storage // the storage provider details and configuration
 	Opts    control.Options
 
-	Bus        events.Bus
+	Bus        events.Eventer
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
 }
@@ -72,7 +72,7 @@ func Initialize(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct, opts),
+		Bus:        events.NewBus(s, acct.ID(), opts),
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -116,7 +116,7 @@ func Connect(
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct, opts),
+		Bus:        events.NewBus(s, acct.ID(), opts),
 		dataLayer:  w,
 		modelStore: ms,
 	}
