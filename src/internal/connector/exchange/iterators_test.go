@@ -140,7 +140,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		}, {
 			name:              "Folder Iterative Check Mail",
 			queryFunction:     GetAllFolderNamesForUser,
-			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			iterativeFunction: IterateFilterContainersForCollections,
 			scope:             mailScope,
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
@@ -151,7 +151,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		}, {
 			name:              "Folder Iterative Check Contacts",
 			queryFunction:     GetAllContactFolderNamesForUser,
-			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			iterativeFunction: IterateFilterContainersForCollections,
 			scope:             contactScope,
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},
