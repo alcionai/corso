@@ -120,7 +120,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		// Item read successfully, add to collection
 		itemsRead++
 		oc.data <- &Item{
-			id:   itemID,
+			id:   itemName,
 			data: itemData,
 			info: &details.OneDriveInfo{
 				ItemType:   details.OneDriveItem,

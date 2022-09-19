@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"os"
-	"regexp"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -93,17 +93,17 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 
 	err = purgeMailFolders(ctx, gc, t)
 	if err != nil {
-		return errors.Wrap(err, "purging mail folders")
+		return Only(ctx, errors.Wrap(err, "purging mail folders"))
 	}
 
 	err = purgeCalendarFolders(ctx, gc, t)
 	if err != nil {
-		return errors.Wrap(err, "purging calendar folders")
+		return Only(ctx, errors.Wrap(err, "purging event calendars"))
 	}
 
 	err = purgeContactFolders(ctx, gc, t)
 	if err != nil {
-		return errors.Wrap(err, "purging contacts folders")
+		return Only(ctx, errors.Wrap(err, "purging contacts folders"))
 	}
 
 	return nil
@@ -126,7 +126,11 @@ func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return purgeMailFolders(ctx, gc, t)
+	if err := purgeMailFolders(ctx, gc, t); err != nil {
+		return Only(ctx, errors.Wrap(err, "purging mail folders"))
+	}
+
+	return nil
 }
 
 func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
@@ -142,7 +146,11 @@ func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return purgeCalendarFolders(ctx, gc, t)
+	if err := purgeCalendarFolders(ctx, gc, t); err != nil {
+		return Only(ctx, errors.Wrap(err, "purging event calendars"))
+	}
+
+	return nil
 }
 
 func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
@@ -158,7 +166,11 @@ func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return purgeContactFolders(ctx, gc, t)
+	if err := purgeContactFolders(ctx, gc, t); err != nil {
+		return Only(ctx, errors.Wrap(err, "purging contacts folders"))
+	}
+
+	return nil
 }
 
 // ------------------------------------------------------------------------------------------
@@ -247,16 +259,6 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 
 // ----- controller
 
-var secfmt = regexp.MustCompile(`.+:0-9{2}:0-9{2}`)
-
-func normalizeDisplayName(dn string) string {
-	if !secfmt.MatchString(dn) {
-		dn += ":00"
-	}
-
-	return dn
-}
-
 func purgeFolders(
 	ctx context.Context,
 	gc *connector.GraphConnector,
@@ -271,31 +273,23 @@ func purgeFolders(
 		return Only(ctx, errors.Wrapf(err, "retrieving %s folders", data))
 	}
 
-	stLen := len(common.SimpleDateTimeFormat)
+	var errs error
 
 	// delete any that don't meet the boundary
 	for _, fld := range fs {
 		// compare the folder time to the deletion boundary time first
-		var (
-			del         bool
-			displayName = *fld.GetDisplayName()
-			normName    = normalizeDisplayName(*fld.GetDisplayName())
-			dnLen       = len(normName)
-		)
+		displayName := *fld.GetDisplayName()
 
-		if dnLen > stLen {
-			suff := normName[dnLen-stLen:]
+		dnTime, err := common.ExtractTime(displayName)
+		if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+			err = errors.Wrapf(err, "Error: parsing %s folder name [%s]", data, displayName)
+			errs = multierror.Append(errs, err)
+			Info(ctx, err)
 
-			dnTime, err := common.ParseTime(suff)
-			if err != nil {
-				Info(ctx, errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName))
-				continue
-			}
-
-			del = dnTime.Before(boundary)
+			continue
 		}
 
-		if !del {
+		if !dnTime.Before(boundary) || dnTime == (time.Time{}) {
 			continue
 		}
 
@@ -303,11 +297,13 @@ func purgeFolders(
 
 		err = deleter(gc.Service(), user, *fld.GetId())
 		if err != nil {
-			Info(ctx, errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName))
+			err = errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName)
+			errs = multierror.Append(errs, err)
+			Info(ctx, err)
 		}
 	}
 
-	return nil
+	return errs
 }
 
 // ------------------------------------------------------------------------------------------

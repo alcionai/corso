@@ -42,14 +42,14 @@ type operation struct {
 	Options   control.Options `json:"options"`
 	Status    opStatus        `json:"status"`
 
-	bus   events.Bus
+	bus   events.Eventer
 	kopia *kopia.Wrapper
 	store *store.Wrapper
 }
 
 func newOperation(
 	opts control.Options,
-	bus events.Bus,
+	bus events.Eventer,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 ) operation {
