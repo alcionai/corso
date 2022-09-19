@@ -141,7 +141,7 @@ func CollectFolders(
 		)
 	}
 
-	option := selectorToOptionIdentifier(qp.Scope)
+	option := scopeToOptionIdentifier(qp.Scope)
 	switch option {
 	case messages:
 		query = GetAllFolderNamesForUser

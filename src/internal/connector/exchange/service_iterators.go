@@ -276,7 +276,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		}
 
 		if !isSet {
-			option = selectorToOptionIdentifier(qp.Scope)
+			option = scopeToOptionIdentifier(qp.Scope)
 			switch option {
 			case messages:
 				category = path.EmailCategory

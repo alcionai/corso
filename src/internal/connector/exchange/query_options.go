@@ -116,7 +116,7 @@ func categoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 	}
 }
 
-func selectorToOptionIdentifier(selector selectors.ExchangeScope) optionIdentifier {
+func scopeToOptionIdentifier(selector selectors.ExchangeScope) optionIdentifier {
 	switch selector.Category() {
 	case selectors.ExchangeMailFolder, selectors.ExchangeMail:
 		return messages
