@@ -255,8 +255,11 @@ func (gc *GraphConnector) RestoreDataCollections(
 		if err != nil {
 			return err
 		}
+
 		gc.incrementAwaitingMessages()
+
 		gc.UpdateStatus(status)
+
 		return nil
 	default:
 		return errors.Errorf("restore data from service %s not supported", selector.Service.String())

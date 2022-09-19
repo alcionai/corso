@@ -46,7 +46,8 @@ func toOneDrivePath(p path.Path) (*drivePath, error) {
 }
 
 // RestoreCollections will restore the specified data collections into OneDrive
-func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.Collection) (*support.ConnectorOperationStatus, error) {
+func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.Collection,
+) (*support.ConnectorOperationStatus, error) {
 	var (
 		total, restored      int
 		restoreErrors        error
@@ -78,7 +79,8 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 		// Create restore folders and get the folder ID of the folder the data stream will be restored in
 		restoreFolderID, err := createRestoreFolders(ctx, service, drivePath.driveID, restoreFolderElements)
 		if err != nil {
-			restoreErrors = support.WrapAndAppend(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements), restoreErrors)
+			restoreErrors = support.WrapAndAppend(directory.String(), errors.Wrapf(err, "failed to create folders %v",
+				restoreFolderElements), restoreErrors)
 			continue
 		}
 
@@ -112,7 +114,8 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 
 // createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
 // of the last folder entry in the hiearchy
-func createRestoreFolders(ctx context.Context, service graph.Service, driveID string, restoreFolders []string) (string, error) {
+func createRestoreFolders(ctx context.Context, service graph.Service, driveID string, restoreFolders []string,
+) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get()
 	if err != nil {
 		return "", errors.Wrapf(
@@ -152,7 +155,9 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 }
 
 // restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
-func restoreItem(ctx context.Context, service graph.Service, itemData data.Stream, driveID, parentFolderID string, copyBuffer []byte) error {
+func restoreItem(ctx context.Context, service graph.Service, itemData data.Stream, driveID, parentFolderID string,
+	copyBuffer []byte,
+) error {
 	itemName := itemData.UUID()
 
 	// Get the stream size (needed to create the upload session)

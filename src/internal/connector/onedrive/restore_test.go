@@ -3,10 +3,11 @@ package onedrive
 import (
 	"testing"
 
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/path"
 )
 
 type OneDriveRestoreSuite struct {
@@ -32,7 +33,7 @@ func (suite *OneDriveRestoreSuite) Test_toOneDrivePath() {
 		{
 			name:         "Root path",
 			pathElements: []string{"drive", "driveID", "root:"},
-			expected:     &drivePath{driveID: "driveID"},
+			expected:     &drivePath{driveID: "driveID", folders: []string{}},
 			errCheck:     assert.NoError,
 		},
 		{
