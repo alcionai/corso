@@ -122,7 +122,8 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 	return gs.Client().UsersById(user).MessagesById(m365ID).Get()
 }
 
-// TODO... Test one and
+// CollectFolders is a utility function for creating Collections based off parameters found
+// in the ExchangeScope found in the graph.QueryParams
 func CollectFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
@@ -180,7 +181,7 @@ func CollectFolders(
 		err = support.WrapAndAppend(id, e, err)
 	}
 
-	callbackFunc := IterateFilterFolderDirectoriesForCollections(
+	callbackFunc := IterateFilterContainersForCollections(
 		ctx,
 		qp,
 		errUpdater,
