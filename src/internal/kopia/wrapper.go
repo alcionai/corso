@@ -219,12 +219,10 @@ func getStreamItemFunc(
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				p := itemPath.PopFront().String()
 				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
+				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
-				progress.put(p, d)
-
-				entry := virtualfs.StreamingFileFromReader(e.UUID(), e.ToReader())
+				entry := virtualfs.StreamingFileFromReader(encodeAsPath(e.UUID()), e.ToReader())
 				if err := cb(ctx, entry); err != nil {
 					// Kopia's uploader swallows errors in most cases, so if we see
 					// something here it's probably a big issue and we should return.
@@ -253,7 +251,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 	}
 
 	return virtualfs.NewStreamingDirectory(
-		dirName,
+		encodeAsPath(dirName),
 		getStreamItemFunc(childDirs, dir.collection, progress),
 	), nil
 }
@@ -480,7 +478,7 @@ func getItemStream(
 	e, err := snapshotfs.GetNestedEntry(
 		ctx,
 		snapshotRoot,
-		itemPath.PopFront().Elements(),
+		encodeElements(itemPath.PopFront().Elements()...),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting nested object handle")
@@ -496,8 +494,13 @@ func getItemStream(
 		return nil, errors.Wrap(err, "opening file")
 	}
 
+	decodedName, err := decodeElement(f.Name())
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding file name")
+	}
+
 	return &kopiaDataStream{
-		uuid:   f.Name(),
+		uuid:   decodedName,
 		reader: r,
 	}, nil
 }
