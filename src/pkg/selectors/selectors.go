@@ -21,7 +21,7 @@ const (
 
 var (
 	ErrorBadSelectorCast = errors.New("wrong selector service type")
-	ErrorNoMatchingItems = errors.New("no items in the backup match the selectors")
+	ErrorNoMatchingItems = errors.New("no items match the specified selectors")
 )
 
 const (
