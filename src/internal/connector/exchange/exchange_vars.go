@@ -31,7 +31,9 @@ const (
 	// Default Folder Names
 	//------------------------
 	// Mail Definitions: https://docs.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
+	DefaultMailFolder    = "Inbox"
 	DefaultContactFolder = "Contacts"
+	DefaultCalendar      = "Calendar"
 )
 
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
