@@ -340,16 +340,9 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
-		if scope.IsAny(selectors.ExchangeContactFolder) {
-			return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-				GetAllContactFolderNamesForUser,
-				IterateSelectAllContactsForCollections,
-				nil
-		}
-
 		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 			GetAllContactFolderNamesForUser,
-			IterateAndFilterDescendablesForCollections,
+			IterateSelectAllContactsForCollections,
 			nil
 	}
 
