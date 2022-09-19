@@ -118,6 +118,9 @@ func IterateSelectAllDescendablesForCollections(
 // utility function for iterating through events
 // and storing events in collections based on
 // the calendarID which originates from M365.
+// @param pageItem is a CalendarCollectionResponse possessing two populated fields:
+// - id - M365 ID
+// - Name - Calendar Name
 func IterateSelectAllEventsFromCalendars(
 	ctx context.Context,
 	qp graph.QueryParams,
@@ -125,85 +128,63 @@ func IterateSelectAllEventsFromCalendars(
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
+	var (
+		isEnabled bool
+		service   graph.Service
+	)
+
 	return func(pageItem any) bool {
-		if pageItem == nil {
-			return true
+		if !isEnabled {
+			// Create Collections based on qp.Scope
+			err := CollectFolders(ctx, qp, collections, statusUpdater)
+			if err != nil {
+				errUpdater(
+					qp.User,
+					errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+				)
+
+				return false
+			}
+
+			service, err = createService(qp.Credentials, qp.FailFast)
+			if err != nil {
+				errUpdater(qp.User, err)
+				return false
+			}
+
+			isEnabled = true
 		}
 
-		shell, ok := pageItem.(models.Calendarable)
+		pageItem = CreateCalendarDisplayable(pageItem)
+
+		calendar, ok := pageItem.(displayable)
 		if !ok {
-			errUpdater(qp.User, errors.New("casting pageItem to models.Calendarable"))
+			errUpdater(
+				qp.User,
+				fmt.Errorf("unable to parse any into displayable: %T", pageItem),
+			)
+		}
+
+		if calendar.GetDisplayName() == nil {
 			return true
 		}
 
-		service, err := createService(qp.Credentials, qp.FailFast)
+		collection, ok := collections[*calendar.GetDisplayName()]
+		if !ok {
+			return true
+		}
+
+		eventIDs, err := ReturnEventIDsFromCalendar(service, qp.User, *calendar.GetId())
 		if err != nil {
 			errUpdater(
 				qp.User,
-				errors.Wrap(err, "creating service for IterateSelectAllEventsFromCalendars"))
-
-			return true
-		}
-		// Populate Collections Based on Scope
-		// Get
-
-		eventResponseable, err := service.Client().
-			UsersById(qp.User).
-			CalendarsById(*shell.GetId()).
-			Events().Get()
-		if err != nil {
-			errUpdater(qp.User, err)
-		}
-
-		directory := shell.GetName()
-		owner := shell.GetOwner()
-
-		// Conditional Guard Checks
-		if eventResponseable == nil ||
-			directory == nil ||
-			owner == nil {
-			return true
-		}
-
-		eventables := eventResponseable.GetValue()
-		// Clause is true when Calendar has does not have any events
-		if eventables == nil {
-			return true
-		}
-
-		if _, ok := collections[*directory]; !ok {
-			service, err := createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errUpdater(qp.User, err)
-
-				return true
-			}
-
-			dirPath, err := path.Builder{}.Append(*directory).ToDataLayerExchangePathForCategory(
-				qp.Credentials.TenantID,
-				qp.User,
-				path.EventsCategory,
-				false,
+				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
 			)
-			if err != nil {
-				// we should never hit this error
-				errUpdater("converting to resource path", err)
-				return true
-			}
 
-			edc := NewCollection(
-				qp.User,
-				dirPath,
-				events,
-				service,
-				statusUpdater,
-			)
-			collections[*directory] = &edc
+			return true
 		}
 
-		for _, event := range eventables {
-			collections[*directory].AddJob(*event.GetId())
-		}
+		collection.jobs = append(collection.jobs, eventIDs...)
 
 		return true
 	}
@@ -254,7 +235,7 @@ func IterateAndFilterDescendablesForCollections(
 	}
 }
 
-func IterateFilterFolderDirectoriesForCollections(
+func IterateFilterContainersForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	errUpdater func(string, error),
@@ -268,7 +249,7 @@ func IterateFilterFolderDirectoriesForCollections(
 		err         error
 		option      optionIdentifier
 		category    path.CategoryType
-		validate    func(string) bool
+		validate    func(*string) bool
 	)
 
 	return func(folderItem any) bool {
@@ -277,18 +258,30 @@ func IterateFilterFolderDirectoriesForCollections(
 			switch option {
 			case messages:
 				category = path.EmailCategory
-				validate = func(name string) bool {
-					return !qp.Scope.Matches(selectors.ExchangeMailFolder, name)
+				validate = func(namePtr *string) bool {
+					if namePtr == nil {
+						return true
+					}
+
+					return !qp.Scope.Matches(selectors.ExchangeMailFolder, *namePtr)
 				}
 			case contacts:
 				category = path.ContactsCategory
-				validate = func(name string) bool {
-					return !qp.Scope.Matches(selectors.ExchangeContactFolder, name)
+				validate = func(namePtr *string) bool {
+					if namePtr == nil {
+						return true
+					}
+
+					return !qp.Scope.Matches(selectors.ExchangeContactFolder, *namePtr)
 				}
 			case events:
 				category = path.EventsCategory
-				validate = func(name string) bool {
-					return !qp.Scope.Matches(selectors.ExchangeEventCalendar, name)
+				validate = func(namePtr *string) bool {
+					if namePtr == nil {
+						return true
+					}
+
+					return !qp.Scope.Matches(selectors.ExchangeEventCalendar, *namePtr)
 				}
 			}
 
@@ -311,12 +304,7 @@ func IterateFilterFolderDirectoriesForCollections(
 			)
 		}
 
-		// Continue to iterate if folder name is empty
-		if folder.GetDisplayName() == nil {
-			return true
-		}
-
-		if validate(*folder.GetDisplayName()) {
+		if validate(folder.GetDisplayName()) {
 			return true
 		}
 
@@ -560,6 +548,51 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) (
 		entry, ok := pageItem.(models.Contactable)
 		if !ok {
 			err = errors.New("casting pageItem to models.Contactable")
+			return false
+		}
+
+		stringArray = append(stringArray, *entry.GetId())
+
+		return true
+	}
+
+	if iterateErr := pageIterator.Iterate(callbackFunc); iterateErr != nil {
+		return nil, iterateErr
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return stringArray, nil
+}
+
+// ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
+func ReturnEventIDsFromCalendar(gs graph.Service, user, calendarID string) ([]string, error) {
+	stringArray := []string{}
+
+	response, err := gs.Client().
+		UsersById(user).
+		CalendarsById(calendarID).
+		Events().Get()
+	if err != nil {
+		return nil, err
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	pageIterator, err := msgraphgocore.NewPageIterator(
+		response,
+		gs.Adapter(),
+		models.CreateEventCollectionResponseFromDiscriminatorValue,
+	)
+
+	callbackFunc := func(pageItem any) bool {
+		entry, ok := pageItem.(models.Eventable)
+		if !ok {
+			err = errors.New("casting pageItem to models.Eventable")
 			return false
 		}
 
