@@ -371,8 +371,7 @@ func IterateSelectAllContactsForCollections(
 				errors.New("casting folderItem to models.ContactFolderable"),
 			)
 		}
-		// CollectFolders
-		// Get Root.. If Root is in
+
 		if !isPrimarySet && folder.GetParentFolderId() != nil {
 			err := CollectFolders(
 				ctx,
@@ -395,9 +394,8 @@ func IterateSelectAllContactsForCollections(
 				return true
 			}
 
+			// Create and Populate Default Contacts folder Collection if true
 			if qp.Scope.Matches(selectors.ExchangeContactFolder, DefaultContactFolder) {
-				// Create Collection for root
-
 				dirPath, err := path.Builder{}.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
 					qp.Credentials.TenantID,
 					qp.User,
@@ -438,13 +436,13 @@ func IterateSelectAllContactsForCollections(
 		}
 
 		if folder.GetDisplayName() == nil {
-			// This should never happen. Skipping here as it would cause a panic
+			// This should never happen. Skipping to avoid kernel panic
 			return true
 		}
 
 		collection, ok := collections[*folder.GetDisplayName()]
 		if !ok {
-			return true // Not selected
+			return true // Not included
 		}
 
 		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetId())
