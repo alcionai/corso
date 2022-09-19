@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -143,6 +144,8 @@ func IterateSelectAllEventsFromCalendars(
 
 			return true
 		}
+		// Populate Collections Based on Scope
+		// Get
 
 		eventResponseable, err := service.Client().
 			UsersById(qp.User).
@@ -269,12 +272,6 @@ func IterateFilterFolderDirectoriesForCollections(
 	)
 
 	return func(folderItem any) bool {
-		folder, ok := folderItem.(displayable)
-		if !ok {
-			errUpdater(qp.User, errors.New("casting folderItem to displayable"))
-			return true
-		}
-
 		if !isSet {
 			option = scopeToOptionIdentifier(qp.Scope)
 			switch option {
@@ -288,6 +285,11 @@ func IterateFilterFolderDirectoriesForCollections(
 				validate = func(name string) bool {
 					return !qp.Scope.Matches(selectors.ExchangeContactFolder, name)
 				}
+			case events:
+				category = path.EventsCategory
+				validate = func(name string) bool {
+					return !qp.Scope.Matches(selectors.ExchangeEventCalendar, name)
+				}
 			}
 
 			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
@@ -296,6 +298,17 @@ func IterateFilterFolderDirectoriesForCollections(
 			}
 
 			isSet = true
+		}
+
+		if option == events {
+			folderItem = CreateCalendarDisplayable(folderItem)
+		}
+
+		folder, ok := folderItem.(displayable)
+		if !ok {
+			errUpdater("unable to convert to displayable: %s",
+				fmt.Errorf("unable to convert to for category: %s", category.String()),
+			)
 		}
 
 		// Continue to iterate if folder name is empty
@@ -307,10 +320,10 @@ func IterateFilterFolderDirectoriesForCollections(
 			return true
 		}
 
-		if option == contacts {
-			collectPath = *folder.GetDisplayName()
-		} else {
+		if option == messages {
 			collectPath = *folder.GetId()
+		} else {
+			collectPath = *folder.GetDisplayName()
 		}
 
 		dirPath, err := getCollectionPath(
@@ -345,7 +358,7 @@ func IterateFilterFolderDirectoriesForCollections(
 			service,
 			statusUpdater,
 		)
-		collections[*folder.GetId()] = &temp
+		collections[*folder.GetDisplayName()] = &temp
 
 		return true
 	}
