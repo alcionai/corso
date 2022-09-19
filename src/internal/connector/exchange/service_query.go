@@ -122,6 +122,7 @@ func RetrieveMessageDataForUser(gs graph.Service, user, m365ID string) (absser.P
 	return gs.Client().UsersById(user).MessagesById(m365ID).Get()
 }
 
+// TODO... Test one and
 func CollectFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
@@ -149,6 +150,9 @@ func CollectFolders(
 	case contacts:
 		query = GetAllContactFolderNamesForUser
 		transformer = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
+	case events:
+		query = GetAllCalendarNamesForUser
+		transformer = models.CreateCalendarCollectionResponseFromDiscriminatorValue
 	default:
 		return fmt.Errorf("unsupported option %s used in CollectFolders", option)
 	}
