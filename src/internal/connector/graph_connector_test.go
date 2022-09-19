@@ -161,7 +161,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression() {
 	t := suite.T()
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.ContactFolders([]string{suite.user}, selectors.Any()))
+	sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
 
@@ -172,13 +172,13 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	contactsOnly := scopes[0]
 	collections, err := connector.createCollections(context.Background(), contactsOnly)
 	assert.NoError(t, err)
-
-	number := 0
+	assert.Equal(t, len(collections), 1)
 
 	for _, edc := range collections {
-		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath().ResourceOwner(), number)
+		testName := fmt.Sprintf("Default Contact Folder: %s", edc.FullPath().ResourceOwner())
 		suite.T().Run(testName, func(t *testing.T) {
 			streamChannel := edc.Items()
+			count := 0
 			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
@@ -187,9 +187,9 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 				contact, err := support.CreateContactFromBytes(buf.Bytes())
 				assert.NotNil(t, contact)
 				assert.NoError(t, err)
-
+				count++
 			}
-			number++
+			assert.NotZero(t, count)
 		})
 	}
 
@@ -204,7 +204,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 	t := suite.T()
 	connector := loadConnector(t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.EventCalendars([]string{suite.user}, selectors.Any()))
+	sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
 	scopes := sel.Scopes()
 	suite.Equal(len(scopes), 1)
 	collections, err := connector.createCollections(context.Background(), scopes[0])
