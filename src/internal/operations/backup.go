@@ -47,7 +47,7 @@ func NewBackupOperation(
 	sw *store.Wrapper,
 	acct account.Account,
 	selector selectors.Selector,
-	bus events.Bus,
+	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
 		operation: newOperation(opts, bus, kw, sw),

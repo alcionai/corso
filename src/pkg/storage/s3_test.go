@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -17,11 +18,19 @@ func TestS3CfgSuite(t *testing.T) {
 	suite.Run(t, new(S3CfgSuite))
 }
 
-var goodS3Config = storage.S3Config{
-	Bucket:   "bkt",
-	Endpoint: "end",
-	Prefix:   "pre",
-}
+var (
+	goodS3Config = storage.S3Config{
+		Bucket:   "bkt",
+		Endpoint: "end",
+		Prefix:   "pre",
+	}
+
+	goodS3Map = map[string]string{
+		"s3_bucket":   "bkt",
+		"s3_endpoint": "end",
+		"s3_prefix":   "pre",
+	}
+)
 
 func (suite *S3CfgSuite) TestS3Config_Config() {
 	s3 := goodS3Config
@@ -55,7 +64,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	assert.Equal(t, in.Prefix, out.Prefix)
 }
 
-func makeTestS3Cfg(ak, bkt, end, pre, sk, tkn string) storage.S3Config {
+func makeTestS3Cfg(bkt, end, pre string) storage.S3Config {
 	return storage.S3Config{
 		Bucket:   bkt,
 		Endpoint: end,
@@ -63,13 +72,13 @@ func makeTestS3Cfg(ak, bkt, end, pre, sk, tkn string) storage.S3Config {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_InvalidCases() {
+func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 	// missing required properties
 	table := []struct {
 		name string
 		cfg  storage.S3Config
 	}{
-		{"missing bucket", makeTestS3Cfg("ak", "", "end", "pre", "sk", "tkn")},
+		{"missing bucket", makeTestS3Cfg("", "end", "pre")},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -99,4 +108,45 @@ func (suite *S3CfgSuite) TestStorage_S3Config_InvalidCases() {
 			assert.Error(t, err)
 		})
 	}
+}
+
+func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
+	table := []struct {
+		name   string
+		input  storage.S3Config
+		expect map[string]string
+	}{
+		{
+			name:   "standard",
+			input:  goodS3Config,
+			expect: goodS3Map,
+		},
+		{
+			name:   "normalized bucket name",
+			input:  makeTestS3Cfg("s3://"+goodS3Config.Bucket, goodS3Config.Endpoint, goodS3Config.Prefix),
+			expect: goodS3Map,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result, err := test.input.StringConfig()
+			require.NoError(t, err)
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
+func (suite *S3CfgSuite) TestStorage_S3Config_Normalize() {
+	const (
+		prefixedBkt = "s3://bkt"
+		normalBkt   = "bkt"
+	)
+
+	st := storage.S3Config{
+		Bucket: prefixedBkt,
+	}
+
+	result := st.Normalize()
+	assert.Equal(suite.T(), normalBkt, result.Bucket)
+	assert.NotEqual(suite.T(), st.Bucket, result.Bucket)
 }

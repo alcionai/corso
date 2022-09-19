@@ -50,7 +50,7 @@ func NewRestoreOperation(
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
-	bus events.Bus,
+	bus events.Eventer,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
 		operation: newOperation(opts, bus, kw, sw),
