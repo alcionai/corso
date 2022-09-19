@@ -26,8 +26,6 @@ func (suite *PathEncoderSuite) TestEncodeDecode() {
 	decoded := make([]string, 0, len(elements))
 
 	for _, e := range encoded {
-		// Encoded values should not contain '/'.
-		assert.False(t, strings.ContainsRune(e, '/'))
 		dec, err := decodeElement(e)
 		require.NoError(t, err)
 
@@ -86,4 +84,16 @@ func (suite *PathEncoderSuite) TestEncodeAsPathDecode() {
 			assert.Equal(t, test.expected, decoded)
 		})
 	}
+}
+
+func FuzzEncodeDecodeSingleString(f *testing.F) {
+	f.Fuzz(func(t *testing.T, in string) {
+		encoded := encodeElements(in)
+		assert.Len(t, encoded, 1)
+		assert.False(t, strings.ContainsRune(encoded[0], '/'))
+
+		decoded, err := decodeElement(encoded[0])
+		require.NoError(t, err)
+		assert.Equal(t, in, decoded)
+	})
 }
