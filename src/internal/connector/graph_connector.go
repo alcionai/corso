@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -245,6 +244,32 @@ func (gc *GraphConnector) ExchangeDataCollection(
 // into M365
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
+	selector selectors.Selector,
+	dcs []data.Collection,
+) error {
+	switch selector.Service {
+	case selectors.ServiceExchange:
+		return gc.RestoreExchangeDataCollections(ctx, dcs)
+	case selectors.ServiceOneDrive:
+		status, err := onedrive.RestoreCollections(ctx, gc, dcs)
+		if err != nil {
+			return err
+		}
+
+		gc.incrementAwaitingMessages()
+
+		gc.UpdateStatus(status)
+
+		return nil
+	default:
+		return errors.Errorf("restore data from service %s not supported", selector.Service.String())
+	}
+}
+
+// RestoreDataCollections restores data from the specified collections
+// into M365
+func (gc *GraphConnector) RestoreExchangeDataCollections(
+	ctx context.Context,
 	dcs []data.Collection,
 ) error {
 	var (
@@ -266,21 +291,10 @@ func (gc *GraphConnector) RestoreDataCollections(
 			exit      bool
 		)
 
-		// Check whether restoring data into the specified service is supported
-		switch service {
-		case path.ExchangeService:
-			// Supported
-		default:
-			return errors.Errorf("restore data from service %s not supported", service.String())
-		}
-
 		if _, ok := pathCounter[directory.String()]; !ok {
 			pathCounter[directory.String()] = true
 
-			switch service {
-			case path.ExchangeService:
-				folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
-			}
+			folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
 
 			if errs != nil {
 				fmt.Println("RestoreContainer Failed")
@@ -312,10 +326,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 					continue
 				}
 
-				switch service {
-				case path.ExchangeService:
-					err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
-				}
+				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
 
 				if err != nil {
 					//  More information to be here

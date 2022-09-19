@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 )
 
@@ -24,14 +26,23 @@ const (
 	Prefix   = "prefix"
 )
 
+func (c S3Config) Normalize() S3Config {
+	return S3Config{
+		Bucket:   strings.TrimPrefix(c.Bucket, "s3://"),
+		Endpoint: c.Endpoint,
+		Prefix:   c.Prefix,
+	}
+}
+
 // StringConfig transforms a s3Config struct into a plain
 // map[string]string.  All values in the original struct which
 // serialize into the map are expected to be strings.
 func (c S3Config) StringConfig() (map[string]string, error) {
+	cn := c.Normalize()
 	cfg := map[string]string{
-		keyS3Bucket:   c.Bucket,
-		keyS3Endpoint: c.Endpoint,
-		keyS3Prefix:   c.Prefix,
+		keyS3Bucket:   cn.Bucket,
+		keyS3Endpoint: cn.Endpoint,
+		keyS3Prefix:   cn.Prefix,
 	}
 
 	return cfg, c.validate()
