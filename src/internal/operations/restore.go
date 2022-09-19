@@ -183,7 +183,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	err = gc.RestoreDataCollections(ctx, dcs)
+	err = gc.RestoreDataCollections(ctx, op.Selectors, dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err

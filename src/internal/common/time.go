@@ -12,8 +12,12 @@ const (
 	ClippedSimpleTimeFormat = "02-Jan-2006_15:04"
 	LegacyTimeFormat        = time.RFC3339
 	SimpleDateTimeFormat    = "02-Jan-2006_15:04:05"
-	StandardTimeFormat      = time.RFC3339Nano
-	TabularOutputTimeFormat = "2006-01-02T15:04:05Z"
+	// SimpleDateTimeFormatOneDrive is similar to `SimpleDateTimeFormat`
+	// but uses `-` instead of `:` which is a reserved character in
+	// OneDrive
+	SimpleDateTimeFormatOneDrive = "02-Jan-2006_15-04-05"
+	StandardTimeFormat           = time.RFC3339Nano
+	TabularOutputTimeFormat      = "2006-01-02T15:04:05Z"
 )
 
 var (
