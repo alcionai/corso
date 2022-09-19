@@ -98,13 +98,9 @@ type (
 		// context in order for the scope to extract the correct serviceInfo in the entry.
 		//
 		// Params:
-		// cat - the category type expressed in the Path.  Not the category of the Scope.  If the
-		//   scope does not align with this parameter, the result is automatically false.
-		// pathValues - the result of categorizer.pathValues() for the Path being checked.
-		// entry - the details entry containing extended service info for the item that a filter may
-		//   compare.  Identification of the correct entry Info service is left up to the scope.
-		// matchesEntry(cat categorizer, pathValues map[categorizer]string, entry details.DetailsEntry) bool
-		matchesInfo(details.ItemInfo) bool
+		// info - the details entry itemInfo containing extended service info that a filter may
+		//   compare.  Identification of the correct entry Info service is left up to the fulfiller.
+		matchesInfo(info details.ItemInfo) bool
 
 		// setDefaults populates default values for certain scope categories.
 		// Primarily to ensure that root- or mid-tier scopes (such as folders)
@@ -261,6 +257,8 @@ func reduce[T scopeT, C categoryT](
 // ex: a slice containing the scopes [mail1, mail2, event1]
 // would produce a map like { mail: [1, 2], event: [1] }
 // so long as "mail" and "event" are contained in cats.
+// For ALL-mach requirements, scopes used as filters should force inclusion using
+// includeAll=true, independent of the category.
 func scopesByCategory[T scopeT, C categoryT](
 	scopes []scope,
 	cats map[path.CategoryType]C,
@@ -274,7 +272,7 @@ func scopesByCategory[T scopeT, C categoryT](
 	for _, sc := range scopes {
 		for _, cat := range cats {
 			t := T(sc)
-			// include a scope if it is an info filter, or if the data category matches.
+			// include a scope if the data category matches, or the caller forces inclusion.
 			if includeAll || typeAndCategoryMatches(cat, t.categorizer()) {
 				m[cat] = append(m[cat], t)
 			}
