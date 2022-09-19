@@ -25,64 +25,6 @@ type GraphIterateFunc func(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool
 
-// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
-// this category of data. If one is not available, returns nil so that other
-// logic in the caller can complete as long as they check if the resolver is not
-// nil. If an error occurs populating the resolver, returns an error.
-func maybeGetAndPopulateFolderResolver(
-	ctx context.Context,
-	qp graph.QueryParams,
-	category path.CategoryType,
-) (graph.ContainerResolver, error) {
-	var res graph.ContainerResolver
-
-	switch category {
-	case path.EmailCategory:
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			return nil, err
-		}
-
-		res = &mailFolderCache{
-			userID: qp.User,
-			gs:     service,
-		}
-
-	default:
-		return nil, nil
-	}
-
-	if err := res.Populate(ctx); err != nil {
-		return nil, errors.Wrap(err, "populating directory resolver")
-	}
-
-	return res, nil
-}
-
-func resolveCollectionPath(
-	ctx context.Context,
-	resolver graph.ContainerResolver,
-	tenantID, user, folderID string,
-	category path.CategoryType,
-) (path.Path, error) {
-	if resolver == nil {
-		// Allows caller to default to old-style path.
-		return nil, errors.WithStack(errNilResolver)
-	}
-
-	p, err := resolver.IDToPath(ctx, folderID)
-	if err != nil {
-		return nil, errors.Wrap(err, "resolving folder ID")
-	}
-
-	return p.ToDataLayerExchangePathForCategory(
-		tenantID,
-		user,
-		category,
-		false,
-	)
-}
-
 // IterateSelectAllDescendablesForCollection utility function for
 // Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
 // objects belonging to any folder are
@@ -99,6 +41,8 @@ func IterateSelectAllDescendablesForCollections(
 		collectionType optionIdentifier
 		category       path.CategoryType
 		resolver       graph.ContainerResolver
+		dirPath        path.Path
+		err            error
 	)
 
 	return func(pageItem any) bool {
@@ -132,34 +76,19 @@ func IterateSelectAllDescendablesForCollections(
 		// Saving to messages to list. Indexed by folder
 		directory := *entry.GetParentFolderId()
 
-		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-		if err != nil {
-			// This really shouldn't happen unless we have a bad category.
-			errUpdater("converting to resource path", err)
-			return true
-		}
-
 		if _, ok = collections[directory]; !ok {
-			newPath, err := resolveCollectionPath(
+			dirPath, err = getCollectionPath(
 				ctx,
+				qp,
 				resolver,
-				qp.Credentials.TenantID,
-				qp.User,
 				directory,
 				category,
 			)
-
 			if err != nil {
-				if !errors.Is(err, errNilResolver) {
-					errUpdater("", err)
-				}
-			} else {
-				dirPath = newPath
+				errUpdater(
+					"failure during IterateSelectAllDescendablesForCollections",
+					err,
+				)
 			}
 
 			service, err := createService(qp.Credentials, qp.FailFast)
@@ -254,7 +183,7 @@ func IterateSelectAllEventsFromCalendars(
 				false,
 			)
 			if err != nil {
-				// we shouldn't ever hit this error
+				// we should never hit this error
 				errUpdater("converting to resource path", err)
 				return true
 			}
@@ -356,33 +285,20 @@ func IterateFilterFolderDirectoriesForCollections(
 
 		directory := *folder.GetId()
 
-		dirPath, err := path.Builder{}.Append(directory).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			path.EmailCategory,
-			false,
-		)
-		if err != nil {
-			// we shouldn't ever hit this error.
-			errUpdater("converting to resource path", err)
-			return true
-		}
-
-		p, err := resolveCollectionPath(
+		dirPath, err := getCollectionPath(
 			ctx,
+			qp,
 			resolver,
-			qp.Credentials.TenantID,
-			qp.User,
 			directory,
 			path.EmailCategory,
 		)
-
 		if err != nil {
-			if !errors.Is(err, errNilResolver) {
-				errUpdater("", err)
-			}
-		} else {
-			dirPath = p
+			errUpdater(
+				"failure converting path during IterateFilterFolderDirectoriesForCollections",
+				err,
+			)
+
+			return true
 		}
 
 		service, err = createService(qp.Credentials, qp.FailFast)

@@ -97,7 +97,7 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 		return item, nil
 	}
 
-	return nil, errFolderNotFound
+	return nil, errors.WithStack(errFolderNotFound)
 }
 
 // Create a new item in the specified folder

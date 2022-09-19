@@ -31,7 +31,7 @@ var (
 // dataset to grow until timeouts occur.
 // var backupDataSets = []path.CategoryType{email, contacts, events}
 
-var backupDataSets = []path.CategoryType{email, contacts}
+var backupDataSets = []path.CategoryType{email}
 
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite

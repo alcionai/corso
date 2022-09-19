@@ -398,6 +398,8 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 // the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	t := suite.T()
+	// TODO: #884 - reinstate when able to specify root folder by name
+	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	now := time.Now()
 
@@ -422,6 +424,8 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 // and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
+	// TODO: #884 - reinstate when able to specify root folder by name
+	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	calendar, err := CreateCalendar(suite.es, userID, name)
@@ -456,12 +460,14 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 			checkError:  assert.Error,
 			cleanupFunc: nil,
 		},
-		{
-			name:        "Establish Event Restore Location",
-			option:      path.EventsCategory,
-			checkError:  assert.NoError,
-			cleanupFunc: DeleteCalendar,
-		},
+
+		// TODO: #884 - reinstate when able to specify root folder by name
+		// {
+		// 	name:        "Establish Event Restore Location",
+		// 	option:      path.EventsCategory,
+		// 	checkError:  assert.NoError,
+		// 	cleanupFunc: DeleteCalendar,
+		// },
 		{
 			name:        "Establish Restore Folder for Unknown",
 			option:      path.UnknownCategory,
@@ -474,12 +480,13 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 			checkError:  assert.NoError,
 			cleanupFunc: DeleteMailFolder,
 		},
-		{
-			name:        "Establish Restore folder for Contacts",
-			option:      path.ContactsCategory,
-			checkError:  assert.NoError,
-			cleanupFunc: DeleteContactFolder,
-		},
+		// TODO: #884 - reinstate when able to specify root folder by name
+		// {
+		// 	name:        "Establish Restore folder for Contacts",
+		// 	option:      path.ContactsCategory,
+		// 	checkError:  assert.NoError,
+		// 	cleanupFunc: DeleteContactFolder,
+		// },
 	}
 
 	userID := tester.M365UserID(suite.T())
@@ -524,32 +531,33 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 				return *folder.GetId()
 			},
 		},
-		{
-			name:        "Test Contact",
-			bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
-			category:    path.ContactsCategory,
-			cleanupFunc: DeleteContactFolder,
-			destination: func() string {
-				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateContactFolder(suite.es, userID, folderName)
-				require.NoError(t, err)
+		// TODO: #884 - reinstate when able to specify root folder by name
+		// {
+		// 	name:        "Test Contact",
+		// 	bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
+		// 	category:    path.ContactsCategory,
+		// 	cleanupFunc: DeleteContactFolder,
+		// 	destination: func() string {
+		// 		folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
+		// 		folder, err := CreateContactFolder(suite.es, userID, folderName)
+		// 		require.NoError(t, err)
 
-				return *folder.GetId()
-			},
-		},
-		{
-			name:        "Test Events",
-			bytes:       mockconnector.GetMockEventBytes("Restored Event Object"),
-			category:    path.EventsCategory,
-			cleanupFunc: DeleteCalendar,
-			destination: func() string {
-				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
-				calendar, err := CreateCalendar(suite.es, userID, calendarName)
-				require.NoError(t, err)
+		// 		return *folder.GetId()
+		// 	},
+		// },
+		// {
+		// 	name:        "Test Events",
+		// 	bytes:       mockconnector.GetMockEventBytes("Restored Event Object"),
+		// 	category:    path.EventsCategory,
+		// 	cleanupFunc: DeleteCalendar,
+		// 	destination: func() string {
+		// 		calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
+		// 		calendar, err := CreateCalendar(suite.es, userID, calendarName)
+		// 		require.NoError(t, err)
 
-				return *calendar.GetId()
-			},
-		},
+		// 		return *calendar.GetId()
+		// 	},
+		// },
 	}
 
 	for _, test := range tests {
