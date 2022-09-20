@@ -161,7 +161,7 @@ func IterateSelectAllEventsFromCalendars(
 		if !ok {
 			errUpdater(
 				qp.User,
-				fmt.Errorf("unable to parse any into displayable: %T", pageItem),
+				fmt.Errorf("unable to parse pageItem into CalendarDisplayable: %T", pageItem),
 			)
 		}
 
