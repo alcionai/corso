@@ -569,7 +569,7 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) (
 
 // ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
 func ReturnEventIDsFromCalendar(gs graph.Service, user, calendarID string) ([]string, error) {
-	stringArray := []string{}
+	ids := []string{}
 
 	response, err := gs.Client().
 		UsersById(user).
@@ -596,7 +596,7 @@ func ReturnEventIDsFromCalendar(gs graph.Service, user, calendarID string) ([]st
 			return false
 		}
 
-		stringArray = append(stringArray, *entry.GetId())
+		ids = append(ids, *entry.GetId())
 
 		return true
 	}
@@ -609,5 +609,5 @@ func ReturnEventIDsFromCalendar(gs graph.Service, user, calendarID string) ([]st
 		return nil, err
 	}
 
-	return stringArray, nil
+	return ids, nil
 }
