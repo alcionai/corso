@@ -90,10 +90,12 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		if err != nil {
 			return err
 		}
+
 		if item.GetRoot() != nil {
 			// Skip the root item
 			continue
 		}
+
 		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
 			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())
 		}
@@ -116,6 +118,7 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 				c.statusUpdater,
 			)
 		}
+
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
 			// For folders and packages we also create a collection to represent those
@@ -148,6 +151,7 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
 		}
 	}
+
 	return nil
 }
 
@@ -162,6 +166,8 @@ func (c *Collections) stats(item models.DriveItemable) error {
 	default:
 		return errors.Errorf("item type not supported. item name : %s", *item.GetName())
 	}
+
 	c.numItems++
+
 	return nil
 }
