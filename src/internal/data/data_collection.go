@@ -7,6 +7,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
+// ------------------------------------------------------------------------------------------------
+// standard ifaces
+// ------------------------------------------------------------------------------------------------
+
 // A Collection represents a compilation of data from the
 // same type application (e.g. mail)
 type Collection interface {
@@ -41,4 +45,27 @@ type StreamInfo interface {
 // information about the Stream
 type StreamSize interface {
 	Size() int64
+}
+
+// ------------------------------------------------------------------------------------------------
+// functionality
+// ------------------------------------------------------------------------------------------------
+
+// ResourceOwnerSet extracts the set of unique resource owners from the
+// slice of Collections.
+func ResourceOwnerSet(cs []Collection) []string {
+	rs := map[string]struct{}{}
+
+	for _, c := range cs {
+		fp := c.FullPath()
+		rs[fp.ResourceOwner()] = struct{}{}
+	}
+
+	rss := make([]string, 0, len(rs))
+
+	for k := range rs {
+		rss = append(rss, k)
+	}
+
+	return rss
 }
