@@ -92,7 +92,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	readItem := readItems[0]
 	readItemInfo := readItem.(data.StreamInfo)
 
-	assert.Equal(t, testItemID, readItem.UUID())
+	assert.Equal(t, testItemName, readItem.UUID())
 	readData, err := io.ReadAll(readItem.ToReader())
 	require.NoError(t, err)
 
