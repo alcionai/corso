@@ -700,7 +700,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 
 	filterCat := s.FilterCategory()
 
-	cfpc := categoryFromPathCat(info.ItemType)
+	cfpc := categoryFromItemType(info.ItemType)
 	if !typeAndCategoryMatches(filterCat, cfpc) {
 		return false
 	}
@@ -729,9 +729,10 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	return s.Matches(filterCat, i)
 }
 
-// categoryFromPathCat interprets the category represented by the ExchangeInfo
-// struct.  Since every ExchangeInfo can hold all exchange data types, and
-func categoryFromPathCat(pct details.ItemType) exchangeCategory {
+// categoryFromItemType interprets the category represented by the ExchangeInfo
+// struct.  Since every ExchangeInfo can hold all exchange data info, the exact
+// type that the struct represents must be compared using its ItemType prop.
+func categoryFromItemType(pct details.ItemType) exchangeCategory {
 	switch pct {
 	case details.ExchangeContact:
 		return ExchangeContact

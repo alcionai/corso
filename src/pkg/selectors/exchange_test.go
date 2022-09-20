@@ -1380,7 +1380,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathKeys() {
 	}
 }
 
-func (suite *ExchangeSelectorSuite) TestCategoryFromPathCat() {
+func (suite *ExchangeSelectorSuite) TestCategoryFromItemType() {
 	table := []struct {
 		name   string
 		input  details.ItemType
@@ -1409,7 +1409,7 @@ func (suite *ExchangeSelectorSuite) TestCategoryFromPathCat() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			result := categoryFromPathCat(test.input)
+			result := categoryFromItemType(test.input)
 			assert.Equal(t, test.expect, result)
 		})
 	}
