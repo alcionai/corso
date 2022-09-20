@@ -79,7 +79,7 @@ func (suite *CollectionSuite) TestResourceOwnerSet() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			rs := ResourceOwnerSet(test.input)
-			assert.Equal(t, test.expect, rs)
+			assert.ElementsMatch(t, test.expect, rs)
 		})
 	}
 }
