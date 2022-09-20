@@ -32,7 +32,7 @@ func driveItemReader(
 ) (string, io.ReadCloser, error) {
 	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
 
-	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get()
+	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
@@ -60,7 +60,7 @@ func driveItemReader(
 // It does so by creating an upload session and using that URL to initialize an `itemWriter`
 func driveItemWriter(ctx context.Context, service graph.Service, driveID, itemID string, itemSize int64,
 ) (io.Writer, error) {
-	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(nil)
+	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
