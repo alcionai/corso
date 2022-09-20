@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 

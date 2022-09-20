@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/operations"
-	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
