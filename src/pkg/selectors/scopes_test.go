@@ -103,19 +103,29 @@ func (suite *SelectorScopesSuite) TestContains() {
 
 func (suite *SelectorScopesSuite) TestGetCatValue() {
 	t := suite.T()
+
 	stub := stubScope("")
 	stub[rootCatStub.String()] = filterize(rootCatStub.String())
+
 	assert.Equal(t,
 		[]string{rootCatStub.String()},
 		getCatValue(stub, rootCatStub))
-	assert.Equal(t, None(), getCatValue(stub, leafCatStub))
+	assert.Equal(t,
+		None(),
+		getCatValue(stub, mockCategorizer("foo")))
 }
 
 func (suite *SelectorScopesSuite) TestIsAnyTarget() {
 	t := suite.T()
 	stub := stubScope("")
 	assert.True(t, isAnyTarget(stub, rootCatStub))
+	assert.True(t, isAnyTarget(stub, leafCatStub))
+	assert.False(t, isAnyTarget(stub, mockCategorizer("smarf")))
+
+	stub = stubScope("none")
+	assert.False(t, isAnyTarget(stub, rootCatStub))
 	assert.False(t, isAnyTarget(stub, leafCatStub))
+	assert.False(t, isAnyTarget(stub, mockCategorizer("smarf")))
 }
 
 var reduceTestTable = []struct {
@@ -161,7 +171,7 @@ var reduceTestTable = []struct {
 		name: "include all filter none",
 		sel: func() mockSel {
 			sel := stubSelector()
-			sel.Filters[0] = scope(stubScope("none"))
+			sel.Filters[0] = scope(stubInfoScope("none"))
 			sel.Excludes = nil
 			return sel
 		},
@@ -257,7 +267,8 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 		[]scope{scope(s1), scope(s2)},
 		map[path.CategoryType]mockCategorizer{
 			path.UnknownCategory: rootCatStub,
-		})
+		},
+		false)
 	assert.Len(t, result, 1)
 	assert.Len(t, result[rootCatStub], 1)
 	assert.Empty(t, result[leafCatStub])
@@ -265,7 +276,8 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 
 func (suite *SelectorScopesSuite) TestPasses() {
 	cat := rootCatStub
-	pathVals := map[categorizer]string{}
+	pth := stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
+	pathVals := cat.pathValues(pth)
 	entry := details.DetailsEntry{}
 
 	for _, test := range reduceTestTable {
