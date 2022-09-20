@@ -30,6 +30,19 @@ var (
 	errConnect = errors.New("connecting repo")
 )
 
+// Having all fields set to 0 causes it to keep max-int versions of snapshots.
+var (
+	zeroOpt          = policy.OptionalInt(0)
+	defaultRetention = policy.RetentionPolicy{
+		KeepLatest:  &zeroOpt,
+		KeepHourly:  &zeroOpt,
+		KeepWeekly:  &zeroOpt,
+		KeepDaily:   &zeroOpt,
+		KeepMonthly: &zeroOpt,
+		KeepAnnual:  &zeroOpt,
+	}
+)
+
 type ErrorRepoAlreadyExists struct {
 	common.Err
 }
@@ -141,7 +154,7 @@ func (w *conn) commonConnect(
 		return err
 	}
 
-	return w.Compression(ctx, compressor)
+	return w.setDefaultConfigValues(ctx)
 }
 
 func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
@@ -220,6 +233,10 @@ func (w *conn) setDefaultConfigValues(ctx context.Context) error {
 		return errors.Wrap(err, defaultConfigErrTmpl)
 	}
 
+	if updateRetentionOnPolicy(defaultRetention, p) {
+		changed = true
+	}
+
 	if !changed {
 		return nil
 	}
@@ -278,6 +295,15 @@ func updateCompressionOnPolicy(compressor string, p *policy.Policy) (bool, error
 	return true, nil
 }
 
+func updateRetentionOnPolicy(retention policy.RetentionPolicy, p *policy.Policy) bool {
+	if retention == p.RetentionPolicy {
+		return false
+	}
+
+	p.RetentionPolicy = retention
+
+	return true
+}
 
 func (w *conn) getGlobalPolicyOrEmpty(ctx context.Context) (*policy.Policy, error) {
 	si := policy.GlobalPolicySourceInfo
