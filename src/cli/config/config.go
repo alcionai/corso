@@ -30,9 +30,11 @@ const (
 )
 
 var (
-	configFilePath string
-	configDir      string
-	defaultDir     string
+	configFilePath     string
+	configFilePathFlag string
+	configDir          string
+	defaultDir         string
+	displayDefaultFP   = filepath.Join("$HOME", ".corso.toml")
 )
 
 // Attempts to set the default dir and config file path.
@@ -64,13 +66,7 @@ func init() {
 // adds the persistent flag --config-file to the provided command.
 func AddConfigFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
-
-	def := configFilePath
-	if len(def) == 0 {
-		filepath.Join(defaultDir, ".corso.toml")
-	}
-
-	fs.StringVar(&configFilePath, "config-file", def, "config file location (default is $HOME/.corso.toml)")
+	fs.StringVar(&configFilePathFlag, "config-file", displayDefaultFP, "config file location (default is $HOME/.corso.toml)")
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -81,7 +77,12 @@ func AddConfigFlags(cmd *cobra.Command) {
 // verifies that the configuration was able to read a file.
 func InitFunc() func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		err := initWithViper(GetViper(cmd.Context()), configFilePath)
+		fp := configFilePathFlag
+		if len(fp) == 0 || fp == displayDefaultFP {
+			fp = configFilePath
+		}
+
+		err := initWithViper(GetViper(cmd.Context()), fp)
 		if err != nil {
 			return err
 		}
@@ -94,7 +95,7 @@ func InitFunc() func(*cobra.Command, []string) error {
 // struct for testing.
 func initWithViper(vpr *viper.Viper, configFP string) error {
 	// Configure default config file location
-	if configFP == "" {
+	if configFP == "" || configFP == displayDefaultFP {
 		// Find home directory.
 		_, err := os.Stat(configDir)
 		if err != nil {

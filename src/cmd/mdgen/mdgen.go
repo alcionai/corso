@@ -170,8 +170,8 @@ func printFlags(buf *bytes.Buffer, flags *pflag.FlagSet) {
 		return
 	}
 
-	buf.WriteString("|Flag|Short|Default|Help\n")
-	buf.WriteString("|:----|:-----|:-------|:----\n")
+	buf.WriteString("|Flag|Short|Default|Help|\n")
+	buf.WriteString("|:----|:-----|:-------|:----|\n")
 
 	flags.VisitAll(func(flag *pflag.Flag) {
 		if flag.Hidden {
@@ -194,6 +194,6 @@ func printFlags(buf *bytes.Buffer, flags *pflag.FlagSet) {
 
 		buf.WriteString("|")
 		buf.WriteString(flag.Usage)
-		buf.WriteString("\n")
+		buf.WriteString("|\n")
 	})
 }
