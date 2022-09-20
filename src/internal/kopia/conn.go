@@ -23,9 +23,24 @@ const (
 	defaultCompressor      = "s2-default"
 )
 
+const defaultConfigErrTmpl = "setting default repo config values"
+
 var (
 	errInit    = errors.New("initializing repo")
 	errConnect = errors.New("connecting repo")
+)
+
+// Having all fields set to 0 causes it to keep max-int versions of snapshots.
+var (
+	zeroOpt          = policy.OptionalInt(0)
+	defaultRetention = policy.RetentionPolicy{
+		KeepLatest:  &zeroOpt,
+		KeepHourly:  &zeroOpt,
+		KeepWeekly:  &zeroOpt,
+		KeepDaily:   &zeroOpt,
+		KeepMonthly: &zeroOpt,
+		KeepAnnual:  &zeroOpt,
+	}
 )
 
 type ErrorRepoAlreadyExists struct {
@@ -139,7 +154,7 @@ func (w *conn) commonConnect(
 		return err
 	}
 
-	return w.Compression(ctx, compressor)
+	return w.setDefaultConfigValues(ctx)
 }
 
 func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
@@ -207,40 +222,92 @@ func (w *conn) wrap() error {
 	return nil
 }
 
+func (w *conn) setDefaultConfigValues(ctx context.Context) error {
+	p, err := w.getGlobalPolicyOrEmpty(ctx)
+	if err != nil {
+		return errors.Wrap(err, defaultConfigErrTmpl)
+	}
+
+	changed, err := updateCompressionOnPolicy(defaultCompressor, p)
+	if err != nil {
+		return errors.Wrap(err, defaultConfigErrTmpl)
+	}
+
+	if updateRetentionOnPolicy(defaultRetention, p) {
+		changed = true
+	}
+
+	if !changed {
+		return nil
+	}
+
+	return errors.Wrap(
+		w.writeGlobalPolicy(ctx, "UpdateGlobalPolicyWithDefaults", p),
+		"updating global policy with defaults",
+	)
+}
+
 // Compression attempts to set the global compression policy for the kopia repo
 // to the given compressor.
 func (w *conn) Compression(ctx context.Context, compressor string) error {
+	// Redo this check so we can exit without looking up a policy if a bad
+	// compressor was given.
 	comp := compression.Name(compressor)
-
 	if err := checkCompressor(comp); err != nil {
 		return err
 	}
 
-	si := policy.GlobalPolicySourceInfo
-
-	p, err := w.getPolicyOrEmpty(ctx, si)
+	p, err := w.getGlobalPolicyOrEmpty(ctx)
 	if err != nil {
 		return err
 	}
 
-	if compressor == string(p.CompressionPolicy.CompressorName) {
+	changed, err := updateCompressionOnPolicy(compressor, p)
+	if err != nil {
+		return err
+	}
+
+	if !changed {
 		return nil
 	}
 
-	p.CompressionPolicy = policy.CompressionPolicy{
-		CompressorName: compression.Name(comp),
+	return errors.Wrap(
+		w.writeGlobalPolicy(ctx, "UpdateGlobalCompressionPolicy", p),
+		"updating global compression policy",
+	)
+}
+
+func updateCompressionOnPolicy(compressor string, p *policy.Policy) (bool, error) {
+	comp := compression.Name(compressor)
+
+	if err := checkCompressor(comp); err != nil {
+		return false, err
 	}
 
-	err = repo.WriteSession(
-		ctx,
-		w.Repository,
-		repo.WriteSessionOptions{Purpose: "UpdateGlobalCompressionPolicy"},
-		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
-			return policy.SetPolicy(ctx, rw, si, p)
-		},
-	)
+	if comp == p.CompressionPolicy.CompressorName {
+		return false, nil
+	}
 
-	return errors.Wrap(err, "updating global compression policy")
+	p.CompressionPolicy = policy.CompressionPolicy{
+		CompressorName: comp,
+	}
+
+	return true, nil
+}
+
+func updateRetentionOnPolicy(retention policy.RetentionPolicy, p *policy.Policy) bool {
+	if retention == p.RetentionPolicy {
+		return false
+	}
+
+	p.RetentionPolicy = retention
+
+	return true
+}
+
+func (w *conn) getGlobalPolicyOrEmpty(ctx context.Context) (*policy.Policy, error) {
+	si := policy.GlobalPolicySourceInfo
+	return w.getPolicyOrEmpty(ctx, si)
 }
 
 func (w *conn) getPolicyOrEmpty(ctx context.Context, si snapshot.SourceInfo) (*policy.Policy, error) {
@@ -250,10 +317,37 @@ func (w *conn) getPolicyOrEmpty(ctx context.Context, si snapshot.SourceInfo) (*p
 			return &policy.Policy{}, nil
 		}
 
-		return nil, errors.Wrap(err, "getting global backup policy")
+		return nil, errors.Wrapf(err, "getting backup policy for %+v", si)
 	}
 
 	return p, nil
+}
+
+func (w *conn) writeGlobalPolicy(
+	ctx context.Context,
+	purpose string,
+	p *policy.Policy,
+) error {
+	si := policy.GlobalPolicySourceInfo
+	return w.writePolicy(ctx, purpose, si, p)
+}
+
+func (w *conn) writePolicy(
+	ctx context.Context,
+	purpose string,
+	si snapshot.SourceInfo,
+	p *policy.Policy,
+) error {
+	err := repo.WriteSession(
+		ctx,
+		w.Repository,
+		repo.WriteSessionOptions{Purpose: purpose},
+		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+			return policy.SetPolicy(ctx, rw, si, p)
+		},
+	)
+
+	return errors.Wrapf(err, "updating policy for %+v", si)
 }
 
 func checkCompressor(compressor compression.Name) error {
