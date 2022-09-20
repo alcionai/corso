@@ -207,6 +207,7 @@ func (suite *DataLayerResourcePath) TestDir() {
 
 					expected := path.Builder{}.Append(elements...).Append(rest[:len(rest)-i]...)
 					assert.Equal(t, expected.String(), p.String())
+					assert.Empty(t, p.Item())
 				})
 			}
 
