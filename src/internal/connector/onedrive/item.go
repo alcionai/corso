@@ -45,6 +45,7 @@ func driveItemReader(
 		return "", nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
 			itemID, item.GetAdditionalData())
 	}
+
 	downloadURL := item.GetAdditionalData()[downloadURLKey].(*string)
 
 	// TODO: We should use the `msgraphgocore` http client which has the right
