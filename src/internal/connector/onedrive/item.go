@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	msup "github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item/createuploadsession"
 	"github.com/pkg/errors"
 	"gopkg.in/resty.v1"
 
@@ -60,7 +61,9 @@ func driveItemReader(
 // It does so by creating an upload session and using that URL to initialize an `itemWriter`
 func driveItemWriter(ctx context.Context, service graph.Service, driveID, itemID string, itemSize int64,
 ) (io.Writer, error) {
-	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, nil)
+	// TODO: @vkamra verify if var session is the desired input
+	session := msup.NewCreateUploadSessionPostRequestBody()
+	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
