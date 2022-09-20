@@ -66,7 +66,11 @@ func init() {
 // adds the persistent flag --config-file to the provided command.
 func AddConfigFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
-	fs.StringVar(&configFilePathFlag, "config-file", displayDefaultFP, "config file location (default is $HOME/.corso.toml)")
+	fs.StringVar(
+		&configFilePathFlag,
+		"config-file",
+		displayDefaultFP,
+		"config file location (default is $HOME/.corso.toml)")
 }
 
 // ---------------------------------------------------------------------------------------------------------
