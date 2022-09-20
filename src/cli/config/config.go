@@ -70,7 +70,7 @@ func AddConfigFlags(cmd *cobra.Command) {
 		filepath.Join(defaultDir, ".corso.toml")
 	}
 
-	fs.StringVar(&configFilePath, "config-file", def, "config file location (default is "+defaultDir+".corso.toml)")
+	fs.StringVar(&configFilePath, "config-file", def, "config file location (default is $HOME/.corso.toml)")
 }
 
 // ---------------------------------------------------------------------------------------------------------
