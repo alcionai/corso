@@ -51,7 +51,7 @@ type StreamSize interface {
 // functionality
 // ------------------------------------------------------------------------------------------------
 
-// CollectionResources extracts the set of unique resource owners from the
+// ResourceOwnerSet extracts the set of unique resource owners from the
 // slice of Collections.
 func ResourceOwnerSet(cs []Collection) []string {
 	rs := map[string]struct{}{}
