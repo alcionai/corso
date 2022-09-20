@@ -67,63 +67,63 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
-func CreateMailFolder(gs graph.Service, user, folder string) (models.MailFolderable, error) {
+func CreateMailFolder(ctx context.Context, gs graph.Service, user, folder string) (models.MailFolderable, error) {
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
 
 	isHidden := false
 	requestBody.SetIsHidden(&isHidden)
 
-	return gs.Client().UsersById(user).MailFolders().Post(requestBody)
+	return gs.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
 }
 
 // DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
-func DeleteMailFolder(gs graph.Service, user, folderID string) error {
-	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete()
+func DeleteMailFolder(ctx context.Context, gs graph.Service, user, folderID string) error {
+	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
 }
 
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
-func CreateCalendar(gs graph.Service, user, calendarName string) (models.Calendarable, error) {
+func CreateCalendar(ctx context.Context, gs graph.Service, user, calendarName string) (models.Calendarable, error) {
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	return gs.Client().UsersById(user).Calendars().Post(requestbody)
+	return gs.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 }
 
 // DeleteCalendar removes calendar from user's M365 account
 // Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
-func DeleteCalendar(gs graph.Service, user, calendarID string) error {
-	return gs.Client().UsersById(user).CalendarsById(calendarID).Delete()
+func DeleteCalendar(ctx context.Context, gs graph.Service, user, calendarID string) error {
+	return gs.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
 // CreateContactFolder makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
-func CreateContactFolder(gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
+func CreateContactFolder(ctx context.Context, gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
 	temp := folderName
 	requestBody.SetDisplayName(&temp)
 
-	return gs.Client().UsersById(user).ContactFolders().Post(requestBody)
+	return gs.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 }
 
 // DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
 // Errors returned if the function call was not successful.
-func DeleteContactFolder(gs graph.Service, user, folderID string) error {
-	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete()
+func DeleteContactFolder(ctx context.Context, gs graph.Service, user, folderID string) error {
+	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 }
 
 // GetAllMailFolders retrieves all mail folders for the specified user.
 // If nameContains is populated, only returns mail matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]models.MailFolderable, error) {
+func GetAllMailFolders(ctx context.Context, gs graph.Service, user, nameContains string) ([]models.MailFolderable, error) {
 	var (
 		mfs = []models.MailFolderable{}
 		err error
 	)
 
-	resp, err := GetAllFolderNamesForUser(gs, user)
+	resp, err := GetAllFolderNamesForUser(ctx, gs, user)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]models.Ma
 		return true
 	}
 
-	if err := iter.Iterate(cb); err != nil {
+	if err := iter.Iterate(ctx, cb); err != nil {
 		return nil, err
 	}
 
@@ -160,13 +160,13 @@ func GetAllMailFolders(gs graph.Service, user, nameContains string) ([]models.Ma
 // GetAllCalendars retrieves all event calendars for the specified user.
 // If nameContains is populated, only returns calendars matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllCalendars(gs graph.Service, user, nameContains string) ([]CalendarDisplayable, error) {
+func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains string) ([]CalendarDisplayable, error) {
 	var (
 		cs  = []CalendarDisplayable{}
 		err error
 	)
 
-	resp, err := GetAllCalendarNamesForUser(gs, user)
+	resp, err := GetAllCalendarNamesForUser(ctx, gs, user)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func GetAllCalendars(gs graph.Service, user, nameContains string) ([]CalendarDis
 		return true
 	}
 
-	if err := iter.Iterate(cb); err != nil {
+	if err := iter.Iterate(ctx, cb); err != nil {
 		return nil, err
 	}
 
@@ -203,13 +203,13 @@ func GetAllCalendars(gs graph.Service, user, nameContains string) ([]CalendarDis
 // GetAllContactFolders retrieves all contacts folders for the specified user.
 // If nameContains is populated, only returns folders matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]models.ContactFolderable, error) {
+func GetAllContactFolders(ctx context.Context, gs graph.Service, user, nameContains string) ([]models.ContactFolderable, error) {
 	var (
 		cs  = []models.ContactFolderable{}
 		err error
 	)
 
-	resp, err := GetAllContactFolderNamesForUser(gs, user)
+	resp, err := GetAllContactFolderNamesForUser(ctx, gs, user)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func GetAllContactFolders(gs graph.Service, user, nameContains string) ([]models
 		return true
 	}
 
-	if err := iter.Iterate(cb); err != nil {
+	if err := iter.Iterate(ctx, cb); err != nil {
 		return nil, err
 	}
 
@@ -280,7 +280,7 @@ func GetContainerID(
 		return nil, fmt.Errorf("unsupported category %s for GetContainerID()", category)
 	}
 
-	response, err := query(service, user)
+	response, err := query(ctx, service, user)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -306,7 +306,7 @@ func GetContainerID(
 		errUpdater,
 	)
 
-	if err := pageIterator.Iterate(callbackFunc); err != nil {
+	if err := pageIterator.Iterate(ctx, callbackFunc); err != nil {
 		return nil, support.WrapAndAppend(service.Adapter().GetBaseUrl(), err, errs)
 	}
 

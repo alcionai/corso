@@ -260,6 +260,7 @@ func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 // TestGraphQueryFunctions verifies if Query functions APIs
 // through Microsoft Graph are functional
 func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
+	ctx := context.Background()
 	userID := tester.M365UserID(suite.T())
 	tests := []struct {
 		name     string
@@ -297,7 +298,7 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			response, err := test.function(suite.es, userID)
+			response, err := test.function(ctx, suite.es, userID)
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
 		})
@@ -373,11 +374,12 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 // The result should be all successful items restored within the same folder.
 func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 	t := suite.T()
+	ctx := context.Background()
 	userID := tester.M365UserID(t)
 	now := time.Now()
 
 	folderName := "TestRestoreMessage: " + common.FormatSimpleDateTime(now)
-	folder, err := CreateMailFolder(suite.es, userID, folderName)
+	folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 	require.NoError(t, err)
 
 	folderID := *folder.GetId()
@@ -390,7 +392,7 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 		userID,
 	)
 	require.NoError(t, err)
-	err = DeleteMailFolder(suite.es, userID, folderID)
+	err = DeleteMailFolder(ctx, suite.es, userID, folderID)
 	assert.NoError(t, err)
 }
 
@@ -398,13 +400,14 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 // the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	t := suite.T()
+	ctx := context.Background()
 	// TODO: #884 - reinstate when able to specify root folder by name
 	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	now := time.Now()
 
 	folderName := "TestRestoreContact: " + common.FormatSimpleDateTime(now)
-	aFolder, err := CreateContactFolder(suite.es, userID, folderName)
+	aFolder, err := CreateContactFolder(ctx, suite.es, userID, folderName)
 	require.NoError(t, err)
 
 	folderID := *aFolder.GetId()
@@ -416,7 +419,7 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 		userID)
 	assert.NoError(t, err)
 	// Removes folder containing contact prior to exiting test
-	err = DeleteContactFolder(suite.es, userID, folderID)
+	err = DeleteContactFolder(ctx, suite.es, userID, folderID)
 	assert.NoError(t, err)
 }
 
@@ -424,11 +427,12 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 // and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
+	ctx := context.Background()
 	// TODO: #884 - reinstate when able to specify root folder by name
 	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
-	calendar, err := CreateCalendar(suite.es, userID, name)
+	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
 	require.NoError(t, err)
 
 	calendarID := *calendar.GetId()
@@ -440,7 +444,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 		userID)
 	assert.NoError(t, err)
 	// Removes calendar containing events created during the test
-	err = DeleteCalendar(suite.es, userID, *calendar.GetId())
+	err = DeleteCalendar(ctx, suite.es, userID, *calendar.GetId())
 	assert.NoError(t, err)
 }
 
@@ -452,7 +456,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 		name        string
 		option      path.CategoryType
 		checkError  assert.ErrorAssertionFunc
-		cleanupFunc func(graph.Service, string, string) error
+		cleanupFunc func(context.Context, graph.Service, string, string) error
 	}{
 		{
 			name:        "Establish User Restore Folder",
@@ -497,7 +501,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
 
 			if test.cleanupFunc != nil {
-				err = test.cleanupFunc(suite.es, userID, containerID)
+				err = test.cleanupFunc(ctx, suite.es, userID, containerID)
 				assert.NoError(t, err)
 			}
 		})
@@ -515,7 +519,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 		name        string
 		bytes       []byte
 		category    path.CategoryType
-		cleanupFunc func(graph.Service, string, string) error
+		cleanupFunc func(context.Context, graph.Service, string, string) error
 		destination func() string
 	}{
 		{
@@ -525,7 +529,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func() string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(suite.es, userID, folderName)
+				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -573,7 +577,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 				userID,
 			)
 			assert.NoError(t, err)
-			cleanupError := test.cleanupFunc(service, userID, destination)
+			cleanupError := test.cleanupFunc(ctx, service, userID, destination)
 			assert.NoError(t, cleanupError)
 		})
 	}

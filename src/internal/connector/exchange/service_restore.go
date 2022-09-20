@@ -39,21 +39,21 @@ func GetRestoreContainer(
 
 	switch option {
 	case messages:
-		fold, err := CreateMailFolder(service, user, name)
+		fold, err := CreateMailFolder(ctx, service, user, name)
 		if err != nil {
 			return "", support.WrapAndAppend(fmt.Sprintf("creating folder %s for user %s", name, user), err, err)
 		}
 
 		return *fold.GetId(), nil
 	case contacts:
-		fold, err := CreateContactFolder(service, user, name)
+		fold, err := CreateContactFolder(ctx, service, user, name)
 		if err != nil {
 			return "", support.WrapAndAppend(user+"failure during CreateContactFolder during restore Contact", err, err)
 		}
 
 		return *fold.GetId(), nil
 	case events:
-		calendar, err := CreateCalendar(service, user, name)
+		calendar, err := CreateCalendar(ctx, service, user, name)
 		if err != nil {
 			return "", support.WrapAndAppend(user+"failure during CreateCalendar during restore Event", err, err)
 		}
@@ -111,7 +111,7 @@ func RestoreExchangeContact(
 		return errors.Wrap(err, "failure to create contact from bytes: RestoreExchangeContact")
 	}
 
-	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(contact)
+	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
 		return errors.Wrap(
 			err,
@@ -145,7 +145,7 @@ func RestoreExchangeEvent(
 		return err
 	}
 
-	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(event)
+	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, event, nil)
 	if err != nil {
 		return errors.Wrap(err,
 			fmt.Sprintf(
@@ -215,7 +215,7 @@ func RestoreMailMessage(
 			"policy", cp)
 		fallthrough
 	case control.Copy:
-		return SendMailToBackStore(service, user, destination, clone)
+		return SendMailToBackStore(ctx, service, user, destination, clone)
 	}
 }
 
@@ -223,8 +223,8 @@ func RestoreMailMessage(
 // @param user string represents M365 ID of user within the tenant
 // @param destination represents M365 ID of a folder within the users's space
 // @param message is a models.Messageable interface from "github.com/microsoftgraph/msgraph-sdk-go/models"
-func SendMailToBackStore(service graph.Service, user, destination string, message models.Messageable) error {
-	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(message)
+func SendMailToBackStore(ctx context.Context, service graph.Service, user, destination string, message models.Messageable) error {
+	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
 		return errors.Wrap(err,
 			*message.GetId()+": failure sendMailAPI:  "+support.ConnectorStackErrorTrace(err),
