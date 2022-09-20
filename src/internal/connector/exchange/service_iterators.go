@@ -299,8 +299,8 @@ func IterateFilterContainersForCollections(
 
 		folder, ok := folderItem.(displayable)
 		if !ok {
-			errUpdater("unable to convert to displayable: %s",
-				fmt.Errorf("unable to convert to for category: %s", category.String()),
+			errUpdater(qp.User,
+				fmt.Errorf("unable to convert input of %T for category: %s", folderItem, category.String()),
 			)
 		}
 
