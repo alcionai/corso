@@ -25,9 +25,9 @@ type GraphConnectorIntegrationSuite struct {
 	user      string
 }
 
-func loadConnector(t *testing.T) *GraphConnector {
+func loadConnector(ctx context.Context, t *testing.T) *GraphConnector {
 	a := tester.NewM365Account(t)
-	connector, err := NewGraphConnector(a)
+	connector, err := NewGraphConnector(ctx, a)
 	require.NoError(t, err)
 
 	return connector
@@ -48,10 +48,10 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
-
+	ctx := context.Background()
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
-	suite.connector = loadConnector(suite.T())
+	suite.connector = loadConnector(ctx, suite.T())
 	suite.user = tester.M365UserID(suite.T())
 	tester.LogTimeOfTest(suite.T())
 }
@@ -64,14 +64,14 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 		Users:       make(map[string]string, 0),
 		credentials: suite.connector.credentials,
 	}
-
+	ctx := context.Background()
 	service, err := newConnector.createService(false)
 	require.NoError(suite.T(), err)
 
 	newConnector.graphService = *service
 
 	suite.Equal(len(newConnector.Users), 0)
-	err = newConnector.setTenantUsers()
+	err = newConnector.setTenantUsers(ctx)
 	assert.NoError(suite.T(), err)
 	suite.Greater(len(newConnector.Users), 0)
 }
@@ -83,8 +83,9 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 // - contacts
 // - events
 func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
+	ctx := context.Background()
 	t := suite.T()
-	connector := loadConnector(t)
+	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.Users([]string{suite.user}))
 	collectionList, err := connector.ExchangeDataCollection(context.Background(), sel.Selector)
@@ -121,8 +122,9 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 // test account can be successfully downloaded into bytes and restored into
 // M365 mail objects
 func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
+	ctx := context.Background()
 	t := suite.T()
-	connector := loadConnector(t)
+	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
 	eb, err := sel.ToExchangeBackup()
@@ -159,6 +161,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression() {
+	ctx := context.Background()
 	t := suite.T()
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.ContactFolders([]string{suite.user}, selectors.Any()))
@@ -166,7 +169,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	require.NoError(t, err)
 
 	scopes := eb.Scopes()
-	connector := loadConnector(t)
+	connector := loadConnector(ctx, t)
 
 	suite.Len(scopes, 1)
 	contactsOnly := scopes[0]
@@ -201,8 +204,9 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression() {
+	ctx := context.Background()
 	t := suite.T()
-	connector := loadConnector(t)
+	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.EventCalendars([]string{suite.user}, selectors.Any()))
 	scopes := sel.Scopes()
@@ -240,8 +244,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 // The final test insures that more than a 75% of the user collections are
 // returned. If an error was experienced, the test will fail overall
 func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
+	ctx := context.Background()
 	t := suite.T()
-	connector := loadConnector(t)
+	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders(selectors.Any(), []string{"Inbox"}))
 	scopes := sel.DiscreteScopes(connector.GetUsers())
@@ -262,13 +267,14 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 // TestCreateAndDeleteMailFolder ensures GraphConnector has the ability
 // to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
+	ctx := context.Background()
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateMailFolder(&suite.connector.graphService, suite.user, folderName)
+	aFolder, err := exchange.CreateMailFolder(ctx, suite.connector.Service(), suite.user, folderName)
 	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
 
 	if aFolder != nil {
-		err = exchange.DeleteMailFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
+		err = exchange.DeleteMailFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 
 		if err != nil {
@@ -280,13 +286,14 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 // TestCreateAndDeleteContactFolder ensures GraphConnector has the ability
 // to create and remove contact folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() {
+	ctx := context.Background()
 	now := time.Now()
 	folderName := "TestContactFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateContactFolder(suite.connector.Service(), suite.user, folderName)
+	aFolder, err := exchange.CreateContactFolder(ctx, suite.connector.Service(), suite.user, folderName)
 	assert.NoError(suite.T(), err)
 
 	if aFolder != nil {
-		err = exchange.DeleteContactFolder(suite.connector.Service(), suite.user, *aFolder.GetId())
+		err = exchange.DeleteContactFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
 		assert.NoError(suite.T(), err)
 
 		if err != nil {
@@ -298,14 +305,15 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() 
 // TestCreateAndDeleteCalendar verifies GraphConnector has the ability to create and remove
 // exchange.Event.Calendars within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
+	ctx := context.Background()
 	now := time.Now()
 	service := suite.connector.Service()
 	calendarName := "TestCalendar: " + common.FormatSimpleDateTime(now)
-	calendar, err := exchange.CreateCalendar(service, suite.user, calendarName)
+	calendar, err := exchange.CreateCalendar(ctx, service, suite.user, calendarName)
 	assert.NoError(suite.T(), err)
 
 	if calendar != nil {
-		err = exchange.DeleteCalendar(service, suite.user, *calendar.GetId())
+		err = exchange.DeleteCalendar(ctx, service, suite.user, *calendar.GetId())
 		assert.NoError(suite.T(), err)
 
 		if err != nil {
