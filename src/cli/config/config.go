@@ -184,6 +184,7 @@ func WriteRepoConfig(ctx context.Context, s3Config storage.S3Config, m365Config 
 // writeRepoConfigWithViper implements WriteRepoConfig, but takes in a viper
 // struct for testing.
 func writeRepoConfigWithViper(vpr *viper.Viper, s3Config storage.S3Config, m365Config account.M365Config) error {
+	s3Config = s3Config.Normalize()
 	// Rudimentary support for persisting repo config
 	// TODO: Handle conflicts, support other config types
 	vpr.Set(StorageProviderTypeKey, storage.ProviderS3.String())

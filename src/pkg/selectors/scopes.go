@@ -93,19 +93,14 @@ type (
 		// internal to scopes.go can utilize the scope's category without the service context.
 		categorizer() categorizer
 
-		// matchesEntry is used to determine if the scope values match with either the pathValues,
-		// or the DetailsEntry for the given category.
-		// The path comparison (using cat and pathValues) can be handled generically within
-		// scopes.go.  However, the entry comparison requires service-specific context in order
-		// for the scope to extract the correct serviceInfo in the entry.
+		// matchesInfo is used to determine if the scope values match a specific DetailsEntry
+		// ItemInfo filter.  Unlike path filtering, the entry comparison requires service-specific
+		// context in order for the scope to extract the correct serviceInfo in the entry.
 		//
 		// Params:
-		// cat - the category type expressed in the Path.  Not the category of the Scope.  If the
-		//   scope does not align with this parameter, the result is automatically false.
-		// pathValues - the result of categorizer.pathValues() for the Path being checked.
-		// entry - the details entry containing extended service info for the item that a filter may
-		//   compare.  Identification of the correct entry Info service is left up to the scope.
-		matchesEntry(cat categorizer, pathValues map[categorizer]string, entry details.DetailsEntry) bool
+		// info - the details entry itemInfo containing extended service info that a filter may
+		//   compare.  Identification of the correct entry Info service is left up to the fulfiller.
+		matchesInfo(info details.ItemInfo) bool
 
 		// setDefaults populates default values for certain scope categories.
 		// Primarily to ensure that root- or mid-tier scopes (such as folders)
@@ -220,9 +215,9 @@ func reduce[T scopeT, C categoryT](
 	}
 
 	// aggregate each scope type by category for easier isolation in future processing.
-	excls := scopesByCategory[T](s.Excludes, dataCategories)
-	filts := scopesByCategory[T](s.Filters, dataCategories)
-	incls := scopesByCategory[T](s.Includes, dataCategories)
+	excls := scopesByCategory[T](s.Excludes, dataCategories, false)
+	filts := scopesByCategory[T](s.Filters, dataCategories, true)
+	incls := scopesByCategory[T](s.Includes, dataCategories, false)
 
 	ents := []details.DetailsEntry{}
 
@@ -262,9 +257,12 @@ func reduce[T scopeT, C categoryT](
 // ex: a slice containing the scopes [mail1, mail2, event1]
 // would produce a map like { mail: [1, 2], event: [1] }
 // so long as "mail" and "event" are contained in cats.
+// For ALL-mach requirements, scopes used as filters should force inclusion using
+// includeAll=true, independent of the category.
 func scopesByCategory[T scopeT, C categoryT](
 	scopes []scope,
 	cats map[path.CategoryType]C,
+	includeAll bool,
 ) map[C][]T {
 	m := map[C][]T{}
 	for _, cat := range cats {
@@ -274,7 +272,8 @@ func scopesByCategory[T scopeT, C categoryT](
 	for _, sc := range scopes {
 		for _, cat := range cats {
 			t := T(sc)
-			if typeAndCategoryMatches(cat, t.categorizer()) {
+			// include a scope if the data category matches, or the caller forces inclusion.
+			if includeAll || typeAndCategoryMatches(cat, t.categorizer()) {
 				m[cat] = append(m[cat], t)
 			}
 		}
@@ -285,8 +284,8 @@ func scopesByCategory[T scopeT, C categoryT](
 
 // passes compares each path to the included and excluded exchange scopes.  Returns true
 // if the path is included, passes filters, and not excluded.
-func passes[T scopeT](
-	cat categorizer,
+func passes[T scopeT, C categoryT](
+	cat C,
 	pathValues map[categorizer]string,
 	entry details.DetailsEntry,
 	excs, filts, incs []T,
@@ -303,7 +302,7 @@ func passes[T scopeT](
 		var included bool
 
 		for _, inc := range incs {
-			if inc.matchesEntry(cat, pathValues, entry) {
+			if matchesEntry(inc, cat, pathValues, entry) {
 				included = true
 				break
 			}
@@ -316,19 +315,35 @@ func passes[T scopeT](
 
 	// all filters must pass
 	for _, filt := range filts {
-		if !filt.matchesEntry(cat, pathValues, entry) {
+		if !matchesEntry(filt, cat, pathValues, entry) {
 			return false
 		}
 	}
 
 	// any matching exclusion means failure
 	for _, exc := range excs {
-		if exc.matchesEntry(cat, pathValues, entry) {
+		if matchesEntry(exc, cat, pathValues, entry) {
 			return false
 		}
 	}
 
 	return true
+}
+
+// matchesEntry determines whether the category and scope require a path
+// comparison or an entry info comparison.
+func matchesEntry[T scopeT, C categoryT](
+	sc T,
+	cat C,
+	pathValues map[categorizer]string,
+	entry details.DetailsEntry,
+) bool {
+	// filterCategory requires matching against service-specific info values
+	if len(getFilterCategory(sc)) > 0 {
+		return sc.matchesInfo(entry.ItemInfo)
+	}
+
+	return matchesPathValues(sc, cat, pathValues, entry.ShortRef)
 }
 
 // matchesPathValues will check whether the pathValues have matching entries
@@ -342,27 +357,25 @@ func matchesPathValues[T scopeT, C categoryT](
 	pathValues map[categorizer]string,
 	shortRef string,
 ) bool {
-	// if scope specifies a filter category,
-	// path checking is automatically skipped.
-	if len(getFilterCategory(sc)) > 0 {
-		return false
-	}
-
 	for _, c := range cat.pathKeys() {
 		scopeVals := getCatValue(sc, c)
+
 		// the scope must define the targets to match on
 		if len(scopeVals) == 0 {
 			return false
 		}
+
 		// None() fails all matches
 		if scopeVals[0] == NoneTgt {
 			return false
 		}
-		// the path must contain a value to match against
+
+		// the pathValues must have an entry for the given categorizer
 		pathVal, ok := pathValues[c]
 		if !ok {
 			return false
 		}
+
 		// all parts of the scope must match
 		cc := c.(C)
 		if !isAnyTarget(sc, cc) {

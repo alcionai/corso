@@ -36,6 +36,15 @@ func (c M365Config) StringConfig() (map[string]string, error) {
 	return cfg, c.validate()
 }
 
+// providerID returns the c.TenantID if ap is a ProviderM365.
+func (c M365Config) providerID(ap accountProvider) string {
+	if ap == ProviderM365 {
+		return c.TenantID
+	}
+
+	return ""
+}
+
 // M365Config retrieves the M365Config details from the Account config.
 func (a Account) M365Config() (M365Config, error) {
 	c := M365Config{}

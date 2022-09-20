@@ -316,7 +316,9 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	ctx := context.Background()
 	tenant := "a-tenant"
 	user1 := testUser
+	user1Encoded := encodeAsPath(user1)
 	user2 := "user2"
+	user2Encoded := encodeAsPath(user2)
 
 	p2, err := path.FromDataLayerPath(
 		stdpath.Join(
@@ -330,9 +332,10 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	)
 	require.NoError(t, err)
 
+	// Encode user names here so we don't have to decode things later.
 	expectedFileCount := map[string]int{
-		user1: 5,
-		user2: 42,
+		user1Encoded: 5,
+		user2Encoded: 42,
 	}
 
 	progress := &corsoProgress{pending: map[string]*itemDetails{}}
@@ -340,11 +343,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			suite.testPath,
-			expectedFileCount[user1],
+			expectedFileCount[user1Encoded],
 		),
 		mockconnector.NewMockExchangeCollection(
 			p2,
-			expectedFileCount[user2],
+			expectedFileCount[user2Encoded],
 		),
 	}
 
@@ -361,24 +364,24 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//           - 42 separate files
 	dirTree, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(t, err)
-	assert.Equal(t, testTenant, dirTree.Name())
+	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
 	require.NoError(t, err)
 
-	expectDirs(t, entries, []string{service}, true)
+	expectDirs(t, entries, encodeElements(service), true)
 
 	entries = getDirEntriesForEntry(t, ctx, entries[0])
-	expectDirs(t, entries, []string{user1, user2}, true)
+	expectDirs(t, entries, encodeElements(user1, user2), true)
 
 	for _, entry := range entries {
 		userName := entry.Name()
 
 		entries = getDirEntriesForEntry(t, ctx, entry)
-		expectDirs(t, entries, []string{category}, true)
+		expectDirs(t, entries, encodeElements(category), true)
 
 		entries = getDirEntriesForEntry(t, ctx, entries[0])
-		expectDirs(t, entries, []string{testInboxDir}, true)
+		expectDirs(t, entries, encodeElements(testInboxDir), true)
 
 		entries = getDirEntriesForEntry(t, ctx, entries[0])
 		assert.Len(t, entries, expectedFileCount[userName])
@@ -447,21 +450,21 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 
 			dirTree, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
-			assert.Equal(t, testTenant, dirTree.Name())
+			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 			entries, err := fs.GetAllEntries(ctx, dirTree)
 			require.NoError(t, err)
 
-			expectDirs(t, entries, []string{service}, true)
+			expectDirs(t, entries, encodeElements(service), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
-			expectDirs(t, entries, []string{testUser}, true)
+			expectDirs(t, entries, encodeElements(testUser), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
-			expectDirs(t, entries, []string{category}, true)
+			expectDirs(t, entries, encodeElements(category), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
-			expectDirs(t, entries, []string{testInboxDir}, true)
+			expectDirs(t, entries, encodeElements(testInboxDir), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
 			// 42 files and 1 subdirectory.
@@ -476,7 +479,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 				}
 
 				subDirs = append(subDirs, d)
-				assert.Equal(t, subdir, d.Name())
+				assert.Equal(t, encodeAsPath(subdir), d.Name())
 			}
 
 			require.Len(t, subDirs, 1)

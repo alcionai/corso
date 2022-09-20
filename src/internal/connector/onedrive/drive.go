@@ -14,6 +14,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+var errFolderNotFound = errors.New("folder not found")
+
 const (
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
@@ -95,7 +97,7 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 		return item, nil
 	}
 
-	return nil, errors.Errorf("folder %s not found in drive(%s) parentFolder(%s)", folderName, driveID, parentFolderID)
+	return nil, errors.WithStack(errFolderNotFound)
 }
 
 // Create a new item in the specified folder
@@ -112,7 +114,7 @@ func createItem(ctx context.Context, service graph.Service, driveID string, pare
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
-			"failed to create folder. details: %s",
+			"failed to create item. details: %s",
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
