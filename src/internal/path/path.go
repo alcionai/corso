@@ -70,6 +70,7 @@ type Path interface {
 	Tenant() string
 	ResourceOwner() string
 	Folder() string
+	Folders() []string
 	Item() string
 	// PopFront returns a Builder object with the first element (left-side)
 	// removed. As the resulting set of elements is no longer a valid resource
