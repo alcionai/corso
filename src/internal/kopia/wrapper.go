@@ -35,6 +35,7 @@ var (
 type BackupStats struct {
 	SnapshotID          string
 	TotalFileCount      int
+	TotalFileSize       int64
 	TotalDirectoryCount int
 	IgnoredErrorCount   int
 	ErrorCount          int
@@ -46,6 +47,7 @@ func manifestToStats(man *snapshot.Manifest) BackupStats {
 	return BackupStats{
 		SnapshotID:          string(man.ID),
 		TotalFileCount:      int(man.Stats.TotalFileCount),
+		TotalFileSize:       man.Stats.TotalFileSize,
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),

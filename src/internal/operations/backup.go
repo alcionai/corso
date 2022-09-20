@@ -167,6 +167,7 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
+	op.Results.BytesWritten = opStats.k.TotalFileSize
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
@@ -207,14 +208,14 @@ func (op *BackupOperation) createBackupModels(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
-			events.BackupID:          b.ID,
-			events.Status:            op.Status,
-			events.StartTime:         op.Results.StartedAt,
-			events.EndTime:           op.Results.CompletedAt,
-			events.Duration:          op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.ExchangeResources: op.Results.ResourceOwners,
+			events.BackupID:           b.ID,
+			events.Status:             op.Status,
+			events.StartTime:          op.Results.StartedAt,
+			events.EndTime:            op.Results.CompletedAt,
+			events.Duration:           op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.ExchangeDataStored: op.Results.BytesWritten,
+			events.ExchangeResources:  op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
-			// TODO: events.ExchangeDataStored: <amount of data stored>,
 		},
 	)
 

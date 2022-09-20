@@ -29,15 +29,16 @@ const (
 
 	// Event Data Keys
 	BackupID              = "backup-id"
+	DataStored            = "data-stored"
+	Duration              = "duration"
 	ExchangeResources     = "exchange-resources"
 	ExchangeDataRetrieved = "exchange-data-retrieved"
 	ExchangeDataStored    = "exchange-data-stored"
 	EndTime               = "end-time"
-	StartTime             = "start-time"
-	Duration              = "duration"
-	Status                = "status"
 	ItemsRead             = "items-read"
 	ItemsWritten          = "items-written"
+	StartTime             = "start-time"
+	Status                = "status"
 )
 
 type Eventer interface {
