@@ -48,6 +48,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
 		suite.T().Skip(err)
 	}
+
 	ctx := context.Background()
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)

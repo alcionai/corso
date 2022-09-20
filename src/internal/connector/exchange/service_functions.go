@@ -100,7 +100,11 @@ func DeleteCalendar(ctx context.Context, gs graph.Service, user, calendarID stri
 
 // CreateContactFolder makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
-func CreateContactFolder(ctx context.Context, gs graph.Service, user, folderName string) (models.ContactFolderable, error) {
+func CreateContactFolder(
+	ctx context.Context,
+	gs graph.Service,
+	user, folderName string,
+) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
 	temp := folderName
 	requestBody.SetDisplayName(&temp)
@@ -117,7 +121,11 @@ func DeleteContactFolder(ctx context.Context, gs graph.Service, user, folderID s
 // GetAllMailFolders retrieves all mail folders for the specified user.
 // If nameContains is populated, only returns mail matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllMailFolders(ctx context.Context, gs graph.Service, user, nameContains string) ([]models.MailFolderable, error) {
+func GetAllMailFolders(
+	ctx context.Context,
+	gs graph.Service,
+	user, nameContains string,
+) ([]models.MailFolderable, error) {
 	var (
 		mfs = []models.MailFolderable{}
 		err error
@@ -203,7 +211,11 @@ func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains s
 // GetAllContactFolders retrieves all contacts folders for the specified user.
 // If nameContains is populated, only returns folders matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllContactFolders(ctx context.Context, gs graph.Service, user, nameContains string) ([]models.ContactFolderable, error) {
+func GetAllContactFolders(
+	ctx context.Context,
+	gs graph.Service,
+	user, nameContains string,
+) ([]models.ContactFolderable, error) {
 	var (
 		cs  = []models.ContactFolderable{}
 		err error

@@ -60,6 +60,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 			},
 		},
 	}
+
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			gc, err := NewGraphConnector(ctx, test.acct(t))
