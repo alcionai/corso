@@ -6,11 +6,11 @@ linters:
     - gci
     - gofmt
     - gofumpt
+    - errcheck
     - lll
     - misspell
     - revive
     - wsl
-    - errcheck
 
 linters-settings:
   gci:
