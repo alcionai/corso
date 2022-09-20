@@ -155,6 +155,21 @@ func (rp dataLayerResourcePath) Folder() string {
 	return rp.Builder.join(4, endIdx)
 }
 
+// Folders returns the individual folder elements embedded in the
+// dataLayerResourcePath.
+func (rp dataLayerResourcePath) Folders() []string {
+	endIdx := len(rp.Builder.elements)
+	if endIdx == 4 {
+		return nil
+	}
+
+	if rp.hasItem {
+		endIdx--
+	}
+
+	return append([]string{}, rp.elements[4:endIdx]...)
+}
+
 // Item returns the item embedded in the dataLayerResourcePath if the path
 // refers to an item.
 func (rp dataLayerResourcePath) Item() string {
