@@ -185,35 +185,71 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	)
 }
 
-func (suite *WrapperIntegrationSuite) TestCompressorSetOnInitAndConnect() {
-	ctx := context.Background()
-	t := suite.T()
-	tmpComp := "pgzip"
+func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
+	table := []struct {
+		name      string
+		checkFunc func(*testing.T, *policy.Policy)
+		mutator   func(context.Context, *policy.Policy) error
+	}{
+		{
+			name: "Compression",
+			checkFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+			},
+			mutator: func(innerCtx context.Context, p *policy.Policy) error {
+				_, res := updateCompressionOnPolicy("pgzip", p)
+				return res
+			},
+		},
+		{
+			name: "Retention",
+			checkFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(
+					t,
+					defaultRetention,
+					p.RetentionPolicy,
+				)
+			},
+			mutator: func(innerCtx context.Context, p *policy.Policy) error {
+				newRetentionDaily := policy.OptionalInt(42)
+				newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
+				updateRetentionOnPolicy(newRetention, p)
 
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+				return nil
+			},
+		},
+	}
 
-	// Check the policy was actually created and has the right compressor.
-	p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
-	require.NoError(t, err)
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 
-	require.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+			k, err := openKopiaRepo(t, ctx)
+			require.NoError(t, err)
 
-	// Change the compressor to something else.
-	require.NoError(t, k.Compression(ctx, tmpComp))
-	require.NoError(t, k.Close(ctx))
+			p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
+			require.NoError(t, err)
 
-	// Re-open with Connect to see if the compressor changed back.
-	require.NoError(t, k.Connect(ctx))
+			test.checkFunc(t, p)
 
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
+			require.NoError(t, test.mutator(ctx, p))
+			require.NoError(t, k.writeGlobalPolicy(ctx, "TestDefaultPolicyConfigSet", p))
+			require.NoError(t, k.Close(ctx))
 
-	p, err = k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
-	require.NoError(t, err)
+			require.NoError(t, k.Connect(ctx))
 
-	assert.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+			defer func() {
+				assert.NoError(t, k.Close(ctx))
+			}()
+
+			p, err = k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
+			require.NoError(t, err)
+
+			test.checkFunc(t, p)
+		})
+	}
 }
 
 func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {

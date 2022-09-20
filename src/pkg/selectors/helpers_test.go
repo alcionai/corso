@@ -52,7 +52,10 @@ func (mc mockCategorizer) isLeaf() bool {
 }
 
 func (mc mockCategorizer) pathValues(pth path.Path) map[categorizer]string {
-	return map[categorizer]string{rootCatStub: "stub"}
+	return map[categorizer]string{
+		rootCatStub: "root",
+		leafCatStub: "leaf",
+	}
 }
 
 func (mc mockCategorizer) pathKeys() []categorizer {
@@ -86,11 +89,7 @@ func (ms mockScope) categorizer() categorizer {
 	return unknownCatStub
 }
 
-func (ms mockScope) matchesEntry(
-	cat categorizer,
-	pathValues map[categorizer]string,
-	entry details.DetailsEntry,
-) bool {
+func (ms mockScope) matchesInfo(dii details.ItemInfo) bool {
 	return ms[shouldMatch].Target == "true"
 }
 
@@ -107,12 +106,25 @@ func stubScope(match string) mockScope {
 		sm = match
 	}
 
+	filt := passAny
+	if match == "none" {
+		filt = failAny
+	}
+
 	return mockScope{
-		rootCatStub.String(): passAny,
+		rootCatStub.String(): filt,
+		leafCatStub.String(): filt,
 		scopeKeyCategory:     filters.Identity(rootCatStub.String()),
 		scopeKeyDataType:     filters.Identity(rootCatStub.String()),
 		shouldMatch:          filters.Identity(sm),
 	}
+}
+
+func stubInfoScope(match string) mockScope {
+	sc := stubScope(match)
+	sc[scopeKeyInfoFilter] = filters.Identity("true")
+
+	return sc
 }
 
 // ---------------------------------------------------------------------------
