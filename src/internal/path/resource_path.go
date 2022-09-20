@@ -141,18 +141,35 @@ func (rp dataLayerResourcePath) ResourceOwner() string {
 	return rp.Builder.elements[2]
 }
 
-// Folder returns the folder segment embedded in the dataLayerResourcePath.
-func (rp dataLayerResourcePath) Folder() string {
+func (rp dataLayerResourcePath) lastFolderIdx() int {
 	endIdx := len(rp.Builder.elements)
-	if endIdx == 4 {
-		return ""
-	}
 
 	if rp.hasItem {
 		endIdx--
 	}
 
+	return endIdx
+}
+
+// Folder returns the folder segment embedded in the dataLayerResourcePath.
+func (rp dataLayerResourcePath) Folder() string {
+	endIdx := rp.lastFolderIdx()
+	if endIdx == 4 {
+		return ""
+	}
+
 	return rp.Builder.join(4, endIdx)
+}
+
+// Folders returns the individual folder elements embedded in the
+// dataLayerResourcePath.
+func (rp dataLayerResourcePath) Folders() []string {
+	endIdx := rp.lastFolderIdx()
+	if endIdx == 4 {
+		return nil
+	}
+
+	return append([]string{}, rp.elements[4:endIdx]...)
 }
 
 // Item returns the item embedded in the dataLayerResourcePath if the path

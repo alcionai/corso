@@ -49,22 +49,22 @@ var (
 	}
 
 	modes = []struct {
-		name           string
-		isItem         bool
-		expectedFolder string
-		expectedItem   string
+		name            string
+		isItem          bool
+		expectedFolders []string
+		expectedItem    string
 	}{
 		{
-			name:           "Folder",
-			isItem:         false,
-			expectedFolder: strings.Join(rest, "/"),
-			expectedItem:   "",
+			name:            "Folder",
+			isItem:          false,
+			expectedFolders: rest,
+			expectedItem:    "",
 		},
 		{
-			name:           "Item",
-			isItem:         true,
-			expectedFolder: strings.Join(rest[0:len(rest)-1], "/"),
-			expectedItem:   rest[len(rest)-1],
+			name:            "Item",
+			isItem:          true,
+			expectedFolders: rest[:len(rest)-1],
+			expectedItem:    rest[len(rest)-1],
 		},
 	}
 
@@ -152,6 +152,7 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 			require.NoError(t, err)
 
 			assert.Empty(t, p.Folder())
+			assert.Empty(t, p.Folders())
 			assert.Equal(t, item, p.Item())
 		})
 	}
@@ -206,6 +207,7 @@ func (suite *DataLayerResourcePath) TestDir() {
 
 					expected := path.Builder{}.Append(elements...).Append(rest[:len(rest)-i]...)
 					assert.Equal(t, expected.String(), p.String())
+					assert.Empty(t, p.Item())
 				})
 			}
 
@@ -266,7 +268,8 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 					assert.Equal(t, path.ExchangeService, p.Service())
 					assert.Equal(t, test.category, p.Category())
 					assert.Equal(t, testUser, p.ResourceOwner())
-					assert.Equal(t, m.expectedFolder, p.Folder())
+					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder())
+					assert.Equal(t, m.expectedFolders, p.Folders())
 					assert.Equal(t, m.expectedItem, p.Item())
 				})
 			}
@@ -336,7 +339,19 @@ func (suite *PopulatedDataLayerResourcePath) TestResourceOwner() {
 func (suite *PopulatedDataLayerResourcePath) TestFolder() {
 	for _, m := range modes {
 		suite.T().Run(m.name, func(t *testing.T) {
-			assert.Equal(t, m.expectedFolder, suite.paths[m.isItem].Folder())
+			assert.Equal(
+				t,
+				strings.Join(m.expectedFolders, "/"),
+				suite.paths[m.isItem].Folder(),
+			)
+		})
+	}
+}
+
+func (suite *PopulatedDataLayerResourcePath) TestFolders() {
+	for _, m := range modes {
+		suite.T().Run(m.name, func(t *testing.T) {
+			assert.Equal(t, m.expectedFolders, suite.paths[m.isItem].Folders())
 		})
 	}
 }

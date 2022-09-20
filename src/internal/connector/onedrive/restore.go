@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -35,7 +34,7 @@ type drivePath struct {
 }
 
 func toOneDrivePath(p path.Path) (*drivePath, error) {
-	folders := strings.Split(p.Folder(), "/")
+	folders := p.Folders()
 
 	// Must be at least `drives/<driveID>/root:`
 	if len(folders) < 3 {
