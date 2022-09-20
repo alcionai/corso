@@ -175,7 +175,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	opStats.cs = dcs
 
 	// restore those collections using graph
-	gc, err := connector.NewGraphConnector(op.account)
+	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
 		err = errors.Wrap(err, "connecting to graph api")
 		opStats.writeErr = err
