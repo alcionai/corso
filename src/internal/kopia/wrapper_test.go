@@ -150,11 +150,11 @@ type testInfo struct {
 }
 
 var finishedFileTable = []struct {
-	name          string
-	cachedItems   func(fname string, fpath path.Path) map[string]testInfo
-	expectedBytes int64
-	expectedLen   int
-	err           error
+	name               string
+	cachedItems        func(fname string, fpath path.Path) map[string]testInfo
+	expectedBytes      int64
+	expectedNumEntries int
+	err                error
 }{
 	{
 		name: "DetailsExist",
@@ -167,9 +167,9 @@ var finishedFileTable = []struct {
 				},
 			}
 		},
-		// 1 file and 5 folders.
 		expectedBytes: 100,
-		expectedLen:   6,
+		// 1 file and 5 folders.
+		expectedNumEntries: 6,
 	},
 	{
 		name: "PendingNoDetails",
@@ -181,7 +181,7 @@ var finishedFileTable = []struct {
 				},
 			}
 		},
-		expectedLen: 0,
+		expectedNumEntries: 0,
 	},
 	{
 		name: "HadError",
@@ -193,14 +193,14 @@ var finishedFileTable = []struct {
 				},
 			}
 		},
-		expectedLen: 0,
+		expectedNumEntries: 0,
 	},
 	{
 		name: "NotPending",
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return nil
 		},
-		expectedLen: 0,
+		expectedNumEntries: 0,
 	},
 }
 
@@ -227,7 +227,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 			}
 
 			assert.Empty(t, cp.pending)
-			assert.Len(t, bd.Entries, test.expectedLen)
+			assert.Len(t, bd.Entries, test.expectedNumEntries)
 		})
 	}
 }
