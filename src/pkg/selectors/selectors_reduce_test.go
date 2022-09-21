@@ -48,7 +48,22 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			name: "ExchangeMailSubject",
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore()
-				sel.Include(sel.MailSubject("foo"))
+				sel.Filter(sel.MailSubject("foo"))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+		},
+		{
+			name: "ExchangeMailSubjectExcludeItem",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Filter(sel.MailSender("a-person"))
+				sel.Exclude(sel.Mails(
+					selectors.Any(),
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailItemPath2.ShortRef()},
+				))
 
 				return sel
 			},
@@ -58,7 +73,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			name: "ExchangeMailSender",
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore()
-				sel.Include(sel.MailSender("a-person"))
+				sel.Filter(sel.MailSender("a-person"))
 
 				return sel
 			},
@@ -68,7 +83,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			name: "ExchangeMailReceivedTime",
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore()
-				sel.Include(sel.MailReceivedBefore(
+				sel.Filter(sel.MailReceivedBefore(
 					common.FormatTime(testdata.Time1.Add(time.Second)),
 				))
 
@@ -105,33 +120,30 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 		},
 		{
+			name: "ExchangeAllEventsAndMailWithSubject",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.Events(
+					selectors.Any(),
+					selectors.Any(),
+					selectors.Any(),
+				))
+				sel.Filter(sel.MailSubject("foo"))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+		},
+		{
 			name: "ExchangeEventsAndMailWithSubject",
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore()
-				sel.Include(sel.MailSubject("foo"))
-				sel.Include(sel.EventSubject("foo"))
+				sel.Filter(sel.EventSubject("foo"))
+				sel.Filter(sel.MailSubject("foo"))
 
 				return sel
 			},
-			expected: append(
-				[]details.DetailsEntry{testdata.ExchangeEmailItems[0]},
-				testdata.ExchangeEventsItems...,
-			),
-		},
-		{
-			name: "ExchangeEventsAndMailWithSubjectExcludeTime",
-			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
-				sel.Include(sel.MailSubject("foo"))
-				sel.Include(sel.EventSubject("foo"))
-				sel.Exclude(sel.EventStartsAfter(common.FormatTime(testdata.Time1)))
-
-				return sel
-			},
-			expected: []details.DetailsEntry{
-				testdata.ExchangeEmailItems[0],
-				testdata.ExchangeEventsItems[0],
-			},
+			expected: []details.DetailsEntry{},
 		},
 		{
 			name: "ExchangeAll",
