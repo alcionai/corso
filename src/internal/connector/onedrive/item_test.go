@@ -103,13 +103,15 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 
 	// Read data for the file
 
-	name, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
+	name, itemSize, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
 	require.NoError(suite.T(), err)
 	require.NotEmpty(suite.T(), name)
+	require.NotZero(suite.T(), itemSize)
 
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(suite.T(), err)
 	require.NotZero(suite.T(), size)
+	require.Equal(suite.T(), itemSize, size)
 	suite.T().Logf("Read %d bytes from file %s.", size, name)
 }
 

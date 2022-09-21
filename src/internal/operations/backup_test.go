@@ -43,9 +43,11 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = backupStats{
-			started:  true,
-			readErr:  multierror.Append(nil, assert.AnError),
-			writeErr: assert.AnError,
+			started:        true,
+			readErr:        multierror.Append(nil, assert.AnError),
+			writeErr:       assert.AnError,
+			resourceCount:  1,
+			collectedBytes: 42,
 			k: &kopia.BackupStats{
 				TotalFileCount: 1,
 			},
@@ -71,7 +73,8 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
-	assert.Equal(t, 0, op.Results.ResourceOwners, "resource owners")
+	assert.Equal(t, 1, op.Results.ResourceOwners, "resource owners")
+	assert.Equal(t, int64(42), op.Results.CollectedBytes, "collected bytes")
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
@@ -213,6 +216,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			require.NotEmpty(t, bo.Results)
 			require.NotEmpty(t, bo.Results.BackupID)
 			assert.Equal(t, bo.Status, Completed)
+			assert.Less(t, int64(0), bo.Results.CollectedBytes)
 			assert.Greater(t, bo.Results.ItemsRead, 0)
 			assert.Greater(t, bo.Results.ItemsWritten, 0)
 			assert.Equal(t, 1, bo.Results.ResourceOwners)
@@ -272,6 +276,7 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 	require.NotEmpty(t, bo.Results)
 	require.NotEmpty(t, bo.Results.BackupID)
 	assert.Equal(t, bo.Status, Completed)
+	assert.Less(t, int64(0), bo.Results.CollectedBytes, "amt of collected bytes")
 	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
 	assert.Equal(t, 1, bo.Results.ResourceOwners)
 	assert.NoError(t, bo.Results.ReadErrors)

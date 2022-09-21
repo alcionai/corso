@@ -48,10 +48,12 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = restoreStats{
-			started:  true,
-			readErr:  multierror.Append(nil, assert.AnError),
-			writeErr: assert.AnError,
-			cs:       []data.Collection{&exchange.Collection{}},
+			started:        true,
+			readErr:        multierror.Append(nil, assert.AnError),
+			writeErr:       assert.AnError,
+			resourceCount:  1,
+			collectedBytes: 42,
+			cs:             []data.Collection{&exchange.Collection{}},
 			gc: &support.ConnectorOperationStatus{
 				ObjectCount: 1,
 			},
@@ -75,7 +77,8 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.gc.Successful, "items written")
-	assert.Equal(t, 0, op.Results.ResourceOwners, "resource owners")
+	assert.Equal(t, 1, op.Results.ResourceOwners, "resource owners")
+	assert.Equal(t, int64(42), op.Results.CollectedBytes, "collected bytes")
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
@@ -231,6 +234,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
+	assert.Less(t, int64(0), ro.Results.CollectedBytes)
 	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
 	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
 	assert.Equal(t, 1, ro.Results.ResourceOwners)
@@ -261,6 +265,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		mb)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
+	assert.Equal(t, int64(0), ro.Results.CollectedBytes)
 	assert.Equal(t, 0, ro.Results.ResourceOwners)
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 0, mb.TimesCalled[events.RestoreEnd], "restore-end events")

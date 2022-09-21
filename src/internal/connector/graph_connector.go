@@ -288,8 +288,13 @@ func (gc *GraphConnector) RestoreExchangeDataCollections(
 			service   = directory.Service()
 			category  = directory.Category()
 			user      = directory.ResourceOwner()
+			bc        data.ByteCounter
 			exit      bool
 		)
+
+		if bcr, ok := dc.(data.ByteCounter); ok {
+			bc = bcr
+		}
 
 		if _, ok := pathCounter[directory.String()]; !ok {
 			pathCounter[directory.String()] = true
@@ -315,7 +320,7 @@ func (gc *GraphConnector) RestoreExchangeDataCollections(
 
 				buf := &bytes.Buffer{}
 
-				_, err := buf.ReadFrom(itemData.ToReader())
+				nBytes, err := buf.ReadFrom(itemData.ToReader())
 				if err != nil {
 					errs = support.WrapAndAppend(
 						itemData.UUID()+": byteReadError during RestoreDataCollection",
@@ -324,6 +329,10 @@ func (gc *GraphConnector) RestoreExchangeDataCollections(
 					)
 
 					continue
+				}
+
+				if bc != nil {
+					bc.CountBytes(nBytes)
 				}
 
 				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)

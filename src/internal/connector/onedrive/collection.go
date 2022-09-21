@@ -19,9 +19,11 @@ const (
 )
 
 var (
-	_ data.Collection = &Collection{}
-	_ data.Stream     = &Item{}
-	_ data.StreamInfo = &Item{}
+	_ data.Collection  = &Collection{}
+	_ data.ByteCounter = &Collection{}
+	_ data.Stream      = &Item{}
+	_ data.StreamInfo  = &Item{}
+	_ data.StreamSize  = &Item{}
 )
 
 // Collection represents a set of OneDrive objects retreived from M365
@@ -38,6 +40,7 @@ type Collection struct {
 	service       graph.Service
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
+	countBytes    int64
 }
 
 // itemReadFunc returns a reader for the specified item
@@ -45,7 +48,7 @@ type itemReaderFunc func(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
-) (name string, itemData io.ReadCloser, err error)
+) (name string, size int64, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -84,11 +87,20 @@ func (oc *Collection) FullPath() path.Path {
 	return oc.folderPath
 }
 
+func (oc *Collection) CountBytes(i int64) {
+	oc.countBytes += i
+}
+
+func (oc *Collection) BytesCounted() int64 {
+	return oc.countBytes
+}
+
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
 	data io.ReadCloser
 	info *details.OneDriveInfo
+	size int64
 }
 
 func (od *Item) UUID() string {
@@ -103,6 +115,10 @@ func (od *Item) Info() details.ItemInfo {
 	return details.ItemInfo{OneDrive: od.info}
 }
 
+func (od *Item) Size() int64 {
+	return od.size
+}
+
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
@@ -113,7 +129,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	for _, itemID := range oc.driveItemIDs {
 		// Read the item
-		itemName, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+		itemName, itemSize, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
 		if err != nil {
 			errs = support.WrapAndAppendf(itemID, err, errs)
 
@@ -133,6 +149,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				ItemName:   itemName,
 				ParentPath: oc.folderPath.String(),
 			},
+			size: itemSize,
 		}
 	}
 

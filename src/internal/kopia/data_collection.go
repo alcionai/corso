@@ -8,13 +8,16 @@ import (
 )
 
 var (
-	_ data.Collection = &kopiaDataCollection{}
-	_ data.Stream     = &kopiaDataStream{}
+	_ data.Collection  = &kopiaDataCollection{}
+	_ data.ByteCounter = &kopiaDataCollection{}
+	_ data.Stream      = &kopiaDataStream{}
+	_ data.StreamSize  = &kopiaDataStream{}
 )
 
 type kopiaDataCollection struct {
-	path    path.Path
-	streams []data.Stream
+	path       path.Path
+	streams    []data.Stream
+	countBytes int64
 }
 
 func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
@@ -33,6 +36,14 @@ func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
 
 func (kdc kopiaDataCollection) FullPath() path.Path {
 	return kdc.path
+}
+
+func (kdc *kopiaDataCollection) CountBytes(i int64) {
+	kdc.countBytes += i
+}
+
+func (kdc kopiaDataCollection) BytesCounted() int64 {
+	return kdc.countBytes
 }
 
 type kopiaDataStream struct {

@@ -95,11 +95,13 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	assert.Zero(t, connector.status.Successful)
 
 	streams := make(map[string]<-chan data.Stream)
+	byteCounters := make(map[string]data.ByteCounter)
 	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
 	for _, collection := range collectionList {
 		temp := collection.Items()
 		testName := collection.FullPath().ResourceOwner()
 		streams[testName] = temp
+		byteCounters[testName] = collection.(data.ByteCounter)
 	}
 
 	status := connector.AwaitStatus()
@@ -110,11 +112,14 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 			t.Logf("Test: %s\t Items: %d", name, len(channel))
 			for object := range channel {
 				buf := &bytes.Buffer{}
-				_, err := buf.ReadFrom(object.ToReader())
+				nBytes, err := buf.ReadFrom(object.ToReader())
 				assert.NoError(t, err, "received a buf.Read error")
+				byteCounters[name].CountBytes(nBytes)
 			}
 		})
 	}
+
+	assert.Less(t, int64(0), data.CountAllBytes(collectionList))
 }
 
 // TestMailSerializationRegression verifies that all mail data stored in the
@@ -143,10 +148,12 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 				read, err := buf.ReadFrom(stream.ToReader())
 				assert.NoError(t, err)
 				assert.NotZero(t, read)
+				edc.CountBytes(read)
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
 				assert.NotNil(t, message)
 				assert.NoError(t, err)
 			}
+			assert.Less(t, int64(0), edc.BytesCounted(), "bytes collected during mail regression")
 		})
 	}
 
@@ -174,6 +181,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	assert.NoError(t, err)
 
 	number := 0
+	bc := int64(0)
 
 	for _, edc := range collections {
 		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath().ResourceOwner(), number)
@@ -184,14 +192,16 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 				read, err := buf.ReadFrom(stream.ToReader())
 				assert.NoError(t, err)
 				assert.NotZero(t, read)
+				edc.CountBytes(read)
 				contact, err := support.CreateContactFromBytes(buf.Bytes())
 				assert.NotNil(t, contact)
 				assert.NoError(t, err)
-
 			}
+			bc += edc.BytesCounted()
 			number++
 		})
 	}
+	assert.Less(t, int64(0), bc, "bytes collected during contact regression")
 
 	status := connector.AwaitStatus()
 	suite.NotNil(status)
@@ -221,10 +231,12 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 				read, err := buf.ReadFrom(stream.ToReader())
 				assert.NoError(t, err)
 				assert.NotZero(t, read)
+				edc.CountBytes(read)
 				event, err := support.CreateEventFromBytes(buf.Bytes())
 				assert.NotNil(t, event)
 				assert.NoError(t, err)
 			})
+			assert.Less(t, int64(0), edc.BytesCounted(), "bytes collected during event regression")
 		}
 	}
 

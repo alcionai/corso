@@ -29,12 +29,15 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 	messagesRead := 0
 
 	for item := range mdc.Items() {
-		_, err := ioutil.ReadAll(item.ToReader())
+		nBytes, err := ioutil.ReadAll(item.ToReader())
 		assert.NoError(suite.T(), err)
+
+		mdc.CountBytes(int64(len(nBytes)))
 		messagesRead++
 	}
 
 	assert.Equal(suite.T(), 2, messagesRead)
+	assert.Less(suite.T(), int64(0), mdc.BytesCounted())
 }
 
 // NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
@@ -45,14 +48,18 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchange
 	buf := &bytes.Buffer{}
 
 	for stream := range mdc.Items() {
-		_, err := buf.ReadFrom(stream.ToReader())
+		nBytes, err := buf.ReadFrom(stream.ToReader())
 		assert.NoError(t, err)
+
+		mdc.CountBytes(nBytes)
 
 		byteArray := buf.Bytes()
 		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
 		assert.NoError(t, err)
 		assert.NotNil(t, something)
 	}
+
+	assert.Less(t, int64(0), mdc.BytesCounted())
 }
 
 type MockExchangeDataSuite struct {

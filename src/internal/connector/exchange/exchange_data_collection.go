@@ -24,9 +24,11 @@ import (
 )
 
 var (
-	_ data.Collection = &Collection{}
-	_ data.Stream     = &Stream{}
-	_ data.StreamInfo = &Stream{}
+	_ data.Collection  = &Collection{}
+	_ data.ByteCounter = &Collection{}
+	_ data.Stream      = &Stream{}
+	_ data.StreamInfo  = &Stream{}
+	_ data.StreamSize  = &Stream{}
 )
 
 const (
@@ -45,6 +47,10 @@ type Collection struct {
 	jobs []string
 	// service - client/adapter pair used to access M365 back store
 	service graph.Service
+
+	// the aggregation of bytes transmitted through the collection.
+	// only Items() stream elements are counted.
+	countBytes int64
 
 	collectionType optionIdentifier
 	statusUpdater  support.StatusUpdater
@@ -86,6 +92,19 @@ func (col *Collection) Items() <-chan data.Stream {
 	return col.data
 }
 
+// FullPath returns the Collection's fullPath []string
+func (col *Collection) FullPath() path.Path {
+	return col.fullPath
+}
+
+func (col *Collection) CountBytes(i int64) {
+	col.countBytes += i
+}
+
+func (col *Collection) BytesCounted() int64 {
+	return col.countBytes
+}
+
 // GetQueryAndSerializeFunc helper function that returns the two functions functions
 // required to convert M365 identifier into a byte array filled with the serialized data
 func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
@@ -100,11 +119,6 @@ func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, Graph
 	default:
 		return nil, nil
 	}
-}
-
-// FullPath returns the Collection's fullPath []string
-func (col *Collection) FullPath() path.Path {
-	return col.fullPath
 }
 
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
@@ -362,6 +376,10 @@ func (od *Stream) ToReader() io.ReadCloser {
 
 func (od *Stream) Info() details.ItemInfo {
 	return details.ItemInfo{Exchange: od.info}
+}
+
+func (od *Stream) Size() int64 {
+	return int64(len(od.message))
 }
 
 // NewStream constructor for exchange.Stream object

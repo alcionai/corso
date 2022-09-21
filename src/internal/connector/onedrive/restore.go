@@ -56,6 +56,11 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
+		var bc data.ByteCounter
+		if bcc, ok := dc.(data.ByteCounter); ok {
+			bc = bcc
+		}
+
 		directory := dc.FullPath()
 
 		drivePath, err := toOneDrivePath(directory)
@@ -83,8 +88,10 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 		}
 
 		// Restore items from the collection
-		exit := false
-		items := dc.Items()
+		var (
+			exit  bool
+			items = dc.Items()
+		)
 
 		for !exit {
 			select {
@@ -97,10 +104,14 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 				}
 				total++
 
-				err := restoreItem(ctx, service, itemData, drivePath.driveID, restoreFolderID, copyBuffer)
+				bs, err := restoreItem(ctx, service, itemData, drivePath.driveID, restoreFolderID, copyBuffer)
 				if err != nil {
 					restoreErrors = support.WrapAndAppend(itemData.UUID(), err, restoreErrors)
 					continue
+				}
+
+				if bc != nil {
+					bc.CountBytes(bs)
 				}
 
 				restored++
@@ -159,32 +170,34 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 // restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreItem(ctx context.Context, service graph.Service, itemData data.Stream, driveID, parentFolderID string,
 	copyBuffer []byte,
-) error {
+) (int64, error) {
 	itemName := itemData.UUID()
 
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.StreamSize)
 	if !ok {
-		return errors.Errorf("item %q does not implement DataStreamInfo", itemName)
+		return 0, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
 	}
 
 	// Create Item
 	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false))
 	if err != nil {
-		return errors.Wrapf(err, "failed to create item %s", itemName)
+		return 0, errors.Wrapf(err, "failed to create item %s", itemName)
 	}
 
+	numBytes := ss.Size()
+
 	// Get a drive item writer
-	w, err := driveItemWriter(ctx, service, driveID, *newItem.GetId(), ss.Size())
+	w, err := driveItemWriter(ctx, service, driveID, *newItem.GetId(), numBytes)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create item upload session %s", itemName)
+		return 0, errors.Wrapf(err, "failed to create item upload session %s", itemName)
 	}
 
 	// Upload the stream data
 	_, err = io.CopyBuffer(w, itemData.ToReader(), copyBuffer)
 	if err != nil {
-		return errors.Wrapf(err, "failed to upload data: item %s", itemName)
+		return 0, errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}
 
-	return nil
+	return numBytes, nil
 }

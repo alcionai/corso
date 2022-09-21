@@ -20,12 +20,14 @@ type MockExchangeDataCollection struct {
 	messageCount int
 	Data         [][]byte
 	Names        []string
+	countBytes   int64
 }
 
 var (
-	_ data.Collection = &MockExchangeDataCollection{}
-	_ data.Stream     = &MockExchangeData{}
-	_ data.StreamInfo = &MockExchangeData{}
+	_ data.Collection  = &MockExchangeDataCollection{}
+	_ data.ByteCounter = &MockExchangeDataCollection{}
+	_ data.Stream      = &MockExchangeData{}
+	_ data.StreamInfo  = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -68,6 +70,14 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 	}()
 
 	return res
+}
+
+func (medc *MockExchangeDataCollection) CountBytes(i int64) {
+	medc.countBytes += i
+}
+
+func (medc *MockExchangeDataCollection) BytesCounted() int64 {
+	return medc.countBytes
 }
 
 // ExchangeData represents a single item retrieved from exchange

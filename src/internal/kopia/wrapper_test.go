@@ -59,6 +59,11 @@ func testForFiles(
 	count := 0
 
 	for _, c := range collections {
+		var bc data.ByteCounter
+		if bcc, ok := c.(data.ByteCounter); ok {
+			bc = bcc
+		}
+
 		for s := range c.Items() {
 			count++
 
@@ -71,11 +76,16 @@ func testForFiles(
 			buf, err := ioutil.ReadAll(s.ToReader())
 			require.NoError(t, err, "reading collection item: %s", fullPath)
 
+			if bc != nil {
+				bc.CountBytes(int64(len(buf)))
+			}
+
 			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
 		}
 	}
 
 	assert.Equal(t, len(expected), count)
+	assert.Less(t, int64(0), data.CountAllBytes(collections))
 }
 
 func expectDirs(

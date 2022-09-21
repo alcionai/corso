@@ -73,8 +73,8 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	// Set a item reader, add an item and validate we get the item back
 	coll.Add(testItemID)
 
-	coll.itemReader = func(context.Context, graph.Service, string, string) (string, io.ReadCloser, error) {
-		return testItemName, io.NopCloser(bytes.NewReader(testItemData)), nil
+	coll.itemReader = func(context.Context, graph.Service, string, string) (string, int64, io.ReadCloser, error) {
+		return testItemName, int64(len(testItemData)), io.NopCloser(bytes.NewReader(testItemData)), nil
 	}
 
 	// Read items from the collection
@@ -122,8 +122,10 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 
 	readError := errors.New("Test error")
 
-	coll.itemReader = func(context.Context, graph.Service, string, string) (name string, data io.ReadCloser, err error) {
-		return "", nil, readError
+	coll.itemReader = func(
+		context.Context, graph.Service, string, string,
+	) (name string, size int64, data io.ReadCloser, err error) {
+		return "", 0, nil, readError
 	}
 
 	coll.Items()

@@ -29,19 +29,19 @@ func driveItemReader(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
-) (string, io.ReadCloser, error) {
+) (string, int64, io.ReadCloser, error) {
 	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
 
 	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get()
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "failed to get item %s", itemID)
+		return "", 0, nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
 
 	// Get the download URL - https://docs.microsoft.com/en-us/graph/api/driveitem-get-content
 	// These URLs are pre-authenticated and can be used to download the data using the standard
 	// http client
 	if _, found := item.GetAdditionalData()[downloadURLKey]; !found {
-		return "", nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
+		return "", 0, nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
 			itemID, item.GetAdditionalData())
 	}
 
@@ -51,10 +51,10 @@ func driveItemReader(
 	// middleware/options configured
 	resp, err := http.Get(*downloadURL)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
+		return "", 0, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
 	}
 
-	return *item.GetName(), resp.Body, nil
+	return *item.GetName(), *item.GetSize(), resp.Body, nil
 }
 
 // driveItemWriter is used to initialize and return an io.Writer to upload data for the specified item

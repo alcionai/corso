@@ -104,3 +104,20 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
 
 	suite.Equal(len(shopping), len(eoc.jobs))
 }
+
+func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_Stream_Size() {
+	table := []struct {
+		name string
+		m    []byte
+	}{
+		{"populated", []byte("test message")},
+		{"zero", []byte("")},
+		{"nil", nil},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			s := &Stream{id: "a_file", message: test.m}
+			suite.Equal(int64(len(test.m)), s.Size())
+		})
+	}
+}

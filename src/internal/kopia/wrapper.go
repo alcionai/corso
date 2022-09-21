@@ -182,6 +182,11 @@ func getStreamItemFunc(
 			return nil
 		}
 
+		var bc data.ByteCounter
+		if bcc, ok := streamedEnts.(data.ByteCounter); ok {
+			bc = bcc
+		}
+
 		items := streamedEnts.Items()
 
 		for {
@@ -214,6 +219,10 @@ func getStreamItemFunc(
 						"item does not implement DataStreamInfo; skipping", "path", itemPath)
 
 					continue
+				}
+
+				if es, ok := e.(data.StreamSize); ok && bc != nil {
+					bc.CountBytes(es.Size())
 				}
 
 				// Relative path given to us in the callback is missing the root
