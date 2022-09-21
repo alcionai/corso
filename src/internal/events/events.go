@@ -28,17 +28,17 @@ const (
 	RestoreEnd   = "restore-end"
 
 	// Event Data Keys
-	BackupID              = "backup-id"
-	DataStored            = "data-stored"
-	Duration              = "duration"
-	ExchangeResources     = "exchange-resources"
-	ExchangeDataRetrieved = "exchange-data-retrieved"
-	ExchangeDataStored    = "exchange-data-stored"
-	EndTime               = "end-time"
-	ItemsRead             = "items-read"
-	ItemsWritten          = "items-written"
-	StartTime             = "start-time"
-	Status                = "status"
+	BackupID      = "backup-id"
+	DataRetrieved = "data-retrieved"
+	DataStored    = "data-stored"
+	Duration      = "duration"
+	EndTime       = "end-time"
+	ItemsRead     = "items-read"
+	ItemsWritten  = "items-written"
+	Resources     = "resources"
+	Service       = "service"
+	StartTime     = "start-time"
+	Status        = "status"
 )
 
 type Eventer interface {

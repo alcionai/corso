@@ -48,8 +48,8 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			writeErr:      assert.AnError,
 			resourceCount: 1,
 			k: &kopia.BackupStats{
-				TotalFileCount: 1,
-				TotalFileSize:  1,
+				TotalFileCount:   1,
+				TotalHashedBytes: 1,
 			},
 			gc: &support.ConnectorOperationStatus{
 				Successful: 1,
@@ -73,7 +73,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
-	assert.Equal(t, op.Results.BytesWritten, stats.k.TotalFileSize, "bytes written")
+	assert.Equal(t, op.Results.BytesWritten, stats.k.TotalHashedBytes, "bytes written")
 	assert.Equal(t, op.Results.ResourceOwners, stats.resourceCount, "resource owners")
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")

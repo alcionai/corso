@@ -93,6 +93,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		events.BackupStart,
 		map[string]any{
 			events.StartTime: startTime,
+			events.Service:   op.Selectors.Service.String(),
 			// TODO: initial backup ID,
 			// TODO: events.ExchangeResources: <count of resources>,
 		},
@@ -167,7 +168,7 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
-	op.Results.BytesWritten = opStats.k.TotalFileSize
+	op.Results.BytesWritten = opStats.k.TotalHashedBytes
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
@@ -208,13 +209,14 @@ func (op *BackupOperation) createBackupModels(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
-			events.BackupID:           b.ID,
-			events.Status:             op.Status,
-			events.StartTime:          op.Results.StartedAt,
-			events.EndTime:            op.Results.CompletedAt,
-			events.Duration:           op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.ExchangeDataStored: op.Results.BytesWritten,
-			events.ExchangeResources:  op.Results.ResourceOwners,
+			events.BackupID:   b.ID,
+			events.Service:    op.Selectors.Service.String(),
+			events.Status:     op.Status,
+			events.StartTime:  op.Results.StartedAt,
+			events.EndTime:    op.Results.CompletedAt,
+			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.DataStored: op.Results.BytesWritten,
+			events.Resources:  op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)
