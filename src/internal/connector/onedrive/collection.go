@@ -64,6 +64,7 @@ func NewCollection(
 	}
 	// Allows tests to set a mock populator
 	c.itemReader = driveItemReader
+
 	return c
 }
 
@@ -105,22 +106,27 @@ func (od *Item) Info() details.ItemInfo {
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
-	var errs error
-	itemsRead := 0
+	var (
+		errs      error
+		itemsRead = 0
+	)
+
 	for _, itemID := range oc.driveItemIDs {
 		// Read the item
 		itemName, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
 		if err != nil {
 			errs = support.WrapAndAppendf(itemID, err, errs)
+
 			if oc.service.ErrPolicy() {
 				break
 			}
+
 			continue
 		}
 		// Item read successfully, add to collection
 		itemsRead++
 		oc.data <- &Item{
-			id:   itemID,
+			id:   itemName,
 			data: itemData,
 			info: &details.OneDriveInfo{
 				ItemType:   details.OneDriveItem,
@@ -129,7 +135,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			},
 		}
 	}
+
 	close(oc.data)
+
 	status := support.CreateStatus(ctx, support.Backup,
 		len(oc.driveItemIDs), // items to read
 		itemsRead,            // items read successfully

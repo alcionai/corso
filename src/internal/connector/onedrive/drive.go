@@ -14,6 +14,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+var errFolderNotFound = errors.New("folder not found")
+
 const (
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
@@ -28,6 +30,7 @@ func drives(ctx context.Context, service graph.Service, user string) ([]models.D
 		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
 			user, support.ConnectorStackErrorTrace(err))
 	}
+
 	logger.Ctx(ctx).Debugf("Found %d drives for user %s", len(r.GetValue()), user)
 
 	return r.GetValue(), nil
@@ -48,6 +51,7 @@ func collectItems(
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
 	builder := service.Client().DrivesById(driveID).Root().Delta()
+
 	for {
 		r, err := builder.Get()
 		if err != nil {
@@ -67,10 +71,12 @@ func collectItems(
 		if _, found := r.GetAdditionalData()[nextLinkKey]; !found {
 			break
 		}
+
 		nextLink := r.GetAdditionalData()[nextLinkKey].(*string)
 		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
 		builder = delta.NewDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
+
 	return nil
 }
 
@@ -95,7 +101,7 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 		return item, nil
 	}
 
-	return nil, errors.Errorf("folder %s not found in drive(%s) parentFolder(%s)", folderName, driveID, parentFolderID)
+	return nil, errors.WithStack(errFolderNotFound)
 }
 
 // Create a new item in the specified folder
@@ -112,7 +118,7 @@ func createItem(ctx context.Context, service graph.Service, driveID string, pare
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
-			"failed to create folder. details: %s",
+			"failed to create item. details: %s",
 			support.ConnectorStackErrorTrace(err),
 		)
 	}

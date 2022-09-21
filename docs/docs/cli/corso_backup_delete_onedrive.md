@@ -1,20 +1,21 @@
 ---
-title: corso backup list exchange
+title: corso backup delete onedrive
 hide_title: true
 ---
-## corso backup list exchange
+## corso backup delete onedrive
 
-List the history of M365 Exchange service backups
+Delete backed-up M365 OneDrive service data
 
 ```bash
-corso backup list exchange [flags]
+corso backup delete onedrive [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--help`|`-h`|`false`|help for exchange|
+|`--backup`|||ID of the backup containing the details to be shown|
+|`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags
 

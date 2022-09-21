@@ -50,11 +50,11 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 	)
 	require.NoError(t, err)
 
-	b := events.NewBus(s, a, control.Options{})
+	b := events.NewBus(s, a.ID(), control.Options{})
 	require.NotEmpty(t, b)
 	require.NoError(t, b.Close())
 
-	b2 := events.NewBus(s, a, control.Options{DisableMetrics: true})
+	b2 := events.NewBus(s, a.ID(), control.Options{DisableMetrics: true})
 	require.Empty(t, b2)
 	require.NoError(t, b2.Close())
 }

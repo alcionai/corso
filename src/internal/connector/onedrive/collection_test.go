@@ -49,6 +49,7 @@ func (suite *OneDriveCollectionSuite) testStatusUpdater(
 	return func(s *support.ConnectorOperationStatus) {
 		suite.T().Logf("Update status %v, count %d, success %d", s, s.ObjectCount, s.Successful)
 		*statusToUpdate = *s
+
 		wg.Done()
 	}
 }
@@ -78,11 +79,15 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 
 	// Read items from the collection
 	wg.Add(1)
+
 	readItems := []data.Stream{}
+
 	for item := range coll.Items() {
 		readItems = append(readItems, item)
 	}
+
 	wg.Wait()
+
 	// Expect only 1 item
 	require.Len(t, readItems, 1)
 	require.Equal(t, 1, collStatus.ObjectCount)
@@ -92,7 +97,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	readItem := readItems[0]
 	readItemInfo := readItem.(data.StreamInfo)
 
-	assert.Equal(t, testItemID, readItem.UUID())
+	assert.Equal(t, testItemName, readItem.UUID())
 	readData, err := io.ReadAll(readItem.ToReader())
 	require.NoError(t, err)
 
@@ -105,8 +110,8 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 
 func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 	t := suite.T()
-	wg := sync.WaitGroup{}
 	collStatus := support.ConnectorOperationStatus{}
+	wg := sync.WaitGroup{}
 	wg.Add(1)
 
 	folderPath, err := getCanonicalPath("folderPath", "a-tenant", "a-user")
