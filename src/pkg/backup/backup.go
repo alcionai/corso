@@ -33,6 +33,7 @@ type Backup struct {
 
 	// stats are embedded so that the values appear as top-level properties
 	stats.ReadWrites
+	stats.Errs
 	stats.StartAndEndTime
 }
 

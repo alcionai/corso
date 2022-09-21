@@ -35,6 +35,7 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
+	stats.Errs
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
@@ -75,6 +76,7 @@ type backupStats struct {
 	k                 *kopia.BackupStats
 	gc                *support.ConnectorOperationStatus
 	resourceCount     int
+	collectedBytes    int64
 	started           bool
 	readErr, writeErr error
 }
@@ -143,6 +145,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
+	opStats.collectedBytes = data.CountAllBytes(cs)
 
 	return err
 }
@@ -166,6 +169,7 @@ func (op *BackupOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	op.Results.CollectedBytes = opStats.collectedBytes
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
 	op.Results.BytesWritten = opStats.k.TotalHashedBytes
@@ -209,15 +213,15 @@ func (op *BackupOperation) createBackupModels(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
-			events.BackupID:   b.ID,
-			events.Service:    op.Selectors.Service.String(),
-			events.Status:     op.Status,
-			events.StartTime:  op.Results.StartedAt,
-			events.EndTime:    op.Results.CompletedAt,
-			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.DataStored: op.Results.BytesWritten,
-			events.Resources:  op.Results.ResourceOwners,
-			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
+			events.BackupID:      b.ID,
+			events.Service:       op.Selectors.Service.String(),
+			events.Status:        op.Status,
+			events.StartTime:     op.Results.StartedAt,
+			events.EndTime:       op.Results.CompletedAt,
+			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.DataStored:    op.Results.BytesWritten,
+			events.Resources:     op.Results.ResourceOwners,
+			events.DataRetrieved: op.Results.CollectedBytes,
 		},
 	)
 

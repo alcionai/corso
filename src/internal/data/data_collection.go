@@ -26,6 +26,14 @@ type Collection interface {
 	FullPath() path.Path
 }
 
+// ByteCounter tracks a total quantity of bytes.  Structs that comply with Collection
+// should strive to comply with ByteCounter for metrics gathering.  Bytes are normally
+// counted using StreamSize when reading from Items().
+type ByteCounter interface {
+	CountBytes(c int64)
+	BytesCounted() int64
+}
+
 // Stream represents a single item within a Collection
 // that can be consumed as a stream (it embeds io.Reader)
 type Stream interface {
@@ -68,4 +76,21 @@ func ResourceOwnerSet(cs []Collection) []string {
 	}
 
 	return rss
+}
+
+// CountAllBytes returns the total count of bytes across all collections.
+// Bytes are only counted if the Collection can be cast to a ByteCounter.
+func CountAllBytes(cs []Collection) int64 {
+	var totalBytes int64
+
+	for _, c := range cs {
+		bc, ok := c.(ByteCounter)
+		if !ok {
+			continue
+		}
+
+		totalBytes += bc.BytesCounted()
+	}
+
+	return totalBytes
 }
