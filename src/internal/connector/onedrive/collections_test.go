@@ -123,6 +123,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedPackageCount: 1,
 		},
 	}
+
 	for _, tt := range tests {
 		suite.T().Run(tt.testCase, func(t *testing.T) {
 			c := NewCollections(tenant, user, &MockGraphService{}, nil)
@@ -157,6 +158,7 @@ func driveItem(name string, path string, isFile, isFolder, isPackage bool) model
 	case isPackage:
 		item.SetPackage(models.NewPackage_escaped())
 	}
+
 	return item
 }
 

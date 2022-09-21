@@ -7,10 +7,11 @@ import "time"
 // assumed to be successful, so the total count of items involved
 // would be ItemsRead+ReadErrors.
 type ReadWrites struct {
-	ItemsRead    int   `json:"itemsRead,omitempty"`
-	ItemsWritten int   `json:"itemsWritten,omitempty"`
-	ReadErrors   error `json:"readErrors,omitempty"`
-	WriteErrors  error `json:"writeErrors,omitempty"`
+	ItemsRead      int   `json:"itemsRead,omitempty"`
+	ItemsWritten   int   `json:"itemsWritten,omitempty"`
+	ReadErrors     error `json:"readErrors,omitempty"`
+	WriteErrors    error `json:"writeErrors,omitempty"`
+	ResourceOwners int   `json:"resourceOwners,omitempty"`
 }
 
 // StartAndEndTime tracks a paired starting time and ending time.
