@@ -11,10 +11,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 //revive:disable:context-as-argument
 func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
+	//revive:enable:context-as-argument
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := NewConn(st)
@@ -66,6 +68,41 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 func (suite *WrapperIntegrationSuite) SetupSuite() {
 	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
+}
+
+func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
+	t := suite.T()
+	ctx := context.Background()
+
+	st := tester.NewPrefixedS3Storage(t)
+	k := NewConn(st)
+	require.NoError(t, k.Initialize(ctx))
+
+	require.NoError(t, k.Close(ctx))
+
+	err := k.Initialize(ctx)
+	assert.Error(t, err)
+	assert.True(t, IsRepoAlreadyExistsError(err))
+}
+
+func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
+	t := suite.T()
+	ctx := context.Background()
+
+	st := tester.NewPrefixedS3Storage(t)
+	st.Provider = storage.ProviderUnknown
+
+	k := NewConn(st)
+	assert.Error(t, k.Initialize(ctx))
+}
+
+func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
+	t := suite.T()
+	ctx := context.Background()
+
+	st := tester.NewPrefixedS3Storage(t)
+	k := NewConn(st)
+	assert.Error(t, k.Connect(ctx))
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
