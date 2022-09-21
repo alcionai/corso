@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -73,6 +74,7 @@ func (op BackupOperation) validate() error {
 type backupStats struct {
 	k                 *kopia.BackupStats
 	gc                *support.ConnectorOperationStatus
+	resourceCount     int
 	started           bool
 	readErr, writeErr error
 }
@@ -127,6 +129,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
+
 	// hand the results to the consumer
 	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs)
 	if err != nil {
@@ -165,6 +169,7 @@ func (op *BackupOperation) persistResults(
 	op.Results.WriteErrors = opStats.writeErr
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.ResourceOwners = opStats.resourceCount
 
 	return nil
 }
@@ -202,12 +207,12 @@ func (op *BackupOperation) createBackupModels(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
-			events.BackupID:  b.ID,
-			events.Status:    op.Status,
-			events.StartTime: op.Results.StartedAt,
-			events.EndTime:   op.Results.CompletedAt,
-			events.Duration:  op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			// TODO: events.ExchangeResources: <count of resources>,
+			events.BackupID:          b.ID,
+			events.Status:            op.Status,
+			events.StartTime:         op.Results.StartedAt,
+			events.EndTime:           op.Results.CompletedAt,
+			events.Duration:          op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.ExchangeResources: op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 			// TODO: events.ExchangeDataStored: <amount of data stored>,
 		},

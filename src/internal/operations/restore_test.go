@@ -75,6 +75,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.gc.Successful, "items written")
+	assert.Equal(t, 0, op.Results.ResourceOwners, "resource owners")
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
@@ -232,6 +233,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
 	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
 	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
+	assert.Equal(t, 1, ro.Results.ResourceOwners)
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
@@ -259,6 +261,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		mb)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
+	assert.Equal(t, 0, ro.Results.ResourceOwners)
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 0, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }

@@ -77,6 +77,7 @@ func (op RestoreOperation) validate() error {
 type restoreStats struct {
 	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
+	resourceCount     int
 	started           bool
 	readErr, writeErr error
 }
@@ -173,6 +174,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 
 	opStats.readErr = parseErrs.ErrorOrNil()
 	opStats.cs = dcs
+	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
 	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(op.account)
@@ -222,20 +224,21 @@ func (op *RestoreOperation) persistResults(
 	op.Results.WriteErrors = opStats.writeErr
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
+	op.Results.ResourceOwners = opStats.resourceCount
 
 	op.bus.Event(
 		ctx,
 		events.RestoreEnd,
 		map[string]any{
 			// TODO: RestoreID
-			events.BackupID:     op.BackupID,
-			events.Status:       op.Status,
-			events.StartTime:    op.Results.StartedAt,
-			events.EndTime:      op.Results.CompletedAt,
-			events.Duration:     op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.ItemsRead:    op.Results.ItemsRead,
-			events.ItemsWritten: op.Results.ItemsWritten,
-			// TODO: events.ExchangeResources: <count of resources>,
+			events.BackupID:          op.BackupID,
+			events.Status:            op.Status,
+			events.StartTime:         op.Results.StartedAt,
+			events.EndTime:           op.Results.CompletedAt,
+			events.Duration:          op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.ItemsRead:         op.Results.ItemsRead,
+			events.ItemsWritten:      op.Results.ItemsWritten,
+			events.ExchangeResources: op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)
