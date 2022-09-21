@@ -1,12 +1,14 @@
 package selectors
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
 
@@ -52,6 +54,10 @@ var (
 // All is the resource name that gets output when the resource is AnyTgt.
 // It is not used aside from printing resources.
 const All = "All"
+
+type Reducer interface {
+	Reduce(context.Context, *details.Details) *details.Details
+}
 
 // ---------------------------------------------------------------------------
 // Selector
