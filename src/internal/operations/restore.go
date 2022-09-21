@@ -92,6 +92,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		events.RestoreStart,
 		map[string]any{
 			events.StartTime: startTime,
+			events.Service:   op.Selectors.Service.String(),
 			events.BackupID:  op.BackupID,
 			// TODO: initial backup ID,
 			// TODO: events.ExchangeResources: <count of resources>,
@@ -231,14 +232,15 @@ func (op *RestoreOperation) persistResults(
 		events.RestoreEnd,
 		map[string]any{
 			// TODO: RestoreID
-			events.BackupID:          op.BackupID,
-			events.Status:            op.Status,
-			events.StartTime:         op.Results.StartedAt,
-			events.EndTime:           op.Results.CompletedAt,
-			events.Duration:          op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.ItemsRead:         op.Results.ItemsRead,
-			events.ItemsWritten:      op.Results.ItemsWritten,
-			events.ExchangeResources: op.Results.ResourceOwners,
+			events.BackupID:     op.BackupID,
+			events.Service:      op.Selectors.Service.String(),
+			events.Status:       op.Status,
+			events.StartTime:    op.Results.StartedAt,
+			events.EndTime:      op.Results.CompletedAt,
+			events.Duration:     op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.ItemsRead:    op.Results.ItemsRead,
+			events.ItemsWritten: op.Results.ItemsWritten,
+			events.Resources:    op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)

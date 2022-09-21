@@ -143,56 +143,69 @@ func (suite *CorsoProgressUnitSuite) SetupSuite() {
 	suite.targetFileName = suite.targetFilePath.ToBuilder().Dir().String()
 }
 
-func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
-	type testInfo struct {
-		info *itemDetails
-		err  error
-	}
+type testInfo struct {
+	info       *itemDetails
+	err        error
+	totalBytes int64
+}
 
-	deets := &itemDetails{details.ItemInfo{}, suite.targetFilePath}
-
-	table := []struct {
-		name        string
-		cachedItems map[string]testInfo
-		expectedLen int
-	}{
-		{
-			name: "DetailsExist",
-			cachedItems: map[string]testInfo{
-				suite.targetFileName: {
-					info: deets,
-					err:  nil,
+var finishedFileTable = []struct {
+	name               string
+	cachedItems        func(fname string, fpath path.Path) map[string]testInfo
+	expectedBytes      int64
+	expectedNumEntries int
+	err                error
+}{
+	{
+		name: "DetailsExist",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return map[string]testInfo{
+				fname: {
+					info:       &itemDetails{details.ItemInfo{}, fpath},
+					err:        nil,
+					totalBytes: 100,
 				},
-			},
-			// 1 file and 5 folders.
-			expectedLen: 6,
+			}
 		},
-		{
-			name: "PendingNoDetails",
-			cachedItems: map[string]testInfo{
-				suite.targetFileName: {
+		expectedBytes: 100,
+		// 1 file and 5 folders.
+		expectedNumEntries: 6,
+	},
+	{
+		name: "PendingNoDetails",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return map[string]testInfo{
+				fname: {
 					info: nil,
 					err:  nil,
 				},
-			},
-			expectedLen: 0,
+			}
 		},
-		{
-			name: "HadError",
-			cachedItems: map[string]testInfo{
-				suite.targetFileName: {
-					info: deets,
+		expectedNumEntries: 0,
+	},
+	{
+		name: "HadError",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return map[string]testInfo{
+				fname: {
+					info: &itemDetails{details.ItemInfo{}, fpath},
 					err:  assert.AnError,
 				},
-			},
-			expectedLen: 0,
+			}
 		},
-		{
-			name:        "NotPending",
-			expectedLen: 0,
+		expectedNumEntries: 0,
+	},
+	{
+		name: "NotPending",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return nil
 		},
-	}
-	for _, test := range table {
+		expectedNumEntries: 0,
+	},
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
+	for _, test := range finishedFileTable {
 		suite.T().Run(test.name, func(t *testing.T) {
 			bd := &details.Details{}
 			cp := corsoProgress{
@@ -201,18 +214,20 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 				pending:        map[string]*itemDetails{},
 			}
 
-			for k, v := range test.cachedItems {
+			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
+
+			for k, v := range ci {
 				cp.put(k, v.info)
 			}
 
-			require.Len(t, cp.pending, len(test.cachedItems))
+			require.Len(t, cp.pending, len(ci))
 
-			for k, v := range test.cachedItems {
+			for k, v := range ci {
 				cp.FinishedFile(k, v.err)
 			}
 
 			assert.Empty(t, cp.pending)
-			assert.Len(t, bd.Entries, test.expectedLen)
+			assert.Len(t, bd.Entries, test.expectedNumEntries)
 		})
 	}
 }
@@ -274,6 +289,28 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 	assert.Nil(t, curRef)
 	require.NotNil(t, rootRef)
 	assert.Empty(t, rootRef.ParentRef)
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
+	for _, test := range finishedFileTable {
+		suite.T().Run(test.name, func(t *testing.T) {
+			bd := &details.Details{}
+			cp := corsoProgress{
+				UploadProgress: &snapshotfs.NullUploadProgress{},
+				deets:          bd,
+				pending:        map[string]*itemDetails{},
+			}
+
+			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
+
+			for k, v := range ci {
+				cp.FinishedHashingFile(k, v.totalBytes)
+			}
+
+			assert.Empty(t, cp.pending)
+			assert.Equal(t, test.expectedBytes, cp.totalBytes)
+		})
+	}
 }
 
 type KopiaUnitSuite struct {
