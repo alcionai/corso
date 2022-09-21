@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	CorsoLoadTests           = "CORSO_LOAD_TESTS"
 	CorsoCITests             = "CORSO_CI_TESTS"
 	CorsoCLIBackupTests      = "CORSO_COMMAND_LINE_BACKUP_TESTS"
 	CorsoCLIConfigTests      = "CORSO_COMMAND_LINE_CONFIG_TESTS"
