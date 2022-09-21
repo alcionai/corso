@@ -8,10 +8,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-// pathMust takes a string representing a resource path and returns a path
+// mustParsePath takes a string representing a resource path and returns a path
 // instance. Panics if the path cannot be parsed. Useful for simple variable
 // assignments.
-func pathMust(ref string, isItem bool) path.Path {
+func mustParsePath(ref string, isItem bool) path.Path {
 	p, err := path.FromDataLayerPath(ref, isItem)
 	if err != nil {
 		panic(err)
@@ -20,11 +20,11 @@ func pathMust(ref string, isItem bool) path.Path {
 	return p
 }
 
-// pathAppendMust takes a Path, string representing a path element, and whether
+// mustAppendPath takes a Path, string representing a path element, and whether
 // the element is an item and returns a path instance representing the original
 // path with the element appended to it. Panics if the path cannot be parsed.
 // Useful for simple variable assignments.
-func pathAppendMust(p path.Path, newElement string, isItem bool) path.Path {
+func mustAppendPath(p path.Path, newElement string, isItem bool) path.Path {
 	newP, err := p.Append(newElement, isItem)
 	if err != nil {
 		panic(err)
@@ -42,9 +42,9 @@ var (
 	Time1 = time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
 	Time2 = time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
 
-	ExchangeEmailBasePath  = pathMust("tenant-id/exchange/user-id/email/Inbox/subfolder", false)
-	ExchangeEmailItemPath1 = pathAppendMust(ExchangeEmailBasePath, ItemName1, true)
-	ExchangeEmailItemPath2 = pathAppendMust(ExchangeEmailBasePath, ItemName2, true)
+	ExchangeEmailBasePath  = mustParsePath("tenant-id/exchange/user-id/email/Inbox/subfolder", false)
+	ExchangeEmailItemPath1 = mustAppendPath(ExchangeEmailBasePath, ItemName1, true)
+	ExchangeEmailItemPath2 = mustAppendPath(ExchangeEmailBasePath, ItemName2, true)
 
 	ExchangeEmailItems = []details.DetailsEntry{
 		{
@@ -75,9 +75,9 @@ var (
 		},
 	}
 
-	ExchangeContactsBasePath  = pathMust("tenant-id/exchange/user-id/contacts/contacts", false)
-	ExchangeContactsItemPath1 = pathAppendMust(ExchangeContactsBasePath, ItemName1, true)
-	ExchangeContactsItemPath2 = pathAppendMust(ExchangeContactsBasePath, ItemName2, true)
+	ExchangeContactsBasePath  = mustParsePath("tenant-id/exchange/user-id/contacts/contacts", false)
+	ExchangeContactsItemPath1 = mustAppendPath(ExchangeContactsBasePath, ItemName1, true)
+	ExchangeContactsItemPath2 = mustAppendPath(ExchangeContactsBasePath, ItemName2, true)
 
 	ExchangeContactsItems = []details.DetailsEntry{
 		{
@@ -104,9 +104,9 @@ var (
 		},
 	}
 
-	ExchangeEventsBasePath  = pathMust("tenant-id/exchange/user-id/events/holidays", false)
-	ExchangeEventsItemPath1 = pathAppendMust(ExchangeEventsBasePath, ItemName1, true)
-	ExchangeEventsItemPath2 = pathAppendMust(ExchangeEventsBasePath, ItemName2, true)
+	ExchangeEventsBasePath  = mustParsePath("tenant-id/exchange/user-id/events/holidays", false)
+	ExchangeEventsItemPath1 = mustAppendPath(ExchangeEventsBasePath, ItemName1, true)
+	ExchangeEventsItemPath2 = mustAppendPath(ExchangeEventsBasePath, ItemName2, true)
 
 	ExchangeEventsItems = []details.DetailsEntry{
 		{
@@ -139,9 +139,9 @@ var (
 		},
 	}
 
-	OneDriveBasePath  = pathMust("tenant-id/onedrive/user-id/files/folder/subfolder", false)
-	OneDriveItemPath1 = pathAppendMust(OneDriveBasePath, ItemName1, true)
-	OneDriveItemPath2 = pathAppendMust(OneDriveBasePath, ItemName2, true)
+	OneDriveBasePath  = mustParsePath("tenant-id/onedrive/user-id/files/folder/subfolder", false)
+	OneDriveItemPath1 = mustAppendPath(OneDriveBasePath, ItemName1, true)
+	OneDriveItemPath2 = mustAppendPath(OneDriveBasePath, ItemName2, true)
 
 	OneDriveItems = []details.DetailsEntry{
 		{
