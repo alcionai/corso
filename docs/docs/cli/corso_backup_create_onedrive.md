@@ -1,20 +1,21 @@
 ---
-title: corso backup list exchange
+title: corso backup create onedrive
 hide_title: true
 ---
-## corso backup list exchange
+## corso backup create onedrive
 
-List the history of M365 Exchange service backups
+Backup M365 OneDrive service data
 
 ```bash
-corso backup list exchange [flags]
+corso backup create onedrive [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--help`|`-h`|`false`|help for exchange|
+|`--help`|`-h`|`false`|help for onedrive|
+|`--user`||`[]`|Backup OneDrive data by user ID; accepts * to select all users|
 
 ### Global and inherited flags
 

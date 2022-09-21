@@ -25,6 +25,7 @@ type fooModel struct {
 
 //revive:disable:context-as-argument
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
+	//revive:enable:context-as-argument
 	c, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
@@ -107,11 +108,32 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 			foo := &fooModel{Bar: uuid.NewString()}
 			foo.Tags = test.tags
 
-			assert.Error(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
-			assert.Error(t, suite.m.Update(suite.ctx, model.BackupOpSchema, foo))
+			assert.ErrorIs(
+				t,
+				suite.m.Put(suite.ctx, model.BackupOpSchema, foo),
+				errBadTagKey,
+			)
 
-			_, err := suite.m.GetIDsForType(suite.ctx, model.BackupOpSchema, test.tags)
-			assert.Error(t, err)
+			// Add model for update/get ID checks.
+			foo.Tags = map[string]string{}
+			require.NoError(
+				t,
+				suite.m.Put(suite.ctx, model.BackupOpSchema, foo),
+			)
+
+			foo.Tags = test.tags
+			assert.ErrorIs(
+				t,
+				suite.m.Update(suite.ctx, model.BackupOpSchema, foo),
+				errBadTagKey,
+			)
+
+			_, err := suite.m.GetIDsForType(
+				suite.ctx,
+				model.BackupOpSchema,
+				test.tags,
+			)
+			assert.ErrorIs(t, err, errBadTagKey)
 		})
 	}
 }
@@ -143,7 +165,11 @@ func (suite *ModelStoreIntegrationSuite) TestBadModelTypeErrors() {
 
 	foo := &fooModel{Bar: uuid.NewString()}
 
-	assert.Error(t, suite.m.Put(suite.ctx, model.UnknownSchema, foo))
+	assert.ErrorIs(
+		t,
+		suite.m.Put(suite.ctx, model.UnknownSchema, foo),
+		errUnrecognizedSchema,
+	)
 
 	require.NoError(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
 
@@ -159,11 +185,23 @@ func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {
 	require.NoError(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
 
 	returned := &fooModel{}
-	assert.Error(t, suite.m.Get(suite.ctx, model.RestoreOpSchema, foo.ID, returned))
-	assert.Error(
-		t, suite.m.GetWithModelStoreID(suite.ctx, model.RestoreOpSchema, foo.ModelStoreID, returned))
+	assert.ErrorIs(
+		t,
+		suite.m.Get(suite.ctx, model.RestoreOpSchema, foo.ID, returned),
+		errModelTypeMismatch,
+	)
 
-	assert.Error(t, suite.m.Delete(suite.ctx, model.RestoreOpSchema, foo.ID))
+	assert.ErrorIs(
+		t,
+		suite.m.GetWithModelStoreID(suite.ctx, model.RestoreOpSchema, foo.ModelStoreID, returned),
+		errModelTypeMismatch,
+	)
+
+	assert.ErrorIs(
+		t,
+		suite.m.Delete(suite.ctx, model.RestoreOpSchema, foo.ID),
+		errModelTypeMismatch,
+	)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGet() {
@@ -297,6 +335,137 @@ func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
 			require.NoError(t, err)
 
 			assert.Len(t, ids, 1)
+		})
+	}
+}
+
+func (suite *ModelStoreIntegrationSuite) TestGetOfTypeWithTags() {
+	tagKey1 := "foo"
+	tagKey2 := "bar"
+	tagValue1 := "hola"
+	tagValue2 := "mundo"
+
+	inputs := []struct {
+		schema    model.Schema
+		dataModel *fooModel
+	}{
+		{
+			schema: model.BackupOpSchema,
+			dataModel: &fooModel{
+				BaseModel: model.BaseModel{
+					Tags: map[string]string{
+						tagKey1: tagValue1,
+					},
+				},
+			},
+		},
+		{
+			schema: model.BackupOpSchema,
+			dataModel: &fooModel{
+				BaseModel: model.BaseModel{
+					Tags: map[string]string{
+						tagKey1: tagValue1,
+						tagKey2: tagValue2,
+					},
+				},
+			},
+		},
+		{
+			schema: model.BackupOpSchema,
+			dataModel: &fooModel{
+				BaseModel: model.BaseModel{
+					Tags: map[string]string{
+						tagKey1: tagValue2,
+					},
+				},
+			},
+		},
+		{
+			schema: model.RestoreOpSchema,
+			dataModel: &fooModel{
+				BaseModel: model.BaseModel{
+					Tags: map[string]string{
+						tagKey1: tagValue1,
+					},
+				},
+			},
+		},
+		{
+			schema: model.RestoreOpSchema,
+			dataModel: &fooModel{
+				BaseModel: model.BaseModel{
+					Tags: map[string]string{},
+				},
+			},
+		},
+	}
+
+	table := []struct {
+		name           string
+		s              model.Schema
+		tags           map[string]string
+		expectedModels []*fooModel
+	}{
+		{
+			name: "UnpopulatedType",
+			s:    model.BackupSchema,
+			tags: map[string]string{
+				tagKey1: tagValue1,
+			},
+			expectedModels: []*fooModel{},
+		},
+		{
+			name: "RestrictByModelType",
+			s:    model.RestoreOpSchema,
+			tags: map[string]string{
+				tagKey1: tagValue1,
+			},
+			expectedModels: []*fooModel{inputs[3].dataModel},
+		},
+		{
+			name: "RestrictByModelType2",
+			s:    model.BackupOpSchema,
+			tags: map[string]string{
+				tagKey1: tagValue1,
+			},
+			expectedModels: []*fooModel{inputs[0].dataModel, inputs[1].dataModel},
+		},
+		{
+			name: "RestrictByTags",
+			s:    model.BackupOpSchema,
+			tags: map[string]string{
+				tagKey1: tagValue1,
+				tagKey2: tagValue2,
+			},
+			expectedModels: []*fooModel{inputs[1].dataModel},
+		},
+		{
+			name: "RestrictByTags2",
+			s:    model.BackupOpSchema,
+			tags: map[string]string{
+				tagKey1: tagValue2,
+			},
+			expectedModels: []*fooModel{inputs[2].dataModel},
+		},
+	}
+
+	// Setup the store by adding all the inputs.
+	for _, in := range inputs {
+		require.NoError(suite.T(), suite.m.Put(suite.ctx, in.schema, in.dataModel))
+	}
+
+	// Check we can properly execute our tests.
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			expected := make([]*model.BaseModel, 0, len(test.expectedModels))
+			for _, e := range test.expectedModels {
+				expected = append(expected, &e.BaseModel)
+			}
+
+			ids, err := suite.m.GetIDsForType(suite.ctx, test.s, test.tags)
+			require.NoError(t, err)
+
+			assert.ElementsMatch(t, expected, ids)
 		})
 	}
 }
@@ -516,10 +685,12 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	assert.Equal(t, foo, returned)
 }
 
+//revive:disable:context-as-argument
 func openConnAndModelStore(
 	t *testing.T,
 	ctx context.Context,
 ) (*conn, *ModelStore) {
+	//revive:enable:context-as-argument
 	st := tester.NewPrefixedS3Storage(t)
 	c := NewConn(st)
 
@@ -535,11 +706,13 @@ func openConnAndModelStore(
 	return c, ms
 }
 
+//revive:disable:context-as-argument
 func reconnectToModelStore(
 	t *testing.T,
 	ctx context.Context,
 	c *conn,
 ) *ModelStore {
+	//revive:enable:context-as-argument
 	require.NoError(t, c.Connect(ctx))
 
 	defer func() {

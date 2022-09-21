@@ -1,20 +1,22 @@
 ---
-title: corso backup list exchange
+title: corso restore onedrive
 hide_title: true
 ---
-## corso backup list exchange
+## corso restore onedrive
 
-List the history of M365 Exchange service backups
+Restore M365 OneDrive service data
 
 ```bash
-corso backup list exchange [flags]
+corso restore onedrive [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--help`|`-h`|`false`|help for exchange|
+|`--backup`|||ID of the backup to restore|
+|`--help`|`-h`|`false`|help for onedrive|
+|`--user`||`[]`|Restore all data by user ID; accepts * to select all users|
 
 ### Global and inherited flags
 
