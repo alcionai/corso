@@ -7,6 +7,7 @@ import "time"
 // assumed to be successful, so the total count of items involved
 // would be ItemsRead+ReadErrors.
 type ReadWrites struct {
+	BytesWritten   int64 `json:"bytesWritten,omitempty"`
 	ItemsRead      int   `json:"itemsRead,omitempty"`
 	ItemsWritten   int   `json:"itemsWritten,omitempty"`
 	ReadErrors     error `json:"readErrors,omitempty"`
