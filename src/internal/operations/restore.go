@@ -37,6 +37,7 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
+	stats.Errs
 	stats.ReadWrites
 	stats.StartAndEndTime
 }
@@ -78,6 +79,7 @@ type restoreStats struct {
 	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
 	resourceCount     int
+	collectedBytes    int64
 	started           bool
 	readErr, writeErr error
 }
@@ -195,6 +197,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
+	opStats.collectedBytes = data.CountAllBytes(dcs)
+
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
 	return nil
@@ -220,6 +224,7 @@ func (op *RestoreOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	op.Results.CollectedBytes = opStats.collectedBytes
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
@@ -231,14 +236,15 @@ func (op *RestoreOperation) persistResults(
 		events.RestoreEnd,
 		map[string]any{
 			// TODO: RestoreID
-			events.BackupID:          op.BackupID,
-			events.Status:            op.Status,
-			events.StartTime:         op.Results.StartedAt,
-			events.EndTime:           op.Results.CompletedAt,
-			events.Duration:          op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.ItemsRead:         op.Results.ItemsRead,
-			events.ItemsWritten:      op.Results.ItemsWritten,
-			events.ExchangeResources: op.Results.ResourceOwners,
+			events.BackupID:           op.BackupID,
+			events.Status:             op.Status,
+			events.StartTime:          op.Results.StartedAt,
+			events.EndTime:            op.Results.CompletedAt,
+			events.Duration:           op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.ItemsRead:          op.Results.ItemsRead,
+			events.ItemsWritten:       op.Results.ItemsWritten,
+			events.ExchangeResources:  op.Results.ResourceOwners,
+			events.ExchangeDataStored: op.Results.CollectedBytes,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)

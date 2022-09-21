@@ -11,8 +11,14 @@ import (
 )
 
 type mockColl struct {
-	p path.Path
+	p  path.Path
+	bs int64
 }
+
+var (
+	_ Collection  = &mockColl{}
+	_ ByteCounter = &mockColl{}
+)
 
 func (mc mockColl) Items() <-chan Stream {
 	return nil
@@ -20,6 +26,14 @@ func (mc mockColl) Items() <-chan Stream {
 
 func (mc mockColl) FullPath() path.Path {
 	return mc.p
+}
+
+func (mc *mockColl) CountBytes(i int64) {
+	mc.bs += i
+}
+
+func (mc mockColl) BytesCounted() int64 {
+	return mc.bs
 }
 
 type CollectionSuite struct {
@@ -42,7 +56,7 @@ func (suite *CollectionSuite) TestResourceOwnerSet() {
 			ToDataLayerExchangePathForCategory("tid", resource, path.EventsCategory, false)
 		require.NoError(t, err)
 
-		return mockColl{p}
+		return mockColl{p, 0}
 	}
 
 	table := []struct {
@@ -82,4 +96,17 @@ func (suite *CollectionSuite) TestResourceOwnerSet() {
 			assert.ElementsMatch(t, test.expect, rs)
 		})
 	}
+}
+
+func (suite *CollectionSuite) TestCountAllBytes() {
+	t := suite.T()
+
+	mc := &mockColl{}
+	assert.Zero(t, mc.BytesCounted())
+
+	mc.CountBytes(10)
+	assert.Equal(t, int64(10), mc.BytesCounted())
+
+	mc.CountBytes(20)
+	assert.Equal(t, int64(30), mc.BytesCounted())
 }
