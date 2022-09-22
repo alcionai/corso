@@ -30,7 +30,7 @@ export default function Home() {
   return (
     <Layout
       title={`${siteConfig.title}`}
-      description="Documentation for the Corso backup tool">
+      description="Documentation for Corso, a free, secure, and open-source backup tool for Microsoft 365">
       <HomepageHeader />
       <main>
         <HomepageFeatures />
