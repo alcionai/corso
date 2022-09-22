@@ -4,11 +4,11 @@ buildimage:
 	docker build -t "corso/website:latest" .
 
 dev:
-	docker run --rm -it --init -p 3000:3000 -p 3001:3001 \
+	docker run --rm -it --init -p 5050:3000 -p 5051:3001 \
 		-v ${PWD}:/usr/src/website corso/website gulp 
 
 shell:
-	docker run --rm -it -p 3000:3000 -p 3001:3001 \
+	docker run --rm -it -p 5050:3000 -p 5051:3001 \
 		-v ${PWD}:/usr/src/website corso/website /bin/bash
 
 build:
