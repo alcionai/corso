@@ -64,6 +64,7 @@ func driveItemWriter(ctx context.Context, service graph.Service, driveID, itemID
 ) (io.Writer, error) {
 	// TODO: @vkamra verify if var session is the desired input
 	session := msup.NewCreateUploadSessionPostRequestBody()
+
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
