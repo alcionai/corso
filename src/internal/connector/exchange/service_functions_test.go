@@ -1,20 +1,17 @@
-package exchange_test
+package exchange
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type ServiceFunctionsIntegrationSuite struct {
 	suite.Suite
-	gc         *connector.GraphConnector
 	m365UserID string
 }
 
@@ -30,21 +27,12 @@ func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) SetupSuite() {
-	t := suite.T()
-
-	_, err := tester.GetRequiredEnvSls(tester.AWSStorageCredEnvs)
-	require.NoError(t, err)
-
-	acct := tester.NewM365Account(t)
-	gc, err := connector.NewGraphConnector(acct)
-	require.NoError(t, err)
-
-	suite.gc = gc
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365UserID = tester.M365UserID(suite.T())
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
-	gs := suite.gc.Service()
+	gs := loadService(suite.T())
+	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -80,7 +68,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := exchange.GetAllCalendars(gs, test.user, test.contains)
+			cals, err := GetAllCalendars(ctx, gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -88,7 +76,8 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
-	gs := suite.gc.Service()
+	gs := loadService(suite.T())
+	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -124,7 +113,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := exchange.GetAllContactFolders(gs, test.user, test.contains)
+			cals, err := GetAllContactFolders(ctx, gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -132,7 +121,8 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
-	gs := suite.gc.Service()
+	gs := loadService(suite.T())
+	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -168,7 +158,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := exchange.GetAllMailFolders(gs, test.user, test.contains)
+			cals, err := GetAllMailFolders(ctx, gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})

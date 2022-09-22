@@ -114,7 +114,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}()
 
 	// retrieve data from the producer
-	gc, err := connector.NewGraphConnector(op.account)
+	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
 		err = errors.Wrap(err, "connecting to graph api")
 		opStats.readErr = err
