@@ -79,6 +79,12 @@ const config = {
       },
       footer: {
         style: 'dark',
+        logo: {
+          alt: 'Corso Logo',
+          src: 'img/corso_horizontal_logo_white.svg',
+          href: 'https://docs.corsobackup.io',
+          height: 60,
+        },
         links: [
           {
             title: 'Resources',
