@@ -23,6 +23,7 @@ import (
 // BackupGetter deals with retrieving metadata about backups from the
 // repository.
 type BackupGetter interface {
+	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
 	Backups(ctx context.Context) ([]backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
@@ -41,7 +42,6 @@ type Repository interface {
 		backupID string,
 		sel selectors.Selector,
 	) (operations.RestoreOperation, error)
-	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
 	DeleteBackup(ctx context.Context, id model.StableID) error
 	BackupGetter
 }
