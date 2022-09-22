@@ -57,11 +57,11 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: 'Corso',
+        title: '',
         logo: {
           alt: 'Corso Logo',
-          src: '/img/corso_logo.svg',
-          srcDark: 'img/corso_logo_white.svg',
+          src: '/img/corso_horizontal_logo.svg',
+          srcDark: 'img/corso_horizontal_logo_white.svg',
         },
         items: [
           {
