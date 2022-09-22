@@ -65,7 +65,7 @@ func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
-func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
+func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m356 account configuration")
@@ -85,7 +85,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 
 	gc.graphService = *aService
 
-	err = gc.setTenantUsers()
+	err = gc.setTenantUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -120,8 +120,8 @@ func (gs *graphService) EnableFailFast() {
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the return value is true
-func (gc *GraphConnector) setTenantUsers() error {
-	response, err := exchange.GetAllUsersForTenant(gc.graphService, "")
+func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
+	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
 	if err != nil {
 		return errors.Wrapf(
 			err,
@@ -168,7 +168,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		return true
 	}
 
-	iterateError := userIterator.Iterate(callbackFunc)
+	iterateError := userIterator.Iterate(ctx, callbackFunc)
 	if iterateError != nil {
 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
 	}
@@ -380,7 +380,7 @@ func (gc *GraphConnector) createCollections(
 		}
 		collections := make(map[string]*exchange.Collection)
 
-		response, err := query(&gc.graphService, qp.User)
+		response, err := query(ctx, &gc.graphService, qp.User)
 		if err != nil {
 			return nil, errors.Wrapf(
 				err,
@@ -401,7 +401,7 @@ func (gc *GraphConnector) createCollections(
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
 		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus)
-		iterateError := pageIterator.Iterate(callbackFunc)
+		iterateError := pageIterator.Iterate(ctx, callbackFunc)
 
 		if iterateError != nil {
 			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)

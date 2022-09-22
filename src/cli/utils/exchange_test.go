@@ -47,207 +47,247 @@ func (suite *ExchangeUtilsSuite) TestIncludeExchangeBackupDetailDataSelectors() 
 	a := []string{utils.Wildcard}
 
 	table := []struct {
-		name                                                                          string
-		contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string
-		expectIncludeLen                                                              int
+		name             string
+		opts             utils.ExchangeOpts
+		expectIncludeLen int
 	}{
 		{
 			name:             "no selectors",
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "any users",
-			users:            a,
+			name: "any users",
+			opts: utils.ExchangeOpts{
+				Users: a,
+			},
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "single user",
-			users:            stub,
+			name: "single user",
+			opts: utils.ExchangeOpts{
+				Users: stub,
+			},
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "multiple users",
-			users:            many,
+			name: "multiple users",
+			opts: utils.ExchangeOpts{
+				Users: many,
+			},
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "any users, any data",
-			contacts:         a,
-			contactFolders:   a,
-			emails:           a,
-			emailFolders:     a,
-			events:           a,
-			eventCalendars:   a,
-			users:            a,
+			name: "any users, any data",
+			opts: utils.ExchangeOpts{
+				Contacts:       a,
+				ContactFolders: a,
+				Emails:         a,
+				EmailFolders:   a,
+				Events:         a,
+				EventCalendars: a,
+				Users:          a,
+			},
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "any users, any folders",
-			contactFolders:   a,
-			emailFolders:     a,
-			eventCalendars:   a,
-			users:            a,
+			name: "any users, any folders",
+			opts: utils.ExchangeOpts{
+				ContactFolders: a,
+				EmailFolders:   a,
+				EventCalendars: a,
+				Users:          a,
+			},
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "single user, single of each data",
-			contacts:         stub,
-			contactFolders:   stub,
-			emails:           stub,
-			emailFolders:     stub,
-			events:           stub,
-			eventCalendars:   stub,
-			users:            stub,
+			name: "single user, single of each data",
+			opts: utils.ExchangeOpts{
+				Contacts:       stub,
+				ContactFolders: stub,
+				Emails:         stub,
+				EmailFolders:   stub,
+				Events:         stub,
+				EventCalendars: stub,
+				Users:          stub,
+			},
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "single user, single of each folder",
-			contactFolders:   stub,
-			emailFolders:     stub,
-			eventCalendars:   stub,
-			users:            stub,
+			name: "single user, single of each folder",
+			opts: utils.ExchangeOpts{
+				ContactFolders: stub,
+				EmailFolders:   stub,
+				EventCalendars: stub,
+				Users:          stub,
+			},
 			expectIncludeLen: 3,
 		},
 		{
-			name:             "any users, contacts",
-			contacts:         a,
-			contactFolders:   stub,
-			users:            a,
+			name: "any users, contacts",
+			opts: utils.ExchangeOpts{
+				Contacts:       a,
+				ContactFolders: stub,
+				Users:          a,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "single user, contacts",
-			contacts:         stub,
-			contactFolders:   stub,
-			users:            stub,
+			name: "single user, contacts",
+			opts: utils.ExchangeOpts{
+				Contacts:       stub,
+				ContactFolders: stub,
+				Users:          stub,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "any users, emails",
-			emails:           a,
-			emailFolders:     stub,
-			users:            a,
+			name: "any users, emails",
+			opts: utils.ExchangeOpts{
+				Emails:       a,
+				EmailFolders: stub,
+				Users:        a,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "single user, emails",
-			emails:           stub,
-			emailFolders:     stub,
-			users:            stub,
+			name: "single user, emails",
+			opts: utils.ExchangeOpts{
+				Emails:       stub,
+				EmailFolders: stub,
+				Users:        stub,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "any users, events",
-			events:           a,
-			eventCalendars:   a,
-			users:            a,
+			name: "any users, events",
+			opts: utils.ExchangeOpts{
+				Events:         a,
+				EventCalendars: a,
+				Users:          a,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "single user, events",
-			events:           stub,
-			eventCalendars:   stub,
-			users:            stub,
+			name: "single user, events",
+			opts: utils.ExchangeOpts{
+				Events:         stub,
+				EventCalendars: stub,
+				Users:          stub,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "any users, contacts + email",
-			contacts:         a,
-			contactFolders:   a,
-			emails:           a,
-			emailFolders:     a,
-			users:            a,
+			name: "any users, contacts + email",
+			opts: utils.ExchangeOpts{
+				Contacts:       a,
+				ContactFolders: a,
+				Emails:         a,
+				EmailFolders:   a,
+				Users:          a,
+			},
 			expectIncludeLen: 2,
 		},
 		{
-			name:             "single users, contacts + email",
-			contacts:         stub,
-			contactFolders:   stub,
-			emails:           stub,
-			emailFolders:     stub,
-			users:            stub,
+			name: "single users, contacts + email",
+			opts: utils.ExchangeOpts{
+				Contacts:       stub,
+				ContactFolders: stub,
+				Emails:         stub,
+				EmailFolders:   stub,
+				Users:          stub,
+			},
 			expectIncludeLen: 2,
 		},
 		{
-			name:             "any users, email + event",
-			emails:           a,
-			emailFolders:     a,
-			events:           a,
-			eventCalendars:   a,
-			users:            a,
+			name: "any users, email + event",
+			opts: utils.ExchangeOpts{
+				Emails:         a,
+				EmailFolders:   a,
+				Events:         a,
+				EventCalendars: a,
+				Users:          a,
+			},
 			expectIncludeLen: 2,
 		},
 		{
-			name:             "single users, email + event",
-			emails:           stub,
-			emailFolders:     stub,
-			events:           stub,
-			eventCalendars:   stub,
-			users:            stub,
+			name: "single users, email + event",
+			opts: utils.ExchangeOpts{
+				Emails:         stub,
+				EmailFolders:   stub,
+				Events:         stub,
+				EventCalendars: stub,
+				Users:          stub,
+			},
 			expectIncludeLen: 2,
 		},
 		{
-			name:             "any users, event + contact",
-			contacts:         a,
-			contactFolders:   a,
-			events:           a,
-			eventCalendars:   a,
-			users:            a,
+			name: "any users, event + contact",
+			opts: utils.ExchangeOpts{
+				Contacts:       a,
+				ContactFolders: a,
+				Events:         a,
+				EventCalendars: a,
+				Users:          a,
+			},
 			expectIncludeLen: 2,
 		},
 		{
-			name:             "single users, event + contact",
-			contacts:         stub,
-			contactFolders:   stub,
-			events:           stub,
-			eventCalendars:   stub,
-			users:            stub,
+			name: "single users, event + contact",
+			opts: utils.ExchangeOpts{
+				Contacts:       stub,
+				ContactFolders: stub,
+				Events:         stub,
+				EventCalendars: stub,
+				Users:          stub,
+			},
 			expectIncludeLen: 2,
 		},
 		{
-			name:             "many users, events",
-			events:           many,
-			eventCalendars:   many,
-			users:            many,
+			name: "many users, events",
+			opts: utils.ExchangeOpts{
+				Events:         many,
+				EventCalendars: many,
+				Users:          many,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "many users, events + contacts",
-			contacts:         many,
-			contactFolders:   many,
-			events:           many,
-			eventCalendars:   many,
-			users:            many,
+			name: "many users, events + contacts",
+			opts: utils.ExchangeOpts{
+				Contacts:       many,
+				ContactFolders: many,
+				Events:         many,
+				EventCalendars: many,
+				Users:          many,
+			},
 			expectIncludeLen: 2,
 		},
 		{
-			name:             "mail, no folder or user",
-			emails:           stub,
+			name: "mail, no folder or user",
+			opts: utils.ExchangeOpts{
+				Emails: stub,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "contacts, no folder or user",
-			contacts:         stub,
+			name: "contacts, no folder or user",
+			opts: utils.ExchangeOpts{
+				Contacts: stub,
+			},
 			expectIncludeLen: 1,
 		},
 		{
-			name:             "event, no folder or user",
-			events:           stub,
+			name: "event, no folder or user",
+			opts: utils.ExchangeOpts{
+				Events: stub,
+			},
 			expectIncludeLen: 1,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewExchangeRestore()
-			utils.IncludeExchangeRestoreDataSelectors(
-				sel,
-				test.contacts,
-				test.contactFolders,
-				test.emails,
-				test.emailFolders,
-				test.events,
-				test.eventCalendars,
-				test.users)
+			utils.IncludeExchangeRestoreDataSelectors(sel, test.opts)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}
@@ -257,101 +297,112 @@ func (suite *ExchangeUtilsSuite) TestFilterExchangeBackupDetailInfoSelectors() {
 	stub := "id-stub"
 
 	table := []struct {
-		name                                                       string
-		contactName                                                string
-		after, before, sender, subject                             string
-		organizer, recurs, startsAfter, startsBefore, eventSubject string
-		expectFilterLen                                            int
+		name            string
+		opts            utils.ExchangeOpts
+		expectFilterLen int
 	}{
 		{
 			name:            "no selectors",
 			expectFilterLen: 0,
 		},
 		{
-			name:            "contactName",
-			contactName:     stub,
+			name: "contactName",
+			opts: utils.ExchangeOpts{
+				ContactName: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "receivedAfter",
-			after:           stub,
+			name: "receivedAfter",
+			opts: utils.ExchangeOpts{
+				EmailReceivedAfter: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "receivedAfter",
-			after:           stub,
+			name: "receivedAfter",
+			opts: utils.ExchangeOpts{
+				EmailReceivedAfter: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "receivedBefore",
-			before:          stub,
+			name: "receivedBefore",
+			opts: utils.ExchangeOpts{
+				EmailReceivedBefore: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "sender",
-			sender:          stub,
+			name: "sender",
+			opts: utils.ExchangeOpts{
+				EmailSender: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "subject",
-			subject:         stub,
+			name: "subject",
+			opts: utils.ExchangeOpts{
+				EmailSubject: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "organizer",
-			organizer:       stub,
+			name: "organizer",
+			opts: utils.ExchangeOpts{
+				EventOrganizer: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "recurs",
-			recurs:          stub,
+			name: "recurs",
+			opts: utils.ExchangeOpts{
+				EventRecurs: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "startsAfter",
-			startsAfter:     stub,
+			name: "startsAfter",
+			opts: utils.ExchangeOpts{
+				EventStartsAfter: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "startsBefore",
-			startsBefore:    stub,
+			name: "startsBefore",
+			opts: utils.ExchangeOpts{
+				EventStartsBefore: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "eventSubject",
-			eventSubject:    stub,
+			name: "eventSubject",
+			opts: utils.ExchangeOpts{
+				EventSubject: stub,
+			},
 			expectFilterLen: 1,
 		},
 		{
-			name:            "one of each",
-			contactName:     stub,
-			after:           stub,
-			before:          stub,
-			sender:          stub,
-			subject:         stub,
-			organizer:       stub,
-			recurs:          stub,
-			startsAfter:     stub,
-			startsBefore:    stub,
-			eventSubject:    stub,
+			name: "one of each",
+			opts: utils.ExchangeOpts{
+				ContactName:         stub,
+				EmailReceivedAfter:  stub,
+				EmailReceivedBefore: stub,
+				EmailSender:         stub,
+				EmailSubject:        stub,
+				EventOrganizer:      stub,
+				EventRecurs:         stub,
+				EventStartsAfter:    stub,
+				EventStartsBefore:   stub,
+				EventSubject:        stub,
+			},
 			expectFilterLen: 10,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewExchangeRestore()
-			utils.FilterExchangeRestoreInfoSelectors(
-				sel,
-				test.contactName,
-				test.after,
-				test.before,
-				test.sender,
-				test.subject,
-				test.organizer,
-				test.recurs,
-				test.startsAfter,
-				test.startsBefore,
-				test.eventSubject)
+			utils.FilterExchangeRestoreInfoSelectors(sel, test.opts)
 			assert.Len(t, sel.Filters, test.expectFilterLen)
 		})
 	}

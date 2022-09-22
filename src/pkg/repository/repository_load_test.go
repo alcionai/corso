@@ -16,7 +16,7 @@ import (
 )
 
 func initM365Repo(t *testing.T) (
-	context.Context, *repository.Repository, account.Account, storage.Storage,
+	context.Context, repository.Repository, account.Account, storage.Storage,
 ) {
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
@@ -45,7 +45,7 @@ func initM365Repo(t *testing.T) (
 type RepositoryLoadTestExchangeSuite struct {
 	suite.Suite
 	ctx  context.Context
-	repo *repository.Repository
+	repo repository.Repository
 	acct account.Account
 	st   storage.Storage
 }
@@ -99,7 +99,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 type RepositoryLoadTestOneDriveSuite struct {
 	suite.Suite
 	ctx  context.Context
-	repo *repository.Repository
+	repo repository.Repository
 	acct account.Account
 	st   storage.Storage
 }

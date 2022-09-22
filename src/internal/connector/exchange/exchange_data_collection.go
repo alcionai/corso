@@ -133,7 +133,7 @@ func (col *Collection) populateByOptionIdentifier(
 	}
 
 	for _, identifier := range col.jobs {
-		response, err := query(col.service, user, identifier)
+		response, err := query(ctx, col.service, user, identifier)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
@@ -207,7 +207,7 @@ func eventToDataCollection(
 				UsersById(user).
 				EventsById(*event.GetId()).
 				Attachments().
-				Get()
+				Get(ctx, nil)
 			retriesErr = err
 
 			if err == nil && attached != nil {
@@ -311,7 +311,7 @@ func messageToDataCollection(
 				UsersById(user).
 				MessagesById(*aMessage.GetId()).
 				Attachments().
-				Get()
+				Get(ctx, nil)
 			retriesErr = err
 
 			if err == nil {
