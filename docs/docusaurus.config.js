@@ -7,7 +7,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Corso Documentation',
-  tagline: 'Because Backups Are Cool',
+  tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
   url: 'https://corsobackup.io',
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -97,8 +97,12 @@ const config = {
                 href: 'https://github.com/alcionai/corso/discussions',
               },
               {
+                label: 'Discord',
+                href: 'https://discord.gg/63DTTSnuhT',
+              },
+              {
                 label: 'Twitter',
-                href: 'https://twitter.com/alcionhq',
+                href: 'https://twitter.com/CorsoBackup',
               },
             ],
           },
@@ -109,6 +113,11 @@ const config = {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
               },
+              {
+                label: 'Corso Website',
+                href: 'https://corsobackup.io/',
+              },
+
             ],
           },
         ],
@@ -117,7 +126,7 @@ const config = {
       colorMode: {
         defaultMode: 'dark',
         disableSwitch: true,
-        respectPrefersColorScheme: true,
+        respectPrefersColorScheme: false,
       },
 
       zoom: {
