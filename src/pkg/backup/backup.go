@@ -32,6 +32,7 @@ type Backup struct {
 	Selectors selectors.Selector `json:"selectors"`
 
 	// stats are embedded so that the values appear as top-level properties
+	stats.Errs
 	stats.ReadWrites
 	stats.StartAndEndTime
 }

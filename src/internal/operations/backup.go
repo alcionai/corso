@@ -35,6 +35,7 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
+	stats.Errs
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
@@ -167,7 +168,9 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
-	op.Results.BytesWritten = opStats.k.TotalHashedBytes
+
+	op.Results.BytesRead = opStats.k.TotalHashedBytes
+	op.Results.BytesWritten = opStats.k.TotalWrittenBytes
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
