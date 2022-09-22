@@ -28,7 +28,7 @@ func RequireProps(props map[string]string) error {
 }
 
 // CloseRepo handles closing a repo.
-func CloseRepo(ctx context.Context, r *repository.Repository) {
+func CloseRepo(ctx context.Context, r repository.Repository) {
 	if err := r.Close(ctx); err != nil {
 		fmt.Print("Error closing repository:", err)
 	}

@@ -39,7 +39,7 @@ type RestoreExchangeIntegrationSuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
-	repo       *repository.Repository
+	repo       repository.Repository
 	m365UserID string
 	backupOps  map[path.CategoryType]operations.BackupOperation
 }

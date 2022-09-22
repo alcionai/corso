@@ -186,7 +186,7 @@ type purgable interface {
 
 func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		mfs, err := exchange.GetAllMailFolders(gs, uid, prefix)
+		mfs, err := exchange.GetAllMailFolders(ctx, gs, uid, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +201,7 @@ func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundar
 	}
 
 	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteMailFolder(gs, uid, fid)
+		return exchange.DeleteMailFolder(ctx, gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "mail", getter, deleter)
@@ -211,7 +211,7 @@ func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundar
 
 func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		cfs, err := exchange.GetAllCalendars(gs, uid, prefix)
+		cfs, err := exchange.GetAllCalendars(ctx, gs, uid, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +226,7 @@ func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, bou
 	}
 
 	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteCalendar(gs, uid, fid)
+		return exchange.DeleteCalendar(ctx, gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "calendar", getter, deleter)
@@ -236,7 +236,7 @@ func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, bou
 
 func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		cfs, err := exchange.GetAllContactFolders(gs, uid, prefix)
+		cfs, err := exchange.GetAllContactFolders(ctx, gs, uid, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +251,7 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 	}
 
 	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteContactFolder(gs, uid, fid)
+		return exchange.DeleteContactFolder(ctx, gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "contact", getter, deleter)
@@ -323,7 +323,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(acct)
+	gc, err := connector.NewGraphConnector(ctx, acct)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}
