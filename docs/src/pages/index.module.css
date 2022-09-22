@@ -23,7 +23,3 @@
   align-items: center;
   justify-content: center;
 }
-
-html[data-theme='dark'] {
-  --ifm-background-color: #111629;
-}
