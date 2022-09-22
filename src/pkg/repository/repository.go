@@ -20,8 +20,34 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+// BackupGetter deals with retrieving metadata about backups from the
+// repository.
+type BackupGetter interface {
+	Backups(ctx context.Context) ([]backup.Backup, error)
+	BackupDetails(
+		ctx context.Context,
+		backupID string,
+	) (*details.Details, *backup.Backup, error)
+}
+
+type Repository interface {
+	Close(context.Context) error
+	NewBackup(
+		ctx context.Context,
+		self selectors.Selector,
+	) (operations.BackupOperation, error)
+	NewRestore(
+		ctx context.Context,
+		backupID string,
+		sel selectors.Selector,
+	) (operations.RestoreOperation, error)
+	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
+	DeleteBackup(ctx context.Context, id model.StableID) error
+	BackupGetter
+}
+
 // Repository contains storage provider information.
-type Repository struct {
+type repository struct {
 	ID        uuid.UUID
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
@@ -48,7 +74,7 @@ func Initialize(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
-) (*Repository, error) {
+) (Repository, error) {
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		return nil, err
@@ -67,7 +93,7 @@ func Initialize(
 		return nil, err
 	}
 
-	r := Repository{
+	r := repository{
 		ID:         uuid.New(),
 		Version:    "v1",
 		Account:    acct,
@@ -92,7 +118,7 @@ func Connect(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
-) (*Repository, error) {
+) (Repository, error) {
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
@@ -112,7 +138,7 @@ func Connect(
 	}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
-	r := Repository{
+	r := repository{
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
@@ -124,7 +150,7 @@ func Connect(
 	return &r, nil
 }
 
-func (r *Repository) Close(ctx context.Context) error {
+func (r *repository) Close(ctx context.Context) error {
 	if err := r.Bus.Close(); err != nil {
 		logger.Ctx(ctx).Debugw("closing the event bus", "err", err)
 	}
@@ -149,7 +175,7 @@ func (r *Repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
-func (r Repository) NewBackup(
+func (r repository) NewBackup(
 	ctx context.Context,
 	selector selectors.Selector,
 ) (operations.BackupOperation, error) {
@@ -164,7 +190,7 @@ func (r Repository) NewBackup(
 }
 
 // NewRestore generates a restoreOperation runner.
-func (r Repository) NewRestore(
+func (r repository) NewRestore(
 	ctx context.Context,
 	backupID string,
 	sel selectors.Selector,
@@ -181,25 +207,25 @@ func (r Repository) NewRestore(
 }
 
 // backups lists a backup by id
-func (r Repository) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
+func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackup(ctx, id)
 }
 
 // backups lists backups in a repository
-func (r Repository) Backups(ctx context.Context) ([]backup.Backup, error) {
+func (r repository) Backups(ctx context.Context) ([]backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackups(ctx)
 }
 
 // BackupDetails returns the specified backup details object
-func (r Repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
+func (r repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetDetailsFromBackupID(ctx, model.StableID(backupID))
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
-func (r Repository) DeleteBackup(ctx context.Context, id model.StableID) error {
+func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 	bu, err := r.Backup(ctx, id)
 	if err != nil {
 		return err
