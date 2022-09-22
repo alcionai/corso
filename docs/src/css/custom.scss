@@ -82,20 +82,20 @@ html[data-theme='dark'] {
       background-color: var(--divider);
       border: 0;
 
-      >.cliFlagsCol {
+      > .cliFlagsCol {
         width: 20%;
       }
 
-      >.cliShortCol {
-        width: 5%;
+      > .cliShortCol {
+          width: 5%;
       }
 
-      >.cliDefaultCol {
+      > .cliDefaultCol {
         width: 20%;
       }
 
-      >.cliHelpCol {
-        width: 55%;
+      > .cliHelpCol {
+          width: 55%;
       }
 
 
@@ -147,7 +147,6 @@ html[data-theme='dark'] {
     }
 
     div[class*="codeBlockContainer"] {
-
       &,
       & pre {
         margin-bottom: 0;
