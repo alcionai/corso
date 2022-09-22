@@ -6,6 +6,26 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+type ExchangeOpts struct {
+	Contacts            []string
+	ContactFolders      []string
+	Emails              []string
+	EmailFolders        []string
+	Events              []string
+	EventCalendars      []string
+	Users               []string
+	ContactName         string
+	EmailReceivedAfter  string
+	EmailReceivedBefore string
+	EmailSender         string
+	EmailSubject        string
+	EventOrganizer      string
+	EventRecurs         string
+	EventStartsAfter    string
+	EventStartsBefore   string
+	EventSubject        string
+}
+
 // AddExchangeInclude adds the scope of the provided values to the selector's
 // inclusion set.  Any unpopulated slice will be replaced with selectors.Any()
 // to act as a wildcard.
@@ -64,43 +84,41 @@ func ValidateExchangeRestoreFlags(backupID string) error {
 // inclusions for exchange commands.
 func IncludeExchangeRestoreDataSelectors(
 	sel *selectors.ExchangeRestore,
-	contacts, contactFolders, emails, emailFolders, events, eventCalendars, users []string,
+	opts ExchangeOpts,
 ) {
-	lc, lcf := len(contacts), len(contactFolders)
-	le, lef := len(emails), len(emailFolders)
-	lev, lec := len(events), len(eventCalendars)
+	lc, lcf := len(opts.Contacts), len(opts.ContactFolders)
+	le, lef := len(opts.Emails), len(opts.EmailFolders)
+	lev, lec := len(opts.Events), len(opts.EventCalendars)
 	// either scope the request to a set of users
 	if lc+lcf+le+lef+lev+lec == 0 {
-		if len(users) == 0 {
-			users = selectors.Any()
+		if len(opts.Users) == 0 {
+			opts.Users = selectors.Any()
 		}
 
-		sel.Include(sel.Users(users))
+		sel.Include(sel.Users(opts.Users))
 
 		return
 	}
 
 	// or add selectors for each type of data
-	AddExchangeInclude(sel, users, contactFolders, contacts, sel.Contacts)
-	AddExchangeInclude(sel, users, emailFolders, emails, sel.Mails)
-	AddExchangeInclude(sel, users, eventCalendars, events, sel.Events)
+	AddExchangeInclude(sel, opts.Users, opts.ContactFolders, opts.Contacts, sel.Contacts)
+	AddExchangeInclude(sel, opts.Users, opts.EmailFolders, opts.Emails, sel.Mails)
+	AddExchangeInclude(sel, opts.Users, opts.EventCalendars, opts.Events, sel.Events)
 }
 
 // FilterExchangeRestoreInfoSelectors builds the common info-selector filters.
 func FilterExchangeRestoreInfoSelectors(
 	sel *selectors.ExchangeRestore,
-	contactName,
-	emailReceivedAfter, emailReceivedBefore, emailSender, emailSubject,
-	eventOrganizer, eventRecurs, eventStartsAfter, eventStartsBefore, eventSubject string,
+	opts ExchangeOpts,
 ) {
-	AddExchangeFilter(sel, contactName, sel.ContactName)
-	AddExchangeFilter(sel, emailReceivedAfter, sel.MailReceivedAfter)
-	AddExchangeFilter(sel, emailReceivedBefore, sel.MailReceivedBefore)
-	AddExchangeFilter(sel, emailSender, sel.MailSender)
-	AddExchangeFilter(sel, emailSubject, sel.MailSubject)
-	AddExchangeFilter(sel, eventOrganizer, sel.EventOrganizer)
-	AddExchangeFilter(sel, eventRecurs, sel.EventRecurs)
-	AddExchangeFilter(sel, eventStartsAfter, sel.EventStartsAfter)
-	AddExchangeFilter(sel, eventStartsBefore, sel.EventStartsBefore)
-	AddExchangeFilter(sel, eventSubject, sel.EventSubject)
+	AddExchangeFilter(sel, opts.ContactName, sel.ContactName)
+	AddExchangeFilter(sel, opts.EmailReceivedAfter, sel.MailReceivedAfter)
+	AddExchangeFilter(sel, opts.EmailReceivedBefore, sel.MailReceivedBefore)
+	AddExchangeFilter(sel, opts.EmailSender, sel.MailSender)
+	AddExchangeFilter(sel, opts.EmailSubject, sel.MailSubject)
+	AddExchangeFilter(sel, opts.EventOrganizer, sel.EventOrganizer)
+	AddExchangeFilter(sel, opts.EventRecurs, sel.EventRecurs)
+	AddExchangeFilter(sel, opts.EventStartsAfter, sel.EventStartsAfter)
+	AddExchangeFilter(sel, opts.EventStartsBefore, sel.EventStartsBefore)
+	AddExchangeFilter(sel, opts.EventSubject, sel.EventSubject)
 }
