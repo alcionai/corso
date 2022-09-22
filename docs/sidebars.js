@@ -17,6 +17,7 @@ const sidebars = {
   docsSidebar: [
     'intro',
     'install',
+    'tutorial',
     {
       type: 'category',
       label: 'Initial Configuration',

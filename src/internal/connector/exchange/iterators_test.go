@@ -163,7 +163,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			response, err := test.queryFunction(service, userID)
+			response, err := test.queryFunction(ctx, service, userID)
 			require.NoError(t, err)
 			// Create Iterator
 			pageIterator, err := msgraphgocore.NewPageIterator(response,
@@ -192,7 +192,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				collections,
 				nil)
 
-			iterateError := pageIterator.Iterate(callbackFunc)
+			iterateError := pageIterator.Iterate(ctx, callbackFunc)
 			assert.NoError(t, iterateError)
 			assert.NoError(t, errs)
 
