@@ -3,6 +3,7 @@ package kopia
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
@@ -35,6 +36,7 @@ var (
 type BackupStats struct {
 	SnapshotID          string
 	TotalFileCount      int
+	TotalHashedBytes    int64
 	TotalDirectoryCount int
 	IgnoredErrorCount   int
 	ErrorCount          int
@@ -42,10 +44,11 @@ type BackupStats struct {
 	IncompleteReason    string
 }
 
-func manifestToStats(man *snapshot.Manifest) BackupStats {
+func manifestToStats(man *snapshot.Manifest, progress *corsoProgress) BackupStats {
 	return BackupStats{
 		SnapshotID:          string(man.ID),
 		TotalFileCount:      int(man.Stats.TotalFileCount),
+		TotalHashedBytes:    progress.totalBytes,
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),
@@ -61,9 +64,10 @@ type itemDetails struct {
 
 type corsoProgress struct {
 	snapshotfs.UploadProgress
-	pending map[string]*itemDetails
-	deets   *details.Details
-	mu      sync.RWMutex
+	pending    map[string]*itemDetails
+	deets      *details.Details
+	mu         sync.RWMutex
+	totalBytes int64
 }
 
 // Kopia interface function used as a callback when kopia finishes processing a
@@ -118,6 +122,14 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	}
 
 	cp.deets.AddFolders(folders)
+}
+
+// Kopia interface function used as a callback when kopia finishes hashing a file.
+func (cp *corsoProgress) FinishedHashingFile(fname string, bytes int64) {
+	// Pass the call through as well so we don't break expected functionality.
+	defer cp.UploadProgress.FinishedHashingFile(fname, bytes)
+
+	atomic.AddInt64(&cp.totalBytes, bytes)
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {
@@ -441,7 +453,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 		return nil, errors.Wrap(err, "kopia backup")
 	}
 
-	res := manifestToStats(man)
+	res := manifestToStats(man, progress)
 
 	return &res, nil
 }

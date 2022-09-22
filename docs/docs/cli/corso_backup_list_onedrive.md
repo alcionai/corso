@@ -1,20 +1,20 @@
 ---
-title: corso backup list exchange
+title: corso backup list onedrive
 hide_title: true
 ---
-## corso backup list exchange
+## corso backup list onedrive
 
-List the history of M365 Exchange service backups
+List the history of M365 OneDrive service backups
 
 ```bash
-corso backup list exchange [flags]
+corso backup list onedrive [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--help`|`-h`|`false`|help for exchange|
+|`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags
 

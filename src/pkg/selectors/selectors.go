@@ -1,12 +1,14 @@
 package selectors
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
 
@@ -19,7 +21,10 @@ const (
 	ServiceOneDrive                // OneDrive
 )
 
-var ErrorBadSelectorCast = errors.New("wrong selector service type")
+var (
+	ErrorBadSelectorCast = errors.New("wrong selector service type")
+	ErrorNoMatchingItems = errors.New("no items match the specified selectors")
+)
 
 const (
 	scopeKeyCategory   = "category"
@@ -52,6 +57,10 @@ var (
 // All is the resource name that gets output when the resource is AnyTgt.
 // It is not used aside from printing resources.
 const All = "All"
+
+type Reducer interface {
+	Reduce(context.Context, *details.Details) *details.Details
+}
 
 // ---------------------------------------------------------------------------
 // Selector

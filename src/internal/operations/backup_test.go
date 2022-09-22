@@ -43,11 +43,13 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		acct  = account.Account{}
 		now   = time.Now()
 		stats = backupStats{
-			started:  true,
-			readErr:  multierror.Append(nil, assert.AnError),
-			writeErr: assert.AnError,
+			started:       true,
+			readErr:       multierror.Append(nil, assert.AnError),
+			writeErr:      assert.AnError,
+			resourceCount: 1,
 			k: &kopia.BackupStats{
-				TotalFileCount: 1,
+				TotalFileCount:   1,
+				TotalHashedBytes: 1,
 			},
 			gc: &support.ConnectorOperationStatus{
 				Successful: 1,
@@ -71,6 +73,8 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
+	assert.Equal(t, op.Results.BytesWritten, stats.k.TotalHashedBytes, "bytes written")
+	assert.Equal(t, op.Results.ResourceOwners, stats.resourceCount, "resource owners")
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
@@ -212,8 +216,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			require.NotEmpty(t, bo.Results)
 			require.NotEmpty(t, bo.Results.BackupID)
 			assert.Equal(t, bo.Status, Completed)
-			assert.Greater(t, bo.Results.ItemsRead, 0)
-			assert.Greater(t, bo.Results.ItemsWritten, 0)
+			assert.Less(t, 0, bo.Results.ItemsRead)
+			assert.Less(t, 0, bo.Results.ItemsWritten)
+			assert.Less(t, int64(0), bo.Results.BytesWritten)
+			assert.Equal(t, 1, bo.Results.ResourceOwners)
 			assert.Zero(t, bo.Results.ReadErrors)
 			assert.Zero(t, bo.Results.WriteErrors)
 			assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
@@ -271,6 +277,8 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 	require.NotEmpty(t, bo.Results.BackupID)
 	assert.Equal(t, bo.Status, Completed)
 	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
+	assert.Less(t, int64(0), bo.Results.BytesWritten)
+	assert.Equal(t, 1, bo.Results.ResourceOwners)
 	assert.NoError(t, bo.Results.ReadErrors)
 	assert.NoError(t, bo.Results.WriteErrors)
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
