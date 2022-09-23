@@ -234,6 +234,49 @@ func IterateAndFilterDescendablesForCollections(
 	}
 }
 
+func getCategoryAndValidation(es *selectors.ExchangeScope) (
+	optionIdentifier,
+	path.CategoryType,
+	func(namePtr *string) bool) {
+	var (
+		option   = scopeToOptionIdentifier(*es)
+		category path.CategoryType
+		validate func(namePtr *string) bool
+	)
+
+	switch option {
+	case messages:
+		category = path.EmailCategory
+		validate = func(namePtr *string) bool {
+			if namePtr == nil {
+				return true
+			}
+
+			return !es.Matches(selectors.ExchangeMailFolder, *namePtr)
+		}
+	case contacts:
+		category = path.ContactsCategory
+		validate = func(namePtr *string) bool {
+			if namePtr == nil {
+				return true
+			}
+
+			return !es.Matches(selectors.ExchangeContactFolder, *namePtr)
+		}
+	case events:
+		category = path.EventsCategory
+		validate = func(namePtr *string) bool {
+			if namePtr == nil {
+				return true
+			}
+
+			return !es.Matches(selectors.ExchangeEventCalendar, *namePtr)
+		}
+	}
+
+	return option, category, validate
+}
+
 func IterateFilterContainersForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
@@ -253,36 +296,7 @@ func IterateFilterContainersForCollections(
 
 	return func(folderItem any) bool {
 		if !isSet {
-			option = scopeToOptionIdentifier(qp.Scope)
-			switch option {
-			case messages:
-				category = path.EmailCategory
-				validate = func(namePtr *string) bool {
-					if namePtr == nil {
-						return true
-					}
-
-					return !qp.Scope.Matches(selectors.ExchangeMailFolder, *namePtr)
-				}
-			case contacts:
-				category = path.ContactsCategory
-				validate = func(namePtr *string) bool {
-					if namePtr == nil {
-						return true
-					}
-
-					return !qp.Scope.Matches(selectors.ExchangeContactFolder, *namePtr)
-				}
-			case events:
-				category = path.EventsCategory
-				validate = func(namePtr *string) bool {
-					if namePtr == nil {
-						return true
-					}
-
-					return !qp.Scope.Matches(selectors.ExchangeEventCalendar, *namePtr)
-				}
-			}
+			option, category, validate = getCategoryAndValidation(&qp.Scope)
 
 			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
 			if err != nil {
