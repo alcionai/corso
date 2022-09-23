@@ -602,7 +602,8 @@ func ReturnEventIDsFromCalendar(gs graph.Service, user, calendarID string) ([]st
 	}
 
 	if iterateErr := pageIterator.Iterate(callbackFunc); iterateErr != nil {
-		return nil, iterateErr
+		return nil,
+			errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(err))
 	}
 
 	if err != nil {
