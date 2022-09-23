@@ -239,7 +239,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
 	assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
 	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
-	assert.Less(t, 0, ro.Results.BytesRead, "bytes read")
+	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
