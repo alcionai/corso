@@ -16,7 +16,7 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="intro">
+            to="tutorial">
             Docusaurus Tutorial - 5min ⏱️
           </Link>
         </div>
@@ -30,7 +30,7 @@ export default function Home() {
   return (
     <Layout
       title={`${siteConfig.title}`}
-      description="Documentation for the Corso backup tool">
+      description="Documentation for Corso, a free, secure, and open-source backup tool for Microsoft 365">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

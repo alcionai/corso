@@ -29,6 +29,7 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
+	ctx := context.Background()
 	table := []struct {
 		name string
 		acct func(t *testing.T) account.Account
@@ -59,9 +60,10 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 			},
 		},
 	}
+
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			gc, err := NewGraphConnector(test.acct(t))
+			gc, err := NewGraphConnector(ctx, test.acct(t))
 			assert.Nil(t, gc, test.name+" failed")
 			assert.NotNil(t, err, test.name+"failed")
 		})

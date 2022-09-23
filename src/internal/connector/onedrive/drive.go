@@ -25,7 +25,7 @@ const (
 
 // Enumerates the drives for the specified user
 func drives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
-	r, err := service.Client().UsersById(user).Drives().Get()
+	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
 			user, support.ConnectorStackErrorTrace(err))
@@ -53,7 +53,7 @@ func collectItems(
 	builder := service.Client().DrivesById(driveID).Root().Delta()
 
 	for {
-		r, err := builder.Get()
+		r, err := builder.Get(ctx, nil)
 		if err != nil {
 			return errors.Wrapf(
 				err,
@@ -84,7 +84,7 @@ func collectItems(
 func getFolder(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
 	folderName string,
 ) (models.DriveItemable, error) {
-	children, err := service.Client().DrivesById(driveID).ItemsById(parentFolderID).Children().Get()
+	children, err := service.Client().DrivesById(driveID).ItemsById(parentFolderID).Children().Get(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -114,7 +114,7 @@ func createItem(ctx context.Context, service graph.Service, driveID string, pare
 
 	builder := items.NewItemsRequestBuilder(rawURL, service.Adapter())
 
-	newItem, err := builder.Post(item)
+	newItem, err := builder.Post(ctx, item, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
