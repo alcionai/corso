@@ -95,7 +95,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			events.StartTime: startTime,
 			events.Service:   op.Selectors.Service.String(),
 			// TODO: initial backup ID,
-			// TODO: events.ExchangeResources: <count of resources>,
 		},
 	)
 
