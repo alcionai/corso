@@ -31,7 +31,18 @@ const (
 	// Default Folder Names
 	//------------------------
 	// Mail Definitions: https://docs.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
+
+	// inbox and root
+	DefaultMailFolder    = "Inbox"
+	rootFolderAlias      = "msgfolderroot"
 	DefaultContactFolder = "Contacts"
+	DefaultCalendar      = "Calendar"
+
+	//---------------------
+	// Paging
+	//-----------------
+	// nextDataLink definition https://docs.microsoft.com/en-us/graph/paging
+	nextDataLink = "@odata.nextLink"
 )
 
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
@@ -46,4 +57,10 @@ type descendable interface {
 type displayable interface {
 	GetId() *string
 	GetDisplayName() *string
+}
+
+// container is an interface that implements both the descendable and displayble interface.
+type container interface {
+	descendable
+	displayable
 }
