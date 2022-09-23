@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -39,8 +38,6 @@ func initM365Repo(t *testing.T) (
 	repo, err := repository.Initialize(ctx, ac, st, opts)
 	require.NoError(t, err)
 
-	repo.Bus = evmock.NewBus()
-
 	return ctx, repo, ac, st
 }
 
@@ -70,7 +67,7 @@ func runBackupLoadTest(
 func runBackupListLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r *repository.Repository,
+	r repository.Repository,
 	name, expectID string,
 ) {
 	//revive:enable:context-as-argument
@@ -98,7 +95,7 @@ func runBackupListLoadTest(
 func runBackupDetailsLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r *repository.Repository,
+	r repository.Repository,
 	name, backupID string,
 ) {
 	//revive:enable:context-as-argument
