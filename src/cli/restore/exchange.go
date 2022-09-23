@@ -15,10 +15,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const (
-	defaultRestoreLocation = "Corso_Restore_"
-)
-
 // exchange bucket info from flags
 var (
 	backupID string
@@ -198,9 +194,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	restoreDest := control.RestoreDestination{
-		ContainerName: defaultRestoreLocation + common.FormatNow(common.SimpleDateTimeFormat),
-	}
+	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
 	if err != nil {

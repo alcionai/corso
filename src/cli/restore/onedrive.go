@@ -85,9 +85,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	restoreDest := control.RestoreDestination{
-		ContainerName: defaultRestoreLocation + common.FormatNow(common.SimpleDateTimeFormatOneDrive),
-	}
+	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
 	if err != nil {
