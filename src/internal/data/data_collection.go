@@ -3,8 +3,8 @@ package data
 import (
 	"io"
 
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ------------------------------------------------------------------------------------------------
