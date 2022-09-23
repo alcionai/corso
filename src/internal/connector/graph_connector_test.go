@@ -203,12 +203,12 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 				count++
 			}
 			assert.NotZero(t, count)
+
+			status := connector.AwaitStatus()
+			suite.NotNil(status)
+			suite.Equal(status.ObjectCount, status.Successful)
 		})
 	}
-
-	status := connector.AwaitStatus()
-	suite.NotNil(status)
-	suite.Equal(status.ObjectCount, status.Successful)
 }
 
 // TestEventsSerializationRegression ensures functionality of createCollections
@@ -267,12 +267,12 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 				assert.NotNil(t, event)
 				assert.NoError(t, err, "experienced error parsing event bytes: "+string(buf.Bytes()))
 			}
+
+			status := connector.AwaitStatus()
+			suite.NotNil(status)
+			suite.Equal(status.ObjectCount, status.Successful)
 		})
 	}
-
-	status := connector.AwaitStatus()
-	suite.NotNil(status)
-	suite.Equal(status.ObjectCount, status.Successful)
 }
 
 // TestAccessOfInboxAllUsers verifies that GraphConnector can
