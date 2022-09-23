@@ -215,7 +215,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 		number := 0
 
 		for stream := range streamChannel {
-			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath().ResourceOwner(), number)
+			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath().Folder(), number)
 			suite.T().Run(testName, func(t *testing.T) {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
