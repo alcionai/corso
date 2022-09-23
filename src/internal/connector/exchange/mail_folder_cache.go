@@ -12,19 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/path"
 )
 
-const (
-	// rootFolderAlias is the per-user root container alias for the exchange email
-	// hierarchy.
-	rootFolderAlias = "msgfolderroot"
-	// nextDataLink is a random map key so we can iterate through delta results.
-	nextDataLink = "@odata.nextLink"
-)
-
-type container interface {
-	descendable
-	displayable
-}
-
 // cachedContainer is used for local unit tests but also makes it so that this
 // code can be broken into generic- and service-specific chunks later on to
 // reuse logic in IDToPath.

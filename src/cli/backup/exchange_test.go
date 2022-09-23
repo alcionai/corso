@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -214,3 +216,56 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		})
 	}
 }
+
+func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
+	ctx := context.Background()
+
+	for _, test := range testdata.ExchangeOptionDetailLookups {
+		suite.T().Run(test.Name, func(t *testing.T) {
+			output, err := runDetailsExchangeCmd(
+				ctx,
+				test.BackupGetter,
+				"backup-ID",
+				test.Opts,
+			)
+			assert.NoError(t, err)
+
+			assert.ElementsMatch(t, test.Expected, output.Entries)
+		})
+	}
+}
+
+func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadBackupID() {
+	t := suite.T()
+	ctx := context.Background()
+	backupGetter := &testdata.MockBackupGetter{}
+
+	output, err := runDetailsExchangeCmd(
+		ctx,
+		backupGetter,
+		"backup-ID",
+		utils.ExchangeOpts{},
+	)
+	assert.Error(t, err)
+
+	assert.Empty(t, output)
+}
+
+// TODO(ashmrtn): Uncomment these when the CLI validates flag input values.
+//func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
+//	ctx := context.Background()
+//
+//	for _, test := range testdata.BadExchangeOptionsFormats {
+//		suite.T().Run(test.Name, func(t *testing.T) {
+//			output, err := runDetailsExchangeCmd(
+//				ctx,
+//				test.BackupGetter,
+//				"backup-ID",
+//				test.Opts,
+//			)
+//			assert.Error(t, err)
+//
+//			assert.Empty(t, output)
+//		})
+//	}
+//}
