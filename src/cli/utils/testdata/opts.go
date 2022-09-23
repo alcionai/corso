@@ -23,7 +23,7 @@ type ExchangeOptionsTest struct {
 
 var (
 
-	// BadExchagneOptionsFormats contains ExchangeOpts with flags that should
+	// BadExchangeOptionsFormats contains ExchangeOpts with flags that should
 	// cause errors about the format of the input flag. Mocks are configured to
 	// allow the system to run if it doesn't throw an error on formatting.
 	BadExchangeOptionsFormats = []ExchangeOptionsTest{
