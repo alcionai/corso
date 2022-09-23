@@ -1,6 +1,8 @@
 package backup
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -11,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -353,11 +356,6 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	d, _, err := r.BackupDetails(ctx, backupID)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to get backup details in the repository"))
-	}
-
 	opts := utils.ExchangeOpts{
 		Contacts:            contact,
 		ContactFolders:      contactFolder,
@@ -378,6 +376,34 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventSubject:        eventSubject,
 	}
 
+	ds, err := runDetailsExchangeCmd(ctx, r, backupID, opts)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	if len(ds.Entries) == 0 {
+		Info(ctx, selectors.ErrorNoMatchingItems)
+		return nil
+	}
+
+	ds.PrintEntries(ctx)
+
+	return nil
+}
+
+// runDetailsExchangeCmd actually performs the lookup in backup details. Assumes
+// len(backupID) > 0.
+func runDetailsExchangeCmd(
+	ctx context.Context,
+	r repository.BackupGetter,
+	backupID string,
+	opts utils.ExchangeOpts,
+) (*details.Details, error) {
+	d, _, err := r.BackupDetails(ctx, backupID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
+	}
+
 	sel := selectors.NewExchangeRestore()
 	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
@@ -387,15 +413,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	ds := sel.Reduce(ctx, d)
-	if len(ds.Entries) == 0 {
-		Info(ctx, selectors.ErrorNoMatchingItems)
-		return nil
-	}
-
-	ds.PrintEntries(ctx)
-
-	return nil
+	return sel.Reduce(ctx, d), nil
 }
 
 // ------------------------------------------------------------------------------------------------
