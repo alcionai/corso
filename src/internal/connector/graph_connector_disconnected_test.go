@@ -10,10 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------
@@ -171,4 +174,15 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 			t.Logf("Is nil: %v", test.err == nil)
 		})
 	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
+	ctx := context.Background()
+	gc := GraphConnector{}
+	sel := selectors.Selector{
+		Service: selectors.ServiceUnknown,
+	}
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+
+	assert.Error(suite.T(), gc.RestoreDataCollections(ctx, sel, dest, nil))
 }
