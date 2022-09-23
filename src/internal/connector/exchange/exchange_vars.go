@@ -43,7 +43,6 @@ const (
 	//-----------------
 	// nextDataLink definition https://docs.microsoft.com/en-us/graph/paging
 	nextDataLink = "@odata.nextLink"
-
 )
 
 // descendable represents objects that implement msgraph-sdk-go/models.entityable
