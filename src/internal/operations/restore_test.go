@@ -268,8 +268,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		mb)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
-	assert.Equal(t, 0, ro.Results.ResourceOwners, "resource owners")
-	assert.Equal(t, 0, ro.Results.BytesRead, "bytes read")
+	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
+	assert.Zero(t, ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
-	assert.Equal(t, 0, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+	assert.Zero(t, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }
