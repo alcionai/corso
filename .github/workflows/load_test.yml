@@ -1,13 +1,18 @@
 name: Nightly Load Testing
-on:
-  schedule:
-    # every day at 01:59 (01:59am) UTC
-    - cron: "59 1 * * *"
+on: push
+  # schedule:
+  #   # every day at 01:59 (01:59am) UTC
+  #   - cron: "59 1 * * *"
 
 permissions:
   # required to retrieve AWS credentials
   id-token: write
-  contents: read
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: load_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   Load-Tests:
@@ -23,6 +28,8 @@ jobs:
         uses: magnetikonline/action-golang-cache@v3
         with:
           go-version-file: src/go.mod
+
+      - run: mkdir test_results
 
       # Install gotestfmt
       - name: Set up gotestfmt
@@ -47,16 +54,25 @@ jobs:
         run: |
           set -euo pipefail
           go test       \
+          -count=1      \
           -json         \
           -v            \
-          -count=1      \
           --timeout 12h \
-          ./... 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests
+          -blockprofile=block.prof \
+          -cpuprofile=cpu.prof     \
+          -memprofile=mem.prof     \
+          -mutexprofile=mutex.prof \
+          -trace=trace.out         \
+          -outputdir=test_results  \
+          ./pkg/repository/repository_load_test.go \
+          2>&1 | tee ./test_results/goloadtest.log | gotestfmt -hide successful-tests
 
-      # Upload the original go test log as an artifact for later review.
-      - name: Upload test log
-        uses: actions/upload-artifact@v2
+      # package all artifacts for later review
+      - name: Upload Log, Profilers, Traces
+        if: always()
+        uses: actions/upload-artifact@v3
         with:
-          name: test-log
-          path: /tmp/gotest.log
+          name: load-cpu-prof
+          path: src/test_results/*
           if-no-files-found: error
+          retention-days: 14

@@ -9,9 +9,11 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -105,9 +107,20 @@ func runBackupDetailsLoadTest(
 	t.Run("backup_details_"+name, func(t *testing.T) {
 		ds, b, err := r.BackupDetails(ctx, backupID)
 		require.NoError(t, err, "retrieving details in backup "+backupID)
-		require.NotNil(t, ds, "backup details")
-		require.NotNil(t, b, "backup")
-		assert.Equal(t, b.ItemsWritten, len(ds.Entries))
+		require.NotNil(t, ds, "backup details must exist")
+		require.NotNil(t, b, "backup must exist")
+
+		sansfldr := []details.DetailsEntry{}
+
+		for _, ent := range ds.Entries {
+			if ent.Folder == nil {
+				sansfldr = append(sansfldr, ent)
+			}
+		}
+
+		assert.Equal(t,
+			b.ItemsWritten, len(sansfldr),
+			"items written to backup must match the count of entries, minus folder entries")
 	})
 }
 
@@ -156,6 +169,7 @@ func TestRepositoryLoadTestExchangeSuite(t *testing.T) {
 
 func (suite *RepositoryLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
+	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 }
 
@@ -179,13 +193,12 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 		service = "exchange"
 	)
 
-	t.Parallel()
-
 	m356User := tester.M365UserID(t)
 
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m356User}))
+	bsel.Include(bsel.MailFolders([]string{m356User}, []string{exchange.DefaultMailFolder}))
+	// bsel.Include(bsel.Users([]string{m356User}))
 	// bsel.Include(bsel.Users(selectors.Any()))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
@@ -231,6 +244,7 @@ func TestRepositoryLoadTestOneDriveSuite(t *testing.T) {
 
 func (suite *RepositoryLoadTestOneDriveSuite) SetupSuite() {
 	t := suite.T()
+	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 }
 
@@ -253,12 +267,14 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 		r       = suite.repo
 		service = "one_drive"
 	)
+	t.Skip("temp issue-902-live")
 
-	t.Parallel()
+	m356User := tester.M365UserID(t)
 
 	// backup
 	bsel := selectors.NewOneDriveBackup()
-	bsel.Include(bsel.Users(selectors.Any()))
+	bsel.Include(bsel.Users([]string{m356User}))
+	// bsel.Include(bsel.Users(selectors.Any()))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
