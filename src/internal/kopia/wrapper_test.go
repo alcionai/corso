@@ -143,57 +143,69 @@ func (suite *CorsoProgressUnitSuite) SetupSuite() {
 	suite.targetFileName = suite.targetFilePath.ToBuilder().Dir().String()
 }
 
-func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
-	type testInfo struct {
-		info *itemDetails
-		err  error
-	}
+type testInfo struct {
+	info       *itemDetails
+	err        error
+	totalBytes int64
+}
 
-	deets := &itemDetails{details.ItemInfo{}, suite.targetFilePath}
-
-	table := []struct {
-		name        string
-		cachedItems map[string]testInfo
-		expectedLen int
-		err         error
-	}{
-		{
-			name: "DetailsExist",
-			cachedItems: map[string]testInfo{
-				suite.targetFileName: {
-					info: deets,
-					err:  nil,
+var finishedFileTable = []struct {
+	name               string
+	cachedItems        func(fname string, fpath path.Path) map[string]testInfo
+	expectedBytes      int64
+	expectedNumEntries int
+	err                error
+}{
+	{
+		name: "DetailsExist",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return map[string]testInfo{
+				fname: {
+					info:       &itemDetails{details.ItemInfo{}, fpath},
+					err:        nil,
+					totalBytes: 100,
 				},
-			},
-			// 1 file and 5 folders.
-			expectedLen: 6,
+			}
 		},
-		{
-			name: "PendingNoDetails",
-			cachedItems: map[string]testInfo{
-				suite.targetFileName: {
+		expectedBytes: 100,
+		// 1 file and 5 folders.
+		expectedNumEntries: 6,
+	},
+	{
+		name: "PendingNoDetails",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return map[string]testInfo{
+				fname: {
 					info: nil,
 					err:  nil,
 				},
-			},
-			expectedLen: 0,
+			}
 		},
-		{
-			name: "HadError",
-			cachedItems: map[string]testInfo{
-				suite.targetFileName: {
-					info: deets,
+		expectedNumEntries: 0,
+	},
+	{
+		name: "HadError",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return map[string]testInfo{
+				fname: {
+					info: &itemDetails{details.ItemInfo{}, fpath},
 					err:  assert.AnError,
 				},
-			},
-			expectedLen: 0,
+			}
 		},
-		{
-			name:        "NotPending",
-			expectedLen: 0,
+		expectedNumEntries: 0,
+	},
+	{
+		name: "NotPending",
+		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
+			return nil
 		},
-	}
-	for _, test := range table {
+		expectedNumEntries: 0,
+	},
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
+	for _, test := range finishedFileTable {
 		suite.T().Run(test.name, func(t *testing.T) {
 			bd := &details.Details{}
 			cp := corsoProgress{
@@ -202,18 +214,20 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 				pending:        map[string]*itemDetails{},
 			}
 
-			for k, v := range test.cachedItems {
+			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
+
+			for k, v := range ci {
 				cp.put(k, v.info)
 			}
 
-			require.Len(t, cp.pending, len(test.cachedItems))
+			require.Len(t, cp.pending, len(ci))
 
-			for k, v := range test.cachedItems {
+			for k, v := range ci {
 				cp.FinishedFile(k, v.err)
 			}
 
 			assert.Empty(t, cp.pending)
-			assert.Len(t, bd.Entries, test.expectedLen)
+			assert.Len(t, bd.Entries, test.expectedNumEntries)
 		})
 	}
 }
@@ -277,6 +291,28 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 	assert.Empty(t, rootRef.ParentRef)
 }
 
+func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
+	for _, test := range finishedFileTable {
+		suite.T().Run(test.name, func(t *testing.T) {
+			bd := &details.Details{}
+			cp := corsoProgress{
+				UploadProgress: &snapshotfs.NullUploadProgress{},
+				deets:          bd,
+				pending:        map[string]*itemDetails{},
+			}
+
+			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
+
+			for k, v := range ci {
+				cp.FinishedHashingFile(k, v.totalBytes)
+			}
+
+			assert.Empty(t, cp.pending)
+			assert.Equal(t, test.expectedBytes, cp.totalBytes)
+		})
+	}
+}
+
 type KopiaUnitSuite struct {
 	suite.Suite
 	testPath path.Path
@@ -316,7 +352,9 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	ctx := context.Background()
 	tenant := "a-tenant"
 	user1 := testUser
+	user1Encoded := encodeAsPath(user1)
 	user2 := "user2"
+	user2Encoded := encodeAsPath(user2)
 
 	p2, err := path.FromDataLayerPath(
 		stdpath.Join(
@@ -330,9 +368,10 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	)
 	require.NoError(t, err)
 
+	// Encode user names here so we don't have to decode things later.
 	expectedFileCount := map[string]int{
-		user1: 5,
-		user2: 42,
+		user1Encoded: 5,
+		user2Encoded: 42,
 	}
 
 	progress := &corsoProgress{pending: map[string]*itemDetails{}}
@@ -340,11 +379,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			suite.testPath,
-			expectedFileCount[user1],
+			expectedFileCount[user1Encoded],
 		),
 		mockconnector.NewMockExchangeCollection(
 			p2,
-			expectedFileCount[user2],
+			expectedFileCount[user2Encoded],
 		),
 	}
 
@@ -361,24 +400,24 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//           - 42 separate files
 	dirTree, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(t, err)
-	assert.Equal(t, testTenant, dirTree.Name())
+	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
 	require.NoError(t, err)
 
-	expectDirs(t, entries, []string{service}, true)
+	expectDirs(t, entries, encodeElements(service), true)
 
 	entries = getDirEntriesForEntry(t, ctx, entries[0])
-	expectDirs(t, entries, []string{user1, user2}, true)
+	expectDirs(t, entries, encodeElements(user1, user2), true)
 
 	for _, entry := range entries {
 		userName := entry.Name()
 
 		entries = getDirEntriesForEntry(t, ctx, entry)
-		expectDirs(t, entries, []string{category}, true)
+		expectDirs(t, entries, encodeElements(category), true)
 
 		entries = getDirEntriesForEntry(t, ctx, entries[0])
-		expectDirs(t, entries, []string{testInboxDir}, true)
+		expectDirs(t, entries, encodeElements(testInboxDir), true)
 
 		entries = getDirEntriesForEntry(t, ctx, entries[0])
 		assert.Len(t, entries, expectedFileCount[userName])
@@ -447,21 +486,21 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 
 			dirTree, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
-			assert.Equal(t, testTenant, dirTree.Name())
+			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 			entries, err := fs.GetAllEntries(ctx, dirTree)
 			require.NoError(t, err)
 
-			expectDirs(t, entries, []string{service}, true)
+			expectDirs(t, entries, encodeElements(service), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
-			expectDirs(t, entries, []string{testUser}, true)
+			expectDirs(t, entries, encodeElements(testUser), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
-			expectDirs(t, entries, []string{category}, true)
+			expectDirs(t, entries, encodeElements(category), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
-			expectDirs(t, entries, []string{testInboxDir}, true)
+			expectDirs(t, entries, encodeElements(testInboxDir), true)
 
 			entries = getDirEntriesForEntry(t, ctx, entries[0])
 			// 42 files and 1 subdirectory.
@@ -476,7 +515,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 				}
 
 				subDirs = append(subDirs, d)
-				assert.Equal(t, subdir, d.Name())
+				assert.Equal(t, encodeAsPath(subdir), d.Name())
 			}
 
 			require.Len(t, subDirs, 1)
@@ -888,53 +927,93 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
+	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		true,
+	)
+	require.NoError(suite.T(), err)
+
+	// Expected items is generated during the test by looking up paths in the
+	// suite's map of files. Files that are not in the suite's map are assumed to
+	// generate errors and not be in the output.
 	table := []struct {
-		name string
-		// This is both input and can be used to lookup expected output information.
-		items               []*backedupFile
+		name                string
+		inputPaths          []path.Path
 		expectedCollections int
+		expectedErr         assert.ErrorAssertionFunc
 	}{
 		{
 			name: "SingleItem",
-			items: []*backedupFile{
-				suite.files[suite.testPath1.String()][0],
+			inputPaths: []path.Path{
+				suite.files[suite.testPath1.String()][0].itemPath,
 			},
 			expectedCollections: 1,
+			expectedErr:         assert.NoError,
 		},
 		{
 			name: "MultipleItemsSameCollection",
-			items: []*backedupFile{
-				suite.files[suite.testPath1.String()][0],
-				suite.files[suite.testPath1.String()][1],
+			inputPaths: []path.Path{
+				suite.files[suite.testPath1.String()][0].itemPath,
+				suite.files[suite.testPath1.String()][1].itemPath,
 			},
 			expectedCollections: 1,
+			expectedErr:         assert.NoError,
 		},
 		{
 			name: "MultipleItemsDifferentCollections",
-			items: []*backedupFile{
-				suite.files[suite.testPath1.String()][0],
-				suite.files[suite.testPath2.String()][0],
+			inputPaths: []path.Path{
+				suite.files[suite.testPath1.String()][0].itemPath,
+				suite.files[suite.testPath2.String()][0].itemPath,
 			},
 			expectedCollections: 2,
+			expectedErr:         assert.NoError,
+		},
+		{
+			name: "TargetNotAFile",
+			inputPaths: []path.Path{
+				suite.files[suite.testPath1.String()][0].itemPath,
+				suite.testPath1,
+				suite.files[suite.testPath2.String()][0].itemPath,
+			},
+			expectedCollections: 2,
+			expectedErr:         assert.Error,
+		},
+		{
+			name: "NonExistentFile",
+			inputPaths: []path.Path{
+				suite.files[suite.testPath1.String()][0].itemPath,
+				doesntExist,
+				suite.files[suite.testPath2.String()][0].itemPath,
+			},
+			expectedCollections: 2,
+			expectedErr:         assert.Error,
 		},
 	}
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			inputPaths := make([]path.Path, 0, len(test.items))
-			expected := make(map[string][]byte, len(test.items))
+			// May slightly overallocate as only items that are actually in our map
+			// are expected. The rest are errors, but best-effort says it should carry
+			// on even then.
+			expected := make(map[string][]byte, len(test.inputPaths))
 
-			for _, item := range test.items {
-				inputPaths = append(inputPaths, item.itemPath)
-				expected[item.itemPath.String()] = suite.filesByPath[item.itemPath.String()].data
+			for _, pth := range test.inputPaths {
+				item, ok := suite.filesByPath[pth.String()]
+				if !ok {
+					continue
+				}
+
+				expected[pth.String()] = item.data
 			}
 
 			result, err := suite.w.RestoreMultipleItems(
 				suite.ctx,
 				string(suite.snapshotID),
-				inputPaths,
+				test.inputPaths,
 			)
-			require.NoError(t, err)
+			test.expectedErr(t, err)
 
 			assert.Len(t, result, test.expectedCollections)
 			testForFiles(t, expected, result)
@@ -944,14 +1023,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
 	itemPath, err := suite.testPath1.Append(testFileName, true)
-	require.NoError(suite.T(), err)
-
-	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
-		testTenant,
-		testUser,
-		path.EmailCategory,
-		true,
-	)
 	require.NoError(suite.T(), err)
 
 	table := []struct {
@@ -974,26 +1045,17 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 			"foo",
 			[]path.Path{itemPath},
 		},
-		{
-			"TargetNotAFile",
-			string(suite.snapshotID),
-			[]path.Path{suite.testPath1},
-		},
-		{
-			"NonExistentFile",
-			string(suite.snapshotID),
-			[]path.Path{doesntExist},
-		},
 	}
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := suite.w.RestoreMultipleItems(
+			c, err := suite.w.RestoreMultipleItems(
 				suite.ctx,
 				test.snapshotID,
 				test.paths,
 			)
-			require.Error(t, err)
+			assert.Error(t, err)
+			assert.Empty(t, c)
 		})
 	}
 }
@@ -1005,12 +1067,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 
 	// assert the deletion worked
 	itemPath := suite.files[suite.testPath1.String()][0].itemPath
-	_, err := suite.w.RestoreMultipleItems(
+	c, err := suite.w.RestoreMultipleItems(
 		suite.ctx,
 		string(suite.snapshotID),
 		[]path.Path{itemPath},
 	)
 	assert.Error(t, err, "snapshot should be deleted")
+	assert.Empty(t, c)
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot_BadIDs() {

@@ -31,6 +31,7 @@ const (
 	// Default Folder Names
 	//------------------------
 	// Mail Definitions: https://docs.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
+
 	// inbox and root
 	DefaultMailFolder    = "Inbox"
 	rootFolderAlias      = "msgfolderroot"
@@ -42,6 +43,7 @@ const (
 	//-----------------
 	// nextDataLink definition https://docs.microsoft.com/en-us/graph/paging
 	nextDataLink = "@odata.nextLink"
+
 )
 
 // descendable represents objects that implement msgraph-sdk-go/models.entityable

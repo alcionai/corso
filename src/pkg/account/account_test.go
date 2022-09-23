@@ -9,7 +9,12 @@ import (
 
 type testConfig struct {
 	expect string
+	id     string
 	err    error
+}
+
+func (c testConfig) providerID(ap accountProvider) string {
+	return c.id
 }
 
 func (c testConfig) StringConfig() (map[string]string, error) {
@@ -31,10 +36,10 @@ func (suite *AccountSuite) TestNewAccount() {
 		c        testConfig
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"unknown no error", ProviderUnknown, testConfig{"configVal", nil}, assert.NoError},
-		{"m365 no error", ProviderM365, testConfig{"configVal", nil}, assert.NoError},
-		{"unknown w/ error", ProviderUnknown, testConfig{"configVal", assert.AnError}, assert.Error},
-		{"m365 w/ error", ProviderM365, testConfig{"configVal", assert.AnError}, assert.Error},
+		{"unknown no error", ProviderUnknown, testConfig{"configVal", "", nil}, assert.NoError},
+		{"m365 no error", ProviderM365, testConfig{"configVal", "", nil}, assert.NoError},
+		{"unknown w/ error", ProviderUnknown, testConfig{"configVal", "", assert.AnError}, assert.Error},
+		{"m365 w/ error", ProviderM365, testConfig{"configVal", "", assert.AnError}, assert.Error},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

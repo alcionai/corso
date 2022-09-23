@@ -41,6 +41,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(ItemIntegrationSuite))
 }
 
@@ -85,6 +86,7 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 				break
 			}
 		}
+
 		return nil
 	}
 	err = collectItems(ctx, suite, driveID, itemCollector)
@@ -104,6 +106,7 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 	name, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
 	require.NoError(suite.T(), err)
 	require.NotEmpty(suite.T(), name)
+
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(suite.T(), err)
 	require.NotZero(suite.T(), size)
@@ -125,7 +128,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	// Pick the first drive
 	driveID := *drives[0].GetId()
 
-	root, err := suite.Client().DrivesById(driveID).Root().Get()
+	root, err := suite.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: "Test Folder" should exist

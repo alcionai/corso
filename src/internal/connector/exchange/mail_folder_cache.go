@@ -42,7 +42,7 @@ type mailFolderCache struct {
 
 // populateRoot fetches and populates the root folder in the cache so the cache
 // knows when to stop resolving the path.
-func (mc *mailFolderCache) populateRoot(context.Context) error {
+func (mc *mailFolderCache) populateRoot(ctx context.Context) error {
 	wantedOpts := []string{"displayName", "parentFolderId"}
 
 	opts, err := optionsForMailFoldersItem(wantedOpts)
@@ -55,7 +55,7 @@ func (mc *mailFolderCache) populateRoot(context.Context) error {
 		Client().
 		UsersById(mc.userID).
 		MailFoldersById(rootFolderAlias).
-		GetWithRequestConfigurationAndResponseHandler(opts, nil)
+		Get(ctx, opts)
 	if err != nil {
 		return errors.Wrapf(err, "fetching root folder")
 	}
@@ -112,7 +112,7 @@ func (mc *mailFolderCache) Populate(ctx context.Context) error {
 	var errs *multierror.Error
 
 	for {
-		resp, err := builder.Get()
+		resp, err := builder.Get(ctx, nil)
 		if err != nil {
 			return err
 		}

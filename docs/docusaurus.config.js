@@ -7,7 +7,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Corso Documentation',
-  tagline: 'Because Backups Are Cool',
+  tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
   url: 'https://corsobackup.io',
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -57,11 +57,11 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: 'Corso',
+        title: '',
         logo: {
           alt: 'Corso Logo',
-          src: '/img/corso_logo.svg',
-          srcDark: 'img/corso_logo_white.svg',
+          src: '/img/corso_horizontal_logo.svg',
+          srcDark: 'img/corso_horizontal_logo_white.svg',
         },
         items: [
           {
@@ -79,6 +79,11 @@ const config = {
       },
       footer: {
         style: 'dark',
+        logo: {
+          alt: 'Corso Logo',
+          src: 'img/corso_horizontal_logo_white.svg',
+          height: 60,
+        },
         links: [
           {
             title: 'Resources',
@@ -97,8 +102,12 @@ const config = {
                 href: 'https://github.com/alcionai/corso/discussions',
               },
               {
+                label: 'Discord',
+                href: 'https://discord.gg/63DTTSnuhT',
+              },
+              {
                 label: 'Twitter',
-                href: 'https://twitter.com/alcionhq',
+                href: 'https://twitter.com/CorsoBackup',
               },
             ],
           },
@@ -109,6 +118,11 @@ const config = {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
               },
+              {
+                label: 'Corso Website',
+                href: 'https://corsobackup.io/',
+              },
+
             ],
           },
         ],
@@ -116,7 +130,7 @@ const config = {
       },
       colorMode: {
         defaultMode: 'dark',
-        disableSwitch: true,
+        disableSwitch: false,
         respectPrefersColorScheme: true,
       },
 

@@ -4,32 +4,29 @@ import styles from './styles.module.css';
 
 const FeatureList = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    title: 'Secure',
+    Svg: require('@site/static/img/security.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Corso provides secure data backup that protects customers against accidental data loss, service provider downtime, and malicious threats including ransomware attacks.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    title: 'Robust',
+    Svg: require('@site/static/img/data.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+       Corso, purpose-built for M365 protection, provides easy-to-use comprehensive backup and restore workflows that reduce backup time, improve time-to-recovery, reduce admin overhead, and replace unreliable scripts or workarounds.
       </>
     ),
   },
   {
-    title: 'Powered by React',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    title: 'Low Cost',
+    Svg: require('@site/static/img/savings.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+       Corso, a 100% open-source tool, provides a free alternative for cost-conscious teams. It further reduces storage costs by supporting flexible retention policies and efficiently compressing and deduplicating data before storing it in low-cost cloud object storage.
       </>
     ),
   },

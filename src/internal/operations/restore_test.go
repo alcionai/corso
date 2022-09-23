@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
+	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -65,7 +66,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		acct,
 		"foo",
 		selectors.Selector{},
-		events.Bus{})
+		evmock.NewBus())
 	require.NoError(t, err)
 
 	require.NoError(t, op.persistResults(ctx, now, &stats))
@@ -74,6 +75,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.gc.Successful, "items written")
+	assert.Equal(t, 0, op.Results.ResourceOwners, "resource owners")
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
@@ -148,7 +150,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		sw,
 		acct,
 		bsel.Selector,
-		events.Bus{})
+		evmock.NewBus())
 	require.NoError(t, err)
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results.BackupID)
@@ -200,7 +202,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.acct,
 				"backup-id",
 				selectors.Selector{},
-				events.Bus{})
+				evmock.NewBus())
 			test.errCheck(t, err)
 		})
 	}
@@ -213,6 +215,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
 
+	mb := evmock.NewBus()
+
 	ro, err := NewRestoreOperation(
 		ctx,
 		control.Options{},
@@ -221,7 +225,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		tester.NewM365Account(t),
 		suite.backupID,
 		rsel.Selector,
-		events.Bus{})
+		mb)
 	require.NoError(t, err)
 
 	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
@@ -229,9 +233,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
 	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
 	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
+	assert.Equal(t, 1, ro.Results.ResourceOwners)
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
+	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
+	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
@@ -241,6 +248,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(selectors.None()))
 
+	mb := evmock.NewBus()
+
 	ro, err := NewRestoreOperation(
 		ctx,
 		control.Options{},
@@ -249,7 +258,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		tester.NewM365Account(t),
 		suite.backupID,
 		rsel.Selector,
-		events.Bus{})
+		mb)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
+	assert.Equal(t, 0, ro.Results.ResourceOwners)
+	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
+	assert.Equal(t, 0, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -66,7 +65,7 @@ func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
-func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
+func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m356 account configuration")
@@ -86,7 +85,7 @@ func NewGraphConnector(acct account.Account) (*GraphConnector, error) {
 
 	gc.graphService = *aService
 
-	err = gc.setTenantUsers()
+	err = gc.setTenantUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +120,8 @@ func (gs *graphService) EnableFailFast() {
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the return value is true
-func (gc *GraphConnector) setTenantUsers() error {
-	response, err := exchange.GetAllUsersForTenant(gc.graphService, "")
+func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
+	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
 	if err != nil {
 		return errors.Wrapf(
 			err,
@@ -169,7 +168,7 @@ func (gc *GraphConnector) setTenantUsers() error {
 		return true
 	}
 
-	iterateError := userIterator.Iterate(callbackFunc)
+	iterateError := userIterator.Iterate(ctx, callbackFunc)
 	if iterateError != nil {
 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
 	}
@@ -245,6 +244,32 @@ func (gc *GraphConnector) ExchangeDataCollection(
 // into M365
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
+	selector selectors.Selector,
+	dcs []data.Collection,
+) error {
+	switch selector.Service {
+	case selectors.ServiceExchange:
+		return gc.RestoreExchangeDataCollections(ctx, dcs)
+	case selectors.ServiceOneDrive:
+		status, err := onedrive.RestoreCollections(ctx, gc, dcs)
+		if err != nil {
+			return err
+		}
+
+		gc.incrementAwaitingMessages()
+
+		gc.UpdateStatus(status)
+
+		return nil
+	default:
+		return errors.Errorf("restore data from service %s not supported", selector.Service.String())
+	}
+}
+
+// RestoreDataCollections restores data from the specified collections
+// into M365
+func (gc *GraphConnector) RestoreExchangeDataCollections(
+	ctx context.Context,
 	dcs []data.Collection,
 ) error {
 	var (
@@ -266,21 +291,10 @@ func (gc *GraphConnector) RestoreDataCollections(
 			exit      bool
 		)
 
-		// Check whether restoring data into the specified service is supported
-		switch service {
-		case path.ExchangeService:
-			// Supported
-		default:
-			return errors.Errorf("restore data from service %s not supported", service.String())
-		}
-
 		if _, ok := pathCounter[directory.String()]; !ok {
 			pathCounter[directory.String()] = true
 
-			switch service {
-			case path.ExchangeService:
-				folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
-			}
+			folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
 
 			if errs != nil {
 				fmt.Println("RestoreContainer Failed")
@@ -312,10 +326,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 					continue
 				}
 
-				switch service {
-				case path.ExchangeService:
-					err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
-				}
+				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
 
 				if err != nil {
 					//  More information to be here
@@ -369,7 +380,7 @@ func (gc *GraphConnector) createCollections(
 		}
 		collections := make(map[string]*exchange.Collection)
 
-		response, err := query(&gc.graphService, qp.User)
+		response, err := query(ctx, &gc.graphService, qp.User)
 		if err != nil {
 			return nil, errors.Wrapf(
 				err,
@@ -390,7 +401,7 @@ func (gc *GraphConnector) createCollections(
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
 		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus)
-		iterateError := pageIterator.Iterate(callbackFunc)
+		iterateError := pageIterator.Iterate(ctx, callbackFunc)
 
 		if iterateError != nil {
 			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)

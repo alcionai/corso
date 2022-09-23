@@ -39,7 +39,7 @@ func (dm DetailsModel) PrintEntries(ctx context.Context) {
 }
 
 func printTable(ctx context.Context, dm DetailsModel) {
-	perType := map[itemType][]print.Printable{}
+	perType := map[ItemType][]print.Printable{}
 
 	for _, de := range dm.Entries {
 		it := de.infoType()
@@ -226,21 +226,21 @@ func (de DetailsEntry) Values() []string {
 	return vs
 }
 
-type itemType int
+type ItemType int
 
 const (
-	UnknownType itemType = iota
+	UnknownType ItemType = iota
 
 	// separate each service by a factor of 100 for padding
 	ExchangeContact
 	ExchangeEvent
 	ExchangeMail
 
-	SharepointItem itemType = iota + 100
+	SharepointItem ItemType = iota + 100
 
-	OneDriveItem itemType = iota + 200
+	OneDriveItem ItemType = iota + 200
 
-	FolderItem itemType = iota + 300
+	FolderItem ItemType = iota + 300
 )
 
 // ItemInfo is a oneOf that contains service specific
@@ -258,7 +258,7 @@ type ItemInfo struct {
 // infoType provides internal categorization for collecting like-typed ItemInfos.
 // It should return the most granular value type (ex: "event" for an exchange
 // calendar event).
-func (i ItemInfo) infoType() itemType {
+func (i ItemInfo) infoType() ItemType {
 	switch {
 	case i.Folder != nil:
 		return i.Folder.ItemType
@@ -277,8 +277,8 @@ func (i ItemInfo) infoType() itemType {
 }
 
 type FolderInfo struct {
-	ItemType    itemType
-	DisplayName string `json:"displayName"`
+	ItemType    ItemType `json:"itemType,omitempty"`
+	DisplayName string   `json:"displayName"`
 }
 
 func (i FolderInfo) Headers() []string {
@@ -291,7 +291,7 @@ func (i FolderInfo) Values() []string {
 
 // ExchangeInfo describes an exchange item
 type ExchangeInfo struct {
-	ItemType    itemType
+	ItemType    ItemType  `json:"itemType,omitempty"`
 	Sender      string    `json:"sender,omitempty"`
 	Subject     string    `json:"subject,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
@@ -344,7 +344,7 @@ func (i ExchangeInfo) Values() []string {
 // TODO: Implement this. This is currently here
 // just to illustrate usage
 type SharepointInfo struct {
-	ItemType itemType
+	ItemType ItemType `json:"itemType,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharepointInfo
@@ -361,9 +361,9 @@ func (i SharepointInfo) Values() []string {
 
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
-	ItemType   itemType
-	ParentPath string `json:"parentPath"`
-	ItemName   string `json:"itemName"`
+	ItemType   ItemType `json:"itemType,omitempty"`
+	ParentPath string   `json:"parentPath"`
+	ItemName   string   `json:"itemName"`
 }
 
 // Headers returns the human-readable names of properties in a OneDriveInfo

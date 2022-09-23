@@ -608,6 +608,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_Category() {
 		{ExchangeContactFolder, ExchangeContactFolder, assert.Equal},
 		{ExchangeContactFolder, ExchangeMailFolder, assert.NotEqual},
 		{ExchangeEvent, ExchangeEvent, assert.Equal},
+		{ExchangeEvent, ExchangeEventCalendar, assert.NotEqual},
+		{ExchangeEventCalendar, ExchangeEventCalendar, assert.Equal},
 		{ExchangeEvent, ExchangeContact, assert.NotEqual},
 		{ExchangeMail, ExchangeMail, assert.Equal},
 		{ExchangeMail, ExchangeMailFolder, assert.NotEqual},
@@ -640,15 +642,24 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 		{ExchangeContact, ExchangeMailFolder, assert.False},
 		{ExchangeContactFolder, ExchangeContact, assert.True},
 		{ExchangeContactFolder, ExchangeMailFolder, assert.False},
+		{ExchangeContactFolder, ExchangeEventCalendar, assert.False},
 		{ExchangeEvent, ExchangeUser, assert.True},
 		{ExchangeEvent, ExchangeContact, assert.False},
+		{ExchangeEvent, ExchangeEventCalendar, assert.True},
+		{ExchangeEvent, ExchangeContactFolder, assert.False},
+		{ExchangeEventCalendar, ExchangeEvent, assert.True},
+		{ExchangeEventCalendar, ExchangeEventCalendar, assert.True},
+		{ExchangeEventCalendar, ExchangeUser, assert.True},
+		{ExchangeEventCalendar, ExchangeCategoryUnknown, assert.False},
 		{ExchangeMail, ExchangeMailFolder, assert.True},
 		{ExchangeMail, ExchangeContact, assert.False},
 		{ExchangeMailFolder, ExchangeMail, assert.True},
 		{ExchangeMailFolder, ExchangeContactFolder, assert.False},
+		{ExchangeMailFolder, ExchangeEventCalendar, assert.False},
 		{ExchangeUser, ExchangeUser, assert.True},
 		{ExchangeUser, ExchangeCategoryUnknown, assert.False},
 		{ExchangeUser, ExchangeMail, assert.True},
+		{ExchangeUser, ExchangeEventCalendar, assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
@@ -710,62 +721,99 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		epoch  = time.Time{}
 		now    = time.Now()
 		future = now.Add(1 * time.Minute)
-		info   = &details.ExchangeInfo{
-			ContactName: name,
-			EventRecurs: true,
-			EventStart:  now,
-			Organizer:   organizer,
-			Sender:      sender,
-			Subject:     subject,
-			Received:    now,
-		}
 	)
+
+	infoWith := func(itype details.ItemType) details.ItemInfo {
+		return details.ItemInfo{
+			Exchange: &details.ExchangeInfo{
+				ItemType:    itype,
+				ContactName: name,
+				EventRecurs: true,
+				EventStart:  now,
+				Organizer:   organizer,
+				Sender:      sender,
+				Subject:     subject,
+				Received:    now,
+			},
+		}
+	}
 
 	table := []struct {
 		name   string
+		itype  details.ItemType
 		scope  []ExchangeScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"any mail with a sender", es.MailSender(AnyTgt), assert.True},
-		{"no mail, regardless of sender", es.MailSender(NoneTgt), assert.False},
-		{"mail from a different sender", es.MailSender("magoo@ma.goo"), assert.False},
-		{"mail from the matching sender", es.MailSender(sender), assert.True},
-		{"mail with any subject", es.MailSubject(AnyTgt), assert.True},
-		{"mail with none subject", es.MailSubject(NoneTgt), assert.False},
-		{"mail with a different subject", es.MailSubject("fancy"), assert.False},
-		{"mail with the matching subject", es.MailSubject(subject), assert.True},
-		{"mail with a substring subject match", es.MailSubject(subject[5:9]), assert.True},
-		{"mail received after the epoch", es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
-		{"mail received after now", es.MailReceivedAfter(common.FormatTime(now)), assert.False},
-		{"mail received after sometime later", es.MailReceivedAfter(common.FormatTime(future)), assert.False},
-		{"mail received before the epoch", es.MailReceivedBefore(common.FormatTime(epoch)), assert.False},
-		{"mail received before now", es.MailReceivedBefore(common.FormatTime(now)), assert.False},
-		{"mail received before sometime later", es.MailReceivedBefore(common.FormatTime(future)), assert.True},
-		{"event with any organizer", es.EventOrganizer(AnyTgt), assert.True},
-		{"event with none organizer", es.EventOrganizer(NoneTgt), assert.False},
-		{"event with a different organizer", es.EventOrganizer("fancy"), assert.False},
-		{"event with the matching organizer", es.EventOrganizer(organizer), assert.True},
-		{"event that recurs", es.EventRecurs("true"), assert.True},
-		{"event that does not recur", es.EventRecurs("false"), assert.False},
-		{"event starting after the epoch", es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
-		{"event starting after now", es.EventStartsAfter(common.FormatTime(now)), assert.False},
-		{"event starting after sometime later", es.EventStartsAfter(common.FormatTime(future)), assert.False},
-		{"event starting before the epoch", es.EventStartsBefore(common.FormatTime(epoch)), assert.False},
-		{"event starting before now", es.EventStartsBefore(common.FormatTime(now)), assert.False},
-		{"event starting before sometime later", es.EventStartsBefore(common.FormatTime(future)), assert.True},
-		{"event with any subject", es.EventSubject(AnyTgt), assert.True},
-		{"event with none subject", es.EventSubject(NoneTgt), assert.False},
-		{"event with a different subject", es.EventSubject("fancy"), assert.False},
-		{"event with the matching subject", es.EventSubject(subject), assert.True},
-		{"contact with a different name", es.ContactName("blarps"), assert.False},
-		{"contact with the same name", es.ContactName(name), assert.True},
-		{"contact with a subname search", es.ContactName(name[2:5]), assert.True},
+		{"any mail with a sender", details.ExchangeMail, es.MailSender(AnyTgt), assert.True},
+		{"no mail, regardless of sender", details.ExchangeMail, es.MailSender(NoneTgt), assert.False},
+		{"mail from a different sender", details.ExchangeMail, es.MailSender("magoo@ma.goo"), assert.False},
+		{"mail from the matching sender", details.ExchangeMail, es.MailSender(sender), assert.True},
+		{"mail with any subject", details.ExchangeMail, es.MailSubject(AnyTgt), assert.True},
+		{"mail with none subject", details.ExchangeMail, es.MailSubject(NoneTgt), assert.False},
+		{"mail with a different subject", details.ExchangeMail, es.MailSubject("fancy"), assert.False},
+		{"mail with the matching subject", details.ExchangeMail, es.MailSubject(subject), assert.True},
+		{"mail with a substring subject match", details.ExchangeMail, es.MailSubject(subject[5:9]), assert.True},
+		{"mail received after the epoch", details.ExchangeMail, es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
+		{"mail received after now", details.ExchangeMail, es.MailReceivedAfter(common.FormatTime(now)), assert.False},
+		{
+			"mail received after sometime later",
+			details.ExchangeMail,
+			es.MailReceivedAfter(common.FormatTime(future)),
+			assert.False,
+		},
+		{
+			"mail received before the epoch",
+			details.ExchangeMail,
+			es.MailReceivedBefore(common.FormatTime(epoch)),
+			assert.False,
+		},
+		{"mail received before now", details.ExchangeMail, es.MailReceivedBefore(common.FormatTime(now)), assert.False},
+		{
+			"mail received before sometime later",
+			details.ExchangeMail,
+			es.MailReceivedBefore(common.FormatTime(future)),
+			assert.True,
+		},
+		{"event with any organizer", details.ExchangeEvent, es.EventOrganizer(AnyTgt), assert.True},
+		{"event with none organizer", details.ExchangeEvent, es.EventOrganizer(NoneTgt), assert.False},
+		{"event with a different organizer", details.ExchangeEvent, es.EventOrganizer("fancy"), assert.False},
+		{"event with the matching organizer", details.ExchangeEvent, es.EventOrganizer(organizer), assert.True},
+		{"event that recurs", details.ExchangeEvent, es.EventRecurs("true"), assert.True},
+		{"event that does not recur", details.ExchangeEvent, es.EventRecurs("false"), assert.False},
+		{"event starting after the epoch", details.ExchangeEvent, es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
+		{"event starting after now", details.ExchangeEvent, es.EventStartsAfter(common.FormatTime(now)), assert.False},
+		{
+			"event starting after sometime later",
+			details.ExchangeEvent,
+			es.EventStartsAfter(common.FormatTime(future)),
+			assert.False,
+		},
+		{
+			"event starting before the epoch",
+			details.ExchangeEvent,
+			es.EventStartsBefore(common.FormatTime(epoch)),
+			assert.False,
+		},
+		{"event starting before now", details.ExchangeEvent, es.EventStartsBefore(common.FormatTime(now)), assert.False},
+		{
+			"event starting before sometime later",
+			details.ExchangeEvent,
+			es.EventStartsBefore(common.FormatTime(future)),
+			assert.True,
+		},
+		{"event with any subject", details.ExchangeEvent, es.EventSubject(AnyTgt), assert.True},
+		{"event with none subject", details.ExchangeEvent, es.EventSubject(NoneTgt), assert.False},
+		{"event with a different subject", details.ExchangeEvent, es.EventSubject("fancy"), assert.False},
+		{"event with the matching subject", details.ExchangeEvent, es.EventSubject(subject), assert.True},
+		{"contact with a different name", details.ExchangeContact, es.ContactName("blarps"), assert.False},
+		{"contact with the same name", details.ExchangeContact, es.ContactName(name), assert.True},
+		{"contact with a subname search", details.ExchangeContact, es.ContactName(name[2:5]), assert.True},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {
-				test.expect(t, scope.matchesInfo(info))
+				test.expect(t, scope.matchesInfo(infoWith(test.itype)))
 			}
 		})
 	}
@@ -864,6 +912,12 @@ func (suite *ExchangeSelectorSuite) TestIdPath() {
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
+	var (
+		contact = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
+		event   = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
+		mail    = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "mfld", "mid")
+	)
+
 	makeDeets := func(refs ...string) *details.Details {
 		deets := &details.Details{
 			DetailsModel: details.DetailsModel{
@@ -872,19 +926,29 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 		}
 
 		for _, r := range refs {
+			itype := details.UnknownType
+
+			switch r {
+			case contact:
+				itype = details.ExchangeContact
+			case event:
+				itype = details.ExchangeEvent
+			case mail:
+				itype = details.ExchangeMail
+			}
+
 			deets.Entries = append(deets.Entries, details.DetailsEntry{
 				RepoRef: r,
+				ItemInfo: details.ItemInfo{
+					Exchange: &details.ExchangeInfo{
+						ItemType: itype,
+					},
+				},
 			})
 		}
 
 		return deets
 	}
-
-	var (
-		contact = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
-		event   = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
-		mail    = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "mfld", "mid")
-	)
 
 	arr := func(s ...string) []string {
 		return s
@@ -1009,6 +1073,44 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			},
 			arr(contact, event),
 		},
+		{
+			"filter on mail subject",
+			func() *details.Details {
+				ds := makeDeets(mail)
+				for i := range ds.Entries {
+					ds.Entries[i].Exchange.Subject = "has a subject"
+				}
+				return ds
+			}(),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore()
+				er.Include(er.Users(Any()))
+				er.Filter(er.MailSubject("subj"))
+				return er
+			},
+			arr(mail),
+		},
+		{
+			"filter on mail subject multiple input categories",
+			func() *details.Details {
+				mds := makeDeets(mail)
+				for i := range mds.Entries {
+					mds.Entries[i].Exchange.Subject = "has a subject"
+				}
+
+				ds := makeDeets(contact, event)
+				ds.Entries = append(ds.Entries, mds.Entries...)
+
+				return ds
+			}(),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore()
+				er.Include(er.Users(Any()))
+				er.Filter(er.MailSubject("subj"))
+				return er
+			},
+			arr(mail),
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -1067,7 +1169,7 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			result := scopesByCategory[ExchangeScope](test.scopes, cats)
+			result := scopesByCategory[ExchangeScope](test.scopes, cats, false)
 			assert.Len(t, result[ExchangeContact], test.expect.contact)
 			assert.Len(t, result[ExchangeEvent], test.expect.event)
 			assert.Len(t, result[ExchangeMail], test.expect.mail)
@@ -1285,6 +1387,41 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathKeys() {
 	for _, test := range table {
 		suite.T().Run(string(test.cat), func(t *testing.T) {
 			assert.Equal(t, test.cat.pathKeys(), test.expect)
+		})
+	}
+}
+
+func (suite *ExchangeSelectorSuite) TestCategoryFromItemType() {
+	table := []struct {
+		name   string
+		input  details.ItemType
+		expect exchangeCategory
+	}{
+		{
+			name:   "contact",
+			input:  details.ExchangeContact,
+			expect: ExchangeContact,
+		},
+		{
+			name:   "event",
+			input:  details.ExchangeEvent,
+			expect: ExchangeEvent,
+		},
+		{
+			name:   "mail",
+			input:  details.ExchangeMail,
+			expect: ExchangeMail,
+		},
+		{
+			name:   "unknown",
+			input:  details.UnknownType,
+			expect: ExchangeCategoryUnknown,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := categoryFromItemType(test.input)
+			assert.Equal(t, test.expect, result)
 		})
 	}
 }

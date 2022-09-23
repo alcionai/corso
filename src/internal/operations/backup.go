@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -47,7 +48,7 @@ func NewBackupOperation(
 	sw *store.Wrapper,
 	acct account.Account,
 	selector selectors.Selector,
-	bus events.Bus,
+	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
 		operation: newOperation(opts, bus, kw, sw),
@@ -73,6 +74,7 @@ func (op BackupOperation) validate() error {
 type backupStats struct {
 	k                 *kopia.BackupStats
 	gc                *support.ConnectorOperationStatus
+	resourceCount     int
 	started           bool
 	readErr, writeErr error
 }
@@ -91,6 +93,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		events.BackupStart,
 		map[string]any{
 			events.StartTime: startTime,
+			events.Service:   op.Selectors.Service.String(),
 			// TODO: initial backup ID,
 			// TODO: events.ExchangeResources: <count of resources>,
 		},
@@ -111,7 +114,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}()
 
 	// retrieve data from the producer
-	gc, err := connector.NewGraphConnector(op.account)
+	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
 		err = errors.Wrap(err, "connecting to graph api")
 		opStats.readErr = err
@@ -126,6 +129,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 		return err
 	}
+
+	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
 
 	// hand the results to the consumer
 	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs)
@@ -163,8 +168,10 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
+	op.Results.BytesWritten = opStats.k.TotalHashedBytes
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.ResourceOwners = opStats.resourceCount
 
 	return nil
 }
@@ -202,14 +209,15 @@ func (op *BackupOperation) createBackupModels(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
-			events.BackupID:  b.ID,
-			events.Status:    op.Status,
-			events.StartTime: op.Results.StartedAt,
-			events.EndTime:   op.Results.CompletedAt,
-			events.Duration:  op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			// TODO: events.ExchangeResources: <count of resources>,
+			events.BackupID:   b.ID,
+			events.Service:    op.Selectors.Service.String(),
+			events.Status:     op.Status,
+			events.StartTime:  op.Results.StartedAt,
+			events.EndTime:    op.Results.CompletedAt,
+			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.DataStored: op.Results.BytesWritten,
+			events.Resources:  op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
-			// TODO: events.ExchangeDataStored: <amount of data stored>,
 		},
 	)
 

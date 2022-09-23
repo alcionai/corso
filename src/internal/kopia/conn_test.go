@@ -11,10 +11,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 //revive:disable:context-as-argument
 func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
+	//revive:enable:context-as-argument
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := NewConn(st)
@@ -66,6 +68,41 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 func (suite *WrapperIntegrationSuite) SetupSuite() {
 	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
 	require.NoError(suite.T(), err)
+}
+
+func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
+	t := suite.T()
+	ctx := context.Background()
+
+	st := tester.NewPrefixedS3Storage(t)
+	k := NewConn(st)
+	require.NoError(t, k.Initialize(ctx))
+
+	require.NoError(t, k.Close(ctx))
+
+	err := k.Initialize(ctx)
+	assert.Error(t, err)
+	assert.True(t, IsRepoAlreadyExistsError(err))
+}
+
+func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
+	t := suite.T()
+	ctx := context.Background()
+
+	st := tester.NewPrefixedS3Storage(t)
+	st.Provider = storage.ProviderUnknown
+
+	k := NewConn(st)
+	assert.Error(t, k.Initialize(ctx))
+}
+
+func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
+	t := suite.T()
+	ctx := context.Background()
+
+	st := tester.NewPrefixedS3Storage(t)
+	k := NewConn(st)
+	assert.Error(t, k.Connect(ctx))
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
@@ -185,35 +222,71 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	)
 }
 
-func (suite *WrapperIntegrationSuite) TestCompressorSetOnInitAndConnect() {
-	ctx := context.Background()
-	t := suite.T()
-	tmpComp := "pgzip"
+func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
+	table := []struct {
+		name      string
+		checkFunc func(*testing.T, *policy.Policy)
+		mutator   func(context.Context, *policy.Policy) error
+	}{
+		{
+			name: "Compression",
+			checkFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+			},
+			mutator: func(innerCtx context.Context, p *policy.Policy) error {
+				_, res := updateCompressionOnPolicy("pgzip", p)
+				return res
+			},
+		},
+		{
+			name: "Retention",
+			checkFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(
+					t,
+					defaultRetention,
+					p.RetentionPolicy,
+				)
+			},
+			mutator: func(innerCtx context.Context, p *policy.Policy) error {
+				newRetentionDaily := policy.OptionalInt(42)
+				newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
+				updateRetentionOnPolicy(newRetention, p)
 
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+				return nil
+			},
+		},
+	}
 
-	// Check the policy was actually created and has the right compressor.
-	p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
-	require.NoError(t, err)
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 
-	require.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+			k, err := openKopiaRepo(t, ctx)
+			require.NoError(t, err)
 
-	// Change the compressor to something else.
-	require.NoError(t, k.Compression(ctx, tmpComp))
-	require.NoError(t, k.Close(ctx))
+			p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
+			require.NoError(t, err)
 
-	// Re-open with Connect to see if the compressor changed back.
-	require.NoError(t, k.Connect(ctx))
+			test.checkFunc(t, p)
 
-	defer func() {
-		assert.NoError(t, k.Close(ctx))
-	}()
+			require.NoError(t, test.mutator(ctx, p))
+			require.NoError(t, k.writeGlobalPolicy(ctx, "TestDefaultPolicyConfigSet", p))
+			require.NoError(t, k.Close(ctx))
 
-	p, err = k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
-	require.NoError(t, err)
+			require.NoError(t, k.Connect(ctx))
 
-	assert.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
+			defer func() {
+				assert.NoError(t, k.Close(ctx))
+			}()
+
+			p, err = k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
+			require.NoError(t, err)
+
+			test.checkFunc(t, p)
+		})
+	}
 }
 
 func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {

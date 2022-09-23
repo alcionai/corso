@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"os"
-	"regexp"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -93,17 +93,17 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 
 	err = purgeMailFolders(ctx, gc, t)
 	if err != nil {
-		return errors.Wrap(err, "purging mail folders")
+		return Only(ctx, errors.Wrap(err, "purging mail folders"))
 	}
 
 	err = purgeCalendarFolders(ctx, gc, t)
 	if err != nil {
-		return errors.Wrap(err, "purging calendar folders")
+		return Only(ctx, errors.Wrap(err, "purging event calendars"))
 	}
 
 	err = purgeContactFolders(ctx, gc, t)
 	if err != nil {
-		return errors.Wrap(err, "purging contacts folders")
+		return Only(ctx, errors.Wrap(err, "purging contacts folders"))
 	}
 
 	return nil
@@ -126,7 +126,11 @@ func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return purgeMailFolders(ctx, gc, t)
+	if err := purgeMailFolders(ctx, gc, t); err != nil {
+		return Only(ctx, errors.Wrap(err, "purging mail folders"))
+	}
+
+	return nil
 }
 
 func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
@@ -142,7 +146,11 @@ func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return purgeCalendarFolders(ctx, gc, t)
+	if err := purgeCalendarFolders(ctx, gc, t); err != nil {
+		return Only(ctx, errors.Wrap(err, "purging event calendars"))
+	}
+
+	return nil
 }
 
 func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
@@ -158,7 +166,11 @@ func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return purgeContactFolders(ctx, gc, t)
+	if err := purgeContactFolders(ctx, gc, t); err != nil {
+		return Only(ctx, errors.Wrap(err, "purging contacts folders"))
+	}
+
+	return nil
 }
 
 // ------------------------------------------------------------------------------------------
@@ -174,7 +186,7 @@ type purgable interface {
 
 func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		mfs, err := exchange.GetAllMailFolders(gs, uid, prefix)
+		mfs, err := exchange.GetAllMailFolders(ctx, gs, uid, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +201,7 @@ func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundar
 	}
 
 	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteMailFolder(gs, uid, fid)
+		return exchange.DeleteMailFolder(ctx, gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "mail", getter, deleter)
@@ -199,7 +211,7 @@ func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundar
 
 func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		cfs, err := exchange.GetAllCalendars(gs, uid, prefix)
+		cfs, err := exchange.GetAllCalendars(ctx, gs, uid, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -214,7 +226,7 @@ func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, bou
 	}
 
 	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteCalendar(gs, uid, fid)
+		return exchange.DeleteCalendar(ctx, gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "calendar", getter, deleter)
@@ -224,7 +236,7 @@ func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, bou
 
 func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		cfs, err := exchange.GetAllContactFolders(gs, uid, prefix)
+		cfs, err := exchange.GetAllContactFolders(ctx, gs, uid, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -239,23 +251,13 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 	}
 
 	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteContactFolder(gs, uid, fid)
+		return exchange.DeleteContactFolder(ctx, gs, uid, fid)
 	}
 
 	return purgeFolders(ctx, gc, boundary, "contact", getter, deleter)
 }
 
 // ----- controller
-
-var secfmt = regexp.MustCompile(`.+:0-9{2}:0-9{2}`)
-
-func normalizeDisplayName(dn string) string {
-	if !secfmt.MatchString(dn) {
-		dn += ":00"
-	}
-
-	return dn
-}
 
 func purgeFolders(
 	ctx context.Context,
@@ -271,31 +273,23 @@ func purgeFolders(
 		return Only(ctx, errors.Wrapf(err, "retrieving %s folders", data))
 	}
 
-	stLen := len(common.SimpleDateTimeFormat)
+	var errs error
 
 	// delete any that don't meet the boundary
 	for _, fld := range fs {
 		// compare the folder time to the deletion boundary time first
-		var (
-			del         bool
-			displayName = *fld.GetDisplayName()
-			normName    = normalizeDisplayName(*fld.GetDisplayName())
-			dnLen       = len(normName)
-		)
+		displayName := *fld.GetDisplayName()
 
-		if dnLen > stLen {
-			suff := normName[dnLen-stLen:]
+		dnTime, err := common.ExtractTime(displayName)
+		if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+			err = errors.Wrapf(err, "Error: parsing %s folder name [%s]", data, displayName)
+			errs = multierror.Append(errs, err)
+			Info(ctx, err)
 
-			dnTime, err := common.ParseTime(suff)
-			if err != nil {
-				Info(ctx, errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName))
-				continue
-			}
-
-			del = dnTime.Before(boundary)
+			continue
 		}
 
-		if !del {
+		if !dnTime.Before(boundary) || dnTime == (time.Time{}) {
 			continue
 		}
 
@@ -303,11 +297,13 @@ func purgeFolders(
 
 		err = deleter(gc.Service(), user, *fld.GetId())
 		if err != nil {
-			Info(ctx, errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName))
+			err = errors.Wrapf(err, "Error: deleting %s folder [%s]", data, displayName)
+			errs = multierror.Append(errs, err)
+			Info(ctx, err)
 		}
 	}
 
-	return nil
+	return errs
 }
 
 // ------------------------------------------------------------------------------------------
@@ -327,7 +323,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(acct)
+	gc, err := connector.NewGraphConnector(ctx, acct)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}

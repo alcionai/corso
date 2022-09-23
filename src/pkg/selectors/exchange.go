@@ -36,6 +36,8 @@ type (
 	}
 )
 
+var _ Reducer = &ExchangeRestore{}
+
 // NewExchange produces a new Selector with the service set to ServiceExchange.
 func NewExchangeBackup() *ExchangeBackup {
 	src := ExchangeBackup{
@@ -333,8 +335,8 @@ func (sr *ExchangeRestore) EventRecurs(recurs string) []ExchangeScope {
 func (sr *ExchangeRestore) EventStartsAfter(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
 		makeFilterScope[ExchangeScope](
-			ExchangeMail,
-			ExchangeFilterMailReceivedAfter,
+			ExchangeEvent,
+			ExchangeFilterEventStartsAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
@@ -347,8 +349,8 @@ func (sr *ExchangeRestore) EventStartsAfter(timeStrings string) []ExchangeScope 
 func (sr *ExchangeRestore) EventStartsBefore(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
 		makeFilterScope[ExchangeScope](
-			ExchangeMail,
-			ExchangeFilterMailReceivedBefore,
+			ExchangeEvent,
+			ExchangeFilterEventStartsBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
@@ -690,25 +692,21 @@ func (s exchange) Reduce(ctx context.Context, deets *details.Details) *details.D
 	)
 }
 
-// matchesEntry returns true if either the path or the info in the exchangeEntry matches the scope details.
-func (s ExchangeScope) matchesEntry(
-	cat categorizer,
-	pathValues map[categorizer]string,
-	entry details.DetailsEntry,
-) bool {
-	// matchesPathValues can be handled generically, thanks to SCIENCE.
-	return matchesPathValues(s, cat.(exchangeCategory), pathValues, entry.ShortRef) || s.matchesInfo(entry.Exchange)
-}
-
 // matchesInfo handles the standard behavior when comparing a scope and an ExchangeFilter
 // returns true if the scope and info match for the provided category.
-func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
-	// we need values to match against
+func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
+	info := dii.Exchange
 	if info == nil {
 		return false
 	}
 
 	filterCat := s.FilterCategory()
+
+	cfpc := categoryFromItemType(info.ItemType)
+	if !typeAndCategoryMatches(filterCat, cfpc) {
+		return false
+	}
+
 	i := ""
 
 	switch filterCat {
@@ -731,4 +729,20 @@ func (s ExchangeScope) matchesInfo(info *details.ExchangeInfo) bool {
 	}
 
 	return s.Matches(filterCat, i)
+}
+
+// categoryFromItemType interprets the category represented by the ExchangeInfo
+// struct.  Since every ExchangeInfo can hold all exchange data info, the exact
+// type that the struct represents must be compared using its ItemType prop.
+func categoryFromItemType(pct details.ItemType) exchangeCategory {
+	switch pct {
+	case details.ExchangeContact:
+		return ExchangeContact
+	case details.ExchangeMail:
+		return ExchangeMail
+	case details.ExchangeEvent:
+		return ExchangeEvent
+	}
+
+	return ExchangeCategoryUnknown
 }
