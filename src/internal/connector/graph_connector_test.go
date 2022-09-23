@@ -3,7 +3,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -159,24 +158,38 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression() {
-	t := suite.T()
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
-	eb, err := sel.ToExchangeBackup()
-	require.NoError(t, err)
+	connector := loadConnector(suite.T())
 
-	scopes := eb.Scopes()
-	connector := loadConnector(t)
+	tests := []struct {
+		name          string
+		getCollection func(t *testing.T) []*exchange.Collection
+	}{
+		{
+			name: "Default Contact Folder",
+			getCollection: func(t *testing.T) []*exchange.Collection {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
+				eb, err := sel.ToExchangeBackup()
+				require.NoError(t, err)
 
-	suite.Len(scopes, 1)
-	contactsOnly := scopes[0]
-	collections, err := connector.createCollections(context.Background(), contactsOnly)
-	assert.NoError(t, err)
-	assert.Equal(t, len(collections), 1)
+				scopes := eb.Scopes()
 
-	for _, edc := range collections {
-		testName := fmt.Sprintf("Default Contact Folder: %s", edc.FullPath().ResourceOwner())
-		suite.T().Run(testName, func(t *testing.T) {
+				suite.Len(scopes, 1)
+				contactsOnly := scopes[0]
+				collections, err := connector.createCollections(context.Background(), contactsOnly)
+				require.NoError(t, err)
+
+				return collections
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			edcs := test.getCollection(t)
+			assert.Equal(t, len(edcs), 1)
+			edc := edcs[0]
+			assert.Equal(t, edc.FullPath().Folder(), exchange.DefaultContactFolder)
 			streamChannel := edc.Items()
 			count := 0
 			for stream := range streamChannel {
@@ -186,7 +199,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 				assert.NotZero(t, read)
 				contact, err := support.CreateContactFromBytes(buf.Bytes())
 				assert.NotNil(t, contact)
-				assert.NoError(t, err)
+				assert.NoError(t, err, "error on converting contact bytes: "+string(buf.Bytes()))
 				count++
 			}
 			assert.NotZero(t, count)
@@ -201,31 +214,60 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression() {
-	t := suite.T()
-	connector := loadConnector(t)
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
-	scopes := sel.Scopes()
-	suite.Equal(len(scopes), 1)
-	collections, err := connector.createCollections(context.Background(), scopes[0])
-	require.NoError(t, err)
+	connector := loadConnector(suite.T())
 
-	for _, edc := range collections {
-		streamChannel := edc.Items()
-		number := 0
+	tests := []struct {
+		name, expected string
+		getCollection  func(t *testing.T) []*exchange.Collection
+	}{
+		{
+			name:     "Default Event Calendar",
+			expected: exchange.DefaultCalendar,
+			getCollection: func(t *testing.T) []*exchange.Collection {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
+				scopes := sel.Scopes()
+				suite.Equal(len(scopes), 1)
+				collections, err := connector.createCollections(context.Background(), scopes[0])
+				require.NoError(t, err)
 
-		for stream := range streamChannel {
-			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath().Folder(), number)
-			suite.T().Run(testName, func(t *testing.T) {
+				return collections
+			},
+		},
+		{
+			name:     "Birthday Calendar",
+			expected: "Birthdays",
+			getCollection: func(t *testing.T) []*exchange.Collection {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}))
+				scopes := sel.Scopes()
+				suite.Equal(len(scopes), 1)
+				collections, err := connector.createCollections(context.Background(), scopes[0])
+				require.NoError(t, err)
+
+				return collections
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections := test.getCollection(t)
+			require.Equal(t, len(collections), 1)
+			edc := collections[0]
+			assert.Equal(t, edc.FullPath().Folder(), test.expected)
+			streamChannel := edc.Items()
+
+			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
 				assert.NoError(t, err)
 				assert.NotZero(t, read)
 				event, err := support.CreateEventFromBytes(buf.Bytes())
 				assert.NotNil(t, event)
-				assert.NoError(t, err)
-			})
-		}
+				assert.NoError(t, err, "experienced error parsing event bytes: "+string(buf.Bytes()))
+			}
+		})
 	}
 
 	status := connector.AwaitStatus()
