@@ -23,3 +23,5 @@
 /bin
 /docker/bin
 /website/dist
+
+*/test_results/**

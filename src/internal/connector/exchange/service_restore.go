@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"runtime/trace"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -260,77 +261,94 @@ func RestoreExchangeDataCollections(
 		pathCounter         = map[string]bool{}
 		attempts, successes int
 		errs                error
-		folderID, root      string
-		isCancelled         bool
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
 	)
 
+	errUpdater := func(id string, err error) {
+		errs = support.WrapAndAppend(id, err, errs)
+	}
+
 	for _, dc := range dcs {
-		var (
-			items              = dc.Items()
-			directory          = dc.FullPath()
-			service            = directory.Service()
-			category           = directory.Category()
-			user               = directory.ResourceOwner()
-			exit               bool
-			directoryCheckFunc = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
-		)
+		a, s, canceled := restoreCollection(ctx, gs, dc, pathCounter, dest, policy, errUpdater)
+		attempts += a
+		successes += s
 
-		folderID, root, errs = directoryCheckFunc(ctx, errs, directory.String(), root, pathCounter)
-		if errs != nil { // assuming FailFast
+		if canceled {
 			break
-		}
-
-		if isCancelled {
-			break
-		}
-
-		for !exit {
-			select {
-			case <-ctx.Done():
-				errs = support.WrapAndAppend("context cancelled", ctx.Err(), errs)
-				isCancelled = true
-
-			case itemData, ok := <-items:
-				if !ok {
-					exit = true
-					continue
-				}
-				attempts++
-
-				buf := &bytes.Buffer{}
-
-				_, err := buf.ReadFrom(itemData.ToReader())
-				if err != nil {
-					errs = support.WrapAndAppend(
-						itemData.UUID()+": byteReadError during RestoreDataCollection",
-						err,
-						errs,
-					)
-
-					continue
-				}
-
-				err = RestoreExchangeObject(ctx, buf.Bytes(), category, policy, gs, folderID, user)
-				if err != nil {
-					//  More information to be here
-					errs = support.WrapAndAppend(
-						itemData.UUID()+": failed to upload RestoreExchangeObject: "+service.String()+"-"+category.String(),
-						err,
-						errs,
-					)
-
-					continue
-				}
-				successes++
-			}
 		}
 	}
 
 	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 
 	return status, errs
+}
+
+// restoreCollection handles restoration of an individual collection.
+func restoreCollection(
+	ctx context.Context,
+	gs graph.Service,
+	dc data.Collection,
+	pathCounter map[string]bool,
+	dest control.RestoreDestination,
+	policy control.CollisionPolicy,
+	errUpdater func(string, error),
+) (int, int, bool) {
+	defer trace.StartRegion(ctx, "gc:exchange:restoreCollection").End()
+	trace.Log(ctx, "gc:exchange:restoreCollection", dc.FullPath().String())
+
+	var (
+		attempts, successes int
+		folderID, root      string
+		err                 error
+		items               = dc.Items()
+		directory           = dc.FullPath()
+		service             = directory.Service()
+		category            = directory.Category()
+		user                = directory.ResourceOwner()
+		directoryCheckFunc  = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
+	)
+
+	folderID, root, err = directoryCheckFunc(ctx, err, directory.String(), root, pathCounter)
+	if err != nil { // assuming FailFast
+		errUpdater(directory.String(), err)
+		return 0, 0, false
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context cancelled", ctx.Err())
+			return attempts, successes, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return attempts, successes, false
+			}
+			attempts++
+
+			trace.Log(ctx, "gc:exchange:restoreCollection:item", itemData.UUID())
+
+			buf := &bytes.Buffer{}
+
+			_, err := buf.ReadFrom(itemData.ToReader())
+			if err != nil {
+				errUpdater(itemData.UUID()+": byteReadError during RestoreDataCollection", err)
+				continue
+			}
+
+			err = RestoreExchangeObject(ctx, buf.Bytes(), category, policy, gs, folderID, user)
+			if err != nil {
+				//  More information to be here
+				errUpdater(
+					itemData.UUID()+": failed to upload RestoreExchangeObject: "+service.String()+"-"+category.String(),
+					err)
+
+				continue
+			}
+			successes++
+		}
+	}
 }
 
 // generateRestoreContainerFunc utility function that holds logic for creating
