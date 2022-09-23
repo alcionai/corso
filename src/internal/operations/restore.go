@@ -86,21 +86,6 @@ type restoreStats struct {
 func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	startTime := time.Now()
 
-	// TODO: persist initial state of restoreOperation in modelstore
-	op.bus.Event(
-		ctx,
-		events.RestoreStart,
-		map[string]any{
-			events.StartTime: startTime,
-			events.Service:   op.Selectors.Service.String(),
-			events.BackupID:  op.BackupID,
-			// TODO: initial backup ID,
-			// TODO: events.ExchangeResources: <count of resources>,
-			// TODO: source backup time,
-			// TODO: restore options,
-		},
-	)
-
 	// persist operation results to the model store on exit
 	opStats := restoreStats{}
 	// TODO: persist results?
@@ -120,6 +105,18 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 
 		return err
 	}
+
+	// TODO: persist initial state of restoreOperation in modelstore
+	op.bus.Event(
+		ctx,
+		events.RestoreStart,
+		map[string]any{
+			events.StartTime:        startTime,
+			events.BackupID:         op.BackupID,
+			events.BackupCreateTime: b.CreationTime,
+			// TODO: restore options,
+		},
+	)
 
 	var fds *details.Details
 
