@@ -40,10 +40,10 @@ func TestRestoreOpSuite(t *testing.T) {
 // TODO: after modelStore integration is added, mock the store and/or
 // move this to an integration test.
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
-	t := suite.T()
-	ctx := context.Background()
-
 	var (
+		t   = suite.T()
+		ctx = context.Background()
+
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		acct = account.Account{}
@@ -61,6 +61,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				ObjectCount: 1,
 			},
 		}
+		dest = control.RestoreDestination{
+			ContainerName: tester.GetDefaultRestoreContainer(),
+		}
 	)
 
 	op, err := NewRestoreOperation(
@@ -71,6 +74,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		acct,
 		"foo",
 		selectors.Selector{},
+		dest,
 		evmock.NewBus())
 	require.NoError(t, err)
 
@@ -184,6 +188,9 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
 	acct := tester.NewM365Account(suite.T())
+	dest := control.RestoreDestination{
+		ContainerName: tester.GetDefaultRestoreContainer(),
+	}
 
 	table := []struct {
 		name     string
@@ -208,6 +215,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.acct,
 				"backup-id",
 				selectors.Selector{},
+				dest,
 				evmock.NewBus())
 			test.errCheck(t, err)
 		})
@@ -221,6 +229,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
 
+	dest := control.RestoreDestination{
+		ContainerName: tester.GetDefaultRestoreContainer(),
+	}
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(
@@ -231,6 +242,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		tester.NewM365Account(t),
 		suite.backupID,
 		rsel.Selector,
+		dest,
 		mb)
 	require.NoError(t, err)
 
@@ -255,6 +267,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(selectors.None()))
 
+	dest := control.RestoreDestination{
+		ContainerName: tester.GetDefaultRestoreContainer(),
+	}
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(
@@ -265,6 +280,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		tester.NewM365Account(t),
 		suite.backupID,
 		rsel.Selector,
+		dest,
 		mb)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")

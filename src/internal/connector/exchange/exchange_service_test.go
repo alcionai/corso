@@ -450,6 +450,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // GraphConnector's Restore Workflow based on OptionIdentifier.
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	ctx := context.Background()
+	containerName := tester.GetDefaultRestoreContainer()
 	tests := []struct {
 		name        string
 		option      path.CategoryType
@@ -495,7 +496,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option)
+			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option, containerName)
 			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
 
 			if test.cleanupFunc != nil {
