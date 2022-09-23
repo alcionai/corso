@@ -234,12 +234,13 @@ func IterateAndFilterDescendablesForCollections(
 	}
 }
 
-func getCategoryAndValidation(es *selectors.ExchangeScope) (
+func getCategoryAndValidation(es selectors.ExchangeScope) (
 	optionIdentifier,
 	path.CategoryType,
-	func(namePtr *string) bool) {
+	func(namePtr *string) bool,
+) {
 	var (
-		option   = scopeToOptionIdentifier(*es)
+		option   = scopeToOptionIdentifier(es)
 		category path.CategoryType
 		validate func(namePtr *string) bool
 	)
@@ -296,7 +297,7 @@ func IterateFilterContainersForCollections(
 
 	return func(folderItem any) bool {
 		if !isSet {
-			option, category, validate = getCategoryAndValidation(&qp.Scope)
+			option, category, validate = getCategoryAndValidation(qp.Scope)
 
 			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
 			if err != nil {
