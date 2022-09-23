@@ -115,7 +115,7 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 // of the last folder entry in the hiearchy
 func createRestoreFolders(ctx context.Context, service graph.Service, driveID string, restoreFolders []string,
 ) (string, error) {
-	driveRoot, err := service.Client().DrivesById(driveID).Root().Get()
+	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
 		return "", errors.Wrapf(
 			err,

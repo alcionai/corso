@@ -42,7 +42,7 @@ type BackupExchangeIntegrationSuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
-	repo       *repository.Repository
+	repo       repository.Repository
 	m365UserID string
 }
 
@@ -131,7 +131,7 @@ type PreparedBackupExchangeIntegrationSuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
-	repo       *repository.Repository
+	repo       repository.Repository
 	m365UserID string
 	backupOps  map[path.CategoryType]operations.BackupOperation
 }
@@ -303,7 +303,7 @@ type BackupDeleteExchangeIntegrationSuite struct {
 	st       storage.Storage
 	vpr      *viper.Viper
 	cfgFP    string
-	repo     *repository.Repository
+	repo     repository.Repository
 	backupOp operations.BackupOperation
 }
 
