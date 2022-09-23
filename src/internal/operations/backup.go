@@ -170,7 +170,7 @@ func (op *BackupOperation) persistResults(
 	op.Results.WriteErrors = opStats.writeErr
 
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
-	op.Results.BytesWritten = opStats.k.TotalWrittenBytes
+	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
@@ -217,7 +217,7 @@ func (op *BackupOperation) createBackupModels(
 			events.StartTime:  op.Results.StartedAt,
 			events.EndTime:    op.Results.CompletedAt,
 			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.DataStored: op.Results.BytesWritten,
+			events.DataStored: op.Results.BytesUploaded,
 			events.Resources:  op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},

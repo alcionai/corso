@@ -9,7 +9,7 @@ import (
 // and ItemsWritten counts are assumed to be successful reads.
 type ReadWrites struct {
 	BytesRead      int64 `json:"bytesRead,omitempty"`
-	BytesWritten   int64 `json:"bytesWritten,omitempty"`
+	BytesUploaded  int64 `json:"bytesUploaded,omitempty"`
 	ItemsRead      int   `json:"itemsRead,omitempty"`
 	ItemsWritten   int   `json:"itemsWritten,omitempty"`
 	ResourceOwners int   `json:"resourceOwners,omitempty"`

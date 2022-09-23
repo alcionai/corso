@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,8 +37,8 @@ var (
 type BackupStats struct {
 	SnapshotID string
 
-	TotalHashedBytes  int64
-	TotalWrittenBytes int64
+	TotalHashedBytes   int64
+	TotalUploadedBytes int64
 
 	TotalFileCount      int
 	TotalDirectoryCount int
@@ -48,12 +49,16 @@ type BackupStats struct {
 	IncompleteReason string
 }
 
-func manifestToStats(man *snapshot.Manifest, progress *corsoProgress) BackupStats {
+func manifestToStats(
+	man *snapshot.Manifest,
+	progress *corsoProgress,
+	uploadCount *stats.ByteCounter,
+) BackupStats {
 	return BackupStats{
 		SnapshotID: string(man.ID),
 
-		TotalHashedBytes:  progress.totalBytes,
-		TotalWrittenBytes: man.Stats.TotalFileSize,
+		TotalHashedBytes:   progress.totalBytes,
+		TotalUploadedBytes: uploadCount.NumBytes,
 
 		TotalFileCount:      int(man.Stats.TotalFileCount),
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
@@ -388,12 +393,12 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	stats, err := w.makeSnapshotWithRoot(ctx, dirTree, progress)
+	s, err := w.makeSnapshotWithRoot(ctx, dirTree, progress)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return stats, progress.deets, nil
+	return s, progress.deets, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
@@ -403,6 +408,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
+	bc := &stats.ByteCounter{}
+
 	err := repo.WriteSession(
 		ctx,
 		w.c,
@@ -411,6 +418,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			// Always flush so we don't leak write sessions. Still uses reachability
 			// for consistency.
 			FlushOnFailure: true,
+			OnUpload:       bc.Count,
 		},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
 			si := snapshot.SourceInfo{
@@ -461,7 +469,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 		return nil, errors.Wrap(err, "kopia backup")
 	}
 
-	res := manifestToStats(man, progress)
+	res := manifestToStats(man, progress, bc)
 
 	return &res, nil
 }

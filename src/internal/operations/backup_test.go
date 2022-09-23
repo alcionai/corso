@@ -48,9 +48,9 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			writeErr:      assert.AnError,
 			resourceCount: 1,
 			k: &kopia.BackupStats{
-				TotalFileCount:    1,
-				TotalHashedBytes:  1,
-				TotalWrittenBytes: 1,
+				TotalFileCount:     1,
+				TotalHashedBytes:   1,
+				TotalUploadedBytes: 1,
 			},
 			gc: &support.ConnectorOperationStatus{
 				Successful: 1,
@@ -75,7 +75,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
 	assert.Equal(t, stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
-	assert.Equal(t, stats.k.TotalWrittenBytes, op.Results.BytesWritten, "bytes written")
+	assert.Equal(t, stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
 	assert.Equal(t, op.Results.ResourceOwners, stats.resourceCount, "resource owners")
 	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
@@ -221,7 +221,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			assert.Less(t, 0, bo.Results.ItemsRead)
 			assert.Less(t, 0, bo.Results.ItemsWritten)
 			assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
-			assert.Less(t, int64(0), bo.Results.BytesWritten, "bytes written")
+			assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
 			assert.Equal(t, 1, bo.Results.ResourceOwners)
 			assert.Zero(t, bo.Results.ReadErrors)
 			assert.Zero(t, bo.Results.WriteErrors)
@@ -281,7 +281,7 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 	assert.Equal(t, bo.Status, Completed)
 	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
 	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
-	assert.Less(t, int64(0), bo.Results.BytesWritten, "bytes written")
+	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
 	assert.Equal(t, 1, bo.Results.ResourceOwners)
 	assert.NoError(t, bo.Results.ReadErrors)
 	assert.NoError(t, bo.Results.WriteErrors)
