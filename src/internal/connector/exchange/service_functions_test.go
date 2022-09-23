@@ -29,9 +29,13 @@ func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(ServiceFunctionsIntegrationSuite))
 }
 
+func (suite *ServiceFunctionsIntegrationSuite) SetupSuite() {
+	suite.m365UserID = tester.M365UserID(suite.T())
+}
+
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	gs := loadService(suite.T())
-	user := tester.M365UserID(suite.T())
+	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -40,14 +44,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	}{
 		{
 			name:        "plain lookup",
-			user:        user,
+			user:        suite.m365UserID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
 		{
 			name:        "root calendar",
 			contains:    "Calendar",
-			user:        user,
+			user:        suite.m365UserID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
@@ -60,14 +64,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 		{
 			name:        "nonsense matcher",
 			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
-			user:        user,
+			user:        suite.m365UserID,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllCalendars(gs, test.user, test.contains)
+			cals, err := GetAllCalendars(ctx, gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -77,6 +81,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	gs := loadService(suite.T())
 	user := tester.M365UserID(suite.T())
+	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -112,7 +117,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllContactFolders(gs, test.user, test.contains)
+			cals, err := GetAllContactFolders(ctx, gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -121,7 +126,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 	gs := loadService(suite.T())
-	user := tester.M365UserID(suite.T())
+	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -130,14 +135,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 	}{
 		{
 			name:        "plain lookup",
-			user:        user,
+			user:        suite.m365UserID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
 		{
 			name:        "Root folder",
 			contains:    "Inbox",
-			user:        user,
+			user:        suite.m365UserID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 		},
@@ -150,14 +155,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 		{
 			name:        "nonsense matcher",
 			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
-			user:        user,
+			user:        suite.m365UserID,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllMailFolders(gs, test.user, test.contains)
+			cals, err := GetAllMailFolders(ctx, gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})

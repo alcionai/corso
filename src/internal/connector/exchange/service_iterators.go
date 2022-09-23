@@ -174,12 +174,11 @@ func IterateSelectAllEventsFromCalendars(
 			return true
 		}
 
-		eventIDs, err := ReturnEventIDsFromCalendar(service, qp.User, *calendar.GetId())
+		eventIDs, err := ReturnEventIDsFromCalendar(ctx, service, qp.User, *calendar.GetId())
 		if err != nil {
 			errUpdater(
 				qp.User,
-				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
-			)
+				errors.Wrap(err, support.ConnectorStackErrorTrace(err)))
 
 			return true
 		}
@@ -420,7 +419,7 @@ func IterateSelectAllContactsForCollections(
 					statusUpdater,
 				)
 
-				listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetParentFolderId())
+				listOfIDs, err := ReturnContactIDsFromDirectory(ctx, service, qp.User, *folder.GetParentFolderId())
 				if err != nil {
 					errUpdater(
 						qp.User,
@@ -446,7 +445,7 @@ func IterateSelectAllContactsForCollections(
 			return true // Not included
 		}
 
-		listOfIDs, err := ReturnContactIDsFromDirectory(service, qp.User, *folder.GetId())
+		listOfIDs, err := ReturnContactIDsFromDirectory(ctx, service, qp.User, *folder.GetId())
 		if err != nil {
 			errUpdater(
 				qp.User,
@@ -517,11 +516,11 @@ func iterateFindContainerID(
 
 // IDistFunc collection of helper functions which return a list of strings
 // from a response.
-type IDListFunc func(gs graph.Service, user, m365ID string) ([]string, error)
+type IDListFunc func(ctx context.Context, gs graph.Service, user, m365ID string) ([]string, error)
 
 // ReturnContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
 // of the targeted directory
-func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) ([]string, error) {
+func ReturnContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, directoryID string) ([]string, error) {
 	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
 	if err != nil {
 		return nil, err
@@ -533,7 +532,7 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) (
 		UsersById(user).
 		ContactFoldersById(directoryID).
 		Contacts().
-		GetWithRequestConfigurationAndResponseHandler(options, nil)
+		Get(ctx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +555,7 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) (
 		return true
 	}
 
-	if iterateErr := pageIterator.Iterate(callbackFunc); iterateErr != nil {
+	if iterateErr := pageIterator.Iterate(ctx, callbackFunc); iterateErr != nil {
 		return nil, iterateErr
 	}
 
@@ -568,13 +567,17 @@ func ReturnContactIDsFromDirectory(gs graph.Service, user, directoryID string) (
 }
 
 // ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
-func ReturnEventIDsFromCalendar(gs graph.Service, user, calendarID string) ([]string, error) {
+func ReturnEventIDsFromCalendar(
+	ctx context.Context,
+	gs graph.Service,
+	user, calendarID string,
+) ([]string, error) {
 	ids := []string{}
 
 	response, err := gs.Client().
 		UsersById(user).
 		CalendarsById(calendarID).
-		Events().Get()
+		Events().Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +604,7 @@ func ReturnEventIDsFromCalendar(gs graph.Service, user, calendarID string) ([]st
 		return true
 	}
 
-	if iterateErr := pageIterator.Iterate(callbackFunc); iterateErr != nil {
+	if iterateErr := pageIterator.Iterate(ctx, callbackFunc); iterateErr != nil {
 		return nil,
 			errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(err))
 	}

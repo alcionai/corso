@@ -56,7 +56,6 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-
 		directory := dc.FullPath()
 
 		drivePath, err := toOneDrivePath(directory)
@@ -86,6 +85,7 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 		// Restore items from the collection
 		exit := false
 		items := dc.Items()
+
 		for !exit {
 			select {
 			case <-ctx.Done():
@@ -115,7 +115,7 @@ func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.C
 // of the last folder entry in the hiearchy
 func createRestoreFolders(ctx context.Context, service graph.Service, driveID string, restoreFolders []string,
 ) (string, error) {
-	driveRoot, err := service.Client().DrivesById(driveID).Root().Get()
+	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
 		return "", errors.Wrapf(
 			err,
@@ -123,6 +123,7 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
+
 	logger.Ctx(ctx).Debugf("Found Root for Drive %s with ID %s", driveID, *driveRoot.GetId())
 
 	parentFolderID := *driveRoot.GetId()
@@ -131,8 +132,10 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 		if err == nil {
 			parentFolderID = *folderItem.GetId()
 			logger.Ctx(ctx).Debugf("Found %s with ID %s", folder, parentFolderID)
+
 			continue
 		}
+
 		if err != errFolderNotFound {
 			return "", errors.Wrapf(err, "folder %s not found in drive(%s) parentFolder(%s)", folder, driveID, parentFolderID)
 		}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	msup "github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item/createuploadsession"
 	"github.com/pkg/errors"
 	"gopkg.in/resty.v1"
 
@@ -32,7 +33,7 @@ func driveItemReader(
 ) (string, io.ReadCloser, error) {
 	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
 
-	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get()
+	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
@@ -44,6 +45,7 @@ func driveItemReader(
 		return "", nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
 			itemID, item.GetAdditionalData())
 	}
+
 	downloadURL := item.GetAdditionalData()[downloadURLKey].(*string)
 
 	// TODO: We should use the `msgraphgocore` http client which has the right
@@ -60,7 +62,10 @@ func driveItemReader(
 // It does so by creating an upload session and using that URL to initialize an `itemWriter`
 func driveItemWriter(ctx context.Context, service graph.Service, driveID, itemID string, itemSize int64,
 ) (io.Writer, error) {
-	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(nil)
+	// TODO: @vkamra verify if var session is the desired input
+	session := msup.NewCreateUploadSessionPostRequestBody()
+
+	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,

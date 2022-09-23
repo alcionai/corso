@@ -77,6 +77,7 @@ func (op RestoreOperation) validate() error {
 type restoreStats struct {
 	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
+	resourceCount     int
 	started           bool
 	readErr, writeErr error
 }
@@ -91,6 +92,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		events.RestoreStart,
 		map[string]any{
 			events.StartTime: startTime,
+			events.Service:   op.Selectors.Service.String(),
 			events.BackupID:  op.BackupID,
 			// TODO: initial backup ID,
 			// TODO: events.ExchangeResources: <count of resources>,
@@ -132,7 +134,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		// format the details and retrieve the items from kopia
 		fds = er.Reduce(ctx, d)
 		if len(fds.Entries) == 0 {
-			return errors.New("nothing to restore: no items in the backup match the provided selectors")
+			return selectors.ErrorNoMatchingItems
 		}
 
 	case selectors.ServiceOneDrive:
@@ -173,9 +175,10 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 
 	opStats.readErr = parseErrs.ErrorOrNil()
 	opStats.cs = dcs
+	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
 	// restore those collections using graph
-	gc, err := connector.NewGraphConnector(op.account)
+	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
 		err = errors.Wrap(err, "connecting to graph api")
 		opStats.writeErr = err
@@ -222,6 +225,7 @@ func (op *RestoreOperation) persistResults(
 	op.Results.WriteErrors = opStats.writeErr
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
+	op.Results.ResourceOwners = opStats.resourceCount
 
 	op.bus.Event(
 		ctx,
@@ -229,13 +233,14 @@ func (op *RestoreOperation) persistResults(
 		map[string]any{
 			// TODO: RestoreID
 			events.BackupID:     op.BackupID,
+			events.Service:      op.Selectors.Service.String(),
 			events.Status:       op.Status,
 			events.StartTime:    op.Results.StartedAt,
 			events.EndTime:      op.Results.CompletedAt,
 			events.Duration:     op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.ItemsRead:    op.Results.ItemsRead,
 			events.ItemsWritten: op.Results.ItemsWritten,
-			// TODO: events.ExchangeResources: <count of resources>,
+			events.Resources:    op.Results.ResourceOwners,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)

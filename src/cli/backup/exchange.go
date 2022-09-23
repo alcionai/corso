@@ -358,28 +358,29 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to get backup details in the repository"))
 	}
 
+	opts := utils.ExchangeOpts{
+		Contacts:            contact,
+		ContactFolders:      contactFolder,
+		Emails:              email,
+		EmailFolders:        emailFolder,
+		Events:              event,
+		EventCalendars:      eventCalendar,
+		Users:               user,
+		ContactName:         contactName,
+		EmailReceivedAfter:  emailReceivedAfter,
+		EmailReceivedBefore: emailReceivedBefore,
+		EmailSender:         emailSender,
+		EmailSubject:        emailSubject,
+		EventOrganizer:      eventOrganizer,
+		EventRecurs:         eventRecurs,
+		EventStartsAfter:    eventStartsAfter,
+		EventStartsBefore:   eventStartsBefore,
+		EventSubject:        eventSubject,
+	}
+
 	sel := selectors.NewExchangeRestore()
-	utils.IncludeExchangeRestoreDataSelectors(
-		sel,
-		contact,
-		contactFolder,
-		email,
-		emailFolder,
-		event,
-		eventCalendar,
-		user)
-	utils.FilterExchangeRestoreInfoSelectors(
-		sel,
-		contactName,
-		emailReceivedAfter,
-		emailReceivedBefore,
-		emailSender,
-		emailSubject,
-		eventOrganizer,
-		eventRecurs,
-		eventStartsAfter,
-		eventStartsBefore,
-		eventSubject)
+	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
+	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
 	// if no selector flags were specified, get all data in the service.
 	if len(sel.Scopes()) == 0 {
@@ -388,7 +389,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ds := sel.Reduce(ctx, d)
 	if len(ds.Entries) == 0 {
-		Info(ctx, "nothing to display: no items in the backup match the provided selectors")
+		Info(ctx, selectors.ErrorNoMatchingItems)
 		return nil
 	}
 

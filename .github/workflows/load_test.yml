@@ -1,0 +1,61 @@
+name: Nightly Load Testing
+on:
+  schedule:
+    # every day at 01:59 (01:59am) UTC
+    - cron: "59 1 * * *"
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: read
+
+Load-Tests:
+  environment: Testing
+  runs-on: ubuntu-latest
+  defaults:
+    run:
+      working-directory: src
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Golang with cache
+      uses: magnetikonline/action-golang-cache@v3
+      with:
+        go-version-file: src/go.mod
+
+    # Install gotestfmt
+    - name: Set up gotestfmt
+      run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
+
+    # AWS creds
+    - name: Configure AWS credentials from Test account
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: arn:aws:iam::951767375776:role/corso-testing-role
+        role-session-name: integration-testing
+        aws-region: us-east-1
+
+    # run the tests
+    - name: Integration Tests
+      env:
+        CORSO_LOAD_TESTS: true 
+        CLIENT_ID: ${{ secrets.CLIENT_ID }}
+        CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+        CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+        TENANT_ID: ${{ secrets.TENANT_ID }}
+      run: |
+        set -euo pipefail
+        go test       \
+        -json         \
+        -v            \
+        -count=1      \
+        --timeout 12h \
+        ./... 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests
+
+    # Upload the original go test log as an artifact for later review.
+    - name: Upload test log
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-log
+        path: /tmp/gotest.log
+        if-no-files-found: error

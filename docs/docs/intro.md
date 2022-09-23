@@ -12,5 +12,5 @@ beyond M365, will expand based on the interest and needs of the community.
 
 ## Getting started
 
-Follow the instructions in the [Installation](/install) and [Initial Configuration](/configuration) sections to setup
+Follow the instructions in the [Installation](/install) and [Initial Configuration](/configuration/concepts) sections to setup
 Corso and get it ready for first use. You can then go through the [Tutorial](/tutorial) section to see it in action.

@@ -25,11 +25,12 @@ const (
 
 // Enumerates the drives for the specified user
 func drives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
-	r, err := service.Client().UsersById(user).Drives().Get()
+	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
 			user, support.ConnectorStackErrorTrace(err))
 	}
+
 	logger.Ctx(ctx).Debugf("Found %d drives for user %s", len(r.GetValue()), user)
 
 	return r.GetValue(), nil
@@ -50,8 +51,9 @@ func collectItems(
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
 	builder := service.Client().DrivesById(driveID).Root().Delta()
+
 	for {
-		r, err := builder.Get()
+		r, err := builder.Get(ctx, nil)
 		if err != nil {
 			return errors.Wrapf(
 				err,
@@ -69,10 +71,12 @@ func collectItems(
 		if _, found := r.GetAdditionalData()[nextLinkKey]; !found {
 			break
 		}
+
 		nextLink := r.GetAdditionalData()[nextLinkKey].(*string)
 		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
 		builder = delta.NewDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
+
 	return nil
 }
 
@@ -80,7 +84,7 @@ func collectItems(
 func getFolder(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
 	folderName string,
 ) (models.DriveItemable, error) {
-	children, err := service.Client().DrivesById(driveID).ItemsById(parentFolderID).Children().Get()
+	children, err := service.Client().DrivesById(driveID).ItemsById(parentFolderID).Children().Get(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -110,7 +114,7 @@ func createItem(ctx context.Context, service graph.Service, driveID string, pare
 
 	builder := items.NewItemsRequestBuilder(rawURL, service.Adapter())
 
-	newItem, err := builder.Post(item)
+	newItem, err := builder.Post(ctx, item, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,

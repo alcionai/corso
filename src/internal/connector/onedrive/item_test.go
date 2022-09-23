@@ -127,7 +127,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	// Pick the first drive
 	driveID := *drives[0].GetId()
 
-	root, err := suite.Client().DrivesById(driveID).Root().Get()
+	root, err := suite.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: "Test Folder" should exist
