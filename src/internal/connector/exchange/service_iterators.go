@@ -316,6 +316,8 @@ func IterateFilterContainersForCollections(
 			errUpdater(qp.User,
 				fmt.Errorf("unable to convert input of %T for category: %s", folderItem, category.String()),
 			)
+
+			return true
 		}
 
 		if validate(folder.GetDisplayName()) {
