@@ -346,8 +346,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 			nil
 	}
 
-	if scope.IncludesCategory(selectors.ExchangeEvent) ||
-		scope.IncludesCategory(selectors.ExchangeEventCalendar) {
+	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 			GetAllCalendarNamesForUser,
 			IterateSelectAllEventsFromCalendars,
