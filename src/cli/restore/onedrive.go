@@ -9,6 +9,8 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -83,7 +85,11 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector)
+	restoreDest := control.RestoreDestination{
+		ContainerName: defaultRestoreLocation + common.FormatNow(common.SimpleDateTimeFormatOneDrive),
+	}
+
+	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize OneDrive restore"))
 	}
