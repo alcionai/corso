@@ -41,6 +41,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 	); err != nil {
 		t.Skip(err)
 	}
+
 	suite.Run(t, new(ItemIntegrationSuite))
 }
 
@@ -85,6 +86,7 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 				break
 			}
 		}
+
 		return nil
 	}
 	err = collectItems(ctx, suite, driveID, itemCollector)
@@ -100,10 +102,10 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 	)
 
 	// Read data for the file
-
 	name, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
 	require.NoError(suite.T(), err)
 	require.NotEmpty(suite.T(), name)
+
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(suite.T(), err)
 	require.NotZero(suite.T(), size)
