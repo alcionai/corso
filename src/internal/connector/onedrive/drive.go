@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
-	"github.com/microsoftgraph/msgraph-sdk-go/me/drives/item/items"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -21,6 +22,8 @@ const (
 	// graph response
 	nextLinkKey           = "@odata.nextLink"
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	itemNotFoundErrorCode = "itemNotFound"
 )
 
 // Enumerates the drives for the specified user
@@ -84,24 +87,39 @@ func collectItems(
 func getFolder(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
 	folderName string,
 ) (models.DriveItemable, error) {
-	children, err := service.Client().DrivesById(driveID).ItemsById(parentFolderID).Children().Get(ctx, nil)
+	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
+	// will be sub-optimal.
+	// Instead, we leverage OneDrive path-based addressing -
+	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
+	// - which allows us to lookup an item by its path relative to the parent ID
+	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
+
+	builder := item.NewDriveItemItemRequestBuilder(rawURL, service.Adapter())
+
+	item, err := builder.Get(ctx, nil)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to get children. details: %s",
+
+		if oDataError := support.ODataError(err); oDataError != nil && oDataError.GetError() != nil &&
+			oDataError.GetError().GetCode() != nil &&
+			*oDataError.GetError().GetCode() == itemNotFoundErrorCode {
+
+			return nil, errors.WithStack(errFolderNotFound)
+		}
+
+		return nil, errors.Wrapf(err,
+			"failed to get folder %s/%s. details: %s",
+			parentFolderID,
+			folderName,
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
 
-	for _, item := range children.GetValue() {
-		if item.GetFolder() == nil || item.GetName() == nil || *item.GetName() != folderName {
-			continue
-		}
-
-		return item, nil
+	// Check if the item found is a folder, fail the call if not
+	if item.GetFolder() == nil {
+		return nil, errors.WithStack(errFolderNotFound)
 	}
 
-	return nil, errors.WithStack(errFolderNotFound)
+	return item, nil
 }
 
 // Create a new item in the specified folder

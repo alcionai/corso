@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
@@ -87,6 +88,15 @@ func concatenateStringFromPointers(orig string, pointers []*string) string {
 	}
 
 	return orig
+}
+
+func ODataError(err error) *msgraph_errors.ODataError {
+	switch v := err.(type) {
+	case *odataerrors.ODataError:
+		return v
+	default:
+		return nil
+	}
 }
 
 // ConnectorStackErrorTrace is a helper function that wraps the
