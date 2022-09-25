@@ -96,13 +96,12 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 
 	builder := item.NewDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
-	item, err := builder.Get(ctx, nil)
+	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
-
-		if oDataError := support.ODataError(err); oDataError != nil && oDataError.GetError() != nil &&
+		if oDataError := support.ODataError(err); oDataError != nil &&
+			oDataError.GetError() != nil &&
 			oDataError.GetError().GetCode() != nil &&
 			*oDataError.GetError().GetCode() == itemNotFoundErrorCode {
-
 			return nil, errors.WithStack(errFolderNotFound)
 		}
 
@@ -115,16 +114,16 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 	}
 
 	// Check if the item found is a folder, fail the call if not
-	if item.GetFolder() == nil {
+	if foundItem.GetFolder() == nil {
 		return nil, errors.WithStack(errFolderNotFound)
 	}
 
-	return item, nil
+	return foundItem, nil
 }
 
 // Create a new item in the specified folder
 func createItem(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
-	item models.DriveItemable,
+	newItem models.DriveItemable,
 ) (models.DriveItemable, error) {
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
@@ -132,7 +131,7 @@ func createItem(ctx context.Context, service graph.Service, driveID string, pare
 
 	builder := items.NewItemsRequestBuilder(rawURL, service.Adapter())
 
-	newItem, err := builder.Post(ctx, item, nil)
+	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -146,14 +145,14 @@ func createItem(ctx context.Context, service graph.Service, driveID string, pare
 
 // newItem initializes a `models.DriveItemable` that can be used as input to `createItem`
 func newItem(name string, folder bool) models.DriveItemable {
-	item := models.NewDriveItem()
-	item.SetName(&name)
+	itemToCreate := models.NewDriveItem()
+	itemToCreate.SetName(&name)
 
 	if folder {
-		item.SetFolder(models.NewFolder())
+		itemToCreate.SetFolder(models.NewFolder())
 	} else {
-		item.SetFile(models.NewFile())
+		itemToCreate.SetFile(models.NewFile())
 	}
 
-	return item
+	return itemToCreate
 }
