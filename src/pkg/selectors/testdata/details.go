@@ -4,8 +4,8 @@ import (
 	stdpath "path"
 	"time"
 
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // mustParsePath takes a string representing a resource path and returns a path

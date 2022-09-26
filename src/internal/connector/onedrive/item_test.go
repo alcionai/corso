@@ -102,7 +102,6 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 	)
 
 	// Read data for the file
-
 	itemInfo, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo)
