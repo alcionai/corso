@@ -199,7 +199,11 @@ func IterateAndFilterDescendablesForCollections(
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
-	var isFilterSet bool
+	var (
+		isFilterSet bool
+		resolver    graph.ContainerResolver
+		cache       map[string]string
+	)
 
 	return func(descendItem any) bool {
 		if !isFilterSet {
@@ -213,6 +217,13 @@ func IterateAndFilterDescendablesForCollections(
 				errUpdater(qp.User, err)
 				return false
 			}
+			// Caches folder directories
+			cache = make(map[string]string, 0)
+
+			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
+			if err != nil {
+				errUpdater("getting folder resolver for category "+path.EmailCategory.String(), err)
+			}
 
 			isFilterSet = true
 		}
@@ -223,7 +234,20 @@ func IterateAndFilterDescendablesForCollections(
 			return true
 		}
 		// Saving only messages for the created directories
-		directory := *message.GetParentFolderId()
+		folderID := *message.GetParentFolderId()
+
+		directory, ok := cache[folderID]
+		if !ok {
+			result := translateIDToDirectory(ctx, qp, resolver, folderID)
+			if result == "" {
+				errUpdater(qp.User,
+					errors.New("getCollectionPath experienced error during translateID"))
+			}
+
+			cache[folderID] = result
+			directory = result
+		}
+
 		if _, ok = collections[directory]; !ok {
 			return true
 		}
@@ -232,6 +256,20 @@ func IterateAndFilterDescendablesForCollections(
 
 		return true
 	}
+}
+
+func translateIDToDirectory(
+	ctx context.Context,
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+	directoryID string,
+) string {
+	fullPath, err := getCollectionPath(ctx, qp, resolver, directoryID, path.EmailCategory)
+	if err != nil {
+		return ""
+	}
+
+	return fullPath.Folder()
 }
 
 func getCategoryAndValidation(es selectors.ExchangeScope) (
