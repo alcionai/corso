@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -84,36 +83,54 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 // - events
 func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	ctx := context.Background()
-	t := suite.T()
-	connector := loadConnector(ctx, t)
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{suite.user}))
-	collectionList, err := connector.ExchangeDataCollection(context.Background(), sel.Selector)
-	assert.NotNil(t, collectionList, "collection list")
-	assert.NoError(t, err)
-	assert.Zero(t, connector.status.ObjectCount)
-	assert.Zero(t, connector.status.FolderCount)
-	assert.Zero(t, connector.status.Successful)
+	connector := loadConnector(ctx, suite.T())
+	tests := []struct {
+		name        string
+		getSelector func(t *testing.T) selectors.Selector
+	}{
+		{
+			name: suite.user + " Email",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
 
-	streams := make(map[string]<-chan data.Stream)
-	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
-	for _, collection := range collectionList {
-		temp := collection.Items()
-		testName := collection.FullPath().ResourceOwner()
-		streams[testName] = temp
+				return sel.Selector
+			},
+		},
+		{
+			name: suite.user + " Contacts",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
+
+				return sel.Selector
+			},
+		},
+		{
+			name: suite.user + " Events",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
+
+				return sel.Selector
+			},
+		},
 	}
 
-	status := connector.AwaitStatus()
-	assert.NotZero(t, status.Successful)
-
-	for name, channel := range streams {
-		suite.T().Run(name, func(t *testing.T) {
-			t.Logf("Test: %s\t Items: %d", name, len(channel))
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t))
+			require.NoError(t, err)
+			assert.Equal(t, len(collection), 1)
+			channel := collection[0].Items()
 			for object := range channel {
 				buf := &bytes.Buffer{}
 				_, err := buf.ReadFrom(object.ToReader())
 				assert.NoError(t, err, "received a buf.Read error")
 			}
+			status := connector.AwaitStatus()
+			assert.NotZero(t, status.Successful)
+			t.Log(status.String())
 		})
 	}
 }
