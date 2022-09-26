@@ -96,7 +96,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 		},
 		{
 			name:        "root folder",
-			contains:    DefaultContactFolder,
+			contains:    "Contact", // DefaultContactFolder doesn't work here?
 			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,

@@ -426,6 +426,8 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
 	ctx := context.Background()
+	// TODO: #779 - reinstate when restored events to not generate notifications
+	t.Skip("#779 - reinstate when restored events to not generate notifications")
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	calendar, err := CreateCalendar(ctx, suite.es, userID, name)

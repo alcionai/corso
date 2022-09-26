@@ -239,6 +239,7 @@ func GetAllContactFolders(
 			return false
 		}
 
+		fmt.Printf("\n-----\nchecking inclusion %v %v\n-----\n", *folder.GetDisplayName(), nameContains)
 		include := len(nameContains) == 0 ||
 			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
 		if include {
