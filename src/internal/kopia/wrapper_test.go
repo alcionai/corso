@@ -72,6 +72,10 @@ func testForFiles(
 			require.NoError(t, err, "reading collection item: %s", fullPath)
 
 			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
+
+			require.Implements(t, (*data.StreamSize)(nil), s)
+			ss := s.(data.StreamSize)
+			assert.Equal(t, len(buf), int(ss.Size()))
 		}
 	}
 
