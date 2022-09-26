@@ -361,19 +361,22 @@ func (i SharepointInfo) Values() []string {
 
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
-	ItemType   ItemType `json:"itemType,omitempty"`
-	ParentPath string   `json:"parentPath"`
-	ItemName   string   `json:"itemName"`
+	ItemType     ItemType  `json:"itemType,omitempty"`
+	ParentPath   string    `json:"parentPath"`
+	ItemName     string    `json:"itemName"`
+	Size         int64     `json:"size,omitempty"`
+	Created      time.Time `json:"created,omitempty"`
+	LastModified time.Time `json:"lastModified,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a OneDriveInfo
 // for printing out to a terminal in a columnar display.
 func (i OneDriveInfo) Headers() []string {
-	return []string{"ItemName", "ParentPath"}
+	return []string{"ItemName", "ParentPath", "Size", "Created", "LastModified"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
-	return []string{i.ItemName, i.ParentPath}
+	return []string{i.ItemName, i.ParentPath, strconv.FormatInt(i.Size, 10), common.FormatTabularDisplayTime(i.Created), common.FormatTabularDisplayTime(i.LastModified)}
 }
