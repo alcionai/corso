@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type OneDriveCollectionSuite struct {
@@ -73,8 +74,8 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	// Set a item reader, add an item and validate we get the item back
 	coll.Add(testItemID)
 
-	coll.itemReader = func(context.Context, graph.Service, string, string) (string, io.ReadCloser, error) {
-		return testItemName, io.NopCloser(bytes.NewReader(testItemData)), nil
+	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
+		return &details.OneDriveInfo{ItemName: testItemName}, io.NopCloser(bytes.NewReader(testItemData)), nil
 	}
 
 	// Read items from the collection
@@ -122,8 +123,8 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 
 	readError := errors.New("Test error")
 
-	coll.itemReader = func(context.Context, graph.Service, string, string) (name string, data io.ReadCloser, err error) {
-		return "", nil, readError
+	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
+		return nil, nil, readError
 	}
 
 	coll.Items()
