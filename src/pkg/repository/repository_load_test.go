@@ -56,7 +56,7 @@ func runBackupLoadTest(
 		assert.Equal(t, b.Status, operations.Completed, "backup status")
 		assert.Less(t, 0, b.Results.ItemsRead, "items read")
 		assert.Less(t, 0, b.Results.ItemsWritten, "items written")
-		assert.Less(t, int64(0), b.Results.BytesWritten, "bytes written")
+		assert.Less(t, int64(0), b.Results.BytesUploaded, "bytes uploaded")
 		assert.Less(t, 0, b.Results.ResourceOwners, "resource owners")
 		assert.Zero(t, b.Results.ReadErrors, "read errors")
 		assert.Zero(t, b.Results.WriteErrors, "write errors")
