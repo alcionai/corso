@@ -96,10 +96,10 @@ type itemWriter struct {
 }
 
 const (
-	contentRangeHeaderKey  = "Content-Range"
-	contentLengthHeaderKey = "Content-Length"
-	// Format for Content-Length is "bytes <start>-<end>/<total>"
-	contentLengthHeaderValueFmt = "bytes %d-%d/%d"
+	contentRangeHeaderKey = "Content-Range"
+	// Format for Content-Range is "bytes <start>-<end>/<total>"
+	contentRangeHeaderValueFmt = "bytes %d-%d/%d"
+	contentLengthHeaderKey     = "Content-Length"
 )
 
 // Write will upload the provided data to OneDrive. It sets the `Content-Length` and `Content-Range` headers based on
@@ -117,7 +117,7 @@ func (iw *itemWriter) Write(p []byte) (n int, err error) {
 	// data in the current request
 	resp, err := client.R().
 		SetHeaders(map[string]string{
-			contentRangeHeaderKey: fmt.Sprintf(contentLengthHeaderValueFmt,
+			contentRangeHeaderKey: fmt.Sprintf(contentRangeHeaderValueFmt,
 				iw.lastWrittenOffset,
 				endOffset-1,
 				iw.contentLength),
