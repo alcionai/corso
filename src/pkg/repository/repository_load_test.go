@@ -120,6 +120,7 @@ func runRestoreLoadTest(
 ) {
 	//revive:enable:context-as-argument
 	t.Run("restore_"+name, func(t *testing.T) {
+		t.Skip("skipping restore handling while investigating performance")
 		require.NoError(t, r.Run(ctx), "running restore")
 		require.NotEmpty(t, r.Results, "has results after run")
 		assert.Equal(t, r.Status, operations.Completed, "restore status")
@@ -179,9 +180,12 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 
 	t.Parallel()
 
+	m356User := tester.M365UserID(t)
+
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users(selectors.Any()))
+	bsel.Include(bsel.Users([]string{m356User}))
+	// bsel.Include(bsel.Users(selectors.Any()))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
