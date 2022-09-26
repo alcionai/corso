@@ -17,6 +17,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -43,15 +44,19 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	ctx := context.Background()
 
 	var (
-		kw    = &kopia.Wrapper{}
-		sw    = &store.Wrapper{}
-		acct  = account.Account{}
-		now   = time.Now()
-		stats = restoreStats{
-			started:  true,
-			readErr:  multierror.Append(nil, assert.AnError),
-			writeErr: assert.AnError,
-			cs:       []data.Collection{&exchange.Collection{}},
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		acct = account.Account{}
+		now  = time.Now()
+		rs   = restoreStats{
+			started:       true,
+			readErr:       multierror.Append(nil, assert.AnError),
+			writeErr:      assert.AnError,
+			resourceCount: 1,
+			bytesRead: &stats.ByteCounter{
+				NumBytes: 42,
+			},
+			cs: []data.Collection{&exchange.Collection{}},
 			gc: &support.ConnectorOperationStatus{
 				ObjectCount: 1,
 			},
@@ -69,14 +74,15 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		evmock.NewBus())
 	require.NoError(t, err)
 
-	require.NoError(t, op.persistResults(ctx, now, &stats))
+	require.NoError(t, op.persistResults(ctx, now, &rs))
 
 	assert.Equal(t, op.Status.String(), Completed.String(), "status")
-	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
-	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
-	assert.Equal(t, op.Results.ItemsWritten, stats.gc.Successful, "items written")
-	assert.Equal(t, 0, op.Results.ResourceOwners, "resource owners")
-	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
+	assert.Equal(t, op.Results.ItemsRead, len(rs.cs), "items read")
+	assert.Equal(t, op.Results.ReadErrors, rs.readErr, "read errors")
+	assert.Equal(t, op.Results.ItemsWritten, rs.gc.Successful, "items written")
+	assert.Equal(t, rs.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
+	assert.Equal(t, rs.resourceCount, op.Results.ResourceOwners, "resource owners")
+	assert.Equal(t, op.Results.WriteErrors, rs.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
 }
@@ -231,9 +237,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
-	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
-	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
-	assert.Equal(t, 1, ro.Results.ResourceOwners)
+	assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
+	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
+	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
+	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
@@ -261,7 +268,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		mb)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
-	assert.Equal(t, 0, ro.Results.ResourceOwners)
+	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
+	assert.Zero(t, ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
-	assert.Equal(t, 0, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+	assert.Zero(t, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }
