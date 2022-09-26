@@ -87,8 +87,15 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	ctx := context.Background()
 	t := suite.T()
 	connector := loadConnector(ctx, t)
+
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{suite.user}))
+	su := []string{suite.user}
+	sel.Include(
+		sel.ContactFolders(su, []string{exchange.DefaultContactFolder}),
+		sel.EventCalendars(su, []string{exchange.DefaultCalendar}),
+		sel.MailFolders(su, []string{exchange.DefaultMailFolder}),
+	)
+
 	collectionList, err := connector.ExchangeDataCollection(context.Background(), sel.Selector)
 	assert.NotNil(t, collectionList, "collection list")
 	assert.NoError(t, err)
