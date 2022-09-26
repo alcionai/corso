@@ -37,11 +37,13 @@ func stubBackup(t time.Time) backup.Backup {
 		DetailsID:    "details",
 		Status:       "status",
 		Selectors:    sel.Selector,
+		Errs: stats.Errs{
+			ReadErrors:  errors.New("1"),
+			WriteErrors: errors.New("1"),
+		},
 		ReadWrites: stats.ReadWrites{
 			ItemsRead:    1,
 			ItemsWritten: 1,
-			ReadErrors:   errors.New("1"),
-			WriteErrors:  errors.New("1"),
 		},
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,

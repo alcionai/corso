@@ -13,12 +13,12 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -37,6 +37,7 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
+	stats.Errs
 	stats.ReadWrites
 	stats.StartAndEndTime
 }
@@ -77,6 +78,7 @@ func (op RestoreOperation) validate() error {
 type restoreStats struct {
 	cs                []data.Collection
 	gc                *support.ConnectorOperationStatus
+	bytesRead         *stats.ByteCounter
 	resourceCount     int
 	started           bool
 	readErr, writeErr error
@@ -87,7 +89,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	startTime := time.Now()
 
 	// persist operation results to the model store on exit
-	opStats := restoreStats{}
+	opStats := restoreStats{
+		bytesRead: &stats.ByteCounter{},
+	}
 	// TODO: persist results?
 
 	defer func() {
@@ -160,7 +164,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		paths[i] = p
 	}
 
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
 
@@ -193,6 +197,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
+
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
 	return nil
@@ -220,6 +225,8 @@ func (op *RestoreOperation) persistResults(
 
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
+
+	op.Results.BytesRead = opStats.bytesRead.NumBytes
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
 	op.Results.ResourceOwners = opStats.resourceCount
@@ -229,16 +236,16 @@ func (op *RestoreOperation) persistResults(
 		events.RestoreEnd,
 		map[string]any{
 			// TODO: RestoreID
-			events.BackupID:     op.BackupID,
-			events.Service:      op.Selectors.Service.String(),
-			events.Status:       op.Status,
-			events.StartTime:    op.Results.StartedAt,
-			events.EndTime:      op.Results.CompletedAt,
-			events.Duration:     op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.ItemsRead:    op.Results.ItemsRead,
-			events.ItemsWritten: op.Results.ItemsWritten,
-			events.Resources:    op.Results.ResourceOwners,
-			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
+			events.BackupID:      op.BackupID,
+			events.Service:       op.Selectors.Service.String(),
+			events.Status:        op.Status,
+			events.StartTime:     op.Results.StartedAt,
+			events.EndTime:       op.Results.CompletedAt,
+			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.ItemsRead:     op.Results.ItemsRead,
+			events.ItemsWritten:  op.Results.ItemsWritten,
+			events.Resources:     op.Results.ResourceOwners,
+			events.DataRetrieved: op.Results.BytesRead,
 		},
 	)
 

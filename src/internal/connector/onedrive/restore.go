@@ -11,8 +11,8 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -136,7 +136,7 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 			continue
 		}
 
-		if err != errFolderNotFound {
+		if !errors.Is(err, errFolderNotFound) {
 			return "", errors.Wrapf(err, "folder %s not found in drive(%s) parentFolder(%s)", folder, driveID, parentFolderID)
 		}
 
