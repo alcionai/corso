@@ -45,7 +45,7 @@ type itemReaderFunc func(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
-) (name string, itemData io.ReadCloser, err error)
+) (itemInfo *details.OneDriveInfo, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -113,7 +113,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	for _, itemID := range oc.driveItemIDs {
 		// Read the item
-		itemName, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+		itemInfo, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
 		if err != nil {
 			errs = support.WrapAndAppendf(itemID, err, errs)
 
@@ -125,14 +125,13 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 		// Item read successfully, add to collection
 		itemsRead++
+
+		itemInfo.ParentPath = oc.folderPath.String()
+
 		oc.data <- &Item{
-			id:   itemName,
+			id:   itemInfo.ItemName,
 			data: itemData,
-			info: &details.OneDriveInfo{
-				ItemType:   details.OneDriveItem,
-				ItemName:   itemName,
-				ParentPath: oc.folderPath.String(),
-			},
+			info: itemInfo,
 		}
 	}
 

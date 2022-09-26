@@ -103,14 +103,16 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 
 	// Read data for the file
 
-	name, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
+	itemInfo, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
 	require.NoError(suite.T(), err)
-	require.NotEmpty(suite.T(), name)
+	require.NotNil(suite.T(), itemInfo)
+	require.NotEmpty(suite.T(), itemInfo.ItemName)
 
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(suite.T(), err)
 	require.NotZero(suite.T(), size)
-	suite.T().Logf("Read %d bytes from file %s.", size, name)
+	require.Equal(suite.T(), size, itemInfo.Size)
+	suite.T().Logf("Read %d bytes from file %s.", size, itemInfo.ItemName)
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive

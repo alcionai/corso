@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -30,19 +31,19 @@ func driveItemReader(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
-) (string, io.ReadCloser, error) {
+) (*details.OneDriveInfo, io.ReadCloser, error) {
 	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
 
 	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "failed to get item %s", itemID)
+		return nil, nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
 
 	// Get the download URL - https://docs.microsoft.com/en-us/graph/api/driveitem-get-content
 	// These URLs are pre-authenticated and can be used to download the data using the standard
 	// http client
 	if _, found := item.GetAdditionalData()[downloadURLKey]; !found {
-		return "", nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
+		return nil, nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
 			itemID, item.GetAdditionalData())
 	}
 
@@ -52,10 +53,16 @@ func driveItemReader(
 	// middleware/options configured
 	resp, err := http.Get(*downloadURL)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
+		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
 	}
 
-	return *item.GetName(), resp.Body, nil
+	return &details.OneDriveInfo{
+		ItemType:     details.OneDriveItem,
+		ItemName:     *item.GetName(),
+		Created:      *item.GetCreatedDateTime(),
+		LastModified: *item.GetLastModifiedDateTime(),
+		Size:         *item.GetSize(),
+	}, resp.Body, nil
 }
 
 // driveItemWriter is used to initialize and return an io.Writer to upload data for the specified item
