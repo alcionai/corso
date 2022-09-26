@@ -136,7 +136,7 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 			continue
 		}
 
-		if err != errFolderNotFound {
+		if !errors.Is(err, errFolderNotFound) {
 			return "", errors.Wrapf(err, "folder %s not found in drive(%s) parentFolder(%s)", folder, driveID, parentFolderID)
 		}
 

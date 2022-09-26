@@ -514,6 +514,7 @@ func getItemStream(
 	return &kopiaDataStream{
 		uuid:   decodedName,
 		reader: r,
+		size:   f.Size(),
 	}, nil
 }
 
