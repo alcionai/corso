@@ -42,11 +42,15 @@ var _ print.Printable = &Backup{}
 
 func New(
 	snapshotID, detailsID, status string,
+	id model.StableID,
 	selector selectors.Selector,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 ) *Backup {
 	return &Backup{
+		BaseModel: model.BaseModel{
+			ID: id,
+		},
 		CreationTime:    time.Now(),
 		SnapshotID:      snapshotID,
 		DetailsID:       detailsID,
