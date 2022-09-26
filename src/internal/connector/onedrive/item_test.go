@@ -18,6 +18,8 @@ import (
 
 type ItemIntegrationSuite struct {
 	suite.Suite
+	user    string
+	driveID string
 	client  *msgraphsdk.GraphServiceClient
 	adapter *msgraphsdk.GraphRequestAdapter
 }
@@ -58,6 +60,16 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	require.NoError(suite.T(), err)
 	suite.client = msgraphsdk.NewGraphServiceClient(adapter)
 	suite.adapter = adapter
+
+	suite.user = tester.M365UserID(suite.T())
+
+	drives, err := drives(context.TODO(), suite, suite.user)
+	require.NoError(suite.T(), err)
+	// Test Requirement 1: Need a drive
+	require.Greaterf(suite.T(), len(drives), 0, "user %s does not have a drive", suite.user)
+
+	// Pick the first drive
+	suite.driveID = *drives[0].GetId()
 }
 
 // TestItemReader is an integration test that makes a few assumptions
@@ -67,15 +79,6 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 // The test checks these in below
 func (suite *ItemIntegrationSuite) TestItemReader() {
 	ctx := context.TODO()
-	user := tester.M365UserID(suite.T())
-
-	drives, err := drives(ctx, suite, user)
-	require.NoError(suite.T(), err)
-	// Test Requirement 1: Need a drive
-	require.Greaterf(suite.T(), len(drives), 0, "user %s does not have a drive", user)
-
-	// Pick the first drive
-	driveID := *drives[0].GetId()
 
 	var driveItemID string
 	// This item collector tries to find "a" drive item that is a file to test the reader function
@@ -89,7 +92,7 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 
 		return nil
 	}
-	err = collectItems(ctx, suite, driveID, itemCollector)
+	err := collectItems(ctx, suite, suite.driveID, itemCollector)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file
@@ -97,12 +100,13 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 		suite.T(),
 		driveItemID,
 		"no file item found for user %s drive %s",
-		user,
-		driveID,
+		suite.user,
+		suite.driveID,
 	)
 
 	// Read data for the file
-	itemInfo, itemData, err := driveItemReader(ctx, suite, driveID, driveItemID)
+
+	itemInfo, itemData, err := driveItemReader(ctx, suite, suite.driveID, driveItemID)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo)
 	require.NotEmpty(suite.T(), itemInfo.ItemName)
@@ -119,27 +123,18 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 // testitem_<timestamp> item and writes data to it
 func (suite *ItemIntegrationSuite) TestItemWriter() {
 	ctx := context.TODO()
-	user := tester.M365UserID(suite.T())
 
-	drives, err := drives(ctx, suite, user)
-	require.NoError(suite.T(), err)
-	// Test Requirement 1: Need a drive
-	require.Greaterf(suite.T(), len(drives), 0, "user %s does not have a drive", user)
-
-	// Pick the first drive
-	driveID := *drives[0].GetId()
-
-	root, err := suite.Client().DrivesById(driveID).Root().Get(ctx, nil)
+	root, err := suite.Client().DrivesById(suite.driveID).Root().Get(ctx, nil)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: "Test Folder" should exist
-	folder, err := getFolder(ctx, suite, driveID, *root.GetId(), "Test Folder")
+	folder, err := getFolder(ctx, suite, suite.driveID, *root.GetId(), "Test Folder")
 	require.NoError(suite.T(), err)
 
 	newFolderName := "testfolder_" + time.Now().Format("2006-01-02T15-04-05")
 	suite.T().Logf("Test will create folder %s", newFolderName)
 
-	newFolder, err := createItem(ctx, suite, driveID, *folder.GetId(), newItem(newFolderName, true))
+	newFolder, err := createItem(ctx, suite, suite.driveID, *folder.GetId(), newItem(newFolderName, true))
 	require.NoError(suite.T(), err)
 
 	require.NotNil(suite.T(), newFolder.GetId())
@@ -147,15 +142,20 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	newItemName := "testItem_" + time.Now().Format("2006-01-02T15-04-05")
 	suite.T().Logf("Test will create item %s", newItemName)
 
-	newItem, err := createItem(ctx, suite, driveID, *newFolder.GetId(), newItem(newItemName, false))
+	newItem, err := createItem(ctx, suite, suite.driveID, *newFolder.GetId(), newItem(newItemName, false))
 	require.NoError(suite.T(), err)
 
 	require.NotNil(suite.T(), newItem.GetId())
 
+	// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
+	// newly created item should fail because it's a file not a folder
+	_, err = getFolder(ctx, suite, suite.driveID, *newFolder.GetId(), newItemName)
+	require.ErrorIs(suite.T(), err, errFolderNotFound)
+
 	// Initialize a 100KB mockDataProvider
 	td, writeSize := mockDataReader(int64(100 * 1024))
 
-	w, err := driveItemWriter(ctx, suite, driveID, *newItem.GetId(), writeSize)
+	w, err := driveItemWriter(ctx, suite, suite.driveID, *newItem.GetId(), writeSize)
 	require.NoError(suite.T(), err)
 
 	// Using a 32 KB buffer for the copy allows us to validate the
@@ -172,4 +172,19 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 func mockDataReader(size int64) (io.Reader, int64) {
 	data := bytes.Repeat([]byte("D"), int(size))
 	return bytes.NewReader(data), size
+}
+
+func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
+	ctx := context.TODO()
+
+	root, err := suite.Client().DrivesById(suite.driveID).Root().Get(ctx, nil)
+	require.NoError(suite.T(), err)
+
+	// Lookup a folder that doesn't exist
+	_, err = getFolder(ctx, suite, suite.driveID, *root.GetId(), "FolderDoesNotExist")
+	require.ErrorIs(suite.T(), err, errFolderNotFound)
+
+	// Lookup a folder that does exist
+	_, err = getFolder(ctx, suite, suite.driveID, *root.GetId(), "")
+	require.NoError(suite.T(), err)
 }
