@@ -227,7 +227,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			assert.Zero(t, bo.Results.WriteErrors)
 			assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 			assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
-			assert.Equal(t, mb.CalledWith[events.BackupStart][0], bo.Results.BackupID, "backupID pre-declaration")
+			assert.Equal(t,
+				mb.CalledWith[events.BackupStart][0][events.BackupID],
+				bo.Results.BackupID, "backupID pre-declaration")
 		})
 	}
 }
@@ -288,5 +290,7 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 	assert.NoError(t, bo.Results.WriteErrors)
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
-	assert.Equal(t, mb.CalledWith[events.BackupStart][0], bo.Results.BackupID, "backupID pre-declaration")
+	assert.Equal(t,
+		mb.CalledWith[events.BackupStart][0][events.BackupID],
+		bo.Results.BackupID, "backupID pre-declaration")
 }
