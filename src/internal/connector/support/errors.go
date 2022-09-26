@@ -89,15 +89,6 @@ func concatenateStringFromPointers(orig string, pointers []*string) string {
 	return orig
 }
 
-func ODataError(err error) *msgraph_errors.ODataError {
-	switch v := err.(type) {
-	case *msgraph_errors.ODataError:
-		return v
-	default:
-		return nil
-	}
-}
-
 // ConnectorStackErrorTrace is a helper function that wraps the
 // stack trace for oDataError types from querying the M365 back store.
 func ConnectorStackErrorTrace(e error) string {

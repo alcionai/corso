@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -98,7 +99,8 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
-		if oDataError := support.ODataError(err); oDataError != nil &&
+		var oDataError *odataerrors.ODataError
+		if errors.As(err, &oDataError) &&
 			oDataError.GetError() != nil &&
 			oDataError.GetError().GetCode() != nil &&
 			*oDataError.GetError().GetCode() == itemNotFoundErrorCode {
