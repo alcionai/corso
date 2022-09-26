@@ -50,7 +50,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 		},
 		{
 			name:        "root calendar",
-			contains:    "Calendar",
+			contains:    DefaultCalendar,
 			user:        suite.m365UserID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
@@ -96,7 +96,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 		},
 		{
 			name:        "root folder",
-			contains:    "Contact",
+			contains:    DefaultContactFolder,
 			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
@@ -141,7 +141,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 		},
 		{
 			name:        "Root folder",
-			contains:    "Inbox",
+			contains:    DefaultMailFolder,
 			user:        suite.m365UserID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,

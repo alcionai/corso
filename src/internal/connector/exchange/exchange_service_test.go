@@ -319,7 +319,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	}{
 		{
 			name:          "Mail Valid",
-			containerName: "Inbox",
+			containerName: DefaultMailFolder,
 			category:      messages,
 			checkError:    assert.NoError,
 		},
@@ -349,7 +349,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 		},
 		{
 			name:          "Event Valid",
-			containerName: "Calendar",
+			containerName: DefaultCalendar,
 			category:      events,
 			checkError:    assert.NoError,
 		},
@@ -401,8 +401,6 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	t := suite.T()
 	ctx := context.Background()
-	// TODO: #884 - reinstate when able to specify root folder by name
-	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	now := time.Now()
 
@@ -428,8 +426,6 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
 	ctx := context.Background()
-	// TODO: #884 - reinstate when able to specify root folder by name
-	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	calendar, err := CreateCalendar(ctx, suite.es, userID, name)

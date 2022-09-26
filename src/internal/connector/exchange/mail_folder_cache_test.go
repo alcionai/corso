@@ -296,7 +296,7 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(MailFolderCacheIntegrationSuite))

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -26,12 +27,7 @@ var (
 	events   = path.EventsCategory
 )
 
-// TODO: bring back event restore testing when they no longer produce
-// notification emails.  Currently, the duplication causes our tests
-// dataset to grow until timeouts occur.
-// var backupDataSets = []path.CategoryType{email, contacts, events}
-
-var backupDataSets = []path.CategoryType{email}
+var backupDataSets = []path.CategoryType{email, contacts, events}
 
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
@@ -96,13 +92,13 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
+			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder})
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{"Contacts"})
+			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{exchange.DefaultContactFolder})
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{"Calendar"})
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar})
 		}
 
 		sel.Include(scopes)
