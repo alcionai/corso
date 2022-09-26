@@ -378,6 +378,8 @@ func (i OneDriveInfo) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
-	return []string{i.ItemName, i.ParentPath, strconv.FormatInt(i.Size, 10),
-		common.FormatTabularDisplayTime(i.Created), common.FormatTabularDisplayTime(i.LastModified)}
+	return []string{
+		i.ItemName, i.ParentPath, strconv.FormatInt(i.Size, 10),
+		common.FormatTabularDisplayTime(i.Created), common.FormatTabularDisplayTime(i.LastModified),
+	}
 }
