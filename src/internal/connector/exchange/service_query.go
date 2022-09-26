@@ -122,6 +122,8 @@ func RetrieveMessageDataForUser(ctx context.Context, gs graph.Service, user, m36
 	return gs.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
 }
 
+// CollectFolders is a utility function for creating Collections based off parameters found
+// in the ExchangeScope found in the graph.QueryParams
 func CollectFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
@@ -149,6 +151,9 @@ func CollectFolders(
 	case contacts:
 		query = GetAllContactFolderNamesForUser
 		transformer = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
+	case events:
+		query = GetAllCalendarNamesForUser
+		transformer = models.CreateCalendarCollectionResponseFromDiscriminatorValue
 	default:
 		return fmt.Errorf("unsupported option %s used in CollectFolders", option)
 	}
@@ -176,7 +181,7 @@ func CollectFolders(
 		err = support.WrapAndAppend(id, e, err)
 	}
 
-	callbackFunc := IterateFilterFolderDirectoriesForCollections(
+	callbackFunc := IterateFilterContainersForCollections(
 		ctx,
 		qp,
 		errUpdater,

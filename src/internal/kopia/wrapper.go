@@ -16,9 +16,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -34,26 +35,38 @@ var (
 )
 
 type BackupStats struct {
-	SnapshotID          string
+	SnapshotID string
+
+	TotalHashedBytes   int64
+	TotalUploadedBytes int64
+
 	TotalFileCount      int
-	TotalHashedBytes    int64
 	TotalDirectoryCount int
 	IgnoredErrorCount   int
 	ErrorCount          int
-	Incomplete          bool
-	IncompleteReason    string
+
+	Incomplete       bool
+	IncompleteReason string
 }
 
-func manifestToStats(man *snapshot.Manifest, progress *corsoProgress) BackupStats {
+func manifestToStats(
+	man *snapshot.Manifest,
+	progress *corsoProgress,
+	uploadCount *stats.ByteCounter,
+) BackupStats {
 	return BackupStats{
-		SnapshotID:          string(man.ID),
+		SnapshotID: string(man.ID),
+
+		TotalHashedBytes:   progress.totalBytes,
+		TotalUploadedBytes: uploadCount.NumBytes,
+
 		TotalFileCount:      int(man.Stats.TotalFileCount),
-		TotalHashedBytes:    progress.totalBytes,
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),
-		Incomplete:          man.IncompleteReason != "",
-		IncompleteReason:    man.IncompleteReason,
+
+		Incomplete:       man.IncompleteReason != "",
+		IncompleteReason: man.IncompleteReason,
 	}
 }
 
@@ -380,12 +393,12 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	stats, err := w.makeSnapshotWithRoot(ctx, dirTree, progress)
+	s, err := w.makeSnapshotWithRoot(ctx, dirTree, progress)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return stats, progress.deets, nil
+	return s, progress.deets, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
@@ -395,6 +408,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
+	bc := &stats.ByteCounter{}
+
 	err := repo.WriteSession(
 		ctx,
 		w.c,
@@ -403,6 +418,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			// Always flush so we don't leak write sessions. Still uses reachability
 			// for consistency.
 			FlushOnFailure: true,
+			OnUpload:       bc.Count,
 		},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
 			si := snapshot.SourceInfo{
@@ -453,7 +469,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 		return nil, errors.Wrap(err, "kopia backup")
 	}
 
-	res := manifestToStats(man, progress)
+	res := manifestToStats(man, progress, bc)
 
 	return &res, nil
 }
@@ -481,6 +497,7 @@ func getItemStream(
 	ctx context.Context,
 	itemPath path.Path,
 	snapshotRoot fs.Entry,
+	bcounter byteCounter,
 ) (data.Stream, error) {
 	if itemPath == nil {
 		return nil, errors.WithStack(errNoRestorePath)
@@ -501,6 +518,10 @@ func getItemStream(
 		return nil, errors.New("requested object is not a file")
 	}
 
+	if bcounter != nil {
+		bcounter.Count(f.Size())
+	}
+
 	r, err := f.Open(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "opening file")
@@ -518,6 +539,10 @@ func getItemStream(
 	}, nil
 }
 
+type byteCounter interface {
+	Count(numBytes int64)
+}
+
 // RestoreMultipleItems looks up all paths- assuming each is an item declaration,
 // not a directory- in the snapshot with id snapshotID. The path should be the
 // full path of the item from the root.  Returns the results as a slice of single-
@@ -529,6 +554,7 @@ func (w Wrapper) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
+	bcounter byteCounter,
 ) ([]data.Collection, error) {
 	if len(paths) == 0 {
 		return nil, errors.WithStack(errNoRestorePath)
@@ -546,7 +572,7 @@ func (w Wrapper) RestoreMultipleItems(
 	)
 
 	for _, itemPath := range paths {
-		ds, err := getItemStream(ctx, itemPath, snapshotRoot)
+		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 			continue
