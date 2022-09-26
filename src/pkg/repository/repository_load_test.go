@@ -172,10 +172,10 @@ func (suite *RepositoryLoadTestExchangeSuite) TeardownTest() {
 
 func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	var (
-		t    = suite.T()
-		ctx  = context.Background()
-		r    = suite.repo
-		serv = "exchange"
+		t       = suite.T()
+		ctx     = context.Background()
+		r       = suite.repo
+		service = "exchange"
 	)
 
 	t.Parallel()
@@ -190,11 +190,11 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
 
-	runBackupLoadTest(t, ctx, &b, serv)
+	runBackupLoadTest(t, ctx, &b, service)
 	bid := string(b.Results.BackupID)
 
-	runBackupListLoadTest(t, ctx, r, serv, bid)
-	runBackupDetailsLoadTest(t, ctx, r, serv, bid)
+	runBackupListLoadTest(t, ctx, r, service, bid)
+	runBackupDetailsLoadTest(t, ctx, r, service, bid)
 
 	// restore
 	rsel, err := bsel.ToExchangeRestore()
@@ -203,7 +203,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector)
 	require.NoError(t, err)
 
-	runRestoreLoadTest(t, ctx, rst, serv, b.Results.ItemsWritten)
+	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -245,10 +245,10 @@ func (suite *RepositoryLoadTestOneDriveSuite) TeardownTest() {
 
 func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	var (
-		t    = suite.T()
-		ctx  = context.Background()
-		r    = suite.repo
-		serv = "one_drive"
+		t       = suite.T()
+		ctx     = context.Background()
+		r       = suite.repo
+		service = "one_drive"
 	)
 
 	t.Parallel()
@@ -260,11 +260,11 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
 
-	runBackupLoadTest(t, ctx, &b, serv)
+	runBackupLoadTest(t, ctx, &b, service)
 	bid := string(b.Results.BackupID)
 
-	runBackupListLoadTest(t, ctx, r, serv, bid)
-	runBackupDetailsLoadTest(t, ctx, r, serv, bid)
+	runBackupListLoadTest(t, ctx, r, service, bid)
+	runBackupDetailsLoadTest(t, ctx, r, service, bid)
 
 	// restore
 	rsel, err := bsel.ToOneDriveRestore()
@@ -273,5 +273,5 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector)
 	require.NoError(t, err)
 
-	runRestoreLoadTest(t, ctx, rst, serv, b.Results.ItemsWritten)
+	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten)
 }
