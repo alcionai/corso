@@ -26,8 +26,8 @@ func GetRestoreContainer(
 	service graph.Service,
 	user string,
 	category path.CategoryType,
+	name string,
 ) (string, error) {
-	name := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	option := categoryToOptionIdentifier(category)
 
 	folderID, err := GetContainerID(ctx, service, name, user, option)
@@ -250,6 +250,7 @@ func SendMailToBackStore(
 func RestoreExchangeDataCollections(
 	ctx context.Context,
 	gs graph.Service,
+	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -270,7 +271,7 @@ func RestoreExchangeDataCollections(
 			category           = directory.Category()
 			user               = directory.ResourceOwner()
 			exit               bool
-			directoryCheckFunc = preProcessing(gs, user, category)
+			directoryCheckFunc = preProcessing(gs, user, category, dest.ContainerName)
 		)
 
 		if isCancelled {
@@ -335,6 +336,7 @@ func preProcessing(
 	gs graph.Service,
 	user string,
 	category path.CategoryType,
+	destination string,
 ) func(context.Context, error, string, string, map[string]bool) (string, string, error) {
 	return func(
 		ctx context.Context,
@@ -355,7 +357,7 @@ func preProcessing(
 		if _, ok := pathCounter[dirName]; !ok {
 			pathCounter[dirName] = true
 
-			folderID, err = GetRestoreContainer(ctx, gs, user, category)
+			folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
 			if err != nil {
 				return "", "", support.WrapAndAppend(user+" failure during preprocessing ", err, errs)
 			}

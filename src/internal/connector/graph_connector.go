@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -244,6 +245,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
+	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) error {
 	var (
@@ -253,9 +255,9 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dcs)
+		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, gc, dcs)
+		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs)
 	default:
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
