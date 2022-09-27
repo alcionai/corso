@@ -12,8 +12,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -361,4 +364,39 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 			suite.T().Log(support.ConnectorStackErrorTrace(err))
 		}
 	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
+	t := suite.T()
+	sel := selectors.NewExchangeRestore()
+	fullpath, err := path.Builder{}.Append("testing").
+		ToDataLayerExchangePathForCategory(
+			suite.connector.tenant,
+			suite.user,
+			path.ContactsCategory,
+			false,
+		)
+
+	require.NoError(t, err)
+	aPath, err := path.Builder{}.Append("validator").ToDataLayerExchangePathForCategory(
+		suite.connector.tenant,
+		suite.user,
+		path.ContactsCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	dcs := mockconnector.NewMockContactCollection(fullpath, 3)
+	two := mockconnector.NewMockContactCollection(aPath, 2)
+	collections := make([]data.Collection, 0)
+	collections = append(collections, dcs)
+	collections = append(collections, two)
+
+	ctx := context.Background()
+	connector := loadConnector(ctx, suite.T())
+	err = connector.RestoreDataCollections(ctx, sel.Selector, collections)
+	assert.NoError(suite.T(), err)
+
+	value := connector.AwaitStatus()
+	suite.T().Log(value.String())
 }
