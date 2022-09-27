@@ -4,14 +4,17 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -36,6 +39,98 @@ func initM365Repo(t *testing.T) (
 	require.NoError(t, err)
 
 	return ctx, repo, ac, st
+}
+
+//revive:disable:context-as-argument
+func runBackupLoadTest(
+	t *testing.T,
+	ctx context.Context,
+	b *operations.BackupOperation,
+	name string,
+) {
+	//revive:enable:context-as-argument
+	t.Run("backup_"+name, func(t *testing.T) {
+		require.NoError(t, b.Run(ctx), "running backup")
+		require.NotEmpty(t, b.Results, "has results after run")
+		assert.NotEmpty(t, b.Results.BackupID, "has an ID after run")
+		assert.Equal(t, b.Status, operations.Completed, "backup status")
+		assert.Less(t, 0, b.Results.ItemsRead, "items read")
+		assert.Less(t, 0, b.Results.ItemsWritten, "items written")
+		assert.Less(t, int64(0), b.Results.BytesUploaded, "bytes uploaded")
+		assert.Less(t, 0, b.Results.ResourceOwners, "resource owners")
+		assert.Zero(t, b.Results.ReadErrors, "read errors")
+		assert.Zero(t, b.Results.WriteErrors, "write errors")
+	})
+}
+
+//revive:disable:context-as-argument
+func runBackupListLoadTest(
+	t *testing.T,
+	ctx context.Context,
+	r repository.Repository,
+	name, expectID string,
+) {
+	//revive:enable:context-as-argument
+	t.Run("backup_list_"+name, func(t *testing.T) {
+		bs, err := r.Backups(ctx)
+		require.NoError(t, err, "retrieving backups")
+		require.Less(t, 0, len(bs), "at least one backup is recorded")
+
+		var found bool
+
+		for _, b := range bs {
+			bid := b.ID
+			assert.NotEmpty(t, bid, "iterating backup ids")
+
+			if string(bid) == expectID {
+				found = true
+			}
+		}
+
+		assert.True(t, found, "expected backup id "+expectID+" found in backups")
+	})
+}
+
+//revive:disable:context-as-argument
+func runBackupDetailsLoadTest(
+	t *testing.T,
+	ctx context.Context,
+	r repository.Repository,
+	name, backupID string,
+) {
+	//revive:enable:context-as-argument
+	require.NotEmpty(t, backupID, "backup ID to retrieve deails")
+
+	t.Run("backup_details_"+name, func(t *testing.T) {
+		ds, b, err := r.BackupDetails(ctx, backupID)
+		require.NoError(t, err, "retrieving details in backup "+backupID)
+		require.NotNil(t, ds, "backup details")
+		require.NotNil(t, b, "backup")
+		assert.Equal(t, b.ItemsWritten, len(ds.Entries))
+	})
+}
+
+//revive:disable:context-as-argument
+func runRestoreLoadTest(
+	t *testing.T,
+	ctx context.Context,
+	r operations.RestoreOperation,
+	name string,
+	expectItemCount int,
+) {
+	//revive:enable:context-as-argument
+	t.Run("restore_"+name, func(t *testing.T) {
+		t.Skip("skipping restore handling while investigating performance")
+		require.NoError(t, r.Run(ctx), "running restore")
+		require.NotEmpty(t, r.Results, "has results after run")
+		assert.Equal(t, r.Status, operations.Completed, "restore status")
+		assert.Less(t, 0, r.Results.ItemsRead, "items read")
+		assert.Less(t, 0, r.Results.ItemsWritten, "items written")
+		assert.Less(t, 0, r.Results.ResourceOwners, "resource owners")
+		assert.Zero(t, r.Results.ReadErrors, "read errors")
+		assert.Zero(t, r.Results.WriteErrors, "write errors")
+		assert.Equal(t, expectItemCount, r.Results.ItemsWritten, "backup and restore wrote the same count of items")
+	})
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -76,20 +171,39 @@ func (suite *RepositoryLoadTestExchangeSuite) TeardownTest() {
 }
 
 func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
-	// var (
-	// 	t   = suite.T()
-	// 	ctx = context.Background()
-	// )
+	var (
+		t       = suite.T()
+		ctx     = context.Background()
+		r       = suite.repo
+		service = "exchange"
+	)
 
-	// t.parallel()
+	t.Parallel()
+
+	m356User := tester.M365UserID(t)
 
 	// backup
+	bsel := selectors.NewExchangeBackup()
+	bsel.Include(bsel.Users([]string{m356User}))
+	// bsel.Include(bsel.Users(selectors.Any()))
 
-	// list
+	b, err := r.NewBackup(ctx, bsel.Selector)
+	require.NoError(t, err)
 
-	// details
+	runBackupLoadTest(t, ctx, &b, service)
+	bid := string(b.Results.BackupID)
+
+	runBackupListLoadTest(t, ctx, r, service, bid)
+	runBackupDetailsLoadTest(t, ctx, r, service, bid)
 
 	// restore
+	rsel, err := bsel.ToExchangeRestore()
+	require.NoError(t, err)
+
+	rst, err := r.NewRestore(ctx, bid, rsel.Selector)
+	require.NoError(t, err)
+
+	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -129,19 +243,35 @@ func (suite *RepositoryLoadTestOneDriveSuite) TeardownTest() {
 	logger.Flush(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestOneDriveSuite) TestExchange() {
-	// var (
-	// 	t   = suite.T()
-	// 	ctx = context.Background()
-	// )
+func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
+	var (
+		t       = suite.T()
+		ctx     = context.Background()
+		r       = suite.repo
+		service = "one_drive"
+	)
 
-	// t.parallel()
+	t.Parallel()
 
 	// backup
+	bsel := selectors.NewOneDriveBackup()
+	bsel.Include(bsel.Users(selectors.Any()))
 
-	// list
+	b, err := r.NewBackup(ctx, bsel.Selector)
+	require.NoError(t, err)
 
-	// details
+	runBackupLoadTest(t, ctx, &b, service)
+	bid := string(b.Results.BackupID)
+
+	runBackupListLoadTest(t, ctx, r, service, bid)
+	runBackupDetailsLoadTest(t, ctx, r, service, bid)
 
 	// restore
+	rsel, err := bsel.ToOneDriveRestore()
+	require.NoError(t, err)
+
+	rst, err := r.NewRestore(ctx, bid, rsel.Selector)
+	require.NoError(t, err)
+
+	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten)
 }

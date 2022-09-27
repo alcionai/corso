@@ -3,7 +3,6 @@ package connector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -85,36 +83,54 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 // - events
 func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 	ctx := context.Background()
-	t := suite.T()
-	connector := loadConnector(ctx, t)
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{suite.user}))
-	collectionList, err := connector.ExchangeDataCollection(context.Background(), sel.Selector)
-	assert.NotNil(t, collectionList, "collection list")
-	assert.NoError(t, err)
-	assert.Zero(t, connector.status.ObjectCount)
-	assert.Zero(t, connector.status.FolderCount)
-	assert.Zero(t, connector.status.Successful)
+	connector := loadConnector(ctx, suite.T())
+	tests := []struct {
+		name        string
+		getSelector func(t *testing.T) selectors.Selector
+	}{
+		{
+			name: suite.user + " Email",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
 
-	streams := make(map[string]<-chan data.Stream)
-	// Verify Items() call returns an iterable channel(e.g. a channel that has been closed)
-	for _, collection := range collectionList {
-		temp := collection.Items()
-		testName := collection.FullPath().ResourceOwner()
-		streams[testName] = temp
+				return sel.Selector
+			},
+		},
+		{
+			name: suite.user + " Contacts",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
+
+				return sel.Selector
+			},
+		},
+		{
+			name: suite.user + " Events",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
+
+				return sel.Selector
+			},
+		},
 	}
 
-	status := connector.AwaitStatus()
-	assert.NotZero(t, status.Successful)
-
-	for name, channel := range streams {
-		suite.T().Run(name, func(t *testing.T) {
-			t.Logf("Test: %s\t Items: %d", name, len(channel))
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t))
+			require.NoError(t, err)
+			assert.Equal(t, len(collection), 1)
+			channel := collection[0].Items()
 			for object := range channel {
 				buf := &bytes.Buffer{}
 				_, err := buf.ReadFrom(object.ToReader())
 				assert.NoError(t, err, "received a buf.Read error")
 			}
+			status := connector.AwaitStatus()
+			assert.NotZero(t, status.Successful)
+			t.Log(status.String())
 		})
 	}
 }
@@ -127,7 +143,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	t := suite.T()
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{suite.user}, []string{"Inbox"}))
+	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(t, err)
 
@@ -162,27 +178,40 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression() {
-	ctx := context.Background()
-	t := suite.T()
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.ContactFolders([]string{suite.user}, selectors.Any()))
-	eb, err := sel.ToExchangeBackup()
-	require.NoError(t, err)
+	connector := loadConnector(context.Background(), suite.T())
 
-	scopes := eb.Scopes()
-	connector := loadConnector(ctx, t)
+	tests := []struct {
+		name          string
+		getCollection func(t *testing.T) []*exchange.Collection
+	}{
+		{
+			name: "Default Contact Folder",
+			getCollection: func(t *testing.T) []*exchange.Collection {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
+				eb, err := sel.ToExchangeBackup()
+				require.NoError(t, err)
 
-	suite.Len(scopes, 1)
-	contactsOnly := scopes[0]
-	collections, err := connector.createCollections(context.Background(), contactsOnly)
-	assert.NoError(t, err)
+				scopes := eb.Scopes()
 
-	number := 0
+				suite.Len(scopes, 1)
+				contactsOnly := scopes[0]
+				collections, err := connector.createCollections(context.Background(), contactsOnly)
+				require.NoError(t, err)
 
-	for _, edc := range collections {
-		testName := fmt.Sprintf("%s_ContactFolder_%d", edc.FullPath().ResourceOwner(), number)
-		suite.T().Run(testName, func(t *testing.T) {
+				return collections
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			edcs := test.getCollection(t)
+			assert.Equal(t, len(edcs), 1)
+			edc := edcs[0]
+			assert.Equal(t, edc.FullPath().Folder(), exchange.DefaultContactFolder)
 			streamChannel := edc.Items()
+			count := 0
 			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
@@ -190,52 +219,80 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 				assert.NotZero(t, read)
 				contact, err := support.CreateContactFromBytes(buf.Bytes())
 				assert.NotNil(t, contact)
-				assert.NoError(t, err)
-
+				assert.NoError(t, err, "error on converting contact bytes: "+string(buf.Bytes()))
+				count++
 			}
-			number++
+			assert.NotZero(t, count)
+
+			status := connector.AwaitStatus()
+			suite.NotNil(status)
+			suite.Equal(status.ObjectCount, status.Successful)
 		})
 	}
-
-	status := connector.AwaitStatus()
-	suite.NotNil(status)
-	suite.Equal(status.ObjectCount, status.Successful)
 }
 
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression() {
-	ctx := context.Background()
-	t := suite.T()
-	connector := loadConnector(ctx, t)
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.EventCalendars([]string{suite.user}, selectors.Any()))
-	scopes := sel.Scopes()
-	suite.Equal(len(scopes), 1)
-	collections, err := connector.createCollections(context.Background(), scopes[0])
-	require.NoError(t, err)
+	connector := loadConnector(context.Background(), suite.T())
 
-	for _, edc := range collections {
-		streamChannel := edc.Items()
-		number := 0
+	tests := []struct {
+		name, expected string
+		getCollection  func(t *testing.T) []*exchange.Collection
+	}{
+		{
+			name:     "Default Event Calendar",
+			expected: exchange.DefaultCalendar,
+			getCollection: func(t *testing.T) []*exchange.Collection {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
+				scopes := sel.Scopes()
+				suite.Equal(len(scopes), 1)
+				collections, err := connector.createCollections(context.Background(), scopes[0])
+				require.NoError(t, err)
 
-		for stream := range streamChannel {
-			testName := fmt.Sprintf("%s_Event_%d", edc.FullPath().ResourceOwner(), number)
-			suite.T().Run(testName, func(t *testing.T) {
+				return collections
+			},
+		},
+		{
+			name:     "Birthday Calendar",
+			expected: "Birthdays",
+			getCollection: func(t *testing.T) []*exchange.Collection {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}))
+				scopes := sel.Scopes()
+				suite.Equal(len(scopes), 1)
+				collections, err := connector.createCollections(context.Background(), scopes[0])
+				require.NoError(t, err)
+
+				return collections
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections := test.getCollection(t)
+			require.Equal(t, len(collections), 1)
+			edc := collections[0]
+			assert.Equal(t, edc.FullPath().Folder(), test.expected)
+			streamChannel := edc.Items()
+
+			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
 				read, err := buf.ReadFrom(stream.ToReader())
 				assert.NoError(t, err)
 				assert.NotZero(t, read)
 				event, err := support.CreateEventFromBytes(buf.Bytes())
 				assert.NotNil(t, event)
-				assert.NoError(t, err)
-			})
-		}
-	}
+				assert.NoError(t, err, "experienced error parsing event bytes: "+string(buf.Bytes()))
+			}
 
-	status := connector.AwaitStatus()
-	suite.NotNil(status)
-	suite.Equal(status.ObjectCount, status.Successful)
+			status := connector.AwaitStatus()
+			suite.NotNil(status)
+			suite.Equal(status.ObjectCount, status.Successful)
+		})
+	}
 }
 
 // TestAccessOfInboxAllUsers verifies that GraphConnector can
@@ -249,7 +306,7 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	t := suite.T()
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders(selectors.Any(), []string{"Inbox"}))
+	sel.Include(sel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}))
 	scopes := sel.DiscreteScopes(connector.GetUsers())
 
 	for _, scope := range scopes {

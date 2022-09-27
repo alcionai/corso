@@ -58,12 +58,7 @@ func (suite *ExchangeIteratorSuite) TestDescendable() {
 }
 
 func loadService(t *testing.T) *exchangeService {
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(t, err)
-
 	a := tester.NewM365Account(t)
-	require.NoError(t, err)
-
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
@@ -145,7 +140,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		}, {
 			name:              "Folder Iterative Check Mail",
 			queryFunction:     GetAllFolderNamesForUser,
-			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			iterativeFunction: IterateFilterContainersForCollections,
 			scope:             mailScope,
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
@@ -156,7 +151,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		}, {
 			name:              "Folder Iterative Check Contacts",
 			queryFunction:     GetAllContactFolderNamesForUser,
-			iterativeFunction: IterateFilterFolderDirectoriesForCollections,
+			iterativeFunction: IterateFilterContainersForCollections,
 			scope:             contactScope,
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},

@@ -37,6 +37,7 @@ const (
 	ItemsRead        = "items-read"
 	ItemsWritten     = "items-written"
 	Resources        = "resources"
+	RestoreID        = "restore-id"
 	Service          = "service"
 	StartTime        = "start-time"
 	Status           = "status"
