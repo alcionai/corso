@@ -107,7 +107,7 @@ func putInner(
 	}
 
 	base := m.Base()
-	if create {
+	if create && len(base.ID) == 0 {
 		base.ID = model.StableID(uuid.NewString())
 	}
 
