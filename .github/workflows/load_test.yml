@@ -1,8 +1,8 @@
 name: Nightly Load Testing
-on: push
-  # schedule:
-  #   # every day at 01:59 (01:59am) UTC
-  #   - cron: "59 1 * * *"
+on:
+  schedule:
+    # every day at 01:59 (01:59am) UTC
+    - cron: "59 1 * * *"
 
 permissions:
   # required to retrieve AWS credentials
@@ -72,7 +72,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: load-cpu-prof
+          name: load-test-profiling
           path: src/test_results/*
           if-no-files-found: error
           retention-days: 14
