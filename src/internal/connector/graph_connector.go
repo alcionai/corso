@@ -252,13 +252,13 @@ func (gc *GraphConnector) RestoreDataCollections(
 		return gc.RestoreExchangeDataCollections(ctx, dcs)
 	case selectors.ServiceOneDrive:
 		status, err := onedrive.RestoreCollections(ctx, gc, dcs)
+
+		gc.incrementAwaitingMessages()
+		gc.UpdateStatus(status)
+
 		if err != nil {
 			return err
 		}
-
-		gc.incrementAwaitingMessages()
-
-		gc.UpdateStatus(status)
 
 		return nil
 	default:
