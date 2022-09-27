@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
@@ -27,10 +28,11 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID  model.StableID     `json:"backupID"`
-	Results   RestoreResults     `json:"results"`
-	Selectors selectors.Selector `json:"selectors"` // todo: replace with Selectors
-	Version   string             `json:"version"`
+	BackupID    model.StableID             `json:"backupID"`
+	Results     RestoreResults             `json:"results"`
+	Selectors   selectors.Selector         `json:"selectors"`
+	Destination control.RestoreDestination `json:"destination"`
+	Version     string                     `json:"version"`
 
 	account account.Account
 }
@@ -51,14 +53,16 @@ func NewRestoreOperation(
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
+	dest control.RestoreDestination,
 	bus events.Eventer,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, bus, kw, sw),
-		BackupID:  backupID,
-		Selectors: sel,
-		Version:   "v0",
-		account:   acct,
+		operation:   newOperation(opts, bus, kw, sw),
+		BackupID:    backupID,
+		Selectors:   sel,
+		Destination: dest,
+		Version:     "v0",
+		account:     acct,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -82,6 +86,9 @@ type restoreStats struct {
 	resourceCount     int
 	started           bool
 	readErr, writeErr error
+
+	// a transient value only used to pair up start-end events.
+	restoreID string
 }
 
 // Run begins a synchronous restore operation.
@@ -91,8 +98,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	// persist operation results to the model store on exit
 	opStats := restoreStats{
 		bytesRead: &stats.ByteCounter{},
+		restoreID: uuid.NewString(),
 	}
-	// TODO: persist results?
 
 	defer func() {
 		err = op.persistResults(ctx, startTime, &opStats)
@@ -110,7 +117,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	// TODO: persist initial state of restoreOperation in modelstore
 	op.bus.Event(
 		ctx,
 		events.RestoreStart,
@@ -118,6 +124,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 			events.StartTime:        startTime,
 			events.BackupID:         op.BackupID,
 			events.BackupCreateTime: b.CreationTime,
+			events.RestoreID:        opStats.restoreID,
 			// TODO: restore options,
 		},
 	)
@@ -187,7 +194,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	err = gc.RestoreDataCollections(ctx, op.Selectors, dcs)
+	err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err
@@ -237,15 +244,17 @@ func (op *RestoreOperation) persistResults(
 		map[string]any{
 			// TODO: RestoreID
 			events.BackupID:      op.BackupID,
-			events.Service:       op.Selectors.Service.String(),
-			events.Status:        op.Status,
-			events.StartTime:     op.Results.StartedAt,
-			events.EndTime:       op.Results.CompletedAt,
+			events.DataRetrieved: op.Results.BytesRead,
 			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.EndTime:       op.Results.CompletedAt,
 			events.ItemsRead:     op.Results.ItemsRead,
 			events.ItemsWritten:  op.Results.ItemsWritten,
 			events.Resources:     op.Results.ResourceOwners,
-			events.DataRetrieved: op.Results.BytesRead,
+			events.RestoreID:     opStats.restoreID,
+			events.Service:       op.Selectors.Service.String(),
+			events.StartTime:     op.Results.StartedAt,
+			events.Status:        op.Status,
+			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)
 

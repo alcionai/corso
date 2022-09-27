@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -176,6 +177,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	ctx := context.Background()
 
 	acct := tester.NewM365Account(t)
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
@@ -183,7 +185,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err)
 
-	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{})
+	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{}, dest)
 	require.NoError(t, err)
 	require.NotNil(t, ro)
 }

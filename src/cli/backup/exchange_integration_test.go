@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -187,13 +188,13 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
+			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder})
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{suite.m365UserID}, selectors.Any())
+			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{exchange.DefaultContactFolder})
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, selectors.Any())
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar})
 		}
 
 		sel.Include(scopes)
@@ -351,7 +352,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
+	sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

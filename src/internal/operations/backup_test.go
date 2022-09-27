@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -158,7 +159,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			name: "Integration Exchange.Mail",
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
+				sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
 				return &sel.Selector
 			},
 		},
@@ -167,7 +168,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			name: "Integration Exchange.Contacts",
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{m365UserID}, selectors.Any()))
+				sel.Include(sel.ContactFolders([]string{m365UserID}, []string{exchange.DefaultContactFolder}))
 				return &sel.Selector
 			},
 		},
@@ -175,7 +176,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			name: "Integration Exchange.Events",
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{m365UserID}, selectors.Any()))
+				sel.Include(sel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}))
 
 				return &sel.Selector
 			},
@@ -227,6 +228,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			assert.Zero(t, bo.Results.WriteErrors)
 			assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 			assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
+			assert.Equal(t,
+				mb.CalledWith[events.BackupStart][0][events.BackupID],
+				bo.Results.BackupID, "backupID pre-declaration")
 		})
 	}
 }
@@ -287,4 +291,7 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 	assert.NoError(t, bo.Results.WriteErrors)
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
+	assert.Equal(t,
+		mb.CalledWith[events.BackupStart][0][events.BackupID],
+		bo.Results.BackupID, "backupID pre-declaration")
 }

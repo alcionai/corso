@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
@@ -87,7 +88,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		backupDetails *details.Details
 		startTime     = time.Now()
 	)
-	// TODO: persist initial state of backupOperation in modelstore
+
+	op.Results.BackupID = model.StableID(uuid.NewString())
 
 	op.bus.Event(
 		ctx,
@@ -95,7 +97,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		map[string]any{
 			events.StartTime: startTime,
 			events.Service:   op.Selectors.Service.String(),
-			// TODO: initial backup ID,
+			events.BackupID:  op.Results.BackupID,
 		},
 	)
 
@@ -195,6 +197,7 @@ func (op *BackupOperation) createBackupModels(
 
 	b := backup.New(
 		snapID, string(backupDetails.ModelStoreID), op.Status.String(),
+		op.Results.BackupID,
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
@@ -205,20 +208,18 @@ func (op *BackupOperation) createBackupModels(
 		return errors.Wrap(err, "creating backup model")
 	}
 
-	op.Results.BackupID = b.ID
-
 	op.bus.Event(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
 			events.BackupID:   b.ID,
-			events.Service:    op.Selectors.Service.String(),
-			events.Status:     op.Status,
-			events.StartTime:  op.Results.StartedAt,
-			events.EndTime:    op.Results.CompletedAt,
-			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.DataStored: op.Results.BytesUploaded,
+			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.EndTime:    op.Results.CompletedAt,
 			events.Resources:  op.Results.ResourceOwners,
+			events.Service:    op.Selectors.Service.String(),
+			events.StartTime:  op.Results.StartedAt,
+			events.Status:     op.Status,
 			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)

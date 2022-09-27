@@ -319,7 +319,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	}{
 		{
 			name:          "Mail Valid",
-			containerName: "Inbox",
+			containerName: DefaultMailFolder,
 			category:      messages,
 			checkError:    assert.NoError,
 		},
@@ -349,7 +349,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 		},
 		{
 			name:          "Event Valid",
-			containerName: "Calendar",
+			containerName: DefaultCalendar,
 			category:      events,
 			checkError:    assert.NoError,
 		},
@@ -401,8 +401,6 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
 	t := suite.T()
 	ctx := context.Background()
-	// TODO: #884 - reinstate when able to specify root folder by name
-	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	now := time.Now()
 
@@ -428,8 +426,8 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
 	ctx := context.Background()
-	// TODO: #884 - reinstate when able to specify root folder by name
-	t.Skip("#884 - reinstate when able to specify root folder by name")
+	// TODO: #779 - reinstate when restored events to not generate notifications
+	t.Skip("#779 - reinstate when restored events to not generate notifications")
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
@@ -452,6 +450,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // GraphConnector's Restore Workflow based on OptionIdentifier.
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	ctx := context.Background()
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 	tests := []struct {
 		name        string
 		option      path.CategoryType
@@ -497,7 +496,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option)
+			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option, dest.ContainerName)
 			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
 
 			if test.cleanupFunc != nil {

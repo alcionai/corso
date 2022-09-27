@@ -144,13 +144,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
-	eb, err := sel.ToExchangeBackup()
-	require.NoError(t, err)
-
-	scopes := eb.Scopes()
-	suite.Len(scopes, 1)
-	mailScope := scopes[0]
-	collection, err := connector.createCollections(context.Background(), mailScope)
+	collection, err := connector.createCollections(context.Background(), sel.Scopes()[0])
 	require.NoError(t, err)
 
 	for _, edc := range collection {
@@ -189,14 +183,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
-				eb, err := sel.ToExchangeBackup()
-				require.NoError(t, err)
-
-				scopes := eb.Scopes()
-
-				suite.Len(scopes, 1)
-				contactsOnly := scopes[0]
-				collections, err := connector.createCollections(context.Background(), contactsOnly)
+				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -246,9 +233,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
-				scopes := sel.Scopes()
-				suite.Equal(len(scopes), 1)
-				collections, err := connector.createCollections(context.Background(), scopes[0])
+				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -260,9 +245,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}))
-				scopes := sel.Scopes()
-				suite.Equal(len(scopes), 1)
-				collections, err := connector.createCollections(context.Background(), scopes[0])
+				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
