@@ -56,7 +56,8 @@ func CreateStatus(
 			"status object count does not match errors + successes",
 			"objects", objects,
 			"successes", success,
-			"errors", numErr)
+			"numErrors", numErr,
+			"errors", err.Error())
 	}
 
 	return &status

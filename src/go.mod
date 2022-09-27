@@ -10,10 +10,10 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.11.1
-	github.com/microsoft/kiota-abstractions-go v0.10.1
+	github.com/microsoft/kiota-abstractions-go v0.11.0
 	github.com/microsoft/kiota-authentication-azure-go v0.4.1
 	github.com/microsoft/kiota-http-go v0.7.2
-	github.com/microsoft/kiota-serialization-json-go v0.6.0
+	github.com/microsoft/kiota-serialization-json-go v0.7.1
 	github.com/microsoftgraph/msgraph-sdk-go v0.40.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.28.1
 	github.com/pkg/errors v0.9.1
@@ -74,7 +74,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/microsoft/kiota-serialization-text-go v0.5.0 // indirect
+	github.com/microsoft/kiota-serialization-text-go v0.6.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.34 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
