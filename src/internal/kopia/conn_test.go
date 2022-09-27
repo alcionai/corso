@@ -59,7 +59,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoKopiaWrapperTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(WrapperIntegrationSuite))

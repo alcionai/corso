@@ -64,7 +64,7 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoModelStoreTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(ModelStoreIntegrationSuite))
@@ -662,7 +662,7 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoModelStoreTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(ModelStoreRegressionSuite))

@@ -116,8 +116,8 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			scope:             mailScope,
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
-				"Inbox":      {},
-				"Sent Items": {},
+				DefaultMailFolder: {},
+				"Sent Items":      {},
 			},
 		}, {
 			name:              "Contacts Iterative Check",
@@ -144,9 +144,9 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			scope:             mailScope,
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
-				"Inbox":         {},
-				"Sent Items":    {},
-				"Deleted Items": {},
+				DefaultMailFolder: {},
+				"Sent Items":      {},
+				"Deleted Items":   {},
 			},
 		}, {
 			name:              "Folder Iterative Check Contacts",
