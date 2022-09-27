@@ -87,12 +87,12 @@ jobs:
           TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           set -euo pipefail
-          go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests
+          go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
         if: needs.precheck.outputs.fileschanged == 'true'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: test-log
           path: /tmp/gotest.log
