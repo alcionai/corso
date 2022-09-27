@@ -17,37 +17,14 @@ jobs:
     if: needs.precheck.outputs.fileschanged == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Repo Code Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.ref }}
 
-      # Get values for cache paths to be used in later steps
-      - id: go-cache-paths
-        working-directory: ./src
-        run: |
-          echo "::set-output name=go-build::$(go env GOCACHE)"
-          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
-
-      - name: Golang Setup
-        uses: actions/setup-go@v3
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
         with:
-          go-version: 1.18
-          cache: true
-          cache-dependency-path: src/go.sum
-
-      # download packages
-      - name: Cache Go Mod
-        uses: actions/cache@v3
-        id: cache
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
-
-      - name: Run go mod download
-        if: steps.cache.outputs.cache-hit != 'true'
-        working-directory: ./src
-        run: go mod download
+          go-version-file: src/go.mod
 
       # run the markdown generator
       - name: Generate Markdown
@@ -79,15 +56,3 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           number: ${{ steps.cpr.outputs.pull-request-number }}
-
-      # for the future, if we create a PAT
-      # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
-
-      # # make the PR auto-merge
-      # - name: Enable Pull Request Automerge
-      #   if: steps.cpr.outputs.pull-request-operation == 'created'
-      #   uses: peter-evans/enable-pull-request-automerge@v2
-      #   with:
-      #     token: ${{ secrets.PAT }}
-      #     pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
-      #     merge-method: squash
