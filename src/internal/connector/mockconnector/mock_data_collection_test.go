@@ -104,3 +104,48 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 		})
 	}
 }
+
+func (suite *MockExchangeDataSuite) TestMockByteHydration() {
+	subject := "Mock Hydration"
+	tests := []struct {
+		name           string
+		transformation func(t *testing.T) error
+	}{
+		{
+			name: "Message Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockMessageBytes(subject)
+				_, err := support.CreateMessageFromBytes(bytes)
+				return err
+			},
+		}, {
+			name: "Contact Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockContactBytes(subject)
+				_, err := support.CreateContactFromBytes(bytes)
+				return err
+			},
+		}, {
+			name: "Event No Attendees Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockEventBytes(subject)
+				_, err := support.CreateEventFromBytes(bytes)
+				return err
+			},
+		}, {
+			name: "Event w/ Attendees Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockEventWithAttendeesBytes(subject)
+				_, err := support.CreateEventFromBytes(bytes)
+				return err
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			err := test.transformation(t)
+			assert.NoError(t, err)
+		})
+	}
+}
