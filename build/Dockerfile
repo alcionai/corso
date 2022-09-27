@@ -13,6 +13,14 @@ RUN addgroup -g 1001 corso && \
 # Update to latest cert bundle in case there are changes
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 
+# Default locations for key Kopia config as set in https://github.com/kopia/kopia/blob/master/tools/docker/Dockerfile
+ENV KOPIA_CONFIG_PATH=/app/corso/kopia/config/repository.config \
+	KOPIA_LOG_DIR=/app/corso/kopia/logs \
+	KOPIA_CACHE_DIRECTORY=app/corso/kopia/cache \
+	RCLONE_CONFIG=/app/corso/kopia/rclone/rclone.conf \
+	KOPIA_PERSIST_CREDENTIALS_ON_CONNECT=false \
+	KOPIA_CHECK_FOR_UPDATES=false
+
 WORKDIR /
 
 ARG TARGETOS
