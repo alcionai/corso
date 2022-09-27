@@ -5,19 +5,21 @@
 
 FROM alpine:3.16
 
+ENV CORSO_HOME /app/corso
+
 # Add a well-know corso user to use by default
 RUN addgroup -g 1001 corso && \
     adduser --shell /sbin/nologin --disabled-password \
-    --home /app/corso --uid 1001 --ingroup corso corso
+    --home $CORSO_HOME --uid 1001 --ingroup corso corso
 
 # Update to latest cert bundle in case there are changes
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 
 # Default locations for key Kopia config as set in https://github.com/kopia/kopia/blob/master/tools/docker/Dockerfile
-ENV KOPIA_CONFIG_PATH=/app/corso/kopia/config/repository.config \
-	KOPIA_LOG_DIR=/app/corso/kopia/logs \
-	KOPIA_CACHE_DIRECTORY=app/corso/kopia/cache \
-	RCLONE_CONFIG=/app/corso/kopia/rclone/rclone.conf \
+ENV KOPIA_CONFIG_PATH=$CORSO_HOME/kopia/config/repository.config \
+	KOPIA_LOG_DIR=$CORSO_HOME/kopia/logs \
+	KOPIA_CACHE_DIRECTORY=$CORSO_HOME/kopia/cache \
+	RCLONE_CONFIG=$CORSO_HOME/kopia/rclone/rclone.conf \
 	KOPIA_PERSIST_CREDENTIALS_ON_CONNECT=false \
 	KOPIA_CHECK_FOR_UPDATES=false
 
