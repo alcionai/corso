@@ -61,6 +61,13 @@ func ToMessage(orig models.Messageable) models.Messageable {
 	return aMessage
 }
 
+func ToEventSimplified(orig models.Eventable) models.Eventable {
+	// Get Attendees
+	// Print what you find
+	// convert to expected output
+	return orig
+}
+
 func SetEventMessageRequest(orig models.Messageable, adtl map[string]any) (models.EventMessageRequestable, error) {
 	aMessage := models.NewEventMessageRequest()
 	temp := CloneMessageableFields(orig, aMessage)
