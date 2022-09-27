@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/kopia/kopia/snapshot"
@@ -248,6 +249,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 					defaultRetention,
 					p.RetentionPolicy,
 				)
+				assert.Equal(t, math.MaxInt, p.RetentionPolicy.EffectiveKeepLatest())
 			},
 			mutator: func(innerCtx context.Context, p *policy.Policy) error {
 				newRetentionDaily := policy.OptionalInt(42)
