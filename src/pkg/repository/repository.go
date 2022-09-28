@@ -41,6 +41,7 @@ type Repository interface {
 		ctx context.Context,
 		backupID string,
 		sel selectors.Selector,
+		dest control.RestoreDestination,
 	) (operations.RestoreOperation, error)
 	DeleteBackup(ctx context.Context, id model.StableID) error
 	BackupGetter
@@ -194,6 +195,7 @@ func (r repository) NewRestore(
 	ctx context.Context,
 	backupID string,
 	sel selectors.Selector,
+	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
@@ -203,6 +205,7 @@ func (r repository) NewRestore(
 		r.Account,
 		model.StableID(backupID),
 		sel,
+		dest,
 		r.Bus)
 }
 

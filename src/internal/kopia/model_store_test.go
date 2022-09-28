@@ -64,7 +64,7 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoModelStoreTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(ModelStoreIntegrationSuite))
@@ -254,6 +254,54 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 			assert.Equal(t, foo, returned)
 
 			err = suite.m.GetWithModelStoreID(suite.ctx, test.s, foo.ModelStoreID, returned)
+			require.NoError(t, err)
+			assert.Equal(t, foo, returned)
+		})
+	}
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
+	mdl := model.BackupOpSchema
+	table := []struct {
+		name   string
+		baseID string
+		expect assert.ComparisonAssertionFunc
+	}{
+		{
+			name:   "genreate new id",
+			baseID: "",
+			expect: assert.NotEqual,
+		},
+		{
+			name:   "use provided id",
+			baseID: uuid.NewString(),
+			expect: assert.Equal,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			foo := &fooModel{
+				BaseModel: model.BaseModel{ID: model.StableID(test.baseID)},
+				Bar:       uuid.NewString(),
+			}
+
+			// Avoid some silly test errors from comparing nil to empty map.
+			foo.Tags = map[string]string{}
+
+			err := suite.m.Put(suite.ctx, mdl, foo)
+			require.NoError(t, err)
+
+			test.expect(t, model.StableID(test.baseID), foo.ID)
+			require.NotEmpty(t, foo.ModelStoreID)
+			require.NotEmpty(t, foo.ID)
+
+			returned := &fooModel{}
+			err = suite.m.Get(suite.ctx, mdl, foo.ID, returned)
+			require.NoError(t, err)
+			assert.Equal(t, foo, returned)
+
+			err = suite.m.GetWithModelStoreID(suite.ctx, mdl, foo.ModelStoreID, returned)
 			require.NoError(t, err)
 			assert.Equal(t, foo, returned)
 		})
@@ -614,7 +662,7 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoModelStoreTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(ModelStoreRegressionSuite))

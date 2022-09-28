@@ -9,12 +9,13 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -31,7 +32,7 @@ var (
 // dataset to grow until timeouts occur.
 // var backupDataSets = []path.CategoryType{email, contacts, events}
 
-var backupDataSets = []path.CategoryType{email}
+var backupDataSets = []path.CategoryType{contacts, email}
 
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
@@ -96,13 +97,13 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{"Inbox"})
+			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder})
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{suite.m365UserID}, selectors.Any())
+			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{exchange.DefaultContactFolder})
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, selectors.Any())
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar})
 		}
 
 		sel.Include(scopes)

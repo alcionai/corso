@@ -2,7 +2,10 @@ package mockconnector
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,8 +13,37 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
+)
+
+//nolint:lll
+const (
+	defaultMessageBody = "<span class=\\\"x_elementToProof ContentPasted0\\\" style=\\\"font-size:12pt;" +
+		" margin:0px; background-color:rgb(255,255,255)\\\">Lidia,</span> <div class=\\\"x_elementToProof\\\" style=\\\"font-size:12pt; margin:0px; background-color:rgb(255,255,255)\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" style=\\\"font-size:12pt;" +
+		" margin:0px; background-color:rgb(255,255,255)\\\">We have not received any reports on the development during Q2. It is in our best interest to have a new TPS Report by next Thursday prior to the retreat. If you have any questions, please let me know so I can address them.</div>" +
+		"<div class=\\\"x_elementToProof\\\" style=\\\"font-size:12pt; margin:0px; background-color:rgb(255,255,255)\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" style=\\\"font-size:12pt; margin:0px; background-color:rgb(255,255,255)\\\">Thanking you in advance,</div>" +
+		"<div class=\\\"x_elementToProof\\\" style=\\\"font-size:12pt; margin:0px; background-color:rgb(255,255,255)\\\"><br class=\\\"ContentPasted0\\\"></div><span class=\\\"x_elementToProof ContentPasted0\\\" style=\\\"font-size:12pt; margin:0px; background-color:rgb(255,255,255)\\\">Dustin</span><br>"
+	defaultMessagePreview = "Lidia,\\n\\nWe have not received any reports on the development during Q2. It is in our best interest to have a new TPS Report by next Thursday prior to the retreat. If you have any questions, please let me know so I can address them.\\n" +
+		"\\nThanking you in adv"
+
+	// Order of fields to fill in:
+	//   1. message body
+	//   2. message preview
+	//   3. sender user ID
+	//   4. subject
+	messageTmpl = "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\"," +
+		"\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB2ZxqU\\\"\",\"categories\":[],\"changeKey\":\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB2ZxqU\",\"createdDateTime\":\"2022-09-26T23:15:50Z\",\"lastModifiedDateTime\":\"2022-09-26T23:15:51Z\",\"bccRecipients\":[],\"body\":{\"content\":\"<html><head>" +
+		"\\n<meta http-equiv=\\\"Content-Type\\\" content=\\\"text/html; charset=utf-8\\\"><style type=\\\"text/css\\\" style=\\\"display:none\\\">\\n<!--\\np\\n{margin-top:0;\\nmargin-bottom:0}\\n-->" +
+		"\\n</style></head><body dir=\\\"ltr\\\"><div class=\\\"elementToProof\\\" style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\">%s" +
+		"</div></body></html>\",\"contentType\":\"html\"}," +
+		"\"bodyPreview\":\"%s\"," +
+		"\"ccRecipients\":[],\"conversationId\":\"AAQkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAQAK5nNWRdNWpGpLp7Xpb-m7A=\",\"conversationIndex\":\"AQHY0f3Ermc1ZF01akakuntelv+bsA==\",\"flag\":{\"flagStatus\":\"notFlagged\"}," +
+		"\"from\":{\"emailAddress\":{\"address\":\"%s\",\"name\":\"A Stranger\"}},\"hasAttachments\":false,\"importance\":\"normal\",\"inferenceClassification\":\"focused\",\"internetMessageId\":\"<SJ0PR17MB562266A1E61A8EA12F5FB17BC3529@SJ0PR17MB5622.namprd17.prod.outlook.com>\"," +
+		"\"isDeliveryReceiptRequested\":false,\"isDraft\":false,\"isRead\":false,\"isReadReceiptRequested\":false,\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAAA=\",\"receivedDateTime\":\"2022-09-26T23:15:50Z\"," +
+		"\"replyTo\":[],\"sender\":{\"emailAddress\":{\"address\":\"foobar@8qzvrj.onmicrosoft.com\",\"name\":\"A Stranger\"}},\"sentDateTime\":\"2022-09-26T23:15:46Z\"," +
+		"\"subject\":\"%s\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"LidiaH@8qzvrj.onmicrosoft.com\",\"name\":\"Lidia Holloway\"}}]," +
+		"\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA%%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
 )
 
 // MockExchangeDataCollection represents a mock exchange mailbox
@@ -26,6 +58,7 @@ var (
 	_ data.Collection = &MockExchangeDataCollection{}
 	_ data.Stream     = &MockExchangeData{}
 	_ data.StreamInfo = &MockExchangeData{}
+	_ data.StreamSize = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -41,6 +74,42 @@ func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn
 	for i := 0; i < c.messageCount; i++ {
 		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
 		c.Data = append(c.Data, GetMockMessageBytes("From: NewMockExchangeCollection"))
+		c.Names = append(c.Names, uuid.NewString())
+	}
+
+	return c
+}
+
+// NewMockExchangeDataCollection creates an data collection that will return the specified number of
+// mock messages when iterated. Exchange type mail
+func NewMockContactCollection(pathRepresentation path.Path, numMessagesToReturn int) *MockExchangeDataCollection {
+	c := &MockExchangeDataCollection{
+		fullPath:     pathRepresentation,
+		messageCount: numMessagesToReturn,
+		Data:         [][]byte{},
+		Names:        []string{},
+	}
+
+	rand.Seed(time.Now().UnixNano())
+
+	middleNames := []string{
+		"Argon",
+		"Bernard",
+		"Carleton",
+		"Daphenius",
+		"Ernesto",
+		"Farraday",
+		"Ghimley",
+		"Irgot",
+		"Jannes",
+		"Knox",
+		"Levi",
+		"Milton",
+	}
+
+	for i := 0; i < c.messageCount; i++ {
+		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
+		c.Data = append(c.Data, GetMockContactBytes(middleNames[rand.Intn(len(middleNames))]))
 		c.Names = append(c.Names, uuid.NewString())
 	}
 
@@ -63,6 +132,7 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 			res <- &MockExchangeData{
 				ID:     medc.Names[i],
 				Reader: io.NopCloser(bytes.NewReader(medc.Data[i])),
+				size:   int64(len(medc.Data[i])),
 			}
 		}
 	}()
@@ -75,6 +145,7 @@ type MockExchangeData struct {
 	ID      string
 	Reader  io.ReadCloser
 	ReadErr error
+	size    int64
 }
 
 func (med *MockExchangeData) UUID() string {
@@ -99,27 +170,76 @@ func (med *MockExchangeData) Info() details.ItemInfo {
 	}
 }
 
+func (med *MockExchangeData) Size() int64 {
+	return med.size
+}
+
 // GetMockMessageBytes returns bytes for Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 func GetMockMessageBytes(subject string) []byte {
 	userID := "foobar@8qzvrj.onmicrosoft.com"
+	timestamp := " " + common.FormatNow(common.SimpleDateTimeFormat)
 
-	//nolint:lll
-	message := "{\n    \"@odata.etag\": \"W/\\\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AAAZ0f0I\\\"\",\n    \"id\": \"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AAAZ3wG3AAA=\",\n    \"createdDateTime\": \"2022-04-08T18:08:02Z\",\n    \"lastModifiedDateTime\": \"2022-05-17T13:46:55Z\",\n    \"changeKey\": \"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AAAZ0f0I\",\n    \"categories\": [],\n    \"receivedDateTime\": \"2022-04-08T18:08:02Z\",\n    \"sentDateTime\": \"2022-04-08T18:07:53Z\",\n    \"hasAttachments\": false,\n    \"internetMessageId\": \"<MWHPR1401MB1952C46D4A46B6398F562B0FA6E99@MWHPR1401MB1952.namprd14.prod.outlook.com>\",\n    \"subject\": \"" +
-		//nolint:lll
-		subject + " " + common.FormatNow(common.SimpleDateTimeFormat) + " Different\",\n    \"bodyPreview\": \"Who is coming to next week's party? I cannot imagine it is July soon\",\n    \"importance\": \"normal\",\n    \"parentFolderId\": \"AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==\",\n    \"conversationId\": \"AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQAI7SSzmEPaRJsY-TWIALn1g=\",\n    \"conversationIndex\": \"AQHYS3N3jtJLOYQ9pEmxj9NYgAufWA==\",\n    \"isDeliveryReceiptRequested\": null,\n    \"isReadReceiptRequested\": false,\n    \"isRead\": true,\n    \"isDraft\": false,\n    \"webLink\": \"https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%2BAAAZ3wG3AAA%3D&exvsurl=1&viewmodel=ReadMessageItem\",\n    \"inferenceClassification\": \"focused\",\n    \"body\": {\n        \"contentType\": \"html\",\n        \"content\": \"<html><head><meta http-equiv=\\\"Content-Type\\\" content=\\\"text/html; charset=utf-8\\\"><meta name=\\\"Generator\\\" content=\\\"Microsoft Word 15 (filtered medium)\\\"><style><!--@font-face{font-family:\\\"Cambria Math\\\"}@font-face{font-family:Calibri}p.MsoNormal, li.MsoNormal, div.MsoNormal{margin:0in;font-size:11.0pt;font-family:\\\"Calibri\\\",sans-serif}span.EmailStyle17{font-family:\\\"Calibri\\\",sans-serif;color:windowtext}.MsoChpDefault{font-family:\\\"Calibri\\\",sans-serif}@page WordSection1{margin:1.0in 1.0in 1.0in 1.0in}div.WordSection1{}--></style></head><body lang=\\\"EN-US\\\" link=\\\"#0563C1\\\" vlink=\\\"#954F72\\\" style=\\\"word-wrap:break-word\\\"><div class=\\\"WordSection1\\\"><p class=\\\"MsoNormal\\\">I've been going through with the changing of messages. It shouldn't have the same calls, right? Call Me? </p><p class=\\\"MsoNormal\\\">&nbsp;</p><p class=\\\"MsoNormal\\\">We want to be able to send multiple messages and we want to be able to respond and do other things that make sense for our users. In this case. Let’s consider a Mailbox</p></div></body></html>\"\n    },\n    \"sender\": {\n        \"emailAddress\": {\n            \"name\": \"Lidia Holloway\",\n            \"address\": \"" + userID + "\"\n        }\n    },\n    \"from\": {\n        \"emailAddress\": {\n            \"name\": \"Lidia Holloway\",\n            \"address\": \"lidiah@8qzvrj.onmicrosoft.com\"\n        }\n    },\n    \"toRecipients\": [\n        {\n            \"emailAddress\": {\n                \"name\": \"Dustin Abbot\",\n                \"address\": \"dustina@8qzvrj.onmicrosoft.com\"\n            }\n        }\n    ],\n    \"ccRecipients\": [],\n    \"bccRecipients\": [],\n    \"replyTo\": [],\n    \"flag\": {\n        \"flagStatus\": \"notFlagged\"\n    }\n}\n"
+	message := fmt.Sprintf(
+		messageTmpl,
+		defaultMessageBody,
+		defaultMessagePreview,
+		userID,
+		"TPS Report "+subject+timestamp,
+	)
+
+	return []byte(message)
+}
+
+func GetMockMessageWithBodyBytes(subject, body string) []byte {
+	userID := "foobar@8qzvrj.onmicrosoft.com"
+	preview := body
+
+	if len(preview) > 255 {
+		preview = preview[:256]
+	}
+
+	message := fmt.Sprintf(
+		messageTmpl,
+		body,
+		preview,
+		userID,
+		subject,
+	)
 
 	return []byte(message)
 }
 
 // GetMockContactBytes returns bytes for Contactable item.
+// When hydrated: contact.GetGivenName() shows differences
 func GetMockContactBytes(middleName string) []byte {
+	phone := generatePhoneNumber()
 	//nolint:lll
-	contact := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEOAADSEBNbUIB9RL6ePDeF3FIYAABS7DZnAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('foobar%408qzvrj.onmicrosoft.com')/contacts/$entity\",\"@odata.etag\":\"W/\\\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\\\"\",\"categories\":[],\"changeKey\":\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\",\"createdDateTime\":\"2019-08-04T06:55:33Z\",\"lastModifiedDateTime\":\"2019-08-04T06:55:33Z\",\"businessAddress\":{},\"businessPhones\":[],\"children\":[],\"displayName\":\"Santiago Quail\",\"emailAddresses\":[],\"fileAs\":\"Quail, Santiago\"," +
-		//nolint:lll
-		"\"givenName\":\"Santiago " + middleName + "\",\"homeAddress\":{},\"homePhones\":[],\"imAddresses\":[],\"otherAddress\":{},\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9FIYAAAAAAEOAAA=\",\"personalNotes\":\"\",\"surname\":\"Quail\"}"
+	contact := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEOAADSEBNbUIB9RL6ePDeF3FIYAABS7DZnAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('foobar%408qzvrj.onmicrosoft.com')/contacts/$entity\"," +
+		"\"@odata.etag\":\"W/\\\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\\\"\",\"categories\":[],\"changeKey\":\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\",\"createdDateTime\":\"2019-08-04T06:55:33Z\",\"lastModifiedDateTime\":\"2019-08-04T06:55:33Z\",\"businessAddress\":{},\"businessPhones\":[],\"children\":[]," +
+		"\"displayName\":\"Santiago Quail\",\"emailAddresses\":[],\"fileAs\":\"Quail, Santiago\",\"mobilePhone\": \"" + phone + "\"," +
+		"\"givenName\":\"Santiago\",\"homeAddress\":{},\"homePhones\":[],\"imAddresses\":[],\"otherAddress\":{},\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9FIYAAAAAAEOAAA=\",\"personalNotes\":\"\",\"middleName\":\"" + middleName + "\",\"surname\":\"Quail\"}"
 
 	return []byte(contact)
+}
+
+// generatePhoneNumber creates a random phone number
+// @return string representation in format (xxx)xxx-xxxx
+func generatePhoneNumber() string {
+	numbers := make([]string, 0)
+
+	for i := 0; i < 10; i++ {
+		temp := rand.Intn(10)
+		value := strconv.Itoa(temp)
+		numbers = append(numbers, value)
+	}
+
+	area := strings.Join(numbers[:3], "")
+	prefix := strings.Join(numbers[3:6], "")
+	suffix := strings.Join(numbers[6:], "")
+	phoneNo := "(" + area + ")" + prefix + "-" + suffix
+
+	return phoneNo
 }
 
 // GetMockEventBytes returns test byte array representative of full Eventable item.

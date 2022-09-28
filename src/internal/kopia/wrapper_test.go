@@ -18,9 +18,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -72,6 +72,10 @@ func testForFiles(
 			require.NoError(t, err, "reading collection item: %s", fullPath)
 
 			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
+
+			require.Implements(t, (*data.StreamSize)(nil), s)
+			ss := s.(data.StreamSize)
+			assert.Equal(t, len(buf), int(ss.Size()))
 		}
 	}
 
@@ -603,7 +607,7 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoKopiaWrapperTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(KopiaIntegrationSuite))
@@ -709,7 +713,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		[]path.Path{
 			fp1,
 			fp2,
-		})
+		},
+		nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(result))
@@ -795,7 +800,7 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 		tester.CorsoCITests,
 		tester.CorsoKopiaWrapperTests,
 	); err != nil {
-		t.Skip()
+		t.Skip(err)
 	}
 
 	suite.Run(t, new(KopiaSimpleRepoIntegrationSuite))
@@ -926,6 +931,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
 	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
 }
 
+type i64counter struct {
+	i int64
+}
+
+func (c *i64counter) Count(i int64) {
+	c.i += i
+}
+
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
 		testTenant,
@@ -1008,14 +1021,17 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				expected[pth.String()] = item.data
 			}
 
+			ic := i64counter{}
+
 			result, err := suite.w.RestoreMultipleItems(
 				suite.ctx,
 				string(suite.snapshotID),
 				test.inputPaths,
-			)
+				&ic)
 			test.expectedErr(t, err)
 
 			assert.Len(t, result, test.expectedCollections)
+			assert.Less(t, int64(0), ic.i)
 			testForFiles(t, expected, result)
 		})
 	}
@@ -1053,7 +1069,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 				suite.ctx,
 				test.snapshotID,
 				test.paths,
-			)
+				nil)
 			assert.Error(t, err)
 			assert.Empty(t, c)
 		})
@@ -1067,13 +1083,16 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 
 	// assert the deletion worked
 	itemPath := suite.files[suite.testPath1.String()][0].itemPath
+	ic := i64counter{}
+
 	c, err := suite.w.RestoreMultipleItems(
 		suite.ctx,
 		string(suite.snapshotID),
 		[]path.Path{itemPath},
-	)
+		&ic)
 	assert.Error(t, err, "snapshot should be deleted")
 	assert.Empty(t, c)
+	assert.Zero(t, ic.i)
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot_BadIDs() {

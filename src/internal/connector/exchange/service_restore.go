@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -10,9 +11,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // GetRestoreContainer utility function to create
@@ -24,8 +26,8 @@ func GetRestoreContainer(
 	service graph.Service,
 	user string,
 	category path.CategoryType,
+	name string,
 ) (string, error) {
-	name := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	option := categoryToOptionIdentifier(category)
 
 	folderID, err := GetContainerID(ctx, service, name, user, option)
@@ -113,9 +115,11 @@ func RestoreExchangeContact(
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
+		name := *contact.GetGivenName()
+
 		return errors.Wrap(
 			err,
-			"failure to create Contact during RestoreExchangeContact: "+
+			"failure to create Contact during RestoreExchangeContact: "+name+" "+
 				support.ConnectorStackErrorTrace(err),
 		)
 	}
@@ -243,4 +247,131 @@ func SendMailToBackStore(
 	}
 
 	return nil
+}
+
+// RestoreExchangeDataCollections restores M365 objects in data.Collection to MSFT
+// store through GraphAPI.
+// @param dest:  container destination to M365
+func RestoreExchangeDataCollections(
+	ctx context.Context,
+	gs graph.Service,
+	dest control.RestoreDestination,
+	dcs []data.Collection,
+) (*support.ConnectorOperationStatus, error) {
+	var (
+		pathCounter         = map[string]bool{}
+		attempts, successes int
+		errs                error
+		folderID, root      string
+		isCancelled         bool
+		// TODO policy to be updated from external source after completion of refactoring
+		policy = control.Copy
+	)
+
+	for _, dc := range dcs {
+		var (
+			items              = dc.Items()
+			directory          = dc.FullPath()
+			service            = directory.Service()
+			category           = directory.Category()
+			user               = directory.ResourceOwner()
+			exit               bool
+			directoryCheckFunc = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
+		)
+
+		folderID, root, errs = directoryCheckFunc(ctx, errs, directory.String(), root, pathCounter)
+		if errs != nil { // assuming FailFast
+			break
+		}
+
+		if isCancelled {
+			break
+		}
+
+		for !exit {
+			select {
+			case <-ctx.Done():
+				errs = support.WrapAndAppend("context cancelled", ctx.Err(), errs)
+				isCancelled = true
+
+			case itemData, ok := <-items:
+				if !ok {
+					exit = true
+					continue
+				}
+				attempts++
+
+				buf := &bytes.Buffer{}
+
+				_, err := buf.ReadFrom(itemData.ToReader())
+				if err != nil {
+					errs = support.WrapAndAppend(
+						itemData.UUID()+": byteReadError during RestoreDataCollection",
+						err,
+						errs,
+					)
+
+					continue
+				}
+
+				err = RestoreExchangeObject(ctx, buf.Bytes(), category, policy, gs, folderID, user)
+				if err != nil {
+					//  More information to be here
+					errs = support.WrapAndAppend(
+						itemData.UUID()+": failed to upload RestoreExchangeObject: "+service.String()+"-"+category.String(),
+						err,
+						errs,
+					)
+
+					continue
+				}
+				successes++
+			}
+		}
+	}
+
+	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
+
+	return status, errs
+}
+
+// generateRestoreContainerFunc utility function that holds logic for creating
+// Root Directory or necessary functions based on path.CategoryType
+func generateRestoreContainerFunc(
+	gs graph.Service,
+	user string,
+	category path.CategoryType,
+	destination string,
+) func(context.Context, error, string, string, map[string]bool) (string, string, error) {
+	return func(
+		ctx context.Context,
+		errs error,
+		dirName string,
+		rootFolderID string,
+		pathCounter map[string]bool,
+	) (string, string, error) {
+		var (
+			folderID string
+			err      error
+		)
+
+		if rootFolderID != "" && category == path.ContactsCategory {
+			return rootFolderID, rootFolderID, errs
+		}
+
+		if !pathCounter[dirName] {
+			pathCounter[dirName] = true
+
+			folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
+			if err != nil {
+				return "", "", support.WrapAndAppend(user+" failure during preprocessing ", err, errs)
+			}
+
+			if rootFolderID == "" {
+				rootFolderID = folderID
+			}
+		}
+
+		return folderID, rootFolderID, nil
+	}
 }

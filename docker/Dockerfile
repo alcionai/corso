@@ -20,10 +20,10 @@ ARG TARGETARCH
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /corso .
 
 ## Deploy
-FROM alpine:3.16
+FROM ubuntu:latest
 
 COPY --from=build /corso /
 
-USER nonroot:nonroot
+USER nobody
 
 ENTRYPOINT ["/corso"]

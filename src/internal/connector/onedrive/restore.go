@@ -2,17 +2,16 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/path"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -45,13 +44,17 @@ func toOneDrivePath(p path.Path) (*drivePath, error) {
 }
 
 // RestoreCollections will restore the specified data collections into OneDrive
-func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.Collection,
+func RestoreCollections(
+	ctx context.Context,
+	service graph.Service,
+	dest control.RestoreDestination,
+	dcs []data.Collection,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		total, restored      int
 		restoreErrors        error
 		copyBuffer           = make([]byte, copyBufferSize)
-		restoreContainerName = fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormatOneDrive))
+		restoreContainerName = dest.ContainerName
 	)
 
 	// Iterate through the data collections and restore the contents of each
@@ -136,7 +139,7 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 			continue
 		}
 
-		if err != errFolderNotFound {
+		if !errors.Is(err, errFolderNotFound) {
 			return "", errors.Wrapf(err, "folder %s not found in drive(%s) parentFolder(%s)", folder, driveID, parentFolderID)
 		}
 

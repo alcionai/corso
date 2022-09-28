@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -17,6 +18,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -39,23 +41,28 @@ func TestRestoreOpSuite(t *testing.T) {
 // TODO: after modelStore integration is added, mock the store and/or
 // move this to an integration test.
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
-	t := suite.T()
-	ctx := context.Background()
-
 	var (
-		kw    = &kopia.Wrapper{}
-		sw    = &store.Wrapper{}
-		acct  = account.Account{}
-		now   = time.Now()
-		stats = restoreStats{
-			started:  true,
-			readErr:  multierror.Append(nil, assert.AnError),
-			writeErr: assert.AnError,
-			cs:       []data.Collection{&exchange.Collection{}},
+		t   = suite.T()
+		ctx = context.Background()
+
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		acct = account.Account{}
+		now  = time.Now()
+		rs   = restoreStats{
+			started:       true,
+			readErr:       multierror.Append(nil, assert.AnError),
+			writeErr:      assert.AnError,
+			resourceCount: 1,
+			bytesRead: &stats.ByteCounter{
+				NumBytes: 42,
+			},
+			cs: []data.Collection{&exchange.Collection{}},
 			gc: &support.ConnectorOperationStatus{
 				ObjectCount: 1,
 			},
 		}
+		dest = control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 	)
 
 	op, err := NewRestoreOperation(
@@ -66,17 +73,19 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		acct,
 		"foo",
 		selectors.Selector{},
+		dest,
 		evmock.NewBus())
 	require.NoError(t, err)
 
-	require.NoError(t, op.persistResults(ctx, now, &stats))
+	require.NoError(t, op.persistResults(ctx, now, &rs))
 
 	assert.Equal(t, op.Status.String(), Completed.String(), "status")
-	assert.Equal(t, op.Results.ItemsRead, len(stats.cs), "items read")
-	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
-	assert.Equal(t, op.Results.ItemsWritten, stats.gc.Successful, "items written")
-	assert.Equal(t, 0, op.Results.ResourceOwners, "resource owners")
-	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
+	assert.Equal(t, op.Results.ItemsRead, len(rs.cs), "items read")
+	assert.Equal(t, op.Results.ReadErrors, rs.readErr, "read errors")
+	assert.Equal(t, op.Results.ItemsWritten, rs.gc.Successful, "items written")
+	assert.Equal(t, rs.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
+	assert.Equal(t, rs.resourceCount, op.Results.ResourceOwners, "resource owners")
+	assert.Equal(t, op.Results.WriteErrors, rs.writeErr, "write errors")
 	assert.Equal(t, op.Results.StartedAt, now, "started at")
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
 }
@@ -141,7 +150,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	suite.sw = sw
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders([]string{m365UserID}, []string{"Inbox"}))
+	bsel.Include(bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -178,6 +187,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
 	acct := tester.NewM365Account(suite.T())
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 
 	table := []struct {
 		name     string
@@ -202,6 +212,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.acct,
 				"backup-id",
 				selectors.Selector{},
+				dest,
 				evmock.NewBus())
 			test.errCheck(t, err)
 		})
@@ -215,6 +226,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
 
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(
@@ -225,15 +237,17 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		tester.NewM365Account(t),
 		suite.backupID,
 		rsel.Selector,
+		dest,
 		mb)
 	require.NoError(t, err)
 
 	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
-	assert.Greater(t, ro.Results.ItemsRead, 0, "restore items read")
-	assert.Greater(t, ro.Results.ItemsWritten, 0, "restored items written")
-	assert.Equal(t, 1, ro.Results.ResourceOwners)
+	assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
+	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
+	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
+	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
 	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
@@ -248,6 +262,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(selectors.None()))
 
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(
@@ -258,10 +273,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		tester.NewM365Account(t),
 		suite.backupID,
 		rsel.Selector,
+		dest,
 		mb)
 	require.NoError(t, err)
 	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
-	assert.Equal(t, 0, ro.Results.ResourceOwners)
+	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
+	assert.Zero(t, ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
-	assert.Equal(t, 0, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+	assert.Zero(t, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }

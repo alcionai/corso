@@ -3,7 +3,6 @@
 package connector
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -241,114 +240,32 @@ func (gc *GraphConnector) ExchangeDataCollection(
 }
 
 // RestoreDataCollections restores data from the specified collections
-// into M365
+// into M365 using the GraphAPI.
+// SideEffect: gc.status is updated at the completion of operation
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-	dcs []data.Collection,
-) error {
-	switch selector.Service {
-	case selectors.ServiceExchange:
-		return gc.RestoreExchangeDataCollections(ctx, dcs)
-	case selectors.ServiceOneDrive:
-		status, err := onedrive.RestoreCollections(ctx, gc, dcs)
-		if err != nil {
-			return err
-		}
-
-		gc.incrementAwaitingMessages()
-
-		gc.UpdateStatus(status)
-
-		return nil
-	default:
-		return errors.Errorf("restore data from service %s not supported", selector.Service.String())
-	}
-}
-
-// RestoreDataCollections restores data from the specified collections
-// into M365
-func (gc *GraphConnector) RestoreExchangeDataCollections(
-	ctx context.Context,
+	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) error {
 	var (
-		pathCounter         = map[string]bool{}
-		attempts, successes int
-		errs                error
-		folderID            string
-		// TODO policy to be updated from external source after completion of refactoring
-		policy = control.Copy
+		status *support.ConnectorOperationStatus
+		err    error
 	)
 
-	for _, dc := range dcs {
-		var (
-			items     = dc.Items()
-			directory = dc.FullPath()
-			service   = directory.Service()
-			category  = directory.Category()
-			user      = directory.ResourceOwner()
-			exit      bool
-		)
-
-		if _, ok := pathCounter[directory.String()]; !ok {
-			pathCounter[directory.String()] = true
-
-			folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
-
-			if errs != nil {
-				fmt.Println("RestoreContainer Failed")
-				return errs
-			}
-		}
-
-		for !exit {
-			select {
-			case <-ctx.Done():
-				return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
-			case itemData, ok := <-items:
-				if !ok {
-					exit = true
-					continue
-				}
-				attempts++
-
-				buf := &bytes.Buffer{}
-
-				_, err := buf.ReadFrom(itemData.ToReader())
-				if err != nil {
-					errs = support.WrapAndAppend(
-						itemData.UUID()+": byteReadError during RestoreDataCollection",
-						err,
-						errs,
-					)
-
-					continue
-				}
-
-				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
-
-				if err != nil {
-					//  More information to be here
-					errs = support.WrapAndAppend(
-						itemData.UUID()+": failed to upload RestoreExchangeObject: "+service.String()+"-"+category.String(),
-						err,
-						errs,
-					)
-
-					continue
-				}
-				successes++
-			}
-		}
+	switch selector.Service {
+	case selectors.ServiceExchange:
+		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs)
+	case selectors.ServiceOneDrive:
+		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs)
+	default:
+		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
 
 	gc.incrementAwaitingMessages()
-
-	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	gc.UpdateStatus(status)
 
-	return errs
+	return err
 }
 
 // createCollection - utility function that retrieves M365

@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/path"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ---------------------------------------------------------------------------
