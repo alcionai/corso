@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -394,7 +395,8 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
 
 	ctx := context.Background()
 	connector := loadConnector(ctx, suite.T())
-	err = connector.RestoreDataCollections(ctx, sel.Selector, collections)
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	err = connector.RestoreDataCollections(ctx, sel.Selector, dest, collections)
 	assert.NoError(suite.T(), err)
 
 	value := connector.AwaitStatus()
