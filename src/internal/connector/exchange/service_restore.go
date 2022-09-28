@@ -247,6 +247,9 @@ func SendMailToBackStore(
 	return nil
 }
 
+// RestoreExchangeDataCollections restores M365 objects in data.Collection to MSFT
+// store through GraphAPI.
+// @param dest:  container destination to M365
 func RestoreExchangeDataCollections(
 	ctx context.Context,
 	gs graph.Service,
@@ -271,15 +274,15 @@ func RestoreExchangeDataCollections(
 			category           = directory.Category()
 			user               = directory.ResourceOwner()
 			exit               bool
-			directoryCheckFunc = preProcessing(gs, user, category, dest.ContainerName)
+			directoryCheckFunc = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
 		)
 
-		if isCancelled {
+		folderID, root, errs = directoryCheckFunc(ctx, errs, directory.String(), root, pathCounter)
+		if errs != nil { // assuming FailFast
 			break
 		}
 
-		folderID, root, errs = directoryCheckFunc(ctx, errs, directory.String(), root, pathCounter)
-		if isCancelled || errs != nil { // assuming FailFast
+		if isCancelled {
 			break
 		}
 
@@ -310,7 +313,6 @@ func RestoreExchangeDataCollections(
 				}
 
 				err = RestoreExchangeObject(ctx, buf.Bytes(), category, policy, gs, folderID, user)
-
 				if err != nil {
 					//  More information to be here
 					errs = support.WrapAndAppend(
@@ -331,8 +333,9 @@ func RestoreExchangeDataCollections(
 	return status, errs
 }
 
-// preProcessing utility function that holds logic for creating Root Directory based on path.CategoryType
-func preProcessing(
+// generateRestoreContainerFunc utility function that holds logic for creating
+// Root Directory or necessary functions based on path.CategoryType
+func generateRestoreContainerFunc(
 	gs graph.Service,
 	user string,
 	category path.CategoryType,
@@ -354,7 +357,7 @@ func preProcessing(
 			return rootFolderID, rootFolderID, errs
 		}
 
-		if _, ok := pathCounter[dirName]; !ok {
+		if !pathCounter[dirName] {
 			pathCounter[dirName] = true
 
 			folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
