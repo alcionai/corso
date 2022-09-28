@@ -81,7 +81,7 @@ func TestMockExchangeDataSuite(t *testing.T) {
 }
 
 func (suite *MockExchangeDataSuite) TestMockExchangeData() {
-	data := []byte("foo")
+	itemData := []byte("foo")
 	id := "bar"
 
 	table := []struct {
@@ -93,7 +93,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 			name: "NoError",
 			reader: &mockconnector.MockExchangeData{
 				ID:     id,
-				Reader: io.NopCloser(bytes.NewReader(data)),
+				Reader: io.NopCloser(bytes.NewReader(itemData)),
 			},
 			check: require.NoError,
 		},
@@ -117,7 +117,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 				return
 			}
 
-			assert.Equal(t, data, buf)
+			assert.Equal(t, itemData, buf)
 		})
 	}
 }
