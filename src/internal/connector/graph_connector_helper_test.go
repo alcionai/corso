@@ -49,6 +49,14 @@ func mustToDataLayerPath(
 	return res
 }
 
+func notNilAndEq[T any](t *testing.T, expected *T, got *T, msg string) {
+	t.Helper()
+
+	if assert.NotNil(t, expected, "expected "+msg) && assert.NotNil(t, got, "got "+msg) {
+		assert.Equal(t, *expected, *got, msg)
+	}
+}
+
 type itemInfo struct {
 	// lookupKey is a string that can be used to find this data from a set of
 	// other data in the same collection. This key should be something that will
@@ -75,38 +83,9 @@ func checkMessage(
 	expected models.Messageable,
 	got models.Messageable,
 ) {
-	var (
-		expectedCT                     = expected.GetBody().GetContentType()
-		gotCT                          = got.GetBody().GetContentType()
-		expectedAtt                    = expected.GetHasAttachments()
-		gotAtt                         = got.GetHasAttachments()
-		expectedImportance             = expected.GetImportance()
-		gotImportance                  = got.GetImportance()
-		expectedClassification         = expected.GetInferenceClassification()
-		gotClassification              = got.GetInferenceClassification()
-		expectedMessageID              = expected.GetInternetMessageId()
-		gotMessageID                   = got.GetInternetMessageId()
-		expectedDeliveryReceipt        = expected.GetIsDeliveryReceiptRequested()
-		gotDeliveryReceipt             = got.GetIsDeliveryReceiptRequested()
-		expectedIsDraft                = expected.GetIsDraft()
-		gotIsDraft                     = got.GetIsDraft()
-		expectedIsRead                 = expected.GetIsRead()
-		gotIsRead                      = got.GetIsRead()
-		expectedIsReadReceiptRequested = expected.GetIsReadReceiptRequested()
-		gotIsReadReceiptRequested      = got.GetIsReadReceiptRequested()
-		expectedReceivedDateTime       = expected.GetReceivedDateTime()
-		gotReceivedDateTime            = got.GetReceivedDateTime()
-		expectedSentDateTime           = expected.GetSentDateTime()
-		gotSentDateTime                = got.GetSentDateTime()
-		expectedSubject                = expected.GetSubject()
-		gotSubject                     = got.GetSubject()
-	)
-
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
-	if assert.NotNil(t, expectedCT) && assert.NotNil(t, gotCT) {
-		assert.Equal(t, *expectedCT, *gotCT, "Body.ContentType")
-	}
+	notNilAndEq(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
 
 	// Skip Body.Content as there may be display formatting that changes.
 
@@ -130,61 +109,44 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetFrom(), got.GetFrom(), "From")
 
-	if assert.NotNil(t, expectedAtt) && assert.NotNil(t, gotAtt) {
-		assert.Equal(t, *expectedAtt, *gotAtt, "HasAttachments")
-	}
+	notNilAndEq(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	if assert.NotNil(t, expectedImportance) && assert.NotNil(t, gotImportance) {
-		assert.Equal(t, *expectedImportance, *gotImportance, "Importance")
-	}
+	notNilAndEq(t, expected.GetImportance(), got.GetImportance(), "Importance")
 
-	if assert.NotNil(t, expectedClassification) && assert.NotNil(t, gotClassification) {
-		assert.Equal(t, *expectedClassification, *gotClassification, "InferenceClassification")
-	}
+	notNilAndEq(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
 
 	assert.Equal(t, expected.GetInternetMessageHeaders(), got.GetInternetMessageHeaders(), "InternetMessageHeaders")
 
-	if assert.NotNil(t, expectedMessageID) && assert.NotNil(t, gotMessageID) {
-		assert.Equal(t, *expectedMessageID, *gotMessageID, "InternetMessageId")
-	}
+	notNilAndEq(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
 
-	if assert.NotNil(t, expectedDeliveryReceipt) && assert.NotNil(t, gotDeliveryReceipt) {
-		assert.Equal(t, *expectedDeliveryReceipt, *gotDeliveryReceipt, "IsDeliveryReceiptRequested")
-	}
+	notNilAndEq(
+		t,
+		expected.GetIsDeliveryReceiptRequested(),
+		got.GetIsDeliveryReceiptRequested(),
+		"IsDeliverReceiptRequested",
+	)
 
-	if assert.NotNil(t, expectedIsDraft) && assert.NotNil(t, gotIsDraft) {
-		assert.Equal(t, *expectedIsDraft, *gotIsDraft, "IsDraft")
-	}
+	notNilAndEq(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
 
-	if assert.NotNil(t, expectedIsRead) && assert.NotNil(t, gotIsRead) {
-		assert.Equal(t, *expectedIsRead, *gotIsRead, "IsRead")
-	}
+	notNilAndEq(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
 
-	if assert.NotNil(t, expectedIsReadReceiptRequested) && assert.NotNil(t, gotIsReadReceiptRequested) {
-		assert.Equal(t, *expectedIsReadReceiptRequested, *gotIsReadReceiptRequested, "IsReadReceiptRequested")
-	}
+	notNilAndEq(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
 	// Skip ParentFolderId as we restore to a different folder by default.
 
-	if assert.NotNil(t, expectedReceivedDateTime) && assert.NotNil(t, gotReceivedDateTime) {
-		assert.Equal(t, *expectedReceivedDateTime, *gotReceivedDateTime, "ReceivedDateTime")
-	}
+	notNilAndEq(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
 	assert.Equal(t, expected.GetSender(), got.GetSender(), "Sender")
 
-	if assert.NotNil(t, expectedSentDateTime) && assert.NotNil(t, gotSentDateTime) {
-		assert.Equal(t, *expectedSentDateTime, *gotSentDateTime, "SentDateTime")
-	}
+	notNilAndEq(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
 
-	if assert.NotNil(t, expectedSubject) && assert.NotNil(t, gotSubject) {
-		assert.Equal(t, *expectedSubject, *gotSubject, "Subject")
-	}
+	notNilAndEq(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
 	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
 
@@ -338,7 +300,7 @@ func collectionsForInfo(
 	return totalItems, collections, expectedData
 }
 
-func getRestoreSelector(service path.ServiceType) selectors.Selector {
+func getSelectorWith(service path.ServiceType) selectors.Selector {
 	s := selectors.ServiceUnknown
 
 	switch service {

@@ -480,7 +480,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			t.Logf("Restoring collections to %s\n", dest.ContainerName)
 
 			restoreGC := loadConnector(ctx, t)
-			restoreSel := getRestoreSelector(test.service)
+			restoreSel := getSelectorWith(test.service)
 			err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
 			require.NoError(t, err)
 
