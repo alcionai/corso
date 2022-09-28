@@ -3,6 +3,8 @@ package mockconnector
 import (
 	"bytes"
 	"io"
+	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +28,7 @@ var (
 	_ data.Collection = &MockExchangeDataCollection{}
 	_ data.Stream     = &MockExchangeData{}
 	_ data.StreamInfo = &MockExchangeData{}
+	_ data.StreamSize = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -41,6 +44,42 @@ func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn
 	for i := 0; i < c.messageCount; i++ {
 		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
 		c.Data = append(c.Data, GetMockMessageBytes("From: NewMockExchangeCollection"))
+		c.Names = append(c.Names, uuid.NewString())
+	}
+
+	return c
+}
+
+// NewMockExchangeDataCollection creates an data collection that will return the specified number of
+// mock messages when iterated. Exchange type mail
+func NewMockContactCollection(pathRepresentation path.Path, numMessagesToReturn int) *MockExchangeDataCollection {
+	c := &MockExchangeDataCollection{
+		fullPath:     pathRepresentation,
+		messageCount: numMessagesToReturn,
+		Data:         [][]byte{},
+		Names:        []string{},
+	}
+
+	rand.Seed(time.Now().UnixNano())
+
+	middleNames := []string{
+		"Argon",
+		"Bernard",
+		"Carleton",
+		"Daphenius",
+		"Ernesto",
+		"Farraday",
+		"Ghimley",
+		"Irgot",
+		"Jannes",
+		"Knox",
+		"Levi",
+		"Milton",
+	}
+
+	for i := 0; i < c.messageCount; i++ {
+		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
+		c.Data = append(c.Data, GetMockContactBytes(middleNames[rand.Intn(len(middleNames))]))
 		c.Names = append(c.Names, uuid.NewString())
 	}
 
@@ -63,6 +102,7 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 			res <- &MockExchangeData{
 				ID:     medc.Names[i],
 				Reader: io.NopCloser(bytes.NewReader(medc.Data[i])),
+				size:   int64(len(medc.Data[i])),
 			}
 		}
 	}()
@@ -75,6 +115,7 @@ type MockExchangeData struct {
 	ID      string
 	Reader  io.ReadCloser
 	ReadErr error
+	size    int64
 }
 
 func (med *MockExchangeData) UUID() string {
@@ -97,6 +138,10 @@ func (med *MockExchangeData) Info() details.ItemInfo {
 			Received: time.Now(),
 		},
 	}
+}
+
+func (med *MockExchangeData) Size() int64 {
+	return med.size
 }
 
 // GetMockMessageBytes returns bytes for Messageable item.
@@ -126,13 +171,35 @@ func GetMockMessageBytes(subject string) []byte {
 }
 
 // GetMockContactBytes returns bytes for Contactable item.
+// When hydrated: contact.GetGivenName() shows differences
 func GetMockContactBytes(middleName string) []byte {
+	phone := generatePhoneNumber()
 	//nolint:lll
-	contact := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEOAADSEBNbUIB9RL6ePDeF3FIYAABS7DZnAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('foobar%408qzvrj.onmicrosoft.com')/contacts/$entity\",\"@odata.etag\":\"W/\\\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\\\"\",\"categories\":[],\"changeKey\":\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\",\"createdDateTime\":\"2019-08-04T06:55:33Z\",\"lastModifiedDateTime\":\"2019-08-04T06:55:33Z\",\"businessAddress\":{},\"businessPhones\":[],\"children\":[],\"displayName\":\"Santiago Quail\",\"emailAddresses\":[],\"fileAs\":\"Quail, Santiago\"," +
-		//nolint:lll
-		"\"givenName\":\"Santiago " + middleName + "\",\"homeAddress\":{},\"homePhones\":[],\"imAddresses\":[],\"otherAddress\":{},\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9FIYAAAAAAEOAAA=\",\"personalNotes\":\"\",\"surname\":\"Quail\"}"
+	contact := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEOAADSEBNbUIB9RL6ePDeF3FIYAABS7DZnAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('foobar%408qzvrj.onmicrosoft.com')/contacts/$entity\"," +
+		"\"@odata.etag\":\"W/\\\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\\\"\",\"categories\":[],\"changeKey\":\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\",\"createdDateTime\":\"2019-08-04T06:55:33Z\",\"lastModifiedDateTime\":\"2019-08-04T06:55:33Z\",\"businessAddress\":{},\"businessPhones\":[],\"children\":[]," +
+		"\"displayName\":\"Santiago Quail\",\"emailAddresses\":[],\"fileAs\":\"Quail, Santiago\",\"mobilePhone\": \"" + phone + "\"," +
+		"\"givenName\":\"Santiago\",\"homeAddress\":{},\"homePhones\":[],\"imAddresses\":[],\"otherAddress\":{},\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9FIYAAAAAAEOAAA=\",\"personalNotes\":\"\",\"middleName\":\"" + middleName + "\",\"surname\":\"Quail\"}"
 
 	return []byte(contact)
+}
+
+// generatePhoneNumber creates a random phone number
+// @return string representation in format (xxx)xxx-xxxx
+func generatePhoneNumber() string {
+	numbers := make([]string, 0)
+
+	for i := 0; i < 10; i++ {
+		temp := rand.Intn(10)
+		value := strconv.Itoa(temp)
+		numbers = append(numbers, value)
+	}
+
+	area := strings.Join(numbers[:3], "")
+	prefix := strings.Join(numbers[3:6], "")
+	suffix := strings.Join(numbers[6:], "")
+	phoneNo := "(" + area + ")" + prefix + "-" + suffix
+
+	return phoneNo
 }
 
 // GetMockEventBytes returns test byte array representative of full Eventable item.
