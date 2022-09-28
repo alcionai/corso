@@ -367,6 +367,8 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 	}
 }
 
+// TODO(ashmrtn): Merge this with the below once we get comparison logic for
+// contacts.
 func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
 	t := suite.T()
 	sel := selectors.NewExchangeRestore()
@@ -411,37 +413,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		collections   []colInfo
 		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
 	}{
-		{
-			name:    "SingleEmailSingleFolder",
-			service: path.ExchangeService,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-1",
-								bodyText+" 1.",
-							),
-							lookupKey: subjectText + "-1",
-						},
-					},
-				},
-			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.MailFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
-		},
 		{
 			name:    "MultipleEmailsSingleFolder",
 			service: path.ExchangeService,
