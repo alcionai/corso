@@ -433,7 +433,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		},
 		{
 			name: "OneDriveEmpty",
-			col:  nil,
+			col:  []data.Collection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceOneDrive,
 			},
