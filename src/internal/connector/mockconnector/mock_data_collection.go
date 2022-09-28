@@ -166,8 +166,7 @@ func GetMockMessageBytes(subject string) []byte {
 // GetMockContactBytes returns bytes for Contactable item.
 // When hydrated: contact.GetGivenName() shows differences
 func GetMockContactBytes(middleName string) []byte {
-	phone := getNumber()
-	//fmt.Println(phone)
+	phone := generatePhoneNumber()
 	//nolint:lll
 	contact := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEOAADSEBNbUIB9RL6ePDeF3FIYAABS7DZnAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('foobar%408qzvrj.onmicrosoft.com')/contacts/$entity\"," +
 		"\"@odata.etag\":\"W/\\\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\\\"\",\"categories\":[],\"changeKey\":\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\",\"createdDateTime\":\"2019-08-04T06:55:33Z\",\"lastModifiedDateTime\":\"2019-08-04T06:55:33Z\",\"businessAddress\":{},\"businessPhones\":[],\"children\":[]," +
@@ -177,8 +176,9 @@ func GetMockContactBytes(middleName string) []byte {
 	return []byte(contact)
 }
 
-// returns phone number in format (xxx)xxx-xxxx
-func getNumber() string {
+// generatePhoneNumber creates a random phone number
+// @return string representation in format (xxx)xxx-xxxx
+func generatePhoneNumber() string {
 	numbers := make([]string, 0)
 
 	for i := 0; i < 10; i++ {
