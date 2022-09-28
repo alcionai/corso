@@ -403,6 +403,58 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
 	suite.T().Log(value.String())
 }
 
+func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	table := []struct {
+		name string
+		col  []data.Collection
+		sel  selectors.Selector
+	}{
+		{
+			name: "ExchangeNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceExchange,
+			},
+		},
+		{
+			name: "ExchangeEmpty",
+			col:  []data.Collection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceExchange,
+			},
+		},
+		{
+			name: "OneDriveNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceOneDrive,
+			},
+		},
+		{
+			name: "OneDriveEmpty",
+			col:  []data.Collection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceOneDrive,
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
+			require.NoError(t, err)
+
+			stats := suite.connector.AwaitStatus()
+			assert.Zero(t, stats.ObjectCount)
+			assert.Zero(t, stats.FolderCount)
+			assert.Zero(t, stats.Successful)
+		})
+	}
+}
+
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
