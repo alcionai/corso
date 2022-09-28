@@ -26,6 +26,7 @@ var (
 	_ data.Collection = &MockExchangeDataCollection{}
 	_ data.Stream     = &MockExchangeData{}
 	_ data.StreamInfo = &MockExchangeData{}
+	_ data.StreamSize = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -63,6 +64,7 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 			res <- &MockExchangeData{
 				ID:     medc.Names[i],
 				Reader: io.NopCloser(bytes.NewReader(medc.Data[i])),
+				size:   int64(len(medc.Data[i])),
 			}
 		}
 	}()
@@ -75,6 +77,7 @@ type MockExchangeData struct {
 	ID      string
 	Reader  io.ReadCloser
 	ReadErr error
+	size    int64
 }
 
 func (med *MockExchangeData) UUID() string {
@@ -97,6 +100,10 @@ func (med *MockExchangeData) Info() details.ItemInfo {
 			Received: time.Now(),
 		},
 	}
+}
+
+func (med *MockExchangeData) Size() int64 {
+	return med.size
 }
 
 // GetMockMessageBytes returns bytes for Messageable item.
