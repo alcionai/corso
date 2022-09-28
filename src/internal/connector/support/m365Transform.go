@@ -402,6 +402,7 @@ func SetAdditionalDataToEventMessage(
 	return newMessage, nil
 }
 
+//nolint:lll
 // ToEventSimplified transforms an event to simplifed restore format
 // @see https://www.notion.so/alcion/Event-restore-semantics-061aee5288244629b1c53337e4dea306#6e974540c8804c4fa832218675534e1c
 // for full details
