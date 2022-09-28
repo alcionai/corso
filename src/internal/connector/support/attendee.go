@@ -14,7 +14,7 @@ type attendee struct {
 
 // FormatAttendeses
 // - First Name <email@example.com>, Accepted | Declined | Tentative | No Response
-func FormatAttendees(event models.Eventable) string {
+func FormatAttendees(event models.Eventable, isHTML bool) string {
 	var (
 		failed   int
 		response = event.GetAttendees()
@@ -47,22 +47,32 @@ func FormatAttendees(event models.Eventable) string {
 		}
 	}
 
-	req := attendeeListToString(required, "Required")
-	opt := attendeeListToString(optional, "Optional")
-	res := attendeeListToString(resource, "Resource")
+	req := attendeeListToString(required, "Required", isHTML)
+	opt := attendeeListToString(optional, "Optional", isHTML)
+	res := attendeeListToString(resource, "Resource", isHTML)
 
 	return req + opt + res
 }
 
-func attendeeListToString(attendList []attendee, heading string) string {
-	var message string
+func attendeeListToString(attendList []attendee, heading string, isHTML bool) string {
+	var (
+		message        string
+		carriageReturn string
+	)
+
+	if isHTML {
+		carriageReturn = "<br>"
+	} else {
+		carriageReturn = "\n"
+	}
+
 	if len(attendList) > 0 {
-		message = heading + ":\n"
+		message = heading + ":" + carriageReturn
 		for _, resource := range attendList {
-			message += "- " + resource.simplePrint() + "\n"
+			message += "- " + resource.simplePrint() + " " + carriageReturn
 		}
 
-		message += "\n\n"
+		message += carriageReturn + carriageReturn
 	}
 
 	return message
@@ -94,6 +104,6 @@ func guardCheckForAttendee(attendee models.Attendeeable) bool {
 }
 
 func (at *attendee) simplePrint() string {
-	contents := fmt.Sprintf("%s <%s>, %s", at.name, at.email, at.response)
+	contents := fmt.Sprintf("%s {%s}, %s", at.name, at.email, at.response)
 	return contents
 }
