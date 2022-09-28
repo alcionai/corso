@@ -259,8 +259,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs)
 	default:
-		// Exit early so we don't try to update the status or anything.
-		return errors.Errorf("restore data from service %s not supported", selector.Service.String())
+		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
 
 	gc.incrementAwaitingMessages()
@@ -347,10 +346,15 @@ func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 
 // UpdateStatus is used by gc initiated tasks to indicate completion
 func (gc *GraphConnector) UpdateStatus(status *support.ConnectorOperationStatus) {
+	defer gc.wg.Done()
+
+	if status == nil {
+		return
+	}
+
 	gc.mu.Lock()
 	defer gc.mu.Unlock()
 	gc.status = support.MergeStatus(gc.status, *status)
-	gc.wg.Done()
 }
 
 // Status returns the current status of the graphConnector operaion.

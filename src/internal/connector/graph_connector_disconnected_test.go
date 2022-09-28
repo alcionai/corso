@@ -177,12 +177,18 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
+	t := suite.T()
 	ctx := context.Background()
-	gc := GraphConnector{}
+	gc := GraphConnector{wg: &sync.WaitGroup{}}
 	sel := selectors.Selector{
 		Service: selectors.ServiceUnknown,
 	}
 	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 
-	assert.Error(suite.T(), gc.RestoreDataCollections(ctx, sel, dest, nil))
+	assert.Error(t, gc.RestoreDataCollections(ctx, sel, dest, nil))
+
+	status := gc.AwaitStatus()
+	assert.Equal(t, 0, status.ObjectCount)
+	assert.Equal(t, 0, status.FolderCount)
+	assert.Equal(t, 0, status.Successful)
 }
