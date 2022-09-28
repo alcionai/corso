@@ -249,7 +249,11 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 					defaultRetention,
 					p.RetentionPolicy,
 				)
-				assert.Equal(t, math.MaxInt, p.RetentionPolicy.EffectiveKeepLatest())
+				assert.Equal(
+					t,
+					math.MaxInt,
+					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42),
+				)
 			},
 			mutator: func(innerCtx context.Context, p *policy.Policy) error {
 				newRetentionDaily := policy.OptionalInt(42)
