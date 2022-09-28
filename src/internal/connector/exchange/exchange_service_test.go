@@ -428,8 +428,6 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
 	ctx := context.Background()
-	// TODO: #884 - reinstate when able to specify root folder by name
-	t.Skip("#884 - reinstate when able to specify root folder by name")
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
@@ -437,7 +435,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 
 	calendarID := *calendar.GetId()
 	err = RestoreExchangeEvent(context.Background(),
-		mockconnector.GetMockEventBytes("Restore Event "),
+		mockconnector.GetMockEventWithAttendeesBytes(name),
 		suite.es,
 		control.Copy,
 		calendarID,
