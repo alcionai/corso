@@ -69,7 +69,7 @@ func attendeeListToString(attendList []attendee, heading string, isHTML bool) st
 	if len(attendList) > 0 {
 		message = heading + ":" + carriageReturn
 		for _, resource := range attendList {
-			message += "- " + resource.simplePrint() + " " + carriageReturn
+			message += "- " + resource.simplePrint(isHTML) + " " + carriageReturn
 		}
 
 		message += carriageReturn + carriageReturn
@@ -103,7 +103,13 @@ func guardCheckForAttendee(attendee models.Attendeeable) bool {
 	return false
 }
 
-func (at *attendee) simplePrint() string {
-	contents := fmt.Sprintf("%s {%s}, %s", at.name, at.email, at.response)
+func (at *attendee) simplePrint(isHTML bool) string {
+	var contents string
+	if isHTML {
+		contents = fmt.Sprintf("%s &lt;%s&gt; %s", at.name, at.email, at.response)
+	} else {
+		contents = fmt.Sprintf("%s <%s>, %s", at.name, at.email, at.response)
+	}
+
 	return contents
 }
