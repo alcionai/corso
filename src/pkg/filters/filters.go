@@ -24,6 +24,9 @@ const (
 	Fails
 	// passthrough for the target
 	IdentityValue
+	// target is a prefix of the value it is compared
+	// against
+	TargetPrefixes
 )
 
 func norm(s string) string {
@@ -119,6 +122,18 @@ func Identity(id string) Filter {
 	return newFilter(IdentityValue, id, false)
 }
 
+// Prefix creates a filter where Compare(v) is true if
+// target.Prefix(v)
+func Prefix(target string) Filter {
+	return newFilter(TargetPrefixes, target, false)
+}
+
+// NotPrefix creates a filter where Compare(v) is true if
+// !target.Prefix(v)
+func NotPrefix(target string) Filter {
+	return newFilter(TargetPrefixes, target, true)
+}
+
 // newFilter is the standard filter constructor.
 func newFilter(c comparator, target string, negate bool) Filter {
 	return Filter{c, target, negate}
@@ -143,6 +158,8 @@ func (f Filter) Compare(input string) bool {
 		cmp = contains
 	case TargetIn:
 		cmp = in
+	case TargetPrefixes:
+		cmp = prefixed
 	case Passes:
 		return true
 	case Fails:
@@ -182,6 +199,11 @@ func in(target, input string) bool {
 	return strings.Contains(input, target)
 }
 
+// true if target has input as a prefix.
+func prefixed(target, input string) bool {
+	return strings.HasPrefix(target, input)
+}
+
 // ----------------------------------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------------------------------
@@ -193,6 +215,7 @@ var prefixString = map[comparator]string{
 	LessThan:       "lt:",
 	TargetContains: "cont:",
 	TargetIn:       "in:",
+	TargetPrefixes: "pr:",
 }
 
 func (f Filter) String() string {

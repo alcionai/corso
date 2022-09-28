@@ -849,7 +849,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		{"non-matching folder", es.MailFolders(Any(), []string{"smarf"}), "", assert.False},
 		// This test validates that folders that match a substring of the scope are not included (bugfix 1)
 		{"non-matching folder substring", es.MailFolders(Any(), []string{fld + "_suffix"}), "", assert.False},
-		{"matching folder substring", es.MailFolders(Any(), []string{"mailF"}), "", assert.True},
+		{"matching folder prefix", es.MailFolders(Any(), []string{"mailF"}), "", assert.True},
+		{"matching folder substring", es.MailFolders(Any(), []string{"Folder"}), "", assert.False},
 		{"one of multiple folders", es.MailFolders(Any(), []string{"smarf", fld}), "", assert.True},
 		{"all mail", es.Mails(Any(), Any(), Any()), "", assert.True},
 		{"no mail", es.Mails(Any(), Any(), None()), "", assert.False},
