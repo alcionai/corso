@@ -245,13 +245,14 @@ func (gc *GraphConnector) ExchangeDataCollection(
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
+	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) error {
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		return gc.RestoreExchangeDataCollections(ctx, dcs)
+		return gc.RestoreExchangeDataCollections(ctx, dest, dcs)
 	case selectors.ServiceOneDrive:
-		status, err := onedrive.RestoreCollections(ctx, gc, dcs)
+		status, err := onedrive.RestoreCollections(ctx, gc, dest, dcs)
 
 		gc.incrementAwaitingMessages()
 		gc.UpdateStatus(status)
@@ -270,6 +271,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 // into M365
 func (gc *GraphConnector) RestoreExchangeDataCollections(
 	ctx context.Context,
+	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) error {
 	var (
@@ -294,7 +296,13 @@ func (gc *GraphConnector) RestoreExchangeDataCollections(
 		if _, ok := pathCounter[directory.String()]; !ok {
 			pathCounter[directory.String()] = true
 
-			folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
+			folderID, errs = exchange.GetRestoreContainer(
+				ctx,
+				&gc.graphService,
+				user,
+				category,
+				dest.ContainerName,
+			)
 
 			if errs != nil {
 				fmt.Println("RestoreContainer Failed")

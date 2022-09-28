@@ -24,8 +24,8 @@ func GetRestoreContainer(
 	service graph.Service,
 	user string,
 	category path.CategoryType,
+	name string,
 ) (string, error) {
-	name := fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormat))
 	option := categoryToOptionIdentifier(category)
 
 	folderID, err := GetContainerID(ctx, service, name, user, option)
