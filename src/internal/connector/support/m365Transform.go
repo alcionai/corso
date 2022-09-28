@@ -3,6 +3,7 @@ package support
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -59,13 +60,6 @@ func ToMessage(orig models.Messageable) models.Messageable {
 	}
 
 	return aMessage
-}
-
-func ToEventSimplified(orig models.Eventable) models.Eventable {
-	// Get Attendees
-	// Print what you find
-	// convert to expected output
-	return orig
 }
 
 func SetEventMessageRequest(orig models.Messageable, adtl map[string]any) (models.EventMessageRequestable, error) {
@@ -406,4 +400,49 @@ func SetAdditionalDataToEventMessage(
 	}
 
 	return newMessage, nil
+}
+
+// ToEventSimplified transforms an event to simplifed restore format
+// @see https://www.notion.so/alcion/Event-restore-semantics-061aee5288244629b1c53337e4dea306#6e974540c8804c4fa832218675534e1c
+// for full details
+func ToEventSimplified(orig models.Eventable) models.Eventable {
+	attendees := FormatAttendees(orig, *orig.GetBody().GetContentType() == models.HTML_BODYTYPE)
+	orig.SetAttendees([]models.Attendeeable{})
+	origBody := orig.GetBody()
+	newContent := insertStringToBody(origBody, attendees)
+	newBody := models.NewItemBody()
+	newBody.SetContentType(origBody.GetContentType())
+	newBody.SetAdditionalData(origBody.GetAdditionalData())
+	newBody.SetOdataType(origBody.GetOdataType())
+	newBody.SetContent(&newContent)
+	orig.SetBody(newBody)
+
+	return orig
+}
+
+// insertStringToBody helper function to insert text into models.bodyable
+// @returns string containing the content string of altered body.
+func insertStringToBody(body models.ItemBodyable, newContent string) string {
+	var returnString, prefix, suffix string
+
+	if body.GetContent() == nil ||
+		body.GetContentType() == nil {
+		return returnString
+	}
+
+	content := *body.GetContent()
+
+	switch *body.GetContentType() {
+	case models.TEXT_BODYTYPE:
+		return newContent + content
+	case models.HTML_BODYTYPE:
+		array := strings.Split(content, "<body>")
+		prefix = array[0] + "<body>\n"
+		interior := array[1]
+		bodyArray := strings.Split(interior, ">")
+		prefix += bodyArray[0] + ">\n"
+		suffix = strings.Join(bodyArray[1:], ">")
+	}
+
+	return prefix + newContent + suffix
 }
