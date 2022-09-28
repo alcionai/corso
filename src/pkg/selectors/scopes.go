@@ -379,12 +379,32 @@ func matchesPathValues[T scopeT, C categoryT](
 		// all parts of the scope must match
 		cc := c.(C)
 		if !isAnyTarget(sc, cc) {
-			notMatch := filters.NotContains(join(scopeVals...))
-			if c.isLeaf() && len(shortRef) > 0 {
-				if notMatch.Compare(pathVal) && notMatch.Compare(shortRef) {
-					return false
+			// TODO(Discuss with @Keepers) I think we need to check each scopeVal separately.
+			// For example if we're looking for FolderA or FolderB -> previously
+			//  we would check if the path folder (e.g. FolderA) was contained in "FolderA,FolderB"
+			// This would work but would also include folders such as "Fold" which we don't want
+			//
+			match := false
+
+			for _, scopeVal := range scopeVals {
+				// Used to check if the path contains the value specified in scopeVals
+				pathMatch := filters.Contains(pathVal)
+				// Used to check if the shortRef contains the value specified in scopeVals
+				shortRefMatch := filters.Contains(shortRef)
+
+				if c.isLeaf() && len(shortRef) > 0 {
+					if pathMatch.Compare(scopeVal) || shortRefMatch.Compare(scopeVal) {
+						match = true
+						break
+					}
+				} else if pathMatch.Compare(scopeVal) {
+					match = true
+					break
 				}
-			} else if notMatch.Compare(pathVal) {
+			}
+
+			if !match {
+				// Didn't match any scope
 				return false
 			}
 		}
