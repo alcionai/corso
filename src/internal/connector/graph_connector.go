@@ -259,7 +259,8 @@ func (gc *GraphConnector) RestoreDataCollections(
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs)
 	default:
-		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
+		// Exit early so we don't try to update the status or anything.
+		return errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
 
 	gc.incrementAwaitingMessages()

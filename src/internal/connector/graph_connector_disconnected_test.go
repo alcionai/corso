@@ -176,7 +176,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 	}
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
+func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
 	ctx := context.Background()
 	gc := GraphConnector{}
 	sel := selectors.Selector{
