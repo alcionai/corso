@@ -32,13 +32,15 @@ func (suite *SupportTestSuite) TestToMessage() {
 }
 
 func (suite *SupportTestSuite) TestToEventSimplified() {
+	t := suite.T()
 	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
 	event, err := CreateEventFromBytes(bytes)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
-	response := event.GetAttendees()
-	assert.NotEmpty(suite.T(), response)
-	habit := event.GetBody()
-	fab := habit.GetContent()
-	suite.T().Log(*fab)
+	newEvent := ToEventSimplified(event)
+
+	assert.Empty(t, newEvent.GetHideAttendees())
+	assert.Equal(t, *event.GetBody().GetContentType(), *newEvent.GetBody().GetContentType())
+	assert.Equal(t, event.GetBody().GetAdditionalData(), newEvent.GetBody().GetAdditionalData())
+	assert.Contains(t, *event.GetBody().GetContent(), "Required:")
 }
