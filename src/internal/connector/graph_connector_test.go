@@ -389,10 +389,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
 
 	dcs := mockconnector.NewMockContactCollection(fullpath, 3)
 	two := mockconnector.NewMockContactCollection(aPath, 2)
-	collections := make([]data.Collection, 0)
-	collections = append(collections, dcs)
-	collections = append(collections, two)
-
+	collections := []data.Collection{dcs, two}
 	ctx := context.Background()
 	connector := loadConnector(ctx, suite.T())
 	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
@@ -400,5 +397,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
 	assert.NoError(suite.T(), err)
 
 	value := connector.AwaitStatus()
+	assert.Equal(t, value.FolderCount, 1)
 	suite.T().Log(value.String())
 }
