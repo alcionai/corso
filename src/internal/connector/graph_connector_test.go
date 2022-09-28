@@ -367,6 +367,8 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 	}
 }
 
+// TODO(ashmrtn): Merge this with the below once we get comparison logic for
+// contacts.
 func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
 	t := suite.T()
 	sel := selectors.NewExchangeRestore()
@@ -399,4 +401,115 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
 	value := connector.AwaitStatus()
 	assert.Equal(t, value.FolderCount, 1)
 	suite.T().Log(value.String())
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
+	bodyText := "This email has some text. However, all the text is on the same line."
+	subjectText := "Test message for restore"
+
+	table := []struct {
+		name          string
+		service       path.ServiceType
+		collections   []colInfo
+		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
+	}{
+		{
+			name:    "MultipleEmailsSingleFolder",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-1",
+								bodyText+" 1.",
+							),
+							lookupKey: subjectText + "-1",
+						},
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-2",
+								bodyText+" 2.",
+							),
+							lookupKey: subjectText + "-2",
+						},
+						{
+							name: "someencodeditemID3",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-3",
+								bodyText+" 3.",
+							),
+							lookupKey: subjectText + "-3",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.MailFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			// Get a dest per test so they're independent.
+			dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+
+			totalItems, collections, expectedData := collectionsForInfo(
+				t,
+				test.service,
+				suite.connector.tenant,
+				suite.user,
+				dest,
+				test.collections,
+			)
+
+			t.Logf("Restoring collections to %s\n", dest.ContainerName)
+
+			restoreGC := loadConnector(ctx, t)
+			restoreSel := getSelectorWith(test.service)
+			err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+			require.NoError(t, err)
+
+			status := restoreGC.AwaitStatus()
+			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
+			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
+			assert.Equal(t, totalItems, status.Successful, "status.Successful")
+
+			t.Logf("Restore complete\n")
+
+			// Run a backup and compare its output with what we put in.
+
+			backupGC := loadConnector(ctx, t)
+			backupSel := test.backupSelFunc(dest, suite.user)
+			t.Logf("Selective backup of %s\n", backupSel)
+
+			dcs, err := backupGC.DataCollections(ctx, backupSel)
+			require.NoError(t, err)
+
+			t.Logf("Backup enumeration complete\n")
+
+			// Pull the data prior to waiting for the status as otherwise it will
+			// deadlock.
+			checkCollections(t, expectedData, dcs)
+
+			status = backupGC.AwaitStatus()
+			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
+			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
+			assert.Equal(t, totalItems, status.Successful, "status.Successful")
+		})
+	}
 }
