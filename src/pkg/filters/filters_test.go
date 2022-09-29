@@ -159,3 +159,28 @@ func (suite *FiltersSuite) TestIn_Joined() {
 		})
 	}
 }
+
+func (suite *FiltersSuite) TestPrefixes() {
+	input := "folderA"
+
+	table := []struct {
+		name     string
+		target   string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"Exact match - same case", "folderA", assert.True, assert.False},
+		{"Exact match - different case", "Foldera", assert.True, assert.False},
+		{"Prefix match - same case", "folderA/folderB", assert.True, assert.False},
+		{"Prefix match - different case", "Foldera/folderB", assert.True, assert.False},
+		{"Should not match substring", "folder1/folderA", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			f := filters.Prefix(test.target)
+			nf := filters.NotPrefix(test.target)
+			test.expectF(t, f.Compare(input), "filter")
+			test.expectNF(t, nf.Compare(input), "negated filter")
+		})
+	}
+}

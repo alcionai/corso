@@ -847,6 +847,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		{"no folders", es.MailFolders(Any(), None()), "", assert.False},
 		{"matching folder", es.MailFolders(Any(), []string{fld}), "", assert.True},
 		{"non-matching folder", es.MailFolders(Any(), []string{"smarf"}), "", assert.False},
+		// This test validates that folders that match a substring of the scope are not included (bugfix 1)
+		{"non-matching folder substring", es.MailFolders(Any(), []string{fld + "_suffix"}), "", assert.False},
+		{"matching folder prefix", es.MailFolders(Any(), []string{"mailF"}), "", assert.True},
+		{"matching folder substring", es.MailFolders(Any(), []string{"Folder"}), "", assert.False},
 		{"one of multiple folders", es.MailFolders(Any(), []string{"smarf", fld}), "", assert.True},
 		{"all mail", es.Mails(Any(), Any(), Any()), "", assert.True},
 		{"no mail", es.Mails(Any(), Any(), None()), "", assert.False},
@@ -913,9 +917,10 @@ func (suite *ExchangeSelectorSuite) TestIdPath() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	var (
-		contact = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
-		event   = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
-		mail    = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "mfld", "mid")
+		contact            = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
+		event              = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
+		mail               = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "mfld", "mid")
+		contactInSubFolder = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld1/cfld2", "cid")
 	)
 
 	makeDeets := func(refs ...string) *details.Details {
@@ -1019,6 +1024,16 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				return er
 			},
 			arr(contact),
+		},
+		{
+			"only match contactInSubFolder",
+			makeDeets(contactInSubFolder, contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore()
+				er.Include(er.ContactFolders([]string{"uid"}, []string{"cfld1/cfld2"}))
+				return er
+			},
+			arr(contactInSubFolder),
 		},
 		{
 			"only match event",
