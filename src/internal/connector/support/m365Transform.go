@@ -438,10 +438,10 @@ func insertStringToBody(body models.ItemBodyable, newContent string) string {
 		return newContent + content
 	case models.HTML_BODYTYPE:
 		array := strings.Split(content, "<body>")
-		prefix = array[0] + "<body>\n"
+		prefix = array[0] + "<body>"
 		interior := array[1]
 		bodyArray := strings.Split(interior, ">")
-		prefix += bodyArray[0] + ">\n"
+		prefix += bodyArray[0] + ">"
 		suffix = strings.Join(bodyArray[1:], ">")
 	}
 
