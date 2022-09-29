@@ -14,7 +14,7 @@ jobs:
 
   Generate-Markdown:
     needs: precheck
-    if: needs.precheck.outputs.fileschanged == 'true'
+    if: needs.precheck.outputs.srcfileschanged == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

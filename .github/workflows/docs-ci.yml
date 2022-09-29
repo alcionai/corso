@@ -1,0 +1,81 @@
+name: CI Tests for docs
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+  pull-requests: read
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: docs-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Precheck ---------------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+  precheck:
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@docs-ci # TODO: change this to main
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Generate cli docs ------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Generate-Markdown:
+    needs: precheck
+    if: needs.precheck.outputs.srcfileschanged == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      # run the markdown generator
+      - name: Generate Markdown
+        working-directory: ./src
+        run: |
+          go run ./cmd/mdgen/mdgen.go generate
+
+      # migrate generated md files into /docs/docs/cli
+      - name: Move CLI .md to Docs
+        run: |
+          mkdir -p ./docs/docs/cli
+          mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
+          rm -R ./src/cmd/mdgen/cli_markdown/
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Docs Linting -----------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Docs-Linting:
+    needs: [precheck , Generate-Markdown]
+    environment: Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies for docs lint
+        if: needs.precheck.outputs.docfileschanged == 'true'
+        run: |
+          sudo snap install --edge vale
+          npm install -g markdownlint-cli
+
+      - name: Run docs lint
+        if: needs.precheck.outputs.docfileschanged == 'true'
+        run: |
+          make -o genclidocs check

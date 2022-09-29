@@ -14,7 +14,7 @@ jobs:
 
   Per-SHA-Image:
     needs: precheck
-    if: needs.precheck.outputs.fileschanged == 'true'
+    if: needs.precheck.outputs.srcfileschanged == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
