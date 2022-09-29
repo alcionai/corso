@@ -267,6 +267,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 		r       = suite.repo
 		service = "one_drive"
 	)
+
 	t.Skip("temp issue-902-live")
 
 	m356User := tester.M365UserID(t)

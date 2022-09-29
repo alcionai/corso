@@ -29,7 +29,9 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: mkdir test_results
+      - run: |
+        mkdir test_results
+        touch ./test_results/goloadtest.log
 
       # Install gotestfmt
       - name: Set up gotestfmt
