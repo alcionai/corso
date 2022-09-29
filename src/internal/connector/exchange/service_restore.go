@@ -259,6 +259,7 @@ func RestoreExchangeDataCollections(
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		pathCounter         = map[string]bool{}
+		rootFolder          string
 		attempts, successes int
 		errs                error
 		// TODO policy to be updated from external source after completion of refactoring
@@ -270,9 +271,10 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		a, s, canceled := restoreCollection(ctx, gs, dc, pathCounter, dest, policy, errUpdater)
+		a, s, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, errUpdater)
 		attempts += a
 		successes += s
+		rootFolder = root
 
 		if canceled {
 			break
@@ -289,17 +291,18 @@ func restoreCollection(
 	ctx context.Context,
 	gs graph.Service,
 	dc data.Collection,
+	rootFolder string,
 	pathCounter map[string]bool,
 	dest control.RestoreDestination,
 	policy control.CollisionPolicy,
 	errUpdater func(string, error),
-) (int, int, bool) {
+) (int, int, string, bool) {
 	defer trace.StartRegion(ctx, "gc:exchange:restoreCollection").End()
 	trace.Log(ctx, "gc:exchange:restoreCollection", dc.FullPath().String())
 
 	var (
 		attempts, successes int
-		folderID, root      string
+		folderID            string
 		err                 error
 		items               = dc.Items()
 		directory           = dc.FullPath()
@@ -309,21 +312,21 @@ func restoreCollection(
 		directoryCheckFunc  = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
 	)
 
-	folderID, root, err = directoryCheckFunc(ctx, err, directory.String(), root, pathCounter)
+	folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
 	if err != nil { // assuming FailFast
 		errUpdater(directory.String(), err)
-		return 0, 0, false
+		return 0, 0, rootFolder, false
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			errUpdater("context cancelled", ctx.Err())
-			return attempts, successes, true
+			return attempts, successes, root, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return attempts, successes, false
+				return attempts, successes, root, false
 			}
 			attempts++
 
