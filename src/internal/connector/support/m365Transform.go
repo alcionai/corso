@@ -402,10 +402,11 @@ func SetAdditionalDataToEventMessage(
 	return newMessage, nil
 }
 
-//nolint:lll
 // ToEventSimplified transforms an event to simplifed restore format
-// @see https://www.notion.so/alcion/Event-restore-semantics-061aee5288244629b1c53337e4dea306#6e974540c8804c4fa832218675534e1c
-// for full details
+// To overcome some of the MS Graph API challenges, the event object is modified in the following ways:
+// * Instead of adding attendees and generating spurious notifications,
+//     add a summary of attendees at the beginning to the event before the original body content
+// * event.attendees is set to an empty list
 func ToEventSimplified(orig models.Eventable) models.Eventable {
 	attendees := FormatAttendees(orig, *orig.GetBody().GetContentType() == models.HTML_BODYTYPE)
 	orig.SetAttendees([]models.Attendeeable{})
