@@ -41,6 +41,7 @@ type Repository interface {
 		ctx context.Context,
 		backupID string,
 		sel selectors.Selector,
+		dest control.RestoreDestination,
 	) (operations.RestoreOperation, error)
 	DeleteBackup(ctx context.Context, id model.StableID) error
 	BackupGetter
@@ -93,7 +94,7 @@ func Initialize(
 		return nil, err
 	}
 
-	r := repository{
+	r := &repository{
 		ID:         uuid.New(),
 		Version:    "v1",
 		Account:    acct,
@@ -105,7 +106,7 @@ func Initialize(
 
 	r.Bus.Event(ctx, events.RepoInit, nil)
 
-	return &r, nil
+	return r, nil
 }
 
 // Connect will:
@@ -138,16 +139,14 @@ func Connect(
 	}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
-	r := repository{
+	return &repository{
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
 		Bus:        events.NewBus(s, acct.ID(), opts),
 		dataLayer:  w,
 		modelStore: ms,
-	}
-
-	return &r, nil
+	}, nil
 }
 
 func (r *repository) Close(ctx context.Context) error {
@@ -194,6 +193,7 @@ func (r repository) NewRestore(
 	ctx context.Context,
 	backupID string,
 	sel selectors.Selector,
+	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
 	return operations.NewRestoreOperation(
 		ctx,
@@ -203,6 +203,7 @@ func (r repository) NewRestore(
 		r.Account,
 		model.StableID(backupID),
 		sel,
+		dest,
 		r.Bus)
 }
 

@@ -2,15 +2,15 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 	"io"
+	"runtime/trace"
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -45,70 +45,98 @@ func toOneDrivePath(p path.Path) (*drivePath, error) {
 }
 
 // RestoreCollections will restore the specified data collections into OneDrive
-func RestoreCollections(ctx context.Context, service graph.Service, dcs []data.Collection,
+func RestoreCollections(
+	ctx context.Context,
+	service graph.Service,
+	dest control.RestoreDestination,
+	dcs []data.Collection,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		total, restored      int
-		restoreErrors        error
-		copyBuffer           = make([]byte, copyBufferSize)
-		restoreContainerName = fmt.Sprintf("Corso_Restore_%s", common.FormatNow(common.SimpleDateTimeFormatOneDrive))
+		total, restored int
+		restoreErrors   error
 	)
+
+	errUpdater := func(id string, err error) {
+		restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
+	}
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		directory := dc.FullPath()
+		t, r, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, errUpdater)
+		total += t
+		restored += r
 
-		drivePath, err := toOneDrivePath(directory)
-		if err != nil {
-			restoreErrors = support.WrapAndAppend(directory.String(), err, restoreErrors)
-			continue
-		}
-
-		// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
-		// from the backup under this the restore folder instead of root)
-		// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
-
-		restoreFolderElements := []string{restoreContainerName}
-
-		restoreFolderElements = append(restoreFolderElements, drivePath.folders...)
-
-		logger.Ctx(ctx).Debugf("Restore target for %s is %v", dc.FullPath(), restoreFolderElements)
-
-		// Create restore folders and get the folder ID of the folder the data stream will be restored in
-		restoreFolderID, err := createRestoreFolders(ctx, service, drivePath.driveID, restoreFolderElements)
-		if err != nil {
-			restoreErrors = support.WrapAndAppend(directory.String(), errors.Wrapf(err, "failed to create folders %v",
-				restoreFolderElements), restoreErrors)
-			continue
-		}
-
-		// Restore items from the collection
-		exit := false
-		items := dc.Items()
-
-		for !exit {
-			select {
-			case <-ctx.Done():
-				return nil, support.WrapAndAppend("context cancelled", ctx.Err(), restoreErrors)
-			case itemData, ok := <-items:
-				if !ok {
-					exit = true
-					break
-				}
-				total++
-
-				err := restoreItem(ctx, service, itemData, drivePath.driveID, restoreFolderID, copyBuffer)
-				if err != nil {
-					restoreErrors = support.WrapAndAppend(itemData.UUID(), err, restoreErrors)
-					continue
-				}
-
-				restored++
-			}
+		if canceled {
+			break
 		}
 	}
 
 	return support.CreateStatus(ctx, support.Restore, total, restored, 0, restoreErrors), nil
+}
+
+// restoreCollection handles restoration of an individual collection.
+func restoreCollection(
+	ctx context.Context,
+	service graph.Service,
+	dc data.Collection,
+	restoreContainerName string,
+	errUpdater func(string, error),
+) (int, int, bool) {
+	defer trace.StartRegion(ctx, "gc:oneDrive:restoreCollection").End()
+
+	var (
+		total, restored int
+		copyBuffer      = make([]byte, copyBufferSize)
+		directory       = dc.FullPath()
+	)
+
+	drivePath, err := toOneDrivePath(directory)
+	if err != nil {
+		errUpdater(directory.String(), err)
+		return 0, 0, false
+	}
+
+	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
+	// from the backup under this the restore folder instead of root)
+	// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
+
+	restoreFolderElements := []string{restoreContainerName}
+	restoreFolderElements = append(restoreFolderElements, drivePath.folders...)
+
+	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
+	logger.Ctx(ctx).Debugf("Restore target for %s is %v", dc.FullPath(), restoreFolderElements)
+
+	// Create restore folders and get the folder ID of the folder the data stream will be restored in
+	restoreFolderID, err := createRestoreFolders(ctx, service, drivePath.driveID, restoreFolderElements)
+	if err != nil {
+		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
+		return 0, 0, false
+	}
+
+	// Restore items from the collection
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context canceled", ctx.Err())
+			return total, restored, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return total, restored, false
+			}
+			total++
+
+			err := restoreItem(ctx, service, itemData, drivePath.driveID, restoreFolderID, copyBuffer)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			restored++
+		}
+	}
 }
 
 // createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
@@ -160,7 +188,10 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 func restoreItem(ctx context.Context, service graph.Service, itemData data.Stream, driveID, parentFolderID string,
 	copyBuffer []byte,
 ) error {
+	defer trace.StartRegion(ctx, "gc:oneDrive:restoreItem").End()
+
 	itemName := itemData.UUID()
+	trace.Log(ctx, "gc:oneDrive:restoreItem", itemName)
 
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.StreamSize)

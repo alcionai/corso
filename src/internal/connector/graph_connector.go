@@ -3,9 +3,9 @@
 package connector
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"runtime/trace"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -34,7 +34,9 @@ type GraphConnector struct {
 	credentials account.M365Config
 
 	// wg is used to track completion of GC tasks
-	wg *sync.WaitGroup
+	wg     *sync.WaitGroup
+	region *trace.Region
+
 	// mutex used to synchronize updates to `status`
 	mu     sync.Mutex
 	status support.ConnectorOperationStatus // contains the status of the last run status
@@ -121,6 +123,8 @@ func (gs *graphService) EnableFailFast() {
 // workspace. The users field is updated during this method
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
+	defer trace.StartRegion(ctx, "gc:setTenantUsers").End()
+
 	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
 	if err != nil {
 		return errors.Wrapf(
@@ -241,114 +245,34 @@ func (gc *GraphConnector) ExchangeDataCollection(
 }
 
 // RestoreDataCollections restores data from the specified collections
-// into M365
+// into M365 using the GraphAPI.
+// SideEffect: gc.status is updated at the completion of operation
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
+	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) error {
-	switch selector.Service {
-	case selectors.ServiceExchange:
-		return gc.RestoreExchangeDataCollections(ctx, dcs)
-	case selectors.ServiceOneDrive:
-		status, err := onedrive.RestoreCollections(ctx, gc, dcs)
-		if err != nil {
-			return err
-		}
+	gc.region = trace.StartRegion(ctx, "connector:restore")
 
-		gc.incrementAwaitingMessages()
-
-		gc.UpdateStatus(status)
-
-		return nil
-	default:
-		return errors.Errorf("restore data from service %s not supported", selector.Service.String())
-	}
-}
-
-// RestoreDataCollections restores data from the specified collections
-// into M365
-func (gc *GraphConnector) RestoreExchangeDataCollections(
-	ctx context.Context,
-	dcs []data.Collection,
-) error {
 	var (
-		pathCounter         = map[string]bool{}
-		attempts, successes int
-		errs                error
-		folderID            string
-		// TODO policy to be updated from external source after completion of refactoring
-		policy = control.Copy
+		status *support.ConnectorOperationStatus
+		err    error
 	)
 
-	for _, dc := range dcs {
-		var (
-			items     = dc.Items()
-			directory = dc.FullPath()
-			service   = directory.Service()
-			category  = directory.Category()
-			user      = directory.ResourceOwner()
-			exit      bool
-		)
-
-		if _, ok := pathCounter[directory.String()]; !ok {
-			pathCounter[directory.String()] = true
-
-			folderID, errs = exchange.GetRestoreContainer(ctx, &gc.graphService, user, category)
-
-			if errs != nil {
-				fmt.Println("RestoreContainer Failed")
-				return errs
-			}
-		}
-
-		for !exit {
-			select {
-			case <-ctx.Done():
-				return support.WrapAndAppend("context cancelled", ctx.Err(), errs)
-			case itemData, ok := <-items:
-				if !ok {
-					exit = true
-					continue
-				}
-				attempts++
-
-				buf := &bytes.Buffer{}
-
-				_, err := buf.ReadFrom(itemData.ToReader())
-				if err != nil {
-					errs = support.WrapAndAppend(
-						itemData.UUID()+": byteReadError during RestoreDataCollection",
-						err,
-						errs,
-					)
-
-					continue
-				}
-
-				err = exchange.RestoreExchangeObject(ctx, buf.Bytes(), category, policy, &gc.graphService, folderID, user)
-
-				if err != nil {
-					//  More information to be here
-					errs = support.WrapAndAppend(
-						itemData.UUID()+": failed to upload RestoreExchangeObject: "+service.String()+"-"+category.String(),
-						err,
-						errs,
-					)
-
-					continue
-				}
-				successes++
-			}
-		}
+	switch selector.Service {
+	case selectors.ServiceExchange:
+		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs)
+	case selectors.ServiceOneDrive:
+		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs)
+	default:
+		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
 
 	gc.incrementAwaitingMessages()
-
-	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
 	gc.UpdateStatus(status)
 
-	return errs
+	return err
 }
 
 // createCollection - utility function that retrieves M365
@@ -423,16 +347,27 @@ func (gc *GraphConnector) createCollections(
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
+	defer func() {
+		if gc.region != nil {
+			gc.region.End()
+		}
+	}()
 	gc.wg.Wait()
+
 	return &gc.status
 }
 
 // UpdateStatus is used by gc initiated tasks to indicate completion
 func (gc *GraphConnector) UpdateStatus(status *support.ConnectorOperationStatus) {
+	defer gc.wg.Done()
+
+	if status == nil {
+		return
+	}
+
 	gc.mu.Lock()
 	defer gc.mu.Unlock()
 	gc.status = support.MergeStatus(gc.status, *status)
-	gc.wg.Done()
 }
 
 // Status returns the current status of the graphConnector operaion.
@@ -462,6 +397,8 @@ func IsNonRecoverableError(e error) bool {
 }
 
 func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
+	defer trace.StartRegion(ctx, "gc:dataCollections:"+sels.Service.String()).End()
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
 		return gc.ExchangeDataCollection(ctx, sels)

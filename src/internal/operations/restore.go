@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"runtime/trace"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,10 +29,11 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID  model.StableID     `json:"backupID"`
-	Results   RestoreResults     `json:"results"`
-	Selectors selectors.Selector `json:"selectors"` // todo: replace with Selectors
-	Version   string             `json:"version"`
+	BackupID    model.StableID             `json:"backupID"`
+	Results     RestoreResults             `json:"results"`
+	Selectors   selectors.Selector         `json:"selectors"`
+	Destination control.RestoreDestination `json:"destination"`
+	Version     string                     `json:"version"`
 
 	account account.Account
 }
@@ -52,14 +54,16 @@ func NewRestoreOperation(
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
+	dest control.RestoreDestination,
 	bus events.Eventer,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation: newOperation(opts, bus, kw, sw),
-		BackupID:  backupID,
-		Selectors: sel,
-		Version:   "v0",
-		account:   acct,
+		operation:   newOperation(opts, bus, kw, sw),
+		BackupID:    backupID,
+		Selectors:   sel,
+		Destination: dest,
+		Version:     "v0",
+		account:     acct,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -90,6 +94,8 @@ type restoreStats struct {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (err error) {
+	defer trace.StartRegion(ctx, "operations:restore:run").End()
+
 	startTime := time.Now()
 
 	// persist operation results to the model store on exit
@@ -191,7 +197,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	err = gc.RestoreDataCollections(ctx, op.Selectors, dcs)
+	err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err

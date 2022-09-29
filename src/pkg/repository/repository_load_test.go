@@ -2,15 +2,20 @@ package repository_test
 
 import (
 	"context"
+	"runtime/pprof"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -50,7 +55,16 @@ func runBackupLoadTest(
 ) {
 	//revive:enable:context-as-argument
 	t.Run("backup_"+name, func(t *testing.T) {
-		require.NoError(t, b.Run(ctx), "running backup")
+		var (
+			err    error
+			labels = pprof.Labels("backup_load_test", name)
+		)
+
+		pprof.Do(ctx, labels, func(ctx context.Context) {
+			err = b.Run(ctx)
+		})
+
+		require.NoError(t, err, "running backup")
 		require.NotEmpty(t, b.Results, "has results after run")
 		assert.NotEmpty(t, b.Results.BackupID, "has an ID after run")
 		assert.Equal(t, b.Status, operations.Completed, "backup status")
@@ -72,7 +86,16 @@ func runBackupListLoadTest(
 ) {
 	//revive:enable:context-as-argument
 	t.Run("backup_list_"+name, func(t *testing.T) {
-		bs, err := r.Backups(ctx)
+		var (
+			err    error
+			bs     []backup.Backup
+			labels = pprof.Labels("list_load_test", name)
+		)
+
+		pprof.Do(ctx, labels, func(ctx context.Context) {
+			bs, err = r.Backups(ctx)
+		})
+
 		require.NoError(t, err, "retrieving backups")
 		require.Less(t, 0, len(bs), "at least one backup is recorded")
 
@@ -102,11 +125,32 @@ func runBackupDetailsLoadTest(
 	require.NotEmpty(t, backupID, "backup ID to retrieve deails")
 
 	t.Run("backup_details_"+name, func(t *testing.T) {
-		ds, b, err := r.BackupDetails(ctx, backupID)
+		var (
+			err    error
+			b      *backup.Backup
+			ds     *details.Details
+			labels = pprof.Labels("details_load_test", name)
+		)
+
+		pprof.Do(ctx, labels, func(ctx context.Context) {
+			ds, b, err = r.BackupDetails(ctx, backupID)
+		})
+
 		require.NoError(t, err, "retrieving details in backup "+backupID)
-		require.NotNil(t, ds, "backup details")
-		require.NotNil(t, b, "backup")
-		assert.Equal(t, b.ItemsWritten, len(ds.Entries))
+		require.NotNil(t, ds, "backup details must exist")
+		require.NotNil(t, b, "backup must exist")
+
+		sansfldr := []details.DetailsEntry{}
+
+		for _, ent := range ds.Entries {
+			if ent.Folder == nil {
+				sansfldr = append(sansfldr, ent)
+			}
+		}
+
+		assert.Equal(t,
+			b.ItemsWritten, len(sansfldr),
+			"items written to backup must match the count of entries, minus folder entries")
 	})
 }
 
@@ -120,8 +164,16 @@ func runRestoreLoadTest(
 ) {
 	//revive:enable:context-as-argument
 	t.Run("restore_"+name, func(t *testing.T) {
-		t.Skip("skipping restore handling while investigating performance")
-		require.NoError(t, r.Run(ctx), "running restore")
+		var (
+			err    error
+			labels = pprof.Labels("restore_load_test", name)
+		)
+
+		pprof.Do(ctx, labels, func(ctx context.Context) {
+			err = r.Run(ctx)
+		})
+
+		require.NoError(t, err, "running restore")
 		require.NotEmpty(t, r.Results, "has results after run")
 		assert.Equal(t, r.Status, operations.Completed, "restore status")
 		assert.Less(t, 0, r.Results.ItemsRead, "items read")
@@ -155,6 +207,7 @@ func TestRepositoryLoadTestExchangeSuite(t *testing.T) {
 
 func (suite *RepositoryLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
+	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 }
 
@@ -178,13 +231,12 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 		service = "exchange"
 	)
 
-	t.Parallel()
-
 	m356User := tester.M365UserID(t)
 
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.Users([]string{m356User}))
+	bsel.Include(bsel.MailFolders([]string{m356User}, []string{exchange.DefaultMailFolder}))
+	// bsel.Include(bsel.Users([]string{m356User}))
 	// bsel.Include(bsel.Users(selectors.Any()))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
@@ -200,7 +252,9 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	rsel, err := bsel.ToExchangeRestore()
 	require.NoError(t, err)
 
-	rst, err := r.NewRestore(ctx, bid, rsel.Selector)
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+
+	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)
 
 	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten)
@@ -228,6 +282,8 @@ func TestRepositoryLoadTestOneDriveSuite(t *testing.T) {
 
 func (suite *RepositoryLoadTestOneDriveSuite) SetupSuite() {
 	t := suite.T()
+	t.Skip("temp issue-902-live")
+	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 }
 
@@ -251,11 +307,12 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 		service = "one_drive"
 	)
 
-	t.Parallel()
+	m356User := tester.M365UserID(t)
 
 	// backup
 	bsel := selectors.NewOneDriveBackup()
-	bsel.Include(bsel.Users(selectors.Any()))
+	bsel.Include(bsel.Users([]string{m356User}))
+	// bsel.Include(bsel.Users(selectors.Any()))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
@@ -270,7 +327,9 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	rsel, err := bsel.ToOneDriveRestore()
 	require.NoError(t, err)
 
-	rst, err := r.NewRestore(ctx, bid, rsel.Selector)
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+
+	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)
 
 	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten)

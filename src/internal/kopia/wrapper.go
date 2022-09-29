@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 
@@ -192,6 +193,8 @@ func getStreamItemFunc(
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
+		defer trace.StartRegion(ctx, "kopia:getStreamItemFunc").End()
+
 		// Collect all errors and return them at the end so that iteration for this
 		// directory doesn't end early.
 		var errs *multierror.Error
@@ -229,6 +232,8 @@ func getStreamItemFunc(
 
 					continue
 				}
+
+				trace.Log(ctx, "kopia:getStreamItemFunc:item", itemPath.String())
 
 				ei, ok := e.(data.StreamInfo)
 				if !ok {
@@ -382,6 +387,8 @@ func (w Wrapper) BackupCollections(
 	if w.c == nil {
 		return nil, nil, errNotConnected
 	}
+
+	defer trace.StartRegion(ctx, "kopia:backupCollections").End()
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
@@ -556,6 +563,8 @@ func (w Wrapper) RestoreMultipleItems(
 	paths []path.Path,
 	bcounter byteCounter,
 ) ([]data.Collection, error) {
+	defer trace.StartRegion(ctx, "kopia:restore:multiple").End()
+
 	if len(paths) == 0 {
 		return nil, errors.WithStack(errNoRestorePath)
 	}

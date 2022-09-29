@@ -426,8 +426,6 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	t := suite.T()
 	ctx := context.Background()
-	// TODO: #779 - reinstate when restored events to not generate notifications
-	t.Skip("#779 - reinstate when restored events to not generate notifications")
 	userID := tester.M365UserID(t)
 	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
@@ -435,7 +433,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 
 	calendarID := *calendar.GetId()
 	err = RestoreExchangeEvent(context.Background(),
-		mockconnector.GetMockEventBytes("Restore Event "),
+		mockconnector.GetMockEventWithAttendeesBytes(name),
 		suite.es,
 		control.Copy,
 		calendarID,
@@ -450,6 +448,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // GraphConnector's Restore Workflow based on OptionIdentifier.
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	ctx := context.Background()
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
 	tests := []struct {
 		name        string
 		option      path.CategoryType
@@ -495,7 +494,7 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option)
+			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option, dest.ContainerName)
 			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
 
 			if test.cleanupFunc != nil {

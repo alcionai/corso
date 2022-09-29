@@ -1,6 +1,8 @@
 package selectors
 
 import (
+	"context"
+
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -141,19 +143,6 @@ func (s *oneDrive) Filter(scopes ...[]OneDriveScope) {
 	s.Filters = appendScopes(s.Filters, scopes...)
 }
 
-// Produces one or more oneDrive user scopes.
-// One scope is created per user entry.
-// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
-// If any slice contains selectors.None, that slice is reduced to [selectors.None]
-// If any slice is empty, it defaults to [selectors.None]
-func (s *oneDrive) Users(users []string) []OneDriveScope {
-	scopes := []OneDriveScope{}
-
-	scopes = append(scopes, makeScope[OneDriveScope](OneDriveUser, users, users))
-
-	return scopes
-}
-
 // Scopes retrieves the list of oneDriveScopes in the selector.
 func (s *oneDrive) Scopes() []OneDriveScope {
 	return scopes[OneDriveScope](s.Selector)
@@ -164,6 +153,53 @@ func (s *oneDrive) Scopes() []OneDriveScope {
 // scope's value with the list of userPNs instead.
 func (s *oneDrive) DiscreteScopes(userPNs []string) []OneDriveScope {
 	return discreteScopes[OneDriveScope](s.Selector, OneDriveUser, userPNs)
+}
+
+// -------------------
+// Scope Factories
+
+// Produces one or more OneDrive user scopes.
+// One scope is created per user entry.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *oneDrive) Users(users []string) []OneDriveScope {
+	scopes := []OneDriveScope{}
+
+	scopes = append(scopes, makeScope[OneDriveScope](OneDriveFolder, users, Any()))
+
+	return scopes
+}
+
+// Folders produces one or more OneDrive folder scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *oneDrive) Folders(users, folders []string) []OneDriveScope {
+	scopes := []OneDriveScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[OneDriveScope](OneDriveFolder, users, folders),
+	)
+
+	return scopes
+}
+
+// Items produces one or more OneDrive item scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *oneDrive) Items(users, folders, items []string) []OneDriveScope {
+	scopes := []OneDriveScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[OneDriveScope](OneDriveItem, users, items).
+			set(OneDriveFolder, folders),
+	)
+
+	return scopes
 }
 
 // ---------------------------------------------------------------------------
@@ -180,13 +216,16 @@ var _ categorizer = OneDriveCategoryUnknown
 const (
 	OneDriveCategoryUnknown oneDriveCategory = ""
 	// types of data identified by OneDrive
-	OneDriveUser oneDriveCategory = "OneDriveUser"
+	OneDriveUser   oneDriveCategory = "OneDriveUser"
+	OneDriveItem   oneDriveCategory = "OneDriveItem"
+	OneDriveFolder oneDriveCategory = "OneDriveFolder"
 )
 
 // oneDrivePathSet describes the category type keys used in OneDrive paths.
 // The order of each slice is important, and should match the order in which
 // these types appear in the canonical Path for each type.
 var oneDrivePathSet = map[categorizer][]categorizer{
+	OneDriveItem: {OneDriveUser, OneDriveFolder, OneDriveItem},
 	OneDriveUser: {OneDriveUser}, // the root category must be represented
 }
 
@@ -200,6 +239,11 @@ func (c oneDriveCategory) String() string {
 // Ex: ServiceTypeFolder.leafCat() => ServiceTypeItem
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c oneDriveCategory) leafCat() categorizer {
+	switch c {
+	case OneDriveFolder, OneDriveItem:
+		return OneDriveItem
+	}
+
 	return c
 }
 
@@ -213,9 +257,10 @@ func (c oneDriveCategory) unknownCat() categorizer {
 	return OneDriveCategoryUnknown
 }
 
-// isLeaf is true if the category is a mail, event, or contact category.
+// isLeaf is true if the category is a OneDriveItem category.
 func (c oneDriveCategory) isLeaf() bool {
-	return c == c.leafCat()
+	// return c == c.leafCat()??
+	return c == OneDriveItem
 }
 
 // pathValues transforms a path to a map of identified properties.
@@ -225,7 +270,9 @@ func (c oneDriveCategory) isLeaf() bool {
 // => {odUser: userPN, odFolder: folder, odFileID: fileID}
 func (c oneDriveCategory) pathValues(p path.Path) map[categorizer]string {
 	return map[categorizer]string{
-		OneDriveUser: p.ResourceOwner(),
+		OneDriveUser:   p.ResourceOwner(),
+		OneDriveFolder: p.Folder(), // TODO: Should we filter out the DriveID here?
+		OneDriveItem:   p.Item(),
 	}
 }
 
@@ -290,13 +337,19 @@ func (s OneDriveScope) Get(cat oneDriveCategory) []string {
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
-// func (s OneDriveScope) set(cat oneDriveCategory, v string) OneDriveScope {
-// 	return set(s, cat, v)
-// }
+func (s OneDriveScope) set(cat oneDriveCategory, v []string) OneDriveScope {
+	return set(s, cat, v)
+}
 
 // setDefaults ensures that user scopes express `AnyTgt` for their child category types.
 func (s OneDriveScope) setDefaults() {
-	// no-op while no child scope types below user are identified
+	switch s.Category() {
+	case OneDriveUser:
+		s[OneDriveFolder.String()] = passAny
+		s[OneDriveItem.String()] = passAny
+	case OneDriveFolder:
+		s[OneDriveItem.String()] = passAny
+	}
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an oneDriveInfo
@@ -332,4 +385,21 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 	}
 
 	return false
+}
+
+// ---------------------------------------------------------------------------
+// Backup Details Filtering
+// ---------------------------------------------------------------------------
+
+// Reduce filters the entries in a details struct to only those that match the
+// inclusions, filters, and exclusions in the selector.
+func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.Details {
+	return reduce[OneDriveScope](
+		ctx,
+		deets,
+		s.Selector,
+		map[path.CategoryType]oneDriveCategory{
+			path.FilesCategory: OneDriveItem,
+		},
+	)
 }

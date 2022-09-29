@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 )
 
 type MockExchangeCollectionSuite struct {
@@ -35,6 +36,22 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 	}
 
 	assert.Equal(suite.T(), 2, messagesRead)
+}
+
+func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
+	t := suite.T()
+	mdc := mockconnector.NewMockExchangeCollection(nil, 2)
+
+	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
+
+	for item := range mdc.Items() {
+		buf, err := ioutil.ReadAll(item.ToReader())
+		assert.NoError(t, err)
+
+		assert.Implements(t, (*data.StreamSize)(nil), item)
+		s := item.(data.StreamSize)
+		assert.Equal(t, int64(len(buf)), s.Size())
+	}
 }
 
 // NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
@@ -64,7 +81,7 @@ func TestMockExchangeDataSuite(t *testing.T) {
 }
 
 func (suite *MockExchangeDataSuite) TestMockExchangeData() {
-	data := []byte("foo")
+	itemData := []byte("foo")
 	id := "bar"
 
 	table := []struct {
@@ -76,7 +93,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 			name: "NoError",
 			reader: &mockconnector.MockExchangeData{
 				ID:     id,
-				Reader: io.NopCloser(bytes.NewReader(data)),
+				Reader: io.NopCloser(bytes.NewReader(itemData)),
 			},
 			check: require.NoError,
 		},
@@ -100,7 +117,52 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 				return
 			}
 
-			assert.Equal(t, data, buf)
+			assert.Equal(t, itemData, buf)
+		})
+	}
+}
+
+func (suite *MockExchangeDataSuite) TestMockByteHydration() {
+	subject := "Mock Hydration"
+	tests := []struct {
+		name           string
+		transformation func(t *testing.T) error
+	}{
+		{
+			name: "Message Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockMessageBytes(subject)
+				_, err := support.CreateMessageFromBytes(bytes)
+				return err
+			},
+		}, {
+			name: "Contact Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockContactBytes(subject)
+				_, err := support.CreateContactFromBytes(bytes)
+				return err
+			},
+		}, {
+			name: "Event No Attendees Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockEventBytes(subject)
+				_, err := support.CreateEventFromBytes(bytes)
+				return err
+			},
+		}, {
+			name: "Event w/ Attendees Bytes",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockEventWithAttendeesBytes(subject)
+				_, err := support.CreateEventFromBytes(bytes)
+				return err
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			err := test.transformation(t)
+			assert.NoError(t, err)
 		})
 	}
 }
