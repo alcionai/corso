@@ -26,6 +26,10 @@ const sidebars = {
     {
       type: 'category',
       label: 'Command Line Reference',
+      link: {
+        slug: 'cli/corso',
+        type: 'generated-index',
+      },
       items: [
         'cli/corso_repo_init_s3', 'cli/corso_repo_connect_s3',
         'cli/corso_backup_create_exchange', 'cli/corso_backup_list_exchange', 'cli/corso_backup_details_exchange',
