@@ -12,8 +12,8 @@ type attendee struct {
 	response string
 }
 
-// FormatAttendeses
-// - First Name <email@example.com>, Accepted | Declined | Tentative | No Response
+// FormatAttendees returns string representation of an attendee
+// Return Format: - Name <email@example.com>, Accepted | Declined | Tentative | No Response
 func FormatAttendees(event models.Eventable, isHTML bool) string {
 	var (
 		failed   int
@@ -100,6 +100,7 @@ func guardCheckForAttendee(attendee models.Attendeeable) bool {
 	return false
 }
 
+// String function to return struct representation of attendee
 func (at *attendee) String(isHTML bool) string {
 	var contents string
 	if isHTML {
