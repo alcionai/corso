@@ -373,27 +373,44 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 // is able to restore a several messageable item to a Mailbox.
 // The result should be all successful items restored within the same folder.
 func (suite *ExchangeServiceSuite) TestRestoreMessages() {
-	t := suite.T()
 	ctx := context.Background()
-	userID := tester.M365UserID(t)
+	userID := tester.M365UserID(suite.T())
 	now := time.Now()
 
 	folderName := "TestRestoreMessage: " + common.FormatSimpleDateTime(now)
 	folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
-	require.NoError(t, err)
+	require.NoError(suite.T(), err)
 
 	folderID := *folder.GetId()
+	tests := []struct {
+		name  string
+		bytes []byte
+	}{
+		{
+			name:  "Simple Message",
+			bytes: mockconnector.GetMockMessageBytes(folderName),
+		},
+		{
+			name:  "One Direct Attachment",
+			bytes: mockconnector.GetMockMessageWithDirectAttachment(folderName),
+		},
+	}
 
-	err = RestoreMailMessage(context.Background(),
-		mockconnector.GetMockMessageBytes("Exchange Service Mail Test"),
-		suite.es,
-		control.Copy,
-		folderID,
-		userID,
-	)
-	require.NoError(t, err)
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			err = RestoreMailMessage(context.Background(),
+				test.bytes,
+				suite.es,
+				control.Copy,
+				folderID,
+				userID,
+			)
+			require.NoError(t, err)
+		})
+	}
+
 	err = DeleteMailFolder(ctx, suite.es, userID, folderID)
-	assert.NoError(t, err)
+	assert.NoError(suite.T(), err, "Failure during folder clean-up")
 }
 
 // TestRestoreContact ensures contact object can be created, placed into
