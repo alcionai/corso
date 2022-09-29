@@ -619,7 +619,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			checkCollections(t, totalItems, expectedData, dcs)
 
 			status = backupGC.AwaitStatus()
-			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
+			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 		})
