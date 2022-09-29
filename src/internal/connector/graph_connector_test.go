@@ -460,14 +460,16 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	subjectText := "Test message for restore"
 
 	table := []struct {
-		name          string
-		service       path.ServiceType
-		collections   []colInfo
-		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
+		name                   string
+		service                path.ServiceType
+		collections            []colInfo
+		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
+		expectedRestoreFolders int
 	}{
 		{
-			name:    "MultipleEmailsSingleFolder",
-			service: path.ExchangeService,
+			name:                   "MultipleEmailsSingleFolder",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -537,7 +539,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			require.NoError(t, err)
 
 			status := restoreGC.AwaitStatus()
-			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
+			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 
