@@ -50,7 +50,7 @@ func mustToDataLayerPath(
 	return res
 }
 
-func notNilAndEq[T any](t *testing.T, expected *T, got *T, msg string) {
+func emptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
 	t.Helper()
 
 	if expected == nil || got == nil {
@@ -90,7 +90,7 @@ func checkMessage(
 ) {
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
-	notNilAndEq(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
+	emptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
 
 	// Skip Body.Content as there may be display formatting that changes.
 
@@ -114,44 +114,44 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetFrom(), got.GetFrom(), "From")
 
-	notNilAndEq(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
+	emptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	notNilAndEq(t, expected.GetImportance(), got.GetImportance(), "Importance")
+	emptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
 
-	notNilAndEq(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
+	emptyOrEqual(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
 
 	assert.Equal(t, expected.GetInternetMessageHeaders(), got.GetInternetMessageHeaders(), "InternetMessageHeaders")
 
-	notNilAndEq(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
+	emptyOrEqual(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
 
-	notNilAndEq(
+	emptyOrEqual(
 		t,
 		expected.GetIsDeliveryReceiptRequested(),
 		got.GetIsDeliveryReceiptRequested(),
 		"IsDeliverReceiptRequested",
 	)
 
-	notNilAndEq(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
+	emptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
 
-	notNilAndEq(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
+	emptyOrEqual(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
 
-	notNilAndEq(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
+	emptyOrEqual(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
 	// Skip ParentFolderId as we restore to a different folder by default.
 
-	notNilAndEq(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
+	emptyOrEqual(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
 	assert.Equal(t, expected.GetSender(), got.GetSender(), "Sender")
 
-	notNilAndEq(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
+	emptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
 
-	notNilAndEq(t, expected.GetSubject(), got.GetSubject(), "Subject")
+	emptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
 	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
 
