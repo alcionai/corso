@@ -63,6 +63,7 @@ func notNilAndEq[T any](t *testing.T, expected *T, got *T, msg string) {
 		t,
 		reflect.ValueOf(expected).Elem(),
 		reflect.ValueOf(got).Elem(),
+		// Add expected and got in case either was nil.
 		msg+" expected: %v, got: %v",
 		expected,
 		got,
@@ -177,22 +178,20 @@ func compareExchangeEmail(
 		return
 	}
 
-	itemMessageParsable, err := support.CreateMessageFromBytes(itemData)
+	itemMessage, err := support.CreateMessageFromBytes(itemData)
 	if !assert.NoError(t, err, "deserializing backed up message") {
 		return
 	}
-
-	itemMessage := itemMessageParsable
 
 	expectedBytes, ok := expected[*itemMessage.GetSubject()]
 	if !assert.True(t, ok, "unexpected item with Subject %q", *itemMessage.GetSubject()) {
 		return
 	}
 
-	expectedMessageParsable, err := support.CreateMessageFromBytes(expectedBytes)
+	expectedMessage, err := support.CreateMessageFromBytes(expectedBytes)
 	assert.NoError(t, err, "deserializing source message")
 
-	checkMessage(t, expectedMessageParsable, itemMessage)
+	checkMessage(t, expectedMessage, itemMessage)
 }
 
 func compareItem(
@@ -238,26 +237,34 @@ func checkHasCollections(
 
 func checkCollections(
 	t *testing.T,
+	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.Collection,
 ) {
 	checkHasCollections(t, expected, got)
+
+	gotItems := 0
 
 	for _, returned := range got {
 		service := returned.FullPath().Service()
 		category := returned.FullPath().Category()
 		expectedColData := expected[returned.FullPath().String()]
 
-		if expectedColData == nil {
-			// Missing/extra collections will be reported in the above `ElementsMatch`
-			// call.
-			continue
-		}
-
+		// Need to iterate through all items even if we don't expect to find a match
+		// because otherwise we'll deadlock waiting for GC status. Unexpected or
+		// missing collection paths will be reported by checkHasCollections.
 		for item := range returned.Items() {
+			gotItems++
+
+			if expectedColData == nil {
+				continue
+			}
+
 			compareItem(t, expectedColData, service, category, item)
 		}
 	}
+
+	assert.Equal(t, expectedItems, gotItems, "expected items")
 }
 
 func collectionsForInfo(

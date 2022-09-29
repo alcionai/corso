@@ -556,7 +556,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			checkCollections(t, expectedData, dcs)
+			checkCollections(t, totalItems, expectedData, dcs)
 
 			status = backupGC.AwaitStatus()
 			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
