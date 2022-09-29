@@ -59,15 +59,7 @@ func notNilAndEq[T any](t *testing.T, expected *T, got *T, msg string) {
 		return
 	}
 
-	assert.Equal(
-		t,
-		reflect.ValueOf(expected).Elem(),
-		reflect.ValueOf(got).Elem(),
-		// Add expected and got in case either was nil.
-		msg+" expected: %v, got: %v",
-		expected,
-		got,
-	)
+	assert.Equal(t, *expected, *got, msg)
 }
 
 type itemInfo struct {
