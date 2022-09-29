@@ -164,6 +164,85 @@ func (suite *SelectorReduceSuite) TestReduce() {
 				testdata.ExchangeEventsItems...,
 			),
 		},
+		{
+			name: "ExchangeMailByFolder",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.MailFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailBasePath.Folder()},
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+		},
+		{
+			name: "ExchangeMailByFolderRoot",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.MailFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailInboxPath.Folder()},
+				))
+
+				return sel
+			},
+			expected: testdata.ExchangeEmailItems,
+		},
+		{
+			name: "ExchangeContactByFolder",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.ContactFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeContactsBasePath.Folder()},
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeContactsItems[0]},
+		},
+		{
+			name: "ExchangeContactByFolderRoot",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.ContactFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeContactsRootPath.Folder()},
+				))
+
+				return sel
+			},
+			expected: testdata.ExchangeContactsItems,
+		},
+
+		{
+			name: "ExchangeEventsByFolder",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.EventCalendars(
+					selectors.Any(),
+					[]string{testdata.ExchangeEventsBasePath.Folder()},
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEventsItems[0]},
+		},
+		{
+			name: "ExchangeEventsByFolderRoot",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.EventCalendars(
+					selectors.Any(),
+					[]string{testdata.ExchangeEventsRootPath.Folder()},
+				))
+
+				return sel
+			},
+			expected: testdata.ExchangeEventsItems,
+		},
 	}
 
 	for _, test := range table {
