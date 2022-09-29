@@ -514,6 +514,100 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 				return backupSel.Selector
 			},
 		},
+		{
+			name:                   "MultipleContactsSingleFolder",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Contacts"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+						{
+							name:      "someencodeditemID3",
+							data:      mockconnector.GetMockContactBytes("Jannes"),
+							lookupKey: "Jannes",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.ContactFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
+		{
+			name:                   "MultipleContactsMutlipleFolders",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+						{
+							name:      "someencodeditemID3",
+							data:      mockconnector.GetMockContactBytes("Jannes"),
+							lookupKey: "Jannes",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID4",
+							data:      mockconnector.GetMockContactBytes("Argon"),
+							lookupKey: "Argon",
+						},
+						{
+							name:      "someencodeditemID5",
+							data:      mockconnector.GetMockContactBytes("Bernard"),
+							lookupKey: "Bernard",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.ContactFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
 	}
 
 	for _, test := range table {
