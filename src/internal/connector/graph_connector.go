@@ -5,6 +5,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"runtime/trace"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -33,7 +34,9 @@ type GraphConnector struct {
 	credentials account.M365Config
 
 	// wg is used to track completion of GC tasks
-	wg *sync.WaitGroup
+	wg     *sync.WaitGroup
+	region *trace.Region
+
 	// mutex used to synchronize updates to `status`
 	mu     sync.Mutex
 	status support.ConnectorOperationStatus // contains the status of the last run status
@@ -120,6 +123,8 @@ func (gs *graphService) EnableFailFast() {
 // workspace. The users field is updated during this method
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
+	defer trace.StartRegion(ctx, "gc:setTenantUsers").End()
+
 	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
 	if err != nil {
 		return errors.Wrapf(
@@ -248,6 +253,8 @@ func (gc *GraphConnector) RestoreDataCollections(
 	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) error {
+	gc.region = trace.StartRegion(ctx, "connector:restore")
+
 	var (
 		status *support.ConnectorOperationStatus
 		err    error
@@ -340,7 +347,13 @@ func (gc *GraphConnector) createCollections(
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
 func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
+	defer func() {
+		if gc.region != nil {
+			gc.region.End()
+		}
+	}()
 	gc.wg.Wait()
+
 	return &gc.status
 }
 
@@ -384,6 +397,8 @@ func IsNonRecoverableError(e error) bool {
 }
 
 func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
+	defer trace.StartRegion(ctx, "gc:dataCollections:"+sels.Service.String()).End()
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
 		return gc.ExchangeDataCollection(ctx, sels)

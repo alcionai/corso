@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"runtime/trace"
 	"time"
 
 	"github.com/google/uuid"
@@ -83,6 +84,8 @@ type backupStats struct {
 
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
+	defer trace.StartRegion(ctx, "operations:backup:run").End()
+
 	var (
 		opStats       backupStats
 		backupDetails *details.Details
