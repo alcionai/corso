@@ -56,34 +56,31 @@ func FormatAttendees(event models.Eventable, isHTML bool) string {
 
 func attendeeListToString(attendList []attendee, heading string, isHTML bool) string {
 	var (
-		message        string
-		carriageReturn string
+		message   string
+		lineBreak string
 	)
 
 	if isHTML {
-		carriageReturn = "<br>"
+		lineBreak = "<br>"
 	} else {
-		carriageReturn = "\n"
+		lineBreak = "\n"
 	}
 
 	if len(attendList) > 0 {
-		message = heading + ":" + carriageReturn
+		message = heading + ":" + lineBreak
 		for _, resource := range attendList {
-			message += "- " + resource.simplePrint(isHTML) + " " + carriageReturn
+			message += "- " + resource.String(isHTML) + " " + lineBreak
 		}
 
-		message += carriageReturn + carriageReturn
+		message += lineBreak + lineBreak
 	}
 
 	return message
 }
 
 func guardCheckForAttendee(attendee models.Attendeeable) bool {
-	if attendee.GetType() == nil {
-		return true
-	}
-
-	if attendee.GetStatus() == nil {
+	if attendee.GetType() == nil ||
+		attendee.GetStatus() == nil {
 		return true
 	}
 
@@ -103,7 +100,7 @@ func guardCheckForAttendee(attendee models.Attendeeable) bool {
 	return false
 }
 
-func (at *attendee) simplePrint(isHTML bool) string {
+func (at *attendee) String(isHTML bool) string {
 	var contents string
 	if isHTML {
 		contents = fmt.Sprintf("%s &lt;%s&gt;, %s", at.name, at.email, at.response)
