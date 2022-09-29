@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"runtime/trace"
 	"time"
 
 	"github.com/google/uuid"
@@ -93,6 +94,8 @@ type restoreStats struct {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (err error) {
+	defer trace.StartRegion(ctx, "operations:restore:run").End()
+
 	startTime := time.Now()
 
 	// persist operation results to the model store on exit
