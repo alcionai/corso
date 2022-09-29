@@ -106,7 +106,7 @@ func guardCheckForAttendee(attendee models.Attendeeable) bool {
 func (at *attendee) simplePrint(isHTML bool) string {
 	var contents string
 	if isHTML {
-		contents = fmt.Sprintf("%s &lt;%s&gt; %s", at.name, at.email, at.response)
+		contents = fmt.Sprintf("%s &lt;%s&gt;, %s", at.name, at.email, at.response)
 	} else {
 		contents = fmt.Sprintf("%s <%s>, %s", at.name, at.email, at.response)
 	}
