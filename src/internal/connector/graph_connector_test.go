@@ -565,3 +565,138 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		})
 	}
 }
+
+func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
+	bodyText := "This email has some text. However, all the text is on the same line."
+	subjectText := "Test message for restore"
+
+	table := []struct {
+		name    string
+		service path.ServiceType
+		// Each collection will be restored separately, creating multiple folders to
+		// backup later.
+		collections   []colInfo
+		backupSelFunc func(dests []control.RestoreDestination, backupUser string) selectors.Selector
+	}{
+		{
+			name:    "Email",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-1",
+								bodyText+" 1.",
+							),
+							lookupKey: subjectText + "-1",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Archive"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-2",
+								bodyText+" 2.",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dests []control.RestoreDestination, backupUser string) selectors.Selector {
+				destNames := make([]string, 0, len(dests))
+
+				for _, d := range dests {
+					destNames = append(destNames, d.ContainerName)
+				}
+
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.MailFolders(
+					[]string{backupUser},
+					destNames,
+				))
+
+				return backupSel.Selector
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			restoreSel := getSelectorWith(test.service)
+			dests := make([]control.RestoreDestination, 0, len(test.collections))
+			allItems := 0
+			allExpectedData := map[string]map[string][]byte{}
+
+			for i, collection := range test.collections {
+				// Get a dest per collection so they're independent.
+				dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+				dests = append(dests, dest)
+
+				totalItems, collections, expectedData := collectionsForInfo(
+					t,
+					test.service,
+					suite.connector.tenant,
+					suite.user,
+					dest,
+					[]colInfo{collection},
+				)
+				allItems += totalItems
+
+				for k, v := range expectedData {
+					allExpectedData[k] = v
+				}
+
+				t.Logf(
+					"Restoring %v/%v collections to %s\n",
+					i+1,
+					len(test.collections),
+					dest.ContainerName,
+				)
+
+				restoreGC := loadConnector(ctx, t)
+				err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+				require.NoError(t, err)
+
+				status := restoreGC.AwaitStatus()
+				// Always just 1 because it's just 1 collection.
+				assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
+				assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
+				assert.Equal(t, totalItems, status.Successful, "status.Successful")
+
+				t.Logf("Restore complete\n")
+			}
+
+			// Run a backup and compare its output with what we put in.
+
+			backupGC := loadConnector(ctx, t)
+			backupSel := test.backupSelFunc(dests, suite.user)
+			t.Logf("Selective backup of %s\n", backupSel)
+
+			dcs, err := backupGC.DataCollections(ctx, backupSel)
+			require.NoError(t, err)
+
+			t.Logf("Backup enumeration complete\n")
+
+			// Pull the data prior to waiting for the status as otherwise it will
+			// deadlock.
+			checkCollections(t, allItems, allExpectedData, dcs)
+
+			status := backupGC.AwaitStatus()
+			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
+			assert.Equal(t, allItems, status.ObjectCount, "status.ObjectCount")
+			assert.Equal(t, allItems, status.Successful, "status.Successful")
+		})
+	}
+}
