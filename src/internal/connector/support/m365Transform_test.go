@@ -37,10 +37,16 @@ func (suite *SupportTestSuite) TestToEventSimplified() {
 	event, err := CreateEventFromBytes(bytes)
 	require.NoError(t, err)
 
+	attendees := event.GetAttendees()
 	newEvent := ToEventSimplified(event)
 
 	assert.Empty(t, newEvent.GetHideAttendees())
 	assert.Equal(t, *event.GetBody().GetContentType(), *newEvent.GetBody().GetContentType())
 	assert.Equal(t, event.GetBody().GetAdditionalData(), newEvent.GetBody().GetAdditionalData())
 	assert.Contains(t, *event.GetBody().GetContent(), "Required:")
+
+	for _, member := range attendees {
+		assert.Contains(t, *event.GetBody().GetContent(), *member.GetEmailAddress().GetName())
+		assert.Contains(t, *event.GetBody().GetContent(), *member.GetEmailAddress().GetAddress())
+	}
 }
