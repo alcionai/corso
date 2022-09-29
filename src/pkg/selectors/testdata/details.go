@@ -42,9 +42,11 @@ var (
 	Time1 = time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
 	Time2 = time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
 
-	ExchangeEmailBasePath  = mustParsePath("tenant-id/exchange/user-id/email/Inbox/subfolder", false)
+	ExchangeEmailInboxPath = mustParsePath("tenant-id/exchange/user-id/email/Inbox", false)
+	ExchangeEmailBasePath  = mustAppendPath(ExchangeEmailInboxPath, "subfolder", false)
+	ExchangeEmailBasePath2 = mustAppendPath(ExchangeEmailInboxPath, "othersubfolder", false)
 	ExchangeEmailItemPath1 = mustAppendPath(ExchangeEmailBasePath, ItemName1, true)
-	ExchangeEmailItemPath2 = mustAppendPath(ExchangeEmailBasePath, ItemName2, true)
+	ExchangeEmailItemPath2 = mustAppendPath(ExchangeEmailBasePath2, ItemName2, true)
 
 	ExchangeEmailItems = []details.DetailsEntry{
 		{
@@ -75,9 +77,11 @@ var (
 		},
 	}
 
-	ExchangeContactsBasePath  = mustParsePath("tenant-id/exchange/user-id/contacts/contacts", false)
+	ExchangeContactsRootPath  = mustParsePath("tenant-id/exchange/user-id/contacts/contacts", false)
+	ExchangeContactsBasePath  = mustAppendPath(ExchangeContactsRootPath, "contacts", false)
+	ExchangeContactsBasePath2 = mustAppendPath(ExchangeContactsRootPath, "morecontacts", false)
 	ExchangeContactsItemPath1 = mustAppendPath(ExchangeContactsBasePath, ItemName1, true)
-	ExchangeContactsItemPath2 = mustAppendPath(ExchangeContactsBasePath, ItemName2, true)
+	ExchangeContactsItemPath2 = mustAppendPath(ExchangeContactsBasePath2, ItemName2, true)
 
 	ExchangeContactsItems = []details.DetailsEntry{
 		{
@@ -104,9 +108,11 @@ var (
 		},
 	}
 
-	ExchangeEventsBasePath  = mustParsePath("tenant-id/exchange/user-id/events/holidays", false)
+	ExchangeEventsRootPath  = mustParsePath("tenant-id/exchange/user-id/events/holidays", false)
+	ExchangeEventsBasePath  = mustAppendPath(ExchangeEventsRootPath, "holidays", false)
+	ExchangeEventsBasePath2 = mustAppendPath(ExchangeEventsRootPath, "moreholidays", false)
 	ExchangeEventsItemPath1 = mustAppendPath(ExchangeEventsBasePath, ItemName1, true)
-	ExchangeEventsItemPath2 = mustAppendPath(ExchangeEventsBasePath, ItemName2, true)
+	ExchangeEventsItemPath2 = mustAppendPath(ExchangeEventsBasePath2, ItemName2, true)
 
 	ExchangeEventsItems = []details.DetailsEntry{
 		{

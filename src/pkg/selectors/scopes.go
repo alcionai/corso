@@ -379,12 +379,44 @@ func matchesPathValues[T scopeT, C categoryT](
 		// all parts of the scope must match
 		cc := c.(C)
 		if !isAnyTarget(sc, cc) {
-			notMatch := filters.NotContains(join(scopeVals...))
-			if c.isLeaf() && len(shortRef) > 0 {
-				if notMatch.Compare(pathVal) && notMatch.Compare(shortRef) {
-					return false
+			var (
+				match = false
+				// Used to check if the path contains the value specified in scopeVals
+				pathHas = filters.Contains(pathVal)
+				// Used to check if the path has the value specified in scopeVal as a prefix
+				pathPrefix = filters.Prefix(pathVal)
+				// Used to check if the shortRef equals the value specified in scopeVals
+				shortRefEq = filters.Equal(shortRef)
+			)
+
+			for _, scopeVal := range scopeVals {
+				switch {
+				case c.isLeaf() && len(shortRef) > 0:
+					// Leaf category - we do a "contains" match for path or equality match on
+					// the shortRef
+					if pathHas.Compare(scopeVal) || shortRefEq.Compare(scopeVal) {
+						match = true
+					}
+				case !c.isLeaf() && c != c.rootCat():
+					// Folder category - we check if the scope is a prefix
+					// TODO: If the scopeVal is not a "path" - then we'll want to check
+					// if any of the path elements match the scopeVal exactly
+					if pathPrefix.Compare(scopeVal) {
+						match = true
+					}
+				default:
+					if pathHas.Compare(scopeVal) {
+						match = true
+					}
 				}
-			} else if notMatch.Compare(pathVal) {
+				// short circuit if we found a match
+				if match {
+					break
+				}
+			}
+
+			if !match {
+				// Didn't match any scope
 				return false
 			}
 		}
