@@ -62,9 +62,7 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: |
-        mkdir testlog
-        touch ./testlog/gotest.log
+      - run: mkdir testlog
 
       # Install gotestfmt
       - name: Set up gotestfmt
