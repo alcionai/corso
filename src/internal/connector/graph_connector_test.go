@@ -367,42 +367,6 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 	}
 }
 
-// TODO(ashmrtn): Merge this with the below once we get comparison logic for
-// contacts.
-func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
-	t := suite.T()
-	sel := selectors.NewExchangeRestore()
-	fullpath, err := path.Builder{}.Append("testing").
-		ToDataLayerExchangePathForCategory(
-			suite.connector.tenant,
-			suite.user,
-			path.ContactsCategory,
-			false,
-		)
-
-	require.NoError(t, err)
-	aPath, err := path.Builder{}.Append("validator").ToDataLayerExchangePathForCategory(
-		suite.connector.tenant,
-		suite.user,
-		path.ContactsCategory,
-		false,
-	)
-	require.NoError(t, err)
-
-	dcs := mockconnector.NewMockContactCollection(fullpath, 3)
-	two := mockconnector.NewMockContactCollection(aPath, 2)
-	collections := []data.Collection{dcs, two}
-	ctx := context.Background()
-	connector := loadConnector(ctx, suite.T())
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
-	err = connector.RestoreDataCollections(ctx, sel.Selector, dest, collections)
-	assert.NoError(suite.T(), err)
-
-	value := connector.AwaitStatus()
-	assert.Equal(t, value.FolderCount, 1)
-	suite.T().Log(value.String())
-}
-
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 	table := []struct {
