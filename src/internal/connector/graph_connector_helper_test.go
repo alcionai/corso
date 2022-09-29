@@ -407,13 +407,17 @@ func collectionsForInfo(
 			false,
 		)
 
-		expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
+		baseExpected := expectedData[baseDestPath.String()]
+		if baseExpected == nil {
+			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
+			baseExpected = expectedData[baseDestPath.String()]
+		}
 
 		for i := 0; i < len(info.items); i++ {
 			c.Names[i] = info.items[i].name
 			c.Data[i] = info.items[i].data
 
-			expectedData[baseDestPath.String()][info.items[i].lookupKey] = info.items[i].data
+			baseExpected[info.items[i].lookupKey] = info.items[i].data
 		}
 
 		collections = append(collections, c)
