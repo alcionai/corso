@@ -2,6 +2,7 @@ package connector
 
 import (
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -52,9 +53,20 @@ func mustToDataLayerPath(
 func notNilAndEq[T any](t *testing.T, expected *T, got *T, msg string) {
 	t.Helper()
 
-	if assert.NotNil(t, expected, "expected "+msg) && assert.NotNil(t, got, "got "+msg) {
-		assert.Equal(t, *expected, *got, msg)
+	if expected == nil || got == nil {
+		// Creates either the zero value or gets the value pointed to.
+		assert.Equal(t, reflect.ValueOf(expected).Elem(), reflect.ValueOf(got).Elem())
+		return
 	}
+
+	assert.Equal(
+		t,
+		reflect.ValueOf(expected).Elem(),
+		reflect.ValueOf(got).Elem(),
+		msg+" expected: %v, got: %v",
+		expected,
+		got,
+	)
 }
 
 type itemInfo struct {
