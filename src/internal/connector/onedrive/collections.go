@@ -82,6 +82,15 @@ func getCanonicalPath(p, tenant, user string) (path.Path, error) {
 	return res, nil
 }
 
+// Returns the path to the folder within the drive (i.e. under `root:`)
+func getDriveFolderPath(p path.Path) (string, error) {
+	drivePath, err := toOneDrivePath(p)
+	if err != nil {
+		return "", err
+	}
+	return path.Builder{}.Append(drivePath.folders...).String(), nil
+}
+
 // updateCollections initializes and adds the provided OneDrive items to Collections
 // A new collection is created for every OneDrive folder (or package)
 func (c *Collections) updateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
