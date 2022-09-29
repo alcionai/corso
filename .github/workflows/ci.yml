@@ -28,6 +28,9 @@ jobs:
     needs: precheck
     environment: Testing
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
     steps:
       - uses: actions/checkout@v3
 
@@ -91,7 +94,7 @@ jobs:
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
-        if: needs.precheck.outputs.fileschanged == 'true'
+        if: failure() && needs.precheck.outputs.fileschanged == 'true'
         uses: actions/upload-artifact@v3
         with:
           name: test-log
@@ -120,10 +123,11 @@ jobs:
 
       - name: Go Lint
         if: needs.precheck.outputs.fileschanged == 'true'
-        uses: golangci/golangci-lint-action@v3.2.0
+        uses: golangci/golangci-lint-action@v3
         with:
           version: v1.45.2
-          working-directory: ./src
+          working-directory: src
+          skip-cache: true
 
       # check licenses
       - name: Get go-licenses
