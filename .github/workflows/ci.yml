@@ -8,7 +8,7 @@ on:
 permissions:
   # required to retrieve AWS credentials
   id-token: write
-  contents: read
+  contents: write
   pull-requests: read
 
 # cancel currently running jobs if a new version of the branch is pushed
@@ -28,6 +28,9 @@ jobs:
     needs: precheck
     environment: Testing
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
     steps:
       - uses: actions/checkout@v3
 
@@ -59,6 +62,8 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+      - run: mkdir testlog
+
       # Install gotestfmt
       - name: Set up gotestfmt
         if: needs.precheck.outputs.fileschanged == 'true'
@@ -82,21 +87,23 @@ jobs:
           CORSO_CI_TESTS: true 
           CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_M356_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          RUDDERSTACK_CORSO_WRITE_KEY: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
-          RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           set -euo pipefail
-          go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests
+          go test \
+          -json   \
+          -v      \
+          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
-        if: needs.precheck.outputs.fileschanged == 'true'
+        if: failure() && needs.precheck.outputs.fileschanged == 'true'
         uses: actions/upload-artifact@v3
         with:
           name: test-log
-          path: /tmp/gotest.log
+          path: testlog/gotest.log
           if-no-files-found: error
+          retention-days: 14
 
   # ----------------------------------------------------------------------------------------------------
   # --- Source Code Linting ----------------------------------------------------------------------------
@@ -120,10 +127,11 @@ jobs:
 
       - name: Go Lint
         if: needs.precheck.outputs.fileschanged == 'true'
-        uses: golangci/golangci-lint-action@v3.2.0
+        uses: golangci/golangci-lint-action@v3
         with:
           version: v1.45.2
-          working-directory: ./src
+          working-directory: src
+          skip-cache: true
 
       # check licenses
       - name: Get go-licenses

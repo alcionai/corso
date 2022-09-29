@@ -2,6 +2,7 @@ package connector
 
 import (
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -49,12 +50,16 @@ func mustToDataLayerPath(
 	return res
 }
 
-func notNilAndEq[T any](t *testing.T, expected *T, got *T, msg string) {
+func emptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
 	t.Helper()
 
-	if assert.NotNil(t, expected, "expected "+msg) && assert.NotNil(t, got, "got "+msg) {
-		assert.Equal(t, *expected, *got, msg)
+	if expected == nil || got == nil {
+		// Creates either the zero value or gets the value pointed to.
+		assert.Equal(t, reflect.ValueOf(expected).Elem(), reflect.ValueOf(got).Elem())
+		return
 	}
+
+	assert.Equal(t, *expected, *got, msg)
 }
 
 type itemInfo struct {
@@ -85,7 +90,7 @@ func checkMessage(
 ) {
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
-	notNilAndEq(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
+	emptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
 
 	// Skip Body.Content as there may be display formatting that changes.
 
@@ -109,44 +114,44 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetFrom(), got.GetFrom(), "From")
 
-	notNilAndEq(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
+	emptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	notNilAndEq(t, expected.GetImportance(), got.GetImportance(), "Importance")
+	emptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
 
-	notNilAndEq(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
+	emptyOrEqual(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
 
 	assert.Equal(t, expected.GetInternetMessageHeaders(), got.GetInternetMessageHeaders(), "InternetMessageHeaders")
 
-	notNilAndEq(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
+	emptyOrEqual(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
 
-	notNilAndEq(
+	emptyOrEqual(
 		t,
 		expected.GetIsDeliveryReceiptRequested(),
 		got.GetIsDeliveryReceiptRequested(),
 		"IsDeliverReceiptRequested",
 	)
 
-	notNilAndEq(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
+	emptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
 
-	notNilAndEq(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
+	emptyOrEqual(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
 
-	notNilAndEq(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
+	emptyOrEqual(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
 	// Skip ParentFolderId as we restore to a different folder by default.
 
-	notNilAndEq(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
+	emptyOrEqual(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
 	assert.Equal(t, expected.GetSender(), got.GetSender(), "Sender")
 
-	notNilAndEq(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
+	emptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
 
-	notNilAndEq(t, expected.GetSubject(), got.GetSubject(), "Subject")
+	emptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
 	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
 
@@ -165,22 +170,20 @@ func compareExchangeEmail(
 		return
 	}
 
-	itemMessageParsable, err := support.CreateMessageFromBytes(itemData)
+	itemMessage, err := support.CreateMessageFromBytes(itemData)
 	if !assert.NoError(t, err, "deserializing backed up message") {
 		return
 	}
-
-	itemMessage := itemMessageParsable
 
 	expectedBytes, ok := expected[*itemMessage.GetSubject()]
 	if !assert.True(t, ok, "unexpected item with Subject %q", *itemMessage.GetSubject()) {
 		return
 	}
 
-	expectedMessageParsable, err := support.CreateMessageFromBytes(expectedBytes)
+	expectedMessage, err := support.CreateMessageFromBytes(expectedBytes)
 	assert.NoError(t, err, "deserializing source message")
 
-	checkMessage(t, expectedMessageParsable, itemMessage)
+	checkMessage(t, expectedMessage, itemMessage)
 }
 
 func compareItem(
@@ -226,26 +229,34 @@ func checkHasCollections(
 
 func checkCollections(
 	t *testing.T,
+	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.Collection,
 ) {
 	checkHasCollections(t, expected, got)
+
+	gotItems := 0
 
 	for _, returned := range got {
 		service := returned.FullPath().Service()
 		category := returned.FullPath().Category()
 		expectedColData := expected[returned.FullPath().String()]
 
-		if expectedColData == nil {
-			// Missing/extra collections will be reported in the above `ElementsMatch`
-			// call.
-			continue
-		}
-
+		// Need to iterate through all items even if we don't expect to find a match
+		// because otherwise we'll deadlock waiting for GC status. Unexpected or
+		// missing collection paths will be reported by checkHasCollections.
 		for item := range returned.Items() {
+			gotItems++
+
+			if expectedColData == nil {
+				continue
+			}
+
 			compareItem(t, expectedColData, service, category, item)
 		}
 	}
+
+	assert.Equal(t, expectedItems, gotItems, "expected items")
 }
 
 func collectionsForInfo(

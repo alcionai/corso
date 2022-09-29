@@ -1,11 +1,15 @@
 package selectors
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type OneDriveSelectorSuite struct {
@@ -173,4 +177,93 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 	require.NoError(t, err)
 	assert.Equal(t, or.Service, ServiceOneDrive)
 	assert.NotZero(t, or.Scopes())
+}
+
+func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
+	var (
+		file  = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "folderA/folderB", "file")
+		file2 = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "folderA/folderC", "file2")
+		file3 = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "folderD/folderE", "file3")
+	)
+
+	deets := &details.Details{
+		DetailsModel: details.DetailsModel{
+			Entries: []details.DetailsEntry{
+				{
+					RepoRef: file,
+					ItemInfo: details.ItemInfo{
+						OneDrive: &details.OneDriveInfo{
+							ItemType: details.OneDriveItem,
+						},
+					},
+				},
+				{
+					RepoRef: file2,
+					ItemInfo: details.ItemInfo{
+						OneDrive: &details.OneDriveInfo{
+							ItemType: details.OneDriveItem,
+						},
+					},
+				},
+				{
+					RepoRef: file3,
+					ItemInfo: details.ItemInfo{
+						OneDrive: &details.OneDriveInfo{
+							ItemType: details.OneDriveItem,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	arr := func(s ...string) []string {
+		return s
+	}
+
+	table := []struct {
+		name         string
+		deets        *details.Details
+		makeSelector func() *OneDriveRestore
+		expect       []string
+	}{
+		{
+			"all",
+			deets,
+			func() *OneDriveRestore {
+				odr := NewOneDriveRestore()
+				odr.Include(odr.Users(Any()))
+				return odr
+			},
+			arr(file, file2, file3),
+		},
+		{
+			"only match file",
+			deets,
+			func() *OneDriveRestore {
+				odr := NewOneDriveRestore()
+				odr.Include(odr.Items(Any(), Any(), []string{"file2"}))
+				return odr
+			},
+			arr(file2),
+		},
+		{
+			"only match folder",
+			deets,
+			func() *OneDriveRestore {
+				odr := NewOneDriveRestore()
+				odr.Include(odr.Folders([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
+				return odr
+			},
+			arr(file, file2),
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := test.makeSelector()
+			results := sel.Reduce(context.Background(), test.deets)
+			paths := results.Paths()
+			assert.Equal(t, test.expect, paths)
+		})
+	}
 }
