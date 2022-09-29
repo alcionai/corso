@@ -165,13 +165,13 @@ func checkContact(
 	expected models.Contactable,
 	got models.Contactable,
 ) {
-	notNilAndEq(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
+	emptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
 
-	notNilAndEq(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
+	emptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
 
 	assert.Equal(t, expected.GetBusinessAddress(), got.GetBusinessAddress())
 
-	notNilAndEq(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
+	emptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
 
 	assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
 
@@ -181,21 +181,21 @@ func checkContact(
 
 	assert.Equal(t, expected.GetChildren(), got.GetChildren())
 
-	notNilAndEq(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
+	emptyOrEqual(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	notNilAndEq(t, expected.GetDepartment(), got.GetDepartment(), "Department")
+	emptyOrEqual(t, expected.GetDepartment(), got.GetDepartment(), "Department")
 
-	notNilAndEq(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
+	emptyOrEqual(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
 
 	assert.Equal(t, expected.GetEmailAddresses(), got.GetEmailAddresses())
 
-	notNilAndEq(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
+	emptyOrEqual(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
 
-	notNilAndEq(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
+	emptyOrEqual(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
 
-	notNilAndEq(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
+	emptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
 
 	assert.Equal(t, expected.GetHomeAddress(), got.GetHomeAddress())
 
@@ -205,43 +205,43 @@ func checkContact(
 
 	assert.Equal(t, expected.GetImAddresses(), got.GetImAddresses())
 
-	notNilAndEq(t, expected.GetInitials(), got.GetInitials(), "Initials")
+	emptyOrEqual(t, expected.GetInitials(), got.GetInitials(), "Initials")
 
-	notNilAndEq(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
+	emptyOrEqual(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	notNilAndEq(t, expected.GetManager(), got.GetManager(), "Manager")
+	emptyOrEqual(t, expected.GetManager(), got.GetManager(), "Manager")
 
-	notNilAndEq(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
+	emptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
 
-	notNilAndEq(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
+	emptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
 
-	notNilAndEq(t, expected.GetNickName(), got.GetNickName(), "NickName")
+	emptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
 
-	notNilAndEq(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
+	emptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
 
 	assert.Equal(t, expected.GetOtherAddress(), got.GetOtherAddress())
 
 	// Skip ParentFolderId as it's tied to this specific instance of the item.
 
-	notNilAndEq(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
+	emptyOrEqual(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
 
 	assert.Equal(t, expected.GetPhoto(), got.GetPhoto())
 
-	notNilAndEq(t, expected.GetProfession(), got.GetProfession(), "Profession")
+	emptyOrEqual(t, expected.GetProfession(), got.GetProfession(), "Profession")
 
-	notNilAndEq(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
+	emptyOrEqual(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
 
-	notNilAndEq(t, expected.GetSurname(), got.GetSurname(), "Surname")
+	emptyOrEqual(t, expected.GetSurname(), got.GetSurname(), "Surname")
 
-	notNilAndEq(t, expected.GetTitle(), got.GetTitle(), "Title")
+	emptyOrEqual(t, expected.GetTitle(), got.GetTitle(), "Title")
 
-	notNilAndEq(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
+	emptyOrEqual(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
 
-	notNilAndEq(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
+	emptyOrEqual(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
 
-	notNilAndEq(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
+	emptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
 }
 
 func compareExchangeEmail(
