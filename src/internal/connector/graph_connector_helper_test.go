@@ -50,7 +50,16 @@ func mustToDataLayerPath(
 	return res
 }
 
-func emptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
+func emptyOrEqual[T any](expected *T, got *T) bool {
+	if expected == nil || got == nil {
+		// Creates either the zero value or gets the value pointed to.
+		return reflect.DeepEqual(reflect.ValueOf(expected).Elem(), reflect.ValueOf(got).Elem())
+	}
+
+	return reflect.DeepEqual(*expected, *got)
+}
+
+func testEmptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
 	t.Helper()
 
 	if expected == nil || got == nil {
@@ -90,7 +99,7 @@ func checkMessage(
 ) {
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
-	emptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
+	testEmptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
 
 	// Skip Body.Content as there may be display formatting that changes.
 
@@ -114,44 +123,44 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetFrom(), got.GetFrom(), "From")
 
-	emptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
+	testEmptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
+	testEmptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
 
-	emptyOrEqual(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
+	testEmptyOrEqual(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
 
 	assert.Equal(t, expected.GetInternetMessageHeaders(), got.GetInternetMessageHeaders(), "InternetMessageHeaders")
 
-	emptyOrEqual(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
+	testEmptyOrEqual(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
 
-	emptyOrEqual(
+	testEmptyOrEqual(
 		t,
 		expected.GetIsDeliveryReceiptRequested(),
 		got.GetIsDeliveryReceiptRequested(),
 		"IsDeliverReceiptRequested",
 	)
 
-	emptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
+	testEmptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
 
-	emptyOrEqual(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
+	testEmptyOrEqual(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
 
-	emptyOrEqual(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
+	testEmptyOrEqual(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
 	// Skip ParentFolderId as we restore to a different folder by default.
 
-	emptyOrEqual(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
+	testEmptyOrEqual(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
 	assert.Equal(t, expected.GetSender(), got.GetSender(), "Sender")
 
-	emptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
+	testEmptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
 
-	emptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
+	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
 	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
 
@@ -165,13 +174,13 @@ func checkContact(
 	expected models.Contactable,
 	got models.Contactable,
 ) {
-	emptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
+	testEmptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
 
-	emptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
+	testEmptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
 
 	assert.Equal(t, expected.GetBusinessAddress(), got.GetBusinessAddress())
 
-	emptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
+	testEmptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
 
 	assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
 
@@ -181,21 +190,21 @@ func checkContact(
 
 	assert.Equal(t, expected.GetChildren(), got.GetChildren())
 
-	emptyOrEqual(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
+	testEmptyOrEqual(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetDepartment(), got.GetDepartment(), "Department")
+	testEmptyOrEqual(t, expected.GetDepartment(), got.GetDepartment(), "Department")
 
-	emptyOrEqual(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
+	testEmptyOrEqual(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
 
 	assert.Equal(t, expected.GetEmailAddresses(), got.GetEmailAddresses())
 
-	emptyOrEqual(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
+	testEmptyOrEqual(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
 
-	emptyOrEqual(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
+	testEmptyOrEqual(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
 
-	emptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
+	testEmptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
 
 	assert.Equal(t, expected.GetHomeAddress(), got.GetHomeAddress())
 
@@ -205,43 +214,43 @@ func checkContact(
 
 	assert.Equal(t, expected.GetImAddresses(), got.GetImAddresses())
 
-	emptyOrEqual(t, expected.GetInitials(), got.GetInitials(), "Initials")
+	testEmptyOrEqual(t, expected.GetInitials(), got.GetInitials(), "Initials")
 
-	emptyOrEqual(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
+	testEmptyOrEqual(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetManager(), got.GetManager(), "Manager")
+	testEmptyOrEqual(t, expected.GetManager(), got.GetManager(), "Manager")
 
-	emptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
+	testEmptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
 
-	emptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
+	testEmptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
 
-	emptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
+	testEmptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
 
-	emptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
+	testEmptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
 
 	assert.Equal(t, expected.GetOtherAddress(), got.GetOtherAddress())
 
 	// Skip ParentFolderId as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
+	testEmptyOrEqual(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
 
 	assert.Equal(t, expected.GetPhoto(), got.GetPhoto())
 
-	emptyOrEqual(t, expected.GetProfession(), got.GetProfession(), "Profession")
+	testEmptyOrEqual(t, expected.GetProfession(), got.GetProfession(), "Profession")
 
-	emptyOrEqual(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
+	testEmptyOrEqual(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
 
-	emptyOrEqual(t, expected.GetSurname(), got.GetSurname(), "Surname")
+	testEmptyOrEqual(t, expected.GetSurname(), got.GetSurname(), "Surname")
 
-	emptyOrEqual(t, expected.GetTitle(), got.GetTitle(), "Title")
+	testEmptyOrEqual(t, expected.GetTitle(), got.GetTitle(), "Title")
 
-	emptyOrEqual(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
+	testEmptyOrEqual(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
 
-	emptyOrEqual(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
+	testEmptyOrEqual(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
 
-	emptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
+	testEmptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
 }
 
 func compareExchangeEmail(
