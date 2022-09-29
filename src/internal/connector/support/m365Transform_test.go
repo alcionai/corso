@@ -3,6 +3,7 @@ package support
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -28,4 +29,24 @@ func (suite *SupportTestSuite) TestToMessage() {
 	suite.Equal(message.GetSender(), clone.GetSender())
 	suite.Equal(message.GetSentDateTime(), clone.GetSentDateTime())
 	suite.NotEqual(message.GetId(), clone.GetId())
+}
+
+func (suite *SupportTestSuite) TestToEventSimplified() {
+	t := suite.T()
+	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
+	event, err := CreateEventFromBytes(bytes)
+	require.NoError(t, err)
+
+	attendees := event.GetAttendees()
+	newEvent := ToEventSimplified(event)
+
+	assert.Empty(t, newEvent.GetHideAttendees())
+	assert.Equal(t, *event.GetBody().GetContentType(), *newEvent.GetBody().GetContentType())
+	assert.Equal(t, event.GetBody().GetAdditionalData(), newEvent.GetBody().GetAdditionalData())
+	assert.Contains(t, *event.GetBody().GetContent(), "Required:")
+
+	for _, member := range attendees {
+		assert.Contains(t, *event.GetBody().GetContent(), *member.GetEmailAddress().GetName())
+		assert.Contains(t, *event.GetBody().GetContent(), *member.GetEmailAddress().GetAddress())
+	}
 }
