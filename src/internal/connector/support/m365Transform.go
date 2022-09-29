@@ -424,11 +424,11 @@ func ToEventSimplified(orig models.Eventable) models.Eventable {
 // insertStringToBody helper function to insert text into models.bodyable
 // @returns string containing the content string of altered body.
 func insertStringToBody(body models.ItemBodyable, newContent string) string {
-	var returnString, prefix, suffix string
+	var prefix, suffix string
 
 	if body.GetContent() == nil ||
 		body.GetContentType() == nil {
-		return returnString
+		return ""
 	}
 
 	content := *body.GetContent()
