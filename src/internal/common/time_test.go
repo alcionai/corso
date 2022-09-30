@@ -99,11 +99,14 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 		clippedF = func(t time.Time) string {
 			return clipSimpleTime(common.FormatSimpleDateTime(t))
 		}
-		legacyF    = common.FormatLegacyTime
-		simpleF    = common.FormatSimpleDateTime
+		legacyF         = common.FormatLegacyTime
+		simpleF         = common.FormatSimpleDateTime
+		simpleOneDriveF = func(t time.Time) string {
+			return common.FormatTimeWith(t, common.SimpleDateTimeFormatOneDrive)
+		}
 		stdF       = common.FormatTime
 		tabularF   = common.FormatTabularDisplayTime
-		formatters = []timeFormatter{legacyF, simpleF, stdF, tabularF, clippedF}
+		formatters = []timeFormatter{legacyF, simpleF, simpleOneDriveF, stdF, tabularF, clippedF}
 	)
 
 	type presuf struct {

@@ -54,29 +54,34 @@ func FormatNow(fmt string) string {
 	return time.Now().UTC().Format(fmt)
 }
 
+// FormatTimeWith produces the a datetime with the given format.
+func FormatTimeWith(t time.Time, fmt string) string {
+	return t.UTC().Format(fmt)
+}
+
 // FormatTime produces the standard format for corso time values.
 // Always formats into the UTC timezone.
 func FormatTime(t time.Time) string {
-	return t.UTC().Format(StandardTimeFormat)
+	return FormatTimeWith(t, StandardTimeFormat)
 }
 
 // FormatSimpleDateTime produces a simple datetime of the format
 // "02-Jan-2006_15:04:05"
 func FormatSimpleDateTime(t time.Time) string {
-	return t.UTC().Format(SimpleDateTimeFormat)
+	return FormatTimeWith(t, SimpleDateTimeFormat)
 }
 
 // FormatTabularDisplayTime produces the standard format for displaying
 // a timestamp as part of user-readable cli output.
 // "2016-01-02T15:04:05Z"
 func FormatTabularDisplayTime(t time.Time) string {
-	return t.UTC().Format(TabularOutputTimeFormat)
+	return FormatTimeWith(t, TabularOutputTimeFormat)
 }
 
 // FormatLegacyTime produces standard format for string values
 // that are placed in SingleValueExtendedProperty tags
 func FormatLegacyTime(t time.Time) string {
-	return t.UTC().Format(LegacyTimeFormat)
+	return FormatTimeWith(t, LegacyTimeFormat)
 }
 
 // ParseTime makes a best attempt to produce a time value from
