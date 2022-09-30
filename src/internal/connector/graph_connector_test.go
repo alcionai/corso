@@ -713,7 +713,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			checkCollections(t, totalItems, expectedData, dcs)
 
 			status = backupGC.AwaitStatus()
-			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
+			// TODO(ashmrtn): This will need to change when the restore layout is
+			// updated.
+			assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 		})
