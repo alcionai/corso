@@ -69,7 +69,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 
-		// Flags are to be added in order in which they shoud appea in help and docs
+		// Flags addition ordering should follow the order we want them to appear in help and docs:
+		// More generic (ex: --all) and more frequently used flags take precedence.
 		fs.BoolVar(&exchangeAll,
 			"all", false,
 			"Backup all Exchange data for all users")
@@ -89,7 +90,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 
-		// Flags are to be added in order in which they shoud appea in help and docs
+		// Flags addition ordering should follow the order we want them to appear in help and docs:
+		// More generic (ex: --all) and more frequently used flags take precedence.
 		fs.StringVar(&backupID,
 			"backup", "",
 			"ID of the backup containing the details to be shown")

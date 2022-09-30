@@ -51,7 +51,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd())
 
-		// Flags are to be added in order in which they shoud appea in help and docs
+		// Flags addition ordering should follow the order we want them to appear in help and docs:
+		// More generic (ex: --all) and more frequently used flags take precedence.
 		// general flags
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
