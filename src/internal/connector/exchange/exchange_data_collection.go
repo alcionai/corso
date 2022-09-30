@@ -113,12 +113,12 @@ func (col *Collection) populateByOptionIdentifier(
 	ctx context.Context,
 ) {
 	var (
-		errs    error
-		success int
+		errs                error
+		success, totalBytes int
 	)
 
 	defer func() {
-		col.finishPopulation(ctx, success, errs)
+		col.finishPopulation(ctx, success, totalBytes, errs)
 	}()
 
 	user := col.user
@@ -144,7 +144,7 @@ func (col *Collection) populateByOptionIdentifier(
 			continue
 		}
 
-		err = serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
+		length, err := serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
@@ -156,15 +156,24 @@ func (col *Collection) populateByOptionIdentifier(
 		}
 
 		success++
+
+		totalBytes += length
 	}
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
-func (col *Collection) finishPopulation(ctx context.Context, success int, errs error) {
+func (col *Collection) finishPopulation(ctx context.Context, success, totalBytes int, errs error) {
 	close(col.data)
 	attempted := len(col.jobs)
-	status := support.CreateStatus(ctx, support.Backup, attempted, success, 1, errs)
+	status := support.CreateStatus(ctx,
+		support.Backup,
+		attempted,
+		success,
+		1,
+		totalBytes,
+		errs,
+		col.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
 	col.statusUpdater(status)
 }
@@ -178,7 +187,7 @@ type GraphSerializeFunc func(
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
-) error
+) (int, error)
 
 // eventToDataCollection is a GraphSerializeFunc used to serialize models.Eventable objects into
 // data.Stream objects. Returns an error the process finishes unsuccessfully.
@@ -189,14 +198,14 @@ func eventToDataCollection(
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
-) error {
+) (int, error) {
 	var err error
 
 	defer objectWriter.Close()
 
 	event, ok := parsable.(models.Eventable)
 	if !ok {
-		return fmt.Errorf("expected Eventable, got %T", parsable)
+		return 0, fmt.Errorf("expected Eventable, got %T", parsable)
 	}
 
 	if *event.GetHasAttachments() {
@@ -219,7 +228,7 @@ func eventToDataCollection(
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
 
-			return support.WrapAndAppend(
+			return 0, support.WrapAndAppend(
 				*event.GetId(),
 				errors.Wrap(retriesErr, "attachment failed"),
 				nil)
@@ -228,19 +237,19 @@ func eventToDataCollection(
 
 	err = objectWriter.WriteObjectValue("", event)
 	if err != nil {
-		return support.SetNonRecoverableError(errors.Wrap(err, *event.GetId()))
+		return 0, support.SetNonRecoverableError(errors.Wrap(err, *event.GetId()))
 	}
 
 	byteArray, err := objectWriter.GetSerializedContent()
 	if err != nil {
-		return support.WrapAndAppend(*event.GetId(), errors.Wrap(err, "serializing content"), nil)
+		return 0, support.WrapAndAppend(*event.GetId(), errors.Wrap(err, "serializing content"), nil)
 	}
 
-	if byteArray != nil {
+	if len(byteArray) > 0 {
 		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: EventInfo(event)}
 	}
 
-	return nil
+	return len(byteArray), nil
 }
 
 // contactToDataCollection is a GraphSerializeFunc for models.Contactable
@@ -251,29 +260,29 @@ func contactToDataCollection(
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
-) error {
+) (int, error) {
 	defer objectWriter.Close()
 
 	contact, ok := parsable.(models.Contactable)
 	if !ok {
-		return fmt.Errorf("expected Contactable, got %T", parsable)
+		return 0, fmt.Errorf("expected Contactable, got %T", parsable)
 	}
 
 	err := objectWriter.WriteObjectValue("", contact)
 	if err != nil {
-		return support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
+		return 0, support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
 	}
 
 	byteArray, err := objectWriter.GetSerializedContent()
 	if err != nil {
-		return support.WrapAndAppend(*contact.GetId(), err, nil)
+		return 0, support.WrapAndAppend(*contact.GetId(), err, nil)
 	}
 
-	if byteArray != nil {
+	if len(byteArray) > 0 {
 		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: ContactInfo(contact)}
 	}
 
-	return nil
+	return len(byteArray), nil
 }
 
 // messageToDataCollection is the GraphSerializeFunc for models.Messageable
@@ -284,21 +293,21 @@ func messageToDataCollection(
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
-) error {
+) (int, error) {
 	var err error
 
 	defer objectWriter.Close()
 
 	aMessage, ok := parsable.(models.Messageable)
 	if !ok {
-		return fmt.Errorf("expected Messageable, got %T", parsable)
+		return 0, fmt.Errorf("expected Messageable, got %T", parsable)
 	}
 
 	adtl := aMessage.GetAdditionalData()
 	if len(adtl) > 2 {
 		aMessage, err = support.ConvertFromMessageable(adtl, aMessage)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -322,24 +331,24 @@ func messageToDataCollection(
 
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
+			return 0, support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
 		}
 	}
 
 	err = objectWriter.WriteObjectValue("", aMessage)
 	if err != nil {
-		return support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
+		return 0, support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
 	}
 
 	byteArray, err := objectWriter.GetSerializedContent()
 	if err != nil {
 		err = support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
-		return support.SetNonRecoverableError(err)
+		return 0, support.SetNonRecoverableError(err)
 	}
 
 	dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage)}
 
-	return nil
+	return len(byteArray), nil
 }
 
 // Stream represents a single item retrieved from exchange
