@@ -243,6 +243,7 @@ func SendMailToBackStore(
 
 	if *message.GetHasAttachments() {
 		attached = message.GetAttachments()
+		message.SetAttachments([]models.Attachmentable{})
 	}
 
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
