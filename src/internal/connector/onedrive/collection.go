@@ -143,7 +143,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		1,                    // num folders (always 1)
 		0,                    // Number of bytes read TODO: @vaib
 		errs,
-		"Downloaded from "+oc.folderPath.Folder(), // Additional details
+		oc.folderPath.Folder(), // Additional details
 	)
 	logger.Ctx(ctx).Debug(status.String())
 	oc.statusUpdater(status)

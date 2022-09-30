@@ -80,7 +80,7 @@ func RestoreCollections(
 			0,
 			bytes,
 			restoreErrors,
-			"Restored content to: "+dest.ContainerName),
+			dest.ContainerName),
 		nil
 }
 
