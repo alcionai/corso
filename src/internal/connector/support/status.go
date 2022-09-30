@@ -4,17 +4,21 @@ import (
 	"context"
 	"fmt"
 
+	bytesize "github.com/inhies/go-bytesize"
+
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 type ConnectorOperationStatus struct {
-	lastOperation    Operation
-	ObjectCount      int
-	FolderCount      int
-	Successful       int
-	errorCount       int
-	incomplete       bool
-	incompleteReason string
+	lastOperation     Operation
+	ObjectCount       int
+	FolderCount       int
+	Successful        int
+	errorCount        int
+	incomplete        bool
+	incompleteReason  string
+	additionalDetails string
+	bytes             int
 }
 
 type Operation int
@@ -30,8 +34,9 @@ const (
 func CreateStatus(
 	ctx context.Context,
 	op Operation,
-	objects, success, folders int,
+	objects, success, folders, bytes int,
 	err error,
+	details string,
 ) *ConnectorOperationStatus {
 	var reason string
 
@@ -42,13 +47,15 @@ func CreateStatus(
 	hasErrors := err != nil
 	numErr := GetNumberOfErrors(err)
 	status := ConnectorOperationStatus{
-		lastOperation:    op,
-		ObjectCount:      objects,
-		FolderCount:      folders,
-		Successful:       success,
-		errorCount:       numErr,
-		incomplete:       hasErrors,
-		incompleteReason: reason,
+		lastOperation:     op,
+		ObjectCount:       objects,
+		FolderCount:       folders,
+		Successful:        success,
+		errorCount:        numErr,
+		incomplete:        hasErrors,
+		incompleteReason:  reason,
+		bytes:             bytes,
+		additionalDetails: details,
 	}
 
 	if status.ObjectCount != status.errorCount+status.Successful {
@@ -85,26 +92,35 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 	}
 
 	status := ConnectorOperationStatus{
-		lastOperation:    one.lastOperation,
-		ObjectCount:      one.ObjectCount + two.ObjectCount,
-		FolderCount:      one.FolderCount + two.FolderCount,
-		Successful:       one.Successful + two.Successful,
-		errorCount:       one.errorCount + two.errorCount,
-		incomplete:       hasErrors,
-		incompleteReason: one.incompleteReason + " " + two.incompleteReason,
+		lastOperation:     one.lastOperation,
+		ObjectCount:       one.ObjectCount + two.ObjectCount,
+		FolderCount:       one.FolderCount + two.FolderCount,
+		Successful:        one.Successful + two.Successful,
+		errorCount:        one.errorCount + two.errorCount,
+		bytes:             one.bytes + two.bytes,
+		incomplete:        hasErrors,
+		incompleteReason:  one.incompleteReason + " " + two.incompleteReason,
+		additionalDetails: one.additionalDetails + " " + two.additionalDetails,
 	}
 
 	return status
 }
 
 func (cos *ConnectorOperationStatus) String() string {
-	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
-		cos.Successful, cos.ObjectCount, cos.FolderCount)
+	bs := bytesize.New(float64(cos.bytes))
+	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories. Downloaded: %s",
+		cos.lastOperation.String(),
+		cos.Successful,
+		cos.ObjectCount,
+		cos.FolderCount,
+		bs,
+	)
+
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
 	}
 
-	message = message + "\n"
+	message += " " + cos.additionalDetails + "\n"
 
 	return message
 }
