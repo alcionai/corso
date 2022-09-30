@@ -236,6 +236,15 @@ func SendMailToBackStore(
 	user, destination string,
 	message models.Messageable,
 ) error {
+	var (
+		attached []models.Attachmentable
+		errs     error
+	)
+
+	if *message.GetHasAttachments() {
+		attached = message.GetAttachments()
+	}
+
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
 		return errors.Wrap(err,
@@ -245,6 +254,26 @@ func SendMailToBackStore(
 
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
+	}
+
+	if len(attached) > 0 {
+		id := *sentMessage.GetId()
+		for _, attachment := range attached {
+			_, err = service.Client().
+				UsersById(user).
+				MailFoldersById(destination).
+				MessagesById(id).
+				Attachments().
+				Post(ctx, attachment, nil)
+			if err != nil {
+				errs = support.WrapAndAppend(id,
+					err,
+					errs,
+				)
+			}
+		}
+
+		return errs
 	}
 
 	return nil
