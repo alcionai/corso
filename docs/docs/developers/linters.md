@@ -68,10 +68,12 @@ Some of the enabled linters, like `wsl`, are picky about how code is arranged.
 This section provides some tips on how to organize code to reduce lint errors.
 
 ### `wsl`
+
 `wsl` is a linter that requires blank lines in parts of the code. It helps make
-the codebase more uniform and ensures the code doesn't feel too compact.
+the codebase uniform and ensures the code doesn't feel too compact.
 
 #### Short-assignments versus var declarations
+
 Go allows declaring and assigning to a variable with either short-assignments
 (`x := 42`) or var assignments (`var x = 42`). `wsl` doesn't allow
 grouping these two types of variable declarations together. To work around this,
@@ -97,6 +99,7 @@ var (
 ```
 
 #### Post-increment and assignments
+
 `wsl` doesn't allow statements before an assignment without a blank line
 separating the two. Post-increment operators (e.x. `x++`) count as statements
 instead of assignments and may cause `wsl` to report an error. You can avoid
@@ -118,6 +121,7 @@ x++
 ```
 
 #### Functions using recently assigned values
+
 `wsl` allows functions immediately after assignments, but only if the function
 uses the assigned value. This requires an ordering for assignments and
 function calls.
@@ -150,6 +154,7 @@ foo(a, b)
 ```
 
 #### Function calls and checking returned error values
+
 One of the other linters expects error checks to follow assignments to the error
 variable without blank lines separating the two. One the other hand, `wsl` has
 requirements about what statements can be mixed with assignments. To work

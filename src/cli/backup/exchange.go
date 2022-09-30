@@ -149,7 +149,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&eventRecurs,
 			"event-recurs", "",
-			"Select backup details if the event recurs.  Use --event-recurs false to select where the event does not recur.")
+			"Select backup details if the event recurs. Use `--event-recurs` false to select non-recurring events")
 		fs.StringVar(
 			&eventStartsAfter,
 			"event-starts-after", "",
