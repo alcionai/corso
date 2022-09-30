@@ -45,6 +45,19 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			expected: testdata.ExchangeEmailItems,
 		},
 		{
+			name: "ExchangeMailFolderPrefixMatch",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.MailFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailInboxPath.Folder()},
+				))
+
+				return sel
+			},
+			expected: testdata.ExchangeEmailItems,
+		},
+		{
 			name: "ExchangeMailSubject",
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore()
