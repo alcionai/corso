@@ -160,6 +160,90 @@ func checkMessage(
 	assert.Equal(t, expected.GetUniqueBody(), got.GetUniqueBody(), "UniqueBody")
 }
 
+func checkContact(
+	t *testing.T,
+	expected models.Contactable,
+	got models.Contactable,
+) {
+	emptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
+
+	emptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
+
+	assert.Equal(t, expected.GetBusinessAddress(), got.GetBusinessAddress())
+
+	emptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
+
+	assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
+
+	assert.Equal(t, expected.GetCategories(), got.GetCategories())
+
+	// Skip ChangeKey as it's tied to this specific instance of the item.
+
+	assert.Equal(t, expected.GetChildren(), got.GetChildren())
+
+	emptyOrEqual(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
+
+	// Skip CreatedDateTime as it's tied to this specific instance of the item.
+
+	emptyOrEqual(t, expected.GetDepartment(), got.GetDepartment(), "Department")
+
+	emptyOrEqual(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
+
+	assert.Equal(t, expected.GetEmailAddresses(), got.GetEmailAddresses())
+
+	emptyOrEqual(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
+
+	emptyOrEqual(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
+
+	emptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
+
+	assert.Equal(t, expected.GetHomeAddress(), got.GetHomeAddress())
+
+	assert.Equal(t, expected.GetHomePhones(), got.GetHomePhones())
+
+	// Skip CreatedDateTime as it's tied to this specific instance of the item.
+
+	assert.Equal(t, expected.GetImAddresses(), got.GetImAddresses())
+
+	emptyOrEqual(t, expected.GetInitials(), got.GetInitials(), "Initials")
+
+	emptyOrEqual(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
+
+	// Skip CreatedDateTime as it's tied to this specific instance of the item.
+
+	emptyOrEqual(t, expected.GetManager(), got.GetManager(), "Manager")
+
+	emptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
+
+	emptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
+
+	emptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
+
+	emptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
+
+	assert.Equal(t, expected.GetOtherAddress(), got.GetOtherAddress())
+
+	// Skip ParentFolderId as it's tied to this specific instance of the item.
+
+	emptyOrEqual(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
+
+	assert.Equal(t, expected.GetPhoto(), got.GetPhoto())
+
+	emptyOrEqual(t, expected.GetProfession(), got.GetProfession(), "Profession")
+
+	emptyOrEqual(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
+
+	emptyOrEqual(t, expected.GetSurname(), got.GetSurname(), "Surname")
+
+	emptyOrEqual(t, expected.GetTitle(), got.GetTitle(), "Title")
+
+	emptyOrEqual(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
+
+	emptyOrEqual(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
+
+	emptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
+}
+
 func compareExchangeEmail(
 	t *testing.T,
 	expected map[string][]byte,
@@ -186,6 +270,32 @@ func compareExchangeEmail(
 	checkMessage(t, expectedMessage, itemMessage)
 }
 
+func compareExchangeContact(
+	t *testing.T,
+	expected map[string][]byte,
+	item data.Stream,
+) {
+	itemData, err := io.ReadAll(item.ToReader())
+	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+		return
+	}
+
+	itemContact, err := support.CreateContactFromBytes(itemData)
+	if !assert.NoError(t, err, "deserializing backed up contact") {
+		return
+	}
+
+	expectedBytes, ok := expected[*itemContact.GetMiddleName()]
+	if !assert.True(t, ok, "unexpected item with middle name %q", *itemContact.GetMiddleName()) {
+		return
+	}
+
+	expectedContact, err := support.CreateContactFromBytes(expectedBytes)
+	assert.NoError(t, err, "deserializing source contact")
+
+	checkContact(t, expectedContact, itemContact)
+}
+
 func compareItem(
 	t *testing.T,
 	expected map[string][]byte,
@@ -198,6 +308,8 @@ func compareItem(
 		switch category {
 		case path.EmailCategory:
 			compareExchangeEmail(t, expected, item)
+		case path.ContactsCategory:
+			compareExchangeContact(t, expected, item)
 		default:
 			assert.FailNowf(t, "unexpected Exchange category: %s", category.String())
 		}
@@ -295,13 +407,17 @@ func collectionsForInfo(
 			false,
 		)
 
-		expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
+		baseExpected := expectedData[baseDestPath.String()]
+		if baseExpected == nil {
+			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
+			baseExpected = expectedData[baseDestPath.String()]
+		}
 
 		for i := 0; i < len(info.items); i++ {
 			c.Names[i] = info.items[i].name
 			c.Data[i] = info.items[i].data
 
-			expectedData[baseDestPath.String()][info.items[i].lookupKey] = info.items[i].data
+			baseExpected[info.items[i].lookupKey] = info.items[i].data
 		}
 
 		collections = append(collections, c)
