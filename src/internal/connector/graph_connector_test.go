@@ -803,6 +803,63 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 				},
 			},
+		},
+		{
+			name:     "Contacts",
+			service:  path.ExchangeService,
+			category: path.ContactsCategory,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "Events",
+			service:  path.ExchangeService,
+			category: path.EventsCategory,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
 			},
 		},
 	}
