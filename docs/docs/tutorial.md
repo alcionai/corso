@@ -76,4 +76,4 @@ $ docker run -e CORSO_PASSPHRASE \
 
 You can now find the recovered email in a mailbox folder named `Corso_Restore_DD-MMM-YYYY_HH:MM:SS`.
 
-You are now ready to explore the [Command Line Reference](category/command-line-reference) and try everything that Corso can do.
+You are now ready to explore the [Command Line Reference](cli/corso) and try everything that Corso can do.
