@@ -726,17 +726,53 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
 
+	// TODO(ashmrtn): Update if we start mixing categories during backup/restore.
+	backupSelFunc := func(
+		dests []control.RestoreDestination,
+		category path.CategoryType,
+		backupUser string,
+	) selectors.Selector {
+		destNames := make([]string, 0, len(dests))
+
+		for _, d := range dests {
+			destNames = append(destNames, d.ContainerName)
+		}
+
+		backupSel := selectors.NewExchangeBackup()
+
+		switch category {
+		case path.EmailCategory:
+			backupSel.Include(backupSel.MailFolders(
+				[]string{backupUser},
+				destNames,
+			))
+		case path.ContactsCategory:
+			backupSel.Include(backupSel.ContactFolders(
+				[]string{backupUser},
+				destNames,
+			))
+		case path.EventsCategory:
+			backupSel.Include(backupSel.EventCalendars(
+				[]string{backupUser},
+				destNames,
+			))
+		}
+
+		return backupSel.Selector
+	}
+
 	table := []struct {
-		name    string
-		service path.ServiceType
+		name     string
+		service  path.ServiceType
+		category path.CategoryType
 		// Each collection will be restored separately, creating multiple folders to
 		// backup later.
-		collections   []colInfo
-		backupSelFunc func(dests []control.RestoreDestination, backupUser string) selectors.Selector
+		collections []colInfo
 	}{
 		{
-			name:    "Email",
-			service: path.ExchangeService,
+			name:     "Email",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -767,22 +803,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dests []control.RestoreDestination, backupUser string) selectors.Selector {
-				destNames := make([]string, 0, len(dests))
-
-				for _, d := range dests {
-					destNames = append(destNames, d.ContainerName)
-				}
-
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.MailFolders(
-					[]string{backupUser},
-					destNames,
-				))
-
-				return backupSel.Selector
 			},
 		},
 	}
@@ -839,7 +859,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			// Run a backup and compare its output with what we put in.
 
 			backupGC := loadConnector(ctx, t)
-			backupSel := test.backupSelFunc(dests, suite.user)
+			backupSel := backupSelFunc(dests, test.category, suite.user)
 			t.Logf("Selective backup of %s\n", backupSel)
 
 			dcs, err := backupGC.DataCollections(ctx, backupSel)
