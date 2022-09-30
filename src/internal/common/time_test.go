@@ -57,15 +57,11 @@ func (suite *CommonTimeUnitSuite) TestParseTime() {
 }
 
 func (suite *CommonTimeUnitSuite) TestExtractTime() {
-	clipSimpleTime := func(t string) string {
-		return t[:len(t)-3]
-	}
-
-	comparable := func(t *testing.T, tt time.Time, clipped bool) time.Time {
+	comparable := func(t *testing.T, tt time.Time, clippedFormat string) time.Time {
 		ts := common.FormatLegacyTime(tt.UTC())
 
-		if clipped {
-			ts = tt.UTC().Format(common.ClippedSimpleTimeFormat)
+		if len(clippedFormat) > 0 {
+			ts = tt.UTC().Format(clippedFormat)
 		}
 
 		c, err := common.ParseTime(ts)
@@ -95,16 +91,15 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 
 	type timeFormatter func(time.Time) string
 
-	var (
-		clippedF = func(t time.Time) string {
-			return clipSimpleTime(common.FormatSimpleDateTime(t))
-		}
-		legacyF    = common.FormatLegacyTime
-		simpleF    = common.FormatSimpleDateTime
-		stdF       = common.FormatTime
-		tabularF   = common.FormatTabularDisplayTime
-		formatters = []timeFormatter{legacyF, simpleF, stdF, tabularF, clippedF}
-	)
+	formats := []string{
+		common.ClippedSimpleTimeFormat,
+		common.ClippedSimpleTimeFormatOneDrive,
+		common.LegacyTimeFormat,
+		common.SimpleDateTimeFormat,
+		common.SimpleDateTimeFormatOneDrive,
+		common.StandardTimeFormat,
+		common.TabularOutputTimeFormat,
+	}
 
 	type presuf struct {
 		prefix string
@@ -119,23 +114,29 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 	}
 
 	type testable struct {
-		input   string
-		expect  time.Time
-		clipped bool
+		input         string
+		clippedFormat string
+		expect        time.Time
 	}
 
 	table := []testable{}
 
 	// test matrix: for each input, in each format, with each prefix/suffix, run the test.
 	for _, in := range inputs {
-		for i, f := range formatters {
-			v := f(in)
+		for _, f := range formats {
+			clippedFormat := f
+
+			if f != common.ClippedSimpleTimeFormat && f != common.ClippedSimpleTimeFormatOneDrive {
+				clippedFormat = ""
+			}
+
+			v := common.FormatTimeWith(in, f)
 
 			for _, ps := range pss {
 				table = append(table, testable{
-					input:   ps.prefix + v + ps.suffix,
-					expect:  comparable(suite.T(), in, i == 4),
-					clipped: i == 4,
+					input:         ps.prefix + v + ps.suffix,
+					expect:        comparable(suite.T(), in, clippedFormat),
+					clippedFormat: clippedFormat,
 				})
 			}
 		}
@@ -145,7 +146,7 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 		suite.T().Run(test.input, func(t *testing.T) {
 			result, err := common.ExtractTime(test.input)
 			require.NoError(t, err)
-			assert.Equal(t, test.expect, comparable(t, result, test.clipped))
+			assert.Equal(t, test.expect, comparable(t, result, test.clippedFormat))
 		})
 	}
 }
