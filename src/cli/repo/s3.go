@@ -37,8 +37,8 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, s3ConnectCmd())
 	}
 
-		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --all) and more frequently used flags take precedence.
+	// Flags addition ordering should follow the order we want them to appear in help and docs:
+	// More generic (ex: --all) and more frequently used flags take precedence.
 	fs.StringVar(&bucket, "bucket", "", "Name of the S3 bucket (required).")
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&prefix, "prefix", "", "Prefix applied to objects in the bucket.")
