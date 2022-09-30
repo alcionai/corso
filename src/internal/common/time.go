@@ -9,9 +9,10 @@ import (
 
 const (
 	// the clipped format occurs when m365 removes the :00 second suffix
-	ClippedSimpleTimeFormat = "02-Jan-2006_15:04"
-	LegacyTimeFormat        = time.RFC3339
-	SimpleDateTimeFormat    = "02-Jan-2006_15:04:05"
+	ClippedSimpleTimeFormat         = "02-Jan-2006_15:04"
+	ClippedSimpleTimeFormatOneDrive = "02-Jan-2006_15-04"
+	LegacyTimeFormat                = time.RFC3339
+	SimpleDateTimeFormat            = "02-Jan-2006_15:04:05"
 	// SimpleDateTimeFormatOneDrive is similar to `SimpleDateTimeFormat`
 	// but uses `-` instead of `:` which is a reserved character in
 	// OneDrive
@@ -21,8 +22,9 @@ const (
 )
 
 var (
-	clippedSimpleTimeRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}).*`)
-	legacyTimeRE        = regexp.MustCompile(
+	clippedSimpleTimeRE         = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}).*`)
+	clippedSimpleTimeOneDriveRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}).*`)
+	legacyTimeRE                = regexp.MustCompile(
 		`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}?([Zz]|[a-zA-Z]{2}|([\+|\-]([01]\d|2[0-3])))).*`)
 	simpleDateTimeRE         = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}:\d{2}).*`)
 	simpleDateTimeOneDriveRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2}).*`)
@@ -40,9 +42,16 @@ var (
 		LegacyTimeFormat,
 		TabularOutputTimeFormat,
 		ClippedSimpleTimeFormat,
+		ClippedSimpleTimeFormatOneDrive,
 	}
 	regexes = []*regexp.Regexp{
-		standardTimeRE, simpleDateTimeRE, simpleDateTimeOneDriveRE, legacyTimeRE, tabularOutputTimeRE, clippedSimpleTimeRE,
+		standardTimeRE,
+		simpleDateTimeRE,
+		simpleDateTimeOneDriveRE,
+		legacyTimeRE,
+		tabularOutputTimeRE,
+		clippedSimpleTimeRE,
+		clippedSimpleTimeOneDriveRE,
 	}
 )
 
