@@ -796,7 +796,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			allExpectedData := map[string]map[string][]byte{}
 
 			for i, collection := range test.collections {
-				// Get a dest per collection so they're independent.
+				// Get a dest per collection. Ensure they're independent with a small
+				// sleep.
+				time.Sleep(time.Second * 1)
 				dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 				dests = append(dests, dest)
 
