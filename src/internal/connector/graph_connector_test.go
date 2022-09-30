@@ -481,7 +481,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		{
 			name:                   "MultipleEmailsMultipleFolders",
 			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			expectedRestoreFolders: 2,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -689,7 +689,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			checkCollections(t, totalItems, expectedData, dcs)
 
 			status = backupGC.AwaitStatus()
-			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
+			assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 		})
