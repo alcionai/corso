@@ -15,9 +15,9 @@ corso backup create exchange [flags]
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
 |`--all`||`false`|Backup all Exchange data for all users|
+|`--user`||`[]`|Backup Exchange data by user ID; accepts * to select all users|
 |`--data`||`[]`|Select one or more types of data to backup: email, contacts, or events|
 |`--help`|`-h`|`false`|help for exchange|
-|`--user`||`[]`|Backup Exchange data by user ID; accepts * to select all users|
 
 ### Global and inherited flags
 
