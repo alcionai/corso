@@ -33,8 +33,10 @@ jobs:
         working-directory: src
     steps:
       - uses: actions/checkout@v3
-
-      - uses: ./.github/actions/go-setup-cache
+      
+      - name: Setup Golang with cache
+        if: needs.precheck.outputs.fileschanged == 'true'
+        uses: ./.github/actions/go-setup-cache
         with:
           go-version-file: src/go.mod
 
