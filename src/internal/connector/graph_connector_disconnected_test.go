@@ -93,12 +93,13 @@ func statusTestTask(gc *GraphConnector, objects, success, folder int) {
 	status := support.CreateStatus(
 		context.Background(),
 		support.Restore,
-		objects, success, folder,
+		objects, success, folder, 0,
 		support.WrapAndAppend(
 			"tres",
 			errors.New("three"),
 			support.WrapAndAppend("arc376", errors.New("one"), errors.New("two")),
 		),
+		"statusTestTask",
 	)
 	gc.UpdateStatus(status)
 }
