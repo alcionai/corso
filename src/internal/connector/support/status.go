@@ -107,13 +107,12 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 }
 
 func (cos *ConnectorOperationStatus) String() string {
-	bs := bytesize.New(float64(cos.bytes))
-	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories. Downloaded: %s",
+	message := fmt.Sprintf("Action: %s performed on %d of %d objects (%s) within %d directories.",
 		cos.lastOperation.String(),
 		cos.Successful,
 		cos.ObjectCount,
+		bytesize.New(float64(cos.bytes)),
 		cos.FolderCount,
-		bs,
 	)
 
 	if cos.incomplete {
