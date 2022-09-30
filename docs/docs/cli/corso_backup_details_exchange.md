@@ -27,7 +27,7 @@ corso backup details exchange [flags]
 |`--event`||`[]`|Select backup details by event ID; accepts * to select all events|
 |`--event-calendar`||`[]`|Select backup details by event calendar ID; accepts * to select all events|
 |`--event-organizer`|||Select backup details where the event organizer user id contains this value|
-|`--event-recurs`|||Select backup details if the event recurs.  Use --event-recurs false to select where the event does not recur.|
+|`--event-recurs`|||Select backup details if the event recurs. Use `--event-recurs` false to select non-recurring events|
 |`--event-starts-after`|||Select backup details where the event starts after this datetime|
 |`--event-starts-before`|||Select backup details where the event starts before this datetime|
 |`--event-subject`|||Select backup details where the event subject contains this value|

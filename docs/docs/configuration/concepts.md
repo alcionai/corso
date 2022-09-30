@@ -24,4 +24,4 @@ application to connect to your *M365 tenant* and transfer data during backup and
 *M365 Services* data. See [Repositories](/configuration/repos) for more information.
 
 * **Backup** is a copy of your *M365 Services* data to be used for restores in case of deletion, loss, or corruption of the
-original data. Corso performs backups incrementall, and each backup only captures data that has changed between backup iterations.
+original data. Corso performs backups incrementally, and each backup only captures data that has changed between backup iterations.

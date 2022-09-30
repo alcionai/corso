@@ -16,10 +16,10 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
 1. **Create a new application**
 
-   Select **Azure Active Directory &#8594; App Registrations &#8594; New Registration**
-   <img src="/img/m365app_create_new.png" className="guideImages"/>
+ Select **Azure Active Directory &#8594; App Registrations &#8594; New Registration**
+ <img src="/img/m365app_create_new.png" className="guideImages"/>
 
-2. **Configure basic settings**
+1. **Configure basic settings**
 
    * Give the application a name
    * Select **Accounts in this organizational directory only**
@@ -27,7 +27,7 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
    <br/><img src="/img/m365app_configure.png" className="guideImages"/>
 
-3. **Configure required permissions**
+1. **Configure required permissions**
 
    Select **App Permission** from the app management panel.
 
@@ -35,14 +35,16 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
    The required permissions are as follows:
 
-   **TODO: Complete list of permissions**
+   <!-- vale proselint.Annotations = NO -->
+   TODO: Complete list of permissions
+   <!-- vale proselint.Annotations = YES -->
 
    | API / Permissions Name | Type |
-   |--|--|
+   |:--|:--|
    | Permission 1 | Application |
    | Permission 2 | Delegated |
 
-4. **Grant admin consent**
+1. **Grant admin consent**
 
    <img src="/img/m365app_consent.png" className="guideImages"/>
 

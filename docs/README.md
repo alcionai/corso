@@ -30,7 +30,7 @@ This command starts a local development server within the Docker container and w
 make genclidocs
 ```
 
-Corso's CLI documents are auto-generated. This command explicitly triggers generating these docs. This step will happen
+Corso's CLI documents are auto generated. This command explicitly triggers generating these docs. This step will happen
 automatically for the other commands where this is relevant.
 
 ## Building static documentation
