@@ -27,7 +27,7 @@ corso restore exchange [flags]
 |`--event`||`[]`|Restore events by ID; accepts * to select all events|
 |`--event-calendar`||`[]`|Restore events by calendar ID; accepts * to select all event calendars|
 |`--event-organizer`|||Restore events where the event organizer user id contains this value|
-|`--event-recurs`|||Restore events if the event recurs.  Use --event-recurs false to select where the event does not recur.|
+|`--event-recurs`|||Restore events if the event recurs. Use `--event-recurs false` to select non-recurring events|
 |`--event-starts-after`|||Restore events where the event starts after this datetime|
 |`--event-starts-before`|||Restore events where the event starts before this datetime|
 |`--event-subject`|||Restore events where the event subject contains this value|

@@ -1,4 +1,8 @@
-Corso
+[Cc]orso
 Docusaurus
-config
+[Cc]onfig
 Config
+datetime
+(?i)OneDrive
+[Rr]epo
+env

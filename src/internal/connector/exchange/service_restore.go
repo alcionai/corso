@@ -150,7 +150,9 @@ func RestoreExchangeEvent(
 		return err
 	}
 
-	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, event, nil)
+	transformedEvent := support.ToEventSimplified(event)
+
+	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
 	if err != nil {
 		return errors.Wrap(err,
 			fmt.Sprintf(

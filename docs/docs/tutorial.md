@@ -27,7 +27,9 @@ $ docker run -e CORSO_PASSPHRASE \
 Your first backup may take some time if your mailbox is large.
 :::
 
+<!-- vale proselint.Annotations = NO -->
 **TODO:** Update ^^^ after the finalization of Corso output from operations.
+<!-- vale proselint.Annotations = YES -->
 
 ## Restore an email
 
@@ -42,8 +44,9 @@ $ docker run -e CORSO_PASSPHRASE \
     -v ~/.corso/logs:/app/logs corso/corso:latest \
     backup list exchange --user <your exchange email address>
 ```
-
+<!-- vale proselint.Annotations = NO -->
 **TODO:** Update ^^^ after the finalization of Corso output from operations.
+<!-- vale proselint.Annotations = YES -->
 
 Select one of the available backups and search through its contents.
 
@@ -58,7 +61,7 @@ $ docker run -e CORSO_PASSPHRASE \
     --email-subject <portion of subject of email you want to recover>
 ```
 
-The output from the executed command above should display a list of any matching emails. Note the ID
+The output from the command above should display a list of any matching emails. Note the ID
 of the one to use for testing restore.
 
 When you are ready to restore, use the following command:

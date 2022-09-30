@@ -3,6 +3,7 @@ package support
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -401,4 +402,51 @@ func SetAdditionalDataToEventMessage(
 	}
 
 	return newMessage, nil
+}
+
+// ToEventSimplified transforms an event to simplifed restore format
+// To overcome some of the MS Graph API challenges, the event object is modified in the following ways:
+// * Instead of adding attendees and generating spurious notifications,
+//     add a summary of attendees at the beginning to the event before the original body content
+// * event.attendees is set to an empty list
+func ToEventSimplified(orig models.Eventable) models.Eventable {
+	attendees := FormatAttendees(orig, *orig.GetBody().GetContentType() == models.HTML_BODYTYPE)
+	orig.SetAttendees([]models.Attendeeable{})
+	origBody := orig.GetBody()
+	newContent := insertStringToBody(origBody, attendees)
+	newBody := models.NewItemBody()
+	newBody.SetContentType(origBody.GetContentType())
+	newBody.SetAdditionalData(origBody.GetAdditionalData())
+	newBody.SetOdataType(origBody.GetOdataType())
+	newBody.SetContent(&newContent)
+	orig.SetBody(newBody)
+
+	return orig
+}
+
+// insertStringToBody helper function to insert text into models.bodyable
+// @returns string containing the content string of altered body.
+func insertStringToBody(body models.ItemBodyable, newContent string) string {
+	var prefix, suffix string
+
+	if body.GetContent() == nil ||
+		body.GetContentType() == nil {
+		return ""
+	}
+
+	content := *body.GetContent()
+
+	switch *body.GetContentType() {
+	case models.TEXT_BODYTYPE:
+		return newContent + content
+	case models.HTML_BODYTYPE:
+		array := strings.Split(content, "<body>")
+		prefix = array[0] + "<body>"
+		interior := array[1]
+		bodyArray := strings.Split(interior, ">")
+		prefix += bodyArray[0] + ">"
+		suffix = strings.Join(bodyArray[1:], ">")
+	}
+
+	return prefix + newContent + suffix
 }

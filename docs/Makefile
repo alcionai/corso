@@ -45,6 +45,7 @@ build: genclidocs
 
 genclidocs: ${MDGEN_BINARY}
 	@echo 'Auto-generating Corso CLI docs...'
+	rm -rf docs/cli
 	docker run --rm -it \
 		-v ${CORSO_REPO}:${CORSO_REPO_CONTAINER} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
 		--workdir ${CORSO_REPO_CONTAINER}/src \
@@ -60,7 +61,7 @@ ${MDGEN_BINARY}: $(shell find ../src -type f -name *.go) $(shell find ../src -ty
 		--workdir ${CORSO_REPO_CONTAINER}/src \
 		--entrypoint /usr/local/go/bin/go \
 		golang:1.18 \
-		mod tidy
+		mod download 
 	docker run --rm -it \
 		-v ${CORSO_REPO}:${CORSO_REPO_CONTAINER} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
 		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
