@@ -449,6 +449,8 @@ func IterateSelectAllContactsForCollections(
 				return true
 			}
 
+			isPrimarySet = true
+
 			// Create and Populate Default Contacts folder Collection if true
 			if qp.Scope.Matches(selectors.ExchangeContactFolder, DefaultContactFolder) {
 				dirPath, err := path.Builder{}.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
@@ -486,7 +488,6 @@ func IterateSelectAllContactsForCollections(
 
 				edc.jobs = append(edc.jobs, listOfIDs...)
 				collections[DefaultContactFolder] = &edc
-				isPrimarySet = true
 			}
 		}
 
