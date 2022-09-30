@@ -141,7 +141,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		len(oc.driveItemIDs), // items to read
 		itemsRead,            // items read successfully
 		1,                    // num folders (always 1)
-		errs)
+		0,                    // Number of bytes read TODO: @vaib
+		errs,
+		"Downloaded from "+oc.folderPath.Folder(), // Additional details
+	)
 	logger.Ctx(ctx).Debug(status.String())
 	oc.statusUpdater(status)
 }
