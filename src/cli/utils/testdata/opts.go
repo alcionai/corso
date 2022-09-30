@@ -72,6 +72,13 @@ var (
 			},
 		},
 		{
+			Name:     "EmailsFolderPrefixMatch",
+			Expected: testdata.ExchangeEmailItems,
+			Opts: utils.ExchangeOpts{
+				EmailFolders: []string{testdata.ExchangeEmailInboxPath.Folder()},
+			},
+		},
+		{
 			Name:     "EmailsBySubject",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
