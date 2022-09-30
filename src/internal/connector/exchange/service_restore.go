@@ -260,10 +260,10 @@ func RestoreExchangeDataCollections(
 	dcs []data.Collection,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		pathCounter         = map[string]bool{}
-		rootFolder          string
-		attempts, successes int
-		errs                error
+		pathCounter                     = map[string]bool{}
+		rootFolder                      string
+		attempts, successes, totalBytes int
+		errs                            error
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
 	)
@@ -273,9 +273,10 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		a, s, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, errUpdater)
+		a, s, b, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, errUpdater)
 		attempts += a
 		successes += s
+		totalBytes += b
 		rootFolder = root
 
 		if canceled {
@@ -283,7 +284,14 @@ func RestoreExchangeDataCollections(
 		}
 	}
 
-	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
+	status := support.CreateStatus(ctx,
+		support.Restore,
+		attempts,
+		successes,
+		len(pathCounter),
+		totalBytes,
+		errs,
+		dest.ContainerName)
 
 	return status, errs
 }
@@ -298,43 +306,44 @@ func restoreCollection(
 	dest control.RestoreDestination,
 	policy control.CollisionPolicy,
 	errUpdater func(string, error),
-) (int, int, string, bool) {
+) (int, int, int, string, bool) {
 	defer trace.StartRegion(ctx, "gc:exchange:restoreCollection").End()
 	trace.Log(ctx, "gc:exchange:restoreCollection", dc.FullPath().String())
 
 	var (
-		attempts, successes int
-		folderID            string
-		err                 error
-		items               = dc.Items()
-		directory           = dc.FullPath()
-		service             = directory.Service()
-		category            = directory.Category()
-		user                = directory.ResourceOwner()
-		directoryCheckFunc  = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
+		attempts, successes, numOfBytes int
+		folderID                        string
+		err                             error
+		items                           = dc.Items()
+		directory                       = dc.FullPath()
+		service                         = directory.Service()
+		category                        = directory.Category()
+		user                            = directory.ResourceOwner()
+		directoryCheckFunc              = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
 	)
 
 	folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
 	if err != nil { // assuming FailFast
 		errUpdater(directory.String(), err)
-		return 0, 0, rootFolder, false
+		return 0, 0, 0, rootFolder, false
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			errUpdater("context cancelled", ctx.Err())
-			return attempts, successes, root, true
+			return attempts, successes, numOfBytes, root, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return attempts, successes, root, false
+				return attempts, successes, numOfBytes, root, false
 			}
 			attempts++
 
 			trace.Log(ctx, "gc:exchange:restoreCollection:item", itemData.UUID())
 
 			buf := &bytes.Buffer{}
+			byteArray := buf.Bytes()
 
 			_, err := buf.ReadFrom(itemData.ToReader())
 			if err != nil {
@@ -342,7 +351,7 @@ func restoreCollection(
 				continue
 			}
 
-			err = RestoreExchangeObject(ctx, buf.Bytes(), category, policy, gs, folderID, user)
+			err = RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
 			if err != nil {
 				//  More information to be here
 				errUpdater(
@@ -351,6 +360,7 @@ func restoreCollection(
 
 				continue
 			}
+			numOfBytes += len(byteArray)
 			successes++
 		}
 	}
