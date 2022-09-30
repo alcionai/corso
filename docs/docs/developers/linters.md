@@ -26,7 +26,7 @@ installed.
 There’s a `Makefile` in the corso/src that will automatically check if the proper
 golangci-lint version is installed and run it. This make rule can be run
 with `make lint`. If golangci-lint isn't installed locally or the wrong version
-is present it will tell you what version it expects and provide a link to the
+is present it will tell you what version it expects along with a link to the
 installation page.
 
 ### Running manually
@@ -36,8 +36,8 @@ directory. This will automatically use corso's `.golangci.yml` configuration.
 
 ## Adding exceptions for lint errors
 
-Sometimes the linter will report an issue but it's not something that can or
-should be fixed. In those cases there are two ways to add a linter exception:
+Sometimes the linter will report an issue but it's not something that you can or
+should fix. In those cases there are two ways to add a linter exception:
 
 ### Single exception via comment
 
@@ -185,8 +185,7 @@ if err != nil {
 ## Common problem linters
 
 Some linter messages aren't clear about what the issue is. Here's common
-cryptic messages we've dealt with in the past and how you can fix the problems
-the linters flag.
+cryptic messages how you can fix the problems the linters flag.
 Each subsection also includes the version of golangci-lint it applies to and the
 linter in question.
 
@@ -195,8 +194,8 @@ linter in question.
 This applies to golangci-lint v1.45.2 for the `gci` linter and is due to an import
 ordering issue. It occurs because imports in the file aren't grouped according
 to the import rules for Corso. Corso code should have three distinct import
-groups: system imports, third party imports, and imports of other Corso packaged;
-see the example below. Typically the cause of a `gci` lint error is a Corso import in the
+groups: system imports, third party imports, and imports of other Corso packaged
+(see the example below). Typically the cause of a `gci` lint error is a Corso import in the
 block for third party libraries.
 
 ```go

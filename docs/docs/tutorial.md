@@ -61,7 +61,7 @@ $ docker run -e CORSO_PASSPHRASE \
     --email-subject <portion of subject of email you want to recover>
 ```
 
-The output from the executed command above should display a list of any matching emails. Note the ID
+The output from the command above should display a list of any matching emails. Note the ID
 of the one to use for testing restore.
 
 When you are ready to restore, use the following command:
