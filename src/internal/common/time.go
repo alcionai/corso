@@ -24,8 +24,9 @@ var (
 	clippedSimpleTimeRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}).*`)
 	legacyTimeRE        = regexp.MustCompile(
 		`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}?([Zz]|[a-zA-Z]{2}|([\+|\-]([01]\d|2[0-3])))).*`)
-	simpleDateTimeRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}:\d{2}).*`)
-	standardTimeRE   = regexp.MustCompile(
+	simpleDateTimeRE         = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}:\d{2}).*`)
+	simpleDateTimeOneDriveRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2}).*`)
+	standardTimeRE           = regexp.MustCompile(
 		`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[a-zA-Z]{2}|([\+|\-]([01]\d|2[0-3])))).*`)
 	tabularOutputTimeRE = regexp.MustCompile(`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([Zz]|[a-zA-Z]{2})).*`)
 )
@@ -33,10 +34,15 @@ var (
 var (
 	// clipped formats must appear last, else they take priority over the regular Simple format.
 	formats = []string{
-		StandardTimeFormat, SimpleDateTimeFormat, LegacyTimeFormat, TabularOutputTimeFormat, ClippedSimpleTimeFormat,
+		StandardTimeFormat,
+		SimpleDateTimeFormat,
+		SimpleDateTimeFormatOneDrive,
+		LegacyTimeFormat,
+		TabularOutputTimeFormat,
+		ClippedSimpleTimeFormat,
 	}
 	regexes = []*regexp.Regexp{
-		standardTimeRE, simpleDateTimeRE, legacyTimeRE, tabularOutputTimeRE, clippedSimpleTimeRE,
+		standardTimeRE, simpleDateTimeRE, simpleDateTimeOneDriveRE, legacyTimeRE, tabularOutputTimeRE, clippedSimpleTimeRE,
 	}
 )
 
