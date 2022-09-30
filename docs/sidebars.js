@@ -28,6 +28,7 @@ const sidebars = {
       label: 'Command Line Reference',
       link: {
         slug: 'cli/corso',
+        description: 'Explore the commonly used Corso CLI commands',
         type: 'generated-index',
       },
       items: [

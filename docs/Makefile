@@ -45,6 +45,7 @@ build: genclidocs
 
 genclidocs: ${MDGEN_BINARY}
 	@echo 'Auto-generating Corso CLI docs...'
+	rm -rf docs/cli
 	docker run --rm -it \
 		-v ${CORSO_REPO}:${CORSO_REPO_CONTAINER} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
 		--workdir ${CORSO_REPO_CONTAINER}/src \
