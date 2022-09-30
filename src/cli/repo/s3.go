@@ -37,10 +37,11 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, s3ConnectCmd())
 	}
 
+	// Flags are to be added in order in which they shoud appea in help and docs
 	fs.StringVar(&bucket, "bucket", "", "Name of the S3 bucket (required).")
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
-	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "Server endpoint for S3 communication.")
 	fs.StringVar(&prefix, "prefix", "", "Prefix applied to objects in the bucket.")
+	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "Server endpoint for S3 communication.")
 	fs.BoolVar(&succeedIfExists, "succeed-if-exists", false, "Exit with success if the repo has already been initialized.")
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.

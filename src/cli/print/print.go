@@ -137,6 +137,7 @@ func Item(ctx context.Context, p Printable) {
 
 // print prints the printable items,
 // according to the caller's requested format.
+//
 //revive:disable:redefines-builtin-id
 func print(w io.Writer, p Printable) {
 	if outputAsJSON || outputAsJSONDebug {
