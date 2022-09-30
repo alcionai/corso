@@ -99,14 +99,23 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 		errorCount:        one.errorCount + two.errorCount,
 		bytes:             one.bytes + two.bytes,
 		incomplete:        hasErrors,
-		incompleteReason:  one.incompleteReason + " " + two.incompleteReason,
-		additionalDetails: one.additionalDetails + " " + two.additionalDetails,
+		incompleteReason:  one.incompleteReason + ", " + two.incompleteReason,
+		additionalDetails: one.additionalDetails + ", " + two.additionalDetails,
 	}
 
 	return status
 }
 
 func (cos *ConnectorOperationStatus) String() string {
+	var operationStatement string
+
+	switch cos.lastOperation {
+	case Backup:
+		operationStatement = "Downloaded from "
+	case Restore:
+		operationStatement = "Restored content to "
+	}
+
 	message := fmt.Sprintf("Action: %s performed on %d of %d objects (%s) within %d directories.",
 		cos.lastOperation.String(),
 		cos.Successful,
@@ -119,7 +128,7 @@ func (cos *ConnectorOperationStatus) String() string {
 		message += " " + cos.incompleteReason
 	}
 
-	message += " " + cos.additionalDetails + "\n"
+	message += " " + operationStatement + cos.additionalDetails + "\n"
 
 	return message
 }
