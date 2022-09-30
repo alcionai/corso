@@ -360,6 +360,7 @@ func restoreCollection(
 
 				continue
 			}
+
 			numOfBytes += len(byteArray)
 			successes++
 		}
