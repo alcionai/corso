@@ -15,8 +15,8 @@ corso restore onedrive [flags]
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
 |`--backup`|||ID of the backup to restore|
-|`--help`|`-h`|`false`|help for onedrive|
 |`--user`||`[]`|Restore all data by user ID; accepts * to select all users|
+|`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags
 
