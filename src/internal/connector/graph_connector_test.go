@@ -367,42 +367,6 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 	}
 }
 
-// TODO(ashmrtn): Merge this with the below once we get comparison logic for
-// contacts.
-func (suite *GraphConnectorIntegrationSuite) TestRestoreContact() {
-	t := suite.T()
-	sel := selectors.NewExchangeRestore()
-	fullpath, err := path.Builder{}.Append("testing").
-		ToDataLayerExchangePathForCategory(
-			suite.connector.tenant,
-			suite.user,
-			path.ContactsCategory,
-			false,
-		)
-
-	require.NoError(t, err)
-	aPath, err := path.Builder{}.Append("validator").ToDataLayerExchangePathForCategory(
-		suite.connector.tenant,
-		suite.user,
-		path.ContactsCategory,
-		false,
-	)
-	require.NoError(t, err)
-
-	dcs := mockconnector.NewMockContactCollection(fullpath, 3)
-	two := mockconnector.NewMockContactCollection(aPath, 2)
-	collections := []data.Collection{dcs, two}
-	ctx := context.Background()
-	connector := loadConnector(ctx, suite.T())
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
-	err = connector.RestoreDataCollections(ctx, sel.Selector, dest, collections)
-	assert.NoError(suite.T(), err)
-
-	value := connector.AwaitStatus()
-	assert.Equal(t, value.FolderCount, 1)
-	suite.T().Log(value.String())
-}
-
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 	table := []struct {
@@ -460,14 +424,16 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	subjectText := "Test message for restore"
 
 	table := []struct {
-		name          string
-		service       path.ServiceType
-		collections   []colInfo
-		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
+		name                   string
+		service                path.ServiceType
+		collections            []colInfo
+		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
+		expectedRestoreFolders int
 	}{
 		{
-			name:    "MultipleEmailsSingleFolder",
-			service: path.ExchangeService,
+			name:                   "MultipleEmailsSingleFolder",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -512,6 +478,100 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 				return backupSel.Selector
 			},
 		},
+		{
+			name:                   "MultipleContactsSingleFolder",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Contacts"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+						{
+							name:      "someencodeditemID3",
+							data:      mockconnector.GetMockContactBytes("Jannes"),
+							lookupKey: "Jannes",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.ContactFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
+		{
+			name:                   "MultipleContactsMutlipleFolders",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+						{
+							name:      "someencodeditemID3",
+							data:      mockconnector.GetMockContactBytes("Jannes"),
+							lookupKey: "Jannes",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID4",
+							data:      mockconnector.GetMockContactBytes("Argon"),
+							lookupKey: "Argon",
+						},
+						{
+							name:      "someencodeditemID5",
+							data:      mockconnector.GetMockContactBytes("Bernard"),
+							lookupKey: "Bernard",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.ContactFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
 	}
 
 	for _, test := range table {
@@ -537,7 +597,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			require.NoError(t, err)
 
 			status := restoreGC.AwaitStatus()
-			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
+			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 
@@ -559,7 +619,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			checkCollections(t, totalItems, expectedData, dcs)
 
 			status = backupGC.AwaitStatus()
-			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
+			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 		})
