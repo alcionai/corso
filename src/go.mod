@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.107
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/kopia/kopia v0.12.0
 	github.com/microsoft/kiota-abstractions-go v0.11.0
 	github.com/microsoft/kiota-authentication-azure-go v0.4.1

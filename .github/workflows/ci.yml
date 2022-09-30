@@ -34,11 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # single setup and sum cache handling here.
-      # the results will cascade onto both testing and linting.
-      - name: Setup Golang with cache
-        if: needs.precheck.outputs.fileschanged == 'true'
-        uses: magnetikonline/action-golang-cache@v3
+      - uses: ./.github/actions/go-setup-cache
         with:
           go-version-file: src/go.mod
 
