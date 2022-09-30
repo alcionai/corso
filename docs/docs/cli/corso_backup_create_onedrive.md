@@ -14,8 +14,8 @@ corso backup create onedrive [flags]
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--help`|`-h`|`false`|help for onedrive|
 |`--user`||`[]`|Backup OneDrive data by user ID; accepts * to select all users|
+|`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags
 
