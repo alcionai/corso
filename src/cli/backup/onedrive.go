@@ -32,8 +32,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
 
+		c.Use = c.Use + " --user <userId or email> | " + utils.Wildcard
+
 		fs.StringArrayVar(&user, "user", nil,
-			"Backup OneDrive data by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Backup OneDrive data by user ID; accepts "+utils.Wildcard+" to select all users. (required)")
 		options.AddOperationFlags(c)
 
 	case listCommand:
@@ -41,12 +43,18 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
-		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+
+		c.Use = c.Use + " --backup <backupId>"
+
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
-		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+
+		c.Use = c.Use + " --backup <backupId>"
+
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 	}
 

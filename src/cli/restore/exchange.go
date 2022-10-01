@@ -51,83 +51,85 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd())
 
+		c.Use = c.Use + " --backup <backupId>"
+
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
 		// general flags
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		fs.StringSliceVar(&user,
 			"user", nil,
-			"Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Restore data by user ID; accepts "+utils.Wildcard+" to select all users.")
 
 		// email flags
 		fs.StringSliceVar(&email,
 			"email", nil,
-			"Restore emails by ID; accepts "+utils.Wildcard+" to select all emails")
+			"Restore emails by ID; accepts "+utils.Wildcard+" to select all emails.")
 		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder", nil,
-			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders")
+			"Restore emails under a folder; accepts "+utils.Wildcard+" to select all email folders.")
 		fs.StringVar(
 			&emailSubject,
 			"email-subject", "",
-			"Restore mail where the email subject lines contain this value")
+			"Restore emails with subject containing this value.")
 		fs.StringVar(
 			&emailSender,
 			"email-sender", "",
-			"Restore mail where the email sender matches this user id")
+			"Restore emails from a specific sender.")
 		fs.StringVar(
 			&emailReceivedAfter,
 			"email-received-after", "",
-			"Restore mail where the email was received after this datetime")
+			"Restore emails received after this datetime.")
 		fs.StringVar(
 			&emailReceivedBefore,
 			"email-received-before", "",
-			"Restore mail where the email was received before this datetime")
+			"Restore emails received before this datetime.")
 
 		// event flags
 		fs.StringSliceVar(&event,
 			"event", nil,
-			"Restore events by ID; accepts "+utils.Wildcard+" to select all events")
+			"Restore events by event ID; accepts "+utils.Wildcard+" to select all events.")
 		fs.StringSliceVar(
 			&eventCalendar,
 			"event-calendar", nil,
-			"Restore events by calendar ID; accepts "+utils.Wildcard+" to select all event calendars")
+			"Restore events under a calendar; accepts "+utils.Wildcard+" to select all event calendars.")
 		fs.StringVar(
 			&eventSubject,
 			"event-subject", "",
-			"Restore events where the event subject contains this value")
+			"Restore events with subject containing this value.")
 		fs.StringVar(
 			&eventOrganizer,
 			"event-organizer", "",
-			"Restore events where the event organizer user id contains this value")
+			"Restore events from a specific organizer.")
 		fs.StringVar(
 			&eventRecurs,
 			"event-recurs", "",
-			"Restore events if the event recurs. Use `--event-recurs false` to select non-recurring events")
+			"Restore recurring events. Use `--event-recurs false` to restore non-recurring events.")
 		fs.StringVar(
 			&eventStartsAfter,
 			"event-starts-after", "",
-			"Restore events where the event starts after this datetime")
+			"Restore events starting after this datetime.")
 		fs.StringVar(
 			&eventStartsBefore,
 			"event-starts-before", "",
-			"Restore events where the event starts before this datetime")
+			"Restore events starting before this datetime.")
 
 		// contacts flags
 		fs.StringSliceVar(
 			&contact,
 			"contact", nil,
-			"Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
+			"Restore contacts by contact ID; accepts "+utils.Wildcard+" to select all contacts.")
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder", nil,
-			"Restore all contacts within the folder ID; accepts "+utils.Wildcard+" to select all contact folders")
+			"Restore contacts under a folder; accepts "+utils.Wildcard+" to select all contact folders.")
 		fs.StringVar(
 			&contactName,
 			"contact-name", "",
-			"Restore contacts where the contact name contains this value")
+			"Restore contacts with contact name containing this value.")
 
 		// others
 		options.AddOperationFlags(c)
