@@ -50,18 +50,18 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd())
+
+		// Flags addition ordering should follow the order we want them to appear in help and docs:
+		// More generic (ex: --all) and more frequently used flags take precedence.
+		// general flags
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
-		// per-data-type flags
-		fs.StringSliceVar(
-			&contact,
-			"contact", nil,
-			"Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
-		fs.StringSliceVar(
-			&contactFolder,
-			"contact-folder", nil,
-			"Restore all contacts within the folder ID; accepts "+utils.Wildcard+" to select all contact folders")
+		fs.StringSliceVar(&user,
+			"user", nil,
+			"Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
+
+		// email flags
 		fs.StringSliceVar(&email,
 			"email", nil,
 			"Restore emails by ID; accepts "+utils.Wildcard+" to select all emails")
@@ -69,22 +69,14 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			&emailFolder,
 			"email-folder", nil,
 			"Restore all emails by folder ID; accepts "+utils.Wildcard+" to select all email folders")
-		fs.StringSliceVar(&event,
-			"event", nil,
-			"Restore events by ID; accepts "+utils.Wildcard+" to select all events")
-		fs.StringSliceVar(
-			&eventCalendar,
-			"event-calendar", nil,
-			"Restore events by calendar ID; accepts "+utils.Wildcard+" to select all event calendars")
-		fs.StringSliceVar(&user,
-			"user", nil,
-			"Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
-
-		// exchange-info flags
 		fs.StringVar(
-			&contactName,
-			"contact-name", "",
-			"Restore contacts where the contact name contains this value")
+			&emailSubject,
+			"email-subject", "",
+			"Restore mail where the email subject lines contain this value")
+		fs.StringVar(
+			&emailSender,
+			"email-sender", "",
+			"Restore mail where the email sender matches this user id")
 		fs.StringVar(
 			&emailReceivedAfter,
 			"email-received-after", "",
@@ -93,14 +85,19 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			&emailReceivedBefore,
 			"email-received-before", "",
 			"Restore mail where the email was received before this datetime")
+
+		// event flags
+		fs.StringSliceVar(&event,
+			"event", nil,
+			"Restore events by ID; accepts "+utils.Wildcard+" to select all events")
+		fs.StringSliceVar(
+			&eventCalendar,
+			"event-calendar", nil,
+			"Restore events by calendar ID; accepts "+utils.Wildcard+" to select all event calendars")
 		fs.StringVar(
-			&emailSender,
-			"email-sender", "",
-			"Restore mail where the email sender matches this user id")
-		fs.StringVar(
-			&emailSubject,
-			"email-subject", "",
-			"Restore mail where the email subject lines contain this value")
+			&eventSubject,
+			"event-subject", "",
+			"Restore events where the event subject contains this value")
 		fs.StringVar(
 			&eventOrganizer,
 			"event-organizer", "",
@@ -108,7 +105,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&eventRecurs,
 			"event-recurs", "",
-			"Restore events if the event recurs.  Use --event-recurs false to select where the event does not recur.")
+			"Restore events if the event recurs. Use `--event-recurs false` to select non-recurring events")
 		fs.StringVar(
 			&eventStartsAfter,
 			"event-starts-after", "",
@@ -117,10 +114,20 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			&eventStartsBefore,
 			"event-starts-before", "",
 			"Restore events where the event starts before this datetime")
+
+		// contacts flags
+		fs.StringSliceVar(
+			&contact,
+			"contact", nil,
+			"Restore contacts by ID; accepts "+utils.Wildcard+" to select all contacts")
+		fs.StringSliceVar(
+			&contactFolder,
+			"contact-folder", nil,
+			"Restore all contacts within the folder ID; accepts "+utils.Wildcard+" to select all contact folders")
 		fs.StringVar(
-			&eventSubject,
-			"event-subject", "",
-			"Restore events where the event subject contains this value")
+			&contactName,
+			"contact-name", "",
+			"Restore contacts where the contact name contains this value")
 
 		// others
 		options.AddOperationFlags(c)

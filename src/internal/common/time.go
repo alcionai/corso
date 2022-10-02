@@ -9,9 +9,10 @@ import (
 
 const (
 	// the clipped format occurs when m365 removes the :00 second suffix
-	ClippedSimpleTimeFormat = "02-Jan-2006_15:04"
-	LegacyTimeFormat        = time.RFC3339
-	SimpleDateTimeFormat    = "02-Jan-2006_15:04:05"
+	ClippedSimpleTimeFormat         = "02-Jan-2006_15:04"
+	ClippedSimpleTimeFormatOneDrive = "02-Jan-2006_15-04"
+	LegacyTimeFormat                = time.RFC3339
+	SimpleDateTimeFormat            = "02-Jan-2006_15:04:05"
 	// SimpleDateTimeFormatOneDrive is similar to `SimpleDateTimeFormat`
 	// but uses `-` instead of `:` which is a reserved character in
 	// OneDrive
@@ -21,11 +22,13 @@ const (
 )
 
 var (
-	clippedSimpleTimeRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}).*`)
-	legacyTimeRE        = regexp.MustCompile(
+	clippedSimpleTimeRE         = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}).*`)
+	clippedSimpleTimeOneDriveRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}).*`)
+	legacyTimeRE                = regexp.MustCompile(
 		`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}?([Zz]|[a-zA-Z]{2}|([\+|\-]([01]\d|2[0-3])))).*`)
-	simpleDateTimeRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}:\d{2}).*`)
-	standardTimeRE   = regexp.MustCompile(
+	simpleDateTimeRE         = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}:\d{2}).*`)
+	simpleDateTimeOneDriveRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2}).*`)
+	standardTimeRE           = regexp.MustCompile(
 		`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[a-zA-Z]{2}|([\+|\-]([01]\d|2[0-3])))).*`)
 	tabularOutputTimeRE = regexp.MustCompile(`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([Zz]|[a-zA-Z]{2})).*`)
 )
@@ -33,10 +36,22 @@ var (
 var (
 	// clipped formats must appear last, else they take priority over the regular Simple format.
 	formats = []string{
-		StandardTimeFormat, SimpleDateTimeFormat, LegacyTimeFormat, TabularOutputTimeFormat, ClippedSimpleTimeFormat,
+		StandardTimeFormat,
+		SimpleDateTimeFormat,
+		SimpleDateTimeFormatOneDrive,
+		LegacyTimeFormat,
+		TabularOutputTimeFormat,
+		ClippedSimpleTimeFormat,
+		ClippedSimpleTimeFormatOneDrive,
 	}
 	regexes = []*regexp.Regexp{
-		standardTimeRE, simpleDateTimeRE, legacyTimeRE, tabularOutputTimeRE, clippedSimpleTimeRE,
+		standardTimeRE,
+		simpleDateTimeRE,
+		simpleDateTimeOneDriveRE,
+		legacyTimeRE,
+		tabularOutputTimeRE,
+		clippedSimpleTimeRE,
+		clippedSimpleTimeOneDriveRE,
 	}
 )
 
@@ -48,29 +63,34 @@ func FormatNow(fmt string) string {
 	return time.Now().UTC().Format(fmt)
 }
 
+// FormatTimeWith produces the a datetime with the given format.
+func FormatTimeWith(t time.Time, fmt string) string {
+	return t.UTC().Format(fmt)
+}
+
 // FormatTime produces the standard format for corso time values.
 // Always formats into the UTC timezone.
 func FormatTime(t time.Time) string {
-	return t.UTC().Format(StandardTimeFormat)
+	return FormatTimeWith(t, StandardTimeFormat)
 }
 
 // FormatSimpleDateTime produces a simple datetime of the format
 // "02-Jan-2006_15:04:05"
 func FormatSimpleDateTime(t time.Time) string {
-	return t.UTC().Format(SimpleDateTimeFormat)
+	return FormatTimeWith(t, SimpleDateTimeFormat)
 }
 
 // FormatTabularDisplayTime produces the standard format for displaying
 // a timestamp as part of user-readable cli output.
 // "2016-01-02T15:04:05Z"
 func FormatTabularDisplayTime(t time.Time) string {
-	return t.UTC().Format(TabularOutputTimeFormat)
+	return FormatTimeWith(t, TabularOutputTimeFormat)
 }
 
 // FormatLegacyTime produces standard format for string values
 // that are placed in SingleValueExtendedProperty tags
 func FormatLegacyTime(t time.Time) string {
-	return t.UTC().Format(LegacyTimeFormat)
+	return FormatTimeWith(t, LegacyTimeFormat)
 }
 
 // ParseTime makes a best attempt to produce a time value from

@@ -26,7 +26,7 @@ installed.
 There’s a `Makefile` in the corso/src that will automatically check if the proper
 golangci-lint version is installed and run it. This make rule can be run
 with `make lint`. If golangci-lint isn't installed locally or the wrong version
-is present it will tell you what version it expects and provide a link to the
+is present it will tell you what version it expects along with a link to the
 installation page.
 
 ### Running manually
@@ -36,8 +36,8 @@ directory. This will automatically use corso's `.golangci.yml` configuration.
 
 ## Adding exceptions for lint errors
 
-Sometimes the linter will report an issue but it's not something that can or
-should be fixed. In those cases there are two ways to add a linter exception:
+Sometimes the linter will report an issue but it's not something that you can or
+should fix. In those cases there are two ways to add a linter exception:
 
 ### Single exception via comment
 
@@ -68,10 +68,12 @@ Some of the enabled linters, like `wsl`, are picky about how code is arranged.
 This section provides some tips on how to organize code to reduce lint errors.
 
 ### `wsl`
+
 `wsl` is a linter that requires blank lines in parts of the code. It helps make
-the codebase more uniform and ensures the code doesn't feel too compact.
+the codebase uniform and ensures the code doesn't feel too compact.
 
 #### Short-assignments versus var declarations
+
 Go allows declaring and assigning to a variable with either short-assignments
 (`x := 42`) or var assignments (`var x = 42`). `wsl` doesn't allow
 grouping these two types of variable declarations together. To work around this,
@@ -97,6 +99,7 @@ var (
 ```
 
 #### Post-increment and assignments
+
 `wsl` doesn't allow statements before an assignment without a blank line
 separating the two. Post-increment operators (e.x. `x++`) count as statements
 instead of assignments and may cause `wsl` to report an error. You can avoid
@@ -118,6 +121,7 @@ x++
 ```
 
 #### Functions using recently assigned values
+
 `wsl` allows functions immediately after assignments, but only if the function
 uses the assigned value. This requires an ordering for assignments and
 function calls.
@@ -150,6 +154,7 @@ foo(a, b)
 ```
 
 #### Function calls and checking returned error values
+
 One of the other linters expects error checks to follow assignments to the error
 variable without blank lines separating the two. One the other hand, `wsl` has
 requirements about what statements can be mixed with assignments. To work
@@ -180,8 +185,7 @@ if err != nil {
 ## Common problem linters
 
 Some linter messages aren't clear about what the issue is. Here's common
-cryptic messages we've dealt with in the past and how you can fix the problems
-the linters flag.
+cryptic messages how you can fix the problems the linters flag.
 Each subsection also includes the version of golangci-lint it applies to and the
 linter in question.
 
@@ -190,8 +194,8 @@ linter in question.
 This applies to golangci-lint v1.45.2 for the `gci` linter and is due to an import
 ordering issue. It occurs because imports in the file aren't grouped according
 to the import rules for Corso. Corso code should have three distinct import
-groups: system imports, third party imports, and imports of other Corso packaged;
-see the example below. Typically the cause of a `gci` lint error is a Corso import in the
+groups: system imports, third party imports, and imports of other Corso packaged
+(see the example below). Typically the cause of a `gci` lint error is a Corso import in the
 block for third party libraries.
 
 ```go

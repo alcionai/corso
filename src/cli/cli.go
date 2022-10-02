@@ -58,11 +58,14 @@ func CorsoCommand() *cobra.Command {
 
 // BuildCommandTree builds out the command tree used by the Corso library.
 func BuildCommandTree(cmd *cobra.Command) {
+	// want to order flags explicitly
+	cmd.PersistentFlags().SortFlags = false
+
 	cmd.Flags().BoolP("version", "v", version, "current version info")
 	cmd.PersistentPostRunE = config.InitFunc()
 	config.AddConfigFlags(cmd)
-	print.AddOutputFlag(cmd)
 	logger.AddLogLevelFlag(cmd)
+	print.AddOutputFlag(cmd)
 	options.AddGlobalOperationFlags(cmd)
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
