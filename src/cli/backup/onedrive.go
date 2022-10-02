@@ -74,20 +74,20 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&fileCreatedAfter,
 			"file-created-after", "",
-			"Restore files created after this datetime")
+			"Select files created after this datetime")
 		fs.StringVar(
 			&fileCreatedBefore,
 			"file-created-before", "",
-			"Restore files created before this datetime")
+			"Select files created before this datetime")
 
 		fs.StringVar(
 			&fileModifiedAfter,
 			"file-modified-after", "",
-			"Restore files modified after this datetime")
+			"Select files modified after this datetime")
 		fs.StringVar(
 			&fileModifiedBefore,
 			"file-modified-before", "",
-			"Restore files modified before this datetime")
+			"Select files modified before this datetime")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
