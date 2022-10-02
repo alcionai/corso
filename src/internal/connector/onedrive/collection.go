@@ -145,7 +145,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	oc.reportPopulateStatus(ctx, itemsRead, errs)
 }
 
-func (oc *Collection) reportPopulateStatus(ctx context.Context, itemsRead int, errs error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, errs error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
