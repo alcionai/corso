@@ -88,6 +88,7 @@ func getDriveFolderPath(p path.Path) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return path.Builder{}.Append(drivePath.folders...).String(), nil
 }
 

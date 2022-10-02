@@ -111,11 +111,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		itemsRead = 0
 	)
 
-	// Retreive the OneDrive folder path to set later in
+	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
 	parentPathString, err := getDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportPopulateStatus(ctx, 0, err)
+		oc.reportAsCompleted(ctx, 0, err)
 		return
 	}
 
@@ -142,7 +142,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			info: itemInfo,
 		}
 	}
-	oc.reportPopulateStatus(ctx, itemsRead, errs)
+
+	oc.reportAsCompleted(ctx, itemsRead, errs)
 }
 
 func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, errs error) {
