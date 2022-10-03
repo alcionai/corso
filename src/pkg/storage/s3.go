@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 type S3Config struct {
