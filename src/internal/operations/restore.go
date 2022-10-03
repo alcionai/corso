@@ -257,7 +257,6 @@ func (op *RestoreOperation) persistResults(
 		ctx,
 		events.RestoreEnd,
 		map[string]any{
-			// TODO: RestoreID
 			events.BackupID:      op.BackupID,
 			events.DataRetrieved: op.Results.BytesRead,
 			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
@@ -269,7 +268,6 @@ func (op *RestoreOperation) persistResults(
 			events.Service:       op.Selectors.Service.String(),
 			events.StartTime:     op.Results.StartedAt,
 			events.Status:        op.Status,
-			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)
 
