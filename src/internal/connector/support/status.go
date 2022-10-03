@@ -18,7 +18,7 @@ type ConnectorOperationStatus struct {
 	incomplete        bool
 	incompleteReason  string
 	additionalDetails string
-	bytes             int
+	bytes             int64
 }
 
 type Operation int
@@ -34,7 +34,8 @@ const (
 func CreateStatus(
 	ctx context.Context,
 	op Operation,
-	objects, success, folders, bytes int,
+	objects, success, folders int,
+	bytes int64,
 	err error,
 	details string,
 ) *ConnectorOperationStatus {
