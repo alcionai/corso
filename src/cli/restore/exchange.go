@@ -70,11 +70,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder", nil,
-			"Restore emails under a folder; accepts "+utils.Wildcard+" to select all email folders.")
+			"Restore emails within a folder; accepts "+utils.Wildcard+" to select all email folders.")
 		fs.StringVar(
 			&emailSubject,
 			"email-subject", "",
-			"Restore emails with subject containing this value.")
+			"Restore emails with a subject containing this value.")
 		fs.StringVar(
 			&emailSender,
 			"email-sender", "",
@@ -99,7 +99,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&eventSubject,
 			"event-subject", "",
-			"Restore events with subject containing this value.")
+			"Restore events with a subject containing this value.")
 		fs.StringVar(
 			&eventOrganizer,
 			"event-organizer", "",
@@ -125,11 +125,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder", nil,
-			"Restore contacts under a folder; accepts "+utils.Wildcard+" to select all contact folders.")
+			"Restore contacts within a folder; accepts "+utils.Wildcard+" to select all contact folders.")
 		fs.StringVar(
 			&contactName,
 			"contact-name", "",
-			"Restore contacts with contact name containing this value.")
+			"Restore contacts whose contact name contains this value.")
 
 		// others
 		options.AddOperationFlags(c)
