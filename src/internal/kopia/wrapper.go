@@ -334,7 +334,13 @@ func getStreamItemFunc(
 				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
-				entry := virtualfs.StreamingFileFromReader(encodeAsPath(e.UUID()), e.ToReader())
+				entry := virtualfs.StreamingFileFromReader(
+					encodeAsPath(e.UUID()),
+					&backupStreamReader{
+						version:    serializationVersion,
+						ReadCloser: e.ToReader(),
+					},
+				)
 				if err := cb(ctx, entry); err != nil {
 					// Kopia's uploader swallows errors in most cases, so if we see
 					// something here it's probably a big issue and we should return.
@@ -626,9 +632,12 @@ func getItemStream(
 	}
 
 	return &kopiaDataStream{
-		uuid:   decodedName,
-		reader: r,
-		size:   f.Size(),
+		uuid: decodedName,
+		reader: &restoreStreamReader{
+			ReadCloser:      r,
+			expectedVersion: serializationVersion,
+		},
+		size: f.Size() - int64(unsafe.Sizeof(serializationVersion)),
 	}, nil
 }
 
