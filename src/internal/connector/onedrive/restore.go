@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -50,6 +51,7 @@ func RestoreCollections(
 	service graph.Service,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
+	deets *details.Details,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
@@ -62,7 +64,7 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		temp, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, errUpdater)
+		temp, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, deets, errUpdater)
 
 		restoreMetrics.Combine(temp)
 
@@ -89,6 +91,7 @@ func restoreCollection(
 	service graph.Service,
 	dc data.Collection,
 	restoreContainerName string,
+	deets *details.Details,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
 	defer trace.StartRegion(ctx, "gc:oneDrive:restoreCollection").End()
@@ -139,7 +142,14 @@ func restoreCollection(
 
 			metrics.TotalBytes += int64(len(copyBuffer))
 
-			err := restoreItem(ctx, service, itemData, drivePath.driveID, restoreFolderID, copyBuffer)
+			err := restoreItem(ctx,
+				service,
+				itemData,
+				drivePath.driveID,
+				restoreFolderID,
+				copyBuffer,
+				dc.FullPath(),
+				deets)
 			if err != nil {
 				errUpdater(itemData.UUID(), err)
 				continue
@@ -196,8 +206,14 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 }
 
 // restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
-func restoreItem(ctx context.Context, service graph.Service, itemData data.Stream, driveID, parentFolderID string,
+func restoreItem(
+	ctx context.Context,
+	service graph.Service,
+	itemData data.Stream,
+	driveID, parentFolderID string,
 	copyBuffer []byte,
+	collPath path.Path,
+	deets *details.Details,
 ) error {
 	defer trace.StartRegion(ctx, "gc:oneDrive:restoreItem").End()
 
@@ -227,6 +243,18 @@ func restoreItem(ctx context.Context, service graph.Service, itemData data.Strea
 	if err != nil {
 		return errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}
+
+	itemPath, err := collPath.Append(itemData.UUID(), true)
+	if err != nil {
+		logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+		return nil
+	}
+
+	deets.Add(
+		itemPath.String(),
+		itemPath.ShortRef(),
+		"",
+		details.ItemInfo{})
 
 	return nil
 }
