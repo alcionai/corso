@@ -394,6 +394,10 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 			name:  "One Direct Attachment",
 			bytes: mockconnector.GetMockMessageWithDirectAttachment(folderName),
 		},
+		{
+			name:  "Two Attachments",
+			bytes: mockconnector.GetMockMessageWithTwoAttachments(folderName),
+		},
 	}
 
 	for _, test := range tests {
@@ -405,7 +409,7 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 				folderID,
 				userID,
 			)
-			require.NoError(t, err)
+			require.NoError(t, err, support.ConnectorStackErrorTrace(err))
 		})
 	}
 
