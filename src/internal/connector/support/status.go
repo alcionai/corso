@@ -27,6 +27,17 @@ type ConnectorOperationStatus struct {
 	bytes             int64
 }
 
+type CollectionMetrics struct {
+	attempts, successes int
+	totalBytes          int64
+}
+
+func (cm *CollectionMetrics) Combine(additional CollectionMetrics) {
+	cm.attempts += additional.attempts
+	cm.successes += additional.successes
+	cm.totalBytes += additional.totalBytes
+}
+
 type Operation int
 
 //go:generate stringer -type=Operation
