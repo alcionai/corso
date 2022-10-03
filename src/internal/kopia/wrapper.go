@@ -2,9 +2,12 @@ package kopia
 
 import (
 	"context"
+	"encoding/binary"
+	"io"
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
@@ -28,12 +31,45 @@ const (
 	// possibly corresponding to who is making the backup.
 	corsoHost = "corso-host"
 	corsoUser = "corso"
+
+	serializationVersion uint32 = 1
 )
 
 var (
 	errNotConnected  = errors.New("not connected to repo")
 	errNoRestorePath = errors.New("no restore path given")
 )
+
+// backupStreamReader is a wrapper around the io.Reader that other Corso
+// components return when backing up information. It injects a version number at
+// the start of the data stream. Future versions of Corso may not need this if
+// they use more complex serialization logic as serialization/version injection
+// will be handled by other components.
+type backupStreamReader struct {
+	io.ReadCloser
+	version   uint32
+	readBytes int
+}
+
+func (rw *backupStreamReader) Read(p []byte) (n int, err error) {
+	if rw.readBytes < int(unsafe.Sizeof(rw.version)) {
+		marshalled := make([]byte, int(unsafe.Sizeof(rw.version)))
+
+		toCopy := len(marshalled) - rw.readBytes
+		if len(p) < toCopy {
+			toCopy = len(p)
+		}
+
+		binary.BigEndian.PutUint32(marshalled, rw.version)
+
+		copy(p, marshalled[rw.readBytes:rw.readBytes+toCopy])
+		rw.readBytes += toCopy
+
+		return toCopy, nil
+	}
+
+	return rw.ReadCloser.Read(p)
+}
 
 type BackupStats struct {
 	SnapshotID string
