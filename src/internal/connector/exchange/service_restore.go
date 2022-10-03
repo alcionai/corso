@@ -343,13 +343,14 @@ func restoreCollection(
 			trace.Log(ctx, "gc:exchange:restoreCollection:item", itemData.UUID())
 
 			buf := &bytes.Buffer{}
-			byteArray := buf.Bytes()
 
 			_, err := buf.ReadFrom(itemData.ToReader())
 			if err != nil {
 				errUpdater(itemData.UUID()+": byteReadError during RestoreDataCollection", err)
 				continue
 			}
+
+			byteArray := buf.Bytes()
 
 			err = RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
 			if err != nil {
