@@ -116,7 +116,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	// `details.OneDriveInfo`
 	parentPathString, err := getDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, err)
+		oc.reportAsCompleted(ctx, 0, 0, err)
 		return
 	}
 
@@ -146,10 +146,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 	}
 
-	oc.reportAsCompleted(ctx, itemsRead, errs)
+	oc.reportAsCompleted(ctx, itemsRead, byteCount, errs)
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, errs error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byteCount int64, errs error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
