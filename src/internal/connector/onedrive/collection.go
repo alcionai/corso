@@ -108,6 +108,7 @@ func (od *Item) Info() details.ItemInfo {
 func (oc *Collection) populateItems(ctx context.Context) {
 	var (
 		errs      error
+		byteCount int64
 		itemsRead = 0
 	)
 
@@ -125,6 +126,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 		// Item read successfully, add to collection
 		itemsRead++
+		// byteCount iteration
+		byteCount += itemInfo.Size
 
 		itemInfo.ParentPath = oc.folderPath.String()
 
@@ -141,7 +144,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		len(oc.driveItemIDs), // items to read
 		itemsRead,            // items read successfully
 		1,                    // num folders (always 1)
-		0,                    // Number of bytes read TODO: @vaib
+		byteCount,            // Number of bytes read in the operation
 		errs,
 		oc.folderPath.Folder(), // Additional details
 	)

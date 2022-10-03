@@ -52,8 +52,9 @@ func RestoreCollections(
 	dcs []data.Collection,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		total, restored, bytes int
-		restoreErrors          error
+		total, restored int
+		byteCount       int64
+		restoreErrors   error
 	)
 
 	errUpdater := func(id string, err error) {
@@ -65,7 +66,7 @@ func RestoreCollections(
 		t, r, b, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, errUpdater)
 		total += t
 		restored += r
-		bytes += b
+		byteCount += b
 
 		if canceled {
 			break
@@ -78,7 +79,7 @@ func RestoreCollections(
 			total,
 			restored,
 			0,
-			bytes,
+			byteCount,
 			restoreErrors,
 			dest.ContainerName),
 		nil
@@ -93,13 +94,14 @@ func restoreCollection(
 	dc data.Collection,
 	restoreContainerName string,
 	errUpdater func(string, error),
-) (int, int, int, bool) {
+) (int, int, int64, bool) {
 	defer trace.StartRegion(ctx, "gc:oneDrive:restoreCollection").End()
 
 	var (
-		total, restored, bytes int
-		copyBuffer             = make([]byte, copyBufferSize)
-		directory              = dc.FullPath()
+		total, restored int
+		byteCount       int64
+		copyBuffer      = make([]byte, copyBufferSize)
+		directory       = dc.FullPath()
 	)
 
 	drivePath, err := toOneDrivePath(directory)
@@ -132,15 +134,15 @@ func restoreCollection(
 		select {
 		case <-ctx.Done():
 			errUpdater("context canceled", ctx.Err())
-			return total, restored, bytes, true
+			return total, restored, byteCount, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return total, restored, bytes, false
+				return total, restored, byteCount, false
 			}
 			total++
 
-			bytes += len(copyBuffer)
+			byteCount += int64(len(copyBuffer))
 
 			err := restoreItem(ctx, service, itemData, drivePath.driveID, restoreFolderID, copyBuffer)
 			if err != nil {
