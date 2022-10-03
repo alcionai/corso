@@ -165,16 +165,19 @@ func runRestoreLoadTest(
 	t.Run("restore_"+name, func(t *testing.T) {
 		var (
 			err    error
+			ds     *details.Details
 			labels = pprof.Labels("restore_load_test", name)
 		)
 
 		pprof.Do(ctx, labels, func(ctx context.Context) {
-			err = r.Run(ctx)
+			ds, err = r.Run(ctx)
 		})
 
 		require.NoError(t, err, "running restore")
 		require.NotEmpty(t, r.Results, "has results after run")
+		require.NotNil(t, ds, "has restored details")
 		assert.Equal(t, r.Status, operations.Completed, "restore status")
+		assert.Equal(t, r.Results.ItemsWritten, len(ds.Entries), "count of items written matches restored entries in details")
 		assert.Less(t, 0, r.Results.ItemsRead, "items read")
 		assert.Less(t, 0, r.Results.ItemsWritten, "items written")
 		assert.Less(t, 0, r.Results.ResourceOwners, "resource owners")
