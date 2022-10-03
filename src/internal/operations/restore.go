@@ -149,11 +149,23 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		}
 
 	case selectors.ServiceOneDrive:
-		// TODO: Reduce `details` here when we add support for OneDrive restore filters
-		fds = d
+		odr, err := op.Selectors.ToOneDriveRestore()
+		if err != nil {
+			opStats.readErr = err
+			return err
+		}
+
+		// format the details and retrieve the items from kopia
+		fds = odr.Reduce(ctx, d)
+		if len(fds.Entries) == 0 {
+			return selectors.ErrorNoMatchingItems
+		}
+
 	default:
 		return errors.Errorf("Service %s not supported", op.Selectors.Service)
 	}
+
+	logger.Ctx(ctx).Infof("Discovered %d items in backup %s to restore", len(fds.Entries), op.BackupID)
 
 	fdsPaths := fds.Paths()
 	paths := make([]path.Path, len(fdsPaths))
@@ -245,7 +257,6 @@ func (op *RestoreOperation) persistResults(
 		ctx,
 		events.RestoreEnd,
 		map[string]any{
-			// TODO: RestoreID
 			events.BackupID:      op.BackupID,
 			events.DataRetrieved: op.Results.BytesRead,
 			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
@@ -257,7 +268,6 @@ func (op *RestoreOperation) persistResults(
 			events.Service:       op.Selectors.Service.String(),
 			events.StartTime:     op.Results.StartedAt,
 			events.Status:        op.Status,
-			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)
 

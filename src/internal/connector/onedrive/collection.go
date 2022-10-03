@@ -112,6 +112,14 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		itemsRead = 0
 	)
 
+	// Retrieve the OneDrive folder path to set later in
+	// `details.OneDriveInfo`
+	parentPathString, err := getDriveFolderPath(oc.folderPath)
+	if err != nil {
+		oc.reportAsCompleted(ctx, 0, err)
+		return
+	}
+
 	for _, itemID := range oc.driveItemIDs {
 		// Read the item
 		itemInfo, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
@@ -129,7 +137,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		// byteCount iteration
 		byteCount += itemInfo.Size
 
-		itemInfo.ParentPath = oc.folderPath.String()
+		itemInfo.ParentPath = parentPathString
 
 		oc.data <- &Item{
 			id:   itemInfo.ItemName,
@@ -138,6 +146,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 	}
 
+	oc.reportAsCompleted(ctx, itemsRead, errs)
+}
+
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, errs error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,

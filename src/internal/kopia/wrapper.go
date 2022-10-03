@@ -390,6 +390,10 @@ func (w Wrapper) BackupCollections(
 
 	defer trace.StartRegion(ctx, "kopia:backupCollections").End()
 
+	if len(collections) == 0 {
+		return &BackupStats{}, &details.Details{}, nil
+	}
+
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Details{},

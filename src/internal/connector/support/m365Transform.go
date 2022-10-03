@@ -424,12 +424,16 @@ func ToEventSimplified(orig models.Eventable) models.Eventable {
 	return orig
 }
 
+type getContenter interface {
+	GetContent() *string
+	GetContentType() *models.BodyType
+}
+
 // insertStringToBody helper function to insert text into models.bodyable
 // @returns string containing the content string of altered body.
-func insertStringToBody(body models.ItemBodyable, newContent string) string {
-	var prefix, suffix string
-
+func insertStringToBody(body getContenter, newContent string) string {
 	if body.GetContent() == nil ||
+		len(*body.GetContent()) == 0 ||
 		body.GetContentType() == nil {
 		return ""
 	}
@@ -439,14 +443,28 @@ func insertStringToBody(body models.ItemBodyable, newContent string) string {
 	switch *body.GetContentType() {
 	case models.TEXT_BODYTYPE:
 		return newContent + content
+
 	case models.HTML_BODYTYPE:
-		array := strings.Split(content, "<body>")
-		prefix = array[0] + "<body>"
-		interior := array[1]
-		bodyArray := strings.Split(interior, ">")
-		prefix += bodyArray[0] + ">"
-		suffix = strings.Join(bodyArray[1:], ">")
+		arr := strings.Split(content, "<body>")
+		if len(arr) < 2 {
+			// malformed html; can't be sure where to insert attendees.
+			return newContent + content
+		}
+
+		prefix := arr[0] + "<body>"
+		interior := arr[1]
+		splitOnCloseAngle := strings.Split(interior, ">")
+
+		if len(splitOnCloseAngle) < 3 {
+			// no inner elements in body, just insert the new content
+			return prefix + newContent + strings.Join(arr[1:], "")
+		}
+
+		prefix += splitOnCloseAngle[0] + ">"
+		suffix := strings.Join(splitOnCloseAngle[1:], ">")
+
+		return prefix + newContent + suffix
 	}
 
-	return prefix + newContent + suffix
+	return newContent + content
 }
