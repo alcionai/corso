@@ -169,10 +169,12 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 	attempted := len(col.jobs)
 	status := support.CreateStatus(ctx,
 		support.Backup,
-		attempted,
-		success,
 		1,
-		totalBytes,
+		support.CollectionMetrics{
+			Objects:    attempted,
+			Successes:  success,
+			TotalBytes: totalBytes,
+		},
 		errs,
 		col.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
