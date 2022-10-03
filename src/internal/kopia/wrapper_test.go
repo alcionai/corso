@@ -780,6 +780,34 @@ type backedupFile struct {
 	data       []byte
 }
 
+func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() {
+	table := []struct {
+		name        string
+		collections []data.Collection
+	}{
+		{
+			name:        "NilCollections",
+			collections: nil,
+		},
+		{
+			name:        "EmptyCollections",
+			collections: []data.Collection{},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			s, d, err := suite.w.BackupCollections(ctx, test.collections)
+			require.NoError(t, err)
+
+			assert.Equal(t, BackupStats{}, *s)
+			assert.Empty(t, d.Entries)
+		})
+	}
+}
+
 type KopiaSimpleRepoIntegrationSuite struct {
 	suite.Suite
 	w          *Wrapper
