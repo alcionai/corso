@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -231,13 +230,9 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 		service = "exchange"
 	)
 
-	m356User := tester.M365UserID(t)
-
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders([]string{m356User}, []string{exchange.DefaultMailFolder}))
-	// bsel.Include(bsel.Users([]string{m356User}))
-	// bsel.Include(bsel.Users(selectors.Any()))
+	bsel.Include(bsel.MailFolders(selectors.Any(), selectors.Any()))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
