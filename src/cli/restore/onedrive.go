@@ -36,16 +36,18 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, oneDriveRestoreCmd())
 
+		c.Use = c.Use + oneDriveServiceCommandUseSuffix
+
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		fs.StringSliceVar(&user,
 			"user", nil,
-			"Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Restore data by user ID; accepts "+utils.Wildcard+" to select all users.")
 
 		// onedrive hierarchy (path/name) flags
 
@@ -86,7 +88,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	return c
 }
 
-const oneDriveServiceCommand = "onedrive"
+const (
+	oneDriveServiceCommand          = "onedrive"
+	oneDriveServiceCommandUseSuffix = " --backup <backupId>"
+)
 
 // `corso restore onedrive [<flag>...]`
 func oneDriveRestoreCmd() *cobra.Command {
