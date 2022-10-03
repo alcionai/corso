@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
@@ -21,6 +22,8 @@ const (
 	defaultKopiaConfigDir  = "/tmp/"
 	defaultKopiaConfigFile = "repository.config"
 	defaultCompressor      = "s2-default"
+	// Interval of 0 disables scheduling.
+	defaultSchedulingInterval = time.Second * 0
 )
 
 const defaultConfigErrTmpl = "setting default repo config values"
@@ -237,6 +240,10 @@ func (w *conn) setDefaultConfigValues(ctx context.Context) error {
 		changed = true
 	}
 
+	if updateSchedulingOnPolicy(defaultSchedulingInterval, p) {
+		changed = true
+	}
+
 	if !changed {
 		return nil
 	}
@@ -301,6 +308,19 @@ func updateRetentionOnPolicy(retention policy.RetentionPolicy, p *policy.Policy)
 	}
 
 	p.RetentionPolicy = retention
+
+	return true
+}
+
+func updateSchedulingOnPolicy(
+	interval time.Duration,
+	p *policy.Policy,
+) bool {
+	if p.SchedulingPolicy.Interval() == interval {
+		return false
+	}
+
+	p.SchedulingPolicy.SetInterval(interval)
 
 	return true
 }
