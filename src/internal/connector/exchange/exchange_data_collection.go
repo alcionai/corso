@@ -113,8 +113,9 @@ func (col *Collection) populateByOptionIdentifier(
 	ctx context.Context,
 ) {
 	var (
-		errs                error
-		success, totalBytes int
+		errs       error
+		success    int
+		totalBytes int64
 	)
 
 	defer func() {
@@ -144,7 +145,7 @@ func (col *Collection) populateByOptionIdentifier(
 			continue
 		}
 
-		length, err := serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
+		byteCount, err := serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
 		if err != nil {
 			errs = support.WrapAndAppendf(user, err, errs)
 
@@ -157,13 +158,13 @@ func (col *Collection) populateByOptionIdentifier(
 
 		success++
 
-		totalBytes += length
+		totalBytes += int64(byteCount)
 	}
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
-func (col *Collection) finishPopulation(ctx context.Context, success, totalBytes int, errs error) {
+func (col *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
 	close(col.data)
 	attempted := len(col.jobs)
 	status := support.CreateStatus(ctx,
