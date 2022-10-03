@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -252,17 +253,18 @@ func (gc *GraphConnector) RestoreDataCollections(
 	selector selectors.Selector,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
-) error {
+) (*details.Details, error) {
 	gc.region = trace.StartRegion(ctx, "connector:restore")
 
 	var (
 		status *support.ConnectorOperationStatus
 		err    error
+		deets  = &details.Details{}
 	)
 
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs)
+		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs)
 	default:
@@ -272,7 +274,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	gc.incrementAwaitingMessages()
 	gc.UpdateStatus(status)
 
-	return err
+	return deets, err
 }
 
 // createCollection - utility function that retrieves M365

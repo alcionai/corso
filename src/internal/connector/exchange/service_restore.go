@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -288,6 +289,7 @@ func RestoreExchangeDataCollections(
 	gs graph.Service,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
+	deets *details.Details,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		pathCounter = map[string]bool{}
@@ -303,7 +305,7 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		temp, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, errUpdater)
+		temp, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, deets, errUpdater)
 
 		metrics.Combine(temp)
 
@@ -333,6 +335,7 @@ func restoreCollection(
 	pathCounter map[string]bool,
 	dest control.RestoreDestination,
 	policy control.CollisionPolicy,
+	deets *details.Details,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, string, bool) {
 	defer trace.StartRegion(ctx, "gc:exchange:restoreCollection").End()
@@ -392,6 +395,18 @@ func restoreCollection(
 
 			metrics.TotalBytes += int64(len(byteArray))
 			metrics.Successes++
+
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				continue
+			}
+
+			deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				details.ItemInfo{})
 		}
 	}
 }
