@@ -466,5 +466,5 @@ func insertStringToBody(body getContenter, newContent string) string {
 		return prefix + newContent + suffix
 	}
 
-	return newContent
+	return newContent + content
 }
