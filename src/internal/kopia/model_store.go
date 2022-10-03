@@ -14,6 +14,7 @@ import (
 const stableIDKey = "stableID"
 
 var (
+	ErrNotFound           = errors.New("not found")
 	errNoModelStoreID     = errors.New("model has no ModelStoreID")
 	errNoStableID         = errors.New("model has no StableID")
 	errBadTagKey          = errors.New("tag key overlaps with required key")
@@ -219,8 +220,7 @@ func (ms *ModelStore) GetIDsForType(
 }
 
 // getModelStoreID gets the ModelStoreID of the model with the given
-// StableID. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no
-// model was found. Returns an error if the given StableID is empty or more than
+// StableID. Returns an error if the given StableID is empty or more than
 // one model has the same StableID.
 func (ms *ModelStore) getModelStoreID(
 	ctx context.Context,
@@ -243,7 +243,7 @@ func (ms *ModelStore) getModelStoreID(
 	}
 
 	if len(metadata) == 0 {
-		return "", errors.Wrap(manifest.ErrNotFound, "getting ModelStoreID")
+		return "", errors.Wrap(ErrNotFound, "getting ModelStoreID")
 	}
 
 	if len(metadata) != 1 {
@@ -257,10 +257,9 @@ func (ms *ModelStore) getModelStoreID(
 	return metadata[0].ID, nil
 }
 
-// Get deserializes the model with the given StableID into data. Returns
-// github.com/kopia/kopia/repo/manifest.ErrNotFound if no model was found.
-// Returns and error if the persisted model has a different type than expected
-// or if multiple models have the same StableID.
+// Get deserializes the model with the given StableID into data.
+// Returns an error if the persisted model has a different type
+// than expected or if multiple models have the same StableID.
 func (ms *ModelStore) Get(
 	ctx context.Context,
 	s model.Schema,
@@ -276,12 +275,11 @@ func (ms *ModelStore) Get(
 		return err
 	}
 
-	return ms.GetWithModelStoreID(ctx, s, modelID, data)
+	return transmuteErr(ms.GetWithModelStoreID(ctx, s, modelID, data))
 }
 
 // GetWithModelStoreID deserializes the model with the given ModelStoreID into
-// data. Returns github.com/kopia/kopia/repo/manifest.ErrNotFound if no model
-// was found. Returns and error if the persisted model has a different type than
+// data. Returns and error if the persisted model has a different type than
 // expected.
 func (ms *ModelStore) GetWithModelStoreID(
 	ctx context.Context,
@@ -298,10 +296,8 @@ func (ms *ModelStore) GetWithModelStoreID(
 	}
 
 	metadata, err := ms.c.GetManifest(ctx, id, data)
-	// TODO(ashmrtnz): Should probably return some recognizable, non-kopia error
-	// if not found. That way kopia doesn't need to be imported to higher layers.
 	if err != nil {
-		return errors.Wrap(err, "getting model data")
+		return errors.Wrap(transmuteErr(err), "getting model data")
 	}
 
 	if metadata.Labels[manifest.TypeLabelKey] != s.String() {
@@ -423,7 +419,7 @@ func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stabl
 
 	latest, err := ms.getModelStoreID(ctx, s, id)
 	if err != nil {
-		if errors.Is(err, manifest.ErrNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return nil
 		}
 
@@ -451,4 +447,13 @@ func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID
 	)
 
 	return errors.Wrap(err, "deleting model")
+}
+
+func transmuteErr(err error) error {
+	switch {
+	case errors.Is(err, manifest.ErrNotFound):
+		return ErrNotFound
+	default:
+		return err
+	}
 }
