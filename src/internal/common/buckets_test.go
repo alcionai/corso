@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 type CommonBucketsSuite struct {
