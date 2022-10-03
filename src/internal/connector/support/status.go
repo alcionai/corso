@@ -28,14 +28,14 @@ type ConnectorOperationStatus struct {
 }
 
 type CollectionMetrics struct {
-	attempts, successes int
-	totalBytes          int64
+	Objects, Successes int
+	TotalBytes         int64
 }
 
 func (cm *CollectionMetrics) Combine(additional CollectionMetrics) {
-	cm.attempts += additional.attempts
-	cm.successes += additional.successes
-	cm.totalBytes += additional.totalBytes
+	cm.Objects += additional.Objects
+	cm.Successes += additional.Successes
+	cm.TotalBytes += additional.TotalBytes
 }
 
 type Operation int
@@ -51,8 +51,8 @@ const (
 func CreateStatus(
 	ctx context.Context,
 	op Operation,
-	objects, success, folders int,
-	bytes int64,
+	folders int,
+	cm CollectionMetrics,
 	err error,
 	details string,
 ) *ConnectorOperationStatus {
@@ -66,21 +66,21 @@ func CreateStatus(
 	numErr := GetNumberOfErrors(err)
 	status := ConnectorOperationStatus{
 		lastOperation:     op,
-		ObjectCount:       objects,
+		ObjectCount:       cm.Objects,
 		FolderCount:       folders,
-		Successful:        success,
+		Successful:        cm.Successes,
 		errorCount:        numErr,
 		incomplete:        hasErrors,
 		incompleteReason:  reason,
-		bytes:             bytes,
+		bytes:             cm.TotalBytes,
 		additionalDetails: details,
 	}
 
 	if status.ObjectCount != status.errorCount+status.Successful {
 		logger.Ctx(ctx).DPanicw(
 			"status object count does not match errors + successes",
-			"objects", objects,
-			"successes", success,
+			"objects", cm.Objects,
+			"successes", cm.Successes,
 			"numErrors", numErr,
 			"errors", err.Error())
 	}
