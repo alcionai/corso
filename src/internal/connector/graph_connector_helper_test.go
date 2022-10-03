@@ -50,7 +50,16 @@ func mustToDataLayerPath(
 	return res
 }
 
-func emptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
+func emptyOrEqual[T any](expected *T, got *T) bool {
+	if expected == nil || got == nil {
+		// Creates either the zero value or gets the value pointed to.
+		return reflect.DeepEqual(reflect.ValueOf(expected).Elem(), reflect.ValueOf(got).Elem())
+	}
+
+	return reflect.DeepEqual(*expected, *got)
+}
+
+func testEmptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
 	t.Helper()
 
 	if expected == nil || got == nil {
@@ -90,7 +99,7 @@ func checkMessage(
 ) {
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
-	emptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
+	testEmptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
 
 	// Skip Body.Content as there may be display formatting that changes.
 
@@ -114,44 +123,44 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetFrom(), got.GetFrom(), "From")
 
-	emptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
+	testEmptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
+	testEmptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
 
-	emptyOrEqual(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
+	testEmptyOrEqual(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
 
 	assert.Equal(t, expected.GetInternetMessageHeaders(), got.GetInternetMessageHeaders(), "InternetMessageHeaders")
 
-	emptyOrEqual(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
+	testEmptyOrEqual(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
 
-	emptyOrEqual(
+	testEmptyOrEqual(
 		t,
 		expected.GetIsDeliveryReceiptRequested(),
 		got.GetIsDeliveryReceiptRequested(),
 		"IsDeliverReceiptRequested",
 	)
 
-	emptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
+	testEmptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
 
-	emptyOrEqual(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
+	testEmptyOrEqual(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
 
-	emptyOrEqual(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
+	testEmptyOrEqual(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
 	// Skip ParentFolderId as we restore to a different folder by default.
 
-	emptyOrEqual(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
+	testEmptyOrEqual(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
 	assert.Equal(t, expected.GetSender(), got.GetSender(), "Sender")
 
-	emptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
+	testEmptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
 
-	emptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
+	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
 	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
 
@@ -165,13 +174,13 @@ func checkContact(
 	expected models.Contactable,
 	got models.Contactable,
 ) {
-	emptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
+	testEmptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
 
-	emptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
+	testEmptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
 
 	assert.Equal(t, expected.GetBusinessAddress(), got.GetBusinessAddress())
 
-	emptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
+	testEmptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
 
 	assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
 
@@ -181,21 +190,21 @@ func checkContact(
 
 	assert.Equal(t, expected.GetChildren(), got.GetChildren())
 
-	emptyOrEqual(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
+	testEmptyOrEqual(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetDepartment(), got.GetDepartment(), "Department")
+	testEmptyOrEqual(t, expected.GetDepartment(), got.GetDepartment(), "Department")
 
-	emptyOrEqual(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
+	testEmptyOrEqual(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
 
 	assert.Equal(t, expected.GetEmailAddresses(), got.GetEmailAddresses())
 
-	emptyOrEqual(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
+	testEmptyOrEqual(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
 
-	emptyOrEqual(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
+	testEmptyOrEqual(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
 
-	emptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
+	testEmptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
 
 	assert.Equal(t, expected.GetHomeAddress(), got.GetHomeAddress())
 
@@ -205,43 +214,252 @@ func checkContact(
 
 	assert.Equal(t, expected.GetImAddresses(), got.GetImAddresses())
 
-	emptyOrEqual(t, expected.GetInitials(), got.GetInitials(), "Initials")
+	testEmptyOrEqual(t, expected.GetInitials(), got.GetInitials(), "Initials")
 
-	emptyOrEqual(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
+	testEmptyOrEqual(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetManager(), got.GetManager(), "Manager")
+	testEmptyOrEqual(t, expected.GetManager(), got.GetManager(), "Manager")
 
-	emptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
+	testEmptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
 
-	emptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
+	testEmptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
 
-	emptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
+	testEmptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
 
-	emptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
+	testEmptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
 
 	assert.Equal(t, expected.GetOtherAddress(), got.GetOtherAddress())
 
 	// Skip ParentFolderId as it's tied to this specific instance of the item.
 
-	emptyOrEqual(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
+	testEmptyOrEqual(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
 
 	assert.Equal(t, expected.GetPhoto(), got.GetPhoto())
 
-	emptyOrEqual(t, expected.GetProfession(), got.GetProfession(), "Profession")
+	testEmptyOrEqual(t, expected.GetProfession(), got.GetProfession(), "Profession")
 
-	emptyOrEqual(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
+	testEmptyOrEqual(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
 
-	emptyOrEqual(t, expected.GetSurname(), got.GetSurname(), "Surname")
+	testEmptyOrEqual(t, expected.GetSurname(), got.GetSurname(), "Surname")
 
-	emptyOrEqual(t, expected.GetTitle(), got.GetTitle(), "Title")
+	testEmptyOrEqual(t, expected.GetTitle(), got.GetTitle(), "Title")
 
-	emptyOrEqual(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
+	testEmptyOrEqual(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
 
-	emptyOrEqual(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
+	testEmptyOrEqual(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
 
-	emptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
+	testEmptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
+}
+
+func checkLocations(
+	t *testing.T,
+	expected []models.Locationable,
+	got []models.Locationable,
+) {
+	pending := make([]*models.Locationable, len(expected))
+	for i := 0; i < len(expected); i++ {
+		pending[i] = &expected[i]
+	}
+
+	unexpected := []models.Locationable{}
+
+	for i := 0; i < len(got); i++ {
+		found := false
+
+		for j, maybe := range pending {
+			if maybe == nil {
+				// Already matched with something in got.
+				continue
+			}
+
+			// Item matched, break out of inner loop and move to next item in got.
+			if locationEqual(*maybe, got[i]) {
+				pending[j] = nil
+				found = true
+
+				break
+			}
+		}
+
+		if !found {
+			unexpected = append(unexpected, got[i])
+		}
+	}
+
+	// Print differences.
+	missing := []models.Locationable{}
+
+	for _, p := range pending {
+		if p == nil {
+			continue
+		}
+
+		missing = append(missing, *p)
+	}
+
+	if len(unexpected) == 0 && len(missing) == 0 {
+		return
+	}
+
+	assert.Failf(
+		t,
+		"contain different elements",
+		"missing items: (%T)%v\nunexpected items: (%T)%v\n",
+		expected,
+		missing,
+		got,
+		unexpected,
+	)
+}
+
+func locationEqual(expected, got models.Locationable) bool {
+	if !reflect.DeepEqual(expected.GetAddress(), got.GetAddress()) {
+		return false
+	}
+
+	if !reflect.DeepEqual(expected.GetCoordinates(), got.GetCoordinates()) {
+		return false
+	}
+
+	if !emptyOrEqual(expected.GetDisplayName(), got.GetDisplayName()) {
+		return false
+	}
+
+	if !emptyOrEqual(expected.GetLocationEmailAddress(), got.GetLocationEmailAddress()) {
+		return false
+	}
+
+	if !emptyOrEqual(expected.GetLocationType(), got.GetLocationType()) {
+		return false
+	}
+
+	// Skip checking UniqueId as it's marked as for internal use only.
+
+	// Skip checking UniqueIdType as it's marked as for internal use only.
+
+	if !emptyOrEqual(expected.GetLocationUri(), got.GetLocationUri()) {
+		return false
+	}
+
+	return true
+}
+
+func checkEvent(
+	t *testing.T,
+	expected models.Eventable,
+	got models.Eventable,
+) {
+	testEmptyOrEqual(t, expected.GetAllowNewTimeProposals(), got.GetAllowNewTimeProposals(), "AllowNewTimeProposals")
+
+	assert.Equal(t, expected.GetAttachments(), got.GetAttachments(), "Attachments")
+
+	assert.Equal(t, expected.GetAttendees(), got.GetAttendees(), "Attendees")
+
+	testEmptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
+
+	// Skip checking Body.Content for now as M365 may have different formatting.
+
+	// Skip checking BodyPreview for now as M365 may have different formatting.
+
+	assert.Equal(t, expected.GetCalendar(), got.GetCalendar(), "Calendar")
+
+	assert.Equal(t, expected.GetCategories(), got.GetCategories(), "Categories")
+
+	// Skip ChangeKey as it's tied to this specific instance of the item.
+
+	// Skip CreatedDateTime as it's tied to this specific instance of the item.
+
+	assert.Equal(t, expected.GetEnd(), got.GetEnd(), "End")
+
+	testEmptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
+
+	testEmptyOrEqual(t, expected.GetHideAttendees(), got.GetHideAttendees(), "HideAttendees")
+
+	// TODO(ashmrtn): Uncomment when we figure out how to connect to the original
+	// event.
+	// testEmptyOrEqual(t, expected.GetICalUId(), got.GetICalUId(), "ICalUId")
+
+	// Skip Id as it's tied to this specific instance of the item.
+
+	testEmptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
+
+	assert.Equal(t, expected.GetInstances(), got.GetInstances(), "Instances")
+
+	testEmptyOrEqual(t, expected.GetIsAllDay(), got.GetIsAllDay(), "IsAllDay")
+
+	testEmptyOrEqual(t, expected.GetIsCancelled(), got.GetIsCancelled(), "IsCancelled")
+
+	testEmptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
+
+	testEmptyOrEqual(t, expected.GetIsOnlineMeeting(), got.GetIsOnlineMeeting(), "IsOnlineMeeting")
+
+	// TODO(ashmrtn): Uncomment when we figure out how to delegate event creation
+	// to another user.
+	// testEmptyOrEqual(t, expected.GetIsOrganizer(), got.GetIsOrganizer(), "IsOrganizer")
+
+	testEmptyOrEqual(t, expected.GetIsReminderOn(), got.GetIsReminderOn(), "IsReminderOn")
+
+	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
+
+	// Cheating a little here in the name of code-reuse. model.Location needs
+	// custom compare logic because it has fields marked as "internal use only"
+	// that seem to change.
+	checkLocations(
+		t,
+		[]models.Locationable{expected.GetLocation()},
+		[]models.Locationable{got.GetLocation()},
+	)
+
+	checkLocations(t, expected.GetLocations(), got.GetLocations())
+
+	assert.Equal(t, expected.GetOnlineMeeting(), got.GetOnlineMeeting(), "OnlineMeeting")
+
+	testEmptyOrEqual(t, expected.GetOnlineMeetingProvider(), got.GetOnlineMeetingProvider(), "OnlineMeetingProvider")
+
+	testEmptyOrEqual(t, expected.GetOnlineMeetingUrl(), got.GetOnlineMeetingUrl(), "OnlineMeetingUrl")
+
+	// TODO(ashmrtn): Uncomment when we figure out how to delegate event creation
+	// to another user.
+	// assert.Equal(t, expected.GetOrganizer(), got.GetOrganizer(), "Organizer")
+
+	testEmptyOrEqual(t, expected.GetOriginalEndTimeZone(), got.GetOriginalEndTimeZone(), "OriginalEndTimeZone")
+
+	testEmptyOrEqual(t, expected.GetOriginalStart(), got.GetOriginalStart(), "OriginalStart")
+
+	testEmptyOrEqual(t, expected.GetOriginalStartTimeZone(), got.GetOriginalStartTimeZone(), "OriginalStartTimeZone")
+
+	assert.Equal(t, expected.GetRecurrence(), got.GetRecurrence(), "Recurrence")
+
+	testEmptyOrEqual(
+		t,
+		expected.GetReminderMinutesBeforeStart(),
+		got.GetReminderMinutesBeforeStart(),
+		"ReminderMinutesBeforeStart",
+	)
+
+	testEmptyOrEqual(t, expected.GetResponseRequested(), got.GetResponseRequested(), "ResponseRequested")
+
+	// TODO(ashmrtn): Uncomment when we figure out how to connect to the original
+	// event.
+	// assert.Equal(t, expected.GetResponseStatus(), got.GetResponseStatus(), "ResponseStatus")
+
+	testEmptyOrEqual(t, expected.GetSensitivity(), got.GetSensitivity(), "Sensitivity")
+
+	testEmptyOrEqual(t, expected.GetSeriesMasterId(), got.GetSeriesMasterId(), "SeriesMasterId")
+
+	testEmptyOrEqual(t, expected.GetShowAs(), got.GetShowAs(), "ShowAs")
+
+	assert.Equal(t, expected.GetStart(), got.GetStart(), "Start")
+
+	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
+
+	testEmptyOrEqual(t, expected.GetTransactionId(), got.GetTransactionId(), "TransactionId")
+
+	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
+
+	testEmptyOrEqual(t, expected.GetType(), got.GetType(), "Type")
 }
 
 func compareExchangeEmail(
@@ -296,6 +514,32 @@ func compareExchangeContact(
 	checkContact(t, expectedContact, itemContact)
 }
 
+func compareExchangeEvent(
+	t *testing.T,
+	expected map[string][]byte,
+	item data.Stream,
+) {
+	itemData, err := io.ReadAll(item.ToReader())
+	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+		return
+	}
+
+	itemEvent, err := support.CreateEventFromBytes(itemData)
+	if !assert.NoError(t, err, "deserializing backed up contact") {
+		return
+	}
+
+	expectedBytes, ok := expected[*itemEvent.GetSubject()]
+	if !assert.True(t, ok, "unexpected item with subject %q", *itemEvent.GetSubject()) {
+		return
+	}
+
+	expectedEvent, err := support.CreateEventFromBytes(expectedBytes)
+	assert.NoError(t, err, "deserializing source contact")
+
+	checkEvent(t, expectedEvent, itemEvent)
+}
+
 func compareItem(
 	t *testing.T,
 	expected map[string][]byte,
@@ -310,6 +554,8 @@ func compareItem(
 			compareExchangeEmail(t, expected, item)
 		case path.ContactsCategory:
 			compareExchangeContact(t, expected, item)
+		case path.EventsCategory:
+			compareExchangeEvent(t, expected, item)
 		default:
 			assert.FailNowf(t, "unexpected Exchange category: %s", category.String())
 		}

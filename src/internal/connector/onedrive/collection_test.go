@@ -60,7 +60,9 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	wg := sync.WaitGroup{}
 	collStatus := support.ConnectorOperationStatus{}
 
-	folderPath, err := getCanonicalPath("dir1/dir2/dir3", "a-tenant", "a-user")
+	folderPath, err := getCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "a-tenant", "a-user")
+	require.NoError(t, err)
+	driveFolderPath, err := getDriveFolderPath(folderPath)
 	require.NoError(t, err)
 
 	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
@@ -106,7 +108,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	require.NotNil(t, readItemInfo.Info())
 	require.NotNil(t, readItemInfo.Info().OneDrive)
 	assert.Equal(t, testItemName, readItemInfo.Info().OneDrive.ItemName)
-	assert.Equal(t, folderPath.String(), readItemInfo.Info().OneDrive.ParentPath)
+	assert.Equal(t, driveFolderPath, readItemInfo.Info().OneDrive.ParentPath)
 }
 
 func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {

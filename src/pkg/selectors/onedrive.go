@@ -3,7 +3,9 @@ package selectors
 import (
 	"context"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -202,6 +204,65 @@ func (s *oneDrive) Items(users, folders, items []string) []OneDriveScope {
 	return scopes
 }
 
+// -------------------
+// Filter Factories
+
+// CreatedAfter produces a OneDrive item created-after filter scope.
+// Matches any item where the created time is after the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *oneDrive) CreatedAfter(timeStrings string) []OneDriveScope {
+	return []OneDriveScope{
+		makeFilterScope[OneDriveScope](
+			OneDriveItem,
+			FileFilterCreatedAfter,
+			[]string{timeStrings},
+			wrapFilter(filters.Less)),
+	}
+}
+
+// CreatedBefore produces a OneDrive item created-before filter scope.
+// Matches any item where the created time is before the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *oneDrive) CreatedBefore(timeStrings string) []OneDriveScope {
+	return []OneDriveScope{
+		makeFilterScope[OneDriveScope](
+			OneDriveItem,
+			FileFilterCreatedBefore,
+			[]string{timeStrings},
+			wrapFilter(filters.Greater)),
+	}
+}
+
+// ModifiedAfter produces a OneDrive item modified-after filter scope.
+// Matches any item where the modified time is after the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *oneDrive) ModifiedAfter(timeStrings string) []OneDriveScope {
+	return []OneDriveScope{
+		makeFilterScope[OneDriveScope](
+			OneDriveItem,
+			FileFilterModifiedAfter,
+			[]string{timeStrings},
+			wrapFilter(filters.Less)),
+	}
+}
+
+// ModifiedBefore produces a OneDrive item modified-before filter scope.
+// Matches any item where the modified time is before the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *oneDrive) ModifiedBefore(timeStrings string) []OneDriveScope {
+	return []OneDriveScope{
+		makeFilterScope[OneDriveScope](
+			OneDriveItem,
+			FileFilterModifiedBefore,
+			[]string{timeStrings},
+			wrapFilter(filters.Greater)),
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -219,6 +280,12 @@ const (
 	OneDriveUser   oneDriveCategory = "OneDriveUser"
 	OneDriveItem   oneDriveCategory = "OneDriveItem"
 	OneDriveFolder oneDriveCategory = "OneDriveFolder"
+
+	// filterable topics identified by OneDrive
+	FileFilterCreatedAfter   oneDriveCategory = "FileFilterCreatedAfter"
+	FileFilterCreatedBefore  oneDriveCategory = "FileFilterCreatedBefore"
+	FileFilterModifiedAfter  oneDriveCategory = "FileFilterModifiedAfter"
+	FileFilterModifiedBefore oneDriveCategory = "FileFilterModifiedBefore"
 )
 
 // oneDrivePathSet describes the category type keys used in OneDrive paths.
@@ -240,7 +307,9 @@ func (c oneDriveCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c oneDriveCategory) leafCat() categorizer {
 	switch c {
-	case OneDriveFolder, OneDriveItem:
+	case OneDriveFolder, OneDriveItem,
+		FileFilterCreatedAfter, FileFilterCreatedBefore,
+		FileFilterModifiedAfter, FileFilterModifiedBefore:
 		return OneDriveItem
 	}
 
@@ -269,9 +338,12 @@ func (c oneDriveCategory) isLeaf() bool {
 // [tenantID, service, userPN, category, folder, fileID]
 // => {odUser: userPN, odFolder: folder, odFileID: fileID}
 func (c oneDriveCategory) pathValues(p path.Path) map[categorizer]string {
+	// Ignore `drives/<driveID>/root:` for folder comparison
+	folder := path.Builder{}.Append(p.Folders()...).PopFront().PopFront().PopFront().String()
+
 	return map[categorizer]string{
 		OneDriveUser:   p.ResourceOwner(),
-		OneDriveFolder: p.Folder(), // TODO: Should we filter out the DriveID here?
+		OneDriveFolder: folder,
 		OneDriveItem:   p.Item(),
 	}
 }
@@ -360,31 +432,18 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 		return false
 	}
 
-	// the scope must define targets to match on
 	filterCat := s.FilterCategory()
-	targets := s.Get(filterCat)
 
-	if len(targets) == 0 {
-		return false
+	i := ""
+
+	switch filterCat {
+	case FileFilterCreatedAfter, FileFilterCreatedBefore:
+		i = common.FormatTime(info.Created)
+	case FileFilterModifiedAfter, FileFilterModifiedBefore:
+		i = common.FormatTime(info.LastModified)
 	}
 
-	if targets[0] == AnyTgt {
-		return true
-	}
-
-	if targets[0] == NoneTgt {
-		return false
-	}
-	// any of the targets for a given info filter may succeed.
-	for _, target := range targets {
-		switch filterCat {
-		// TODO: populate oneDrive filter checks
-		default:
-			return target != NoneTgt
-		}
-	}
-
-	return false
+	return s.Matches(filterCat, i)
 }
 
 // ---------------------------------------------------------------------------

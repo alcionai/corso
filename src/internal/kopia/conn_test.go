@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
@@ -259,6 +260,18 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 				newRetentionDaily := policy.OptionalInt(42)
 				newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
 				updateRetentionOnPolicy(newRetention, p)
+
+				return nil
+			},
+		},
+		{
+			name: "Scheduling",
+			checkFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(t, time.Second*0, p.SchedulingPolicy.Interval())
+			},
+			mutator: func(innerCtx context.Context, p *policy.Policy) error {
+				updateSchedulingOnPolicy(time.Second*42, p)
 
 				return nil
 			},
