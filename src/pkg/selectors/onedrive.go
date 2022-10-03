@@ -442,6 +442,7 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 	case FileFilterModifiedAfter, FileFilterModifiedBefore:
 		i = common.FormatTime(info.LastModified)
 	}
+
 	return s.Matches(filterCat, i)
 }
 
