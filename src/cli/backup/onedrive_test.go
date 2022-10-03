@@ -29,10 +29,22 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"create onedrive", createCommand, expectUse + oneDriveServiceCommandCreateUseSuffix, oneDriveCreateCmd().Short, createOneDriveCmd},
-		{"list onedrive", listCommand, expectUse, oneDriveListCmd().Short, listOneDriveCmd},
-		{"details onedrive", detailsCommand, expectUse + oneDriveServiceCommandDetailsUseSuffix, oneDriveDetailsCmd().Short, detailsOneDriveCmd},
-		{"delete onedrive", deleteCommand, expectUse + oneDriveServiceCommandDeleteUseSuffix, oneDriveDeleteCmd().Short, deleteOneDriveCmd},
+		{
+			"create onedrive", createCommand, expectUse + oneDriveServiceCommandCreateUseSuffix,
+			oneDriveCreateCmd().Short, createOneDriveCmd,
+		},
+		{
+			"list onedrive", listCommand, expectUse,
+			oneDriveListCmd().Short, listOneDriveCmd,
+		},
+		{
+			"details onedrive", detailsCommand, expectUse + oneDriveServiceCommandDetailsUseSuffix,
+			oneDriveDetailsCmd().Short, detailsOneDriveCmd,
+		},
+		{
+			"delete onedrive", deleteCommand, expectUse + oneDriveServiceCommandDeleteUseSuffix,
+			oneDriveDeleteCmd().Short, deleteOneDriveCmd,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
