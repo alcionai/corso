@@ -56,7 +56,12 @@ const (
 	dataEvents   = "events"
 )
 
-const exchangeServiceCommand = "exchange"
+const (
+	exchangeServiceCommand                 = "exchange"
+	exchangeServiceCommandCreateUseSuffix  = " --all | --user <userId or email>"
+	exchangeServiceCommandDeleteUseSuffix  = " --backup <backupId>"
+	exchangeServiceCommandDetailsUseSuffix = " --backup <backupId>"
+)
 
 // called by backup.go to map parent subcommands to provider-specific handling.
 func addExchangeCommands(parent *cobra.Command) *cobra.Command {
@@ -68,6 +73,8 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	switch parent.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
+
+		c.Use = c.Use + exchangeServiceCommandCreateUseSuffix
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -90,91 +97,96 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 
+		c.Use = c.Use + exchangeServiceCommandDetailsUseSuffix
+
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
 		fs.StringVar(&backupID,
 			"backup", "",
-			"ID of the backup containing the details to be shown")
+			"ID of the backup to explore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 		fs.StringSliceVar(
 			&user,
 			"user", nil,
-			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users.")
 
 		// email flags
 		fs.StringSliceVar(
 			&email,
 			"email", nil,
-			"Select backup details by emails ID; accepts "+utils.Wildcard+" to select all emails")
+			"Select backup details for emails by email ID; accepts "+utils.Wildcard+" to select all emails.")
 		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder", nil,
-			"Select backup details by email folder ID; accepts "+utils.Wildcard+" to select all email folders")
+			"Select backup details for emails within a folder; accepts "+utils.Wildcard+" to select all email folders.")
 		fs.StringVar(
 			&emailSubject,
 			"email-subject", "",
-			"Restore mail where the email subject lines contain this value")
+			"Select backup details for emails with a subject containing this value.")
 		fs.StringVar(
 			&emailSender,
 			"email-sender", "",
-			"Restore mail where the email sender matches this user id")
+			"Select backup details for emails from a specific sender.")
 		fs.StringVar(
 			&emailReceivedAfter,
 			"email-received-after", "",
-			"Restore mail where the email was received after this datetime")
+			"Select backup details for emails received after this datetime.")
 		fs.StringVar(
 			&emailReceivedBefore,
 			"email-received-before", "",
-			"Restore mail where the email was received before this datetime")
+			"Select backup details for emails received before this datetime.")
 
 		// event flags
 		fs.StringSliceVar(
 			&event,
 			"event", nil,
-			"Select backup details by event ID; accepts "+utils.Wildcard+" to select all events")
+			"Select backup details for events by event ID; accepts "+utils.Wildcard+" to select all events.")
 		fs.StringSliceVar(
 			&eventCalendar,
 			"event-calendar", nil,
-			"Select backup details by event calendar ID; accepts "+utils.Wildcard+" to select all events")
+			"Select backup details for events under a calendar; accepts "+utils.Wildcard+" to select all events.")
 		fs.StringVar(
 			&eventSubject,
 			"event-subject", "",
-			"Select backup details where the event subject contains this value")
+			"Select backup details for events with a subject containing this value.")
 		fs.StringVar(
 			&eventOrganizer,
 			"event-organizer", "",
-			"Select backup details where the event organizer user id contains this value")
+			"Select backup details for events from a specific organizer.")
 		fs.StringVar(
 			&eventRecurs,
 			"event-recurs", "",
-			"Select backup details if the event recurs. Use `--event-recurs` false to select non-recurring events")
+			"Select backup details for recurring events. Use `--event-recurs false` to select non-recurring events.")
 		fs.StringVar(
 			&eventStartsAfter,
 			"event-starts-after", "",
-			"Select backup details where the event starts after this datetime")
+			"Select backup details for events starting after this datetime.")
 		fs.StringVar(
 			&eventStartsBefore,
 			"event-starts-before", "",
-			"Select backup details where the event starts before this datetime")
+			"Select backup details for events starting before this datetime.")
 
+		// contact flags
 		fs.StringSliceVar(
 			&contact,
 			"contact", nil,
-			"Select backup details by contact ID; accepts "+utils.Wildcard+" to select all contacts")
+			"Select backup details for contacts by contact ID; accepts "+utils.Wildcard+" to select all contacts.")
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder", nil,
-			"Select backup details by contact folder ID; accepts "+utils.Wildcard+" to select all contact folders")
+			"Select backup details for contacts within a folder; accepts "+utils.Wildcard+" to select all contact folders.")
 
-		// exchange-info flags
 		fs.StringVar(
 			&contactName,
 			"contact-name", "",
-			"Select backup details where the contact name contains this value")
+			"Select backup details for contacts whose contact name contains this value.")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
-		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+
+		c.Use = c.Use + exchangeServiceCommandDeleteUseSuffix
+
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 	}
 

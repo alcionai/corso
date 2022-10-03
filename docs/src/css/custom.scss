@@ -129,6 +129,21 @@ html[data-theme='dark'] {
         margin: 8px 0 0 0;
         padding: 4px 0 4px 20px;
       }
+
+      .required {
+        margin-left: 8px;
+        margin-right: 0;
+        position: relative;
+        padding: 0 6px;
+        border-width: 1px;
+        border-radius: 3px;
+        border-color: #fa5035;
+        border-style: solid;
+        color: #fa5035;
+        display: inline-block;
+        letter-spacing: .02rem;
+        font-size: 0.8rem;
+      }
     }
 
     hr {
