@@ -9,6 +9,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+// ConnectorOperationStatus is a data type used to describe the state of
+// the sequence of operations.
+// @param ObjectCount integer representation of how many objects have downloaded or uploaded.
+// @param Successful: Number of objects that are sent through the connector without incident.
+// @param incomplete: Bool representation of whether all intended items were download or uploaded.
+// @param bytes: represents the total number of bytes that have been downloaded or uploaded.
 type ConnectorOperationStatus struct {
 	lastOperation     Operation
 	ObjectCount       int
