@@ -57,6 +57,10 @@ func configureStorage(
 			return store, errors.Wrap(err, "reading s3 configs from corso config file")
 		}
 
+		if b, ok := overrides[storage.Bucket]; ok {
+			overrides[storage.Bucket] = common.NormalizeBucket(b)
+		}
+
 		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
 			return store, errors.Wrap(err, "verifying s3 configs in corso config file")
 		}
