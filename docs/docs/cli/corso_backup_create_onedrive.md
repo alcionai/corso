@@ -7,14 +7,14 @@ hide_title: true
 Backup M365 OneDrive service data
 
 ```bash
-corso backup create onedrive [flags]
+corso backup create onedrive --user <userId or email> | * [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--user`||`[]`|Backup OneDrive data by user ID; accepts * to select all users|
+|`--user`||``|Backup OneDrive data by user ID; accepts * to select all users. <div class='required'>Required</div>|
 |`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags

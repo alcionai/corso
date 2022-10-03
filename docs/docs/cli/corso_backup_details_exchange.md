@@ -7,31 +7,31 @@ hide_title: true
 Shows the details of a M365 Exchange service backup
 
 ```bash
-corso backup details exchange [flags]
+corso backup details exchange --backup <backupId> [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--backup`|||ID of the backup containing the details to be shown|
-|`--user`||`[]`|Select backup details by user ID; accepts * to select all users|
-|`--email`||`[]`|Select backup details by emails ID; accepts * to select all emails|
-|`--email-folder`||`[]`|Select backup details by email folder ID; accepts * to select all email folders|
-|`--email-subject`|||Restore mail where the email subject lines contain this value|
-|`--email-sender`|||Restore mail where the email sender matches this user id|
-|`--email-received-after`|||Restore mail where the email was received after this datetime|
-|`--email-received-before`|||Restore mail where the email was received before this datetime|
-|`--event`||`[]`|Select backup details by event ID; accepts * to select all events|
-|`--event-calendar`||`[]`|Select backup details by event calendar ID; accepts * to select all events|
-|`--event-subject`|||Select backup details where the event subject contains this value|
-|`--event-organizer`|||Select backup details where the event organizer user id contains this value|
-|`--event-recurs`|||Select backup details if the event recurs. Use `--event-recurs` false to select non-recurring events|
-|`--event-starts-after`|||Select backup details where the event starts after this datetime|
-|`--event-starts-before`|||Select backup details where the event starts before this datetime|
-|`--contact`||`[]`|Select backup details by contact ID; accepts * to select all contacts|
-|`--contact-folder`||`[]`|Select backup details by contact folder ID; accepts * to select all contact folders|
-|`--contact-name`|||Select backup details where the contact name contains this value|
+|`--backup`|||ID of the backup to explore. <div class='required'>Required</div>|
+|`--user`||``|Select backup details by user ID; accepts * to select all users.|
+|`--email`||``|Select backup details for emails by email ID; accepts * to select all emails.|
+|`--email-folder`||``|Select backup details for emails within a folder; accepts * to select all email folders.|
+|`--email-subject`|||Select backup details for emails with a subject containing this value.|
+|`--email-sender`|||Select backup details for emails from a specific sender.|
+|`--email-received-after`|||Select backup details for emails received after this datetime.|
+|`--email-received-before`|||Select backup details for emails received before this datetime.|
+|`--event`||``|Select backup details for events by event ID; accepts * to select all events.|
+|`--event-calendar`||``|Select backup details for events under a calendar; accepts * to select all events.|
+|`--event-subject`|||Select backup details for events with a subject containing this value.|
+|`--event-organizer`|||Select backup details for events from a specific organizer.|
+|`--event-recurs`|||Select backup details for recurring events. Use `--event-recurs false` to select non-recurring events.|
+|`--event-starts-after`|||Select backup details for events starting after this datetime.|
+|`--event-starts-before`|||Select backup details for events starting before this datetime.|
+|`--contact`||``|Select backup details for contacts by contact ID; accepts * to select all contacts.|
+|`--contact-folder`||``|Select backup details for contacts within a folder; accepts * to select all contact folders.|
+|`--contact-name`|||Select backup details for contacts whose contact name contains this value.|
 |`--help`|`-h`|`false`|help for exchange|
 
 ### Global and inherited flags
