@@ -92,8 +92,12 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 func statusTestTask(gc *GraphConnector, objects, success, folder int) {
 	status := support.CreateStatus(
 		context.Background(),
-		support.Restore,
-		objects, success, folder, 0,
+		support.Restore, folder,
+		support.CollectionMetrics{
+			Objects:    objects,
+			Successes:  success,
+			TotalBytes: 0,
+		},
 		support.WrapAndAppend(
 			"tres",
 			errors.New("three"),
