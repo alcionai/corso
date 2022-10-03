@@ -1,6 +1,8 @@
 package backup
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -11,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -19,7 +22,22 @@ import (
 // setup and globals
 // ------------------------------------------------------------------------------------------------
 
-const oneDriveServiceCommand = "onedrive"
+const (
+	oneDriveServiceCommand                 = "onedrive"
+	oneDriveServiceCommandCreateUseSuffix  = " --user <userId or email> | " + utils.Wildcard
+	oneDriveServiceCommandDeleteUseSuffix  = " --backup <backupId>"
+	oneDriveServiceCommandDetailsUseSuffix = " --backup <backupId>"
+)
+
+var (
+	folderPaths []string
+	fileNames   []string
+
+	fileCreatedAfter   string
+	fileCreatedBefore  string
+	fileModifiedAfter  string
+	fileModifiedBefore string
+)
 
 // called by backup.go to map parent subcommands to provider-specific handling.
 func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
@@ -32,8 +50,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
 
+		c.Use = c.Use + oneDriveServiceCommandCreateUseSuffix
+
 		fs.StringArrayVar(&user, "user", nil,
-			"Backup OneDrive data by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Backup OneDrive data by user ID; accepts "+utils.Wildcard+" to select all users. (required)")
 		options.AddOperationFlags(c)
 
 	case listCommand:
@@ -41,12 +61,50 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
-		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+
+		c.Use = c.Use + oneDriveServiceCommandDetailsUseSuffix
+
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
+
+		// onedrive hierarchy flags
+
+		fs.StringSliceVar(
+			&folderPaths,
+			"folder", nil,
+			"Select backup details by OneDrive folder; defaults to root")
+
+		fs.StringSliceVar(
+			&fileNames,
+			"file-name", nil,
+			"Select backup details by OneDrive file name")
+
+		// onedrive info flags
+
+		fs.StringVar(
+			&fileCreatedAfter,
+			"file-created-after", "",
+			"Select files created after this datetime")
+		fs.StringVar(
+			&fileCreatedBefore,
+			"file-created-before", "",
+			"Select files created before this datetime")
+
+		fs.StringVar(
+			&fileModifiedAfter,
+			"file-modified-after", "",
+			"Select files modified after this datetime")
+		fs.StringVar(
+			&fileModifiedBefore,
+			"file-modified-before", "",
+			"Select files modified before this datetime")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
-		fs.StringVar(&backupID, "backup", "", "ID of the backup containing the details to be shown")
+
+		c.Use = c.Use + oneDriveServiceCommandDeleteUseSuffix
+
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 	}
 
@@ -202,16 +260,54 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, _, err := r.BackupDetails(ctx, backupID)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to get backup details in the repository"))
+	opts := utils.OneDriveOpts{
+		Users:          user,
+		Paths:          folderPaths,
+		Names:          fileNames,
+		CreatedAfter:   fileCreatedAfter,
+		CreatedBefore:  fileCreatedBefore,
+		ModifiedAfter:  fileModifiedAfter,
+		ModifiedBefore: fileModifiedBefore,
 	}
 
-	// TODO: Support selectors and filters
+	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	if len(ds.Entries) == 0 {
+		Info(ctx, selectors.ErrorNoMatchingItems)
+		return nil
+	}
 
 	ds.PrintEntries(ctx)
 
 	return nil
+}
+
+// runDetailsOneDriveCmd actually performs the lookup in backup details. Assumes
+// len(backupID) > 0.
+func runDetailsOneDriveCmd(
+	ctx context.Context,
+	r repository.BackupGetter,
+	backupID string,
+	opts utils.OneDriveOpts,
+) (*details.Details, error) {
+	d, _, err := r.BackupDetails(ctx, backupID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
+	}
+
+	sel := selectors.NewOneDriveRestore()
+	utils.IncludeOneDriveRestoreDataSelectors(sel, opts)
+	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
+
+	// if no selector flags were specified, get all data in the service.
+	if len(sel.Scopes()) == 0 {
+		sel.Include(sel.Users(selectors.Any()))
+	}
+
+	return sel.Reduce(ctx, d), nil
 }
 
 // `corso backup delete onedrive [<flag>...]`

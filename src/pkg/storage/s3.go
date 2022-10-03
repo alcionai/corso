@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"strings"
-
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 type S3Config struct {
@@ -28,7 +28,7 @@ const (
 
 func (c S3Config) Normalize() S3Config {
 	return S3Config{
-		Bucket:   strings.TrimPrefix(c.Bucket, "s3://"),
+		Bucket:   common.NormalizeBucket(c.Bucket),
 		Endpoint: c.Endpoint,
 		Prefix:   c.Prefix,
 	}

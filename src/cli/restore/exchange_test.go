@@ -20,7 +20,7 @@ func TestExchangeSuite(t *testing.T) {
 }
 
 func (suite *ExchangeSuite) TestAddExchangeCommands() {
-	expectUse := exchangeServiceCommand
+	expectUse := exchangeServiceCommand + exchangeServiceCommandUseSuffix
 
 	table := []struct {
 		name        string

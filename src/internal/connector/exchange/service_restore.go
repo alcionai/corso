@@ -236,6 +236,16 @@ func SendMailToBackStore(
 	user, destination string,
 	message models.Messageable,
 ) error {
+	var (
+		attached []models.Attachmentable
+		errs     error
+	)
+
+	if *message.GetHasAttachments() {
+		attached = message.GetAttachments()
+		message.SetAttachments([]models.Attachmentable{})
+	}
+
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
 		return errors.Wrap(err,
@@ -245,6 +255,26 @@ func SendMailToBackStore(
 
 	if sentMessage == nil {
 		return errors.New("message not Sent: blocked by server")
+	}
+
+	if len(attached) > 0 {
+		id := *sentMessage.GetId()
+		for _, attachment := range attached {
+			_, err = service.Client().
+				UsersById(user).
+				MailFoldersById(destination).
+				MessagesById(id).
+				Attachments().
+				Post(ctx, attachment, nil)
+			if err != nil {
+				errs = support.WrapAndAppend(id,
+					err,
+					errs,
+				)
+			}
+		}
+
+		return errs
 	}
 
 	return nil
@@ -260,10 +290,10 @@ func RestoreExchangeDataCollections(
 	dcs []data.Collection,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		pathCounter         = map[string]bool{}
-		rootFolder          string
-		attempts, successes int
-		errs                error
+		pathCounter = map[string]bool{}
+		rootFolder  string
+		metrics     support.CollectionMetrics
+		errs        error
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
 	)
@@ -273,9 +303,10 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		a, s, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, errUpdater)
-		attempts += a
-		successes += s
+		temp, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, errUpdater)
+
+		metrics.Combine(temp)
+
 		rootFolder = root
 
 		if canceled {
@@ -283,7 +314,12 @@ func RestoreExchangeDataCollections(
 		}
 	}
 
-	status := support.CreateStatus(ctx, support.Restore, attempts, successes, len(pathCounter), errs)
+	status := support.CreateStatus(ctx,
+		support.Restore,
+		len(pathCounter),
+		metrics,
+		errs,
+		dest.ContainerName)
 
 	return status, errs
 }
@@ -298,39 +334,39 @@ func restoreCollection(
 	dest control.RestoreDestination,
 	policy control.CollisionPolicy,
 	errUpdater func(string, error),
-) (int, int, string, bool) {
+) (support.CollectionMetrics, string, bool) {
 	defer trace.StartRegion(ctx, "gc:exchange:restoreCollection").End()
 	trace.Log(ctx, "gc:exchange:restoreCollection", dc.FullPath().String())
 
 	var (
-		attempts, successes int
-		folderID            string
-		err                 error
-		items               = dc.Items()
-		directory           = dc.FullPath()
-		service             = directory.Service()
-		category            = directory.Category()
-		user                = directory.ResourceOwner()
-		directoryCheckFunc  = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
+		metrics            support.CollectionMetrics
+		folderID           string
+		err                error
+		items              = dc.Items()
+		directory          = dc.FullPath()
+		service            = directory.Service()
+		category           = directory.Category()
+		user               = directory.ResourceOwner()
+		directoryCheckFunc = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
 	)
 
 	folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
 	if err != nil { // assuming FailFast
 		errUpdater(directory.String(), err)
-		return 0, 0, rootFolder, false
+		return metrics, rootFolder, false
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			errUpdater("context cancelled", ctx.Err())
-			return attempts, successes, root, true
+			return metrics, root, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return attempts, successes, root, false
+				return metrics, root, false
 			}
-			attempts++
+			metrics.Objects++
 
 			trace.Log(ctx, "gc:exchange:restoreCollection:item", itemData.UUID())
 
@@ -342,7 +378,9 @@ func restoreCollection(
 				continue
 			}
 
-			err = RestoreExchangeObject(ctx, buf.Bytes(), category, policy, gs, folderID, user)
+			byteArray := buf.Bytes()
+
+			err = RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
 			if err != nil {
 				//  More information to be here
 				errUpdater(
@@ -351,7 +389,9 @@ func restoreCollection(
 
 				continue
 			}
-			successes++
+
+			metrics.TotalBytes += int64(len(byteArray))
+			metrics.Successes++
 		}
 	}
 }

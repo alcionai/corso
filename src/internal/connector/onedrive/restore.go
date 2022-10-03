@@ -52,8 +52,8 @@ func RestoreCollections(
 	dcs []data.Collection,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		total, restored int
-		restoreErrors   error
+		restoreMetrics support.CollectionMetrics
+		restoreErrors  error
 	)
 
 	errUpdater := func(id string, err error) {
@@ -62,38 +62,47 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		t, r, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, errUpdater)
-		total += t
-		restored += r
+		temp, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, errUpdater)
+
+		restoreMetrics.Combine(temp)
 
 		if canceled {
 			break
 		}
 	}
 
-	return support.CreateStatus(ctx, support.Restore, total, restored, 0, restoreErrors), nil
+	return support.CreateStatus(
+			ctx,
+			support.Restore,
+			len(dcs),
+			restoreMetrics,
+			restoreErrors,
+			dest.ContainerName),
+		nil
 }
 
 // restoreCollection handles restoration of an individual collection.
+// @returns Integer representing totalItems, restoredItems, and the
+// amount of bytes restored. The bool represents whether the context was cancelled
 func restoreCollection(
 	ctx context.Context,
 	service graph.Service,
 	dc data.Collection,
 	restoreContainerName string,
 	errUpdater func(string, error),
-) (int, int, bool) {
+) (support.CollectionMetrics, bool) {
 	defer trace.StartRegion(ctx, "gc:oneDrive:restoreCollection").End()
 
 	var (
-		total, restored int
-		copyBuffer      = make([]byte, copyBufferSize)
-		directory       = dc.FullPath()
+		metrics    = support.CollectionMetrics{}
+		copyBuffer = make([]byte, copyBufferSize)
+		directory  = dc.FullPath()
 	)
 
 	drivePath, err := toOneDrivePath(directory)
 	if err != nil {
 		errUpdater(directory.String(), err)
-		return 0, 0, false
+		return metrics, false
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -110,7 +119,7 @@ func restoreCollection(
 	restoreFolderID, err := createRestoreFolders(ctx, service, drivePath.driveID, restoreFolderElements)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
-		return 0, 0, false
+		return metrics, false
 	}
 
 	// Restore items from the collection
@@ -120,13 +129,15 @@ func restoreCollection(
 		select {
 		case <-ctx.Done():
 			errUpdater("context canceled", ctx.Err())
-			return total, restored, true
+			return metrics, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return total, restored, false
+				return metrics, false
 			}
-			total++
+			metrics.Objects++
+
+			metrics.TotalBytes += int64(len(copyBuffer))
 
 			err := restoreItem(ctx, service, itemData, drivePath.driveID, restoreFolderID, copyBuffer)
 			if err != nil {
@@ -134,7 +145,7 @@ func restoreCollection(
 				continue
 			}
 
-			restored++
+			metrics.Successes++
 		}
 	}
 }

@@ -189,11 +189,16 @@ func printFlags(buf *bytes.Buffer, flags *pflag.FlagSet) {
 		buf.WriteString("|")
 
 		if flag.DefValue != "" {
-			buf.WriteString(fmt.Sprintf("`%s`", flag.DefValue))
+			defValue := flag.DefValue
+			if defValue == "[]" {
+				defValue = ""
+			}
+
+			buf.WriteString(fmt.Sprintf("`%s`", defValue))
 		}
 
 		buf.WriteString("|")
-		buf.WriteString(flag.Usage)
+		buf.WriteString(strings.ReplaceAll(flag.Usage, "(required)", "<div class='required'>Required</div>"))
 		buf.WriteString("|\n")
 	})
 }

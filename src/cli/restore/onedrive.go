@@ -15,6 +15,16 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+var (
+	folderPaths []string
+	fileNames   []string
+
+	fileCreatedAfter   string
+	fileCreatedBefore  string
+	fileModifiedAfter  string
+	fileModifiedBefore string
+)
+
 // called by restore.go to map parent subcommands to provider-specific handling.
 func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	var (
@@ -26,16 +36,50 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, oneDriveRestoreCmd())
 
+		c.Use = c.Use + oneDriveServiceCommandUseSuffix
+
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore")
+		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		fs.StringSliceVar(&user,
 			"user", nil,
-			"Restore all data by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Restore data by user ID; accepts "+utils.Wildcard+" to select all users.")
+
+		// onedrive hierarchy (path/name) flags
+
+		fs.StringSliceVar(
+			&folderPaths,
+			"folder", nil,
+			"Restore items by OneDrive folder; defaults to root")
+
+		fs.StringSliceVar(
+			&fileNames,
+			"file-name", nil,
+			"Restore items by OneDrive file name")
+
+		// onedrive info flags
+
+		fs.StringVar(
+			&fileCreatedAfter,
+			"file-created-after", "",
+			"Restore files created after this datetime")
+		fs.StringVar(
+			&fileCreatedBefore,
+			"file-created-before", "",
+			"Restore files created before this datetime")
+
+		fs.StringVar(
+			&fileModifiedAfter,
+			"file-modified-after", "",
+			"Restore files modified after this datetime")
+		fs.StringVar(
+			&fileModifiedBefore,
+			"file-modified-before", "",
+			"Restore files modified before this datetime")
 
 		// others
 		options.AddOperationFlags(c)
@@ -44,7 +88,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	return c
 }
 
-const oneDriveServiceCommand = "onedrive"
+const (
+	oneDriveServiceCommand          = "onedrive"
+	oneDriveServiceCommandUseSuffix = " --backup <backupId>"
+)
 
 // `corso restore onedrive [<flag>...]`
 func oneDriveRestoreCmd() *cobra.Command {
@@ -80,10 +127,19 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := selectors.NewOneDriveRestore()
-	if user != nil {
-		sel.Include(sel.Users(user))
+	opts := utils.OneDriveOpts{
+		Users:          user,
+		Paths:          folderPaths,
+		Names:          fileNames,
+		CreatedAfter:   fileCreatedAfter,
+		CreatedBefore:  fileCreatedBefore,
+		ModifiedAfter:  fileModifiedAfter,
+		ModifiedBefore: fileModifiedBefore,
 	}
+
+	sel := selectors.NewOneDriveRestore()
+	utils.IncludeOneDriveRestoreDataSelectors(sel, opts)
+	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
 	// if no selector flags were specified, get all data in the service.
 	if len(sel.Scopes()) == 0 {

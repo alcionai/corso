@@ -15,9 +15,9 @@ corso repo connect s3 [flags]
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
 |`--bucket`|||Name of the S3 bucket (required).|
+|`--prefix`|||Prefix applied to objects in the bucket.|
 |`--endpoint`||`s3.amazonaws.com`|Server endpoint for S3 communication.|
 |`--help`|`-h`|`false`|help for s3|
-|`--prefix`|||Prefix applied to objects in the bucket.|
 
 ### Global and inherited flags
 

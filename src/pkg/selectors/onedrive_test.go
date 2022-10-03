@@ -3,11 +3,13 @@ package selectors
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -181,9 +183,9 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 
 func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 	var (
-		file  = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "folderA/folderB", "file")
-		file2 = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "folderA/folderC", "file2")
-		file3 = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "folderD/folderE", "file3")
+		file  = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "drive/driveID/root:/folderA/folderB", "file")
+		file2 = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "drive/driveID/root:/folderA/folderC", "file2")
+		file3 = stubRepoRef(path.OneDriveService, path.FilesCategory, "uid", "drive/driveID/root:/folderD/folderE", "file3")
 	)
 
 	deets := &details.Details{
@@ -264,6 +266,70 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			results := sel.Reduce(context.Background(), test.deets)
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
+		})
+	}
+}
+
+func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
+	t := suite.T()
+
+	pathBuilder := path.Builder{}.Append("drive", "driveID", "root:", "dir1", "dir2", "file")
+	filePath, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "user", true)
+	require.NoError(t, err)
+
+	expected := map[categorizer]string{
+		OneDriveUser:   "user",
+		OneDriveFolder: "dir1/dir2",
+		OneDriveItem:   "file",
+	}
+
+	assert.Equal(t, expected, OneDriveItem.pathValues(filePath))
+}
+
+func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
+	ods := NewOneDriveRestore()
+
+	var (
+		epoch  = time.Time{}
+		now    = time.Now()
+		future = now.Add(1 * time.Minute)
+	)
+
+	itemInfo := details.ItemInfo{
+		OneDrive: &details.OneDriveInfo{
+			ItemType:     details.OneDriveItem,
+			ParentPath:   "folder1/folder2",
+			ItemName:     "file1",
+			Size:         10,
+			Created:      now,
+			LastModified: now,
+		},
+	}
+
+	table := []struct {
+		name   string
+		scope  []OneDriveScope
+		expect assert.BoolAssertionFunc
+	}{
+		{"file create after the epoch", ods.CreatedAfter(common.FormatTime(epoch)), assert.True},
+		{"file create after now", ods.CreatedAfter(common.FormatTime(now)), assert.False},
+		{"file create after later", ods.CreatedAfter(common.FormatTime(future)), assert.False},
+		{"file create before future", ods.CreatedBefore(common.FormatTime(future)), assert.True},
+		{"file create before now", ods.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file create before epoch", ods.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file modified after the epoch", ods.ModifiedAfter(common.FormatTime(epoch)), assert.True},
+		{"file modified after now", ods.ModifiedAfter(common.FormatTime(now)), assert.False},
+		{"file modified after later", ods.ModifiedAfter(common.FormatTime(future)), assert.False},
+		{"file modified before future", ods.ModifiedBefore(common.FormatTime(future)), assert.True},
+		{"file modified before now", ods.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"file modified before epoch", ods.ModifiedBefore(common.FormatTime(now)), assert.False},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			scopes := setScopesToDefault(test.scope)
+			for _, scope := range scopes {
+				test.expect(t, scope.matchesInfo(itemInfo))
+			}
 		})
 	}
 }
