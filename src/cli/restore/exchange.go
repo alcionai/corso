@@ -51,7 +51,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd())
 
-		c.Use = c.Use + " --backup <backupId>"
+		c.Use = c.Use + exchangeServiceCommandUseSuffix
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -138,7 +138,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	return c
 }
 
-const exchangeServiceCommand = "exchange"
+const (
+	exchangeServiceCommand          = "exchange"
+	exchangeServiceCommandUseSuffix = " --backup <backupId>"
+)
 
 // `corso restore exchange [<flag>...]`
 func exchangeRestoreCmd() *cobra.Command {

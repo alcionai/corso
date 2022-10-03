@@ -19,7 +19,12 @@ import (
 // setup and globals
 // ------------------------------------------------------------------------------------------------
 
-const oneDriveServiceCommand = "onedrive"
+const (
+	oneDriveServiceCommand                 = "onedrive"
+	oneDriveServiceCommandCreateUseSuffix  = " --user <userId or email> | " + utils.Wildcard
+	oneDriveServiceCommandDeleteUseSuffix  = " --backup <backupId>"
+	oneDriveServiceCommandDetailsUseSuffix = " --backup <backupId>"
+)
 
 // called by backup.go to map parent subcommands to provider-specific handling.
 func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
@@ -32,7 +37,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
 
-		c.Use = c.Use + " --user <userId or email> | " + utils.Wildcard
+		c.Use = c.Use + oneDriveServiceCommandCreateUseSuffix
 
 		fs.StringArrayVar(&user, "user", nil,
 			"Backup OneDrive data by user ID; accepts "+utils.Wildcard+" to select all users. (required)")
@@ -44,7 +49,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
 
-		c.Use = c.Use + " --backup <backupId>"
+		c.Use = c.Use + oneDriveServiceCommandDetailsUseSuffix
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
@@ -52,7 +57,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
 
-		c.Use = c.Use + " --backup <backupId>"
+		c.Use = c.Use + oneDriveServiceCommandDeleteUseSuffix
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))

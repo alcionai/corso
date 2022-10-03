@@ -37,7 +37,7 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, s3ConnectCmd())
 	}
 
-	c.Use = c.Use + " --bucket <bucket>"
+	c.Use = c.Use + s3ProviderCommandUseSuffix
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic (ex: --all) and more frequently used flags take precedence.
@@ -53,7 +53,10 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	return c
 }
 
-const s3ProviderCommand = "s3"
+const (
+	s3ProviderCommand          = "s3"
+	s3ProviderCommandUseSuffix = " --bucket <bucket>"
+)
 
 // ---------------------------------------------------------------------------------------------------------
 // Init

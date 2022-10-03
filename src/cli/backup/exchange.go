@@ -56,7 +56,12 @@ const (
 	dataEvents   = "events"
 )
 
-const exchangeServiceCommand = "exchange"
+const (
+	exchangeServiceCommand                 = "exchange"
+	exchangeServiceCommandCreateUseSuffix  = " --all | --user <userId or email>"
+	exchangeServiceCommandDeleteUseSuffix  = " --backup <backupId>"
+	exchangeServiceCommandDetailsUseSuffix = " --backup <backupId>"
+)
 
 // called by backup.go to map parent subcommands to provider-specific handling.
 func addExchangeCommands(parent *cobra.Command) *cobra.Command {
@@ -69,7 +74,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 
-		c.Use = c.Use + " --all | --user <userId or email>"
+		c.Use = c.Use + exchangeServiceCommandCreateUseSuffix
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -92,7 +97,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 
-		c.Use = c.Use + " --backup <backupId>"
+		c.Use = c.Use + exchangeServiceCommandDetailsUseSuffix
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -179,7 +184,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
 
-		c.Use = c.Use + " --backup <backupId>"
+		c.Use = c.Use + exchangeServiceCommandDeleteUseSuffix
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
