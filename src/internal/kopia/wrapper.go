@@ -71,6 +71,52 @@ func (rw *backupStreamReader) Read(p []byte) (n int, err error) {
 	return rw.ReadCloser.Read(p)
 }
 
+// restoreStreamReader is a wrapper around the io.Reader that kopia returns when
+// reading data from an item. It examines and strips off the version number of
+// the restored data. Future versions of Corso may not need this if they use
+// more complex serialization logic as version checking/deserialization will be
+// handled by other components. A reader that returns a version error is no
+// longer valid and should not be used once the version error is returned.
+type restoreStreamReader struct {
+	io.ReadCloser
+	expectedVersion uint32
+	readVersion     bool
+}
+
+func (rw *restoreStreamReader) checkVersion() error {
+	versionSize := int(unsafe.Sizeof(rw.expectedVersion))
+	versionBuf := make([]byte, versionSize)
+
+	for newlyRead := 0; newlyRead < versionSize; {
+		n, err := rw.ReadCloser.Read(versionBuf[newlyRead:])
+		if err != nil {
+			return errors.Wrap(err, "reading data format version")
+		}
+
+		newlyRead += n
+	}
+
+	version := binary.BigEndian.Uint32(versionBuf)
+
+	if version != rw.expectedVersion {
+		return errors.Errorf("unexpected data format %v", version)
+	}
+
+	return nil
+}
+
+func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
+	if !rw.readVersion {
+		rw.readVersion = true
+
+		if err := rw.checkVersion(); err != nil {
+			return 0, err
+		}
+	}
+
+	return rw.ReadCloser.Read(p)
+}
+
 type BackupStats struct {
 	SnapshotID string
 
