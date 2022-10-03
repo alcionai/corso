@@ -153,10 +153,12 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byte
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
-		len(oc.driveItemIDs), // items to read
-		itemsRead,            // items read successfully
-		1,                    // num folders (always 1)
-		byteCount,            // Number of bytes read in the operation
+		1, // num folders (always 1)
+		support.CollectionMetrics{
+			Objects:    len(oc.driveItemIDs), // items to read,
+			Successes:  itemsRead,            // items read successfully,
+			TotalBytes: byteCount,            // Number of bytes read in the operation,
+		},
 		errs,
 		oc.folderPath.Folder(), // Additional details
 	)
