@@ -7,14 +7,14 @@ hide_title: true
 Delete backed-up M365 OneDrive service data
 
 ```bash
-corso backup delete onedrive [flags]
+corso backup delete onedrive --backup <backupId> [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--backup`|||ID of the backup containing the details to be shown|
+|`--backup`|||ID of the backup to delete. <div class='required'>Required</div>|
 |`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags

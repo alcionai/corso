@@ -7,15 +7,21 @@ hide_title: true
 Restore M365 OneDrive service data
 
 ```bash
-corso restore onedrive [flags]
+corso restore onedrive --backup <backupId> [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--backup`|||ID of the backup to restore|
-|`--user`||`[]`|Restore all data by user ID; accepts * to select all users|
+|`--backup`|||ID of the backup to restore. <div class='required'>Required</div>|
+|`--user`||``|Restore data by user ID; accepts * to select all users.|
+|`--folder`||``|Restore items by OneDrive folder; defaults to root|
+|`--file-name`||``|Restore items by OneDrive file name|
+|`--file-created-after`|||Restore files created after this datetime|
+|`--file-created-before`|||Restore files created before this datetime|
+|`--file-modified-after`|||Restore files modified after this datetime|
+|`--file-modified-before`|||Restore files modified before this datetime|
 |`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags
