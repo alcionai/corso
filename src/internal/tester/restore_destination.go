@@ -7,7 +7,5 @@ import (
 
 func DefaultTestRestoreDestination() control.RestoreDestination {
 	// Use microsecond granularity to help reduce collisions.
-	return control.DefaultRestoreDestination(
-		common.SimpleDateTimeFormatOneDrive + ".000000",
-	)
+	return control.DefaultRestoreDestination(common.SimpleDateTimeFormatTests)
 }
