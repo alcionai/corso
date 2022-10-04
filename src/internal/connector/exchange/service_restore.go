@@ -78,9 +78,9 @@ func RestoreExchangeObject(
 	policy control.CollisionPolicy,
 	service graph.Service,
 	destination, user string,
-) error {
+) (*details.ExchangeInfo, error) {
 	if policy != control.Copy {
-		return fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
+		return nil, fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
 	}
 
 	setting := categoryToOptionIdentifier(category)
@@ -93,7 +93,7 @@ func RestoreExchangeObject(
 	case events:
 		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user)
 	default:
-		return fmt.Errorf("type: %s not supported for RestoreExchangeObject", category)
+		return nil, fmt.Errorf("type: %s not supported for RestoreExchangeObject", category)
 	}
 }
 
@@ -109,17 +109,17 @@ func RestoreExchangeContact(
 	service graph.Service,
 	cp control.CollisionPolicy,
 	destination, user string,
-) error {
+) (*details.ExchangeInfo, error) {
 	contact, err := support.CreateContactFromBytes(bits)
 	if err != nil {
-		return errors.Wrap(err, "failure to create contact from bytes: RestoreExchangeContact")
+		return nil, errors.Wrap(err, "failure to create contact from bytes: RestoreExchangeContact")
 	}
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
 		name := *contact.GetGivenName()
 
-		return errors.Wrap(
+		return nil, errors.Wrap(
 			err,
 			"failure to create Contact during RestoreExchangeContact: "+name+" "+
 				support.ConnectorStackErrorTrace(err),
@@ -127,10 +127,10 @@ func RestoreExchangeContact(
 	}
 
 	if response == nil {
-		return errors.New("msgraph contact post fail: REST response not received")
+		return nil, errors.New("msgraph contact post fail: REST response not received")
 	}
 
-	return nil
+	return ContactInfo(contact), nil
 }
 
 // RestoreExchangeEvent restores a contact to the @bits byte
@@ -145,17 +145,17 @@ func RestoreExchangeEvent(
 	service graph.Service,
 	cp control.CollisionPolicy,
 	destination, user string,
-) error {
+) (*details.ExchangeInfo, error) {
 	event, err := support.CreateEventFromBytes(bits)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	transformedEvent := support.ToEventSimplified(event)
 
 	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
 	if err != nil {
-		return errors.Wrap(err,
+		return nil, errors.Wrap(err,
 			fmt.Sprintf(
 				"failure to event creation failure during RestoreExchangeEvent: %s",
 				support.ConnectorStackErrorTrace(err)),
@@ -163,10 +163,10 @@ func RestoreExchangeEvent(
 	}
 
 	if response == nil {
-		return errors.New("msgraph event post fail: REST response not received")
+		return nil, errors.New("msgraph event post fail: REST response not received")
 	}
 
-	return nil
+	return EventInfo(event), nil
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -182,11 +182,11 @@ func RestoreMailMessage(
 	cp control.CollisionPolicy,
 	destination,
 	user string,
-) error {
+) (*details.ExchangeInfo, error) {
 	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Sets fields from original message from storage
 	clone := support.ToMessage(originalMessage)
@@ -223,7 +223,7 @@ func RestoreMailMessage(
 			"policy", cp)
 		fallthrough
 	case control.Copy:
-		return SendMailToBackStore(ctx, service, user, destination, clone)
+		return MessageInfo(clone), SendMailToBackStore(ctx, service, user, destination, clone)
 	}
 }
 
@@ -383,7 +383,7 @@ func restoreCollection(
 
 			byteArray := buf.Bytes()
 
-			err = RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
+			info, err = RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
 			if err != nil {
 				//  More information to be here
 				errUpdater(
@@ -406,7 +406,9 @@ func restoreCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
-				details.ItemInfo{})
+				details.ItemInfo{
+					Exchange: info,
+				})
 		}
 	}
 }

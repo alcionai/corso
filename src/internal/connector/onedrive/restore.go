@@ -142,7 +142,7 @@ func restoreCollection(
 
 			metrics.TotalBytes += int64(len(copyBuffer))
 
-			err := restoreItem(ctx,
+			dii, err := restoreItem(ctx,
 				service,
 				itemData,
 				drivePath.driveID,
@@ -165,7 +165,9 @@ func restoreCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
-				details.ItemInfo{})
+				details.ItemInfo{
+					OneDrive: dii,
+				})
 
 			metrics.Successes++
 		}
@@ -224,9 +226,7 @@ func restoreItem(
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-	collPath path.Path,
-	deets *details.Details,
-) error {
+) (*details.OneDriveInfo, error) {
 	defer trace.StartRegion(ctx, "gc:oneDrive:restoreItem").End()
 
 	itemName := itemData.UUID()
@@ -235,38 +235,26 @@ func restoreItem(
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.StreamSize)
 	if !ok {
-		return errors.Errorf("item %q does not implement DataStreamInfo", itemName)
+		return nil, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
 	}
 
 	// Create Item
 	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false))
 	if err != nil {
-		return errors.Wrapf(err, "failed to create item %s", itemName)
+		return nil, errors.Wrapf(err, "failed to create item %s", itemName)
 	}
 
 	// Get a drive item writer
 	w, err := driveItemWriter(ctx, service, driveID, *newItem.GetId(), ss.Size())
 	if err != nil {
-		return errors.Wrapf(err, "failed to create item upload session %s", itemName)
+		return nil, errors.Wrapf(err, "failed to create item upload session %s", itemName)
 	}
 
 	// Upload the stream data
 	_, err = io.CopyBuffer(w, itemData.ToReader(), copyBuffer)
 	if err != nil {
-		return errors.Wrapf(err, "failed to upload data: item %s", itemName)
+		return nil, errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}
 
-	itemPath, err := collPath.Append(itemData.UUID(), true)
-	if err != nil {
-		logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
-		return nil
-	}
-
-	deets.Add(
-		itemPath.String(),
-		itemPath.ShortRef(),
-		"",
-		details.ItemInfo{})
-
-	return nil
+	return driveItemInfo(newItem), nil
 }

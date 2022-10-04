@@ -373,15 +373,24 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 // is able to restore a several messageable item to a Mailbox.
 // The result should be all successful items restored within the same folder.
 func (suite *ExchangeServiceSuite) TestRestoreMessages() {
-	ctx := context.Background()
-	userID := tester.M365UserID(suite.T())
-	now := time.Now()
+	var (
+		ctx        = context.Background()
+		userID     = tester.M365UserID(suite.T())
+		now        = time.Now()
+		folderName = "TestRestoreMessage: " + common.FormatSimpleDateTime(now)
+	)
 
-	folderName := "TestRestoreMessage: " + common.FormatSimpleDateTime(now)
 	folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 	require.NoError(suite.T(), err)
 
 	folderID := *folder.GetId()
+
+	defer func() {
+		// Remove the folder containing message prior to exiting test
+		err = DeleteMailFolder(ctx, suite.es, userID, folderID)
+		assert.NoError(suite.T(), err, "Failure during folder clean-up")
+	}()
+
 	tests := []struct {
 		name  string
 		bytes []byte
@@ -402,67 +411,80 @@ func (suite *ExchangeServiceSuite) TestRestoreMessages() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			err = RestoreMailMessage(context.Background(),
+			info, err := RestoreMailMessage(context.Background(),
 				test.bytes,
 				suite.es,
 				control.Copy,
 				folderID,
 				userID,
 			)
-			require.NoError(t, err, support.ConnectorStackErrorTrace(err))
+			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+			assert.NotNil(t, info, "message item info")
 		})
 	}
-
-	err = DeleteMailFolder(ctx, suite.es, userID, folderID)
-	assert.NoError(suite.T(), err, "Failure during folder clean-up")
 }
 
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
-	t := suite.T()
-	ctx := context.Background()
-	userID := tester.M365UserID(t)
-	now := time.Now()
+	var (
+		t          = suite.T()
+		ctx        = context.Background()
+		userID     = tester.M365UserID(t)
+		now        = time.Now()
+		folderName = "TestRestoreContact: " + common.FormatSimpleDateTime(now)
+	)
 
-	folderName := "TestRestoreContact: " + common.FormatSimpleDateTime(now)
 	aFolder, err := CreateContactFolder(ctx, suite.es, userID, folderName)
 	require.NoError(t, err)
 
 	folderID := *aFolder.GetId()
-	err = RestoreExchangeContact(context.Background(),
+
+	defer func() {
+		// Remove the folder containing contact prior to exiting test
+		err = DeleteContactFolder(ctx, suite.es, userID, folderID)
+		assert.NoError(t, err)
+	}()
+
+	info, err := RestoreExchangeContact(context.Background(),
 		mockconnector.GetMockContactBytes("Corso TestContact"),
 		suite.es,
 		control.Copy,
 		folderID,
 		userID)
-	assert.NoError(t, err)
-	// Removes folder containing contact prior to exiting test
-	err = DeleteContactFolder(ctx, suite.es, userID, folderID)
-	assert.NoError(t, err)
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+	assert.NotNil(t, info, "contact item info")
 }
 
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
-	t := suite.T()
-	ctx := context.Background()
-	userID := tester.M365UserID(t)
-	name := "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
+	var (
+		t      = suite.T()
+		ctx    = context.Background()
+		userID = tester.M365UserID(t)
+		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
+	)
+
 	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
 	require.NoError(t, err)
 
 	calendarID := *calendar.GetId()
-	err = RestoreExchangeEvent(context.Background(),
+
+	defer func() {
+		// Removes calendar containing events created during the test
+		err = DeleteCalendar(ctx, suite.es, userID, calendarID)
+		assert.NoError(t, err)
+	}()
+
+	info, err := RestoreExchangeEvent(context.Background(),
 		mockconnector.GetMockEventWithAttendeesBytes(name),
 		suite.es,
 		control.Copy,
 		calendarID,
 		userID)
-	assert.NoError(t, err)
-	// Removes calendar containing events created during the test
-	err = DeleteCalendar(ctx, suite.es, userID, *calendar.GetId())
-	assert.NoError(t, err)
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+	assert.NotNil(t, info, "event item info")
 }
 
 // TestGetRestoreContainer checks the ability to Create a "container" for the
@@ -585,7 +607,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			destination := test.destination()
-			err := RestoreExchangeObject(
+			info, err := RestoreExchangeObject(
 				ctx,
 				test.bytes,
 				test.category,
@@ -594,7 +616,9 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 				destination,
 				userID,
 			)
-			assert.NoError(t, err)
+			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+			assert.NotNil(t, info, "item info is populated")
+
 			cleanupError := test.cleanupFunc(ctx, service, userID, destination)
 			assert.NoError(t, cleanupError)
 		})
