@@ -38,6 +38,8 @@ const (
 var (
 	errNotConnected  = errors.New("not connected to repo")
 	errNoRestorePath = errors.New("no restore path given")
+
+	versionSize = int(unsafe.Sizeof(serializationVersion))
 )
 
 // backupStreamReader is a wrapper around the io.Reader that other Corso
@@ -52,8 +54,8 @@ type backupStreamReader struct {
 }
 
 func (rw *backupStreamReader) Read(p []byte) (n int, err error) {
-	if rw.readBytes < int(unsafe.Sizeof(rw.version)) {
-		marshalled := make([]byte, int(unsafe.Sizeof(rw.version)))
+	if rw.readBytes < versionSize {
+		marshalled := make([]byte, versionSize)
 
 		toCopy := len(marshalled) - rw.readBytes
 		if len(p) < toCopy {
@@ -84,7 +86,6 @@ type restoreStreamReader struct {
 }
 
 func (rw *restoreStreamReader) checkVersion() error {
-	versionSize := int(unsafe.Sizeof(rw.expectedVersion))
 	versionBuf := make([]byte, versionSize)
 
 	for newlyRead := 0; newlyRead < versionSize; {
@@ -637,7 +638,7 @@ func getItemStream(
 			ReadCloser:      r,
 			expectedVersion: serializationVersion,
 		},
-		size: f.Size() - int64(unsafe.Sizeof(serializationVersion)),
+		size: f.Size() - int64(versionSize),
 	}, nil
 }
 
