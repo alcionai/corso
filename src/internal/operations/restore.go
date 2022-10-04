@@ -97,8 +97,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	defer trace.StartRegion(ctx, "operations:restore:run").End()
 
 	var (
-		parseErrs *multierror.Error
-		opStats   = restoreStats{
+		opStats = restoreStats{
 			bytesRead: &stats.ByteCounter{},
 			restoreID: uuid.NewString(),
 		}
@@ -143,14 +142,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
-
-		parseErrs = multierror.Append(parseErrs, err)
-		opStats.readErr = parseErrs.ErrorOrNil()
+		opStats.readErr = err
 
 		return nil, err
 	}
 
-	opStats.readErr = parseErrs.ErrorOrNil()
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
