@@ -54,10 +54,11 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 			result := CreateStatus(
 				context.Background(),
 				test.params.operationType,
-				test.params.objects,
-				test.params.success,
 				test.params.folders,
-				test.params.err)
+				CollectionMetrics{test.params.objects, test.params.success, 0},
+				test.params.err,
+				"",
+			)
 			test.expect(t, result.incomplete, "status is incomplete")
 		})
 	}
@@ -71,10 +72,14 @@ func (suite *GCStatusTestSuite) TestCreateStatus_InvalidStatus() {
 		CreateStatus(
 			context.Background(),
 			params.operationType,
-			params.objects,
-			params.success,
 			params.folders,
+			CollectionMetrics{
+				params.objects,
+				params.success,
+				0,
+			},
 			params.err,
+			"",
 		)
 	})
 }
@@ -90,7 +95,7 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 	}{
 		{
 			name:         "Test:  Status + unknown",
-			one:          *CreateStatus(simpleContext, Backup, 1, 1, 1, nil),
+			one:          *CreateStatus(simpleContext, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
 			two:          ConnectorOperationStatus{},
 			expected:     statusParams{Backup, 1, 1, 1, nil},
 			isIncomplete: assert.False,
@@ -98,27 +103,31 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 		{
 			name:         "Test: unknown + Status",
 			one:          ConnectorOperationStatus{},
-			two:          *CreateStatus(simpleContext, Backup, 1, 1, 1, nil),
+			two:          *CreateStatus(simpleContext, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
 			expected:     statusParams{Backup, 1, 1, 1, nil},
 			isIncomplete: assert.False,
 		},
 		{
 			name:         "Test: Successful + Successful",
-			one:          *CreateStatus(simpleContext, Backup, 1, 1, 1, nil),
-			two:          *CreateStatus(simpleContext, Backup, 3, 3, 3, nil),
+			one:          *CreateStatus(simpleContext, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
+			two:          *CreateStatus(simpleContext, Backup, 3, CollectionMetrics{3, 3, 0}, nil, ""),
 			expected:     statusParams{Backup, 4, 4, 4, nil},
 			isIncomplete: assert.False,
 		},
 		{
 			name: "Test: Successful + Unsuccessful",
-			one:  *CreateStatus(simpleContext, Backup, 17, 17, 13, nil),
+			one:  *CreateStatus(simpleContext, Backup, 13, CollectionMetrics{17, 17, 0}, nil, ""),
 			two: *CreateStatus(
 				simpleContext,
 				Backup,
-				12,
-				9,
 				8,
+				CollectionMetrics{
+					12,
+					9,
+					0,
+				},
 				WrapAndAppend("tres", errors.New("three"), WrapAndAppend("arc376", errors.New("one"), errors.New("two"))),
+				"",
 			),
 			expected:     statusParams{Backup, 29, 26, 21, nil},
 			isIncomplete: assert.True,

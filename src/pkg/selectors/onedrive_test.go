@@ -297,12 +297,12 @@ func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
 
 	itemInfo := details.ItemInfo{
 		OneDrive: &details.OneDriveInfo{
-			ItemType:     details.OneDriveItem,
-			ParentPath:   "folder1/folder2",
-			ItemName:     "file1",
-			Size:         10,
-			Created:      now,
-			LastModified: now,
+			ItemType:   details.OneDriveItem,
+			ParentPath: "folder1/folder2",
+			ItemName:   "file1",
+			Size:       10,
+			Created:    now,
+			Modified:   now,
 		},
 	}
 

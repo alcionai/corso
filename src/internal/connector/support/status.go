@@ -4,17 +4,38 @@ import (
 	"context"
 	"fmt"
 
+	bytesize "github.com/inhies/go-bytesize"
+
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+// ConnectorOperationStatus is a data type used to describe the state of
+// the sequence of operations.
+// @param ObjectCount integer representation of how many objects have downloaded or uploaded.
+// @param Successful: Number of objects that are sent through the connector without incident.
+// @param incomplete: Bool representation of whether all intended items were download or uploaded.
+// @param bytes: represents the total number of bytes that have been downloaded or uploaded.
 type ConnectorOperationStatus struct {
-	lastOperation    Operation
-	ObjectCount      int
-	FolderCount      int
-	Successful       int
-	errorCount       int
-	incomplete       bool
-	incompleteReason string
+	lastOperation     Operation
+	ObjectCount       int
+	FolderCount       int
+	Successful        int
+	errorCount        int
+	incomplete        bool
+	incompleteReason  string
+	additionalDetails string
+	bytes             int64
+}
+
+type CollectionMetrics struct {
+	Objects, Successes int
+	TotalBytes         int64
+}
+
+func (cm *CollectionMetrics) Combine(additional CollectionMetrics) {
+	cm.Objects += additional.Objects
+	cm.Successes += additional.Successes
+	cm.TotalBytes += additional.TotalBytes
 }
 
 type Operation int
@@ -30,8 +51,10 @@ const (
 func CreateStatus(
 	ctx context.Context,
 	op Operation,
-	objects, success, folders int,
+	folders int,
+	cm CollectionMetrics,
 	err error,
+	details string,
 ) *ConnectorOperationStatus {
 	var reason string
 
@@ -42,20 +65,22 @@ func CreateStatus(
 	hasErrors := err != nil
 	numErr := GetNumberOfErrors(err)
 	status := ConnectorOperationStatus{
-		lastOperation:    op,
-		ObjectCount:      objects,
-		FolderCount:      folders,
-		Successful:       success,
-		errorCount:       numErr,
-		incomplete:       hasErrors,
-		incompleteReason: reason,
+		lastOperation:     op,
+		ObjectCount:       cm.Objects,
+		FolderCount:       folders,
+		Successful:        cm.Successes,
+		errorCount:        numErr,
+		incomplete:        hasErrors,
+		incompleteReason:  reason,
+		bytes:             cm.TotalBytes,
+		additionalDetails: details,
 	}
 
 	if status.ObjectCount != status.errorCount+status.Successful {
 		logger.Ctx(ctx).DPanicw(
 			"status object count does not match errors + successes",
-			"objects", objects,
-			"successes", success,
+			"objects", cm.Objects,
+			"successes", cm.Successes,
 			"numErrors", numErr,
 			"errors", err.Error())
 	}
@@ -85,26 +110,43 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 	}
 
 	status := ConnectorOperationStatus{
-		lastOperation:    one.lastOperation,
-		ObjectCount:      one.ObjectCount + two.ObjectCount,
-		FolderCount:      one.FolderCount + two.FolderCount,
-		Successful:       one.Successful + two.Successful,
-		errorCount:       one.errorCount + two.errorCount,
-		incomplete:       hasErrors,
-		incompleteReason: one.incompleteReason + " " + two.incompleteReason,
+		lastOperation:     one.lastOperation,
+		ObjectCount:       one.ObjectCount + two.ObjectCount,
+		FolderCount:       one.FolderCount + two.FolderCount,
+		Successful:        one.Successful + two.Successful,
+		errorCount:        one.errorCount + two.errorCount,
+		bytes:             one.bytes + two.bytes,
+		incomplete:        hasErrors,
+		incompleteReason:  one.incompleteReason + ", " + two.incompleteReason,
+		additionalDetails: one.additionalDetails + ", " + two.additionalDetails,
 	}
 
 	return status
 }
 
 func (cos *ConnectorOperationStatus) String() string {
-	message := fmt.Sprintf("Action: %s performed on %d of %d objects within %d directories.", cos.lastOperation.String(),
-		cos.Successful, cos.ObjectCount, cos.FolderCount)
+	var operationStatement string
+
+	switch cos.lastOperation {
+	case Backup:
+		operationStatement = "Downloaded from "
+	case Restore:
+		operationStatement = "Restored content to "
+	}
+
+	message := fmt.Sprintf("Action: %s performed on %d of %d objects (%s) within %d directories.",
+		cos.lastOperation.String(),
+		cos.Successful,
+		cos.ObjectCount,
+		bytesize.New(float64(cos.bytes)),
+		cos.FolderCount,
+	)
+
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
 	}
 
-	message = message + "\n"
+	message += " " + operationStatement + cos.additionalDetails + "\n"
 
 	return message
 }
