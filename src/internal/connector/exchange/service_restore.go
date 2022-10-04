@@ -383,7 +383,7 @@ func restoreCollection(
 
 			byteArray := buf.Bytes()
 
-			info, err = RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
+			info, err := RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
 			if err != nil {
 				//  More information to be here
 				errUpdater(
