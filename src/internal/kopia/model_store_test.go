@@ -335,9 +335,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 	t := suite.T()
 
-	assert.ErrorIs(t, suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil), manifest.ErrNotFound)
+	assert.ErrorIs(t, suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil), ErrNotFound)
 	assert.ErrorIs(
-		t, suite.m.GetWithModelStoreID(suite.ctx, model.BackupOpSchema, "baz", nil), manifest.ErrNotFound)
+		t, suite.m.GetWithModelStoreID(suite.ctx, model.BackupOpSchema, "baz", nil), ErrNotFound)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
@@ -580,7 +580,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			}
 
 			err = m.GetWithModelStoreID(ctx, theModelType, oldModelID, nil)
-			assert.ErrorIs(t, err, manifest.ErrNotFound)
+			assert.ErrorIs(t, err, ErrNotFound)
 		})
 	}
 }
@@ -640,7 +640,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
 
 	returned := &fooModel{}
 	err := suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
-	assert.ErrorIs(t, err, manifest.ErrNotFound)
+	assert.ErrorIs(t, err, ErrNotFound)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
@@ -725,7 +725,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	assert.ErrorIs(t, err, assert.AnError)
 
 	err = m.GetWithModelStoreID(ctx, theModelType, newID, nil)
-	assert.ErrorIs(t, err, manifest.ErrNotFound)
+	assert.ErrorIs(t, err, ErrNotFound)
 
 	returned := &fooModel{}
 	require.NoError(

@@ -190,7 +190,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
 	}
 	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 
-	assert.Error(t, gc.RestoreDataCollections(ctx, sel, dest, nil))
+	deets, err := gc.RestoreDataCollections(ctx, sel, dest, nil)
+	assert.Error(t, err)
+	assert.NotNil(t, deets)
 
 	status := gc.AwaitStatus()
 	assert.Equal(t, 0, status.ObjectCount)

@@ -408,8 +408,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
+			deets, err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
 			require.NoError(t, err)
+			assert.NotNil(t, deets)
 
 			stats := suite.connector.AwaitStatus()
 			assert.Zero(t, stats.ObjectCount)
@@ -687,13 +688,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 			restoreGC := loadConnector(ctx, t)
 			restoreSel := getSelectorWith(test.service)
-			err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+			deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
 			require.NoError(t, err)
+			assert.NotNil(t, deets)
 
 			status := restoreGC.AwaitStatus()
 			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
+			assert.Equal(
+				t, totalItems, len(deets.Entries),
+				"details entries contains same item count as total successful items restored")
 
 			t.Logf("Restore complete\n")
 
@@ -822,14 +827,18 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				)
 
 				restoreGC := loadConnector(ctx, t)
-				err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+				deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
 				require.NoError(t, err)
+				require.NotNil(t, deets)
 
 				status := restoreGC.AwaitStatus()
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 				assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 				assert.Equal(t, totalItems, status.Successful, "status.Successful")
+				assert.Equal(
+					t, totalItems, len(deets.Entries),
+					"details entries contains same item count as total successful items restored")
 
 				t.Logf("Restore complete\n")
 			}
