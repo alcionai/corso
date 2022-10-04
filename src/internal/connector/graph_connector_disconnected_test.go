@@ -92,13 +92,18 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 func statusTestTask(gc *GraphConnector, objects, success, folder int) {
 	status := support.CreateStatus(
 		context.Background(),
-		support.Restore,
-		objects, success, folder,
+		support.Restore, folder,
+		support.CollectionMetrics{
+			Objects:    objects,
+			Successes:  success,
+			TotalBytes: 0,
+		},
 		support.WrapAndAppend(
 			"tres",
 			errors.New("three"),
 			support.WrapAndAppend("arc376", errors.New("one"), errors.New("two")),
 		),
+		"statusTestTask",
 	)
 	gc.UpdateStatus(status)
 }
@@ -185,7 +190,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
 	}
 	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 
-	assert.Error(t, gc.RestoreDataCollections(ctx, sel, dest, nil))
+	deets, err := gc.RestoreDataCollections(ctx, sel, dest, nil)
+	assert.Error(t, err)
+	assert.NotNil(t, deets)
 
 	status := gc.AwaitStatus()
 	assert.Equal(t, 0, status.ObjectCount)

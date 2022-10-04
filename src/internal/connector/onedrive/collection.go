@@ -108,6 +108,7 @@ func (od *Item) Info() details.ItemInfo {
 func (oc *Collection) populateItems(ctx context.Context) {
 	var (
 		errs      error
+		byteCount int64
 		itemsRead = 0
 	)
 
@@ -115,7 +116,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	// `details.OneDriveInfo`
 	parentPathString, err := getDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, err)
+		oc.reportAsCompleted(ctx, 0, 0, err)
 		return
 	}
 
@@ -133,6 +134,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 		// Item read successfully, add to collection
 		itemsRead++
+		// byteCount iteration
+		byteCount += itemInfo.Size
 
 		itemInfo.ParentPath = parentPathString
 
@@ -143,17 +146,22 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 	}
 
-	oc.reportAsCompleted(ctx, itemsRead, errs)
+	oc.reportAsCompleted(ctx, itemsRead, byteCount, errs)
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, errs error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byteCount int64, errs error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
-		len(oc.driveItemIDs), // items to read
-		itemsRead,            // items read successfully
-		1,                    // num folders (always 1)
-		errs)
+		1, // num folders (always 1)
+		support.CollectionMetrics{
+			Objects:    len(oc.driveItemIDs), // items to read,
+			Successes:  itemsRead,            // items read successfully,
+			TotalBytes: byteCount,            // Number of bytes read in the operation,
+		},
+		errs,
+		oc.folderPath.Folder(), // Additional details
+	)
 	logger.Ctx(ctx).Debug(status.String())
 	oc.statusUpdater(status)
 }
