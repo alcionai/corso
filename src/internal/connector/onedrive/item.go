@@ -57,11 +57,11 @@ func driveItemReader(
 	}
 
 	return &details.OneDriveInfo{
-		ItemType:     details.OneDriveItem,
-		ItemName:     *item.GetName(),
-		Created:      *item.GetCreatedDateTime(),
-		LastModified: *item.GetLastModifiedDateTime(),
-		Size:         *item.GetSize(),
+		ItemType: details.OneDriveItem,
+		ItemName: *item.GetName(),
+		Created:  *item.GetCreatedDateTime(),
+		Modified: *item.GetLastModifiedDateTime(),
+		Size:     *item.GetSize(),
 	}, resp.Body, nil
 }
 
