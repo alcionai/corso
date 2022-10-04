@@ -4,13 +4,15 @@ import (
 	"context"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/delta"
+	//msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/delta"
+	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+var _ cachedContainer = &mailFolder{}
 
 // cachedContainer is used for local unit tests but also makes it so that this
 // code can be broken into generic- and service-specific chunks later on to
@@ -21,10 +23,15 @@ type cachedContainer interface {
 	SetPath(*path.Builder)
 }
 
+// mailFolder structure that implements the cachedContainer interface
 type mailFolder struct {
-	models.MailFolderable
-	p *path.Builder
+	folder container
+	p      *path.Builder
 }
+
+//=========================================
+// Required Functions to satisfy interfaces
+//=====================================
 
 func (mf mailFolder) Path() *path.Builder {
 	return mf.p
@@ -34,15 +41,37 @@ func (mf *mailFolder) SetPath(newPath *path.Builder) {
 	mf.p = newPath
 }
 
-type mailFolderCache struct {
-	cache  map[string]cachedContainer
-	gs     graph.Service
-	userID string
+func (mf *mailFolder) GetDisplayName() *string {
+	return mf.folder.GetDisplayName()
 }
 
-// populateRoot fetches and populates the root folder in the cache so the cache
-// knows when to stop resolving the path.
-func (mc *mailFolderCache) populateRoot(ctx context.Context) error {
+//nolint:revive
+func (mf *mailFolder) GetId() *string {
+	return mf.folder.GetId()
+}
+
+//nolint:revive
+func (mf *mailFolder) GetParentFolderId() *string {
+	return mf.folder.GetParentFolderId()
+}
+
+// mailFolderCache struct used to improve lookup of directories within exchange.Mail
+// cache map of cachedContainers where the  key =  M365ID
+// nameLookup map: Key: DisplayName Value: ID
+type mailFolderCache struct {
+	cache        map[string]cachedContainer
+	gs           graph.Service
+	userID, root string
+	nameLookup   map[string]string
+}
+
+// populateMailRoot fetches and populates the root directory from user's inbox.
+// Action ensures that cache will stop at appropriate level.
+// @param directory: M365 ID of the root all intended inquiries.
+// Function should only be used directly when it is known that all
+// folder inquiries are going to a specific node. In all other cases
+// @error iff the struct is not properly instantiated
+func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directory string) error {
 	wantedOpts := []string{"displayName", "parentFolderId"}
 
 	opts, err := optionsForMailFoldersItem(wantedOpts)
@@ -54,7 +83,7 @@ func (mc *mailFolderCache) populateRoot(ctx context.Context) error {
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(rootFolderAlias).
+		MailFoldersById(directory).
 		Get(ctx, opts)
 	if err != nil {
 		return errors.Wrapf(err, "fetching root folder")
@@ -62,18 +91,29 @@ func (mc *mailFolderCache) populateRoot(ctx context.Context) error {
 
 	// Root only needs the ID because we hide it's name for Mail.
 	idPtr := f.GetId()
+
 	if idPtr == nil || len(*idPtr) == 0 {
 		return errors.New("root folder has no ID")
 	}
 
 	mc.cache[*idPtr] = &mailFolder{
-		MailFolderable: f,
-		p:              &path.Builder{},
+		folder: f,
+		p:      &path.Builder{},
 	}
+	mc.nameLookup[*f.GetDisplayName()] = *idPtr
+	mc.root = *idPtr
 
 	return nil
 }
 
+// populateRoot is the default function for folder resolution in the
+// exchange.Mail space. Directory is a constant set within  exchange_vars.go
+func (mc *mailFolderCache) populateRoot(ctx context.Context) error {
+	return mc.populateMailRoot(ctx, rootFolderAlias)
+}
+
+// checkRequiredValues is a helper function to ensure that
+// all the pointers are set prior to being called.
 func checkRequiredValues(c container) error {
 	idPtr := c.GetId()
 	if idPtr == nil || len(*idPtr) == 0 {
@@ -93,26 +133,36 @@ func checkRequiredValues(c container) error {
 	return nil
 }
 
-func (mc *mailFolderCache) Populate(ctx context.Context) error {
+// Populate utility function for populating struct maps.
+func (mc *mailFolderCache) Populate(ctx context.Context, root string) error {
 	if mc.cache == nil {
 		mc.cache = map[string]cachedContainer{}
+		mc.nameLookup = make(map[string]string)
 	}
 
-	if err := mc.populateRoot(ctx); err != nil {
-		return err
+	if len(root) == 0 {
+		if err := mc.populateRoot(ctx); err != nil {
+			return err
+		}
+	} else {
+		if err := mc.populateMailRoot(ctx, root); err != nil {
+			return err
+		}
 	}
 
-	builder := mc.
+	query := mc.
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFolders().
+		MailFoldersById(mc.root).ChildFolders().
 		Delta()
 
 	var errs *multierror.Error
 
+	// TODO: Cannot use Iterator for delta
+	// Awaiting resolution: https://github.com/microsoftgraph/msgraph-sdk-go/issues/272
 	for {
-		resp, err := builder.Get(ctx, nil)
+		resp, err := query.Get(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -123,7 +173,10 @@ func (mc *mailFolderCache) Populate(ctx context.Context) error {
 				continue
 			}
 
-			mc.cache[*f.GetId()] = &mailFolder{MailFolderable: f}
+			mc.cache[*f.GetId()] = &mailFolder{
+				folder: f,
+			}
+			mc.nameLookup[*f.GetDisplayName()] = *f.GetId()
 		}
 
 		r := resp.GetAdditionalData()
@@ -134,7 +187,7 @@ func (mc *mailFolderCache) Populate(ctx context.Context) error {
 		}
 
 		link := *(n.(*string))
-		builder = msfolderdelta.NewDeltaRequestBuilder(link, mc.gs.Adapter())
+		query = msfolderdelta.NewDeltaRequestBuilder(link, mc.gs.Adapter())
 	}
 
 	return errs.ErrorOrNil()
@@ -163,4 +216,16 @@ func (mc *mailFolderCache) IDToPath(
 	c.SetPath(fullPath)
 
 	return fullPath, nil
+}
+
+func (mc *mailFolderCache) DisplayToID(
+	ctx context.Context,
+	directory string,
+) string {
+	folderID, ok := mc.nameLookup[directory]
+	if !ok {
+		return ""
+	}
+
+	return folderID
 }
