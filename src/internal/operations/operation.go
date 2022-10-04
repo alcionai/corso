@@ -20,6 +20,10 @@ import (
 // Completed - the operation was able to process one or more of the
 //   items in the request. Both partial success (0 < N < len(items)
 //   errored) and total success (0 errors) are set as Completed.
+// NoData - only occurs when no data was involved in an operation.
+//   For example, if a backup is requested for a specific user's
+//   mail, but that account contains zero mail messages, the backup
+//   contains No Data.
 type opStatus int
 
 //go:generate stringer -type=opStatus -linecomment
@@ -28,6 +32,7 @@ const (
 	InProgress                 // In Progress
 	Completed                  // Completed
 	Failed                     // Failed
+	NoData                     // No Data
 )
 
 // --------------------------------------------------------------------------------

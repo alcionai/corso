@@ -83,6 +83,46 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	assert.Less(t, now, op.Results.CompletedAt, "completed at")
 }
 
+func (suite *BackupOpSuite) TestBackupOperation_PersistResults_noData() {
+	t := suite.T()
+	ctx := context.Background()
+
+	var (
+		kw    = &kopia.Wrapper{}
+		sw    = &store.Wrapper{}
+		acct  = account.Account{}
+		now   = time.Now()
+		stats = backupStats{
+			started: true,
+			k:       &kopia.BackupStats{},
+			gc:      &support.ConnectorOperationStatus{},
+		}
+	)
+
+	op, err := NewBackupOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		selectors.Selector{},
+		evmock.NewBus())
+	require.NoError(t, err)
+
+	require.NoError(t, op.persistResults(now, &stats))
+
+	assert.Equal(t, op.Status.String(), NoData.String(), "status")
+	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
+	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
+	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
+	assert.Equal(t, stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
+	assert.Equal(t, stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
+	assert.Equal(t, op.Results.ResourceOwners, stats.resourceCount, "resource owners")
+	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
+	assert.Equal(t, op.Results.StartedAt, now, "started at")
+	assert.Less(t, now, op.Results.CompletedAt, "completed at")
+}
+
 // ---------------------------------------------------------------------------
 // integration
 // ---------------------------------------------------------------------------
