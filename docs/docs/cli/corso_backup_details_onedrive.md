@@ -7,14 +7,20 @@ hide_title: true
 Shows the details of a M365 OneDrive service backup
 
 ```bash
-corso backup details onedrive [flags]
+corso backup details onedrive --backup <backupId> [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--backup`|||ID of the backup containing the details to be shown|
+|`--backup`|||ID of the backup to explore. <div class='required'>Required</div>|
+|`--folder`||``|Select backup details by OneDrive folder; defaults to root|
+|`--file-name`||``|Select backup details by OneDrive file name|
+|`--file-created-after`|||Select files created after this datetime|
+|`--file-created-before`|||Select files created before this datetime|
+|`--file-modified-after`|||Select files modified after this datetime|
+|`--file-modified-before`|||Select files modified before this datetime|
 |`--help`|`-h`|`false`|help for onedrive|
 
 ### Global and inherited flags

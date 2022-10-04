@@ -7,16 +7,16 @@ hide_title: true
 Ensures a connection to an existing S3 repository.
 
 ```bash
-corso repo connect s3 [flags]
+corso repo connect s3 --bucket <bucket> [flags]
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--bucket`|||Name of the S3 bucket (required).|
-|`--prefix`|||Prefix applied to objects in the bucket.|
-|`--endpoint`||`s3.amazonaws.com`|Server endpoint for S3 communication.|
+|`--bucket`|||Name of S3 bucket for repo. <div class='required'>Required</div>|
+|`--prefix`|||Repo prefix within bucket.|
+|`--endpoint`||`s3.amazonaws.com`|S3 service endpoint.|
 |`--help`|`-h`|`false`|help for s3|
 
 ### Global and inherited flags
