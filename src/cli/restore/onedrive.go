@@ -153,11 +153,13 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize OneDrive restore"))
 	}
 
-	if err := ro.Run(ctx); err != nil {
+	ds, err := ro.Run(ctx)
+	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to run OneDrive restore"))
 	}
 
 	Infof(ctx, "Restored OneDrive in %s for user %s.\n", s.Provider, sel.ToPrintable().Resources())
+	ds.PrintEntries(ctx)
 
 	return nil
 }

@@ -241,9 +241,13 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		mb)
 	require.NoError(t, err)
 
-	require.NoError(t, ro.Run(ctx), "restoreOp.Run()")
+	ds, err := ro.Run(ctx)
+
+	require.NoError(t, err, "restoreOp.Run()")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
+	require.NotNil(t, ds, "restored details")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
+	assert.Equal(t, ro.Results.ItemsWritten, len(ds.Entries), "count of items written matches restored entries in details")
 	assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
 	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
 	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
@@ -276,7 +280,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		dest,
 		mb)
 	require.NoError(t, err)
-	require.Error(t, ro.Run(ctx), "restoreOp.Run() should have 0 results")
+
+	ds, err := ro.Run(ctx)
+	require.Error(t, err, "restoreOp.Run() should have errored")
+	require.Nil(t, ds, "restoreOp.Run() should not produce details")
 	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
 	assert.Zero(t, ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
