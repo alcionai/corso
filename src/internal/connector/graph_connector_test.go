@@ -408,8 +408,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
+			deets, err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
 			require.NoError(t, err)
+			assert.NotNil(t, deets)
 
 			stats := suite.connector.AwaitStatus()
 			assert.Zero(t, stats.ObjectCount)
@@ -687,13 +688,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 			restoreGC := loadConnector(ctx, t)
 			restoreSel := getSelectorWith(test.service)
-			err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+			deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
 			require.NoError(t, err)
+			assert.NotNil(t, deets)
 
 			status := restoreGC.AwaitStatus()
 			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
+			assert.Equal(
+				t, totalItems, len(deets.Entries),
+				"details entries contains same item count as total successful items restored")
 
 			t.Logf("Restore complete\n")
 
@@ -726,17 +731,53 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
 
+	// TODO(ashmrtn): Update if we start mixing categories during backup/restore.
+	backupSelFunc := func(
+		dests []control.RestoreDestination,
+		category path.CategoryType,
+		backupUser string,
+	) selectors.Selector {
+		destNames := make([]string, 0, len(dests))
+
+		for _, d := range dests {
+			destNames = append(destNames, d.ContainerName)
+		}
+
+		backupSel := selectors.NewExchangeBackup()
+
+		switch category {
+		case path.EmailCategory:
+			backupSel.Include(backupSel.MailFolders(
+				[]string{backupUser},
+				destNames,
+			))
+		case path.ContactsCategory:
+			backupSel.Include(backupSel.ContactFolders(
+				[]string{backupUser},
+				destNames,
+			))
+		case path.EventsCategory:
+			backupSel.Include(backupSel.EventCalendars(
+				[]string{backupUser},
+				destNames,
+			))
+		}
+
+		return backupSel.Selector
+	}
+
 	table := []struct {
-		name    string
-		service path.ServiceType
+		name     string
+		service  path.ServiceType
+		category path.CategoryType
 		// Each collection will be restored separately, creating multiple folders to
 		// backup later.
-		collections   []colInfo
-		backupSelFunc func(dests []control.RestoreDestination, backupUser string) selectors.Selector
+		collections []colInfo
 	}{
 		{
-			name:    "Email",
-			service: path.ExchangeService,
+			name:     "Email",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -767,22 +808,63 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dests []control.RestoreDestination, backupUser string) selectors.Selector {
-				destNames := make([]string, 0, len(dests))
-
-				for _, d := range dests {
-					destNames = append(destNames, d.ContainerName)
-				}
-
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.MailFolders(
-					[]string{backupUser},
-					destNames,
-				))
-
-				return backupSel.Selector
+		},
+		{
+			name:     "Contacts",
+			service:  path.ExchangeService,
+			category: path.ContactsCategory,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "Events",
+			service:  path.ExchangeService,
+			category: path.EventsCategory,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -796,7 +878,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			allExpectedData := map[string]map[string][]byte{}
 
 			for i, collection := range test.collections {
-				// Get a dest per collection so they're independent.
+				// Get a dest per collection. Ensure they're independent with a small
+				// sleep.
+				time.Sleep(time.Second * 1)
 				dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
 				dests = append(dests, dest)
 
@@ -822,14 +906,18 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				)
 
 				restoreGC := loadConnector(ctx, t)
-				err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+				deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
 				require.NoError(t, err)
+				require.NotNil(t, deets)
 
 				status := restoreGC.AwaitStatus()
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 				assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 				assert.Equal(t, totalItems, status.Successful, "status.Successful")
+				assert.Equal(
+					t, totalItems, len(deets.Entries),
+					"details entries contains same item count as total successful items restored")
 
 				t.Logf("Restore complete\n")
 			}
@@ -837,7 +925,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			// Run a backup and compare its output with what we put in.
 
 			backupGC := loadConnector(ctx, t)
-			backupSel := test.backupSelFunc(dests, suite.user)
+			backupSel := backupSelFunc(dests, test.category, suite.user)
 			t.Logf("Selective backup of %s\n", backupSel)
 
 			dcs, err := backupGC.DataCollections(ctx, backupSel)
