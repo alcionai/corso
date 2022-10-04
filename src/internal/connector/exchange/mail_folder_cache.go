@@ -4,7 +4,6 @@ import (
 	"context"
 
 	multierror "github.com/hashicorp/go-multierror"
-	//msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/delta"
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
 	"github.com/pkg/errors"
 

@@ -22,6 +22,7 @@ const (
 	//nolint:lll
 	testFolderID = "AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAABl7AqpAAA="
 
+	topFolderID = "AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEIAAA="
 	// Full folder path for the folder above.
 	expectedFolderPath = "toplevel/subFolder/subsubfolder"
 )
@@ -303,19 +304,36 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 }
 
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
-	ctx := context.Background()
-	t := suite.T()
-	userID := tester.M365UserID(t)
-
-	mfc := mailFolderCache{
-		userID: userID,
-		gs:     suite.gs,
+	tests := []struct {
+		name string
+		root string
+	}{
+		{
+			name: "Default Root",
+			root: "",
+		},
+		{
+			name: "Node Root",
+			root: topFolderID,
+		},
 	}
+	ctx := context.Background()
+	userID := tester.M365UserID(suite.T())
 
-	require.NoError(t, mfc.Populate(ctx))
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			mfc := mailFolderCache{
+				userID: userID,
+				gs:     suite.gs,
+			}
 
-	p, err := mfc.IDToPath(ctx, testFolderID)
-	require.NoError(t, err)
+			require.NoError(t, mfc.Populate(ctx, test.root))
 
-	assert.Equal(t, expectedFolderPath, p.String())
+			p, err := mfc.IDToPath(ctx, testFolderID)
+			t.Logf("Path: %s\n", p.String())
+			require.NoError(t, err)
+
+			assert.Equal(t, expectedFolderPath, p.String())
+		})
+	}
 }
