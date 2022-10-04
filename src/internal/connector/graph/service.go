@@ -37,5 +37,5 @@ type ContainerResolver interface {
 	// file system.
 	IDToPath(ctx context.Context, m365ID string) (*path.Builder, error)
 	// Populate performs any setup logic the resolver may need.
-	Populate(context.Context) error
+	Populate(context.Context, string) error
 }
