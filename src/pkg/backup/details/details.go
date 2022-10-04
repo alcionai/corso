@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dustin/go-humanize"
+
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/model"
@@ -379,7 +381,7 @@ func (i OneDriveInfo) Headers() []string {
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
 	return []string{
-		i.ItemName, i.ParentPath, strconv.FormatInt(i.Size, 10),
+		i.ItemName, i.ParentPath, humanize.Bytes(uint64(i.Size)),
 		common.FormatTabularDisplayTime(i.Created), common.FormatTabularDisplayTime(i.Modified),
 	}
 }
