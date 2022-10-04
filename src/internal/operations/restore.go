@@ -93,16 +93,16 @@ type restoreStats struct {
 }
 
 // Run begins a synchronous restore operation.
-func (op *RestoreOperation) Run(ctx context.Context) (err error) {
+func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	defer trace.StartRegion(ctx, "operations:restore:run").End()
 
-	startTime := time.Now()
-
-	// persist operation results to the model store on exit
-	opStats := restoreStats{
-		bytesRead: &stats.ByteCounter{},
-		restoreID: uuid.NewString(),
-	}
+	var (
+		opStats = restoreStats{
+			bytesRead: &stats.ByteCounter{},
+			restoreID: uuid.NewString(),
+		}
+		startTime = time.Now()
+	)
 
 	defer func() {
 		err = op.persistResults(ctx, startTime, &opStats)
@@ -111,13 +111,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	// retrieve the restore point details
-	d, b, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
+	deets, bup, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
 	if err != nil {
 		err = errors.Wrap(err, "getting backup details for restore")
 		opStats.readErr = err
 
-		return err
+		return nil, err
 	}
 
 	op.bus.Event(
@@ -126,96 +125,46 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		map[string]any{
 			events.StartTime:        startTime,
 			events.BackupID:         op.BackupID,
-			events.BackupCreateTime: b.CreationTime,
+			events.BackupCreateTime: bup.CreationTime,
 			events.RestoreID:        opStats.restoreID,
 			// TODO: restore options,
 		},
 	)
 
-	var fds *details.Details
-
-	switch op.Selectors.Service {
-	case selectors.ServiceExchange:
-		er, err := op.Selectors.ToExchangeRestore()
-		if err != nil {
-			opStats.readErr = err
-			return err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = er.Reduce(ctx, d)
-		if len(fds.Entries) == 0 {
-			return selectors.ErrorNoMatchingItems
-		}
-
-	case selectors.ServiceOneDrive:
-		odr, err := op.Selectors.ToOneDriveRestore()
-		if err != nil {
-			opStats.readErr = err
-			return err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = odr.Reduce(ctx, d)
-		if len(fds.Entries) == 0 {
-			return selectors.ErrorNoMatchingItems
-		}
-
-	default:
-		return errors.Errorf("Service %s not supported", op.Selectors.Service)
+	paths, err := formatDetailsForRestoration(ctx, op.Selectors, deets)
+	if err != nil {
+		opStats.readErr = err
+		return nil, err
 	}
 
-	logger.Ctx(ctx).Infof("Discovered %d items in backup %s to restore", len(fds.Entries), op.BackupID)
+	logger.Ctx(ctx).Infof("Discovered %d items in backup %s to restore", len(paths), op.BackupID)
 
-	fdsPaths := fds.Paths()
-	paths := make([]path.Path, len(fdsPaths))
-
-	var parseErrs *multierror.Error
-
-	for i := range fdsPaths {
-		p, err := path.FromDataLayerPath(fdsPaths[i], true)
-		if err != nil {
-			parseErrs = multierror.Append(
-				parseErrs,
-				errors.Wrap(err, "parsing details entry path"),
-			)
-
-			continue
-		}
-
-		paths[i] = p
-	}
-
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths, opStats.bytesRead)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
+		opStats.readErr = err
 
-		parseErrs = multierror.Append(parseErrs, err)
-		opStats.readErr = parseErrs.ErrorOrNil()
-
-		return err
+		return nil, err
 	}
 
-	opStats.readErr = parseErrs.ErrorOrNil()
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
 	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
-		err = errors.Wrap(err, "connecting to graph api")
+		err = errors.Wrap(err, "connecting to microsoft servers")
 		opStats.writeErr = err
 
-		return err
+		return nil, err
 	}
 
-	// TODO: return details and print in CLI
-	_, err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
+	restoreDetails, err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err
 
-		return err
+		return nil, err
 	}
 
 	opStats.started = true
@@ -223,7 +172,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
-	return nil
+	return restoreDetails, nil
 }
 
 // persists details and statistics about the restore operation.
@@ -273,4 +222,65 @@ func (op *RestoreOperation) persistResults(
 	)
 
 	return nil
+}
+
+// formatDetailsForRestoration reduces the provided detail entries according to the
+// selector specifications.
+func formatDetailsForRestoration(
+	ctx context.Context,
+	sel selectors.Selector,
+	deets *details.Details,
+) ([]path.Path, error) {
+	var fds *details.Details
+
+	switch sel.Service {
+	case selectors.ServiceExchange:
+		er, err := sel.ToExchangeRestore()
+		if err != nil {
+			return nil, err
+		}
+
+		// format the details and retrieve the items from kopia
+		fds = er.Reduce(ctx, deets)
+		if len(fds.Entries) == 0 {
+			return nil, selectors.ErrorNoMatchingItems
+		}
+
+	case selectors.ServiceOneDrive:
+		odr, err := sel.ToOneDriveRestore()
+		if err != nil {
+			return nil, err
+		}
+
+		// format the details and retrieve the items from kopia
+		fds = odr.Reduce(ctx, deets)
+		if len(fds.Entries) == 0 {
+			return nil, selectors.ErrorNoMatchingItems
+		}
+
+	default:
+		return nil, errors.Errorf("Service %s not supported", sel.Service)
+	}
+
+	var (
+		errs     *multierror.Error
+		fdsPaths = fds.Paths()
+		paths    = make([]path.Path, len(fdsPaths))
+	)
+
+	for i := range fdsPaths {
+		p, err := path.FromDataLayerPath(fdsPaths[i], true)
+		if err != nil {
+			errs = multierror.Append(
+				errs,
+				errors.Wrap(err, "parsing details entry path"),
+			)
+
+			continue
+		}
+
+		paths[i] = p
+	}
+
+	return paths, nil
 }
