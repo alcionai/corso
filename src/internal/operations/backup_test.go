@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -35,52 +34,79 @@ func TestBackupOpSuite(t *testing.T) {
 }
 
 func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
-	t := suite.T()
-	ctx := context.Background()
-
 	var (
-		kw    = &kopia.Wrapper{}
-		sw    = &store.Wrapper{}
-		acct  = account.Account{}
-		now   = time.Now()
-		stats = backupStats{
-			started:       true,
-			readErr:       multierror.Append(nil, assert.AnError),
-			writeErr:      assert.AnError,
-			resourceCount: 1,
-			k: &kopia.BackupStats{
-				TotalFileCount:     1,
-				TotalHashedBytes:   1,
-				TotalUploadedBytes: 1,
-			},
-			gc: &support.ConnectorOperationStatus{
-				Successful: 1,
-			},
-		}
+		ctx  = context.Background()
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		acct = account.Account{}
+		now  = time.Now()
 	)
 
-	op, err := NewBackupOperation(
-		ctx,
-		control.Options{},
-		kw,
-		sw,
-		acct,
-		selectors.Selector{},
-		evmock.NewBus())
-	require.NoError(t, err)
+	table := []struct {
+		expectStatus opStatus
+		expectErr    assert.ErrorAssertionFunc
+		stats        backupStats
+	}{
+		{
+			expectStatus: Completed,
+			expectErr:    assert.NoError,
+			stats: backupStats{
+				started:       true,
+				resourceCount: 1,
+				k: &kopia.BackupStats{
+					TotalFileCount:     1,
+					TotalHashedBytes:   1,
+					TotalUploadedBytes: 1,
+				},
+				gc: &support.ConnectorOperationStatus{
+					Successful: 1,
+				},
+			},
+		},
+		{
+			expectStatus: Failed,
+			expectErr:    assert.Error,
+			stats: backupStats{
+				started: false,
+				k:       &kopia.BackupStats{},
+				gc:      &support.ConnectorOperationStatus{},
+			},
+		},
+		{
+			expectStatus: NoData,
+			expectErr:    assert.NoError,
+			stats: backupStats{
+				started: true,
+				k:       &kopia.BackupStats{},
+				gc:      &support.ConnectorOperationStatus{},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.expectStatus.String(), func(t *testing.T) {
+			op, err := NewBackupOperation(
+				ctx,
+				control.Options{},
+				kw,
+				sw,
+				acct,
+				selectors.Selector{},
+				evmock.NewBus())
+			require.NoError(t, err)
+			test.expectErr(t, op.persistResults(now, &test.stats))
 
-	require.NoError(t, op.persistResults(now, &stats))
-
-	assert.Equal(t, op.Status.String(), Completed.String(), "status")
-	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
-	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
-	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
-	assert.Equal(t, stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
-	assert.Equal(t, stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
-	assert.Equal(t, op.Results.ResourceOwners, stats.resourceCount, "resource owners")
-	assert.Equal(t, op.Results.WriteErrors, stats.writeErr, "write errors")
-	assert.Equal(t, op.Results.StartedAt, now, "started at")
-	assert.Less(t, now, op.Results.CompletedAt, "completed at")
+			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
+			assert.Equal(t, test.stats.gc.Successful, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
+			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
+			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
+			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
+			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
+			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
+			assert.Equal(t, now, op.Results.StartedAt, "started at")
+			assert.Less(t, now, op.Results.CompletedAt, "completed at")
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
