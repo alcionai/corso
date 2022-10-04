@@ -3,6 +3,7 @@ package repo_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -38,6 +39,47 @@ func (suite *S3IntegrationSuite) SetupSuite() {
 }
 
 func (suite *S3IntegrationSuite) TestInitS3Cmd() {
+	table := []struct {
+		name         string
+		bucketPrefix string
+	}{
+		{
+			name:         "NoPrefix",
+			bucketPrefix: "",
+		},
+		{
+			name:         "S3Prefix",
+			bucketPrefix: "s3://",
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := tester.NewContext()
+
+			st := tester.NewPrefixedS3Storage(t)
+			cfg, err := st.S3Config()
+			require.NoError(t, err)
+
+			vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
+			require.NoError(t, err)
+
+			ctx = config.SetViper(ctx, vpr)
+
+			cmd := tester.StubRootCmd(
+				"repo", "init", "s3",
+				"--config-file", configFP,
+				"--bucket", test.bucketPrefix+cfg.Bucket,
+				"--prefix", cfg.Prefix)
+			cli.BuildCommandTree(cmd)
+
+			// run the command
+			require.NoError(t, cmd.ExecuteContext(ctx))
+		})
+	}
+}
+
+func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
 	ctx := tester.NewContext()
 	t := suite.T()
 
@@ -50,15 +92,19 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 
 	ctx = config.SetViper(ctx, vpr)
 
-	cmd := tester.StubRootCmd(
-		"repo", "init", "s3",
-		"--config-file", configFP,
-		"--bucket", cfg.Bucket,
-		"--prefix", cfg.Prefix)
-	cli.BuildCommandTree(cmd)
+	for i := 0; i < 2; i++ {
+		cmd := tester.StubRootCmd(
+			"repo", "init", "s3",
+			"--config-file", configFP,
+			"--bucket", cfg.Bucket,
+			"--prefix", cfg.Prefix,
+			"--succeed-if-exists",
+		)
+		cli.BuildCommandTree(cmd)
 
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+		// run the command
+		require.NoError(t, cmd.ExecuteContext(ctx))
+	}
 }
 
 func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
@@ -85,37 +131,54 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 }
 
 func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
-	ctx := tester.NewContext()
-	t := suite.T()
-
-	st := tester.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
-	require.NoError(t, err)
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
+	table := []struct {
+		name         string
+		bucketPrefix string
+	}{
+		{
+			name:         "NoPrefix",
+			bucketPrefix: "",
+		},
+		{
+			name:         "S3Prefix",
+			bucketPrefix: "s3://",
+		},
 	}
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
 
-	ctx = config.SetViper(ctx, vpr)
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx := tester.NewContext()
+			st := tester.NewPrefixedS3Storage(t)
+			cfg, err := st.S3Config()
+			require.NoError(t, err)
 
-	// init the repo first
-	_, err = repository.Initialize(ctx, account.Account{}, st, control.Options{})
-	require.NoError(t, err)
+			force := map[string]string{
+				tester.TestCfgAccountProvider: "M365",
+				tester.TestCfgStorageProvider: "S3",
+				tester.TestCfgPrefix:          cfg.Prefix,
+			}
+			vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
+			require.NoError(t, err)
 
-	// then test it
-	cmd := tester.StubRootCmd(
-		"repo", "connect", "s3",
-		"--config-file", configFP,
-		"--bucket", cfg.Bucket,
-		"--prefix", cfg.Prefix)
-	cli.BuildCommandTree(cmd)
+			ctx = config.SetViper(ctx, vpr)
 
-	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+			// init the repo first
+			_, err = repository.Initialize(ctx, account.Account{}, st, control.Options{})
+			require.NoError(t, err)
+
+			// then test it
+			cmd := tester.StubRootCmd(
+				"repo", "connect", "s3",
+				"--config-file", configFP,
+				"--bucket", test.bucketPrefix+cfg.Bucket,
+				"--prefix", cfg.Prefix,
+			)
+			cli.BuildCommandTree(cmd)
+
+			// run the command
+			assert.NoError(t, cmd.ExecuteContext(ctx))
+		})
+	}
 }
 
 func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {

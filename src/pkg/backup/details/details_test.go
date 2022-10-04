@@ -112,16 +112,16 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
 					OneDrive: &details.OneDriveInfo{
-						ItemName:     "itemName",
-						ParentPath:   "parentPath",
-						Size:         1000,
-						Created:      now,
-						LastModified: now,
+						ItemName:   "itemName",
+						ParentPath: "parentPath",
+						Size:       1000,
+						Created:    now,
+						Modified:   now,
 					},
 				},
 			},
-			expectHs: []string{"Reference", "ItemName", "ParentPath", "Size", "Created", "LastModified"},
-			expectVs: []string{"deadbeef", "itemName", "parentPath", "1000", nowStr, nowStr},
+			expectHs: []string{"Reference", "ItemName", "ParentPath", "Size", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", nowStr, nowStr},
 		},
 	}
 
