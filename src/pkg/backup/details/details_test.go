@@ -121,7 +121,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				},
 			},
 			expectHs: []string{"Reference", "ItemName", "ParentPath", "Size", "Created", "Modified"},
-			expectVs: []string{"deadbeef", "itemName", "parentPath", "1000", nowStr, nowStr},
+			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", nowStr, nowStr},
 		},
 	}
 
