@@ -25,9 +25,9 @@ import (
 
 const (
 	oneDriveServiceCommand                 = "onedrive"
-	oneDriveServiceCommandCreateUseSuffix  = " --user <userId or email> | '" + utils.Wildcard + "'"
-	oneDriveServiceCommandDeleteUseSuffix  = " --backup <backupId>"
-	oneDriveServiceCommandDetailsUseSuffix = " --backup <backupId>"
+	oneDriveServiceCommandCreateUseSuffix  = "--user <userId or email> | '" + utils.Wildcard + "'"
+	oneDriveServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	oneDriveServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
@@ -76,7 +76,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandCreateUseSuffix
+		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
 		fs.StringArrayVar(&user, "user", nil,
@@ -89,7 +89,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandDetailsUseSuffix
+		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
@@ -130,7 +130,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandDeleteUseSuffix
+		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")

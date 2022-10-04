@@ -283,7 +283,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 }
 
 // TestAccessOfInboxAllUsers verifies that GraphConnector can
-// support `--all-users` for backup operations. Selector.DiscreteScopes
+// support `--users *` for backup operations. Selector.DiscreteScopes
 // returns all of the users within one scope. Only users who have
 // messages in their inbox will have a collection returned.
 // The final test insures that more than a 75% of the user collections are

@@ -20,7 +20,7 @@ func TestOneDriveSuite(t *testing.T) {
 }
 
 func (suite *OneDriveSuite) TestAddOneDriveCommands() {
-	expectUse := oneDriveServiceCommand + oneDriveServiceCommandUseSuffix
+	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
 
 	table := []struct {
 		name        string

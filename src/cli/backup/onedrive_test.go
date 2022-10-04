@@ -30,7 +30,7 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create onedrive", createCommand, expectUse + oneDriveServiceCommandCreateUseSuffix,
+			"create onedrive", createCommand, expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
 			oneDriveCreateCmd().Short, createOneDriveCmd,
 		},
 		{
@@ -38,11 +38,11 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 			oneDriveListCmd().Short, listOneDriveCmd,
 		},
 		{
-			"details onedrive", detailsCommand, expectUse + oneDriveServiceCommandDetailsUseSuffix,
+			"details onedrive", detailsCommand, expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
 			oneDriveDetailsCmd().Short, detailsOneDriveCmd,
 		},
 		{
-			"delete onedrive", deleteCommand, expectUse + oneDriveServiceCommandDeleteUseSuffix,
+			"delete onedrive", deleteCommand, expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
 			oneDriveDeleteCmd().Short, deleteOneDriveCmd,
 		},
 	}
