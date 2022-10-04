@@ -64,6 +64,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				cs: []data.Collection{&exchange.Collection{}},
 				gc: &support.ConnectorOperationStatus{
 					ObjectCount: 1,
+					Successful:  1,
 				},
 			},
 		},
