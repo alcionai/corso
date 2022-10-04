@@ -209,7 +209,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
+	// TODO: return details and print in CLI
+	_, err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err
@@ -225,7 +226,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-// writes the restoreOperation outcome to the modelStore.
+// persists details and statistics about the restore operation.
 func (op *RestoreOperation) persistResults(
 	ctx context.Context,
 	started time.Time,

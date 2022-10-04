@@ -79,6 +79,34 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 	}
 }
 
+func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
+	ctx := tester.NewContext()
+	t := suite.T()
+
+	st := tester.NewPrefixedS3Storage(t)
+	cfg, err := st.S3Config()
+	require.NoError(t, err)
+
+	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
+	require.NoError(t, err)
+
+	ctx = config.SetViper(ctx, vpr)
+
+	for i := 0; i < 2; i++ {
+		cmd := tester.StubRootCmd(
+			"repo", "init", "s3",
+			"--config-file", configFP,
+			"--bucket", cfg.Bucket,
+			"--prefix", cfg.Prefix,
+			"--succeed-if-exists",
+		)
+		cli.BuildCommandTree(cmd)
+
+		// run the command
+		require.NoError(t, cmd.ExecuteContext(ctx))
+	}
+}
+
 func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 	ctx := tester.NewContext()
 	t := suite.T()
