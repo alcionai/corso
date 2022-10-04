@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -44,7 +43,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		sw   = &store.Wrapper{}
 		acct = account.Account{}
 		now  = time.Now()
-		dest = control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+		dest = tester.DefaultTestRestoreDestination()
 	)
 
 	table := []struct {
@@ -213,7 +212,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
 	acct := tester.NewM365Account(suite.T())
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 
 	table := []struct {
 		name     string
@@ -252,7 +251,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(
@@ -292,7 +291,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(selectors.None()))
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(

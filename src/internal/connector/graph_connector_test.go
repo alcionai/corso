@@ -368,7 +368,7 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	dest := tester.DefaultTestRestoreDestination()
 	table := []struct {
 		name string
 		col  []data.Collection
@@ -673,7 +673,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 			// Get a dest per test so they're independent.
-			dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+			dest := tester.DefaultTestRestoreDestination()
 
 			totalItems, collections, expectedData := collectionsForInfo(
 				t,
@@ -878,10 +878,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			allExpectedData := map[string]map[string][]byte{}
 
 			for i, collection := range test.collections {
-				// Get a dest per collection. Ensure they're independent with a small
-				// sleep.
-				time.Sleep(time.Second * 1)
-				dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+				// Get a dest per collection so they're independent.
+				dest := tester.DefaultTestRestoreDestination()
 				dests = append(dests, dest)
 
 				totalItems, collections, expectedData := collectionsForInfo(

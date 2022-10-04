@@ -99,6 +99,7 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 		common.SimpleDateTimeFormatOneDrive,
 		common.StandardTimeFormat,
 		common.TabularOutputTimeFormat,
+		common.SimpleDateTimeFormatTests,
 	}
 
 	type presuf struct {

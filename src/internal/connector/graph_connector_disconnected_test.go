@@ -10,11 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -188,7 +186,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
 	sel := selectors.Selector{
 		Service: selectors.ServiceUnknown,
 	}
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	dest := tester.DefaultTestRestoreDestination()
 
 	deets, err := gc.RestoreDataCollections(ctx, sel, dest, nil)
 	assert.Error(t, err)
