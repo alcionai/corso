@@ -224,8 +224,6 @@ func restoreItem(
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-	collPath path.Path,
-	deets *details.Details,
 ) error {
 	defer trace.StartRegion(ctx, "gc:oneDrive:restoreItem").End()
 
@@ -255,18 +253,6 @@ func restoreItem(
 	if err != nil {
 		return errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}
-
-	itemPath, err := collPath.Append(itemData.UUID(), true)
-	if err != nil {
-		logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
-		return nil
-	}
-
-	deets.Add(
-		itemPath.String(),
-		itemPath.ShortRef(),
-		"",
-		details.ItemInfo{})
 
 	return nil
 }
