@@ -112,7 +112,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		}
 	}()
 
-	ds, b, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
+	deets, bup, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
 	if err != nil {
 		err = errors.Wrap(err, "getting backup details for restore")
 		opStats.readErr = err
@@ -126,13 +126,13 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		map[string]any{
 			events.StartTime:        startTime,
 			events.BackupID:         op.BackupID,
-			events.BackupCreateTime: b.CreationTime,
+			events.BackupCreateTime: bup.CreationTime,
 			events.RestoreID:        opStats.restoreID,
 			// TODO: restore options,
 		},
 	)
 
-	paths, err := formatDetailsForRestoration(ctx, op.Selectors, ds)
+	paths, err := formatDetailsForRestoration(ctx, op.Selectors, deets)
 	if err != nil {
 		opStats.readErr = err
 		return nil, err
@@ -140,7 +140,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	logger.Ctx(ctx).Infof("Discovered %d items in backup %s to restore", len(paths), op.BackupID)
 
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, b.SnapshotID, paths, opStats.bytesRead)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
 
@@ -157,7 +157,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
-		err = errors.Wrap(err, "connecting to graph api")
+		err = errors.Wrap(err, "connecting to microsoft servers")
 		opStats.writeErr = err
 
 		return nil, err
