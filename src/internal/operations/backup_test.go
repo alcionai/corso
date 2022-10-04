@@ -71,7 +71,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 
 	require.NoError(t, op.persistResults(now, &stats))
 
-	assert.Equal(t, op.Status.String(), Completed.String(), "status")
+	assert.Equal(t, Completed.String(), op.Status.String(), "status")
 	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")
@@ -111,7 +111,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults_noData() {
 
 	require.NoError(t, op.persistResults(now, &stats))
 
-	assert.Equal(t, op.Status.String(), NoData.String(), "status")
+	assert.Equal(t, NoData.String(), op.Status.String(), "status")
 	assert.Equal(t, op.Results.ItemsRead, stats.gc.Successful, "items read")
 	assert.Equal(t, op.Results.ReadErrors, stats.readErr, "read errors")
 	assert.Equal(t, op.Results.ItemsWritten, stats.k.TotalFileCount, "items written")

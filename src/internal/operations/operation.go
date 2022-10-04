@@ -13,8 +13,8 @@ import (
 
 // opStatus describes the current status of an operation.
 // InProgress - the standard value for any process that has not
-//   arrived at an end state.  The two end states are Failed and
-//   Completed.
+//   arrived at an end state.  The end states are Failed, Completed,
+//   or NoData.
 // Failed - the operation was unable to begin processing data at all.
 //   No items have been written by the consumer.
 // Completed - the operation was able to process one or more of the
