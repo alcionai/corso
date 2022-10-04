@@ -18,9 +18,9 @@ func AddCommands(parent *cobra.Command) {
 	var (
 		// Get new instances so that setting the context during tests works
 		// properly.
-		repoCmd    = getRepoCmd()
-		initCmd    = getInitCmd()
-		connectCmd = getConnectCmd()
+		repoCmd    = repoCmd()
+		initCmd    = initCmd()
+		connectCmd = connectCmd()
 	)
 
 	parent.AddCommand(repoCmd)
@@ -35,7 +35,7 @@ func AddCommands(parent *cobra.Command) {
 
 // The repo category of commands.
 // `corso repo [<subcommand>] [<flag>...]`
-func getRepoCmd() *cobra.Command {
+func repoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "repo",
 		Short: "Manage your repositories",
@@ -53,7 +53,7 @@ func handleRepoCmd(cmd *cobra.Command, args []string) error {
 
 // The repo init subcommand.
 // `corso repo init <repository> [<flag>...]`
-func getInitCmd() *cobra.Command {
+func initCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   initCommand,
 		Short: "Initialize a repository.",
@@ -70,7 +70,7 @@ func handleInitCmd(cmd *cobra.Command, args []string) error {
 
 // The repo connect subcommand.
 // `corso repo connect <repository> [<flag>...]`
-func getConnectCmd() *cobra.Command {
+func connectCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   connectCommand,
 		Short: "Connect to a repository.",
