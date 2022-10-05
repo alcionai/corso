@@ -131,20 +131,12 @@ func checkRequiredValues(c container) error {
 	return nil
 }
 
-// Populate utility function for populating struct maps.
-func (mc *mailFolderCache) Populate(ctx context.Context, root string) error {
-	if mc.cache == nil {
-		mc.cache = map[string]cachedContainer{}
-	}
-
-	if len(root) == 0 {
-		if err := mc.populateRoot(ctx); err != nil {
-			return err
-		}
-	} else {
-		if err := mc.populateMailRoot(ctx, root); err != nil {
-			return err
-		}
+// Populate utility function for populating the mailFolderCache.
+// Number of Graph Queries: 1.
+func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
+	err := mc.Init(ctx, baseID)
+	if err != nil {
+		return err
 	}
 
 	query := mc.
@@ -212,4 +204,19 @@ func (mc *mailFolderCache) IDToPath(
 	c.SetPath(fullPath)
 
 	return fullPath, nil
+}
+
+// Init ensures that the structure's fields are initialized.
+// Fields Initialized when cache == nil:
+// [mc.cache, mc.rootID]
+func (mc *mailFolderCache) Init(ctx context.Context, baseNode string) error {
+	if mc.cache == nil {
+		mc.cache = map[string]cachedContainer{}
+	}
+
+	if len(baseNode) == 0 {
+		return mc.populateRoot(ctx)
+	}
+
+	return mc.populateMailRoot(ctx, baseNode)
 }
