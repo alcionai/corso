@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"runtime/trace"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -294,7 +295,7 @@ func RestoreExchangeDataCollections(
 	var (
 		pathCounter = map[string]bool{}
 		// map of caches... but not yet...
-		directoryCaches map[path.CategoryType]mailFolderCache
+		directoryCaches = map[path.CategoryType]mailFolderCache{}
 		rootFolder      string
 		metrics         support.CollectionMetrics
 		errs            error
@@ -308,7 +309,11 @@ func RestoreExchangeDataCollections(
 
 	for _, dc := range dcs {
 		//PUT Caching into separate function... here
-
+		// Inputs --> folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
+		//GetContainerID()
+		GetContainerIDFromCache(ctx, gs, dc.FullPath(), dest.ContainerName,
+			directoryCaches, pathCounter)
+		os.Exit(1)
 		temp, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, deets, errUpdater)
 
 		metrics.Combine(temp)
@@ -346,19 +351,16 @@ func restoreCollection(
 	trace.Log(ctx, "gc:exchange:restoreCollection", dc.FullPath().String())
 
 	var (
-		metrics            support.CollectionMetrics
-		folderID           string
-		err                error
-		items              = dc.Items()
-		directory          = dc.FullPath()
-		service            = directory.Service()
-		category           = directory.Category()
-		user               = directory.ResourceOwner()
-		directoryCheckFunc = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
+		metrics        support.CollectionMetrics
+		folderID, root string
+		err            error
+		items          = dc.Items()
+		directory      = dc.FullPath()
+		service        = directory.Service()
+		category       = directory.Category()
+		user           = directory.ResourceOwner()
 	)
-	// TODO... I need a
 
-	folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
 	if err != nil { // assuming FailFast
 		errUpdater(directory.String(), err)
 		return metrics, rootFolder, false
@@ -418,24 +420,51 @@ func restoreCollection(
 
 // generateRestoreContainerFunc utility function that holds logic for creating
 // Root Directory or necessary functions based on path.CategoryType
-func generateRestoreContainerFunc(
+func GetContainerIDFromCache(
+	ctx context.Context,
 	gs graph.Service,
-	user string,
-	category path.CategoryType,
+	directory path.Path,
 	destination string,
-) func(context.Context, error, string, string, map[string]bool) (string, string, error) {
-	return func(
-		ctx context.Context,
-		errs error,
-		dirName string,
-		rootFolderID string,
-		pathCounter map[string]bool,
-	) (string, string, error) {
-		var (
-			folderID string
-			err      error
-		)
+	caches map[path.CategoryType]mailFolderCache,
+	pathCounter map[string]bool,
+) (string, error) {
+	var (
+		folderID       string
+		err            error
+		isMailEnabled  bool
+		directoryCache mailFolderCache
+		user           = directory.ResourceOwner()
+		category       = directory.Category()
+	)
 
+	switch category {
+	case path.EmailCategory:
+		if !isMailEnabled {
+			// Creates Root Node
+			folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
+			if err != nil {
+				return "", err
+			}
+
+			mfc := mailFolderCache{
+				userID: user,
+				gs:     gs,
+			}
+
+			err = mfc.Populate(ctx, folderID)
+			if err != nil {
+				return "", err
+			}
+
+			caches[category] = mfc
+			//Initialize with the populate
+		}
+	}
+
+	directoryCache = caches[category]
+	fmt.Printf("What: %v\n", *directoryCache.cache[directoryCache.rootID].GetDisplayName())
+	fmt.Printf("PotentialPath: %v\n", directory.Folders())
+	/*
 		if rootFolderID != "" && category == path.ContactsCategory {
 			return rootFolderID, rootFolderID, errs
 		}
@@ -451,8 +480,7 @@ func generateRestoreContainerFunc(
 			if rootFolderID == "" {
 				rootFolderID = folderID
 			}
-		}
+		}*/
 
-		return folderID, rootFolderID, nil
-	}
+	return folderID, nil
 }
