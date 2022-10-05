@@ -4,13 +4,11 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"runtime/trace"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -126,57 +124,17 @@ func (gs *graphService) EnableFailFast() {
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	defer trace.StartRegion(ctx, "gc:setTenantUsers").End()
 
-	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
+	pns, err := exchange.GetAllUserPNs(ctx, gc.graphService)
 	if err != nil {
 		return errors.Wrapf(
 			err,
-			"tenant %s M365 query: %s",
+			"tenant %s M365 user PNs query: %s",
 			gc.tenant,
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
 
-	if response == nil {
-		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
-		return err
-	}
-
-	userIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		&gc.graphService.adapter,
-		models.CreateUserCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
-
-	callbackFunc := func(userItem interface{}) bool {
-		user, ok := userItem.(models.Userable)
-		if !ok {
-			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
-			return true
-		}
-
-		if user.GetUserPrincipalName() == nil {
-			err = support.WrapAndAppend(
-				gc.graphService.adapter.GetBaseUrl(),
-				fmt.Errorf("no email address for User: %s", *user.GetId()),
-				err,
-			)
-
-			return true
-		}
-
-		// *user.GetId() is populated for every M365 entityable object by M365 backstore
-		gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
-
-		return true
-	}
-
-	iterateError := userIterator.Iterate(ctx, callbackFunc)
-	if iterateError != nil {
-		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
-	}
+	gc.Users = pns
 
 	return err
 }

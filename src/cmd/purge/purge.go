@@ -81,32 +81,17 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, err := getGC(ctx)
+	gc, t, err := getGCAndBoundaryTime(ctx)
 	if err != nil {
 		return err
 	}
 
-	t, err := getBoundaryTime(ctx)
+	usrs, err := getUsers(ctx, gc, user)
 	if err != nil {
 		return err
 	}
 
-	err = purgeMailFolders(ctx, gc, t)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "purging mail folders"))
-	}
-
-	err = purgeCalendarFolders(ctx, gc, t)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "purging event calendars"))
-	}
-
-	err = purgeContactFolders(ctx, gc, t)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "purging contacts folders"))
-	}
-
-	return nil
+	return purgeAllForEachUser(ctx, gc, t, usrs)
 }
 
 func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
@@ -116,18 +101,19 @@ func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, err := getGC(ctx)
+	gc, t, err := getGCAndBoundaryTime(ctx)
 	if err != nil {
 		return err
 	}
 
-	t, err := getBoundaryTime(ctx)
+	usrs, err := getUsers(ctx, gc, user)
 	if err != nil {
 		return err
 	}
 
-	if err := purgeMailFolders(ctx, gc, t); err != nil {
-		return Only(ctx, errors.Wrap(err, "purging mail folders"))
+	err = runPurgeForEachUser(ctx, gc, t, usrs, purgeMailFolders)
+	if err != nil {
+		return errors.Wrap(err, "purging contacts folders")
 	}
 
 	return nil
@@ -136,18 +122,23 @@ func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
 func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	gc, err := getGC(ctx)
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	gc, t, err := getGCAndBoundaryTime(ctx)
 	if err != nil {
 		return err
 	}
 
-	t, err := getBoundaryTime(ctx)
+	usrs, err := getUsers(ctx, gc, user)
 	if err != nil {
 		return err
 	}
 
-	if err := purgeCalendarFolders(ctx, gc, t); err != nil {
-		return Only(ctx, errors.Wrap(err, "purging event calendars"))
+	err = runPurgeForEachUser(ctx, gc, t, usrs, purgeCalendarFolders)
+	if err != nil {
+		return errors.Wrap(err, "purging contacts folders")
 	}
 
 	return nil
@@ -156,18 +147,23 @@ func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
 func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	gc, err := getGC(ctx)
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	gc, t, err := getGCAndBoundaryTime(ctx)
 	if err != nil {
 		return err
 	}
 
-	t, err := getBoundaryTime(ctx)
+	usrs, err := getUsers(ctx, gc, user)
 	if err != nil {
 		return err
 	}
 
-	if err := purgeContactFolders(ctx, gc, t); err != nil {
-		return Only(ctx, errors.Wrap(err, "purging contacts folders"))
+	err = runPurgeForEachUser(ctx, gc, t, usrs, purgeContactFolders)
+	if err != nil {
+		return errors.Wrap(err, "purging contacts folders")
 	}
 
 	return nil
@@ -182,9 +178,62 @@ type purgable interface {
 	GetId() *string
 }
 
+type purger func(context.Context, *connector.GraphConnector, time.Time, string) error
+
+func runPurgeForEachUser(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	boundary time.Time,
+	users map[string]string,
+	p purger,
+) error {
+	for pn, usr := range users {
+		Infof(ctx, "\nUser: %s - %s\n", pn, usr)
+
+		if err := p(ctx, gc, boundary, usr); err != nil {
+			return Only(ctx, err)
+		}
+	}
+
+	return nil
+}
+
+func purgeAllForEachUser(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	boundary time.Time,
+	users map[string]string,
+) error {
+	for pn, usr := range users {
+		Infof(ctx, "\nUser: %s - %s\n", pn, usr)
+
+		err := purgeMailFolders(ctx, gc, boundary, usr)
+		if err != nil {
+			return Only(ctx, errors.Wrap(err, "purging mail folders"))
+		}
+
+		err = purgeCalendarFolders(ctx, gc, boundary, usr)
+		if err != nil {
+			return Only(ctx, errors.Wrap(err, "purging event calendars"))
+		}
+
+		err = purgeContactFolders(ctx, gc, boundary, usr)
+		if err != nil {
+			return Only(ctx, errors.Wrap(err, "purging contacts folders"))
+		}
+	}
+
+	return nil
+}
+
 // ----- mail
 
-func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
+func purgeMailFolders(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	boundary time.Time,
+	usr string,
+) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
 		mfs, err := exchange.GetAllMailFolders(ctx, gs, uid, prefix)
 		if err != nil {
@@ -204,12 +253,17 @@ func purgeMailFolders(ctx context.Context, gc *connector.GraphConnector, boundar
 		return exchange.DeleteMailFolder(ctx, gs, uid, fid)
 	}
 
-	return purgeFolders(ctx, gc, boundary, "mail", getter, deleter)
+	return purgeFolders(ctx, gc, boundary, "mail", usr, getter, deleter)
 }
 
 // ----- calendars
 
-func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
+func purgeCalendarFolders(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	boundary time.Time,
+	usr string,
+) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
 		cfs, err := exchange.GetAllCalendars(ctx, gs, uid, prefix)
 		if err != nil {
@@ -229,12 +283,17 @@ func purgeCalendarFolders(ctx context.Context, gc *connector.GraphConnector, bou
 		return exchange.DeleteCalendar(ctx, gs, uid, fid)
 	}
 
-	return purgeFolders(ctx, gc, boundary, "calendar", getter, deleter)
+	return purgeFolders(ctx, gc, boundary, "calendar", usr, getter, deleter)
 }
 
 // ----- contacts
 
-func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boundary time.Time) error {
+func purgeContactFolders(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	boundary time.Time,
+	usr string,
+) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
 		cfs, err := exchange.GetAllContactFolders(ctx, gs, uid, prefix)
 		if err != nil {
@@ -254,7 +313,7 @@ func purgeContactFolders(ctx context.Context, gc *connector.GraphConnector, boun
 		return exchange.DeleteContactFolder(ctx, gs, uid, fid)
 	}
 
-	return purgeFolders(ctx, gc, boundary, "contact", getter, deleter)
+	return purgeFolders(ctx, gc, boundary, "contact", usr, getter, deleter)
 }
 
 // ----- controller
@@ -263,12 +322,12 @@ func purgeFolders(
 	ctx context.Context,
 	gc *connector.GraphConnector,
 	boundary time.Time,
-	data string,
+	data, usr string,
 	getter func(graph.Service, string, string) ([]purgable, error),
 	deleter func(graph.Service, string, string) error,
 ) error {
 	// get them folders
-	fs, err := getter(gc.Service(), user, prefix)
+	fs, err := getter(gc.Service(), usr, prefix)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "retrieving %s folders", data))
 	}
@@ -346,4 +405,40 @@ func getBoundaryTime(ctx context.Context) (time.Time, error) {
 	}
 
 	return boundaryTime, nil
+}
+
+func getUsers(ctx context.Context, gc *connector.GraphConnector, usr string) (map[string]string, error) {
+	var (
+		err   error
+		users = map[string]string{}
+	)
+
+	if usr == "" {
+		return users, nil
+	}
+
+	if usr == "*" {
+		users, err = exchange.GetAllUserPNs(ctx, gc.Service())
+		if err != nil {
+			return nil, errors.Wrap(err, "retrieving list of users")
+		}
+	} else {
+		users[usr] = usr
+	}
+
+	return users, nil
+}
+
+func getGCAndBoundaryTime(ctx context.Context) (*connector.GraphConnector, time.Time, error) {
+	gc, err := getGC(ctx)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+
+	t, err := getBoundaryTime(ctx)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+
+	return gc, t, nil
 }

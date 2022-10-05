@@ -33,6 +33,35 @@ func (suite *ServiceFunctionsIntegrationSuite) SetupSuite() {
 	suite.m365UserID = tester.M365UserID(suite.T())
 }
 
+func (suite *ServiceFunctionsIntegrationSuite) TestGetAllUserPNs() {
+	gs := loadService(suite.T())
+	ctx := context.Background()
+
+	table := []struct {
+		name        string
+		expectCount assert.ComparisonAssertionFunc
+		expectErr   assert.ErrorAssertionFunc
+	}{
+		{
+			name:        "full tenant lookup",
+			expectCount: assert.Less,
+			expectErr:   assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			usrs, err := GetAllUserPNs(ctx, gs)
+			test.expectErr(t, err)
+			test.expectCount(t, 0, len(usrs))
+
+			for k, v := range usrs {
+				assert.NotEmpty(t, k, "user principalName")
+				assert.NotEmpty(t, v, "user ID")
+			}
+		})
+	}
+}
+
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	gs := loadService(suite.T())
 	ctx := context.Background()
