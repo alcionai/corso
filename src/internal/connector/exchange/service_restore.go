@@ -464,8 +464,12 @@ func GetContainerIDFromCache(
 	}
 
 	directoryCache = caches[category]
+	listing := directory.Folders()
 	fmt.Printf("What: %v\n", *directoryCache.cache[directoryCache.rootID].GetDisplayName())
 	fmt.Printf("PotentialPath: %v\n", directory.Folders())
+	if len(listing) == 0 {
+		//CreateMailFolder
+	}
 	/*
 		if rootFolderID != "" && category == path.ContactsCategory {
 			return rootFolderID, rootFolderID, errs

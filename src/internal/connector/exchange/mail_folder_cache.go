@@ -4,6 +4,7 @@ import (
 	"context"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
 	"github.com/pkg/errors"
 
@@ -157,13 +158,9 @@ func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
 		}
 
 		for _, f := range resp.GetValue() {
-			if err := checkRequiredValues(f); err != nil {
+			if err := mc.addMailFolder(f); err != nil {
 				errs = multierror.Append(errs, err)
 				continue
-			}
-
-			mc.cache[*f.GetId()] = &mailFolder{
-				folder: f,
 			}
 		}
 
@@ -215,4 +212,18 @@ func (mc *mailFolderCache) Init(ctx context.Context, baseNode string) error {
 	}
 
 	return mc.populateMailRoot(ctx, baseNode)
+}
+
+// addMailFolder adds container to map in field 'cache'
+// @returns error iff the required values are not accessible.
+func (mc *mailFolderCache) addMailFolder(f models.MailFolderable) error {
+	if err := checkRequiredValues(f); err != nil {
+		return err
+	}
+
+	mc.cache[*f.GetId()] = &mailFolder{
+		folder: f,
+	}
+
+	return nil
 }
