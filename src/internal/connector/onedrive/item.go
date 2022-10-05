@@ -9,6 +9,7 @@ import (
 	"time"
 
 	msup "github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item/createuploadsession"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"gopkg.in/resty.v1"
 
@@ -56,13 +57,19 @@ func driveItemReader(
 		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
 	}
 
+	return driveItemInfo(item), resp.Body, nil
+}
+
+// driveItemInfo will populate a details.OneDriveInfo struct
+// with properties from the drive item.
+func driveItemInfo(di models.DriveItemable) *details.OneDriveInfo {
 	return &details.OneDriveInfo{
 		ItemType: details.OneDriveItem,
-		ItemName: *item.GetName(),
-		Created:  *item.GetCreatedDateTime(),
-		Modified: *item.GetLastModifiedDateTime(),
-		Size:     *item.GetSize(),
-	}, resp.Body, nil
+		ItemName: *di.GetName(),
+		Created:  *di.GetCreatedDateTime(),
+		Modified: *di.GetLastModifiedDateTime(),
+		Size:     *di.GetSize(),
+	}
 }
 
 // driveItemWriter is used to initialize and return an io.Writer to upload data for the specified item
