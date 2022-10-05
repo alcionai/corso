@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -68,6 +70,8 @@ func BuildCommandTree(cmd *cobra.Command) {
 	print.AddOutputFlag(cmd)
 	options.AddGlobalOperationFlags(cmd)
 
+	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
+
 	cmd.CompletionOptions.DisableDefaultCmd = true
 
 	repo.AddCommands(cmd)
@@ -95,4 +99,16 @@ func Handle() {
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
+}
+
+// Adjust the default usage template which does not properly indent examples
+func indentExamplesTemplate(template string) string {
+	cobra.AddTemplateFunc("indent", func(spaces int, v string) string {
+		pad := strings.Repeat(" ", spaces)
+		return pad + strings.Replace(v, "\n", "\n"+pad, -1)
+	})
+
+	e := regexp.MustCompile(`{{\.Example}}`)
+
+	return e.ReplaceAllString(template, "{{.Example | indent 2}}")
 }

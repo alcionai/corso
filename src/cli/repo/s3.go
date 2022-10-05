@@ -38,6 +38,7 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	}
 
 	c.Use = c.Use + s3ProviderCommandUseSuffix
+	c.SetUsageTemplate(parent.UsageTemplate())
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic (ex: --all) and more frequently used flags take precedence.
@@ -90,7 +91,7 @@ func s3InitCmd() *cobra.Command {
 		Long:    `Bootstraps a new S3 repository and connects it to your m356 account.`,
 		RunE:    initS3Cmd,
 		Args:    cobra.NoArgs,
-		Example: utils.IndentExamples(s3ProviderCommandInitExamples),
+		Example: s3ProviderCommandInitExamples,
 	}
 }
 

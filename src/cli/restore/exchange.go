@@ -147,11 +147,11 @@ corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --email 98765ab
 
 # Restore Alice's emails with subject containing "Hello world" in "Inbox" from a specific backup
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-	--user alice@example.com --email-subject "Hello world" --email-folder Inbox
+      --user alice@example.com --email-subject "Hello world" --email-folder Inbox
 
 # Restore Bobs's entire calendar from a specific backup
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-	--user bob@example.com --event-calendar Calendar
+      --user bob@example.com --event-calendar Calendar
 
 # Restore contact with ID abdef0101 from a specific backup
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --contact abdef0101`
@@ -164,7 +164,7 @@ func exchangeRestoreCmd() *cobra.Command {
 		Short:   "Restore M365 Exchange service data",
 		RunE:    restoreExchangeCmd,
 		Args:    cobra.NoArgs,
-		Example: utils.IndentExamples(exchangeServiceCommandRestoreExamples),
+		Example: exchangeServiceCommandRestoreExamples,
 	}
 }
 

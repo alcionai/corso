@@ -411,7 +411,7 @@ func maybeGetAndPopulateFolderResolver(
 		return nil, nil
 	}
 
-	if err := res.Populate(ctx); err != nil {
+	if err := res.Populate(ctx, rootFolderAlias); err != nil {
 		return nil, errors.Wrap(err, "populating directory resolver")
 	}
 
