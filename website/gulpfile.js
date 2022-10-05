@@ -104,7 +104,7 @@ gulp.task('watch', function () {
     gulp.watch([paths.src.scss.files, '!' + paths.src.scss.icon], gulp.series('scss', 'browsersyncReload'));
     gulp.watch(paths.src.scss.icon, gulp.series('icons', 'browsersyncReload'));
     gulp.watch([paths.src.js.dir], gulp.series('js', 'browsersyncReload'));
-    gulp.watch([paths.src.js.pages], gulp.series('jsPages', 'browsersyncReload'));
+    // gulp.watch([paths.src.js.pages], gulp.series('jsPages', 'browsersyncReload'));
     gulp.watch([paths.src.html.files, paths.src.partials.files], gulp.series(['fileinclude', 'scss'], 'browsersyncReload'));
 });
 
@@ -115,12 +115,12 @@ gulp.task('js', function () {
         .pipe(gulp.dest(paths.dist.js.dir));
 });
 
-gulp.task('jsPages', function () {
-    return gulp
-        .src(paths.src.js.files)
-        // .pipe(uglify())
-        .pipe(gulp.dest(paths.dist.js.files));
-});
+// gulp.task('jsPages', function () {
+//     return gulp
+//         .src(paths.src.js.files)
+//         // .pipe(uglify())
+//         .pipe(gulp.dest(paths.dist.js.files));
+// });
 
 const cssOptions = {
     compatibility: "*", // (default) - Internet Explorer 10+ compatibility mode
@@ -242,7 +242,7 @@ gulp.task('html', function () {
 });
 
 // Default(Producation) Task
-gulp.task('default', gulp.series(gulp.parallel('clean:packageLock', 'clean:dist', 'copy:all', 'copy:libs', 'fileinclude', 'scss', 'icons', 'js', 'jsPages', 'html'), gulp.parallel('browsersync', 'watch')));
+gulp.task('default', gulp.series(gulp.parallel('clean:packageLock', 'clean:dist', 'copy:all', 'copy:libs', 'fileinclude', 'scss', 'icons', 'js', 'html'), gulp.parallel('browsersync', 'watch')));
 
 // Build(Development) Task
-gulp.task('build', gulp.series('clean:packageLock', 'clean:dist', 'copy:all', 'copy:libs', 'fileinclude', 'scss', 'icons', 'js', 'jsPages', 'html'));
+gulp.task('build', gulp.series('clean:packageLock', 'clean:dist', 'copy:all', 'copy:libs', 'fileinclude', 'scss', 'icons', 'js', 'html'));

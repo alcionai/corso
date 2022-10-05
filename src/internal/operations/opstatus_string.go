@@ -12,11 +12,12 @@ func _() {
 	_ = x[InProgress-1]
 	_ = x[Completed-2]
 	_ = x[Failed-3]
+	_ = x[NoData-4]
 }
 
-const _opStatus_name = "Status UnknownIn ProgressCompletedFailed"
+const _opStatus_name = "Status UnknownIn ProgressCompletedFailedNo Data"
 
-var _opStatus_index = [...]uint8{0, 14, 25, 34, 40}
+var _opStatus_index = [...]uint8{0, 14, 25, 34, 40, 47}
 
 func (i opStatus) String() string {
 	if i < 0 || i >= opStatus(len(_opStatus_index)-1) {
