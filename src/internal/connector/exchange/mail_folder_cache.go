@@ -58,9 +58,9 @@ func (mf *mailFolder) GetParentFolderId() *string {
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	cache        map[string]cachedContainer
-	gs           graph.Service
-	userID, root string
+	cache          map[string]cachedContainer
+	gs             graph.Service
+	userID, rootID string
 }
 
 // populateMailRoot fetches and populates the "base" directory from user's inbox.
@@ -99,7 +99,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directoryID str
 		p:      &path.Builder{},
 	}
 	mc.cache[*idPtr] = &temp
-	mc.root = *idPtr
+	mc.rootID = *idPtr
 
 	return nil
 }
@@ -151,7 +151,7 @@ func (mc *mailFolderCache) Populate(ctx context.Context, root string) error {
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(mc.root).ChildFolders().
+		MailFoldersById(mc.rootID).ChildFolders().
 		Delta()
 
 	var errs *multierror.Error
