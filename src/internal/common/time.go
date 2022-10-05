@@ -19,6 +19,8 @@ const (
 	SimpleDateTimeFormatOneDrive = "02-Jan-2006_15-04-05"
 	StandardTimeFormat           = time.RFC3339Nano
 	TabularOutputTimeFormat      = "2006-01-02T15:04:05Z"
+	// Format used for test restore destination folders. Microsecond granularity.
+	SimpleDateTimeFormatTests = SimpleDateTimeFormatOneDrive + ".000000"
 )
 
 var (

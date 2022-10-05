@@ -2,9 +2,12 @@ package kopia
 
 import (
 	"context"
+	"encoding/binary"
+	"io"
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
@@ -28,12 +31,92 @@ const (
 	// possibly corresponding to who is making the backup.
 	corsoHost = "corso-host"
 	corsoUser = "corso"
+
+	serializationVersion uint32 = 1
 )
 
 var (
 	errNotConnected  = errors.New("not connected to repo")
 	errNoRestorePath = errors.New("no restore path given")
+
+	versionSize = int(unsafe.Sizeof(serializationVersion))
 )
+
+// backupStreamReader is a wrapper around the io.Reader that other Corso
+// components return when backing up information. It injects a version number at
+// the start of the data stream. Future versions of Corso may not need this if
+// they use more complex serialization logic as serialization/version injection
+// will be handled by other components.
+type backupStreamReader struct {
+	io.ReadCloser
+	version   uint32
+	readBytes int
+}
+
+func (rw *backupStreamReader) Read(p []byte) (n int, err error) {
+	if rw.readBytes < versionSize {
+		marshalled := make([]byte, versionSize)
+
+		toCopy := len(marshalled) - rw.readBytes
+		if len(p) < toCopy {
+			toCopy = len(p)
+		}
+
+		binary.BigEndian.PutUint32(marshalled, rw.version)
+
+		copy(p, marshalled[rw.readBytes:rw.readBytes+toCopy])
+		rw.readBytes += toCopy
+
+		return toCopy, nil
+	}
+
+	return rw.ReadCloser.Read(p)
+}
+
+// restoreStreamReader is a wrapper around the io.Reader that kopia returns when
+// reading data from an item. It examines and strips off the version number of
+// the restored data. Future versions of Corso may not need this if they use
+// more complex serialization logic as version checking/deserialization will be
+// handled by other components. A reader that returns a version error is no
+// longer valid and should not be used once the version error is returned.
+type restoreStreamReader struct {
+	io.ReadCloser
+	expectedVersion uint32
+	readVersion     bool
+}
+
+func (rw *restoreStreamReader) checkVersion() error {
+	versionBuf := make([]byte, versionSize)
+
+	for newlyRead := 0; newlyRead < versionSize; {
+		n, err := rw.ReadCloser.Read(versionBuf[newlyRead:])
+		if err != nil {
+			return errors.Wrap(err, "reading data format version")
+		}
+
+		newlyRead += n
+	}
+
+	version := binary.BigEndian.Uint32(versionBuf)
+
+	if version != rw.expectedVersion {
+		return errors.Errorf("unexpected data format %v", version)
+	}
+
+	return nil
+}
+
+func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
+	if !rw.readVersion {
+		rw.readVersion = true
+
+		if err := rw.checkVersion(); err != nil {
+			return 0, err
+		}
+	}
+
+	return rw.ReadCloser.Read(p)
+}
 
 type BackupStats struct {
 	SnapshotID string
@@ -252,7 +335,13 @@ func getStreamItemFunc(
 				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
-				entry := virtualfs.StreamingFileFromReader(encodeAsPath(e.UUID()), e.ToReader())
+				entry := virtualfs.StreamingFileFromReader(
+					encodeAsPath(e.UUID()),
+					&backupStreamReader{
+						version:    serializationVersion,
+						ReadCloser: e.ToReader(),
+					},
+				)
 				if err := cb(ctx, entry); err != nil {
 					// Kopia's uploader swallows errors in most cases, so if we see
 					// something here it's probably a big issue and we should return.
@@ -544,9 +633,12 @@ func getItemStream(
 	}
 
 	return &kopiaDataStream{
-		uuid:   decodedName,
-		reader: r,
-		size:   f.Size(),
+		uuid: decodedName,
+		reader: &restoreStreamReader{
+			ReadCloser:      r,
+			expectedVersion: serializationVersion,
+		},
+		size: f.Size() - int64(versionSize),
 	}, nil
 }
 

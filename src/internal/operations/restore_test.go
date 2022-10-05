@@ -5,12 +5,10 @@ import (
 	"testing"
 	"time"
 
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -38,56 +36,83 @@ func TestRestoreOpSuite(t *testing.T) {
 	suite.Run(t, new(RestoreOpSuite))
 }
 
-// TODO: after modelStore integration is added, mock the store and/or
-// move this to an integration test.
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	var (
-		t   = suite.T()
-		ctx = context.Background()
-
+		ctx  = context.Background()
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		acct = account.Account{}
 		now  = time.Now()
-		rs   = restoreStats{
-			started:       true,
-			readErr:       multierror.Append(nil, assert.AnError),
-			writeErr:      assert.AnError,
-			resourceCount: 1,
-			bytesRead: &stats.ByteCounter{
-				NumBytes: 42,
-			},
-			cs: []data.Collection{&exchange.Collection{}},
-			gc: &support.ConnectorOperationStatus{
-				ObjectCount: 1,
-			},
-		}
-		dest = control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+		dest = tester.DefaultTestRestoreDestination()
 	)
 
-	op, err := NewRestoreOperation(
-		ctx,
-		control.Options{},
-		kw,
-		sw,
-		acct,
-		"foo",
-		selectors.Selector{},
-		dest,
-		evmock.NewBus())
-	require.NoError(t, err)
+	table := []struct {
+		expectStatus opStatus
+		expectErr    assert.ErrorAssertionFunc
+		stats        restoreStats
+	}{
+		{
+			expectStatus: Completed,
+			expectErr:    assert.NoError,
+			stats: restoreStats{
+				started:       true,
+				resourceCount: 1,
+				bytesRead: &stats.ByteCounter{
+					NumBytes: 42,
+				},
+				cs: []data.Collection{&exchange.Collection{}},
+				gc: &support.ConnectorOperationStatus{
+					ObjectCount: 1,
+					Successful:  1,
+				},
+			},
+		},
+		{
+			expectStatus: Failed,
+			expectErr:    assert.Error,
+			stats: restoreStats{
+				started:   false,
+				bytesRead: &stats.ByteCounter{},
+				gc:        &support.ConnectorOperationStatus{},
+			},
+		},
+		{
+			expectStatus: NoData,
+			expectErr:    assert.NoError,
+			stats: restoreStats{
+				started:   true,
+				bytesRead: &stats.ByteCounter{},
+				cs:        []data.Collection{},
+				gc:        &support.ConnectorOperationStatus{},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.expectStatus.String(), func(t *testing.T) {
+			op, err := NewRestoreOperation(
+				ctx,
+				control.Options{},
+				kw,
+				sw,
+				acct,
+				"foo",
+				selectors.Selector{},
+				dest,
+				evmock.NewBus())
+			require.NoError(t, err)
+			test.expectErr(t, op.persistResults(ctx, now, &test.stats))
 
-	require.NoError(t, op.persistResults(ctx, now, &rs))
-
-	assert.Equal(t, op.Status.String(), Completed.String(), "status")
-	assert.Equal(t, op.Results.ItemsRead, len(rs.cs), "items read")
-	assert.Equal(t, op.Results.ReadErrors, rs.readErr, "read errors")
-	assert.Equal(t, op.Results.ItemsWritten, rs.gc.Successful, "items written")
-	assert.Equal(t, rs.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
-	assert.Equal(t, rs.resourceCount, op.Results.ResourceOwners, "resource owners")
-	assert.Equal(t, op.Results.WriteErrors, rs.writeErr, "write errors")
-	assert.Equal(t, op.Results.StartedAt, now, "started at")
-	assert.Less(t, now, op.Results.CompletedAt, "completed at")
+			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
+			assert.Equal(t, len(test.stats.cs), op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
+			assert.Equal(t, test.stats.gc.Successful, op.Results.ItemsWritten, "items written")
+			assert.Equal(t, test.stats.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
+			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
+			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
+			assert.Equal(t, now, op.Results.StartedAt, "started at")
+			assert.Less(t, now, op.Results.CompletedAt, "completed at")
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +212,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
 	acct := tester.NewM365Account(suite.T())
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 
 	table := []struct {
 		name     string
@@ -226,7 +251,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(
@@ -266,7 +291,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(selectors.None()))
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(

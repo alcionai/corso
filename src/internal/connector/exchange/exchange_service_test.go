@@ -491,7 +491,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // GraphConnector's Restore Workflow based on OptionIdentifier.
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 	ctx := context.Background()
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 	tests := []struct {
 		name        string
 		option      path.CategoryType
