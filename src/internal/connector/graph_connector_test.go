@@ -432,6 +432,44 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		expectedRestoreFolders int
 	}{
 		{
+			name:                   "EmailsWithAttachments",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithDirectAttachment(
+								subjectText + "-1",
+							),
+							lookupKey: subjectText + "-1",
+						},
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithTwoAttachments(
+								subjectText + "-2",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.MailFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
+		{
 			name:                   "MultipleEmailsSingleFolder",
 			service:                path.ExchangeService,
 			expectedRestoreFolders: 1,
