@@ -293,9 +293,11 @@ func RestoreExchangeDataCollections(
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		pathCounter = map[string]bool{}
-		rootFolder  string
-		metrics     support.CollectionMetrics
-		errs        error
+		// map of caches... but not yet...
+		directoryCaches map[path.CategoryType]mailFolderCache
+		rootFolder      string
+		metrics         support.CollectionMetrics
+		errs            error
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
 	)
@@ -305,6 +307,8 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
+		//PUT Caching into separate function... here
+
 		temp, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, deets, errUpdater)
 
 		metrics.Combine(temp)
@@ -352,6 +356,7 @@ func restoreCollection(
 		user               = directory.ResourceOwner()
 		directoryCheckFunc = generateRestoreContainerFunc(gs, user, category, dest.ContainerName)
 	)
+	// TODO... I need a
 
 	folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
 	if err != nil { // assuming FailFast
