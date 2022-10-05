@@ -18,10 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-var (
-	ErrFolderNotFound = errors.New("folder not found")
-	ErrCreatingQuery  = errors.New("creating m365 api query")
-)
+var ErrFolderNotFound = errors.New("folder not found")
 
 type exchangeService struct {
 	client      msgraphsdk.GraphServiceClient
@@ -119,66 +116,6 @@ func CreateContactFolder(
 // Errors returned if the function call was not successful.
 func DeleteContactFolder(ctx context.Context, gs graph.Service, user, folderID string) error {
 	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
-}
-
-// GetAllUserPNs retrieves all PrincipalNames for all users in the tenant.
-// Returns a map[principalName]userID.
-func GetAllUserPNs(
-	ctx context.Context,
-	gs graph.Service,
-) (map[string]string, error) {
-	adapter := gs.Adapter()
-
-	response, err := GetAllUsersForTenant(ctx, gs, "")
-	if err != nil {
-		return nil, err
-	}
-
-	userIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		adapter,
-		models.CreateUserCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return nil, ErrCreatingQuery
-	}
-
-	var (
-		errs   error
-		result = map[string]string{}
-	)
-
-	callbackFunc := func(userItem any) bool {
-		user, ok := userItem.(models.Userable)
-		if !ok {
-			errs = support.WrapAndAppend(
-				adapter.GetBaseUrl(),
-				errors.Errorf("cannot cast %T to Userable", userItem),
-				errs)
-
-			return true
-		}
-
-		if user.GetUserPrincipalName() == nil {
-			errs = support.WrapAndAppend(
-				adapter.GetBaseUrl(),
-				fmt.Errorf("no Principal Name for User: %s", *user.GetId()),
-				errs)
-
-			return true
-		}
-
-		// *user.GetId() is guaranteed to exist for every M365 entityable object
-		result[*user.GetUserPrincipalName()] = *user.GetId()
-
-		return true
-	}
-
-	if err := userIterator.Iterate(ctx, callbackFunc); err != nil {
-		return nil, errors.Wrap(err, "iterating across users")
-	}
-
-	return result, errs
 }
 
 // GetAllMailFolders retrieves all mail folders for the specified user.

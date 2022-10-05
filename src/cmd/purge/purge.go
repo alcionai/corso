@@ -86,12 +86,7 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	usrs, err := getUsers(ctx, gc, user)
-	if err != nil {
-		return err
-	}
-
-	return purgeAllForEachUser(ctx, gc, t, usrs)
+	return purgeAllForEachUser(ctx, gc, t, gc.Users)
 }
 
 func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
@@ -106,12 +101,7 @@ func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	usrs, err := getUsers(ctx, gc, user)
-	if err != nil {
-		return err
-	}
-
-	err = runPurgeForEachUser(ctx, gc, t, usrs, purgeMailFolders)
+	err = runPurgeForEachUser(ctx, gc, t, gc.Users, purgeMailFolders)
 	if err != nil {
 		return errors.Wrap(err, "purging contacts folders")
 	}
@@ -131,12 +121,7 @@ func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	usrs, err := getUsers(ctx, gc, user)
-	if err != nil {
-		return err
-	}
-
-	err = runPurgeForEachUser(ctx, gc, t, usrs, purgeCalendarFolders)
+	err = runPurgeForEachUser(ctx, gc, t, gc.Users, purgeCalendarFolders)
 	if err != nil {
 		return errors.Wrap(err, "purging contacts folders")
 	}
@@ -156,12 +141,7 @@ func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	usrs, err := getUsers(ctx, gc, user)
-	if err != nil {
-		return err
-	}
-
-	err = runPurgeForEachUser(ctx, gc, t, usrs, purgeContactFolders)
+	err = runPurgeForEachUser(ctx, gc, t, gc.Users, purgeContactFolders)
 	if err != nil {
 		return errors.Wrap(err, "purging contacts folders")
 	}
@@ -405,28 +385,6 @@ func getBoundaryTime(ctx context.Context) (time.Time, error) {
 	}
 
 	return boundaryTime, nil
-}
-
-func getUsers(ctx context.Context, gc *connector.GraphConnector, usr string) (map[string]string, error) {
-	var (
-		err   error
-		users = map[string]string{}
-	)
-
-	if usr == "" {
-		return users, nil
-	}
-
-	if usr == "*" {
-		users, err = exchange.GetAllUserPNs(ctx, gc.Service())
-		if err != nil {
-			return nil, errors.Wrap(err, "retrieving list of users")
-		}
-	} else {
-		users[usr] = usr
-	}
-
-	return users, nil
 }
 
 func getGCAndBoundaryTime(ctx context.Context) (*connector.GraphConnector, time.Time, error) {
