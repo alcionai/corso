@@ -47,7 +47,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(&user,
 			"user", nil,
-			"Restore data by user ID; accepts "+utils.Wildcard+" to select all users.")
+			"Restore data by user ID; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// onedrive hierarchy (path/name) flags
 

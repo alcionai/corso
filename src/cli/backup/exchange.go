@@ -58,7 +58,7 @@ const (
 
 const (
 	exchangeServiceCommand                 = "exchange"
-	exchangeServiceCommandCreateUseSuffix  = " --all | --user <userId or email>"
+	exchangeServiceCommandCreateUseSuffix  = " --user <userId or email> | '" + utils.Wildcard + "'"
 	exchangeServiceCommandDeleteUseSuffix  = " --backup <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = " --backup <backupId>"
 )
@@ -84,7 +84,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&user,
 			"user", nil,
-			"Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Backup Exchange data by user ID; accepts '"+utils.Wildcard+"' to select all users")
 		fs.StringSliceVar(
 			&exchangeData,
 			"data", nil,
@@ -108,17 +108,17 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&user,
 			"user", nil,
-			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users.")
+			"Select backup details by user ID; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// email flags
 		fs.StringSliceVar(
 			&email,
 			"email", nil,
-			"Select backup details for emails by email ID; accepts "+utils.Wildcard+" to select all emails.")
+			"Select backup details for emails by email ID; accepts '"+utils.Wildcard+"' to select all emails.")
 		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder", nil,
-			"Select backup details for emails within a folder; accepts "+utils.Wildcard+" to select all email folders.")
+			"Select backup details for emails within a folder; accepts '"+utils.Wildcard+"' to select all email folders.")
 		fs.StringVar(
 			&emailSubject,
 			"email-subject", "",
@@ -140,11 +140,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&event,
 			"event", nil,
-			"Select backup details for events by event ID; accepts "+utils.Wildcard+" to select all events.")
+			"Select backup details for events by event ID; accepts '"+utils.Wildcard+"' to select all events.")
 		fs.StringSliceVar(
 			&eventCalendar,
 			"event-calendar", nil,
-			"Select backup details for events under a calendar; accepts "+utils.Wildcard+" to select all events.")
+			"Select backup details for events under a calendar; accepts '"+utils.Wildcard+"' to select all events.")
 		fs.StringVar(
 			&eventSubject,
 			"event-subject", "",
@@ -170,11 +170,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&contact,
 			"contact", nil,
-			"Select backup details for contacts by contact ID; accepts "+utils.Wildcard+" to select all contacts.")
+			"Select backup details for contacts by contact ID; accepts '"+utils.Wildcard+"' to select all contacts.")
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder", nil,
-			"Select backup details for contacts within a folder; accepts "+utils.Wildcard+" to select all contact folders.")
+			"Select backup details for contacts within a folder; accepts '"+utils.Wildcard+"' to select all contact folders.")
 
 		fs.StringVar(
 			&contactName,
