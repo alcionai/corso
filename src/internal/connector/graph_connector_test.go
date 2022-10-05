@@ -313,17 +313,28 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 // to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 	ctx := context.Background()
+	t := suite.T()
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateMailFolder(ctx, suite.connector.Service(), suite.user, folderName)
-	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 
 	if aFolder != nil {
+		secondFolder, err := exchange.CreateMailFolderWithParent(
+			ctx,
+			suite.connector.Service(),
+			suite.user,
+			"SubFolder",
+			*aFolder.GetId(),
+		)
+		assert.NoError(t, err)
+		assert.True(t, *secondFolder.GetParentFolderId() == *aFolder.GetId())
+
 		err = exchange.DeleteMailFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
-		assert.NoError(suite.T(), err)
+		assert.NoError(t, err)
 
 		if err != nil {
-			suite.T().Log(support.ConnectorStackErrorTrace(err))
+			t.Log(support.ConnectorStackErrorTrace(err))
 		}
 	}
 }
