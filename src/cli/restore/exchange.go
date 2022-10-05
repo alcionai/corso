@@ -141,15 +141,30 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 const (
 	exchangeServiceCommand          = "exchange"
 	exchangeServiceCommandUseSuffix = " --backup <backupId>"
+
+	exchangeServiceCommandRestoreExamples = `# Restore emails with ID 98765abcdef and 12345abcdef from a specific backup
+corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --email 98765abcdef,12345abcdef
+
+# Restore Alice's emails with subject containing "Hello world" in "Inbox" from a specific backup
+corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--user alice@example.com --email-subject "Hello world" --email-folder Inbox
+
+# Restore Bobs's entire calendar from a specific backup
+corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--user bob@example.com --event-calendar Calendar
+
+# Restore contact with ID abdef0101 from a specific backup
+corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --contact abdef0101`
 )
 
 // `corso restore exchange [<flag>...]`
 func exchangeRestoreCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   exchangeServiceCommand,
-		Short: "Restore M365 Exchange service data",
-		RunE:  restoreExchangeCmd,
-		Args:  cobra.NoArgs,
+		Use:     exchangeServiceCommand,
+		Short:   "Restore M365 Exchange service data",
+		RunE:    restoreExchangeCmd,
+		Args:    cobra.NoArgs,
+		Example: exchangeServiceCommandRestoreExamples,
 	}
 }
 

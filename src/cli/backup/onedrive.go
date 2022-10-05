@@ -24,9 +24,34 @@ import (
 
 const (
 	oneDriveServiceCommand                 = "onedrive"
-	oneDriveServiceCommandCreateUseSuffix  = " --user <userId or email> | " + utils.Wildcard
+	oneDriveServiceCommandCreateUseSuffix  = " --user <userId or email> | '" + utils.Wildcard + "'"
 	oneDriveServiceCommandDeleteUseSuffix  = " --backup <backupId>"
 	oneDriveServiceCommandDetailsUseSuffix = " --backup <backupId>"
+)
+
+const (
+	oneDriveServiceCommandCreateExamples = `# Backup OneDrive data for Alice
+corso backup create onedrive --user alice@example.com
+
+# Backup OneDrive for Alice and Bob
+corso backup create onedrive --user alice@example.com,bob@example.com
+
+# Backup all OneDrive data for all M365 users 
+corso backup create onedrive --user '*'`
+
+	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd
+corso backup delete onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd`
+
+	oneDriveServiceCommandDetailsExamples = `# Explore Alice's files from backup 1234abcd-12ab-cd34-56de-1234abcd 
+corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --user alice@example.com
+
+# Explore Alice or Bob's files with name containing "Fiscal 22" in folder "Reports"
+corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
+	  --user alice@example.com,bob@example.com  --file-name "Fiscal 22" --folder "Reports"
+
+# Explore Alice's files created before end of 2015 from a specific backup
+corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
+	  --user alice@example.com --file-created-before 2015-01-01T00:00:00`
 )
 
 var (
@@ -51,6 +76,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
 
 		c.Use = c.Use + oneDriveServiceCommandCreateUseSuffix
+		c.Example = oneDriveServiceCommandCreateExamples
 
 		fs.StringArrayVar(&user, "user", nil,
 			"Backup OneDrive data by user ID; accepts '"+utils.Wildcard+"' to select all users. (required)")
@@ -63,6 +89,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
 
 		c.Use = c.Use + oneDriveServiceCommandDetailsUseSuffix
+		c.Example = oneDriveServiceCommandDetailsExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
@@ -72,7 +99,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&folderPaths,
 			"folder", nil,
-			"Select backup details by OneDrive folder; defaults to root")
+			"Select backup details by OneDrive folder; defaults to root.")
 
 		fs.StringSliceVar(
 			&fileNames,
@@ -84,25 +111,26 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&fileCreatedAfter,
 			"file-created-after", "",
-			"Select files created after this datetime")
+			"Select backup details for files created after this datetime.")
 		fs.StringVar(
 			&fileCreatedBefore,
 			"file-created-before", "",
-			"Select files created before this datetime")
+			"Select backup details for files created before this datetime.")
 
 		fs.StringVar(
 			&fileModifiedAfter,
 			"file-modified-after", "",
-			"Select files modified after this datetime")
+			"Select backup details for files modified after this datetime.")
 		fs.StringVar(
 			&fileModifiedBefore,
 			"file-modified-before", "",
-			"Select files modified before this datetime")
+			"Select backup details for files modified before this datetime.")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
 
 		c.Use = c.Use + oneDriveServiceCommandDeleteUseSuffix
+		c.Example = oneDriveServiceCommandDeleteExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
@@ -118,10 +146,11 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 // `corso backup create onedrive [<flag>...]`
 func oneDriveCreateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   oneDriveServiceCommand,
-		Short: "Backup M365 OneDrive service data",
-		RunE:  createOneDriveCmd,
-		Args:  cobra.NoArgs,
+		Use:     oneDriveServiceCommand,
+		Short:   "Backup M365 OneDrive service data",
+		RunE:    createOneDriveCmd,
+		Args:    cobra.NoArgs,
+		Example: oneDriveServiceCommandCreateExamples,
 	}
 }
 
@@ -233,10 +262,11 @@ func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 // `corso backup details onedrive [<flag>...]`
 func oneDriveDetailsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   oneDriveServiceCommand,
-		Short: "Shows the details of a M365 OneDrive service backup",
-		RunE:  detailsOneDriveCmd,
-		Args:  cobra.NoArgs,
+		Use:     oneDriveServiceCommand,
+		Short:   "Shows the details of a M365 OneDrive service backup",
+		RunE:    detailsOneDriveCmd,
+		Args:    cobra.NoArgs,
+		Example: oneDriveServiceCommandDetailsExamples,
 	}
 }
 
@@ -313,10 +343,11 @@ func runDetailsOneDriveCmd(
 // `corso backup delete onedrive [<flag>...]`
 func oneDriveDeleteCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   oneDriveServiceCommand,
-		Short: "Delete backed-up M365 OneDrive service data",
-		RunE:  deleteOneDriveCmd,
-		Args:  cobra.NoArgs,
+		Use:     oneDriveServiceCommand,
+		Short:   "Delete backed-up M365 OneDrive service data",
+		RunE:    deleteOneDriveCmd,
+		Args:    cobra.NoArgs,
+		Example: oneDriveServiceCommandDeleteExamples,
 	}
 }
 

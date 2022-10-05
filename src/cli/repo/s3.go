@@ -58,6 +58,26 @@ const (
 	s3ProviderCommandUseSuffix = " --bucket <bucket>"
 )
 
+const (
+	s3ProviderCommandInitExamples = `# Create a new Corso repo in AWS S3 bucket named "my-bucket"
+corso repo init s3 --bucket my-bucket
+
+# Create a new Corso repo in AWS S3 bucket named "my-bucket" using a prefix
+corso repo init s3 --bucket my-bucket --prefix my-prefix
+
+# Create a new Corso repo in an S3 compliant storage provider
+corso repo init s3 --bucket my-bucket --endpoint https://my-s3-server-endpoint`
+
+	s3ProviderCommandConnectExamples = `# Connect to a Corso repo in AWS S3 bucket named "my-bucket"
+corso repo connect s3 --bucket my-bucket
+
+# Connect to a Corso repo in AWS S3 bucket named "my-bucket" using a prefix
+corso repo connect s3 --bucket my-bucket --prefix my-prefix
+
+# Connect to a Corso repo in an S3 compliant storage provider
+corso repo connect s3 --bucket my-bucket --endpoint https://my-s3-server-endpoint`
+)
+
 // ---------------------------------------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------------------------------------
@@ -65,11 +85,12 @@ const (
 // `corso repo init s3 [<flag>...]`
 func s3InitCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   s3ProviderCommand,
-		Short: "Initialize a S3 repository",
-		Long:  `Bootstraps a new S3 repository and connects it to your m356 account.`,
-		RunE:  initS3Cmd,
-		Args:  cobra.NoArgs,
+		Use:     s3ProviderCommand,
+		Short:   "Initialize a S3 repository",
+		Long:    `Bootstraps a new S3 repository and connects it to your m356 account.`,
+		RunE:    initS3Cmd,
+		Args:    cobra.NoArgs,
+		Example: s3ProviderCommandInitExamples,
 	}
 }
 
@@ -123,11 +144,12 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 // `corso repo connect s3 [<flag>...]`
 func s3ConnectCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   s3ProviderCommand,
-		Short: "Connect to a S3 repository",
-		Long:  `Ensures a connection to an existing S3 repository.`,
-		RunE:  connectS3Cmd,
-		Args:  cobra.NoArgs,
+		Use:     s3ProviderCommand,
+		Short:   "Connect to a S3 repository",
+		Long:    `Ensures a connection to an existing S3 repository.`,
+		RunE:    connectS3Cmd,
+		Args:    cobra.NoArgs,
+		Example: s3ProviderCommandConnectExamples,
 	}
 }
 

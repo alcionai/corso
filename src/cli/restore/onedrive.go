@@ -91,15 +91,27 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 const (
 	oneDriveServiceCommand          = "onedrive"
 	oneDriveServiceCommandUseSuffix = " --backup <backupId>"
+
+	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
+
+# Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+
+# Restore all files from Bob's folder that were created before 2020 when captured in a specific backup
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
+	--user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore onedrive [<flag>...]`
 func oneDriveRestoreCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   oneDriveServiceCommand,
-		Short: "Restore M365 OneDrive service data",
-		RunE:  restoreOneDriveCmd,
-		Args:  cobra.NoArgs,
+		Use:     oneDriveServiceCommand,
+		Short:   "Restore M365 OneDrive service data",
+		RunE:    restoreOneDriveCmd,
+		Args:    cobra.NoArgs,
+		Example: oneDriveServiceCommandRestoreExamples,
 	}
 }
 
