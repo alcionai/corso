@@ -13,8 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
-var ErrUnableToConnect = errors.New("unable to connect")
-
 // GraphQuery represents functions which perform exchange-specific queries
 // into M365 backstore. Responses -> returned items will only contain the information
 // that is included in the options
@@ -87,16 +85,7 @@ func GetAllUsersForTenant(ctx context.Context, gs graph.Service, user string) (a
 		return nil, err
 	}
 
-	resp, err := gs.Client().Users().Get(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp == nil {
-		return nil, ErrUnableToConnect
-	}
-
-	return resp, nil
+	return gs.Client().Users().Get(ctx, options)
 }
 
 // GetAllEvents for User. Default returns EventResponseCollection for future events.
