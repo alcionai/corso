@@ -309,17 +309,28 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 // to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 	ctx := context.Background()
+	t := suite.T()
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateMailFolder(ctx, suite.connector.Service(), suite.user, folderName)
-	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 
 	if aFolder != nil {
+		secondFolder, err := exchange.CreateMailFolderWithParent(
+			ctx,
+			suite.connector.Service(),
+			suite.user,
+			"SubFolder",
+			*aFolder.GetId(),
+		)
+		assert.NoError(t, err)
+		assert.True(t, *secondFolder.GetParentFolderId() == *aFolder.GetId())
+
 		err = exchange.DeleteMailFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
-		assert.NoError(suite.T(), err)
+		assert.NoError(t, err)
 
 		if err != nil {
-			suite.T().Log(support.ConnectorStackErrorTrace(err))
+			t.Log(support.ConnectorStackErrorTrace(err))
 		}
 	}
 }
@@ -427,6 +438,44 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
 		expectedRestoreFolders int
 	}{
+		{
+			name:                   "EmailsWithAttachments",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithDirectAttachment(
+								subjectText + "-1",
+							),
+							lookupKey: subjectText + "-1",
+						},
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithTwoAttachments(
+								subjectText + "-2",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.MailFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
 		{
 			name:                   "MultipleEmailsSingleFolder",
 			service:                path.ExchangeService,

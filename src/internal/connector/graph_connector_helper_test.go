@@ -71,6 +71,70 @@ func testEmptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
 	assert.Equal(t, *expected, *got, msg)
 }
 
+func testElementsMatch[T any](
+	t *testing.T,
+	expected []T,
+	got []T,
+	equalityCheck func(expectedItem, gotItem T) bool,
+) {
+	t.Helper()
+
+	pending := make([]*T, len(expected))
+	for i := 0; i < len(expected); i++ {
+		pending[i] = &expected[i]
+	}
+
+	unexpected := []T{}
+
+	for i := 0; i < len(got); i++ {
+		found := false
+
+		for j, maybe := range pending {
+			if maybe == nil {
+				// Already matched with something in got.
+				continue
+			}
+
+			// Item matched, break out of inner loop and move to next item in got.
+			if equalityCheck(*maybe, got[i]) {
+				pending[j] = nil
+				found = true
+
+				break
+			}
+		}
+
+		if !found {
+			unexpected = append(unexpected, got[i])
+		}
+	}
+
+	// Print differences.
+	missing := []T{}
+
+	for _, p := range pending {
+		if p == nil {
+			continue
+		}
+
+		missing = append(missing, *p)
+	}
+
+	if len(unexpected) == 0 && len(missing) == 0 {
+		return
+	}
+
+	assert.Failf(
+		t,
+		"contain different elements",
+		"missing items: (%T)%v\nunexpected items: (%T)%v\n",
+		expected,
+		missing,
+		got,
+		unexpected,
+	)
+}
+
 type itemInfo struct {
 	// lookupKey is a string that can be used to find this data from a set of
 	// other data in the same collection. This key should be something that will
@@ -92,11 +156,50 @@ type colInfo struct {
 	items        []itemInfo
 }
 
+func attachmentEqual(
+	expected models.Attachmentable,
+	got models.Attachmentable,
+) bool {
+	// This is super hacky, but seems like it would be good to have a comparison
+	// of the actual content. I think the only other way to really get it is to
+	// serialize both structs to JSON and pull it from there or something though.
+	expectedData := reflect.Indirect(reflect.ValueOf(expected)).FieldByName("contentBytes").Bytes()
+	gotData := reflect.Indirect(reflect.ValueOf(got)).FieldByName("contentBytes").Bytes()
+
+	if !reflect.DeepEqual(expectedData, gotData) {
+		return false
+	}
+
+	if !emptyOrEqual(expected.GetContentType(), got.GetContentType()) {
+		return false
+	}
+
+	// Skip Id as it's tied to this specific instance of the item.
+
+	if !emptyOrEqual(expected.GetIsInline(), got.GetIsInline()) {
+		return false
+	}
+
+	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
+
+	if !emptyOrEqual(expected.GetName(), got.GetName()) {
+		return false
+	}
+
+	// Skip Size as the server clobbers whatever value we give it. It's unknown
+	// how they populate size though as it's not just the length of the byte
+	// array backing the content.
+
+	return true
+}
+
 func checkMessage(
 	t *testing.T,
 	expected models.Messageable,
 	got models.Messageable,
 ) {
+	testElementsMatch(t, expected.GetAttachments(), got.GetAttachments(), attachmentEqual)
+
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
 	testEmptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
@@ -253,67 +356,6 @@ func checkContact(
 	testEmptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
 }
 
-func checkLocations(
-	t *testing.T,
-	expected []models.Locationable,
-	got []models.Locationable,
-) {
-	pending := make([]*models.Locationable, len(expected))
-	for i := 0; i < len(expected); i++ {
-		pending[i] = &expected[i]
-	}
-
-	unexpected := []models.Locationable{}
-
-	for i := 0; i < len(got); i++ {
-		found := false
-
-		for j, maybe := range pending {
-			if maybe == nil {
-				// Already matched with something in got.
-				continue
-			}
-
-			// Item matched, break out of inner loop and move to next item in got.
-			if locationEqual(*maybe, got[i]) {
-				pending[j] = nil
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
-			unexpected = append(unexpected, got[i])
-		}
-	}
-
-	// Print differences.
-	missing := []models.Locationable{}
-
-	for _, p := range pending {
-		if p == nil {
-			continue
-		}
-
-		missing = append(missing, *p)
-	}
-
-	if len(unexpected) == 0 && len(missing) == 0 {
-		return
-	}
-
-	assert.Failf(
-		t,
-		"contain different elements",
-		"missing items: (%T)%v\nunexpected items: (%T)%v\n",
-		expected,
-		missing,
-		got,
-		unexpected,
-	)
-}
-
 func locationEqual(expected, got models.Locationable) bool {
 	if !reflect.DeepEqual(expected.GetAddress(), got.GetAddress()) {
 		return false
@@ -406,13 +448,14 @@ func checkEvent(
 	// Cheating a little here in the name of code-reuse. model.Location needs
 	// custom compare logic because it has fields marked as "internal use only"
 	// that seem to change.
-	checkLocations(
+	testElementsMatch(
 		t,
 		[]models.Locationable{expected.GetLocation()},
 		[]models.Locationable{got.GetLocation()},
+		locationEqual,
 	)
 
-	checkLocations(t, expected.GetLocations(), got.GetLocations())
+	testElementsMatch(t, expected.GetLocations(), got.GetLocations(), locationEqual)
 
 	assert.Equal(t, expected.GetOnlineMeeting(), got.GetOnlineMeeting(), "OnlineMeeting")
 

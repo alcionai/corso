@@ -68,13 +68,29 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
 func CreateMailFolder(ctx context.Context, gs graph.Service, user, folder string) (models.MailFolderable, error) {
+	isHidden := false
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
-
-	isHidden := false
 	requestBody.SetIsHidden(&isHidden)
 
 	return gs.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
+}
+
+func CreateMailFolderWithParent(
+	ctx context.Context,
+	gs graph.Service,
+	user, folder, parentID string,
+) (models.MailFolderable, error) {
+	isHidden := false
+	requestBody := models.NewMailFolder()
+	requestBody.SetDisplayName(&folder)
+	requestBody.SetIsHidden(&isHidden)
+
+	return gs.Client().
+		UsersById(user).
+		MailFoldersById(parentID).
+		ChildFolders().
+		Post(ctx, requestBody, nil)
 }
 
 // DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
