@@ -142,7 +142,7 @@ func restoreCollection(
 
 			metrics.TotalBytes += int64(len(copyBuffer))
 
-			dii, err := restoreItem(ctx,
+			itemInfo, err := restoreItem(ctx,
 				service,
 				itemData,
 				drivePath.driveID,
@@ -166,7 +166,7 @@ func restoreCollection(
 				itemPath.ShortRef(),
 				"",
 				details.ItemInfo{
-					OneDrive: dii,
+					OneDrive: itemInfo,
 				})
 
 			metrics.Successes++
