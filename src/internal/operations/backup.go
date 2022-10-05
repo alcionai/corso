@@ -171,6 +171,10 @@ func (op *BackupOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
+		op.Status = NoData
+	}
+
 	op.Results.ReadErrors = opStats.readErr
 	op.Results.WriteErrors = opStats.writeErr
 

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -165,16 +164,19 @@ func runRestoreLoadTest(
 	t.Run("restore_"+name, func(t *testing.T) {
 		var (
 			err    error
+			ds     *details.Details
 			labels = pprof.Labels("restore_load_test", name)
 		)
 
 		pprof.Do(ctx, labels, func(ctx context.Context) {
-			err = r.Run(ctx)
+			ds, err = r.Run(ctx)
 		})
 
 		require.NoError(t, err, "running restore")
 		require.NotEmpty(t, r.Results, "has results after run")
+		require.NotNil(t, ds, "has restored details")
 		assert.Equal(t, r.Status, operations.Completed, "restore status")
+		assert.Equal(t, r.Results.ItemsWritten, len(ds.Entries), "count of items written matches restored entries in details")
 		assert.Less(t, 0, r.Results.ItemsRead, "items read")
 		assert.Less(t, 0, r.Results.ItemsWritten, "items written")
 		assert.Less(t, 0, r.Results.ResourceOwners, "resource owners")
@@ -247,7 +249,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	rsel, err := bsel.ToExchangeRestore()
 	require.NoError(t, err)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)
@@ -322,7 +324,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	rsel, err := bsel.ToOneDriveRestore()
 	require.NoError(t, err)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	dest := tester.DefaultTestRestoreDestination()
 
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)

@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -325,6 +326,10 @@ func runDetailsOneDriveCmd(
 ) (*details.Details, error) {
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
+		if errors.Is(err, kopia.ErrNotFound) {
+			return nil, errors.Errorf("no backup exists with the id %s", backupID)
+		}
+
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
