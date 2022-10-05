@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
@@ -11,7 +12,11 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 )
 
-const stableIDKey = "stableID"
+const (
+	stableIDKey        = "stableID"
+	modelVersionKey    = "storeVersion"
+	globalModelVersion = 1
+)
 
 var (
 	ErrNotFound           = errors.New("not found")
@@ -27,12 +32,14 @@ func NewModelStore(c *conn) (*ModelStore, error) {
 		return nil, errors.Wrap(err, "creating ModelStore")
 	}
 
-	return &ModelStore{c: c}, nil
+	return &ModelStore{c: c, modelVersion: globalModelVersion}, nil
 }
 
 // ModelStore must not be accessed after the given KopiaWrapper is closed.
 type ModelStore struct {
 	c *conn
+	// Stash a reference here so testing can easily change it.
+	modelVersion int
 }
 
 func (ms *ModelStore) Close(ctx context.Context) error {
@@ -70,6 +77,7 @@ func tagsForModel(s model.Schema, tags map[string]string) (map[string]string, er
 func tagsForModelWithID(
 	s model.Schema,
 	id model.StableID,
+	version int,
 	tags map[string]string,
 ) (map[string]string, error) {
 	if !s.Valid() {
@@ -90,6 +98,12 @@ func tagsForModelWithID(
 	}
 
 	res[stableIDKey] = string(id)
+
+	if _, ok := res[modelVersionKey]; ok {
+		return nil, errors.WithStack(errBadTagKey)
+	}
+
+	res[modelVersionKey] = strconv.Itoa(version)
 
 	return res, nil
 }
@@ -112,7 +126,7 @@ func putInner(
 		base.ID = model.StableID(uuid.NewString())
 	}
 
-	tmpTags, err := tagsForModelWithID(s, base.ID, base.Tags)
+	tmpTags, err := tagsForModelWithID(s, base.ID, base.Version, base.Tags)
 	if err != nil {
 		// Will be wrapped at a higher layer.
 		return err
@@ -140,6 +154,8 @@ func (ms *ModelStore) Put(
 		return errors.WithStack(errUnrecognizedSchema)
 	}
 
+	m.Base().Version = ms.modelVersion
+
 	err := repo.WriteSession(
 		ctx,
 		ms.c,
@@ -159,22 +175,45 @@ func (ms *ModelStore) Put(
 
 func stripHiddenTags(tags map[string]string) {
 	delete(tags, stableIDKey)
+	delete(tags, modelVersionKey)
 	delete(tags, manifest.TypeLabelKey)
 }
 
-func baseModelFromMetadata(m *manifest.EntryMetadata) (*model.BaseModel, error) {
+func (ms ModelStore) populateBaseModelFromMetadata(
+	base *model.BaseModel,
+	m *manifest.EntryMetadata,
+) error {
 	id, ok := m.Labels[stableIDKey]
 	if !ok {
-		return nil, errors.WithStack(errNoStableID)
+		return errors.WithStack(errNoStableID)
 	}
 
-	res := &model.BaseModel{
-		ModelStoreID: m.ID,
-		ID:           model.StableID(id),
-		Tags:         m.Labels,
+	v, err := strconv.Atoi(m.Labels[modelVersionKey])
+	if err != nil {
+		return errors.Wrap(err, "parsing model version")
 	}
 
-	stripHiddenTags(res.Tags)
+	if v != ms.modelVersion {
+		return errors.Errorf("bad model version %v", v)
+	}
+
+	base.ModelStoreID = m.ID
+	base.ID = model.StableID(id)
+	base.Version = v
+	base.Tags = m.Labels
+
+	stripHiddenTags(base.Tags)
+
+	return nil
+}
+
+func (ms ModelStore) baseModelFromMetadata(
+	m *manifest.EntryMetadata,
+) (*model.BaseModel, error) {
+	res := &model.BaseModel{}
+	if err := ms.populateBaseModelFromMetadata(res, m); err != nil {
+		return nil, err
+	}
 
 	return res, nil
 }
@@ -208,7 +247,7 @@ func (ms *ModelStore) GetIDsForType(
 	res := make([]*model.BaseModel, 0, len(metadata))
 
 	for _, m := range metadata {
-		bm, err := baseModelFromMetadata(m)
+		bm, err := ms.baseModelFromMetadata(m)
 		if err != nil {
 			return nil, errors.Wrap(err, "parsing model metadata")
 		}
@@ -304,12 +343,10 @@ func (ms *ModelStore) GetWithModelStoreID(
 		return errors.WithStack(errModelTypeMismatch)
 	}
 
-	base := data.Base()
-	base.Tags = metadata.Labels
-	stripHiddenTags(base.Tags)
-	base.ModelStoreID = id
-
-	return nil
+	return errors.Wrap(
+		ms.populateBaseModelFromMetadata(data.Base(), metadata),
+		"getting model by ID",
+	)
 }
 
 // checkPrevModelVersion compares the ModelType and ModelStoreID in this model
@@ -367,6 +404,8 @@ func (ms *ModelStore) Update(
 	if len(base.ModelStoreID) == 0 {
 		return errors.WithStack(errNoModelStoreID)
 	}
+
+	base.Version = ms.modelVersion
 
 	// TODO(ashmrtnz): Can remove if bottleneck.
 	if err := ms.checkPrevModelVersion(ctx, s, base); err != nil {
