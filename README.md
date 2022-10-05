@@ -1,3 +1,5 @@
+<img src="https://github.com/alcionai/corso/blob/main/docs/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
+
 # Corso
 
 Corso is the first open-source tool that aims to assist IT admins with the critical task of protecting their
