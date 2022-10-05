@@ -138,7 +138,12 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 	}
 
 	if cmd.Runnable() {
-		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n", cmd.UseLine()))
+		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n\n", cmd.UseLine()))
+	}
+
+	if cmd.HasExample() {
+		buf.WriteString("### Examples\n\n")
+		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n", cmd.Example))
 	}
 
 	flags := cmd.NonInheritedFlags()
@@ -153,11 +158,6 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 		buf.WriteString("\n")
 		buf.WriteString("### Global and inherited flags\n\n")
 		printFlags(buf, parentFlags)
-	}
-
-	if len(cmd.Example) > 0 {
-		buf.WriteString("\n### Examples\n\n")
-		buf.WriteString(fmt.Sprintf("```\n%s\n```\n\n", cmd.Example))
 	}
 
 	_, err := buf.WriteTo(w)

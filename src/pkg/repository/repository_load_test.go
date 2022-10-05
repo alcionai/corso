@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -250,7 +249,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	rsel, err := bsel.ToExchangeRestore()
 	require.NoError(t, err)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)
@@ -325,7 +324,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	rsel, err := bsel.ToOneDriveRestore()
 	require.NoError(t, err)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	dest := tester.DefaultTestRestoreDestination()
 
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)

@@ -1,3 +1,5 @@
+<img src="https://github.com/alcionai/corso/blob/main/docs/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
+
 # Corso
 
 Corso is the first open-source tool that aims to assist IT admins with the critical task of protecting their
@@ -5,8 +7,10 @@ Microsoft 365 data. It provides a reliable, secure, and efficient data protectio
 the backup data and have the flexibility to perform backups of their desired service through an intuitive interface.
 As Corso evolves, it can become a great building block for more complex data protection workflows.
 
-Corso supports M365 Exchange, OneDrive, SharePoint, and Teams. Coverage for more services, possibly
-beyond M365, will expand based on the interest and needs of the community.
+**Corso is currently in ALPHA and should NOT be used in production.**
+
+Corso supports M365 Exchange and OneDrive with SharePoint and Teams support in active development. Coverage for more
+services, possibly beyond M365, will expand based on the interest and needs of the community.
 
 ## Getting Started
 
