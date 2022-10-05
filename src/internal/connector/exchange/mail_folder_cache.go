@@ -127,7 +127,8 @@ func checkRequiredValues(c container) error {
 
 // Populate utility function for populating the mailFolderCache.
 // Number of Graph Queries: 1.
-// @param baseID: M365ID of Folder Node to
+// @param baseID: M365ID of the base of the exchange.Mail.Folder
+// Use rootFolderAlias for input if baseID unknown
 func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
 	if len(baseID) == 0 {
 		return errors.New("populate function requires: M365ID as input")
