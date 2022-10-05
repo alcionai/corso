@@ -164,7 +164,7 @@ func attachmentEqual(
 	// of the actual content. I think the only other way to really get it is to
 	// serialize both structs to JSON and pull it from there or something though.
 	expectedData := reflect.Indirect(reflect.ValueOf(expected)).FieldByName("contentBytes").Bytes()
-	gotData := reflect.Indirect(reflect.ValueOf(got).Elem()).FieldByName("contentBytes").Bytes()
+	gotData := reflect.Indirect(reflect.ValueOf(got)).FieldByName("contentBytes").Bytes()
 
 	if !reflect.DeepEqual(expectedData, gotData) {
 		return false
