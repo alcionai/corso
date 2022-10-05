@@ -311,7 +311,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	}{
 		{
 			name: "Default Root",
-			root: "",
+			root: rootFolderAlias,
 		},
 		{
 			name: "Node Root",
@@ -331,7 +331,6 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			require.NoError(t, mfc.Populate(ctx, test.root))
 
 			p, err := mfc.IDToPath(ctx, testFolderID)
-			t.Logf("Path: %s\n", p.String())
 			require.NoError(t, err)
 
 			assert.Equal(t, expectedFolderPath, p.String())

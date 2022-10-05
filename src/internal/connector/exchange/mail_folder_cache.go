@@ -104,12 +104,6 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directoryID str
 	return nil
 }
 
-// populateRoot is the default function for folder resolution in the
-// exchange.Mail space. Directory is a constant set within  exchange_vars.go
-func (mc *mailFolderCache) populateRoot(ctx context.Context) error {
-	return mc.populateMailRoot(ctx, rootFolderAlias)
-}
-
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
 func checkRequiredValues(c container) error {
@@ -133,7 +127,12 @@ func checkRequiredValues(c container) error {
 
 // Populate utility function for populating the mailFolderCache.
 // Number of Graph Queries: 1.
+// @param baseID: M365ID of Folder Node to
 func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
+	if len(baseID) == 0 {
+		return errors.New("populate function requires: M365ID as input")
+	}
+
 	err := mc.Init(ctx, baseID)
 	if err != nil {
 		return err
@@ -212,10 +211,6 @@ func (mc *mailFolderCache) IDToPath(
 func (mc *mailFolderCache) Init(ctx context.Context, baseNode string) error {
 	if mc.cache == nil {
 		mc.cache = map[string]cachedContainer{}
-	}
-
-	if len(baseNode) == 0 {
-		return mc.populateRoot(ctx)
 	}
 
 	return mc.populateMailRoot(ctx, baseNode)
