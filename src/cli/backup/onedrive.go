@@ -76,7 +76,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
 
 		c.Use = c.Use + oneDriveServiceCommandCreateUseSuffix
-		c.Example = oneDriveServiceCommandCreateExamples
+		c.Example = utils.IndentExamples(oneDriveServiceCommandCreateExamples)
 
 		fs.StringArrayVar(&user, "user", nil,
 			"Backup OneDrive data by user ID; accepts '"+utils.Wildcard+"' to select all users. (required)")
@@ -89,7 +89,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
 
 		c.Use = c.Use + oneDriveServiceCommandDetailsUseSuffix
-		c.Example = oneDriveServiceCommandDetailsExamples
+		c.Example = utils.IndentExamples(oneDriveServiceCommandDetailsExamples)
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
@@ -130,7 +130,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
 
 		c.Use = c.Use + oneDriveServiceCommandDeleteUseSuffix
-		c.Example = oneDriveServiceCommandDeleteExamples
+		c.Example = utils.IndentExamples(oneDriveServiceCommandDeleteExamples)
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))

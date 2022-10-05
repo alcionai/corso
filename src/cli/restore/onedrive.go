@@ -111,7 +111,7 @@ func oneDriveRestoreCmd() *cobra.Command {
 		Short:   "Restore M365 OneDrive service data",
 		RunE:    restoreOneDriveCmd,
 		Args:    cobra.NoArgs,
-		Example: oneDriveServiceCommandRestoreExamples,
+		Example: utils.IndentExamples(oneDriveServiceCommandRestoreExamples),
 	}
 }
 

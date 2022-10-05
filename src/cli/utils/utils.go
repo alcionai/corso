@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -56,4 +57,13 @@ func AddCommand(parent, c *cobra.Command) (*cobra.Command, *pflag.FlagSet) {
 	c.Flags().SortFlags = false
 
 	return c, c.Flags()
+}
+
+// Takes in a multi-line string and returns it indented by 2 spaces.
+// This is only to be used with Examples strings which the default usage
+// template does not properly indent to match other sections
+func IndentExamples(examples string) string {
+	e := regexp.MustCompile(`(?m)^(\S)`)
+
+	return e.ReplaceAllString(examples, "  $1")
 }

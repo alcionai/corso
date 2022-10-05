@@ -164,7 +164,7 @@ func exchangeRestoreCmd() *cobra.Command {
 		Short:   "Restore M365 Exchange service data",
 		RunE:    restoreExchangeCmd,
 		Args:    cobra.NoArgs,
-		Example: exchangeServiceCommandRestoreExamples,
+		Example: utils.IndentExamples(exchangeServiceCommandRestoreExamples),
 	}
 }
 
