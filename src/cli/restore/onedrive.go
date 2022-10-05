@@ -58,8 +58,8 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(
 			&fileNames,
-			"file-name", nil,
-			"Restore items by OneDrive file name")
+			"file", nil,
+			"Restore items by file name or ID")
 
 		// onedrive info flags
 

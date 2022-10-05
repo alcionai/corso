@@ -76,8 +76,8 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(
 			&fileNames,
-			"file-name", nil,
-			"Select backup details by OneDrive file name")
+			"file", nil,
+			"Select backup details by file name or ID.")
 
 		// onedrive info flags
 
