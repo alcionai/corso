@@ -59,9 +59,38 @@ const (
 
 const (
 	exchangeServiceCommand                 = "exchange"
-	exchangeServiceCommandCreateUseSuffix  = " --all | --user <userId or email>"
+	exchangeServiceCommandCreateUseSuffix  = " --user <userId or email> | '" + utils.Wildcard + "'"
 	exchangeServiceCommandDeleteUseSuffix  = " --backup <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = " --backup <backupId>"
+)
+
+const (
+	exchangeServiceCommandCreateExamples = `# Backup all Exchange data for Alice
+corso backup create exchange --user alice@example.com
+
+# Backup only Exchange contacts for Alice and Bob
+corso backup create exchange --user alice@example.com,bob@example.com --data contacts
+
+# Backup all Exchange data for all M365 users 
+corso backup create exchange --user '*'`
+
+	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
+corso backup delete exchange --backup 1234abcd-12ab-cd34-56de-1234abcd`
+
+	exchangeServiceCommandDetailsExamples = `# Explore Alice's items in backup 1234abcd-12ab-cd34-56de-1234abcd 
+corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --user alice@example.com
+
+# Explore Alice's emails with subject containing "Hello world" in folder "Inbox" from a specific backup 
+corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
+      --user alice@example.com --email-subject "Hello world" --email-folder Inbox
+
+# Explore Bobs's events occurring after start of 2022 from a specific backup
+corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
+      --user bob@example.com --event-starts-after 2022-01-01T00:00:00
+
+# Explore Alice's contacts with name containing Andy from a specific backup
+corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
+      --user alice@example.com --contact-name Andy`
 )
 
 // called by backup.go to map parent subcommands to provider-specific handling.
@@ -76,6 +105,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 
 		c.Use = c.Use + exchangeServiceCommandCreateUseSuffix
+		c.Example = utils.IndentExamples(exchangeServiceCommandCreateExamples)
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -85,7 +115,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&user,
 			"user", nil,
-			"Backup Exchange data by user ID; accepts "+utils.Wildcard+" to select all users")
+			"Backup Exchange data by user ID; accepts '"+utils.Wildcard+"' to select all users")
 		fs.StringSliceVar(
 			&exchangeData,
 			"data", nil,
@@ -99,6 +129,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 
 		c.Use = c.Use + exchangeServiceCommandDetailsUseSuffix
+		c.Example = utils.IndentExamples(exchangeServiceCommandDetailsExamples)
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -109,17 +140,17 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&user,
 			"user", nil,
-			"Select backup details by user ID; accepts "+utils.Wildcard+" to select all users.")
+			"Select backup details by user ID; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// email flags
 		fs.StringSliceVar(
 			&email,
 			"email", nil,
-			"Select backup details for emails by email ID; accepts "+utils.Wildcard+" to select all emails.")
+			"Select backup details for emails by email ID; accepts '"+utils.Wildcard+"' to select all emails.")
 		fs.StringSliceVar(
 			&emailFolder,
 			"email-folder", nil,
-			"Select backup details for emails within a folder; accepts "+utils.Wildcard+" to select all email folders.")
+			"Select backup details for emails within a folder; accepts '"+utils.Wildcard+"' to select all email folders.")
 		fs.StringVar(
 			&emailSubject,
 			"email-subject", "",
@@ -141,11 +172,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&event,
 			"event", nil,
-			"Select backup details for events by event ID; accepts "+utils.Wildcard+" to select all events.")
+			"Select backup details for events by event ID; accepts '"+utils.Wildcard+"' to select all events.")
 		fs.StringSliceVar(
 			&eventCalendar,
 			"event-calendar", nil,
-			"Select backup details for events under a calendar; accepts "+utils.Wildcard+" to select all events.")
+			"Select backup details for events under a calendar; accepts '"+utils.Wildcard+"' to select all events.")
 		fs.StringVar(
 			&eventSubject,
 			"event-subject", "",
@@ -171,11 +202,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&contact,
 			"contact", nil,
-			"Select backup details for contacts by contact ID; accepts "+utils.Wildcard+" to select all contacts.")
+			"Select backup details for contacts by contact ID; accepts '"+utils.Wildcard+"' to select all contacts.")
 		fs.StringSliceVar(
 			&contactFolder,
 			"contact-folder", nil,
-			"Select backup details for contacts within a folder; accepts "+utils.Wildcard+" to select all contact folders.")
+			"Select backup details for contacts within a folder; accepts '"+utils.Wildcard+"' to select all contact folders.")
 
 		fs.StringVar(
 			&contactName,
@@ -186,6 +217,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
 
 		c.Use = c.Use + exchangeServiceCommandDeleteUseSuffix
+		c.Example = utils.IndentExamples(exchangeServiceCommandDeleteExamples)
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
