@@ -61,16 +61,15 @@ type mailFolderCache struct {
 	cache        map[string]cachedContainer
 	gs           graph.Service
 	userID, root string
-	nameLookup   map[string]string
 }
 
-// populateMailRoot fetches and populates the root directory from user's inbox.
+// populateMailRoot fetches and populates the "base" directory from user's inbox.
 // Action ensures that cache will stop at appropriate level.
 // @param directory: M365 ID of the root all intended inquiries.
 // Function should only be used directly when it is known that all
 // folder inquiries are going to a specific node. In all other cases
 // @error iff the struct is not properly instantiated
-func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directory string) error {
+func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directoryID string) error {
 	wantedOpts := []string{"displayName", "parentFolderId"}
 
 	opts, err := optionsForMailFoldersItem(wantedOpts)
@@ -82,7 +81,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directory strin
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(directory).
+		MailFoldersById(directoryID).
 		Get(ctx, opts)
 	if err != nil {
 		return errors.Wrapf(err, "fetching root folder")
@@ -95,11 +94,11 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directory strin
 		return errors.New("root folder has no ID")
 	}
 
-	mc.cache[*idPtr] = &mailFolder{
+	temp := mailFolder{
 		folder: f,
 		p:      &path.Builder{},
 	}
-	mc.nameLookup[*f.GetDisplayName()] = *idPtr
+	mc.cache[*idPtr] = &temp
 	mc.root = *idPtr
 
 	return nil
@@ -136,7 +135,6 @@ func checkRequiredValues(c container) error {
 func (mc *mailFolderCache) Populate(ctx context.Context, root string) error {
 	if mc.cache == nil {
 		mc.cache = map[string]cachedContainer{}
-		mc.nameLookup = make(map[string]string)
 	}
 
 	if len(root) == 0 {
@@ -175,7 +173,6 @@ func (mc *mailFolderCache) Populate(ctx context.Context, root string) error {
 			mc.cache[*f.GetId()] = &mailFolder{
 				folder: f,
 			}
-			mc.nameLookup[*f.GetDisplayName()] = *f.GetId()
 		}
 
 		r := resp.GetAdditionalData()
@@ -215,16 +212,4 @@ func (mc *mailFolderCache) IDToPath(
 	c.SetPath(fullPath)
 
 	return fullPath, nil
-}
-
-func (mc *mailFolderCache) DisplayToID(
-	ctx context.Context,
-	directory string,
-) string {
-	folderID, ok := mc.nameLookup[directory]
-	if !ok {
-		return ""
-	}
-
-	return folderID
 }
