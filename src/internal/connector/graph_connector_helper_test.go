@@ -71,6 +71,70 @@ func testEmptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
 	assert.Equal(t, *expected, *got, msg)
 }
 
+func testElementsMatch[T any](
+	t *testing.T,
+	expected []T,
+	got []T,
+	equalityCheck func(expectedItem, gotItem T) bool,
+) {
+	t.Helper()
+
+	pending := make([]*T, len(expected))
+	for i := 0; i < len(expected); i++ {
+		pending[i] = &expected[i]
+	}
+
+	unexpected := []T{}
+
+	for i := 0; i < len(got); i++ {
+		found := false
+
+		for j, maybe := range pending {
+			if maybe == nil {
+				// Already matched with something in got.
+				continue
+			}
+
+			// Item matched, break out of inner loop and move to next item in got.
+			if equalityCheck(*maybe, got[i]) {
+				pending[j] = nil
+				found = true
+
+				break
+			}
+		}
+
+		if !found {
+			unexpected = append(unexpected, got[i])
+		}
+	}
+
+	// Print differences.
+	missing := []T{}
+
+	for _, p := range pending {
+		if p == nil {
+			continue
+		}
+
+		missing = append(missing, *p)
+	}
+
+	if len(unexpected) == 0 && len(missing) == 0 {
+		return
+	}
+
+	assert.Failf(
+		t,
+		"contain different elements",
+		"missing items: (%T)%v\nunexpected items: (%T)%v\n",
+		expected,
+		missing,
+		got,
+		unexpected,
+	)
+}
+
 type itemInfo struct {
 	// lookupKey is a string that can be used to find this data from a set of
 	// other data in the same collection. This key should be something that will
@@ -253,67 +317,6 @@ func checkContact(
 	testEmptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
 }
 
-func checkLocations(
-	t *testing.T,
-	expected []models.Locationable,
-	got []models.Locationable,
-) {
-	pending := make([]*models.Locationable, len(expected))
-	for i := 0; i < len(expected); i++ {
-		pending[i] = &expected[i]
-	}
-
-	unexpected := []models.Locationable{}
-
-	for i := 0; i < len(got); i++ {
-		found := false
-
-		for j, maybe := range pending {
-			if maybe == nil {
-				// Already matched with something in got.
-				continue
-			}
-
-			// Item matched, break out of inner loop and move to next item in got.
-			if locationEqual(*maybe, got[i]) {
-				pending[j] = nil
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
-			unexpected = append(unexpected, got[i])
-		}
-	}
-
-	// Print differences.
-	missing := []models.Locationable{}
-
-	for _, p := range pending {
-		if p == nil {
-			continue
-		}
-
-		missing = append(missing, *p)
-	}
-
-	if len(unexpected) == 0 && len(missing) == 0 {
-		return
-	}
-
-	assert.Failf(
-		t,
-		"contain different elements",
-		"missing items: (%T)%v\nunexpected items: (%T)%v\n",
-		expected,
-		missing,
-		got,
-		unexpected,
-	)
-}
-
 func locationEqual(expected, got models.Locationable) bool {
 	if !reflect.DeepEqual(expected.GetAddress(), got.GetAddress()) {
 		return false
@@ -406,13 +409,14 @@ func checkEvent(
 	// Cheating a little here in the name of code-reuse. model.Location needs
 	// custom compare logic because it has fields marked as "internal use only"
 	// that seem to change.
-	checkLocations(
+	testElementsMatch(
 		t,
 		[]models.Locationable{expected.GetLocation()},
 		[]models.Locationable{got.GetLocation()},
+		locationEqual,
 	)
 
-	checkLocations(t, expected.GetLocations(), got.GetLocations())
+	testElementsMatch(t, expected.GetLocations(), got.GetLocations(), locationEqual)
 
 	assert.Equal(t, expected.GetOnlineMeeting(), got.GetOnlineMeeting(), "OnlineMeeting")
 
