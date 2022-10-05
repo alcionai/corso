@@ -156,11 +156,50 @@ type colInfo struct {
 	items        []itemInfo
 }
 
+func attachmentEqual(
+	expected models.Attachmentable,
+	got models.Attachmentable,
+) bool {
+	// This is super hacky, but seems like it would be good to have a comparison
+	// of the actual content. I think the only other way to really get it is to
+	// serialize both structs to JSON and pull it from there or something though.
+	expectedData := reflect.Indirect(reflect.ValueOf(expected)).FieldByName("contentBytes").Bytes()
+	gotData := reflect.Indirect(reflect.ValueOf(got).Elem()).FieldByName("contentBytes").Bytes()
+
+	if !reflect.DeepEqual(expectedData, gotData) {
+		return false
+	}
+
+	if !emptyOrEqual(expected.GetContentType(), got.GetContentType()) {
+		return false
+	}
+
+	// Skip Id as it's tied to this specific instance of the item.
+
+	if !emptyOrEqual(expected.GetIsInline(), got.GetIsInline()) {
+		return false
+	}
+
+	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
+
+	if !emptyOrEqual(expected.GetName(), got.GetName()) {
+		return false
+	}
+
+	// Skip Size as the server clobbers whatever value we give it. It's unknown
+	// how they populate size though as it's not just the length of the byte
+	// array backing the content.
+
+	return true
+}
+
 func checkMessage(
 	t *testing.T,
 	expected models.Messageable,
 	got models.Messageable,
 ) {
+	testElementsMatch(t, expected.GetAttachments(), got.GetAttachments(), attachmentEqual)
+
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
 	testEmptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
