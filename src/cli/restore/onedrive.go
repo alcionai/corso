@@ -97,11 +97,11 @@ corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abc
 
 # Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-	--user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+      --user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 
 # Restore all files from Bob's folder that were created before 2020 when captured in a specific backup
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
-	--user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
+      --user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore onedrive [<flag>...]`
@@ -111,7 +111,7 @@ func oneDriveRestoreCmd() *cobra.Command {
 		Short:   "Restore M365 OneDrive service data",
 		RunE:    restoreOneDriveCmd,
 		Args:    cobra.NoArgs,
-		Example: utils.IndentExamples(oneDriveServiceCommandRestoreExamples),
+		Example: oneDriveServiceCommandRestoreExamples,
 	}
 }
 

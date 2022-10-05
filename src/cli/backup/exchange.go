@@ -105,7 +105,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 
 		c.Use = c.Use + exchangeServiceCommandCreateUseSuffix
-		c.Example = utils.IndentExamples(exchangeServiceCommandCreateExamples)
+		c.Example = exchangeServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -129,7 +129,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 
 		c.Use = c.Use + exchangeServiceCommandDetailsUseSuffix
-		c.Example = utils.IndentExamples(exchangeServiceCommandDetailsExamples)
+		c.Example = exchangeServiceCommandDetailsExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --all) and more frequently used flags take precedence.
@@ -217,7 +217,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
 
 		c.Use = c.Use + exchangeServiceCommandDeleteUseSuffix
-		c.Example = utils.IndentExamples(exchangeServiceCommandDeleteExamples)
+		c.Example = exchangeServiceCommandDeleteExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
