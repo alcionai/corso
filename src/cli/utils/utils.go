@@ -63,7 +63,7 @@ func AddCommand(parent, c *cobra.Command) (*cobra.Command, *pflag.FlagSet) {
 // This is only to be used with Examples strings which the default usage
 // template does not properly indent to match other sections
 func IndentExamples(examples string) string {
-	e := regexp.MustCompile(`(?m)^(\S)`)
+	e := regexp.MustCompile(`(?m)^`)
 
-	return e.ReplaceAllString(examples, "  $1")
+	return e.ReplaceAllString(examples, "  ")
 }
