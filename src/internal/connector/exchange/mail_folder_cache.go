@@ -58,19 +58,18 @@ func (mf *mailFolder) GetParentFolderId() *string {
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	cache        map[string]cachedContainer
-	gs           graph.Service
-	userID, root string
-	nameLookup   map[string]string
+	cache          map[string]cachedContainer
+	gs             graph.Service
+	userID, rootID string
 }
 
-// populateMailRoot fetches and populates the root directory from user's inbox.
+// populateMailRoot fetches and populates the "base" directory from user's inbox.
 // Action ensures that cache will stop at appropriate level.
 // @param directory: M365 ID of the root all intended inquiries.
 // Function should only be used directly when it is known that all
 // folder inquiries are going to a specific node. In all other cases
 // @error iff the struct is not properly instantiated
-func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directory string) error {
+func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directoryID string) error {
 	wantedOpts := []string{"displayName", "parentFolderId"}
 
 	opts, err := optionsForMailFoldersItem(wantedOpts)
@@ -82,7 +81,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directory strin
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(directory).
+		MailFoldersById(directoryID).
 		Get(ctx, opts)
 	if err != nil {
 		return errors.Wrapf(err, "fetching root folder")
@@ -95,12 +94,12 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directory strin
 		return errors.New("root folder has no ID")
 	}
 
-	mc.cache[*idPtr] = &mailFolder{
+	temp := mailFolder{
 		folder: f,
 		p:      &path.Builder{},
 	}
-	mc.nameLookup[*f.GetDisplayName()] = *idPtr
-	mc.root = *idPtr
+	mc.cache[*idPtr] = &temp
+	mc.rootID = *idPtr
 
 	return nil
 }
@@ -132,28 +131,19 @@ func checkRequiredValues(c container) error {
 	return nil
 }
 
-// Populate utility function for populating struct maps.
-func (mc *mailFolderCache) Populate(ctx context.Context, root string) error {
-	if mc.cache == nil {
-		mc.cache = map[string]cachedContainer{}
-		mc.nameLookup = make(map[string]string)
-	}
-
-	if len(root) == 0 {
-		if err := mc.populateRoot(ctx); err != nil {
-			return err
-		}
-	} else {
-		if err := mc.populateMailRoot(ctx, root); err != nil {
-			return err
-		}
+// Populate utility function for populating the mailFolderCache.
+// Number of Graph Queries: 1.
+func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
+	err := mc.Init(ctx, baseID)
+	if err != nil {
+		return err
 	}
 
 	query := mc.
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(mc.root).ChildFolders().
+		MailFoldersById(mc.rootID).ChildFolders().
 		Delta()
 
 	var errs *multierror.Error
@@ -175,7 +165,6 @@ func (mc *mailFolderCache) Populate(ctx context.Context, root string) error {
 			mc.cache[*f.GetId()] = &mailFolder{
 				folder: f,
 			}
-			mc.nameLookup[*f.GetDisplayName()] = *f.GetId()
 		}
 
 		r := resp.GetAdditionalData()
@@ -217,14 +206,17 @@ func (mc *mailFolderCache) IDToPath(
 	return fullPath, nil
 }
 
-func (mc *mailFolderCache) DisplayToID(
-	ctx context.Context,
-	directory string,
-) string {
-	folderID, ok := mc.nameLookup[directory]
-	if !ok {
-		return ""
+// Init ensures that the structure's fields are initialized.
+// Fields Initialized when cache == nil:
+// [mc.cache, mc.rootID]
+func (mc *mailFolderCache) Init(ctx context.Context, baseNode string) error {
+	if mc.cache == nil {
+		mc.cache = map[string]cachedContainer{}
 	}
 
-	return folderID
+	if len(baseNode) == 0 {
+		return mc.populateRoot(ctx)
+	}
+
+	return mc.populateMailRoot(ctx, baseNode)
 }

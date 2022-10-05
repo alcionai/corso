@@ -3,10 +3,12 @@ package kopia
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	stdpath "path"
 	"testing"
+	"unsafe"
 
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/fs"
@@ -121,6 +123,137 @@ func getDirEntriesForEntry(
 // ---------------
 // unit tests
 // ---------------
+type limitedRangeReader struct {
+	readLen int
+	io.ReadCloser
+}
+
+func (lrr *limitedRangeReader) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		// Not well specified behavior, defer to underlying reader.
+		return lrr.ReadCloser.Read(p)
+	}
+
+	toRead := lrr.readLen
+	if len(p) < toRead {
+		toRead = len(p)
+	}
+
+	return lrr.ReadCloser.Read(p[:toRead])
+}
+
+type VersionReadersUnitSuite struct {
+	suite.Suite
+}
+
+func TestVersionReadersUnitSuite(t *testing.T) {
+	suite.Run(t, new(VersionReadersUnitSuite))
+}
+
+func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
+	inputData := []byte("This is some data for the reader to test with")
+	table := []struct {
+		name         string
+		readVersion  uint32
+		writeVersion uint32
+		check        assert.ErrorAssertionFunc
+	}{
+		{
+			name:         "SameVersionSucceeds",
+			readVersion:  42,
+			writeVersion: 42,
+			check:        assert.NoError,
+		},
+		{
+			name:         "DifferentVersionsFail",
+			readVersion:  7,
+			writeVersion: 42,
+			check:        assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			baseReader := bytes.NewReader(inputData)
+
+			reversible := &restoreStreamReader{
+				expectedVersion: test.readVersion,
+				ReadCloser: &backupStreamReader{
+					version:    test.writeVersion,
+					ReadCloser: io.NopCloser(baseReader),
+				},
+			}
+
+			defer reversible.Close()
+
+			allData, err := io.ReadAll(reversible)
+			test.check(t, err)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, inputData, allData)
+		})
+	}
+}
+
+func readAllInParts(
+	t *testing.T,
+	partLen int,
+	reader io.ReadCloser,
+) ([]byte, int) {
+	res := []byte{}
+	read := 0
+	tmp := make([]byte, partLen)
+
+	for {
+		n, err := reader.Read(tmp)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		require.NoError(t, err)
+
+		read += n
+		res = append(res, tmp[:n]...)
+	}
+
+	return res, read
+}
+
+func (suite *VersionReadersUnitSuite) TestWriteHandlesShortReads() {
+	t := suite.T()
+	inputData := []byte("This is some data for the reader to test with")
+	version := uint32(42)
+	baseReader := bytes.NewReader(inputData)
+	versioner := &backupStreamReader{
+		version:    version,
+		ReadCloser: io.NopCloser(baseReader),
+	}
+	expectedToWrite := len(inputData) + int(unsafe.Sizeof(versioner.version))
+
+	// "Write" all the data.
+	versionedData, writtenLen := readAllInParts(t, 1, versioner)
+	assert.Equal(t, expectedToWrite, writtenLen)
+
+	// Read all of the data back.
+	baseReader = bytes.NewReader(versionedData)
+	reader := &restoreStreamReader{
+		expectedVersion: version,
+		// Be adversarial and only allow reads of length 1 from the byte reader.
+		ReadCloser: &limitedRangeReader{
+			readLen:    1,
+			ReadCloser: io.NopCloser(baseReader),
+		},
+	}
+	readData, readLen := readAllInParts(t, 1, reader)
+	// This reports the bytes read and returned to the user, excluding the version
+	// that is stripped off at the start.
+	assert.Equal(t, len(inputData), readLen)
+	assert.Equal(t, inputData, readData)
+}
+
 type CorsoProgressUnitSuite struct {
 	suite.Suite
 	targetFilePath path.Path

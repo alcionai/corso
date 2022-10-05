@@ -36,6 +36,9 @@ type ContainerResolver interface {
 	// to that container. The path has a similar format to paths on the local
 	// file system.
 	IDToPath(ctx context.Context, m365ID string) (*path.Builder, error)
-	// Populate performs any setup logic the resolver may need.
-	Populate(context.Context, string) error
+	// Populate performs initialization steps for the resolver
+	// @param ctx is necessary param for Graph API tracing
+	// @param baseFolderID represents the M365ID base that the resolver will
+	// conclude its search. Default input is "".
+	Populate(ctx context.Context, baseFolderID string) error
 }
