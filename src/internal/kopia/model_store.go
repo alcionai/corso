@@ -194,7 +194,7 @@ func (ms ModelStore) populateBaseModelFromMetadata(
 	}
 
 	if v != ms.modelVersion {
-		return errors.Errorf("bad model version %v", v)
+		return errors.Errorf("bad model version %s", m.Labels[modelVersionKey])
 	}
 
 	base.ModelStoreID = m.ID
