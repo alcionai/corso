@@ -311,7 +311,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	}{
 		{
 			name: "Default Root",
-			root: "",
+			root: rootFolderAlias,
 		},
 		{
 			name: "Node Root",
