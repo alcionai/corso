@@ -70,7 +70,11 @@ type mailFolderCache struct {
 // Function should only be used directly when it is known that all
 // folder inquiries are going to a specific node. In all other cases
 // @error iff the struct is not properly instantiated
-func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directoryID string) error {
+func (mc *mailFolderCache) populateMailRoot(
+	ctx context.Context,
+	directoryID string,
+	baseContainerPath []string,
+) error {
 	wantedOpts := []string{"displayName", "parentFolderId"}
 
 	opts, err := optionsForMailFoldersItem(wantedOpts)
@@ -97,7 +101,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directoryID str
 
 	temp := mailFolder{
 		folder: f,
-		p:      &path.Builder{},
+		p:      path.Builder{}.Append(baseContainerPath...),
 	}
 	mc.cache[*idPtr] = &temp
 	mc.rootID = *idPtr
@@ -129,8 +133,13 @@ func checkRequiredValues(c container) error {
 // Populate utility function for populating the mailFolderCache.
 // Number of Graph Queries: 1.
 // @param baseID: M365ID of the base of the exchange.Mail.Folder
-// Use rootFolderAlias for input if baseID unknown
-func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
+// @param baseContainerPath: the set of folder elements that make up the path
+// for the base container in the cache.
+func (mc *mailFolderCache) Populate(
+	ctx context.Context,
+	baseID string,
+	baseContainerPath ...string,
+) error {
 	if len(baseID) == 0 {
 		return errors.New("populate function requires: M365ID as input")
 	}
@@ -208,12 +217,16 @@ func (mc *mailFolderCache) IDToPath(
 // Init ensures that the structure's fields are initialized.
 // Fields Initialized when cache == nil:
 // [mc.cache, mc.rootID]
-func (mc *mailFolderCache) Init(ctx context.Context, baseNode string) error {
+func (mc *mailFolderCache) Init(
+	ctx context.Context,
+	baseNode string,
+	baseContainerPath []string,
+) error {
 	if mc.cache == nil {
 		mc.cache = map[string]cachedContainer{}
 	}
 
-	return mc.populateMailRoot(ctx, baseNode)
+	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)
 }
 
 // addMailFolder adds container to map in field 'cache'
