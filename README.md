@@ -2,6 +2,10 @@
 
 # Corso
 
+[![Discord](https://img.shields.io/badge/discuss-discord-blue)](https://discord.gg/63DTTSnuhT)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
 Corso is the first open-source tool that aims to assist IT admins with the critical task of protecting their
 Microsoft 365 data. It provides a reliable, secure, and efficient data protection engine. Admins decide where to store
 the backup data and have the flexibility to perform backups of their desired service through an intuitive interface.
@@ -47,5 +51,4 @@ We ask that all Corso users and contributors take a few minutes to review our
 
 ## License
 
-TODO
-`
+Corso is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
