@@ -132,16 +132,18 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 	buf.WriteString("## " + name + "\n\n")
 
 	if len(cmd.Long) > 0 {
-		buf.WriteString(cmd.Long + "\n\n")
+		buf.WriteString(cmd.Long + "\n")
 	} else {
-		buf.WriteString(cmd.Short + "\n\n")
+		buf.WriteString(cmd.Short + "\n")
 	}
 
 	if cmd.Runnable() {
-		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n\n", cmd.UseLine()))
+		buf.WriteString("\n")
+		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n", cmd.UseLine()))
 	}
 
 	if cmd.HasExample() {
+		buf.WriteString("\n")
 		buf.WriteString("### Examples\n\n")
 		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n", cmd.Example))
 	}

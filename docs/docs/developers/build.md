@@ -1,10 +1,7 @@
 # Building Corso
 
-
-For convenience, the Corso build tooling is containerized. To take advantage, you need the following on your machine:
-
-- Docker
-
+For convenience, the Corso build tooling is containerized. To take advantage, you need
+[Docker](https://www.docker.com/) installed on your machine.
 
 To build Corso locally, use the following command from the root of your repo:
 
