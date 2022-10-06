@@ -29,7 +29,7 @@ func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
 	c, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
-	return &ModelStore{c}
+	return &ModelStore{c: c, modelVersion: globalModelVersion}
 }
 
 // ---------------
@@ -97,6 +97,12 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 		},
 		{
 			name: "manifestTypeTag",
+			tags: map[string]string{
+				manifest.TypeLabelKey: "foo",
+			},
+		},
+		{
+			name: "storeVersion",
 			tags: map[string]string{
 				manifest.TypeLabelKey: "foo",
 			},
@@ -204,6 +210,23 @@ func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {
 	)
 }
 
+func (suite *ModelStoreIntegrationSuite) TestPutGetBadVersion() {
+	t := suite.T()
+	schema := model.BackupOpSchema
+	foo := &fooModel{Bar: uuid.NewString()}
+	// Avoid some silly test errors from comparing nil to empty map.
+	foo.Tags = map[string]string{}
+
+	err := suite.m.Put(suite.ctx, schema, foo)
+	require.NoError(t, err)
+
+	suite.m.modelVersion = 42
+
+	returned := &fooModel{}
+	err = suite.m.Get(suite.ctx, schema, foo.ID, returned)
+	assert.Error(t, err)
+}
+
 func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 	table := []struct {
 		s      model.Schema
@@ -247,6 +270,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 
 			require.NotEmpty(t, foo.ModelStoreID)
 			require.NotEmpty(t, foo.ID)
+			require.Equal(t, globalModelVersion, foo.Version)
 
 			returned := &fooModel{}
 			err = suite.m.Get(suite.ctx, test.s, foo.ID, returned)
@@ -338,6 +362,22 @@ func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 	assert.ErrorIs(t, suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil), ErrNotFound)
 	assert.ErrorIs(
 		t, suite.m.GetWithModelStoreID(suite.ctx, model.BackupOpSchema, "baz", nil), ErrNotFound)
+}
+
+func (suite *ModelStoreIntegrationSuite) TestPutGetOfTypeBadVersion() {
+	t := suite.T()
+	schema := model.BackupOpSchema
+
+	foo := &fooModel{Bar: uuid.NewString()}
+
+	err := suite.m.Put(suite.ctx, schema, foo)
+	require.NoError(t, err)
+
+	suite.m.modelVersion = 42
+
+	ids, err := suite.m.GetIDsForType(suite.ctx, schema, nil)
+	assert.Error(t, err)
+	assert.Empty(t, ids)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
@@ -527,12 +567,14 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			name: "NoTags",
 			mutator: func(m *fooModel) {
 				m.Bar = "baz"
+				m.Version = 42
 			},
 		},
 		{
 			name: "WithTags",
 			mutator: func(m *fooModel) {
 				m.Bar = "baz"
+				m.Version = 42
 				m.Tags = map[string]string{
 					"a": "42",
 				}
@@ -558,11 +600,15 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			oldModelID := foo.ModelStoreID
 			oldStableID := foo.ID
+			oldVersion := foo.Version
 
 			test.mutator(foo)
 
 			require.NoError(t, m.Update(ctx, theModelType, foo))
 			assert.Equal(t, oldStableID, foo.ID)
+			// The version in the model store has not changed so we get the old
+			// version back.
+			assert.Equal(t, oldVersion, foo.Version)
 
 			returned := &fooModel{}
 			require.NoError(
@@ -571,7 +617,8 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			ids, err := m.GetIDsForType(ctx, theModelType, nil)
 			require.NoError(t, err)
-			assert.Len(t, ids, 1)
+			require.Len(t, ids, 1)
+			assert.Equal(t, globalModelVersion, ids[0].Version)
 
 			if oldModelID == foo.ModelStoreID {
 				// Unlikely, but we don't control ModelStoreID generation and can't
