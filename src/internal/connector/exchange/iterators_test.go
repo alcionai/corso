@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -199,11 +198,9 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				return
 			}
 
-			for key, c := range collections {
+			for folder, c := range collections {
 				require.NotEmpty(t, c.FullPath().Folder())
-				fmt.Println(key)
 
-				folder := c.FullPath().Folder()
 				if _, ok := test.folderNames[folder]; ok {
 					delete(test.folderNames, folder)
 				}
