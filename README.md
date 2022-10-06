@@ -12,32 +12,26 @@ As Corso evolves, it can become a great building block for more complex data pro
 Corso supports M365 Exchange and OneDrive with SharePoint and Teams support in active development. Coverage for more
 services, possibly beyond M365, will expand based on the interest and needs of the community.
 
-## Getting Started
+# Getting Started
 
-TODO - Link to the appropriate page in the published docs.
+See the [Corso Documentation](https://docs.corsobackup.io) for more information.
 
-## Building Corso
+# Corso container images
+
+Corso container images are convenienty hosted on [ghrc.io](https://github.com/alcionai/corso/pkgs/container/corso).
+
+For a sepcific release, use the following command:
 
 ```sh
-# Build a binary. Will be placed in bin/
-./build/build.sh 
-
-# Build a container image
-./build/build-container.sh 
+docker pull ghcr.io/alcionai/corso:<release tag>
 ```
 
-# Containers
+# Building Corso
 
-Corso images are hosted on [ghrc.io](https://github.com/alcionai/corso/pkgs/container/corso).
-
-Rolling release
-```sh
-docker pull ghcr.io/alcionai/corso:{SHA} --platform linux/arm64
-```
+To learn more about working with the project source core and building Corso, see the
+[Developer section](https://docs.corsobackup.io/developers/build) of the Corso Documentation.
 
 # Contribution Guidelines
-
-TODO 
 
 ## Code of Conduct
 
@@ -48,4 +42,3 @@ We ask that all Corso users and contributors take a few minutes to review our
 ## License
 
 TODO
-`
