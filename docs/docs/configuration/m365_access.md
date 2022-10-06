@@ -35,6 +35,7 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
    The required permissions are as follows:
 
+<!-- vale Microsoft.Spacing = NO -->
    | API / Permissions Name | Type | Description
    |:--|:--|:--|
    | Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
@@ -42,6 +43,7 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
    | Files.ReadWrite.All | Application | Read and write files in all site collections |
    | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
    | User.Read.All | Application | Read all users' full profiles |
+<!-- vale Microsoft.Spacing = YES -->
 
 1. **Grant admin consent**
 
