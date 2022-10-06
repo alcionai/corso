@@ -233,6 +233,10 @@ func (mc *mailFolderCache) addMailFolder(f models.MailFolderable) error {
 		return err
 	}
 
+	if _, ok := mc.cache[*f.GetId()]; ok {
+		return nil
+	}
+
 	mc.cache[*f.GetId()] = &mailFolder{
 		folder: f,
 	}
