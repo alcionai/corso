@@ -634,7 +634,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 		ctx             = context.Background()
 		connector       = loadService(t)
 		pathCounter     = map[string]bool{}
-		directoryCaches = map[path.CategoryType]mailFolderCache{}
+		directoryCaches = map[path.CategoryType]*mailFolderCache{}
 		pb              = &path.Builder{}
 
 		pth, err = pb.Append("Griffindor").

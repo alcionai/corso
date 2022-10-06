@@ -295,7 +295,7 @@ func RestoreExchangeDataCollections(
 	var (
 		pathCounter = map[string]bool{}
 		// map of caches... but not yet...
-		directoryCaches = map[path.CategoryType]mailFolderCache{}
+		directoryCaches = map[path.CategoryType]*mailFolderCache{}
 		rootFolder      string
 		metrics         support.CollectionMetrics
 		errs            error
@@ -429,113 +429,64 @@ func GetContainerIDFromCache(
 	gs graph.Service,
 	directory path.Path,
 	destination string,
-	caches map[path.CategoryType]mailFolderCache,
+	caches map[path.CategoryType]*mailFolderCache,
 	pathCounter map[string]bool,
 ) (string, error) {
 	var (
-		folderID       string
+		// Start with the root folder so we can create our top-level folder with
+		// the same tactic.
+		folderID       = rootFolderAlias
 		err            error
 		user           = directory.ResourceOwner()
 		category       = directory.Category()
 		directoryCache = caches[category]
+		newCache       = false
 	)
 
-	if directoryCache.userID == "" {
-		// Creates Root Node && Enable Cache
-		f, err := CreateMailFolderWithParent(
-			ctx,
-			gs, user,
-			destination,
-			rootFolderAlias,
-		)
-		if err != nil {
-			return "", err
-		}
-		folderID = *f.GetId()
-
-		mfc := mailFolderCache{
+	if directoryCache == nil {
+		mfc := &mailFolderCache{
 			userID: user,
 			gs:     gs,
 		}
 
-		err = mfc.Populate(ctx, folderID)
-		if err != nil {
-			return "", err
-		}
-
-		p, _ := mfc.IDToPath(ctx, folderID)
-		fmt.Println("Root Path: " + p.String())
-
 		caches[category] = mfc
+		directoryCache = mfc
+		newCache = true
 	}
 
-	// New Name would be what
-	directoryCache = caches[category]
-	newPath, err := path.Builder{}.Append(destination).Append(directory.Folders()...).
-		ToDataLayerExchangePathForCategory(
-			directory.Tenant(),
-			user,
-			category,
-			false,
-		)
-	if err != nil {
-		return "", err
-	}
-
-	// Check if path with the thing
-	// Does the folder exist
-	fmt.Println("PATH STRING: " + directory.String())
-	fmt.Println("NEW PATH: " + newPath.String())
-	fmt.Printf("What: %v\n", *directoryCache.cache[directoryCache.rootID].GetDisplayName())
-	fmt.Printf("PotentialPath: %v\n", newPath.Folders())
-
-	parentID := directoryCache.rootID
-
-	folders := newPath.Folders()
-	for i := 1; i < len(folders); i++ {
-		temp, err := CreateMailFolderWithParent(ctx, gs, user, folders[i], parentID)
+	// We don't need a path.Path here, just the folders that we need to ensure
+	// exist.
+	newPathFolders := append([]string{destination}, directory.Folders()...)
+	for _, folder := range newPathFolders {
+		temp, err := CreateMailFolderWithParent(ctx, gs, user, folder, folderID)
 		if err != nil {
 			// This means the folder already exists... We will work in this later
 			return "", err
 		}
 
-		err = directoryCache.addMailFolder(temp)
-		if err != nil {
-			return "", err
+		folderID = *temp.GetId()
+
+		// Only populate the cache if we actually had to create it. Since we set
+		// newCache to false in this we'll only try to populate it once per function
+		// call even if we make a new cache.
+		if newCache {
+			if err := directoryCache.Populate(ctx, folderID, folder); err != nil {
+				return "", errors.Wrap(err, "populating folder cache")
+			}
+
+			newCache = false
 		}
 
-		parentID = *temp.GetId()
-
+		// Will noop if the folder is already in the cache.
+		if err = directoryCache.addMailFolder(temp); err != nil {
+			return "", errors.Wrap(err, "adding folder to cache")
+		}
 	}
 
-	folderID = parentID
-	weird, err := directoryCache.IDToPath(ctx, folderID)
-	fmt.Println("Internal: " + weird.String())
-	directoryCache.Populate(ctx, directoryCache.rootID)
 	return folderID, err
 }
 
-// Need to update cache to note that folder is in there.
-/*
-	if rootFolderID != "" && category == path.ContactsCategory {
-		return rootFolderID, rootFolderID, errs
-	}
-
-	if !pathCounter[dirName] {
-		pathCounter[dirName] = true
-
-		folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
-		if err != nil {
-			return "", "", support.WrapAndAppend(user+" failure during preprocessing ", err, errs)
-		}
-
-		if rootFolderID == "" {
-			rootFolderID = folderID
-		}
-	}*/
-
 func newMailRestorePathForCollection(collectionPath path.Path, prefix string) (path.Path, error) {
-
 	listing := collectionPath.Folders()
 	pb := collectionPath.ToBuilder()
 	newBuilder, err := pb.UnescapeAndAppend(prefix)
