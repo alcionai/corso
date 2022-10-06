@@ -1,5 +1,20 @@
-# Build from source
+# Building Corso
 
-<!-- vale proselint.Annotations = NO -->
-TODO
-<!-- vale proselint.Annotations = YES -->
+For convenience, the Corso build tooling is containerized. To take advantage, you need
+[Docker](https://www.docker.com/) installed on your machine.
+
+To build Corso locally, use the following command from the root of your repo:
+
+```bash
+./build/build.sh 
+
+```
+
+The resulting binary will be under `<repo root>/bin`
+
+If you prefer to build Corso as a container, use the following command:
+
+```bash
+# Use --help to see all available options
+./build/build-container.sh 
+```
