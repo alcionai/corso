@@ -10,6 +10,13 @@ Delete backed-up M365 OneDrive service data
 corso backup delete onedrive --backup <backupId> [flags]
 ```
 
+### Examples
+
+```bash
+# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd
+corso backup delete onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd
+```
+
 ### Flags
 
 |Flag|Short|Default|Help|
