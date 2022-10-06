@@ -140,15 +140,8 @@ func (mc *mailFolderCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if len(baseID) == 0 {
-		return errors.New("populate function requires: M365ID as input")
-	}
-
-	if mc.rootID == "" {
-		err := mc.Init(ctx, baseID)
-		if err != nil {
-			return err
-		}
+	if err := mc.init(ctx, baseID, baseContainerPath); err != nil {
+		return err
 	}
 
 	query := mc.
@@ -214,14 +207,18 @@ func (mc *mailFolderCache) IDToPath(
 	return fullPath, nil
 }
 
-// Init ensures that the structure's fields are initialized.
+// init ensures that the structure's fields are initialized.
 // Fields Initialized when cache == nil:
 // [mc.cache, mc.rootID]
-func (mc *mailFolderCache) Init(
+func (mc *mailFolderCache) init(
 	ctx context.Context,
 	baseNode string,
 	baseContainerPath []string,
 ) error {
+	if len(baseNode) == 0 {
+		return errors.New("M365 folder ID required for base folder")
+	}
+
 	if mc.cache == nil {
 		mc.cache = map[string]cachedContainer{}
 	}
