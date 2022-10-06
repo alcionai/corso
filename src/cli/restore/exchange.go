@@ -176,22 +176,6 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(backupID); err != nil {
-		return err
-	}
-
-	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, a, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
 	opts := utils.ExchangeOpts{
 		Contacts:            contact,
 		ContactFolders:      contactFolder,
@@ -212,6 +196,22 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventSubject:        eventSubject,
 	}
 
+	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
+		return err
+	}
+
+	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, err := repository.Connect(ctx, a, s, options.Control())
+	if err != nil {
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
 	sel := selectors.NewExchangeRestore()
 	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
@@ -221,7 +221,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTime)
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
 	if err != nil {

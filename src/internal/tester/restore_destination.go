@@ -7,5 +7,5 @@ import (
 
 func DefaultTestRestoreDestination() control.RestoreDestination {
 	// Use microsecond granularity to help reduce collisions.
-	return control.DefaultRestoreDestination(common.SimpleDateTimeFormatTests)
+	return control.DefaultRestoreDestination(common.SimpleTimeTesting)
 }
