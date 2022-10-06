@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -22,21 +23,35 @@ func (suite *ExchangeUtilsSuite) TestValidateBackupDetailFlags() {
 	table := []struct {
 		name     string
 		backupID string
+		opts     utils.ExchangeOpts
 		expect   assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "with backupid",
 			backupID: "bid",
+			opts:     utils.ExchangeOpts{},
 			expect:   assert.NoError,
 		},
 		{
 			name:   "no backupid",
+			opts:   utils.ExchangeOpts{},
+			expect: assert.Error,
+		},
+		{
+			name:     "valid time",
+			backupID: "bid",
+			opts:     utils.ExchangeOpts{EmailReceivedAfter: common.Now()},
+			expect:   assert.NoError,
+		},
+		{
+			name:   "invalid time",
+			opts:   utils.ExchangeOpts{EmailReceivedAfter: "fnords"},
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, utils.ValidateExchangeRestoreFlags(test.backupID))
+			test.expect(t, utils.ValidateExchangeRestoreFlags(test.backupID, test.opts))
 		})
 	}
 }

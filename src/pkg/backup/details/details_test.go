@@ -24,7 +24,7 @@ func TestDetailsUnitSuite(t *testing.T) {
 }
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
-	nowStr := common.FormatNow(common.TabularOutputTimeFormat)
+	nowStr := common.FormatNow(common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
 	require.NoError(suite.T(), err)
 

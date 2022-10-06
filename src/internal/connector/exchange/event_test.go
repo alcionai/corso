@@ -27,7 +27,7 @@ func TestEventSuite(t *testing.T) {
 func (suite *EventSuite) TestEventInfo() {
 	initial := time.Now()
 
-	now := initial.Format(common.StandardTimeFormat)
+	now := common.FormatTime(initial)
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
 
 	tests := []struct {
@@ -48,7 +48,7 @@ func (suite *EventSuite) TestEventInfo() {
 				dateTime := models.NewDateTimeTimeZone()
 				dateTime.SetDateTime(&now)
 				event.SetStart(dateTime)
-				full, err := time.Parse(common.StandardTimeFormat, now)
+				full, err := common.ParseTime(now)
 				require.NoError(suite.T(), err)
 				i := &details.ExchangeInfo{
 					ItemType: details.ExchangeEvent,

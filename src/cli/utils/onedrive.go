@@ -17,9 +17,25 @@ type OneDriveOpts struct {
 }
 
 // ValidateOneDriveRestoreFlags checks common flags for correctness and interdependencies
-func ValidateOneDriveRestoreFlags(backupID string) error {
+func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 	if len(backupID) == 0 {
 		return errors.New("a backup ID is required")
+	}
+
+	if !IsValidTimeFormat(opts.CreatedAfter) {
+		return errors.New("invalid time format for created-after")
+	}
+
+	if !IsValidTimeFormat(opts.CreatedBefore) {
+		return errors.New("invalid time format for created-before")
+	}
+
+	if !IsValidTimeFormat(opts.ModifiedAfter) {
+		return errors.New("invalid time format for modified-after")
+	}
+
+	if !IsValidTimeFormat(opts.ModifiedBefore) {
+		return errors.New("invalid time format for modified-before")
 	}
 
 	return nil
