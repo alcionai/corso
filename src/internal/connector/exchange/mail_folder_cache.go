@@ -135,9 +135,11 @@ func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
 		return errors.New("populate function requires: M365ID as input")
 	}
 
-	err := mc.Init(ctx, baseID)
-	if err != nil {
-		return err
+	if mc.rootID == "" {
+		err := mc.Init(ctx, baseID)
+		if err != nil {
+			return err
+		}
 	}
 
 	query := mc.
