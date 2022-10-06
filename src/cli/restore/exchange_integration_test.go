@@ -176,3 +176,33 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 		})
 	}
 }
+
+func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlags() {
+	for _, set := range backupDataSets {
+		if set != events {
+			suite.T().Skip()
+		}
+
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx := config.SetViper(tester.NewContext(), suite.vpr)
+			ctx, _ = logger.SeedLevel(ctx, logger.Development)
+			defer logger.Flush(ctx)
+
+			var timeFilter string
+			switch set {
+			case events:
+				timeFilter = "--event-recurs"
+			}
+
+			cmd := tester.StubRootCmd(
+				"restore", "exchange",
+				"--config-file", suite.cfgFP,
+				"--backup", string(suite.backupOps[set].Results.BackupID),
+				timeFilter, "wingbat")
+			cli.BuildCommandTree(cmd)
+
+			// run the command
+			require.Error(t, cmd.ExecuteContext(ctx))
+		})
+	}
+}
