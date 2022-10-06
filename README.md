@@ -51,5 +51,4 @@ We ask that all Corso users and contributors take a few minutes to review our
 
 ## License
 
-TODO
-`
+Corso is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
