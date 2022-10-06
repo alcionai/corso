@@ -658,7 +658,8 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 		directoryCaches,
 		pathCounter,
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
 	instruction := directoryCaches[path.EmailCategory]
 	summit, err := instruction.IDToPath(ctx, folderID)
 	assert.NoError(t, err)
