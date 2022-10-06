@@ -55,7 +55,8 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := tester.NewContext()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
 			st := tester.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
@@ -80,8 +81,10 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 }
 
 func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
-	ctx := tester.NewContext()
 	t := suite.T()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
@@ -108,8 +111,10 @@ func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
 }
 
 func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
-	ctx := tester.NewContext()
 	t := suite.T()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
@@ -147,7 +152,9 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := tester.NewContext()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			st := tester.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
 			require.NoError(t, err)
@@ -182,8 +189,10 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 }
 
 func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
-	ctx := tester.NewContext()
 	t := suite.T()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
@@ -206,8 +215,10 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 }
 
 func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
-	ctx := tester.NewContext()
 	t := suite.T()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()

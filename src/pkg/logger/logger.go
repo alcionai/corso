@@ -153,10 +153,15 @@ func Seed(ctx context.Context) (ctxOut context.Context, zsl *zap.SugaredLogger) 
 
 // SeedLevel embeds a logger into the context with the given log-level.
 func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.SugaredLogger) {
-	_, zsl := genLogger(level)
-	ctxWV := context.WithValue(ctx, ctxKey, zsl)
+	l := ctx.Value(ctxKey)
+	if l == nil {
+		zsl := singleton(level)
+		ctxWV := context.WithValue(ctx, ctxKey, zsl)
 
-	return ctxWV, zsl
+		return ctxWV, zsl
+	}
+
+	return ctx, l.(*zap.SugaredLogger)
 }
 
 // Ctx retrieves the logger embedded in the context.

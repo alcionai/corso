@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"context"
 	"testing"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -71,8 +70,10 @@ func loadService(t *testing.T) *exchangeService {
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
-		ctx                                 = context.Background()
 		t                                   = suite.T()
 		mailScope, contactScope, eventScope []selectors.ExchangeScope
 		userID                              = tester.M365UserID(t)

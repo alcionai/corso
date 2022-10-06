@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -477,16 +478,21 @@ func TestKopiaUnitSuite(t *testing.T) {
 
 func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
+		ctx, flush := tester.NewContext()
+		defer flush()
+
 		w := &Wrapper{}
-		w.Close(context.Background())
+		w.Close(ctx)
 	})
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	tester.LogTimeOfTest(suite.T())
+	ctx, flush := tester.NewContext()
+
+	defer flush()
 
 	t := suite.T()
-	ctx := context.Background()
 	tenant := "a-tenant"
 	user1 := testUser
 	user1Encoded := encodeAsPath(user1)
@@ -569,7 +575,9 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 }
 
 func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	subdir := "subfolder"
 
 	p2, err := suite.testPath.Append(subdir, false)
@@ -714,7 +722,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 	}
 
 	for _, test := range table {
-		ctx := context.Background()
+		ctx, flush := tester.NewContext()
+		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := inflateDirTree(ctx, test.layout, nil)
@@ -773,7 +782,7 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
 	t := suite.T()
-	suite.ctx = context.Background()
+	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
 
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
@@ -783,6 +792,7 @@ func (suite *KopiaIntegrationSuite) SetupTest() {
 
 func (suite *KopiaIntegrationSuite) TearDownTest() {
 	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
+	logger.Flush(suite.ctx)
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
@@ -812,7 +822,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	t := suite.T()
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
@@ -930,7 +941,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
 			s, d, err := suite.w.BackupCollections(ctx, test.collections)
 			require.NoError(t, err)
@@ -1051,7 +1063,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	t := suite.T()
 	expectedDirs := 6
 	expectedFiles := len(suite.filesByPath)
-	suite.ctx = context.Background()
+	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
 
@@ -1090,6 +1102,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
 	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
+	logger.Flush(suite.ctx)
 }
 
 type i64counter struct {

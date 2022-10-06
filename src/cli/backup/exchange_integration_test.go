@@ -61,6 +61,10 @@ func TestBackupExchangeIntegrationSuite(t *testing.T) {
 
 func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
+
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
 		tester.M365AcctCredEnvs)
@@ -82,7 +86,7 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
 
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	ctx = config.SetViper(ctx, suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
@@ -97,7 +101,9 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 		recorder.Reset()
 
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+			defer flush()
 
 			cmd := tester.StubRootCmd(
 				"backup", "create", "exchange",
@@ -171,7 +177,11 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
 
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
+
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
@@ -220,7 +230,9 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
 		recorder.Reset()
 
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+			defer flush()
 
 			cmd := tester.StubRootCmd(
 				"backup", "list", "exchange",
@@ -248,7 +260,10 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 		recorder.Reset()
 
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+			defer flush()
+
 			bID := suite.backupOps[set].Results.BackupID
 
 			// fetch the details from the repo first
@@ -342,7 +357,10 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
 
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
@@ -360,8 +378,11 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 }
 
 func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	t := suite.T()
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
 
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",
@@ -383,8 +404,11 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 }
 
 func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_UnknownID() {
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	t := suite.T()
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
 
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",

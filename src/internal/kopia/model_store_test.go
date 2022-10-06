@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 type fooModel struct {
@@ -45,8 +46,11 @@ func TestModelStoreUnitSuite(t *testing.T) {
 
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
+		ctx, flush := tester.NewContext()
+		defer flush()
+
 		m := &ModelStore{}
-		m.Close(context.Background())
+		m.Close(ctx)
 	})
 }
 
@@ -76,12 +80,13 @@ func (suite *ModelStoreIntegrationSuite) SetupSuite() {
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
-	suite.ctx = context.Background()
+	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
 	suite.m = getModelStore(suite.T(), suite.ctx)
 }
 
 func (suite *ModelStoreIntegrationSuite) TearDownTest() {
 	assert.NoError(suite.T(), suite.m.Close(suite.ctx))
+	logger.Flush(suite.ctx)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
@@ -584,7 +589,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			theModelType := model.BackupOpSchema
 
 			m := getModelStore(t, ctx)
@@ -657,7 +664,8 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
 			m := getModelStore(t, ctx)
 			defer func() {
@@ -726,7 +734,9 @@ func (suite *ModelStoreRegressionSuite) SetupSuite() {
 // Tests that if we get an error or crash while in the middle of an Update no
 // results will be visible to higher layers.
 func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEffect() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	m := getModelStore(t, ctx)
@@ -823,7 +833,9 @@ func reconnectToModelStore(
 // Ensures there's no shared configuration state between different instances of
 // the ModelStore (and consequently the underlying kopia instances).
 func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	numEntries := 10
 	deets := details.DetailsModel{

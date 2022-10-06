@@ -10,10 +10,6 @@ import (
 	"github.com/alcionai/corso/src/cli"
 )
 
-type CliSuite struct {
-	suite.Suite
-}
-
 type CLISuite struct {
 	suite.Suite
 }
