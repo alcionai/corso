@@ -38,7 +38,7 @@ type BaseModel struct {
 	// object in the ModelStore.
 	// Once generated (during Put), it is guaranteed not to change. This field
 	// should be treated as read-only by users.
-	ID StableID `json:"ID,omitempty"`
+	ID StableID `json:"-"`
 	// ModelStoreID is an internal ID for the model in the store. If present it
 	// can be used for efficient lookups, but should not be used by other models
 	// to refer to this one. This field may change if the model is updated. This
