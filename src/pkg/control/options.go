@@ -46,7 +46,7 @@ type RestoreDestination struct {
 	ContainerName string
 }
 
-func DefaultRestoreDestination(timeFormat string) RestoreDestination {
+func DefaultRestoreDestination(timeFormat common.TimeFormat) RestoreDestination {
 	return RestoreDestination{
 		ContainerName: defaultRestoreLocation + common.FormatNow(timeFormat),
 	}

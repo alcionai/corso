@@ -140,3 +140,35 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 		})
 	}
 }
+
+func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlags() {
+	for _, set := range backupDataSets {
+		if set == contacts {
+			suite.T().Skip()
+		}
+
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx := config.SetViper(tester.NewContext(), suite.vpr)
+			ctx, _ = logger.SeedLevel(ctx, logger.Development)
+			defer logger.Flush(ctx)
+
+			var timeFilter string
+			switch set {
+			case email:
+				timeFilter = "--email-received-after"
+			case events:
+				timeFilter = "--event-starts-after"
+			}
+
+			cmd := tester.StubRootCmd(
+				"restore", "exchange",
+				"--config-file", suite.cfgFP,
+				"--backup", string(suite.backupOps[set].Results.BackupID),
+				timeFilter, "smarf")
+			cli.BuildCommandTree(cmd)
+
+			// run the command
+			require.Error(t, cmd.ExecuteContext(ctx))
+		})
+	}
+}

@@ -72,9 +72,25 @@ func AddExchangeFilter(
 }
 
 // ValidateExchangeRestoreFlags checks common flags for correctness and interdependencies
-func ValidateExchangeRestoreFlags(backupID string) error {
+func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 	if len(backupID) == 0 {
 		return errors.New("a backup ID is required")
+	}
+
+	if !IsValidTimeFormat(opts.EmailReceivedAfter) {
+		return errors.New("invalid time format for email-received-after")
+	}
+
+	if !IsValidTimeFormat(opts.EmailReceivedBefore) {
+		return errors.New("invalid time format for email-received-before")
+	}
+
+	if !IsValidTimeFormat(opts.EventStartsAfter) {
+		return errors.New("invalid time format for event-starts-after")
+	}
+
+	if !IsValidTimeFormat(opts.EventStartsBefore) {
+		return errors.New("invalid time format for event-starts-before")
 	}
 
 	return nil

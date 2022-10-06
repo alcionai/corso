@@ -10,6 +10,19 @@ Bootstraps a new S3 repository and connects it to your m356 account.
 corso repo init s3 --bucket <bucket> [flags]
 ```
 
+### Examples
+
+```bash
+# Create a new Corso repo in AWS S3 bucket named "my-bucket"
+corso repo init s3 --bucket my-bucket
+
+# Create a new Corso repo in AWS S3 bucket named "my-bucket" using a prefix
+corso repo init s3 --bucket my-bucket --prefix my-prefix
+
+# Create a new Corso repo in an S3 compliant storage provider
+corso repo init s3 --bucket my-bucket --endpoint https://my-s3-server-endpoint
+```
+
 ### Flags
 
 |Flag|Short|Default|Help|

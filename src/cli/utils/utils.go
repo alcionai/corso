@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
@@ -56,4 +57,21 @@ func AddCommand(parent, c *cobra.Command) (*cobra.Command, *pflag.FlagSet) {
 	c.Flags().SortFlags = false
 
 	return c, c.Flags()
+}
+
+// IsValidTimeFormat returns true if the input is regonized as a
+// supported format by the common time parser.  Returns true if
+// the input is zero valued, which indicates that the flag was not
+// called.
+func IsValidTimeFormat(in string) bool {
+	if len(in) == 0 {
+		return true
+	}
+
+	_, err := common.ParseTime(in)
+	if err != nil {
+		return false
+	}
+
+	return true
 }

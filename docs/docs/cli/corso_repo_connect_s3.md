@@ -10,6 +10,19 @@ Ensures a connection to an existing S3 repository.
 corso repo connect s3 --bucket <bucket> [flags]
 ```
 
+### Examples
+
+```bash
+# Connect to a Corso repo in AWS S3 bucket named "my-bucket"
+corso repo connect s3 --bucket my-bucket
+
+# Connect to a Corso repo in AWS S3 bucket named "my-bucket" using a prefix
+corso repo connect s3 --bucket my-bucket --prefix my-prefix
+
+# Connect to a Corso repo in an S3 compliant storage provider
+corso repo connect s3 --bucket my-bucket --endpoint https://my-s3-server-endpoint
+```
+
 ### Flags
 
 |Flag|Short|Default|Help|
