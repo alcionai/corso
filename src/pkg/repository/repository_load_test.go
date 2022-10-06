@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -235,7 +235,9 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(selectors.Any(), selectors.Any()))
+	bsel.Include(bsel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}))
+	bsel.Include(bsel.ContactFolders(selectors.Any(), []string{exchange.DefaultContactFolder}))
+	bsel.Include(bsel.EventCalendars(selectors.Any(), []string{exchange.DefaultCalendar}))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
@@ -250,7 +252,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	rsel, err := bsel.ToExchangeRestore()
 	require.NoError(t, err)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	dest := tester.DefaultTestRestoreDestination()
 
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)
@@ -325,7 +327,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	rsel, err := bsel.ToOneDriveRestore()
 	require.NoError(t, err)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	dest := tester.DefaultTestRestoreDestination()
 
 	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
 	require.NoError(t, err)

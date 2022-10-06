@@ -47,10 +47,6 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
-		suite.T().Skip(err)
-	}
-
 	ctx := context.Background()
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
@@ -283,7 +279,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 }
 
 // TestAccessOfInboxAllUsers verifies that GraphConnector can
-// support `--all-users` for backup operations. Selector.DiscreteScopes
+// support `--users *` for backup operations. Selector.DiscreteScopes
 // returns all of the users within one scope. Only users who have
 // messages in their inbox will have a collection returned.
 // The final test insures that more than a 75% of the user collections are
@@ -313,17 +309,28 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 // to create and remove folders within the tenant
 func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
 	ctx := context.Background()
+	t := suite.T()
 	now := time.Now()
 	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
 	aFolder, err := exchange.CreateMailFolder(ctx, suite.connector.Service(), suite.user, folderName)
-	assert.NoError(suite.T(), err, support.ConnectorStackErrorTrace(err))
+	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 
 	if aFolder != nil {
+		secondFolder, err := exchange.CreateMailFolderWithParent(
+			ctx,
+			suite.connector.Service(),
+			suite.user,
+			"SubFolder",
+			*aFolder.GetId(),
+		)
+		assert.NoError(t, err)
+		assert.True(t, *secondFolder.GetParentFolderId() == *aFolder.GetId())
+
 		err = exchange.DeleteMailFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
-		assert.NoError(suite.T(), err)
+		assert.NoError(t, err)
 
 		if err != nil {
-			suite.T().Log(support.ConnectorStackErrorTrace(err))
+			t.Log(support.ConnectorStackErrorTrace(err))
 		}
 	}
 }
@@ -368,7 +375,7 @@ func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	dest := tester.DefaultTestRestoreDestination()
 	table := []struct {
 		name string
 		col  []data.Collection
@@ -431,6 +438,44 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
 		expectedRestoreFolders int
 	}{
+		{
+			name:                   "EmailsWithAttachments",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithDirectAttachment(
+								subjectText + "-1",
+							),
+							lookupKey: subjectText + "-1",
+						},
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithTwoAttachments(
+								subjectText + "-2",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+			// TODO(ashmrtn): Generalize this once we know the path transforms that
+			// occur during restore.
+			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+				backupSel := selectors.NewExchangeBackup()
+				backupSel.Include(backupSel.MailFolders(
+					[]string{backupUser},
+					[]string{dest.ContainerName},
+				))
+
+				return backupSel.Selector
+			},
+		},
 		{
 			name:                   "MultipleEmailsSingleFolder",
 			service:                path.ExchangeService,
@@ -673,7 +718,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 			// Get a dest per test so they're independent.
-			dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+			dest := tester.DefaultTestRestoreDestination()
 
 			totalItems, collections, expectedData := collectionsForInfo(
 				t,
@@ -878,10 +923,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			allExpectedData := map[string]map[string][]byte{}
 
 			for i, collection := range test.collections {
-				// Get a dest per collection. Ensure they're independent with a small
-				// sleep.
-				time.Sleep(time.Second * 1)
-				dest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+				// Get a dest per collection so they're independent.
+				dest := tester.DefaultTestRestoreDestination()
 				dests = append(dests, dest)
 
 				totalItems, collections, expectedData := collectionsForInfo(

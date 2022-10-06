@@ -36,10 +36,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, oneDriveRestoreCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandUseSuffix
+		c.Use = c.Use + " " + oneDriveServiceCommandUseSuffix
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --all) and more frequently used flags take precedence.
+		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
@@ -47,7 +47,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(&user,
 			"user", nil,
-			"Restore data by user ID; accepts "+utils.Wildcard+" to select all users.")
+			"Restore data by user ID; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// onedrive hierarchy (path/name) flags
 
@@ -58,8 +58,8 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(
 			&fileNames,
-			"file-name", nil,
-			"Restore items by OneDrive file name")
+			"file", nil,
+			"Restore items by file name or ID")
 
 		// onedrive info flags
 
@@ -90,16 +90,28 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 const (
 	oneDriveServiceCommand          = "onedrive"
-	oneDriveServiceCommandUseSuffix = " --backup <backupId>"
+	oneDriveServiceCommandUseSuffix = "--backup <backupId>"
+
+	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
+
+# Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
+      --user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+
+# Restore all files from Bob's folder that were created before 2020 when captured in a specific backup
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
+      --user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore onedrive [<flag>...]`
 func oneDriveRestoreCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   oneDriveServiceCommand,
-		Short: "Restore M365 OneDrive service data",
-		RunE:  restoreOneDriveCmd,
-		Args:  cobra.NoArgs,
+		Use:     oneDriveServiceCommand,
+		Short:   "Restore M365 OneDrive service data",
+		RunE:    restoreOneDriveCmd,
+		Args:    cobra.NoArgs,
+		Example: oneDriveServiceCommandRestoreExamples,
 	}
 }
 
