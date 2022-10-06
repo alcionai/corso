@@ -442,10 +442,16 @@ func GetContainerIDFromCache(
 
 	if directoryCache.userID == "" {
 		// Creates Root Node && Enable Cache
-		folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
+		f, err := CreateMailFolderWithParent(
+			ctx,
+			gs, user,
+			destination,
+			rootFolderAlias,
+		)
 		if err != nil {
 			return "", err
 		}
+		folderID = *f.GetId()
 
 		mfc := mailFolderCache{
 			userID: user,
@@ -456,6 +462,9 @@ func GetContainerIDFromCache(
 		if err != nil {
 			return "", err
 		}
+
+		p, _ := mfc.IDToPath(ctx, folderID)
+		fmt.Println("Root Path: " + p.String())
 
 		caches[category] = mfc
 	}
@@ -500,7 +509,9 @@ func GetContainerIDFromCache(
 	}
 
 	folderID = parentID
-	_, err = directoryCache.IDToPath(ctx, folderID)
+	weird, err := directoryCache.IDToPath(ctx, folderID)
+	fmt.Println("Internal: " + weird.String())
+	directoryCache.Populate(ctx, directoryCache.rootID)
 	return folderID, err
 }
 
