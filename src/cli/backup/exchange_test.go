@@ -33,7 +33,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create exchange", createCommand, expectUse + exchangeServiceCommandCreateUseSuffix,
+			"create exchange", createCommand, expectUse + " " + exchangeServiceCommandCreateUseSuffix,
 			exchangeCreateCmd().Short, createExchangeCmd,
 		},
 		{
@@ -41,11 +41,11 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 			exchangeListCmd().Short, listExchangeCmd,
 		},
 		{
-			"details exchange", detailsCommand, expectUse + exchangeServiceCommandDetailsUseSuffix,
+			"details exchange", detailsCommand, expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
 			exchangeDetailsCmd().Short, detailsExchangeCmd,
 		},
 		{
-			"delete exchange", deleteCommand, expectUse + exchangeServiceCommandDeleteUseSuffix,
+			"delete exchange", deleteCommand, expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
 			exchangeDeleteCmd().Short, deleteExchangeCmd,
 		},
 	}
@@ -70,46 +70,33 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 	table := []struct {
 		name       string
-		a          bool
 		user, data []string
 		expect     assert.ErrorAssertionFunc
 	}{
 		{
-			name:   "no users, not any",
+			name:   "no users or data",
 			expect: assert.Error,
 		},
 		{
-			name:   "any and data",
-			a:      true,
+			name:   "no users only data",
 			data:   []string{dataEmail},
 			expect: assert.Error,
 		},
 		{
-			name:   "unrecognized data",
+			name:   "unrecognized data category",
 			user:   []string{"fnord"},
 			data:   []string{"smurfs"},
 			expect: assert.Error,
 		},
 		{
-			name:   "users, not any",
-			user:   []string{"fnord"},
-			expect: assert.NoError,
-		},
-		{
-			name:   "no users, any",
-			a:      true,
-			expect: assert.NoError,
-		},
-		{
-			name:   "users, any",
-			a:      true,
+			name:   "only users no data",
 			user:   []string{"fnord"},
 			expect: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, validateExchangeBackupCreateFlags(test.a, test.user, test.data))
+			test.expect(t, validateExchangeBackupCreateFlags(test.user, test.data))
 		})
 	}
 }
@@ -117,13 +104,11 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 	table := []struct {
 		name             string
-		a                bool
 		user, data       []string
 		expectIncludeLen int
 	}{
 		{
-			name:             "any",
-			a:                true,
+			name:             "default: one of each category, all None() matchers",
 			expectIncludeLen: 3,
 		},
 		{
@@ -223,7 +208,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := exchangeBackupCreateSelectors(test.a, test.user, test.data)
+			sel := exchangeBackupCreateSelectors(test.user, test.data)
 			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
 		})
 	}
