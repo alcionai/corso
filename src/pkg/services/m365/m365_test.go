@@ -39,3 +39,13 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	require.NotNil(suite.T(), users)
 	require.Greater(suite.T(), len(users), 0)
 }
+
+func (suite *M365IntegrationSuite) TestUserIDs() {
+	acct := tester.NewM365Account(suite.T())
+
+	ids, err := UserIDs(context.Background(), acct)
+	require.NoError(suite.T(), err)
+
+	require.NotNil(suite.T(), ids)
+	require.Greater(suite.T(), len(ids), 0)
+}
