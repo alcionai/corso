@@ -41,7 +41,7 @@ To learn more about working with the project source core and building Corso, see
 
 It's important that our community is inclusive and respectful of everyone.
 We ask that all Corso users and contributors take a few minutes to review our
-[Code of Conduct](CODE_OF_CONDUCT.md)
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
