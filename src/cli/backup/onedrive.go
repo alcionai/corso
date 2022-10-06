@@ -25,9 +25,9 @@ import (
 
 const (
 	oneDriveServiceCommand                 = "onedrive"
-	oneDriveServiceCommandCreateUseSuffix  = " --user <userId or email> | '" + utils.Wildcard + "'"
-	oneDriveServiceCommandDeleteUseSuffix  = " --backup <backupId>"
-	oneDriveServiceCommandDetailsUseSuffix = " --backup <backupId>"
+	oneDriveServiceCommandCreateUseSuffix  = "--user <userId or email> | '" + utils.Wildcard + "'"
+	oneDriveServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	oneDriveServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
@@ -48,11 +48,11 @@ corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --user a
 
 # Explore Alice or Bob's files with name containing "Fiscal 22" in folder "Reports"
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-	  --user alice@example.com,bob@example.com  --file-name "Fiscal 22" --folder "Reports"
+      --user alice@example.com,bob@example.com  --file-name "Fiscal 22" --folder "Reports"
 
 # Explore Alice's files created before end of 2015 from a specific backup
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-	  --user alice@example.com --file-created-before 2015-01-01T00:00:00`
+      --user alice@example.com --file-created-before 2015-01-01T00:00:00`
 )
 
 var (
@@ -76,8 +76,8 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandCreateUseSuffix
-		c.Example = utils.IndentExamples(oneDriveServiceCommandCreateExamples)
+		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
+		c.Example = oneDriveServiceCommandCreateExamples
 
 		fs.StringArrayVar(&user, "user", nil,
 			"Backup OneDrive data by user ID; accepts '"+utils.Wildcard+"' to select all users. (required)")
@@ -89,8 +89,8 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandDetailsUseSuffix
-		c.Example = utils.IndentExamples(oneDriveServiceCommandDetailsExamples)
+		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
+		c.Example = oneDriveServiceCommandDetailsExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
@@ -130,8 +130,8 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandDeleteUseSuffix
-		c.Example = utils.IndentExamples(oneDriveServiceCommandDeleteExamples)
+		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
+		c.Example = oneDriveServiceCommandDeleteExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
