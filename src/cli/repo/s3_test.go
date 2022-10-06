@@ -20,7 +20,7 @@ func TestS3Suite(t *testing.T) {
 }
 
 func (suite *S3Suite) TestAddS3Commands() {
-	expectUse := s3ProviderCommand + s3ProviderCommandUseSuffix
+	expectUse := s3ProviderCommand + " " + s3ProviderCommandUseSuffix
 
 	table := []struct {
 		name        string
