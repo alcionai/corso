@@ -46,39 +46,39 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
 
 		fs.StringSliceVar(&user,
-			"user", nil,
+			utils.UserFN, nil,
 			"Restore data by user ID; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// onedrive hierarchy (path/name) flags
 
 		fs.StringSliceVar(
 			&folderPaths,
-			"folder", nil,
+			utils.FolderFN, nil,
 			"Restore items by OneDrive folder; defaults to root")
 
 		fs.StringSliceVar(
 			&fileNames,
-			"file", nil,
+			utils.FileFN, nil,
 			"Restore items by file name or ID")
 
 		// onedrive info flags
 
 		fs.StringVar(
 			&fileCreatedAfter,
-			"file-created-after", "",
+			utils.FileCreatedAfterFN, "",
 			"Restore files created after this datetime")
 		fs.StringVar(
 			&fileCreatedBefore,
-			"file-created-before", "",
+			utils.FileCreatedBeforeFN, "",
 			"Restore files created before this datetime")
 
 		fs.StringVar(
 			&fileModifiedAfter,
-			"file-modified-after", "",
+			utils.FileModifiedAfterFN, "",
 			"Restore files modified after this datetime")
 		fs.StringVar(
 			&fileModifiedBefore,
-			"file-modified-before", "",
+			utils.FileModifiedBeforeFN, "",
 			"Restore files modified before this datetime")
 
 		// others
@@ -124,13 +124,15 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.OneDriveOpts{
-		Users:          user,
-		Paths:          folderPaths,
-		Names:          fileNames,
-		CreatedAfter:   fileCreatedAfter,
-		CreatedBefore:  fileCreatedBefore,
-		ModifiedAfter:  fileModifiedAfter,
-		ModifiedBefore: fileModifiedBefore,
+		Users:              user,
+		Paths:              folderPaths,
+		Names:              fileNames,
+		FileCreatedAfter:   fileCreatedAfter,
+		FileCreatedBefore:  fileCreatedBefore,
+		FileModifiedAfter:  fileModifiedAfter,
+		FileModifiedBefore: fileModifiedBefore,
+
+		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
 	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {

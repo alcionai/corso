@@ -99,32 +99,32 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(
 			&folderPaths,
-			"folder", nil,
+			utils.FolderFN, nil,
 			"Select backup details by OneDrive folder; defaults to root.")
 
 		fs.StringSliceVar(
 			&fileNames,
-			"file", nil,
+			utils.FileFN, nil,
 			"Select backup details by file name or ID.")
 
 		// onedrive info flags
 
 		fs.StringVar(
 			&fileCreatedAfter,
-			"file-created-after", "",
+			utils.FileCreatedAfterFN, "",
 			"Select backup details for files created after this datetime.")
 		fs.StringVar(
 			&fileCreatedBefore,
-			"file-created-before", "",
+			utils.FileCreatedBeforeFN, "",
 			"Select backup details for files created before this datetime.")
 
 		fs.StringVar(
 			&fileModifiedAfter,
-			"file-modified-after", "",
+			utils.FileModifiedAfterFN, "",
 			"Select backup details for files modified after this datetime.")
 		fs.StringVar(
 			&fileModifiedBefore,
-			"file-modified-before", "",
+			utils.FileModifiedBeforeFN, "",
 			"Select backup details for files modified before this datetime.")
 
 	case deleteCommand:
@@ -292,13 +292,15 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(ctx, r)
 
 	opts := utils.OneDriveOpts{
-		Users:          user,
-		Paths:          folderPaths,
-		Names:          fileNames,
-		CreatedAfter:   fileCreatedAfter,
-		CreatedBefore:  fileCreatedBefore,
-		ModifiedAfter:  fileModifiedAfter,
-		ModifiedBefore: fileModifiedBefore,
+		Users:              user,
+		Paths:              folderPaths,
+		Names:              fileNames,
+		FileCreatedAfter:   fileCreatedAfter,
+		FileCreatedBefore:  fileCreatedBefore,
+		FileModifiedAfter:  fileModifiedAfter,
+		FileModifiedBefore: fileModifiedBefore,
+
+		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
 	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts)
