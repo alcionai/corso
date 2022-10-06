@@ -1,6 +1,13 @@
 {
-    "MD013": { "line_length": 120 },
+    "MD013": {
+        "line_length": 120
+    },
     "no-inline-html": {
-        "allowed_elements": [ "TOCInline", "br", "img" ]
+        "allowed_elements": [
+            "TOCInline",
+            "br",
+            "img",
+            "div"
+        ]
     },
 }

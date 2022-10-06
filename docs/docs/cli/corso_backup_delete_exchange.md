@@ -10,6 +10,13 @@ Delete backed-up M365 Exchange service data
 corso backup delete exchange --backup <backupId> [flags]
 ```
 
+### Examples
+
+```bash
+# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
+corso backup delete exchange --backup 1234abcd-12ab-cd34-56de-1234abcd
+```
+
 ### Flags
 
 |Flag|Short|Default|Help|
