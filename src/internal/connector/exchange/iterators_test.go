@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -70,6 +71,7 @@ func loadService(t *testing.T) *exchangeService {
 
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
+// Email Scope is set only to retrieve items for the Inbox
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
 		ctx                                 = context.Background()
@@ -77,10 +79,10 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		mailScope, contactScope, eventScope selectors.ExchangeScope
 		userID                              = tester.M365UserID(t)
 		sel                                 = selectors.NewExchangeBackup()
-		service                             = loadService(t)
 	)
 
 	sel.Include(sel.Users([]string{userID}))
+	sel.Include(sel.MailFolders([]string{userID}, []string{DefaultMailFolder}))
 
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
@@ -117,7 +119,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
-				"Sent Items":      {},
 			},
 		}, {
 			name:              "Contacts Iterative Check",
@@ -145,8 +146,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
-				"Sent Items":      {},
-				"Deleted Items":   {},
 			},
 		}, {
 			name:              "Folder Iterative Check Contacts",
@@ -158,6 +157,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			service := loadService(t)
 			response, err := test.queryFunction(ctx, service, userID)
 			require.NoError(t, err)
 			// Create Iterator
@@ -199,8 +199,9 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				return
 			}
 
-			for _, c := range collections {
+			for key, c := range collections {
 				require.NotEmpty(t, c.FullPath().Folder())
+				fmt.Println(key)
 
 				folder := c.FullPath().Folder()
 				if _, ok := test.folderNames[folder]; ok {
