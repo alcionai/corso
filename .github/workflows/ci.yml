@@ -90,18 +90,16 @@ jobs:
     environment: Testing
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/release-ci' || needs.precheck.outputs.docfileschanged == 'true'
-    defaults:
-      run:
-        working-directory: docs
 
     steps:
       - uses: actions/checkout@v3
 
       - name: Install dependencies for docs lint
         run: |
-          sudo snap install --edge vale
-          npm install -g markdownlint-cli
-          vale --version && markdownlint --version
+          wget https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
+          mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
+          echo "$PWD/bin" >> $GITHUB_PATH
+          npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
 
       - uses: actions/download-artifact@master
         name: Download cli docs from build step
@@ -111,7 +109,7 @@ jobs:
 
       - name: Run docs lint
         run: |
-          make -o genclidocs check
+          cd docs && make -o genclidocs check
 
   # ----------------------------------------------------------------------------------------------------
   # --- Integration and Unit Testing -------------------------------------------------------------------
