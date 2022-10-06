@@ -422,6 +422,8 @@ func restoreCollection(
 
 // generateRestoreContainerFunc utility function that holds logic for creating
 // Root Directory or necessary functions based on path.CategoryType
+// Assumption: collisionPolicy == COPY
+// Constraint: Only works on exchange.Mail
 func GetContainerIDFromCache(
 	ctx context.Context,
 	gs graph.Service,
@@ -433,60 +435,109 @@ func GetContainerIDFromCache(
 	var (
 		folderID       string
 		err            error
-		isMailEnabled  bool
-		directoryCache mailFolderCache
 		user           = directory.ResourceOwner()
 		category       = directory.Category()
+		directoryCache = caches[category]
 	)
 
-	switch category {
-	case path.EmailCategory:
-		if !isMailEnabled {
-			// Creates Root Node
-			folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
-			if err != nil {
-				return "", err
-			}
-
-			mfc := mailFolderCache{
-				userID: user,
-				gs:     gs,
-			}
-
-			err = mfc.Populate(ctx, folderID)
-			if err != nil {
-				return "", err
-			}
-
-			caches[category] = mfc
-			//Initialize with the populate
+	if directoryCache.userID == "" {
+		// Creates Root Node && Enable Cache
+		folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
+		if err != nil {
+			return "", err
 		}
+
+		mfc := mailFolderCache{
+			userID: user,
+			gs:     gs,
+		}
+
+		err = mfc.Populate(ctx, folderID)
+		if err != nil {
+			return "", err
+		}
+
+		caches[category] = mfc
 	}
 
+	// New Name would be what
 	directoryCache = caches[category]
-	listing := directory.Folders()
-	fmt.Printf("What: %v\n", *directoryCache.cache[directoryCache.rootID].GetDisplayName())
-	fmt.Printf("PotentialPath: %v\n", directory.Folders())
-	if len(listing) == 0 {
-		//CreateMailFolder
+	newPath, err := path.Builder{}.Append(destination).Append(directory.Folders()...).
+		ToDataLayerExchangePathForCategory(
+			directory.Tenant(),
+			user,
+			category,
+			false,
+		)
+	if err != nil {
+		return "", err
 	}
-	/*
-		if rootFolderID != "" && category == path.ContactsCategory {
-			return rootFolderID, rootFolderID, errs
+
+	// Check if path with the thing
+	// Does the folder exist
+	fmt.Println("PATH STRING: " + directory.String())
+	fmt.Println("NEW PATH: " + newPath.String())
+	fmt.Printf("What: %v\n", *directoryCache.cache[directoryCache.rootID].GetDisplayName())
+	fmt.Printf("PotentialPath: %v\n", newPath.Folders())
+
+	parentID := directoryCache.rootID
+
+	folders := newPath.Folders()
+	for i := 1; i < len(folders); i++ {
+		temp, err := CreateMailFolderWithParent(ctx, gs, user, folders[i], parentID)
+		if err != nil {
+			// This means the folder already exists... We will work in this later
+			return "", err
 		}
 
-		if !pathCounter[dirName] {
-			pathCounter[dirName] = true
+		err = directoryCache.addMailFolder(temp)
+		if err != nil {
+			return "", err
+		}
 
-			folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
-			if err != nil {
-				return "", "", support.WrapAndAppend(user+" failure during preprocessing ", err, errs)
-			}
+		parentID = *temp.GetId()
 
-			if rootFolderID == "" {
-				rootFolderID = folderID
-			}
-		}*/
+	}
 
-	return folderID, nil
+	folderID = parentID
+	_, err = directoryCache.IDToPath(ctx, folderID)
+	return folderID, err
+}
+
+// Need to update cache to note that folder is in there.
+/*
+	if rootFolderID != "" && category == path.ContactsCategory {
+		return rootFolderID, rootFolderID, errs
+	}
+
+	if !pathCounter[dirName] {
+		pathCounter[dirName] = true
+
+		folderID, err = GetRestoreContainer(ctx, gs, user, category, destination)
+		if err != nil {
+			return "", "", support.WrapAndAppend(user+" failure during preprocessing ", err, errs)
+		}
+
+		if rootFolderID == "" {
+			rootFolderID = folderID
+		}
+	}*/
+
+func newMailRestorePathForCollection(collectionPath path.Path, prefix string) (path.Path, error) {
+
+	listing := collectionPath.Folders()
+	pb := collectionPath.ToBuilder()
+	newBuilder, err := pb.UnescapeAndAppend(prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	//newBuilder.Append(listing...)
+
+	return newBuilder.Append(listing...).ToDataLayerExchangePathForCategory(
+		collectionPath.Tenant(),
+		collectionPath.ResourceOwner(),
+		collectionPath.Category(),
+		false,
+	)
 }
