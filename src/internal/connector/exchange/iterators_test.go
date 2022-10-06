@@ -70,7 +70,6 @@ func loadService(t *testing.T) *exchangeService {
 
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
-// Email Scope is set only to retrieve items for the Inbox
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
 		ctx                                 = context.Background()
@@ -81,7 +80,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	)
 
 	sel.Include(sel.Users([]string{userID}))
-	sel.Include(sel.MailFolders([]string{userID}, []string{DefaultMailFolder}))
 
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
@@ -118,6 +116,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
+				"Sent Items":      {},
 			},
 		}, {
 			name:              "Contacts Iterative Check",
@@ -145,6 +144,8 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
+				"Sent Items":      {},
+				"Deleted Items":   {},
 			},
 		}, {
 			name:              "Folder Iterative Check Contacts",
@@ -198,8 +199,9 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				return
 			}
 
-			for folder, c := range collections {
+			for _, c := range collections {
 				require.NotEmpty(t, c.FullPath().Folder())
+				folder := c.FullPath().Folder()
 
 				if _, ok := test.folderNames[folder]; ok {
 					delete(test.folderNames, folder)
