@@ -83,6 +83,7 @@ var (
 
 var ErrNoTimeString = errors.New("no substring contains a known time format")
 
+// Now produces the current time as a string in the standard format.
 func Now() string {
 	return FormatNow(StandardTime)
 }
@@ -90,7 +91,7 @@ func Now() string {
 // FormatNow produces the current time in UTC using the provided
 // time format.
 func FormatNow(fmt TimeFormat) string {
-	return time.Now().UTC().Format(string(fmt))
+	return FormatTimeWith(time.Now(), fmt)
 }
 
 // FormatTimeWith produces the a datetime with the given format.

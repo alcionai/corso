@@ -1,6 +1,6 @@
 # Corso Standard Time Format
 
-Since corso primarily deals with with historical point-in-time events (created-at, delivered-at, started-on, etc), as opposed to scheduled future events, we can safely represent all time with point-in-time, timezoned values.
+Since Corso primarily deals with with historical point-in-time events (created-at, delivered-at, started-on, etc), as opposed to scheduled future events, we can safely represent all time with point-in-time, timezoned values.
 
 The standard string format uses [iso-8601](https://en.wikipedia.org/wiki/ISO_8601) date & time + [rfc-3339](https://datatracker.ietf.org/doc/html/rfc3339) compliant formats, with milliseconds.  All time values should be stored in the UTC timezone.
 

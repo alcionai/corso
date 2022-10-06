@@ -61,7 +61,8 @@ func AddCommand(parent, c *cobra.Command) (*cobra.Command, *pflag.FlagSet) {
 
 // IsValidTimeFormat returns true if the input is regonized as a
 // supported format by the common time parser.  Returns true if
-// the input is zero valued.
+// the input is zero valued, which indicates that the flag was not
+// called.
 func IsValidTimeFormat(in string) bool {
 	if len(in) == 0 {
 		return true
