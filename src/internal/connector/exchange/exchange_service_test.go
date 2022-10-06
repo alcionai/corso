@@ -624,3 +624,43 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 		})
 	}
 }
+
+// Testing to ensure that cache system works for in multiple different environments
+func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
+	var (
+		t               = suite.T()
+		now             = time.Now()
+		user            = tester.M365UserID(t)
+		ctx             = context.Background()
+		connector       = loadService(t)
+		pathCounter     = map[string]bool{}
+		directoryCaches = map[path.CategoryType]mailFolderCache{}
+		pb              = &path.Builder{}
+
+		pth, err = pb.Append("Griffindor").
+				Append("Croix").ToDataLayerExchangePathForCategory(
+			suite.es.credentials.TenantID,
+			user,
+			path.EmailCategory,
+			false,
+		)
+	)
+
+	require.NoError(t, err)
+	t.Logf("Path: %s", pth.String())
+	//collection = mockconnector.NewMockExchangeCollection(pth, 3)
+
+	folderID, err := GetContainerIDFromCache(
+		ctx,
+		connector,
+		pth,
+		"CacheTesting_"+common.FormatSimpleDateTime(now),
+		directoryCaches,
+		pathCounter,
+	)
+	instruction := directoryCaches[path.EmailCategory]
+	summit, err := instruction.IDToPath(ctx, folderID)
+	assert.NoError(t, err)
+	t.Log(summit.String())
+
+}
