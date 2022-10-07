@@ -432,36 +432,66 @@ func GetContainerIDFromCache(
 	var (
 		// Start with the root folder so we can create our top-level folder with
 		// the same tactic.
-		newCache       bool
-		folderID       = rootFolderAlias
-		user           = directory.ResourceOwner()
-		category       = directory.Category()
-		directoryCache = caches[category]
+		newCache          = make(map[path.CategoryType]bool)
+		user              = directory.ResourceOwner()
+		category          = directory.Category()
+		directoryCache    = caches[category]
+		newPathFolders    = append([]string{destination}, directory.Folders()...)
+		restoreFolderPath = strings.Join(newPathFolders, "/")
 	)
 
-	if directoryCache == nil {
-		mfc := &mailFolderCache{
-			userID: user,
-			gs:     gs,
-		}
-
-		caches[category] = mfc
-		directoryCache = mfc
-		newCache = true
+	if _, ok := pathCounter[restoreFolderPath]; !ok {
+		pathCounter[restoreFolderPath] = true
 	}
 
-	// We don't need a path.Path here, just the folders that we need to ensure
-	// exist.
-	newPathFolders := append([]string{destination}, directory.Folders()...)
-	for i, folder := range newPathFolders {
-		lookup := pathElementStringBuilder(i+1, newPathFolders)
-		cached, ok := directoryCache.PathInCache(lookup)
+	switch category {
+	case path.EmailCategory:
+		if directoryCache == nil {
+			mfc := &mailFolderCache{
+				userID: user,
+				gs:     gs,
+			}
+
+			caches[category] = mfc
+			newCache[category] = true
+			directoryCache = mfc
+		}
+
+		isEnabled := newCache[category]
+		newCache[category] = false
+
+		return establishMailRestoreLocation(
+			ctx,
+			newPathFolders,
+			directoryCache,
+			isEnabled)
+	case path.ContactsCategory:
+		return "", nil
+	case path.EventsCategory:
+		return "", nil
+	default:
+		return "", fmt.Errorf("category: %s not support for exchange cache", category)
+	}
+}
+
+func establishMailRestoreLocation(
+	ctx context.Context,
+	folders []string,
+	mfc *mailFolderCache,
+	isNewCache bool,
+) (string, error) {
+	folderID := rootFolderAlias
+
+	for i, folder := range folders {
+		lookup := pathElementStringBuilder(i+1, folders)
+		cached, ok := mfc.PathInCache(lookup)
 
 		if ok {
 			folderID = cached
 		} else {
 
-			temp, err := CreateMailFolderWithParent(ctx, gs, user, folder, folderID)
+			temp, err := CreateMailFolderWithParent(ctx,
+				mfc.gs, mfc.userID, folder, folderID)
 			if err != nil {
 				// This means the folder already exists... We will work in this later
 				fmt.Println("Print on Error: " + lookup)
@@ -473,28 +503,19 @@ func GetContainerIDFromCache(
 			// Only populate the cache if we actually had to create it. Since we set
 			// newCache to false in this we'll only try to populate it once per function
 			// call even if we make a new cache.
-			if newCache {
-				if err := directoryCache.Populate(ctx, folderID, folder); err != nil {
+			if isNewCache {
+				if err := mfc.Populate(ctx, folderID, folder); err != nil {
 					return "", errors.Wrap(err, "populating folder cache")
 				}
-
-				newCache = false
 			}
 
 			// Will noop if the folder is already in the cache.
-			if err = directoryCache.addMailFolder(temp); err != nil {
+			if err = mfc.addMailFolder(temp); err != nil {
 				return "", errors.Wrap(err, "adding folder to cache")
 			}
 		}
 	}
 
-	restoreFolderPath := strings.Join(newPathFolders, "/")
-
-	if _, ok := pathCounter[restoreFolderPath]; !ok {
-		pathCounter[restoreFolderPath] = true
-	}
-
-	fmt.Printf("Path Counter: %d\n", len(pathCounter))
 	return folderID, nil
 }
 
