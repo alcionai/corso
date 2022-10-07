@@ -74,31 +74,19 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
 		ctx                                 = context.Background()
 		t                                   = suite.T()
-		mailScope, contactScope, eventScope selectors.ExchangeScope
+		mailScope, contactScope, eventScope []selectors.ExchangeScope
 		userID                              = tester.M365UserID(t)
 		sel                                 = selectors.NewExchangeBackup()
 	)
 
-	sel.Include(sel.Users([]string{userID}))
-
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
 
-	scopes := eb.Scopes()
+	contactScope = sel.ContactFolders([]string{userID}, []string{DefaultContactFolder})
+	eventScope = sel.ContactFolders([]string{userID}, []string{DefaultCalendar})
+	mailScope = sel.ContactFolders([]string{userID}, []string{DefaultMailFolder})
 
-	for _, scope := range scopes {
-		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
-			contactScope = scope
-		}
-
-		if scope.IncludesCategory(selectors.ExchangeMail) {
-			mailScope = scope
-		}
-
-		if scope.IncludesCategory(selectors.ExchangeEvent) {
-			eventScope = scope
-		}
-	}
+	eb.Include(contactScope, eventScope, mailScope)
 
 	tests := []struct {
 		name              string
@@ -112,7 +100,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			name:              "Mail Iterative Check",
 			queryFunction:     GetAllMessagesForUser,
 			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             mailScope,
+			scope:             mailScope[0],
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
@@ -122,36 +110,34 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			name:              "Contacts Iterative Check",
 			queryFunction:     GetAllContactsForUser,
 			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFromDiscriminatorValue,
 		}, {
 			name:              "Contact Folder Traversal",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateSelectAllContactsForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Events Iterative Check",
 			queryFunction:     GetAllCalendarNamesForUser,
 			iterativeFunction: IterateSelectAllEventsFromCalendars,
-			scope:             eventScope,
+			scope:             eventScope[0],
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Folder Iterative Check Mail",
 			queryFunction:     GetAllFolderNamesForUser,
 			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             mailScope,
+			scope:             mailScope[0],
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
-				"Sent Items":      {},
-				"Deleted Items":   {},
 			},
 		}, {
 			name:              "Folder Iterative Check Contacts",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},
 	}
