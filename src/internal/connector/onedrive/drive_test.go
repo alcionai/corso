@@ -60,7 +60,7 @@ func loadService(t *testing.T) *testService {
 	return service
 }
 
-type OneDriveDriveSuite struct {
+type OneDriveSuite struct {
 	suite.Suite
 	userID string
 }
@@ -73,14 +73,14 @@ func TestOneDriveDriveSuite(t *testing.T) {
 		t.Skip(err)
 	}
 
-	suite.Run(t, new(OneDriveDriveSuite))
+	suite.Run(t, new(OneDriveSuite))
 }
 
-func (suite *OneDriveDriveSuite) SetupSuite() {
+func (suite *OneDriveSuite) SetupSuite() {
 	suite.userID = tester.M365UserID(suite.T())
 }
 
-func (suite *OneDriveDriveSuite) TestCreateGetDeleteFolder() {
+func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	t := suite.T()
 	ctx := context.Background()
 	folderIDs := []string{}

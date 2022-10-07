@@ -219,9 +219,10 @@ func DeleteItem(
 	driveID string,
 	itemID string,
 ) error {
-	return errors.Wrapf(
-		gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil),
-		"deleting item with ID %s",
-		itemID,
-	)
+	err := gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil)
+	if err != nil {
+		return errors.Wrapf(err, "deleting item with ID %s", itemID)
+	}
+
+	return nil
 }
