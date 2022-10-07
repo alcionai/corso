@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
@@ -43,6 +45,12 @@ var contactsCmd = &cobra.Command{
 	RunE:  handleContactsFolderPurge,
 }
 
+var oneDriveCmd = &cobra.Command{
+	Use:   "onedrive",
+	Short: "Purges OneDrive folders",
+	RunE:  handleOneDriveFolderPurge,
+}
+
 var (
 	before string
 	user   string
@@ -69,6 +77,7 @@ func main() {
 	purgeCmd.AddCommand(mailCmd)
 	purgeCmd.AddCommand(eventsCmd)
 	purgeCmd.AddCommand(contactsCmd)
+	purgeCmd.AddCommand(oneDriveCmd)
 
 	if err := purgeCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
@@ -92,6 +101,7 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 		purgeMailFolders,
 		purgeCalendarFolders,
 		purgeContactFolders,
+		purgeOneDriveFolders,
 	)
 	if err != nil {
 		return Only(ctx, ErrPurging)
@@ -152,6 +162,25 @@ func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 
 	if err := runPurgeForEachUser(ctx, gc, t, purgeContactFolders); err != nil {
 		return Only(ctx, errors.Wrap(ErrPurging, "contact folders"))
+	}
+
+	return nil
+}
+
+func handleOneDriveFolderPurge(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	gc, t, err := getGCAndBoundaryTime(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := runPurgeForEachUser(ctx, gc, t, purgeOneDriveFolders); err != nil {
+		return Only(ctx, errors.Wrap(ErrPurging, "OneDrive folders"))
 	}
 
 	return nil
@@ -277,6 +306,54 @@ func purgeContactFolders(
 	}
 
 	return purgeFolders(ctx, gc, boundary, "Contact Folders", uid, getter, deleter)
+}
+
+// ----- OneDrive
+
+type oneDrivePurgable struct {
+	models.DriveItemable
+}
+
+func (op *oneDrivePurgable) GetDisplayName() *string {
+	return op.GetName()
+}
+
+func purgeOneDriveFolders(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	boundary time.Time,
+	uid string,
+) error {
+	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
+		cfs, err := onedrive.GetAllFolders(ctx, gs, uid, prefix)
+		if err != nil {
+			return nil, err
+		}
+
+		purgables := make([]purgable, len(cfs))
+
+		for i, v := range cfs {
+			purgables[i] = &oneDrivePurgable{v}
+		}
+
+		return purgables, nil
+	}
+
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		driveFolder, ok := f.(*oneDrivePurgable)
+		if !ok {
+			return errors.New("non-OneDrive item")
+		}
+
+		return onedrive.DeleteItem(
+			ctx,
+			gs,
+			*driveFolder.GetParentReference().GetDriveId(),
+			*f.GetId(),
+		)
+	}
+
+	return purgeFolders(ctx, gc, boundary, "OneDrive Folders", uid, getter, deleter)
 }
 
 // ----- controller
