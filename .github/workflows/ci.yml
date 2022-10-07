@@ -240,6 +240,8 @@ jobs:
           workdir: src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUDDERSTACK_CORSO_WRITE_KEY: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
+          RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
 
       - name: Upload assets
         uses: actions/upload-artifact@v3
@@ -303,6 +305,7 @@ jobs:
 
       - name: Build Corso Binaries
         run: >
+          export CORSO_BUILD_LDFLAGS="-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}'"
           ./build.sh
           --platforms ${{ env.PLATFORMS }}
 
