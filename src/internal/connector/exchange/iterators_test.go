@@ -70,37 +70,23 @@ func loadService(t *testing.T) *exchangeService {
 
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk
-// Email Scope is set only to retrieve items for the Inbox
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	var (
 		ctx                                 = context.Background()
 		t                                   = suite.T()
-		mailScope, contactScope, eventScope selectors.ExchangeScope
+		mailScope, contactScope, eventScope []selectors.ExchangeScope
 		userID                              = tester.M365UserID(t)
 		sel                                 = selectors.NewExchangeBackup()
 	)
 
-	sel.Include(sel.Users([]string{userID}))
-	sel.Include(sel.MailFolders([]string{userID}, []string{DefaultMailFolder}))
-
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
 
-	scopes := eb.Scopes()
+	contactScope = sel.ContactFolders([]string{userID}, []string{DefaultContactFolder})
+	eventScope = sel.EventCalendars([]string{userID}, []string{DefaultCalendar})
+	mailScope = sel.MailFolders([]string{userID}, []string{DefaultMailFolder})
 
-	for _, scope := range scopes {
-		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
-			contactScope = scope
-		}
-
-		if scope.IncludesCategory(selectors.ExchangeMail) {
-			mailScope = scope
-		}
-
-		if scope.IncludesCategory(selectors.ExchangeEvent) {
-			eventScope = scope
-		}
-	}
+	eb.Include(contactScope, eventScope, mailScope)
 
 	tests := []struct {
 		name              string
@@ -114,34 +100,35 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			name:              "Mail Iterative Check",
 			queryFunction:     GetAllMessagesForUser,
 			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             mailScope,
+			scope:             mailScope[0],
 			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
+				"Sent Items":      {},
 			},
 		}, {
 			name:              "Contacts Iterative Check",
 			queryFunction:     GetAllContactsForUser,
 			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFromDiscriminatorValue,
 		}, {
 			name:              "Contact Folder Traversal",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateSelectAllContactsForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Events Iterative Check",
 			queryFunction:     GetAllCalendarNamesForUser,
 			iterativeFunction: IterateSelectAllEventsFromCalendars,
-			scope:             eventScope,
+			scope:             eventScope[0],
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Folder Iterative Check Mail",
 			queryFunction:     GetAllFolderNamesForUser,
 			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             mailScope,
+			scope:             mailScope[0],
 			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
@@ -150,7 +137,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			name:              "Folder Iterative Check Contacts",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},
 	}
@@ -198,8 +185,9 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				return
 			}
 
-			for folder, c := range collections {
+			for _, c := range collections {
 				require.NotEmpty(t, c.FullPath().Folder())
+				folder := c.FullPath().Folder()
 
 				if _, ok := test.folderNames[folder]; ok {
 					delete(test.folderNames, folder)
