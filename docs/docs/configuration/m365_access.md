@@ -35,14 +35,15 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
    The required permissions are as follows:
 
-   <!-- vale proselint.Annotations = NO -->
-   TODO: Complete list of permissions
-   <!-- vale proselint.Annotations = YES -->
-
-   | API / Permissions Name | Type |
-   |:--|:--|
-   | Permission 1 | Application |
-   | Permission 2 | Delegated |
+<!-- vale Microsoft.Spacing = NO -->
+   | API / Permissions Name | Type | Description
+   |:--|:--|:--|
+   | Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
+   | Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
+   | Files.ReadWrite.All | Application | Read and write files in all site collections |
+   | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
+   | User.Read.All | Application | Read all users' full profiles |
+<!-- vale Microsoft.Spacing = YES -->
 
 1. **Grant admin consent**
 
