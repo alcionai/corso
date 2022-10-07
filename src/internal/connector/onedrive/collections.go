@@ -11,7 +11,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // Collections is used to retrieve OneDrive data for a
@@ -19,6 +21,7 @@ import (
 type Collections struct {
 	tenant string
 	user   string
+	scope  selectors.OneDriveScope
 	// collectionMap allows lookup of the data.Collection
 	// for a OneDrive folder
 	collectionMap map[string]data.Collection
@@ -35,12 +38,14 @@ type Collections struct {
 func NewCollections(
 	tenant string,
 	user string,
+	scope selectors.OneDriveScope,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{
 		tenant:        tenant,
 		user:          user,
+		scope:         scope,
 		collectionMap: map[string]data.Collection{},
 		service:       service,
 		statusUpdater: statusUpdater,
@@ -119,8 +124,12 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		if err != nil {
 			return err
 		}
-
 		if _, found := c.collectionMap[collectionPath.String()]; !found {
+			if !includePath(context.Background(), c.scope, collectionPath) {
+				logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
+				continue
+			}
+
 			c.collectionMap[collectionPath.String()] = NewCollection(
 				collectionPath,
 				driveID,
@@ -155,6 +164,9 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 				)
 			}
 		case item.GetFile() != nil:
+			if !includePath(ctx, c.scope, collectionPath) {
+				continue
+			}
 			collection := c.collectionMap[collectionPath.String()].(*Collection)
 			collection.Add(*item.GetId())
 		default:
@@ -163,6 +175,21 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 	}
 
 	return nil
+}
+
+func includePath(ctx context.Context, scope selectors.OneDriveScope, folderPath path.Path) bool {
+	if !scope.IsAny(selectors.OneDriveFolder) {
+		return true
+	}
+
+	// check if the folder is allowed by the scope
+	folderPathString, err := getDriveFolderPath(folderPath)
+	if err != nil {
+		logger.Ctx(ctx).Error(err)
+		return true
+	}
+	logger.Ctx(ctx).Infof("Skipping path %s", folderPathString)
+	return scope.Matches(selectors.OneDriveFolder, folderPathString)
 }
 
 func (c *Collections) stats(item models.DriveItemable) error {

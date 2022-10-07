@@ -3,6 +3,7 @@ package onedrive
 import (
 	"testing"
 
+	"github.com/alcionai/corso/src/pkg/selectors"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	tests := []struct {
 		testCase                string
 		items                   []models.DriveItemable
+		scope                   selectors.OneDriveScope
 		expect                  assert.ErrorAssertionFunc
 		expectedCollectionPaths []string
 		expectedItemCount       int
@@ -123,6 +125,30 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedFolderCount:  1,
 			expectedPackageCount: 1,
 		},
+		{
+			testCase: "match folder selector",
+			items: []models.DriveItemable{
+				driveItem("fileInRoot", "/root", true, false, false),
+				driveItem("folder", "/root", false, true, false),
+				driveItem("package", "/root", false, false, true),
+				driveItem("fileInFolder", "/root/folder", true, false, false),
+				driveItem("fileInPackage", "/root/package", true, false, false),
+			},
+			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"root/folder"})[0],
+			expect: assert.NoError,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				"/root",
+				"/root/folder",
+				"/root/package",
+			),
+			expectedItemCount:    3,
+			expectedFileCount:    1,
+			expectedFolderCount:  1,
+			expectedPackageCount: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -130,7 +156,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			c := NewCollections(tenant, user, &MockGraphService{}, nil)
+			c := NewCollections(tenant, user, tt.scope, &MockGraphService{}, nil)
 			err := c.updateCollections(ctx, "driveID", tt.items)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.collectionMap))
