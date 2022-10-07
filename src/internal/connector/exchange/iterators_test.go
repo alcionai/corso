@@ -83,8 +83,8 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	require.NoError(suite.T(), err)
 
 	contactScope = sel.ContactFolders([]string{userID}, []string{DefaultContactFolder})
-	eventScope = sel.ContactFolders([]string{userID}, []string{DefaultCalendar})
-	mailScope = sel.ContactFolders([]string{userID}, []string{DefaultMailFolder})
+	eventScope = sel.EventCalendars([]string{userID}, []string{DefaultCalendar})
+	mailScope = sel.MailFolders([]string{userID}, []string{DefaultMailFolder})
 
 	eb.Include(contactScope, eventScope, mailScope)
 
