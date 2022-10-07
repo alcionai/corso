@@ -6,6 +6,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
+	mscontactbyid "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
 	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
@@ -211,6 +212,25 @@ func optionsForContactFolders(moreOps []string) (
 		Select: selecting,
 	}
 	options := &mscontactfolder.ContactFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
+func optionsForContactFolderByID(moreOps []string) (
+	*mscontactbyid.ContactFolderItemRequestBuilderGetRequestConfiguration,
+	error,
+) {
+	selecting, err := buildOptions(moreOps, folders)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &mscontactbyid.ContactFolderItemRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontactbyid.ContactFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
