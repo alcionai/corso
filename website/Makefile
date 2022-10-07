@@ -1,19 +1,22 @@
 .PHONY: buildimage dev shell build publish sync
 
+WEBC := docker run --rm -it --init -p 5050:3000 -p 5051:3001 \
+		-v ${PWD}:/usr/src/website corso/website
+ifeq (${CORSO_USE_DOCKER},-1)
+	WEBC :=
+endif
+
 buildimage:
 	docker build -t "corso/website:latest" .
 
 dev:
-	docker run --rm -it --init -p 5050:3000 -p 5051:3001 \
-		-v ${PWD}:/usr/src/website corso/website gulp 
+	$(WEBC) gulp
 
 shell:
-	docker run --rm -it -p 5050:3000 -p 5051:3001 \
-		-v ${PWD}:/usr/src/website corso/website /bin/bash
+	$(WEBC) /bin/bash
 
 build:
-	docker run --rm -it --init \
-		-v ${PWD}:/usr/src/website corso/website gulp build
+	$(WEBC) gulp build
 
 publish: build
 	docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \

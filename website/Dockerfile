@@ -25,5 +25,6 @@ RUN yarn install \
   && yarn cache clean \
   && rm -f package.json yarn.lock
 ENV PATH /usr/src/node_modules/.bin:$PATH
+ENV NODE_MODULES_PATH ../
 
 WORKDIR /usr/src/website
