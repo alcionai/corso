@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"runtime/trace"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -296,7 +296,6 @@ func RestoreExchangeDataCollections(
 		pathCounter = map[string]bool{}
 		// map of caches... but not yet...
 		directoryCaches = map[path.CategoryType]*mailFolderCache{}
-		rootFolder      string
 		metrics         support.CollectionMetrics
 		errs            error
 		// TODO policy to be updated from external source after completion of refactoring
@@ -311,14 +310,20 @@ func RestoreExchangeDataCollections(
 		//PUT Caching into separate function... here
 		// Inputs --> folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
 		//GetContainerID()
-		GetContainerIDFromCache(ctx, gs, dc.FullPath(), dest.ContainerName,
+		containerID, err := GetContainerIDFromCache(
+			ctx,
+			gs,
+			dc.FullPath(),
+			dest.ContainerName,
 			directoryCaches, pathCounter)
-		os.Exit(1)
-		temp, root, canceled := restoreCollection(ctx, gs, dc, rootFolder, pathCounter, dest, policy, deets, errUpdater)
+		if err != nil {
+			errs = support.WrapAndAppend(dc.FullPath().ShortRef(), err, errs)
+			continue
+		}
+
+		temp, canceled := restoreCollection(ctx, gs, dc, containerID, pathCounter, policy, deets, errUpdater)
 
 		metrics.Combine(temp)
-
-		rootFolder = root
 
 		if canceled {
 			break
@@ -340,41 +345,33 @@ func restoreCollection(
 	ctx context.Context,
 	gs graph.Service,
 	dc data.Collection,
-	rootFolder string,
+	folderID string,
 	pathCounter map[string]bool,
-	dest control.RestoreDestination,
 	policy control.CollisionPolicy,
 	deets *details.Details,
 	errUpdater func(string, error),
-) (support.CollectionMetrics, string, bool) {
+) (support.CollectionMetrics, bool) {
 	defer trace.StartRegion(ctx, "gc:exchange:restoreCollection").End()
 	trace.Log(ctx, "gc:exchange:restoreCollection", dc.FullPath().String())
 
 	var (
-		metrics        support.CollectionMetrics
-		folderID, root string
-		err            error
-		items          = dc.Items()
-		directory      = dc.FullPath()
-		service        = directory.Service()
-		category       = directory.Category()
-		user           = directory.ResourceOwner()
+		metrics   support.CollectionMetrics
+		items     = dc.Items()
+		directory = dc.FullPath()
+		service   = directory.Service()
+		category  = directory.Category()
+		user      = directory.ResourceOwner()
 	)
-
-	if err != nil { // assuming FailFast
-		errUpdater(directory.String(), err)
-		return metrics, rootFolder, false
-	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			errUpdater("context cancelled", ctx.Err())
-			return metrics, root, true
+			return metrics, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, root, false
+				return metrics, false
 			}
 			metrics.Objects++
 
@@ -435,12 +432,11 @@ func GetContainerIDFromCache(
 	var (
 		// Start with the root folder so we can create our top-level folder with
 		// the same tactic.
+		newCache       bool
 		folderID       = rootFolderAlias
-		err            error
 		user           = directory.ResourceOwner()
 		category       = directory.Category()
 		directoryCache = caches[category]
-		newCache       = false
 	)
 
 	if directoryCache == nil {
@@ -457,44 +453,59 @@ func GetContainerIDFromCache(
 	// We don't need a path.Path here, just the folders that we need to ensure
 	// exist.
 	newPathFolders := append([]string{destination}, directory.Folders()...)
-	for _, folder := range newPathFolders {
-		temp, err := CreateMailFolderWithParent(ctx, gs, user, folder, folderID)
-		if err != nil {
-			// This means the folder already exists... We will work in this later
-			return "", err
-		}
+	for i, folder := range newPathFolders {
+		lookup := pathElementStringBuilder(i+1, newPathFolders)
+		cached, ok := directoryCache.PathInCache(lookup)
 
-		folderID = *temp.GetId()
+		if ok {
+			folderID = cached
+		} else {
 
-		// Only populate the cache if we actually had to create it. Since we set
-		// newCache to false in this we'll only try to populate it once per function
-		// call even if we make a new cache.
-		if newCache {
-			if err := directoryCache.Populate(ctx, folderID, folder); err != nil {
-				return "", errors.Wrap(err, "populating folder cache")
+			temp, err := CreateMailFolderWithParent(ctx, gs, user, folder, folderID)
+			if err != nil {
+				// This means the folder already exists... We will work in this later
+				fmt.Println("Print on Error: " + lookup)
+				return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 			}
 
-			newCache = false
-		}
+			folderID = *temp.GetId()
 
-		// Will noop if the folder is already in the cache.
-		if err = directoryCache.addMailFolder(temp); err != nil {
-			return "", errors.Wrap(err, "adding folder to cache")
+			// Only populate the cache if we actually had to create it. Since we set
+			// newCache to false in this we'll only try to populate it once per function
+			// call even if we make a new cache.
+			if newCache {
+				if err := directoryCache.Populate(ctx, folderID, folder); err != nil {
+					return "", errors.Wrap(err, "populating folder cache")
+				}
+
+				newCache = false
+			}
+
+			// Will noop if the folder is already in the cache.
+			if err = directoryCache.addMailFolder(temp); err != nil {
+				return "", errors.Wrap(err, "adding folder to cache")
+			}
 		}
 	}
 
-	return folderID, err
+	restoreFolderPath := strings.Join(newPathFolders, "/")
+
+	if _, ok := pathCounter[restoreFolderPath]; !ok {
+		pathCounter[restoreFolderPath] = true
+	}
+
+	fmt.Printf("Path Counter: %d\n", len(pathCounter))
+	return folderID, nil
 }
 
 func newMailRestorePathForCollection(collectionPath path.Path, prefix string) (path.Path, error) {
 	listing := collectionPath.Folders()
 	pb := collectionPath.ToBuilder()
+
 	newBuilder, err := pb.UnescapeAndAppend(prefix)
 	if err != nil {
 		return nil, err
 	}
-
-	//newBuilder.Append(listing...)
 
 	return newBuilder.Append(listing...).ToDataLayerExchangePathForCategory(
 		collectionPath.Tenant(),
