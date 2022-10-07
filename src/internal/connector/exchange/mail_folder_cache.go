@@ -2,6 +2,8 @@ package exchange
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -242,4 +244,37 @@ func (mc *mailFolderCache) addMailFolder(f models.MailFolderable) error {
 	}
 
 	return nil
+}
+
+// find path
+func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
+	if len(pathString) == 0 || mc.cache == nil {
+		return "", false
+	}
+
+	for _, folder := range mc.cache {
+		if folder.Path() == nil {
+			fmt.Println("Exited with an empty path")
+			return "", false
+		}
+		pathRep := folder.Path().String()
+		fmt.Printf("Cached: %s\tValue:%s \tMatch: %v\n", pathRep, pathString, pathRep == pathString)
+		if pathRep == pathString {
+			return *folder.GetId(), true
+		}
+	}
+
+	return "", false
+}
+
+// pathElementStringBuilder helper function for returning
+// a string separated with '/' based on the index.
+// Returns full slice separated w/ '/' if index is Greather Than or Equal
+// to the length of the slice.
+func pathElementStringBuilder(index int, slice []string) string {
+	if index >= len(slice) {
+		return strings.Join(slice, "/")
+	}
+
+	return strings.Join(slice[:index], "/")
 }
