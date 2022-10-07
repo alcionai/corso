@@ -241,8 +241,8 @@ func purgeMailFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteMailFolder(ctx, gs, uid, fid)
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		return exchange.DeleteMailFolder(ctx, gs, uid, *f.GetId())
 	}
 
 	return purgeFolders(ctx, gc, boundary, "Mail Folders", uid, getter, deleter)
@@ -271,8 +271,8 @@ func purgeCalendarFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteCalendar(ctx, gs, uid, fid)
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		return exchange.DeleteCalendar(ctx, gs, uid, *f.GetId())
 	}
 
 	return purgeFolders(ctx, gc, boundary, "Event Calendars", uid, getter, deleter)
@@ -301,8 +301,8 @@ func purgeContactFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteContactFolder(ctx, gs, uid, fid)
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		return exchange.DeleteContactFolder(ctx, gs, uid, *f.GetId())
 	}
 
 	return purgeFolders(ctx, gc, boundary, "Contact Folders", uid, getter, deleter)
@@ -364,7 +364,7 @@ func purgeFolders(
 	boundary time.Time,
 	data, uid string,
 	getter func(graph.Service, string, string) ([]purgable, error),
-	deleter func(graph.Service, string, string) error,
+	deleter func(graph.Service, string, purgable) error,
 ) error {
 	Infof(ctx, "\nContainer: %s", data)
 
@@ -401,7 +401,7 @@ func purgeFolders(
 
 		Infof(ctx, "Deleting [%s]", displayName)
 
-		err = deleter(gc.Service(), uid, *fld.GetId())
+		err = deleter(gc.Service(), uid, fld)
 		if err != nil {
 			err = errors.Wrapf(err, "!! Error")
 			errs = multierror.Append(errs, err)
