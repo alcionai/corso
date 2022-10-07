@@ -3,7 +3,9 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -11,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -139,9 +142,30 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 		itemInfo.ParentPath = parentPathString
 
+		bar := progressbar.NewOptions(int(itemInfo.Size),
+			progressbar.OptionSetWriter(os.Stderr),
+			progressbar.OptionShowCount(),
+			progressbar.OptionEnableColorCodes(true),
+			progressbar.OptionOnCompletion(func() {
+				fmt.Fprint(os.Stderr, "\n")
+			}),
+			progressbar.OptionSetRenderBlankState(true),
+			progressbar.OptionShowBytes(true),
+			progressbar.OptionSetWidth(15),
+			progressbar.OptionSetDescription(fmt.Sprintf("Downloading %s", itemInfo.ItemName)),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "[green]=[reset]",
+				SaucerHead:    "[green]>[reset]",
+				SaucerPadding: " ",
+				BarStart:      "[",
+				BarEnd:        "]",
+			},
+			))
+		reader := progressbar.NewReader(itemData, bar)
+
 		oc.data <- &Item{
 			id:   itemInfo.ItemName,
-			data: itemData,
+			data: &reader,
 			info: itemInfo,
 		}
 	}
@@ -162,6 +186,6 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byte
 		errs,
 		oc.folderPath.Folder(), // Additional details
 	)
-	logger.Ctx(ctx).Debug(status.String())
+	logger.Ctx(ctx).Debugf(status.String())
 	oc.statusUpdater(status)
 }

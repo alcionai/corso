@@ -33,12 +33,12 @@ func driveItemReader(
 	service graph.Service,
 	driveID, itemID string,
 ) (*details.OneDriveInfo, io.ReadCloser, error) {
-	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
-
 	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
+
+	logger.Ctx(ctx).Debugf("Reading Item %s at %s", *item.GetName(), time.Now())
 
 	// Get the download URL - https://docs.microsoft.com/en-us/graph/api/driveitem-get-content
 	// These URLs are pre-authenticated and can be used to download the data using the standard
@@ -76,7 +76,6 @@ func driveItemInfo(di models.DriveItemable) *details.OneDriveInfo {
 // It does so by creating an upload session and using that URL to initialize an `itemWriter`
 func driveItemWriter(ctx context.Context, service graph.Service, driveID, itemID string, itemSize int64,
 ) (io.Writer, error) {
-	// TODO: @vkamra verify if var session is the desired input
 	session := msup.NewCreateUploadSessionPostRequestBody()
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
