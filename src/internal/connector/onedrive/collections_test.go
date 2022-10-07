@@ -3,12 +3,13 @@ package onedrive
 import (
 	"testing"
 
-	"github.com/alcionai/corso/src/internal/tester"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {

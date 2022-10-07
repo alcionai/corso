@@ -737,8 +737,9 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 // ---------------
 type KopiaIntegrationSuite struct {
 	suite.Suite
-	w   *Wrapper
-	ctx context.Context
+	w     *Wrapper
+	ctx   context.Context
+	flush func()
 
 	testPath1 path.Path
 	testPath2 path.Path
@@ -782,7 +783,7 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
 	t := suite.T()
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
+	suite.ctx, suite.flush = tester.NewContext()
 
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err)
@@ -791,8 +792,8 @@ func (suite *KopiaIntegrationSuite) SetupTest() {
 }
 
 func (suite *KopiaIntegrationSuite) TearDownTest() {
+	defer suite.flush()
 	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
-	logger.Flush(suite.ctx)
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
@@ -823,6 +824,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
+
 	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)

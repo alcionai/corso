@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 type fooModel struct {
@@ -59,8 +58,9 @@ func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 // ---------------
 type ModelStoreIntegrationSuite struct {
 	suite.Suite
-	ctx context.Context
-	m   *ModelStore
+	ctx   context.Context
+	m     *ModelStore
+	flush func()
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
@@ -80,13 +80,13 @@ func (suite *ModelStoreIntegrationSuite) SetupSuite() {
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
+	suite.ctx, suite.flush = tester.NewContext()
 	suite.m = getModelStore(suite.T(), suite.ctx)
 }
 
 func (suite *ModelStoreIntegrationSuite) TearDownTest() {
+	defer suite.flush()
 	assert.NoError(suite.T(), suite.m.Close(suite.ctx))
-	logger.Flush(suite.ctx)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
