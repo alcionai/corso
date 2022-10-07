@@ -382,22 +382,6 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(backupID); err != nil {
-		return err
-	}
-
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
 	opts := utils.ExchangeOpts{
 		Contacts:            contact,
 		ContactFolders:      contactFolder,
@@ -417,6 +401,22 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventStartsBefore:   eventStartsBefore,
 		EventSubject:        eventSubject,
 	}
+
+	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
+		return err
+	}
+
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, err := repository.Connect(ctx, acct, s, options.Control())
+	if err != nil {
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+	}
+
+	defer utils.CloseRepo(ctx, r)
 
 	ds, err := runDetailsExchangeCmd(ctx, r, backupID, opts)
 	if err != nil {

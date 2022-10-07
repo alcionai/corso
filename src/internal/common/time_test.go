@@ -37,7 +37,7 @@ func (suite *CommonTimeUnitSuite) TestFormatTabularDisplayTime() {
 	t := suite.T()
 	now := time.Now()
 	result := common.FormatTabularDisplayTime(now)
-	assert.Equal(t, now.UTC().Format(common.TabularOutputTimeFormat), result)
+	assert.Equal(t, now.UTC().Format(string(common.TabularOutput)), result)
 }
 
 func (suite *CommonTimeUnitSuite) TestParseTime() {
@@ -57,11 +57,11 @@ func (suite *CommonTimeUnitSuite) TestParseTime() {
 }
 
 func (suite *CommonTimeUnitSuite) TestExtractTime() {
-	comparable := func(t *testing.T, tt time.Time, clippedFormat string) time.Time {
+	comparable := func(t *testing.T, tt time.Time, shortFormat common.TimeFormat) time.Time {
 		ts := common.FormatLegacyTime(tt.UTC())
 
-		if len(clippedFormat) > 0 {
-			ts = tt.UTC().Format(clippedFormat)
+		if len(shortFormat) > 0 {
+			ts = tt.UTC().Format(string(shortFormat))
 		}
 
 		c, err := common.ParseTime(ts)
@@ -91,15 +91,16 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 
 	type timeFormatter func(time.Time) string
 
-	formats := []string{
-		common.ClippedSimpleTimeFormat,
-		common.ClippedSimpleTimeFormatOneDrive,
-		common.LegacyTimeFormat,
-		common.SimpleDateTimeFormat,
-		common.SimpleDateTimeFormatOneDrive,
-		common.StandardTimeFormat,
-		common.TabularOutputTimeFormat,
-		common.SimpleDateTimeFormatTests,
+	formats := []common.TimeFormat{
+		common.ClippedSimple,
+		common.ClippedSimpleOneDrive,
+		common.LegacyTime,
+		common.SimpleDateTime,
+		common.SimpleDateTimeOneDrive,
+		common.StandardTime,
+		common.TabularOutput,
+		common.SimpleTimeTesting,
+		common.DateOnly,
 	}
 
 	type presuf struct {
@@ -116,7 +117,7 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 
 	type testable struct {
 		input         string
-		clippedFormat string
+		clippedFormat common.TimeFormat
 		expect        time.Time
 	}
 
@@ -125,10 +126,12 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 	// test matrix: for each input, in each format, with each prefix/suffix, run the test.
 	for _, in := range inputs {
 		for _, f := range formats {
-			clippedFormat := f
+			shortFormat := f
 
-			if f != common.ClippedSimpleTimeFormat && f != common.ClippedSimpleTimeFormatOneDrive {
-				clippedFormat = ""
+			if f != common.ClippedSimple &&
+				f != common.ClippedSimpleOneDrive &&
+				f != common.DateOnly {
+				shortFormat = ""
 			}
 
 			v := common.FormatTimeWith(in, f)
@@ -136,8 +139,8 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 			for _, ps := range pss {
 				table = append(table, testable{
 					input:         ps.prefix + v + ps.suffix,
-					expect:        comparable(suite.T(), in, clippedFormat),
-					clippedFormat: clippedFormat,
+					expect:        comparable(suite.T(), in, shortFormat),
+					clippedFormat: shortFormat,
 				})
 			}
 		}

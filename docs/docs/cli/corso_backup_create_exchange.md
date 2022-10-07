@@ -7,15 +7,27 @@ hide_title: true
 Backup M365 Exchange service data
 
 ```bash
-corso backup create exchange --all | --user <userId or email> [flags]
+corso backup create exchange --user <userId or email> | '*' [flags]
+```
+
+### Examples
+
+```bash
+# Backup all Exchange data for Alice
+corso backup create exchange --user alice@example.com
+
+# Backup only Exchange contacts for Alice and Bob
+corso backup create exchange --user alice@example.com,bob@example.com --data contacts
+
+# Backup all Exchange data for all M365 users 
+corso backup create exchange --user '*'
 ```
 
 ### Flags
 
 |Flag|Short|Default|Help|
 |:----|:-----|:-------|:----|
-|`--all`||`false`|Backup all Exchange data for all users|
-|`--user`||``|Backup Exchange data by user ID; accepts * to select all users|
+|`--user`||``|Backup Exchange data by user ID; accepts '*' to select all users|
 |`--data`||``|Select one or more types of data to backup: email, contacts, or events|
 |`--help`|`-h`|`false`|help for exchange|
 
