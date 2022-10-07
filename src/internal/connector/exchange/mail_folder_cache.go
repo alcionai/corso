@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -160,7 +161,7 @@ func (mc *mailFolderCache) Populate(
 	for {
 		resp, err := query.Get(ctx, nil)
 		if err != nil {
-			return err
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, f := range resp.GetValue() {
@@ -218,7 +219,7 @@ func (mc *mailFolderCache) init(
 	baseContainerPath []string,
 ) error {
 	if len(baseNode) == 0 {
-		return errors.New("M365 folder ID required for base folder")
+		return errors.New("m365 folder ID required for base folder")
 	}
 
 	if mc.cache == nil {
