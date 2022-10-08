@@ -634,35 +634,114 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 		ctx             = context.Background()
 		connector       = loadService(t)
 		pathCounter     = map[string]bool{}
-		directoryCaches = map[path.CategoryType]*mailFolderCache{}
-		pb              = &path.Builder{}
+		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
+		folderName      = "CacheTesting_" + common.FormatSimpleDateTime(now)
+		tests           = []struct {
+			name       string
+			pathFunc1  func() path.Path
+			pathFunc2  func() path.Path
+			category   path.CategoryType
+			deleteFunc func(
+				ctx context.Context,
+				service graph.Service,
+				userID, folderID string) error
+		}{
+			{
+				name:       "First Cache Entry",
+				category:   path.EmailCategory,
+				deleteFunc: DeleteMailFolder,
+				pathFunc1: func() path.Path {
+					pth, err := path.Builder{}.Append("Griffindor").
+						Append("Croix").ToDataLayerExchangePathForCategory(
+						suite.es.credentials.TenantID,
+						user,
+						path.EmailCategory,
+						false,
+					)
 
-		pth, err = pb.Append("Griffindor").
-				Append("Croix").ToDataLayerExchangePathForCategory(
-			suite.es.credentials.TenantID,
-			user,
-			path.EmailCategory,
-			false,
-		)
+					require.NoError(suite.T(), err)
+					return pth
+				},
+				pathFunc2: func() path.Path {
+					pth, err := path.Builder{}.Append("Griffindor").
+						Append("Felicius").ToDataLayerExchangePathForCategory(
+						suite.es.credentials.TenantID,
+						user,
+						path.EmailCategory,
+						false,
+					)
+
+					require.NoError(suite.T(), err)
+					return pth
+				},
+			},
+			{
+				name:       "Contact Cache Test",
+				category:   path.ContactsCategory,
+				deleteFunc: DeleteContactFolder,
+				pathFunc1: func() path.Path {
+					aPath, err := path.Builder{}.Append("HufflePuff").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.ContactsCategory,
+							false,
+						)
+
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+				pathFunc2: func() path.Path {
+					aPath, err := path.Builder{}.Append("Ravenclaw").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.ContactsCategory,
+							false,
+						)
+
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+			},
+		}
 	)
 
-	require.NoError(t, err)
-	t.Logf("Path: %s", pth.String())
-	//collection = mockconnector.NewMockExchangeCollection(pth, 3)
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			folderID, err := GetContainerIDFromCache(
+				ctx,
+				connector,
+				test.pathFunc1(),
+				folderName,
+				directoryCaches,
+				pathCounter,
+			)
 
-	folderID, err := GetContainerIDFromCache(
-		ctx,
-		connector,
-		pth,
-		"CacheTesting_"+common.FormatSimpleDateTime(now),
-		directoryCaches,
-		pathCounter,
-	)
-	require.NoError(t, err)
+			require.NoError(t, err)
+			resolver := directoryCaches[test.category]
+			if len(folderID) > 0 {
+				_, err := resolver.IDToPath(ctx, folderID)
+				assert.NoError(t, err)
+			}
 
-	instruction := directoryCaches[path.EmailCategory]
-	summit, err := instruction.IDToPath(ctx, folderID)
-	assert.NoError(t, err)
-	t.Log(summit.String())
-
+			secondID, err := GetContainerIDFromCache(
+				ctx,
+				connector,
+				test.pathFunc2(),
+				folderName,
+				directoryCaches,
+				pathCounter,
+			)
+			assert.NoError(t, err)
+			if len(secondID) > 0 {
+				_, err := resolver.IDToPath(ctx, secondID)
+				assert.NoError(t, err)
+			}
+			baseID, ok := resolver.PathInCache(folderName)
+			require.True(t, ok)
+			err = test.deleteFunc(ctx, connector, user, baseID)
+			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+		})
+	}
 }
