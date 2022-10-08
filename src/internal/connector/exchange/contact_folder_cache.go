@@ -3,15 +3,19 @@ package exchange
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/pkg/path"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 var _ cachedContainer = &contactFolder{}
 
 type contactFolder struct {
-	container
+	graph.Container
 	p *path.Builder
 }
 
@@ -47,4 +51,161 @@ func (cfc *contactFolderCache) populateContactRoot(
 		UsersById(cfc.userID).
 		ContactFoldersById(directoryID).
 		Get(ctx, opts)
+	if err != nil {
+		return errors.Wrapf(err, "fetching root contact folder")
+	}
+
+	idPtr := f.GetId()
+
+	if idPtr == nil || len(*idPtr) == 0 {
+		return errors.New("root folder has no ID")
+	}
+
+	temp := contactFolder{
+		Container: f,
+		p:         path.Builder{}.Append(baseContainerPath...),
+	}
+	cfc.cache[*idPtr] = &temp
+	cfc.rootID = *idPtr
+
+	return nil
+}
+
+// Populate is utility function fo Populating the Contact Folder Cache
+// Function does NOT use Delta Queries as it is not supported
+// as of (Oct-07-2022)
+func (cfc *contactFolderCache) Populate(
+	ctx context.Context,
+	baseID string,
+	baseContainerPather ...string,
+) error {
+	if err := cfc.init(ctx, baseID, baseContainerPather); err != nil {
+		return err
+	}
+
+	var (
+		containers = make(map[string]graph.Container)
+		errs       error
+		errUpdater = func(s string, e error) {
+			errs = support.WrapAndAppend(s, e, errs)
+		}
+	)
+
+	query, err := cfc.
+		gs.Client().
+		UsersById(cfc.userID).
+		ContactFolders().
+		Get(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(query, cfc.gs.Adapter(),
+		models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return err
+	}
+
+	cb := IterativeCollectContactContainers(containers,
+		"",
+		errUpdater)
+	if err := iter.Iterate(ctx, cb); err != nil {
+		return err
+	}
+
+	if errs != nil {
+		return errs
+	}
+
+	for _, entry := range containers {
+		err = cfc.AddToCache(entry)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				"cache build in cfc.Populate",
+				err,
+				errs)
+		}
+	}
+
+	return errs
+}
+
+func (cfc *contactFolderCache) init(
+	ctx context.Context,
+	baseNode string,
+	baseContainerPath []string,
+) error {
+	if len(baseNode) == 0 {
+		return errors.New("m365 folderID required for base folder")
+	}
+
+	if cfc.cache == nil {
+		cfc.cache = map[string]cachedContainer{}
+	}
+
+	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)
+}
+
+func (cfc *contactFolderCache) IDToPath(
+	ctx context.Context,
+	folderID string,
+) (*path.Builder, error) {
+	c, ok := cfc.cache[folderID]
+	if !ok {
+		return nil, errors.Errorf("folder %s not cached", folderID)
+	}
+
+	p := c.Path()
+	if p != nil {
+		return p, nil
+	}
+
+	parentPath, err := cfc.IDToPath(ctx, *c.GetParentFolderId())
+	if err != nil {
+		return nil, errors.Wrap(err, "retrieving parent folder")
+	}
+
+	fullPath := parentPath.Append(*c.GetDisplayName())
+	c.SetPath(fullPath)
+
+	return fullPath, nil
+}
+
+// PathInCache utility function to return m365ID of folder if the pathString
+// matches the path of a container within the cache. A boolean function
+// accompanies the call to indicate whether the lookup was successful.
+func (cfc *contactFolderCache) PathInCache(pathString string) (string, bool) {
+	if len(pathString) == 0 || cfc.cache == nil {
+		return "", false
+	}
+
+	for _, contain := range cfc.cache {
+		if contain.Path() == nil {
+			continue
+		}
+
+		if contain.Path().String() == pathString {
+			return *contain.GetId(), true
+		}
+	}
+
+	return "", false
+}
+
+// AddToCache places container into internal cache field.
+// @returns error iff input does not possess accessible values.
+func (cfc *contactFolderCache) AddToCache(f graph.Container) error {
+	if err := checkRequiredValues(f); err != nil {
+		return err
+	}
+
+	if _, ok := cfc.cache[*f.GetId()]; ok {
+		return nil
+	}
+
+	cfc.cache[*f.GetId()] = &contactFolder{
+		Container: f,
+	}
+
+	return nil
 }
