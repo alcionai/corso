@@ -415,6 +415,21 @@ func MaybeGetAndPopulateFolderResolver(
 		}
 		cacheRoot = DefaultCalendar
 
+	case path.ContactsCategory:
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			return nil, err
+		}
+
+		res = &contactFolderCache{
+			userID: qp.User,
+			gs:     service,
+		}
+
+		err = res.Populate(ctx, DefaultContactFolder)
+
+		return res, err
+
 	default:
 		return nil, nil
 	}
