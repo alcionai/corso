@@ -3,10 +3,11 @@ package exchange
 import (
 	"strings"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // cachedContainer is used for local unit tests but also makes it so that this
@@ -122,8 +123,8 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 // GetParentFolderId returns the default calendar name address
 // EventCalendars have a flat hierarchy and Calendars are rooted
 // at the default
+//nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
-
 	return &c.parentID
 }
 
@@ -133,7 +134,6 @@ func (c CalendarDisplayable) GetParentFolderId() *string {
 // @param parentID of Calendar sets. Only populate when used with
 // EventCalendarCache
 func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable {
-
 	calendar, ok := entry.(models.Calendarable)
 	if !ok {
 		return nil
