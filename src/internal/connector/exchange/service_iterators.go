@@ -639,8 +639,31 @@ func IterativeCollectContactContainers(
 			strings.Contains(*folder.GetDisplayName(), nameContains)
 
 		if include {
-			fmt.Println(*folder.GetDisplayName())
 			containers[*folder.GetDisplayName()] = folder
+		}
+
+		return true
+	}
+}
+
+func IterativeCollectCalendarContainers(
+	containers map[string]graph.Container,
+	nameContains, rootID string,
+	errUpdater func(string, error),
+) func(any) bool {
+	return func(entry any) bool {
+		cal, ok := entry.(models.Calendarable)
+		if !ok {
+			errUpdater("failure during IterativeCollectCalendarContainers",
+				errors.New("casting item to models.Calendarable"))
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			strings.Contains(*cal.GetName(), nameContains)
+		if include {
+			temp := CreateCalendarDisplayable(cal, rootID)
+			containers[*temp.GetDisplayName()] = temp
 		}
 
 		return true
