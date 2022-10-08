@@ -184,10 +184,14 @@ func GetAllMailFolders(
 // GetAllCalendars retrieves all event calendars for the specified user.
 // If nameContains is populated, only returns calendars matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains string) ([]CalendarDisplayable, error) {
+func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains string) ([]graph.Container, error) {
 	var (
-		cs  = []CalendarDisplayable{}
-		err error
+		cs         = make(map[string]graph.Container)
+		containers = make([]graph.Container, 0)
+		err, errs  error
+		errUpdater = func(s string, e error) {
+			errs = support.WrapAndAppend(s, e, errs)
+		}
 	)
 
 	resp, err := GetAllCalendarNamesForUser(ctx, gs, user)
@@ -201,28 +205,26 @@ func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains s
 		return nil, err
 	}
 
-	cb := func(item any) bool {
-		cal, ok := item.(models.Calendarable)
-		if !ok {
-			err = errors.New("casting item to models.Calendarable")
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*cal.GetName(), nameContains))
-		if include {
-			// TODO: dadams39 use the cache instead of separate iterator
-			cs = append(cs, *CreateCalendarDisplayable(cal, *cal.GetId()))
-		}
-
-		return true
-	}
+	cb := IterativeCollectCalendarContainers(
+		cs,
+		nameContains,
+		"",
+		errUpdater,
+	)
 
 	if err := iter.Iterate(ctx, cb); err != nil {
 		return nil, err
 	}
 
-	return cs, err
+	if errs != nil {
+		return nil, errs
+	}
+
+	for _, calendar := range cs {
+		containers = append(containers, calendar)
+	}
+
+	return containers, err
 }
 
 // GetAllContactFolders retrieves all contacts folders for the specified user.
