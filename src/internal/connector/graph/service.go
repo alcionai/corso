@@ -42,4 +42,8 @@ type ContainerResolver interface {
 	// conclude its search.
 	// @param baseFolderPath is the set of path elements of the baseFolder.
 	Populate(ctx context.Context, baseFolderID string, baseFolderPath ...string) error
+
+	// PathInCache verifies if M365 container exists within the cache based
+	// by comparing the pathString representation to the paths of cachedContainers saved
+	PathInCache(pathString string) (string, bool)
 }
