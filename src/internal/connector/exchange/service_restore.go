@@ -492,6 +492,11 @@ func GetContainerIDFromCache(
 	}
 }
 
+// establishMailRestoreLocation creates Mail folders in sequence
+// [root leaf1 leaf2] in a similiar to a linked list.
+// @param folders is the desired path from the root to the container
+// that the items will be restored into
+// @param isNewCache identifies if the cache is created and not populated
 func establishMailRestoreLocation(
 	ctx context.Context,
 	folders []string,
@@ -508,41 +513,47 @@ func establishMailRestoreLocation(
 
 		if ok {
 			folderID = cached
-		} else {
+			continue
+		}
 
-			temp, err := CreateMailFolderWithParent(ctx,
-				service, user, folder, folderID)
-			if err != nil {
-				// This means the folder already exists... We will work in this later
-				fmt.Println("Print on Error: " + lookup)
-				return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		temp, err := CreateMailFolderWithParent(ctx,
+			service, user, folder, folderID)
+		if err != nil {
+			// Should only error if cache malfunctions or incorrect parameters
+			return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		}
+
+		folderID = *temp.GetId()
+
+		// Only populate the cache if we actually had to create it. Since we set
+		// newCache to false in this we'll only try to populate it once per function
+		// call even if we make a new cache.
+		if isNewCache {
+			if err := mfc.Populate(ctx, folderID, folder); err != nil {
+				return "", errors.Wrap(err, "populating folder cache")
 			}
 
-			folderID = *temp.GetId()
+			isNewCache = false
+		}
 
-			// Only populate the cache if we actually had to create it. Since we set
-			// newCache to false in this we'll only try to populate it once per function
-			// call even if we make a new cache.
-			if isNewCache {
-				if err := mfc.Populate(ctx, folderID, folder); err != nil {
-					return "", errors.Wrap(err, "populating folder cache")
-				}
-				isNewCache = false
-			}
-
-			// Will noop if the folder is already in the cache.
-			if err = mfc.AddToCache(temp); err != nil {
-				return "", errors.Wrap(err, "adding folder to cache")
-			}
+		// NOOP if the folder is already in the cache.
+		if err = mfc.AddToCache(temp); err != nil {
+			return "", errors.Wrap(err, "adding folder to cache")
 		}
 	}
 
-	// Update Cache
+	// Lazy cache Update Cache by executing at the furthest leaf
 	_, err := mfc.IDToPath(ctx, folderID)
 
 	return folderID, err
 }
 
+// establishContactsRestoreLocation creates Contact Folders in sequence
+// and updates the container resolver appropriately. Contact Folders have
+// a flat representation. Therefore, only the root can be populated and all content
+// must be restored into the root location.
+// @param folders is the list of intended folders from root to leaf (e.g. [root ...])
+// @param isNewCache bool representation of whether Populate function needs to be run
 func establishContactsRestoreLocation(
 	ctx context.Context,
 	folders []string,
