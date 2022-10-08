@@ -211,7 +211,8 @@ func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains s
 		include := len(nameContains) == 0 ||
 			(len(nameContains) > 0 && strings.Contains(*cal.GetName(), nameContains))
 		if include {
-			cs = append(cs, *CreateCalendarDisplayable(cal))
+			// TODO: dadams39 use the cache instead of separate iterator
+			cs = append(cs, *CreateCalendarDisplayable(cal, *cal.GetId()))
 		}
 
 		return true
