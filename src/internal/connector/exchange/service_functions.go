@@ -231,10 +231,14 @@ func GetAllContactFolders(
 	ctx context.Context,
 	gs graph.Service,
 	user, nameContains string,
-) ([]models.ContactFolderable, error) {
+) ([]graph.Container, error) {
 	var (
-		cs  = []models.ContactFolderable{}
-		err error
+		cs         = make(map[string]graph.Container)
+		containers = make([]graph.Container, 0)
+		err, errs  error
+		errUpdater = func(s string, e error) {
+			errs = support.WrapAndAppend(s, e, errs)
+		}
 	)
 
 	resp, err := GetAllContactFolderNamesForUser(ctx, gs, user)
@@ -248,27 +252,19 @@ func GetAllContactFolders(
 		return nil, err
 	}
 
-	cb := func(item any) bool {
-		folder, ok := item.(models.ContactFolderable)
-		if !ok {
-			err = errors.New("casting item to models.ContactFolderable")
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
-		if include {
-			cs = append(cs, folder)
-		}
-
-		return true
-	}
+	cb := IterativeCollectContactContainers(
+		cs, nameContains, errUpdater,
+	)
 
 	if err := iter.Iterate(ctx, cb); err != nil {
 		return nil, err
 	}
 
-	return cs, err
+	for _, entry := range cs {
+		containers = append(containers, entry)
+	}
+
+	return containers, err
 }
 
 // GetContainerID query function to retrieve a container's M365 ID.
