@@ -213,7 +213,7 @@ func (mc *mailFolderCache) init(
 	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)
 }
 
-// addMailFolder adds container to map in field 'cache'
+// AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
 func (mc *mailFolderCache) AddToCache(f graph.Container) error {
 	if err := checkRequiredValues(f); err != nil {
