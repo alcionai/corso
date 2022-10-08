@@ -27,7 +27,6 @@ import (
 // exchange bucket info from flags
 var (
 	backupID     string
-	exchangeAll  bool
 	exchangeData []string
 	user         []string
 
@@ -59,9 +58,9 @@ const (
 
 const (
 	exchangeServiceCommand                 = "exchange"
-	exchangeServiceCommandCreateUseSuffix  = " --user <userId or email> | '" + utils.Wildcard + "'"
-	exchangeServiceCommandDeleteUseSuffix  = " --backup <backupId>"
-	exchangeServiceCommandDetailsUseSuffix = " --backup <backupId>"
+	exchangeServiceCommandCreateUseSuffix  = "--user <userId or email> | '" + utils.Wildcard + "'"
+	exchangeServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	exchangeServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
@@ -104,14 +103,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
 
-		c.Use = c.Use + exchangeServiceCommandCreateUseSuffix
+		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --all) and more frequently used flags take precedence.
-		fs.BoolVar(&exchangeAll,
-			"all", false,
-			"Backup all Exchange data for all users")
+		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.StringSliceVar(
 			&user,
 			"user", nil,
@@ -128,11 +124,11 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
 
-		c.Use = c.Use + exchangeServiceCommandDetailsUseSuffix
+		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --all) and more frequently used flags take precedence.
+		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.StringVar(&backupID,
 			"backup", "",
 			"ID of the backup to explore. (required)")
@@ -216,7 +212,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
 
-		c.Use = c.Use + exchangeServiceCommandDeleteUseSuffix
+		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
@@ -248,7 +244,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupCreateFlags(exchangeAll, user, exchangeData); err != nil {
+	if err := validateExchangeBackupCreateFlags(user, exchangeData); err != nil {
 		return err
 	}
 
@@ -264,7 +260,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(exchangeAll, user, exchangeData)
+	sel := exchangeBackupCreateSelectors(user, exchangeData)
 
 	bo, err := r.NewBackup(ctx, sel)
 	if err != nil {
@@ -286,40 +282,32 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeBackupCreateSelectors(all bool, users, data []string) selectors.Selector {
+func exchangeBackupCreateSelectors(userIDs, data []string) selectors.Selector {
 	sel := selectors.NewExchangeBackup()
-	if all {
-		sel.Include(sel.Users(selectors.Any()))
-		return sel.Selector
-	}
 
 	if len(data) == 0 {
-		sel.Include(sel.ContactFolders(user, selectors.Any()))
-		sel.Include(sel.MailFolders(user, selectors.Any()))
-		sel.Include(sel.EventCalendars(user, selectors.Any()))
+		sel.Include(sel.ContactFolders(userIDs, selectors.Any()))
+		sel.Include(sel.MailFolders(userIDs, selectors.Any()))
+		sel.Include(sel.EventCalendars(userIDs, selectors.Any()))
 	}
 
 	for _, d := range data {
 		switch d {
 		case dataContacts:
-			sel.Include(sel.ContactFolders(users, selectors.Any()))
+			sel.Include(sel.ContactFolders(userIDs, selectors.Any()))
 		case dataEmail:
-			sel.Include(sel.MailFolders(users, selectors.Any()))
+			sel.Include(sel.MailFolders(userIDs, selectors.Any()))
 		case dataEvents:
-			sel.Include(sel.EventCalendars(users, selectors.Any()))
+			sel.Include(sel.EventCalendars(userIDs, selectors.Any()))
 		}
 	}
 
 	return sel.Selector
 }
 
-func validateExchangeBackupCreateFlags(all bool, users, data []string) error {
-	if len(users) == 0 && !all {
-		return errors.New("requires one or more --user ids, the wildcard --user *, or the --all flag")
-	}
-
-	if len(data) > 0 && all {
-		return errors.New("--all does a backup on all data, and cannot be reduced with --data")
+func validateExchangeBackupCreateFlags(userIDs, data []string) error {
+	if len(userIDs) == 0 {
+		return errors.New("--user requires one or more ids or the wildcard *")
 	}
 
 	for _, d := range data {
@@ -394,22 +382,6 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(backupID); err != nil {
-		return err
-	}
-
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
 	opts := utils.ExchangeOpts{
 		Contacts:            contact,
 		ContactFolders:      contactFolder,
@@ -429,6 +401,22 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventStartsBefore:   eventStartsBefore,
 		EventSubject:        eventSubject,
 	}
+
+	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
+		return err
+	}
+
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, err := repository.Connect(ctx, acct, s, options.Control())
+	if err != nil {
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+	}
+
+	defer utils.CloseRepo(ctx, r)
 
 	ds, err := runDetailsExchangeCmd(ctx, r, backupID, opts)
 	if err != nil {

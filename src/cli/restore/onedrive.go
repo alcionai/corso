@@ -36,10 +36,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, oneDriveRestoreCmd())
 
-		c.Use = c.Use + oneDriveServiceCommandUseSuffix
+		c.Use = c.Use + " " + oneDriveServiceCommandUseSuffix
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --all) and more frequently used flags take precedence.
+		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
@@ -90,7 +90,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 
 const (
 	oneDriveServiceCommand          = "onedrive"
-	oneDriveServiceCommandUseSuffix = " --backup <backupId>"
+	oneDriveServiceCommandUseSuffix = "--backup <backupId>"
 
 	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
@@ -123,7 +123,17 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateOneDriveRestoreFlags(backupID); err != nil {
+	opts := utils.OneDriveOpts{
+		Users:          user,
+		Paths:          folderPaths,
+		Names:          fileNames,
+		CreatedAfter:   fileCreatedAfter,
+		CreatedBefore:  fileCreatedBefore,
+		ModifiedAfter:  fileModifiedAfter,
+		ModifiedBefore: fileModifiedBefore,
+	}
+
+	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {
 		return err
 	}
 
@@ -139,16 +149,6 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	opts := utils.OneDriveOpts{
-		Users:          user,
-		Paths:          folderPaths,
-		Names:          fileNames,
-		CreatedAfter:   fileCreatedAfter,
-		CreatedBefore:  fileCreatedBefore,
-		ModifiedAfter:  fileModifiedAfter,
-		ModifiedBefore: fileModifiedBefore,
-	}
-
 	sel := selectors.NewOneDriveRestore()
 	utils.IncludeOneDriveRestoreDataSelectors(sel, opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
@@ -158,7 +158,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeFormatOneDrive)
+	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
 	if err != nil {

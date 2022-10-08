@@ -368,61 +368,9 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	}
 }
 
+//==========================
 // Restore Functions
-// TestRestoreMessages uses mock data to ensure GraphConnector
-// is able to restore a several messageable item to a Mailbox.
-// The result should be all successful items restored within the same folder.
-func (suite *ExchangeServiceSuite) TestRestoreMessages() {
-	var (
-		ctx        = context.Background()
-		userID     = tester.M365UserID(suite.T())
-		now        = time.Now()
-		folderName = "TestRestoreMessage: " + common.FormatSimpleDateTime(now)
-	)
-
-	folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
-	require.NoError(suite.T(), err)
-
-	folderID := *folder.GetId()
-
-	defer func() {
-		// Remove the folder containing message prior to exiting test
-		err = DeleteMailFolder(ctx, suite.es, userID, folderID)
-		assert.NoError(suite.T(), err, "Failure during folder clean-up")
-	}()
-
-	tests := []struct {
-		name  string
-		bytes []byte
-	}{
-		{
-			name:  "Simple Message",
-			bytes: mockconnector.GetMockMessageBytes(folderName),
-		},
-		{
-			name:  "One Direct Attachment",
-			bytes: mockconnector.GetMockMessageWithDirectAttachment(folderName),
-		},
-		{
-			name:  "Two Attachments",
-			bytes: mockconnector.GetMockMessageWithTwoAttachments(folderName),
-		},
-	}
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			info, err := RestoreMailMessage(context.Background(),
-				test.bytes,
-				suite.es,
-				control.Copy,
-				folderID,
-				userID,
-			)
-			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
-			assert.NotNil(t, info, "message item info")
-		})
-	}
-}
+//======================
 
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
@@ -553,7 +501,6 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 	ctx := context.Background()
 	t := suite.T()
 	userID := tester.M365UserID(t)
-	service := loadService(t)
 	now := time.Now()
 	tests := []struct {
 		name        string
@@ -569,6 +516,32 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func() string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name:        "Test Mail: One Direct Attachment",
+			bytes:       mockconnector.GetMockMessageWithDirectAttachment("Restore 1 Attachment"),
+			category:    path.EmailCategory,
+			cleanupFunc: DeleteMailFolder,
+			destination: func() string {
+				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name:        "Test Mail: Two Attachments",
+			bytes:       mockconnector.GetMockMessageWithTwoAttachments("Restore 2 Attachments"),
+			category:    path.EmailCategory,
+			cleanupFunc: DeleteMailFolder,
+			destination: func() string {
+				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
 				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
 
@@ -606,6 +579,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			service := loadService(t)
 			destination := test.destination()
 			info, err := RestoreExchangeObject(
 				ctx,

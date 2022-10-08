@@ -78,3 +78,18 @@ jobs:
           path: src/test_results/*
           if-no-files-found: error
           retention-days: 14
+
+      # cleanup folders produced by load test
+      - name: Restored Folder Purge
+        if: always()
+        working-directory: ./src
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          DELETE_FOLDER_PREFIX: "Corso_Restore_"
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+        run: >
+          go run ./cmd/purge/purge.go
+          --user '*'
+          --prefix ${{ env.DELETE_FOLDER_PREFIX }}
+        

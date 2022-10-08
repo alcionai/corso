@@ -65,7 +65,7 @@ const (
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 func GetMockMessageBytes(subject string) []byte {
 	userID := "foobar@8qzvrj.onmicrosoft.com"
-	timestamp := " " + common.FormatNow(common.SimpleDateTimeFormat)
+	timestamp := " " + common.FormatNow(common.SimpleDateTime)
 
 	message := fmt.Sprintf(
 		messageTmpl,

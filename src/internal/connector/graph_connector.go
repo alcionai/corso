@@ -136,11 +136,6 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 		)
 	}
 
-	if response == nil {
-		err = support.WrapAndAppend("general access", errors.New("connector failed: No access"), err)
-		return err
-	}
-
 	userIterator, err := msgraphgocore.NewPageIterator(
 		response,
 		&gc.graphService.adapter,

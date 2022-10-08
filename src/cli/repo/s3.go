@@ -37,18 +37,19 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, s3ConnectCmd())
 	}
 
-	c.Use = c.Use + s3ProviderCommandUseSuffix
+	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(parent.UsageTemplate())
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
-	// More generic (ex: --all) and more frequently used flags take precedence.
+	// More generic and more frequently used flags take precedence.
 	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
-	fs.BoolVar(&succeedIfExists, "succeed-if-exists", false, "Exit with success if the repo has already been initialized.")
+
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
+	fs.BoolVar(&succeedIfExists, "succeed-if-exists", false, "Exit with success if the repo has already been initialized.")
 	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
 
 	return c
@@ -56,7 +57,7 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 
 const (
 	s3ProviderCommand          = "s3"
-	s3ProviderCommandUseSuffix = " --bucket <bucket>"
+	s3ProviderCommandUseSuffix = "--bucket <bucket>"
 )
 
 const (

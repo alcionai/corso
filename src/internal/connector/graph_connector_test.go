@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -276,7 +274,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 }
 
 // TestAccessOfInboxAllUsers verifies that GraphConnector can
-// support `--all-users` for backup operations. Selector.DiscreteScopes
+// support `--users *` for backup operations. Selector.DiscreteScopes
 // returns all of the users within one scope. Only users who have
 // messages in their inbox will have a collection returned.
 // The final test insures that more than a 75% of the user collections are
@@ -301,75 +299,6 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 ///------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------
-
-// TestCreateAndDeleteMailFolder ensures GraphConnector has the ability
-// to create and remove folders within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
-	ctx := context.Background()
-	t := suite.T()
-	now := time.Now()
-	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateMailFolder(ctx, suite.connector.Service(), suite.user, folderName)
-	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
-
-	if aFolder != nil {
-		secondFolder, err := exchange.CreateMailFolderWithParent(
-			ctx,
-			suite.connector.Service(),
-			suite.user,
-			"SubFolder",
-			*aFolder.GetId(),
-		)
-		assert.NoError(t, err)
-		assert.True(t, *secondFolder.GetParentFolderId() == *aFolder.GetId())
-
-		err = exchange.DeleteMailFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
-		assert.NoError(t, err)
-
-		if err != nil {
-			t.Log(support.ConnectorStackErrorTrace(err))
-		}
-	}
-}
-
-// TestCreateAndDeleteContactFolder ensures GraphConnector has the ability
-// to create and remove contact folders within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() {
-	ctx := context.Background()
-	now := time.Now()
-	folderName := "TestContactFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateContactFolder(ctx, suite.connector.Service(), suite.user, folderName)
-	assert.NoError(suite.T(), err)
-
-	if aFolder != nil {
-		err = exchange.DeleteContactFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
-		assert.NoError(suite.T(), err)
-
-		if err != nil {
-			suite.T().Log(support.ConnectorStackErrorTrace(err))
-		}
-	}
-}
-
-// TestCreateAndDeleteCalendar verifies GraphConnector has the ability to create and remove
-// exchange.Event.Calendars within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
-	ctx := context.Background()
-	now := time.Now()
-	service := suite.connector.Service()
-	calendarName := "TestCalendar: " + common.FormatSimpleDateTime(now)
-	calendar, err := exchange.CreateCalendar(ctx, service, suite.user, calendarName)
-	assert.NoError(suite.T(), err)
-
-	if calendar != nil {
-		err = exchange.DeleteCalendar(ctx, service, suite.user, *calendar.GetId())
-		assert.NoError(suite.T(), err)
-
-		if err != nil {
-			suite.T().Log(support.ConnectorStackErrorTrace(err))
-		}
-	}
-}
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	dest := tester.DefaultTestRestoreDestination()

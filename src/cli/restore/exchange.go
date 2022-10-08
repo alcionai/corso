@@ -51,10 +51,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 	case restoreCommand:
 		c, fs = utils.AddCommand(parent, exchangeRestoreCmd())
 
-		c.Use = c.Use + exchangeServiceCommandUseSuffix
+		c.Use = c.Use + " " + exchangeServiceCommandUseSuffix
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --all) and more frequently used flags take precedence.
+		// More generic (ex: --user) and more frequently used flags take precedence.
 		// general flags
 		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired("backup"))
@@ -140,7 +140,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 
 const (
 	exchangeServiceCommand          = "exchange"
-	exchangeServiceCommandUseSuffix = " --backup <backupId>"
+	exchangeServiceCommandUseSuffix = "--backup <backupId>"
 
 	exchangeServiceCommandRestoreExamples = `# Restore emails with ID 98765abcdef and 12345abcdef from a specific backup
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --email 98765abcdef,12345abcdef
@@ -176,22 +176,6 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(backupID); err != nil {
-		return err
-	}
-
-	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, a, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
 	opts := utils.ExchangeOpts{
 		Contacts:            contact,
 		ContactFolders:      contactFolder,
@@ -212,6 +196,22 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventSubject:        eventSubject,
 	}
 
+	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
+		return err
+	}
+
+	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, err := repository.Connect(ctx, a, s, options.Control())
+	if err != nil {
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
 	sel := selectors.NewExchangeRestore()
 	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
@@ -221,7 +221,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		sel.Include(sel.Users(selectors.Any()))
 	}
 
-	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeFormat)
+	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTime)
 
 	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
 	if err != nil {
