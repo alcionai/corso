@@ -13,35 +13,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ cachedContainer = &mailFolder{}
-
-// cachedContainer is used for local unit tests but also makes it so that this
-// code can be broken into generic- and service-specific chunks later on to
-// reuse logic in IDToPath.
-type cachedContainer interface {
-	graph.Container
-	Path() *path.Builder
-	SetPath(*path.Builder)
-}
-
-// mailFolder structure that implements the cachedContainer interface
-type mailFolder struct {
-	graph.Container
-	p *path.Builder
-}
-
-//=========================================
-// Required Functions to satisfy interfaces
-//=====================================
-
-func (mf mailFolder) Path() *path.Builder {
-	return mf.p
-}
-
-func (mf *mailFolder) SetPath(newPath *path.Builder) {
-	mf.p = newPath
-}
-
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID

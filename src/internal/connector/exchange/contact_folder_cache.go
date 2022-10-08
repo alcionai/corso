@@ -12,20 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ cachedContainer = &contactFolder{}
-
-type contactFolder struct {
-	graph.Container
-	p *path.Builder
-}
-
-func (cf contactFolder) Path() *path.Builder {
-	return cf.p
-}
-
-func (cf *contactFolder) SetPath(newPath *path.Builder) {
-	cf.p = newPath
-}
+var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	cache          map[string]cachedContainer
