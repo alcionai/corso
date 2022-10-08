@@ -28,6 +28,26 @@ type Service interface {
 	ErrPolicy() bool
 }
 
+// descendable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a "parent folder".
+type Descendable interface {
+	GetId() *string
+	GetParentFolderId() *string
+}
+
+// displayable represents objects that implement msgraph-sdk-fo/models.entityable
+// and have the concept of a display name.
+type Displayable interface {
+	GetId() *string
+	GetDisplayName() *string
+}
+
+// container is an interface that implements both the descendable and displayble interface.
+type Container interface {
+	Descendable
+	Displayable
+}
+
 // ContainerResolver houses functions for getting information about containers
 // from remote APIs (i.e. resolve folder paths with Graph API). Resolvers may
 // cache information about containers.
@@ -46,4 +66,6 @@ type ContainerResolver interface {
 	// PathInCache verifies if M365 container exists within the cache based
 	// by comparing the pathString representation to the paths of cachedContainers saved
 	PathInCache(pathString string) (string, bool)
+
+	AddToCache(m365Container Container) error
 }
