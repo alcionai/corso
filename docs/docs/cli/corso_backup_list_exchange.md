@@ -10,7 +10,6 @@ List the history of M365 Exchange service backups
 corso backup list exchange [flags]
 ```
 
-
 ### Flags
 
 |Flag|Short|Default|Help|
