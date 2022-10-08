@@ -2,11 +2,9 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
 	"github.com/pkg/errors"
 
@@ -21,15 +19,15 @@ var _ cachedContainer = &mailFolder{}
 // code can be broken into generic- and service-specific chunks later on to
 // reuse logic in IDToPath.
 type cachedContainer interface {
-	container
+	graph.Container
 	Path() *path.Builder
 	SetPath(*path.Builder)
 }
 
 // mailFolder structure that implements the cachedContainer interface
 type mailFolder struct {
-	folder container
-	p      *path.Builder
+	graph.Container
+	p *path.Builder
 }
 
 //=========================================
@@ -42,20 +40,6 @@ func (mf mailFolder) Path() *path.Builder {
 
 func (mf *mailFolder) SetPath(newPath *path.Builder) {
 	mf.p = newPath
-}
-
-func (mf *mailFolder) GetDisplayName() *string {
-	return mf.folder.GetDisplayName()
-}
-
-//nolint:revive
-func (mf *mailFolder) GetId() *string {
-	return mf.folder.GetId()
-}
-
-//nolint:revive
-func (mf *mailFolder) GetParentFolderId() *string {
-	return mf.folder.GetParentFolderId()
 }
 
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
@@ -103,8 +87,8 @@ func (mc *mailFolderCache) populateMailRoot(
 	}
 
 	temp := mailFolder{
-		folder: f,
-		p:      path.Builder{}.Append(baseContainerPath...),
+		Container: f,
+		p:         path.Builder{}.Append(baseContainerPath...),
 	}
 	mc.cache[*idPtr] = &temp
 	mc.rootID = *idPtr
@@ -114,7 +98,7 @@ func (mc *mailFolderCache) populateMailRoot(
 
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
-func checkRequiredValues(c container) error {
+func checkRequiredValues(c graph.Container) error {
 	idPtr := c.GetId()
 	if idPtr == nil || len(*idPtr) == 0 {
 		return errors.New("folder without ID")
@@ -165,7 +149,7 @@ func (mc *mailFolderCache) Populate(
 		}
 
 		for _, f := range resp.GetValue() {
-			if err := mc.addMailFolder(f); err != nil {
+			if err := mc.AddToCache(f); err != nil {
 				errs = multierror.Append(errs, err)
 				continue
 			}
@@ -231,7 +215,7 @@ func (mc *mailFolderCache) init(
 
 // addMailFolder adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (mc *mailFolderCache) addMailFolder(f models.MailFolderable) error {
+func (mc *mailFolderCache) AddToCache(f graph.Container) error {
 	if err := checkRequiredValues(f); err != nil {
 		return err
 	}
@@ -241,13 +225,14 @@ func (mc *mailFolderCache) addMailFolder(f models.MailFolderable) error {
 	}
 
 	mc.cache[*f.GetId()] = &mailFolder{
-		folder: f,
+		Container: f,
 	}
 
 	return nil
 }
 
-// find path
+// PathInCache utility function to return m365ID of folder if the pathString
+// matches the path of a container within the cache.
 func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 	if len(pathString) == 0 || mc.cache == nil {
 		return "", false
@@ -255,12 +240,10 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 
 	for _, folder := range mc.cache {
 		if folder.Path() == nil {
-			fmt.Println("Exited with an empty path")
-			return "", false
+			continue
 		}
-		pathRep := folder.Path().String()
-		fmt.Printf("Cached: %s\tValue:%s \tMatch: %v\n", pathRep, pathString, pathRep == pathString)
-		if pathRep == pathString {
+
+		if folder.Path().String() == pathString {
 			return *folder.GetId(), true
 		}
 	}
