@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
@@ -47,7 +46,7 @@ func (mc *mailFolderCache) populateMailRoot(
 		MailFoldersById(directoryID).
 		Get(ctx, opts)
 	if err != nil {
-		return errors.Wrapf(err, "fetching root folder")
+		return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 	}
 
 	// Root only needs the ID because we hide it's name for Mail.
@@ -63,27 +62,6 @@ func (mc *mailFolderCache) populateMailRoot(
 	}
 	mc.cache[*idPtr] = &temp
 	mc.rootID = *idPtr
-
-	return nil
-}
-
-// checkRequiredValues is a helper function to ensure that
-// all the pointers are set prior to being called.
-func checkRequiredValues(c graph.Container) error {
-	idPtr := c.GetId()
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("folder without ID")
-	}
-
-	ptr := c.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
-	}
-
-	ptr = c.GetParentFolderId()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
-	}
 
 	return nil
 }
@@ -220,16 +198,4 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 	}
 
 	return "", false
-}
-
-// pathElementStringBuilder helper function for returning
-// a string separated with '/' based on the index.
-// Returns full slice separated w/ '/' if index is Greather Than or Equal
-// to the length of the slice.
-func pathElementStringBuilder(index int, slice []string) string {
-	if index >= len(slice) {
-		return strings.Join(slice, "/")
-	}
-
-	return strings.Join(slice[:index], "/")
 }
