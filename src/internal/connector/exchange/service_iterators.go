@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -68,7 +69,7 @@ func IterateSelectAllDescendablesForCollections(
 			isCategorySet = true
 		}
 
-		entry, ok := pageItem.(descendable)
+		entry, ok := pageItem.(graph.Descendable)
 		if !ok {
 			errUpdater(qp.User, errors.New("descendable conversion failure"))
 			return true
@@ -157,7 +158,7 @@ func IterateSelectAllEventsFromCalendars(
 
 		pageItem = CreateCalendarDisplayable(pageItem)
 
-		calendar, ok := pageItem.(displayable)
+		calendar, ok := pageItem.(graph.Displayable)
 		if !ok {
 			errUpdater(
 				qp.User,
@@ -228,7 +229,7 @@ func IterateAndFilterDescendablesForCollections(
 			isFilterSet = true
 		}
 
-		message, ok := descendItem.(descendable)
+		message, ok := descendItem.(graph.Descendable)
 		if !ok {
 			errUpdater(qp.User, errors.New("casting messageItem to descendable"))
 			return true
@@ -349,7 +350,7 @@ func IterateFilterContainersForCollections(
 			folderItem = CreateCalendarDisplayable(folderItem)
 		}
 
-		folder, ok := folderItem.(displayable)
+		folder, ok := folderItem.(graph.Displayable)
 		if !ok {
 			errUpdater(qp.User,
 				fmt.Errorf("unable to convert input of %T for category: %s", folderItem, category.String()),
@@ -541,7 +542,7 @@ func iterateFindContainerID(
 			return true
 		}
 
-		folder, ok := entry.(displayable)
+		folder, ok := entry.(graph.Displayable)
 		if !ok {
 			errUpdater(
 				errorIdentifier,
@@ -620,6 +621,30 @@ func ReturnContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, 
 	}
 
 	return stringArray, nil
+}
+
+func IterativeCollectContactContainers(
+	containers map[string]graph.Container,
+	nameContains string,
+	errUpdater func(string, error),
+) func(any) bool {
+	return func(entry any) bool {
+		folder, ok := entry.(models.ContactFolderable)
+		if !ok {
+			errUpdater("", errors.New("casting item to models.ContactFolderable"))
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			strings.Contains(*folder.GetDisplayName(), nameContains)
+
+		if include {
+			fmt.Println(*folder.GetDisplayName())
+			containers[*folder.GetDisplayName()] = folder
+		}
+
+		return true
+	}
 }
 
 // ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
