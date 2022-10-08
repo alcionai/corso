@@ -559,7 +559,7 @@ func establishMailRestoreLocation(
 		}
 	}
 
-	// Update Cache
+	// Lazy cache Update Cache by executing at the furthest leaf
 	_, err := mfc.IDToPath(ctx, folderID)
 
 	return folderID, err
