@@ -493,7 +493,7 @@ func GetContainerIDFromCache(
 }
 
 // establishMailRestoreLocation creates Mail folders in sequence
-// [root leaf1 leaf2] in a similiar to a linked list.
+// [root leaf1 leaf2] in a similar to a linked list.
 // @param folders is the desired path from the root to the container
 // that the items will be restored into
 // @param isNewCache identifies if the cache is created and not populated
