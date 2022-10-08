@@ -1,0 +1,113 @@
+package exchange
+
+import (
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+)
+
+// cachedContainer is used for local unit tests but also makes it so that this
+// code can be broken into generic- and service-specific chunks later on to
+// reuse logic in IDToPath.
+type cachedContainer interface {
+	graph.Container
+	Path() *path.Builder
+	SetPath(*path.Builder)
+}
+
+//======================================
+// cachedContainer Implementations
+//======================
+
+var (
+	_ cachedContainer = &eventCalendar{}
+	_ cachedContainer = &contactFolder{}
+	_ cachedContainer = &mailFolder{}
+)
+
+type contactFolder struct {
+	graph.Container
+	p *path.Builder
+}
+
+func (cf contactFolder) Path() *path.Builder {
+	return cf.p
+}
+
+func (cf *contactFolder) SetPath(newPath *path.Builder) {
+	cf.p = newPath
+}
+
+type eventCalendar struct {
+	graph.Container
+	p *path.Builder
+}
+
+func (ev eventCalendar) Path() *path.Builder {
+	return ev.p
+}
+
+func (ev *eventCalendar) SetPath(newPath *path.Builder) {
+	ev.p = newPath
+}
+
+// mailFolder structure that implements the cachedContainer interface
+type mailFolder struct {
+	graph.Container
+	p *path.Builder
+}
+
+//=========================================
+// Required Functions to satisfy interfaces
+//=====================================
+
+func (mf mailFolder) Path() *path.Builder {
+	return mf.p
+}
+
+func (mf *mailFolder) SetPath(newPath *path.Builder) {
+	mf.p = newPath
+}
+
+//
+// CalendarDisplayable is a transformative struct that aligns
+// models.Calendarable interface with the container interface.
+// Calendars do not have the 2 of the
+type CalendarDisplayable struct {
+	models.Calendarable
+	parentID string
+}
+
+// GetDisplayName returns the *string of the calendar name
+func (c CalendarDisplayable) GetDisplayName() *string {
+	return c.GetName()
+}
+
+// GetParentFolderId returns the default calendar name address
+// EventCalendars have a flat hierarchy and Calendars are rooted
+// at the default
+func (c CalendarDisplayable) GetParentFolderId() *string {
+
+	return &c.parentID
+}
+
+// CreateCalendarDisplayable helper function to create the
+// calendarDisplayable during msgraph-sdk-go iterative process
+// @param entry is the input supplied by pageIterator.Iterate()
+func CreateCalendarDisplayable(entry any) *CalendarDisplayable {
+	parentID := DefaultCalendar
+
+	calendar, ok := entry.(models.Calendarable)
+	if !ok {
+		return nil
+	}
+
+	if *calendar.GetName() == DefaultCalendar {
+		parentID = *calendar.GetId()
+	}
+
+	return &CalendarDisplayable{
+		Calendarable: calendar,
+		parentID:     parentID,
+	}
+}
