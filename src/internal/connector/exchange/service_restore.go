@@ -295,7 +295,7 @@ func RestoreExchangeDataCollections(
 	var (
 		pathCounter = map[string]bool{}
 		// map of caches... but not yet...
-		directoryCaches = map[path.CategoryType]*mailFolderCache{}
+		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
 		metrics         support.CollectionMetrics
 		errs            error
 		// TODO policy to be updated from external source after completion of refactoring
@@ -307,9 +307,6 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		//PUT Caching into separate function... here
-		// Inputs --> folderID, root, err := directoryCheckFunc(ctx, err, directory.String(), rootFolder, pathCounter)
-		//GetContainerID()
 		containerID, err := GetContainerIDFromCache(
 			ctx,
 			gs,
@@ -426,7 +423,7 @@ func GetContainerIDFromCache(
 	gs graph.Service,
 	directory path.Path,
 	destination string,
-	caches map[path.CategoryType]*mailFolderCache,
+	caches map[path.CategoryType]graph.ContainerResolver,
 	pathCounter map[string]bool,
 ) (string, error) {
 	var (
@@ -464,9 +461,30 @@ func GetContainerIDFromCache(
 			ctx,
 			newPathFolders,
 			directoryCache,
+			user,
+			gs,
 			isEnabled)
 	case path.ContactsCategory:
-		return "", nil
+		if directoryCache == nil {
+			cfc := &contactFolderCache{
+				userID: user,
+				gs:     gs,
+			}
+			caches[category] = cfc
+			newCache[category] = true
+			directoryCache = cfc
+		}
+
+		isEnabled := newCache[category]
+		newCache[category] = false
+
+		return establishContactsRestoreLocation(
+			ctx,
+			newPathFolders,
+			directoryCache,
+			user,
+			gs,
+			isEnabled)
 	case path.EventsCategory:
 		return "", nil
 	default:
@@ -477,7 +495,9 @@ func GetContainerIDFromCache(
 func establishMailRestoreLocation(
 	ctx context.Context,
 	folders []string,
-	mfc *mailFolderCache,
+	mfc graph.ContainerResolver,
+	user string,
+	service graph.Service,
 	isNewCache bool,
 ) (string, error) {
 	folderID := rootFolderAlias
@@ -491,7 +511,7 @@ func establishMailRestoreLocation(
 		} else {
 
 			temp, err := CreateMailFolderWithParent(ctx,
-				mfc.gs, mfc.userID, folder, folderID)
+				service, user, folder, folderID)
 			if err != nil {
 				// This means the folder already exists... We will work in this later
 				fmt.Println("Print on Error: " + lookup)
@@ -507,31 +527,54 @@ func establishMailRestoreLocation(
 				if err := mfc.Populate(ctx, folderID, folder); err != nil {
 					return "", errors.Wrap(err, "populating folder cache")
 				}
+				isNewCache = false
 			}
 
 			// Will noop if the folder is already in the cache.
-			if err = mfc.addMailFolder(temp); err != nil {
+			if err = mfc.AddToCache(temp); err != nil {
 				return "", errors.Wrap(err, "adding folder to cache")
 			}
 		}
 	}
 
-	return folderID, nil
+	// Update Cache
+	_, err := mfc.IDToPath(ctx, folderID)
+
+	return folderID, err
 }
 
-func newMailRestorePathForCollection(collectionPath path.Path, prefix string) (path.Path, error) {
-	listing := collectionPath.Folders()
-	pb := collectionPath.ToBuilder()
-
-	newBuilder, err := pb.UnescapeAndAppend(prefix)
-	if err != nil {
-		return nil, err
+func establishContactsRestoreLocation(
+	ctx context.Context,
+	folders []string,
+	cfc graph.ContainerResolver,
+	user string,
+	gs graph.Service,
+	isNewCache bool,
+) (string, error) {
+	cached, ok := cfc.PathInCache(folders[0])
+	if ok {
+		fmt.Println("Cache HIT!")
+		return cached, nil
 	}
 
-	return newBuilder.Append(listing...).ToDataLayerExchangePathForCategory(
-		collectionPath.Tenant(),
-		collectionPath.ResourceOwner(),
-		collectionPath.Category(),
-		false,
-	)
+	temp, err := CreateContactFolder(ctx, gs, user, folders[0])
+	if err != nil {
+		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	folderID := *temp.GetId()
+
+	if isNewCache {
+		if err := cfc.Populate(ctx, folderID, folders[0]); err != nil {
+			return "", errors.Wrap(err, "populating contact cache")
+		}
+
+		if err = cfc.AddToCache(temp); err != nil {
+			return "", errors.Wrap(err, "adding contact folder to cache")
+		}
+	}
+
+	_, err = cfc.IDToPath(ctx, folderID)
+
+	return folderID, err
 }
