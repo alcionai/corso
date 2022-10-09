@@ -707,7 +707,8 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 			)
 			assert.NoError(t, err)
 			_, err = resolver.IDToPath(ctx, secondID)
-			assert.NoError(t, err)
+			require.NoError(t, err)
+			// Test clean up
 			baseID, ok := resolver.PathInCache(folderName)
 			require.True(t, ok)
 			err = test.deleteFunc(ctx, connector, user, baseID)
