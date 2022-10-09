@@ -537,15 +537,12 @@ func establishMailRestoreLocation(
 		}
 
 		// NOOP if the folder is already in the cache.
-		if err = mfc.AddToCache(temp); err != nil {
+		if err = mfc.AddToCache(ctx, temp); err != nil {
 			return "", errors.Wrap(err, "adding folder to cache")
 		}
 	}
 
-	// Lazy cache Update Cache by executing at the furthest leaf
-	_, err := mfc.IDToPath(ctx, folderID)
-
-	return folderID, err
+	return folderID, nil
 }
 
 // establishContactsRestoreLocation creates Contact Folders in sequence
@@ -580,12 +577,10 @@ func establishContactsRestoreLocation(
 			return "", errors.Wrap(err, "populating contact cache")
 		}
 
-		if err = cfc.AddToCache(temp); err != nil {
+		if err = cfc.AddToCache(ctx, temp); err != nil {
 			return "", errors.Wrap(err, "adding contact folder to cache")
 		}
 	}
 
-	_, err = cfc.IDToPath(ctx, folderID)
-
-	return folderID, err
+	return folderID, nil
 }
