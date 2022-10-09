@@ -559,10 +559,7 @@ func establishMailRestoreLocation(
 		}
 	}
 
-	// Lazy cache Update Cache by executing at the furthest leaf
-	_, err := mfc.IDToPath(ctx, folderID)
-
-	return folderID, err
+	return folderID, nil
 }
 
 // establishContactsRestoreLocation creates Contact Folders in sequence
