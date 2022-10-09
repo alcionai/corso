@@ -561,7 +561,6 @@ func establishContactsRestoreLocation(
 ) (string, error) {
 	cached, ok := cfc.PathInCache(folders[0])
 	if ok {
-		fmt.Println("Cache HIT!")
 		return cached, nil
 	}
 
