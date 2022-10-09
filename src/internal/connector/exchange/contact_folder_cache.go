@@ -95,7 +95,8 @@ func (cfc *contactFolderCache) Populate(
 	query, err := cfc.
 		gs.Client().
 		UsersById(cfc.userID).
-		ContactFolders().
+		ContactFoldersById(cfc.rootID).
+		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
