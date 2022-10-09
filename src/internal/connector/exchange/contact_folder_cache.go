@@ -71,7 +71,8 @@ func (cfc *contactFolderCache) populateContactRoot(
 	return nil
 }
 
-// Populate is utility function fo Populating the Contact Folder Cache
+// Populate is utility function for placing cache container
+// objects into the Contact Folder Cache
 // Function does NOT use Delta Queries as it is not supported
 // as of (Oct-07-2022)
 func (cfc *contactFolderCache) Populate(
