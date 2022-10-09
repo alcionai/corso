@@ -639,7 +639,6 @@ func IterativeCollectContactContainers(
 			strings.Contains(*folder.GetDisplayName(), nameContains)
 
 		if include {
-			fmt.Println(*folder.GetDisplayName())
 			containers[*folder.GetDisplayName()] = folder
 		}
 
