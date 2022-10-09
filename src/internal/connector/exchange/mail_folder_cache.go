@@ -98,7 +98,7 @@ func (mc *mailFolderCache) Populate(
 		}
 
 		for _, f := range resp.GetValue() {
-			if err := mc.AddToCache(f); err != nil {
+			if err := mc.AddToCache(ctx, f); err != nil {
 				errs = multierror.Append(errs, err)
 				continue
 			}
@@ -164,7 +164,7 @@ func (mc *mailFolderCache) init(
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (mc *mailFolderCache) AddToCache(f graph.Container) error {
+func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkRequiredValues(f); err != nil {
 		return err
 	}
@@ -175,6 +175,13 @@ func (mc *mailFolderCache) AddToCache(f graph.Container) error {
 
 	mc.cache[*f.GetId()] = &mailFolder{
 		Container: f,
+	}
+
+	// Populate the path for this entry so calls to PathInCache succeed no matter
+	// when they're made.
+	_, err := mc.IDToPath(ctx, *f.GetId())
+	if err != nil {
+		return errors.Wrap(err, "adding cache entry")
 	}
 
 	return nil

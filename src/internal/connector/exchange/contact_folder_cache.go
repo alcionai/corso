@@ -58,7 +58,8 @@ func (cfc *contactFolderCache) populateContactRoot(
 	return nil
 }
 
-// Populate is utility function fo Populating the Contact Folder Cache
+// Populate is utility function for placing cache container
+// objects into the Contact Folder Cache
 // Function does NOT use Delta Queries as it is not supported
 // as of (Oct-07-2022)
 func (cfc *contactFolderCache) Populate(
@@ -81,7 +82,8 @@ func (cfc *contactFolderCache) Populate(
 	query, err := cfc.
 		gs.Client().
 		UsersById(cfc.userID).
-		ContactFolders().
+		ContactFoldersById(cfc.rootID).
+		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -105,7 +107,7 @@ func (cfc *contactFolderCache) Populate(
 	}
 
 	for _, entry := range containers {
-		err = cfc.AddToCache(entry)
+		err = cfc.AddToCache(ctx, entry)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				"cache build in cfc.Populate",
@@ -181,7 +183,7 @@ func (cfc *contactFolderCache) PathInCache(pathString string) (string, bool) {
 
 // AddToCache places container into internal cache field.
 // @returns error iff input does not possess accessible values.
-func (cfc *contactFolderCache) AddToCache(f graph.Container) error {
+func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkRequiredValues(f); err != nil {
 		return err
 	}
@@ -192,6 +194,13 @@ func (cfc *contactFolderCache) AddToCache(f graph.Container) error {
 
 	cfc.cache[*f.GetId()] = &contactFolder{
 		Container: f,
+	}
+
+	// Populate the path for this entry so calls to PathInCache succeed no matter
+	// when they're made.
+	_, err := cfc.IDToPath(ctx, *f.GetId())
+	if err != nil {
+		return errors.Wrap(err, "adding cache entry")
 	}
 
 	return nil

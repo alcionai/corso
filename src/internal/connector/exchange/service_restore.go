@@ -429,7 +429,7 @@ func GetContainerIDFromCache(
 	var (
 		// Start with the root folder so we can create our top-level folder with
 		// the same tactic.
-		newCache          = make(map[path.CategoryType]bool)
+		newCache          bool
 		user              = directory.ResourceOwner()
 		category          = directory.Category()
 		directoryCache    = caches[category]
@@ -450,12 +450,9 @@ func GetContainerIDFromCache(
 			}
 
 			caches[category] = mfc
-			newCache[category] = true
+			newCache = true
 			directoryCache = mfc
 		}
-
-		isEnabled := newCache[category]
-		newCache[category] = false
 
 		return establishMailRestoreLocation(
 			ctx,
@@ -463,7 +460,7 @@ func GetContainerIDFromCache(
 			directoryCache,
 			user,
 			gs,
-			isEnabled)
+			newCache)
 	case path.ContactsCategory:
 		if directoryCache == nil {
 			cfc := &contactFolderCache{
@@ -471,12 +468,9 @@ func GetContainerIDFromCache(
 				gs:     gs,
 			}
 			caches[category] = cfc
-			newCache[category] = true
+			newCache = true
 			directoryCache = cfc
 		}
-
-		isEnabled := newCache[category]
-		newCache[category] = false
 
 		return establishContactsRestoreLocation(
 			ctx,
@@ -484,7 +478,7 @@ func GetContainerIDFromCache(
 			directoryCache,
 			user,
 			gs,
-			isEnabled)
+			newCache)
 	case path.EventsCategory:
 		return "", nil
 	default:
@@ -537,15 +531,12 @@ func establishMailRestoreLocation(
 		}
 
 		// NOOP if the folder is already in the cache.
-		if err = mfc.AddToCache(temp); err != nil {
+		if err = mfc.AddToCache(ctx, temp); err != nil {
 			return "", errors.Wrap(err, "adding folder to cache")
 		}
 	}
 
-	// Lazy cache Update Cache by executing at the furthest leaf
-	_, err := mfc.IDToPath(ctx, folderID)
-
-	return folderID, err
+	return folderID, nil
 }
 
 // establishContactsRestoreLocation creates Contact Folders in sequence
@@ -564,7 +555,6 @@ func establishContactsRestoreLocation(
 ) (string, error) {
 	cached, ok := cfc.PathInCache(folders[0])
 	if ok {
-		fmt.Println("Cache HIT!")
 		return cached, nil
 	}
 
@@ -580,12 +570,10 @@ func establishContactsRestoreLocation(
 			return "", errors.Wrap(err, "populating contact cache")
 		}
 
-		if err = cfc.AddToCache(temp); err != nil {
+		if err = cfc.AddToCache(ctx, temp); err != nil {
 			return "", errors.Wrap(err, "adding contact folder to cache")
 		}
 	}
 
-	_, err = cfc.IDToPath(ctx, folderID)
-
-	return folderID, err
+	return folderID, nil
 }

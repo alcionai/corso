@@ -694,10 +694,8 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 
 			require.NoError(t, err)
 			resolver := directoryCaches[test.category]
-			if len(folderID) > 0 {
-				_, err := resolver.IDToPath(ctx, folderID)
-				assert.NoError(t, err)
-			}
+			_, err = resolver.IDToPath(ctx, folderID)
+			assert.NoError(t, err)
 
 			secondID, err := GetContainerIDFromCache(
 				ctx,
@@ -708,10 +706,9 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathCounter,
 			)
 			assert.NoError(t, err)
-			if len(secondID) > 0 {
-				_, err := resolver.IDToPath(ctx, secondID)
-				assert.NoError(t, err)
-			}
+			_, err = resolver.IDToPath(ctx, secondID)
+			require.NoError(t, err)
+			// Test clean up
 			baseID, ok := resolver.PathInCache(folderName)
 			require.True(t, ok)
 			err = test.deleteFunc(ctx, connector, user, baseID)

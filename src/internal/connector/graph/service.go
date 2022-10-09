@@ -67,5 +67,5 @@ type ContainerResolver interface {
 	// by comparing the pathString representation to the paths of cachedContainers saved
 	PathInCache(pathString string) (string, bool)
 
-	AddToCache(m365Container Container) error
+	AddToCache(ctx context.Context, m365Container Container) error
 }

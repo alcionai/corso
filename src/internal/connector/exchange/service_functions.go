@@ -392,7 +392,10 @@ func maybeGetAndPopulateFolderResolver(
 	qp graph.QueryParams,
 	category path.CategoryType,
 ) (graph.ContainerResolver, error) {
-	var res graph.ContainerResolver
+	var (
+		res       graph.ContainerResolver
+		cacheRoot string
+	)
 
 	switch category {
 	case path.EmailCategory:
@@ -405,6 +408,7 @@ func maybeGetAndPopulateFolderResolver(
 			userID: qp.User,
 			gs:     service,
 		}
+		cacheRoot = rootFolderAlias
 
 	case path.ContactsCategory:
 		service, err := createService(qp.Credentials, qp.FailFast)
@@ -416,16 +420,13 @@ func maybeGetAndPopulateFolderResolver(
 			userID: qp.User,
 			gs:     service,
 		}
-
-		err = res.Populate(ctx, DefaultContactFolder)
-
-		return res, err
+		cacheRoot = DefaultContactFolder
 
 	default:
 		return nil, nil
 	}
 
-	if err := res.Populate(ctx, rootFolderAlias); err != nil {
+	if err := res.Populate(ctx, cacheRoot); err != nil {
 		return nil, errors.Wrap(err, "populating directory resolver")
 	}
 
