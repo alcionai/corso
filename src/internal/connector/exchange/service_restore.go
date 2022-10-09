@@ -427,8 +427,6 @@ func GetContainerIDFromCache(
 	pathCounter map[string]bool,
 ) (string, error) {
 	var (
-		// Start with the root folder so we can create our top-level folder with
-		// the same tactic.
 		newCache          bool
 		user              = directory.ResourceOwner()
 		category          = directory.Category()
