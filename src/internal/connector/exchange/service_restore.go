@@ -429,7 +429,7 @@ func GetContainerIDFromCache(
 	var (
 		// Start with the root folder so we can create our top-level folder with
 		// the same tactic.
-		newCache          = make(map[path.CategoryType]bool)
+		newCache          bool
 		user              = directory.ResourceOwner()
 		category          = directory.Category()
 		directoryCache    = caches[category]
@@ -450,12 +450,9 @@ func GetContainerIDFromCache(
 			}
 
 			caches[category] = mfc
-			newCache[category] = true
+			newCache = true
 			directoryCache = mfc
 		}
-
-		isEnabled := newCache[category]
-		newCache[category] = false
 
 		return establishMailRestoreLocation(
 			ctx,
@@ -463,7 +460,7 @@ func GetContainerIDFromCache(
 			directoryCache,
 			user,
 			gs,
-			isEnabled)
+			newCache)
 	case path.ContactsCategory:
 		if directoryCache == nil {
 			cfc := &contactFolderCache{
@@ -471,12 +468,9 @@ func GetContainerIDFromCache(
 				gs:     gs,
 			}
 			caches[category] = cfc
-			newCache[category] = true
+			newCache = true
 			directoryCache = cfc
 		}
-
-		isEnabled := newCache[category]
-		newCache[category] = false
 
 		return establishContactsRestoreLocation(
 			ctx,
@@ -484,7 +478,7 @@ func GetContainerIDFromCache(
 			directoryCache,
 			user,
 			gs,
-			isEnabled)
+			newCache)
 	case path.EventsCategory:
 		return "", nil
 	default:
