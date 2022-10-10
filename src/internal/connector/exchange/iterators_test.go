@@ -82,6 +82,12 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				"Sent Items":      {},
 			},
 		}, {
+			name:              "Contacts Iterative Check",
+			queryFunction:     GetAllContactFolderNamesForUser,
+			iterativeFunction: IterateSelectAllContactsForCollections,
+			scope:             contactScope[0],
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+		}, {
 			name:              "Contact Folder Traversal",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateSelectAllContactsForCollections,

@@ -5,6 +5,7 @@
 /build
 
 # Generated files
+docs/cli
 .docusaurus
 .cache-loader
 .vscode

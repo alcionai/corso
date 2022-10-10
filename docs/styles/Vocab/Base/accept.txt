@@ -6,3 +6,4 @@ datetime
 (?i)OneDrive
 [Rr]epo
 env
+src

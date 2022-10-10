@@ -28,21 +28,21 @@ type Service interface {
 	ErrPolicy() bool
 }
 
-// descendable represents objects that implement msgraph-sdk-go/models.entityable
+// Descendable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a "parent folder".
 type Descendable interface {
 	GetId() *string
 	GetParentFolderId() *string
 }
 
-// displayable represents objects that implement msgraph-sdk-fo/models.entityable
+// Displayable represents objects that implement msgraph-sdk-fo/models.entityable
 // and have the concept of a display name.
 type Displayable interface {
 	GetId() *string
 	GetDisplayName() *string
 }
 
-// container is an interface that implements both the descendable and displayble interface.
+// Container is an interface that implements both the descendable and displayble interface.
 type Container interface {
 	Descendable
 	Displayable

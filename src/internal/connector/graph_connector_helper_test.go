@@ -628,6 +628,7 @@ func checkHasCollections(
 	assert.ElementsMatch(t, expectedNames, gotNames)
 }
 
+//nolint:deadcode
 func checkCollections(
 	t *testing.T,
 	expectedItems int,
@@ -660,6 +661,7 @@ func checkCollections(
 	assert.Equal(t, expectedItems, gotItems, "expected items")
 }
 
+//nolint:deadcode
 func collectionsForInfo(
 	t *testing.T,
 	service path.ServiceType,
@@ -716,6 +718,7 @@ func collectionsForInfo(
 	return totalItems, collections, expectedData
 }
 
+//nolint:deadcode
 func getSelectorWith(service path.ServiceType) selectors.Selector {
 	s := selectors.ServiceUnknown
 

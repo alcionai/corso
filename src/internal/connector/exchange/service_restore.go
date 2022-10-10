@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/trace"
-	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -19,55 +18,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
-
-// GetRestoreContainer utility function to create
-//  an unique folder for the restore process
-// @param category: input from fullPath()[2]
-// that defines the application the folder is created in.
-func GetRestoreContainer(
-	ctx context.Context,
-	service graph.Service,
-	user string,
-	category path.CategoryType,
-	name string,
-) (string, error) {
-	option := categoryToOptionIdentifier(category)
-
-	folderID, err := GetContainerID(ctx, service, name, user, option)
-	if err == nil {
-		return *folderID, nil
-	}
-	// Experienced error other than folder does not exist
-	if !errors.Is(err, ErrFolderNotFound) {
-		return "", support.WrapAndAppend(user+": lookup failue during GetContainerID", err, err)
-	}
-
-	switch option {
-	case messages:
-		fold, err := CreateMailFolder(ctx, service, user, name)
-		if err != nil {
-			return "", support.WrapAndAppend(fmt.Sprintf("creating folder %s for user %s", name, user), err, err)
-		}
-
-		return *fold.GetId(), nil
-	case contacts:
-		fold, err := CreateContactFolder(ctx, service, user, name)
-		if err != nil {
-			return "", support.WrapAndAppend(user+"failure during CreateContactFolder during restore Contact", err, err)
-		}
-
-		return *fold.GetId(), nil
-	case events:
-		calendar, err := CreateCalendar(ctx, service, user, name)
-		if err != nil {
-			return "", support.WrapAndAppend(user+"failure during CreateCalendar during restore Event", err, err)
-		}
-
-		return *calendar.GetId(), nil
-	default:
-		return "", fmt.Errorf("category: %s not supported for folder creation: GetRestoreContainer", option)
-	}
-}
 
 // RestoreExchangeObject directs restore pipeline towards restore function
 // based on the path.CategoryType. All input params are necessary to perform
@@ -295,7 +245,7 @@ func RestoreExchangeDataCollections(
 	var (
 		pathCounter = map[string]bool{}
 		// map of caches... but not yet...
-		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
+		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerResolver)
 		metrics         support.CollectionMetrics
 		errs            error
 		// TODO policy to be updated from external source after completion of refactoring
@@ -307,18 +257,26 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
+		userID := dc.FullPath().ResourceOwner()
+		userCaches := directoryCaches[userID]
+		if userCaches == nil {
+			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerResolver)
+			userCaches = directoryCaches[userID]
+		}
+
 		containerID, err := GetContainerIDFromCache(
 			ctx,
 			gs,
 			dc.FullPath(),
 			dest.ContainerName,
-			directoryCaches, pathCounter)
+			userCaches,
+			pathCounter)
 		if err != nil {
 			errs = support.WrapAndAppend(dc.FullPath().ShortRef(), err, errs)
 			continue
 		}
 
-		temp, canceled := restoreCollection(ctx, gs, dc, containerID, pathCounter, policy, deets, errUpdater)
+		temp, canceled := restoreCollection(ctx, gs, dc, containerID, policy, deets, errUpdater)
 
 		metrics.Combine(temp)
 
@@ -343,7 +301,6 @@ func restoreCollection(
 	gs graph.Service,
 	dc data.Collection,
 	folderID string,
-	pathCounter map[string]bool,
 	policy control.CollisionPolicy,
 	deets *details.Details,
 	errUpdater func(string, error),
@@ -427,19 +384,15 @@ func GetContainerIDFromCache(
 	pathCounter map[string]bool,
 ) (string, error) {
 	var (
-		// Start with the root folder so we can create our top-level folder with
-		// the same tactic.
 		newCache          bool
 		user              = directory.ResourceOwner()
 		category          = directory.Category()
 		directoryCache    = caches[category]
 		newPathFolders    = append([]string{destination}, directory.Folders()...)
-		restoreFolderPath = strings.Join(newPathFolders, "/")
+		restoreFolderPath = path.Builder{}.Append(newPathFolders...).String()
 	)
 
-	if _, ok := pathCounter[restoreFolderPath]; !ok {
-		pathCounter[restoreFolderPath] = true
-	}
+	pathCounter[restoreFolderPath] = true
 
 	switch category {
 	case path.EmailCategory:
@@ -480,7 +433,14 @@ func GetContainerIDFromCache(
 			gs,
 			newCache)
 	case path.EventsCategory:
-		return "", nil
+		return establishEventsRestoreLocation(
+			ctx,
+			newPathFolders,
+			nil,
+			user,
+			gs,
+			newCache,
+		)
 	default:
 		return "", fmt.Errorf("category: %s not support for exchange cache", category)
 	}
@@ -499,11 +459,14 @@ func establishMailRestoreLocation(
 	service graph.Service,
 	isNewCache bool,
 ) (string, error) {
+	// Process starts with the root folder in order to recreate
+	// the top-level folder with the same tactic
 	folderID := rootFolderAlias
+	pb := path.Builder{}
 
-	for i, folder := range folders {
-		lookup := pathElementStringBuilder(i+1, folders)
-		cached, ok := mfc.PathInCache(lookup)
+	for _, folder := range folders {
+		pb = *pb.Append(folder)
+		cached, ok := mfc.PathInCache(pb.String())
 
 		if ok {
 			folderID = cached
@@ -574,6 +537,25 @@ func establishContactsRestoreLocation(
 			return "", errors.Wrap(err, "adding contact folder to cache")
 		}
 	}
+
+	return folderID, nil
+}
+
+func establishEventsRestoreLocation(
+	ctx context.Context,
+	folders []string,
+	cfc graph.ContainerResolver,
+	user string,
+	gs graph.Service,
+	isNewCache bool,
+) (string, error) {
+	//TODO PR required to finish
+	temp, err := CreateCalendar(ctx, gs, user, folders[0])
+	if err != nil {
+		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	folderID := *temp.GetId()
 
 	return folderID, nil
 }
