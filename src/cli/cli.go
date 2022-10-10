@@ -19,10 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var (
-	version = "dev"
-	commit  = "none"
-)
+var version = "dev"
 
 // ------------------------------------------------------------------------------------------
 // Corso Command
@@ -43,7 +40,7 @@ var corsoCmd = &cobra.Command{
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	v, _ := cmd.Flags().GetBool("version")
 	if v {
-		print.Infof(cmd.Context(), "Corso\nversion: "+version+"\ncommit:  "+commit)
+		print.Infof(cmd.Context(), "Corso\nversion: "+version)
 		return nil
 	}
 
