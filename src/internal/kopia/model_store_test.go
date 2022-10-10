@@ -45,8 +45,11 @@ func TestModelStoreUnitSuite(t *testing.T) {
 
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
+		ctx, flush := tester.NewContext()
+		defer flush()
+
 		m := &ModelStore{}
-		m.Close(context.Background())
+		m.Close(ctx)
 	})
 }
 
@@ -55,8 +58,9 @@ func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 // ---------------
 type ModelStoreIntegrationSuite struct {
 	suite.Suite
-	ctx context.Context
-	m   *ModelStore
+	ctx   context.Context
+	m     *ModelStore
+	flush func()
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
@@ -76,11 +80,12 @@ func (suite *ModelStoreIntegrationSuite) SetupSuite() {
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
-	suite.ctx = context.Background()
+	suite.ctx, suite.flush = tester.NewContext()
 	suite.m = getModelStore(suite.T(), suite.ctx)
 }
 
 func (suite *ModelStoreIntegrationSuite) TearDownTest() {
+	defer suite.flush()
 	assert.NoError(suite.T(), suite.m.Close(suite.ctx))
 }
 
@@ -584,7 +589,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			theModelType := model.BackupOpSchema
 
 			m := getModelStore(t, ctx)
@@ -657,7 +664,8 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
 			m := getModelStore(t, ctx)
 			defer func() {
@@ -726,7 +734,9 @@ func (suite *ModelStoreRegressionSuite) SetupSuite() {
 // Tests that if we get an error or crash while in the middle of an Update no
 // results will be visible to higher layers.
 func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEffect() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	m := getModelStore(t, ctx)
@@ -823,7 +833,9 @@ func reconnectToModelStore(
 // Ensures there's no shared configuration state between different instances of
 // the ModelStore (and consequently the underlying kopia instances).
 func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	numEntries := 10
 	deets := details.DetailsModel{

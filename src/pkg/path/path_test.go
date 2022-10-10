@@ -414,6 +414,18 @@ func (suite *PathUnitSuite) TestShortRefIsUnique() {
 	assert.NotEqual(suite.T(), pb1.ShortRef(), pb2.ShortRef())
 }
 
+// TestShortRefUniqueWithEscaping tests that two paths that output the same
+// unescaped string but different escaped strings have different shortrefs. This
+// situation can occur when one path has embedded path separators while the
+// other does not but contains the same characters.
+func (suite *PathUnitSuite) TestShortRefUniqueWithEscaping() {
+	pb1 := Builder{}.Append(`this`, `is`, `a`, `path`)
+	pb2 := Builder{}.Append(`this`, `is/a`, `path`)
+
+	require.NotEqual(suite.T(), pb1, pb2)
+	assert.NotEqual(suite.T(), pb1.ShortRef(), pb2.ShortRef())
+}
+
 func (suite *PathUnitSuite) TestFromStringErrors() {
 	table := []struct {
 		name        string

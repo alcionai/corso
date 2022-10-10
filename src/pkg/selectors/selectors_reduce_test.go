@@ -1,7 +1,6 @@
 package selectors_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -23,7 +23,9 @@ func TestSelectorReduceSuite(t *testing.T) {
 }
 
 func (suite *SelectorReduceSuite) TestReduce() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	allDetails := testdata.GetDetailsSet()
 	table := []struct {
 		name     string

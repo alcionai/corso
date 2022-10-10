@@ -1,13 +1,13 @@
 package selectors
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -246,9 +246,12 @@ func (suite *SelectorScopesSuite) TestReduce() {
 
 	for _, test := range reduceTestTable {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			ds := deets()
 			result := reduce[mockScope](
-				context.Background(),
+				ctx,
 				&ds,
 				test.sel().Selector,
 				dataCats)
