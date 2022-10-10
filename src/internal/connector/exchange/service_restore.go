@@ -245,7 +245,7 @@ func RestoreExchangeDataCollections(
 	var (
 		pathCounter = map[string]bool{}
 		// map of caches... but not yet...
-		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
+		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerResolver)
 		metrics         support.CollectionMetrics
 		errs            error
 		// TODO policy to be updated from external source after completion of refactoring
@@ -257,12 +257,20 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
+		userID := dc.FullPath().ResourceOwner()
+		userCaches := directoryCaches[userID]
+		if userCaches == nil {
+			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerResolver)
+			userCaches = directoryCaches[userID]
+		}
+
 		containerID, err := GetContainerIDFromCache(
 			ctx,
 			gs,
 			dc.FullPath(),
 			dest.ContainerName,
-			directoryCaches, pathCounter)
+			userCaches,
+			pathCounter)
 		if err != nil {
 			errs = support.WrapAndAppend(dc.FullPath().ShortRef(), err, errs)
 			continue
