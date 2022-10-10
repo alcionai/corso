@@ -428,7 +428,14 @@ func GetContainerIDFromCache(
 			gs,
 			newCache)
 	case path.EventsCategory:
-		return "", nil
+		return establishEventsRestoreLocation(
+			ctx,
+			newPathFolders,
+			nil,
+			user,
+			gs,
+			newCache,
+		)
 	default:
 		return "", fmt.Errorf("category: %s not support for exchange cache", category)
 	}
@@ -523,6 +530,25 @@ func establishContactsRestoreLocation(
 			return "", errors.Wrap(err, "adding contact folder to cache")
 		}
 	}
+
+	return folderID, nil
+}
+
+func establishEventsRestoreLocation(
+	ctx context.Context,
+	folders []string,
+	cfc graph.ContainerResolver,
+	user string,
+	gs graph.Service,
+	isNewCache bool,
+) (string, error) {
+	//TODO PR required to finish
+	temp, err := CreateCalendar(ctx, gs, user, folders[0])
+	if err != nil {
+		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	folderID := *temp.GetId()
 
 	return folderID, nil
 }
