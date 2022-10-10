@@ -55,6 +55,12 @@ func JSONFormat() bool {
 	return outputAsJSON || outputAsJSONDebug
 }
 
+// StderrWriter returns the stderr writer used in the root
+// cmd.  Returns nil if no root command is seeded.
+func StderrWriter(ctx context.Context) io.Writer {
+	return getRootCmd(ctx).ErrOrStderr()
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Helper funcs
 // ---------------------------------------------------------------------------------------------------------
