@@ -60,6 +60,9 @@ func (ecc *eventCalendarCache) populateEventRoot(
 	return nil
 }
 
+// Populate utility function for populating eventCalendarCache.
+// Executes 1 additional Graph Query
+// @param baseID: M365ID of the base exchange.Calendar
 func (ecc *eventCalendarCache) Populate(
 	ctx context.Context,
 	baseID string,
@@ -110,7 +113,7 @@ func (ecc *eventCalendarCache) Populate(
 	}
 
 	for _, containerr := range directories {
-		if err := ecc.AddToCache(containerr); err != nil {
+		if err := ecc.AddToCache(ctx, containerr); err != nil {
 			iterateErr = support.WrapAndAppend(
 				"failure adding "+*containerr.GetDisplayName(),
 				err,
@@ -165,7 +168,7 @@ func (ecc *eventCalendarCache) IDToPath(
 // AddToCache places container into internal cache field. For EventCalendars
 // this means that the object has to be transformed prior to calling
 // this function.
-func (ecc *eventCalendarCache) AddToCache(f graph.Container) error {
+func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkRequiredValues(f); err != nil {
 		return err
 	}
@@ -176,6 +179,11 @@ func (ecc *eventCalendarCache) AddToCache(f graph.Container) error {
 
 	ecc.cache[*f.GetId()] = &eventCalendar{
 		Container: f,
+	}
+
+	_, err := ecc.IDToPath(ctx, *f.GetId())
+	if err != nil {
+		return errors.Wrap(err, "adding event cache entry")
 	}
 
 	return nil
