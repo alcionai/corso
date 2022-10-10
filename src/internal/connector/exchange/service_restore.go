@@ -20,55 +20,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// GetRestoreContainer utility function to create
-//  an unique folder for the restore process
-// @param category: input from fullPath()[2]
-// that defines the application the folder is created in.
-func GetRestoreContainer(
-	ctx context.Context,
-	service graph.Service,
-	user string,
-	category path.CategoryType,
-	name string,
-) (string, error) {
-	option := categoryToOptionIdentifier(category)
-
-	folderID, err := GetContainerID(ctx, service, name, user, option)
-	if err == nil {
-		return *folderID, nil
-	}
-	// Experienced error other than folder does not exist
-	if !errors.Is(err, ErrFolderNotFound) {
-		return "", support.WrapAndAppend(user+": lookup failue during GetContainerID", err, err)
-	}
-
-	switch option {
-	case messages:
-		fold, err := CreateMailFolder(ctx, service, user, name)
-		if err != nil {
-			return "", support.WrapAndAppend(fmt.Sprintf("creating folder %s for user %s", name, user), err, err)
-		}
-
-		return *fold.GetId(), nil
-	case contacts:
-		fold, err := CreateContactFolder(ctx, service, user, name)
-		if err != nil {
-			return "", support.WrapAndAppend(user+"failure during CreateContactFolder during restore Contact", err, err)
-		}
-
-		return *fold.GetId(), nil
-	case events:
-		calendar, err := CreateCalendar(ctx, service, user, name)
-		if err != nil {
-			return "", support.WrapAndAppend(user+"failure during CreateCalendar during restore Event", err, err)
-		}
-
-		return *calendar.GetId(), nil
-	default:
-		return "", fmt.Errorf("category: %s not supported for folder creation: GetRestoreContainer", option)
-	}
-}
-
 // RestoreExchangeObject directs restore pipeline towards restore function
 // based on the path.CategoryType. All input params are necessary to perform
 // the type-specific restore function.
@@ -318,7 +269,7 @@ func RestoreExchangeDataCollections(
 			continue
 		}
 
-		temp, canceled := restoreCollection(ctx, gs, dc, containerID, pathCounter, policy, deets, errUpdater)
+		temp, canceled := restoreCollection(ctx, gs, dc, containerID, policy, deets, errUpdater)
 
 		metrics.Combine(temp)
 
@@ -343,7 +294,6 @@ func restoreCollection(
 	gs graph.Service,
 	dc data.Collection,
 	folderID string,
-	pathCounter map[string]bool,
 	policy control.CollisionPolicy,
 	deets *details.Details,
 	errUpdater func(string, error),
