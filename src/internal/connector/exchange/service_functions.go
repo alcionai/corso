@@ -393,17 +393,17 @@ func maybeGetAndPopulateFolderResolver(
 	category path.CategoryType,
 ) (graph.ContainerResolver, error) {
 	var (
-		res       graph.ContainerResolver
-		cacheRoot string
+		res          graph.ContainerResolver
+		cacheRoot    string
+		service, err = createService(qp.Credentials, qp.FailFast)
 	)
+
+	if err != nil {
+		return nil, err
+	}
 
 	switch category {
 	case path.EmailCategory:
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			return nil, err
-		}
-
 		res = &mailFolderCache{
 			userID: qp.User,
 			gs:     service,
@@ -411,16 +411,18 @@ func maybeGetAndPopulateFolderResolver(
 		cacheRoot = rootFolderAlias
 
 	case path.ContactsCategory:
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			return nil, err
-		}
-
 		res = &contactFolderCache{
 			userID: qp.User,
 			gs:     service,
 		}
 		cacheRoot = DefaultContactFolder
+
+	case path.EventsCategory:
+		res = &eventCalendarCache{
+			userID: qp.User,
+			gs:     service,
+		}
+		cacheRoot = DefaultCalendar
 
 	default:
 		return nil, nil
