@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/trace"
-	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -382,12 +381,10 @@ func GetContainerIDFromCache(
 		category          = directory.Category()
 		directoryCache    = caches[category]
 		newPathFolders    = append([]string{destination}, directory.Folders()...)
-		restoreFolderPath = strings.Join(newPathFolders, "/")
+		restoreFolderPath = path.Builder{}.Append(newPathFolders...).String()
 	)
 
-	if _, ok := pathCounter[restoreFolderPath]; !ok {
-		pathCounter[restoreFolderPath] = true
-	}
+	pathCounter[restoreFolderPath] = true
 
 	switch category {
 	case path.EmailCategory:
