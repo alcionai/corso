@@ -1,6 +1,10 @@
 package exchange
 
 import (
+<<<<<<< HEAD
+=======
+	"context"
+>>>>>>> 1340348 (Testing added for contact_folder_cache.go)
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,10 +49,15 @@ func TestContactFolderCacheIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(ContactFolderCacheIntegrationSuite))
 }
 
+<<<<<<< HEAD
 func (suite *ContactFolderCacheIntegrationSuite) TestPopulate() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+=======
+func (suite *ContactFolderCacheIntegrationSuite) TestDeltaFetch() {
+	ctx := context.Background()
+>>>>>>> 1340348 (Testing added for contact_folder_cache.go)
 	cfc := contactFolderCache{
 		userID: tester.M365UserID(suite.T()),
 		gs:     suite.gs,
