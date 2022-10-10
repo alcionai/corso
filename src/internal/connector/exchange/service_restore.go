@@ -498,10 +498,11 @@ func establishMailRestoreLocation(
 	isNewCache bool,
 ) (string, error) {
 	folderID := rootFolderAlias
+	pb := path.Builder{}
 
-	for i, folder := range folders {
-		lookup := pathElementStringBuilder(i+1, folders)
-		cached, ok := mfc.PathInCache(lookup)
+	for _, folder := range folders {
+		pb = *pb.Append(folder)
+		cached, ok := mfc.PathInCache(pb.String())
 
 		if ok {
 			folderID = cached

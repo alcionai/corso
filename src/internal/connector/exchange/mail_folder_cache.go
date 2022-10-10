@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
@@ -256,16 +255,4 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 	}
 
 	return "", false
-}
-
-// pathElementStringBuilder helper function for returning
-// a string separated with '/' based on the index.
-// Returns full slice separated w/ '/' if index is Greather Than or Equal
-// to the length of the slice.
-func pathElementStringBuilder(index int, slice []string) string {
-	if index >= len(slice) {
-		return strings.Join(slice, "/")
-	}
-
-	return strings.Join(slice[:index], "/")
 }
