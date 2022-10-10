@@ -207,7 +207,7 @@ func (suite *ConfiguredMailFolderCacheUnitSuite) SetupTest() {
 		)
 	}
 
-	suite.mc = mailFolderCache{cache: map[string]cachedContainer{}}
+	suite.mc = mailFolderCache{cache: map[string]graph.CachedContainer{}}
 
 	for _, c := range suite.allContainers {
 		suite.mc.cache[c.id] = c

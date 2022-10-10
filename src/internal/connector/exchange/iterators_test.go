@@ -38,7 +38,7 @@ func (suite *ExchangeIteratorSuite) TestDisplayable() {
 	contact, err := support.CreateContactFromBytes(bytes)
 	require.NoError(t, err)
 
-	aDisplayable, ok := contact.(displayable)
+	aDisplayable, ok := contact.(graph.Displayable)
 	assert.True(t, ok)
 	assert.NotNil(t, aDisplayable.GetId())
 	assert.NotNil(t, aDisplayable.GetDisplayName())
@@ -50,7 +50,7 @@ func (suite *ExchangeIteratorSuite) TestDescendable() {
 	message, err := support.CreateMessageFromBytes(bytes)
 	require.NoError(t, err)
 
-	aDescendable, ok := message.(descendable)
+	aDescendable, ok := message.(graph.Descendable)
 	assert.True(t, ok)
 	assert.NotNil(t, aDescendable.GetId())
 	assert.NotNil(t, aDescendable.GetParentFolderId())

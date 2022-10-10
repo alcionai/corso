@@ -11,20 +11,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ cachedContainer = &mailFolder{}
+var _ graph.CachedContainer = &mailFolder{}
 
-// cachedContainer is used for local unit tests but also makes it so that this
-// code can be broken into generic- and service-specific chunks later on to
-// reuse logic in IDToPath.
-type cachedContainer interface {
-	container
-	Path() *path.Builder
-	SetPath(*path.Builder)
-}
-
-// mailFolder structure that implements the cachedContainer interface
+// mailFolder structure that implements the graph.CachedContainer interface
 type mailFolder struct {
-	folder container
+	folder graph.Container
 	p      *path.Builder
 }
 
@@ -58,7 +49,7 @@ func (mf *mailFolder) GetParentFolderId() *string {
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	cache          map[string]cachedContainer
+	cache          map[string]graph.CachedContainer
 	gs             graph.Service
 	userID, rootID string
 }
@@ -106,7 +97,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context, directoryID str
 
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
-func checkRequiredValues(c container) error {
+func checkRequiredValues(c graph.Container) error {
 	idPtr := c.GetId()
 	if idPtr == nil || len(*idPtr) == 0 {
 		return errors.New("folder without ID")
@@ -211,7 +202,7 @@ func (mc *mailFolderCache) IDToPath(
 // [mc.cache, mc.rootID]
 func (mc *mailFolderCache) Init(ctx context.Context, baseNode string) error {
 	if mc.cache == nil {
-		mc.cache = map[string]cachedContainer{}
+		mc.cache = map[string]graph.CachedContainer{}
 	}
 
 	return mc.populateMailRoot(ctx, baseNode)

@@ -28,6 +28,34 @@ type Service interface {
 	ErrPolicy() bool
 }
 
+// Descendable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a "parent folder".
+type Descendable interface {
+	GetId() *string
+	GetParentFolderId() *string
+}
+
+// Displayable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a display name.
+type Displayable interface {
+	GetId() *string
+	GetDisplayName() *string
+}
+
+type Container interface {
+	Descendable
+	Displayable
+}
+
+// CachedContainer is used for local unit tests but also makes it so that this
+// code can be broken into generic- and service-specific chunks later on to
+// reuse logic in IDToPath.
+type CachedContainer interface {
+	Container
+	Path() *path.Builder
+	SetPath(*path.Builder)
+}
+
 // ContainerResolver houses functions for getting information about containers
 // from remote APIs (i.e. resolve folder paths with Graph API). Resolvers may
 // cache information about containers.

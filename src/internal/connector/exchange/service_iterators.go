@@ -68,9 +68,9 @@ func IterateSelectAllDescendablesForCollections(
 			isCategorySet = true
 		}
 
-		entry, ok := pageItem.(descendable)
+		entry, ok := pageItem.(graph.Descendable)
 		if !ok {
-			errUpdater(qp.User, errors.New("descendable conversion failure"))
+			errUpdater(qp.User, errors.New("Descendable conversion failure"))
 			return true
 		}
 
@@ -157,7 +157,7 @@ func IterateSelectAllEventsFromCalendars(
 
 		pageItem = CreateCalendarDisplayable(pageItem)
 
-		calendar, ok := pageItem.(displayable)
+		calendar, ok := pageItem.(graph.Displayable)
 		if !ok {
 			errUpdater(
 				qp.User,
@@ -228,9 +228,9 @@ func IterateAndFilterDescendablesForCollections(
 			isFilterSet = true
 		}
 
-		message, ok := descendItem.(descendable)
+		message, ok := descendItem.(graph.Descendable)
 		if !ok {
-			errUpdater(qp.User, errors.New("casting messageItem to descendable"))
+			errUpdater(qp.User, errors.New("casting messageItem to Descendable"))
 			return true
 		}
 		// Saving only messages for the created directories
@@ -349,7 +349,7 @@ func IterateFilterContainersForCollections(
 			folderItem = CreateCalendarDisplayable(folderItem)
 		}
 
-		folder, ok := folderItem.(displayable)
+		folder, ok := folderItem.(graph.Displayable)
 		if !ok {
 			errUpdater(qp.User,
 				fmt.Errorf("unable to convert input of %T for category: %s", folderItem, category.String()),
@@ -520,7 +520,7 @@ func IterateSelectAllContactsForCollections(
 // iterateFindContainerID is a utility function that supports finding
 // M365 folders objects that matches the folderName. Iterator callback function
 // will work on folderCollection responses whose objects implement
-// the displayable interface. If folder exists, the function updates the
+// the Displayable interface. If folder exists, the function updates the
 // containerID memory address that was passed in.
 // @param containerName is the string representation of the folder, directory or calendar holds
 // the underlying M365 objects
@@ -536,16 +536,16 @@ func iterateFindContainerID(
 		}
 
 		// True when pagination needs more time to get additional responses or
-		// when entry is not able to be converted into a displayable
+		// when entry is not able to be converted into a Displayable
 		if entry == nil {
 			return true
 		}
 
-		folder, ok := entry.(displayable)
+		folder, ok := entry.(graph.Displayable)
 		if !ok {
 			errUpdater(
 				errorIdentifier,
-				errors.New("struct does not implement displayable"),
+				errors.New("struct does not implement Displayable"),
 			)
 
 			return true
