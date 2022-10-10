@@ -263,6 +263,7 @@ func RestoreExchangeDataCollections(
 
 	for _, dc := range dcs {
 		userID := dc.FullPath().ResourceOwner()
+
 		userCaches := directoryCaches[userID]
 		if userCaches == nil {
 			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerResolver)
