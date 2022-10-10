@@ -108,10 +108,10 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			},
 		}, {
 			name:              "Contacts Iterative Check",
-			queryFunction:     GetAllContactsForUser,
-			iterativeFunction: IterateSelectAllDescendablesForCollections,
+			queryFunction:     GetAllContactFolderNamesForUser,
+			iterativeFunction: IterateSelectAllContactsForCollections,
 			scope:             contactScope[0],
-			transformer:       models.CreateContactFromDiscriminatorValue,
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Contact Folder Traversal",
 			queryFunction:     GetAllContactFolderNamesForUser,
