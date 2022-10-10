@@ -1,6 +1,8 @@
 name: Build/Release Corso
 on:
   workflow_dispatch: # TODO(meain): post-merge: verify manual dispatch
+  pull_request:
+    branches: [ main ]
   push:
     branches: [ main ]
     tags: [ 'v*.*.*' ]
