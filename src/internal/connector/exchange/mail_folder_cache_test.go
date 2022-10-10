@@ -342,6 +342,9 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 
 			expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
 			assert.Equal(t, expectedPath, p.String())
+			identifier, ok := mfc.PathInCache(p.String())
+			assert.True(t, ok)
+			assert.Greater(t, len(identifier), 7)
 		})
 	}
 }
