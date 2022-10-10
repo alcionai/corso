@@ -1,7 +1,6 @@
 package common_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +11,6 @@ import (
 
 type CommonBucketsSuite struct {
 	suite.Suite
-	ctx context.Context
 }
 
 func TestCommonBucketsSuite(t *testing.T) {

@@ -260,7 +260,9 @@ func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 // TestGraphQueryFunctions verifies if Query functions APIs
 // through Microsoft Graph are functional
 func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	userID := tester.M365UserID(suite.T())
 	tests := []struct {
 		name     string
@@ -309,7 +311,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 // at the top level of the file tree
 func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	userID := tester.M365UserID(suite.T())
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
+
 	tests := []struct {
 		name          string
 		containerName string
@@ -370,14 +375,16 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 
 //==========================
 // Restore Functions
-//======================
+//==========================
 
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t          = suite.T()
-		ctx        = context.Background()
 		userID     = tester.M365UserID(t)
 		now        = time.Now()
 		folderName = "TestRestoreContact: " + common.FormatSimpleDateTime(now)
@@ -394,7 +401,7 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 		assert.NoError(t, err)
 	}()
 
-	info, err := RestoreExchangeContact(context.Background(),
+	info, err := RestoreExchangeContact(ctx,
 		mockconnector.GetMockContactBytes("Corso TestContact"),
 		suite.es,
 		control.Copy,
@@ -407,9 +414,11 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t      = suite.T()
-		ctx    = context.Background()
 		userID = tester.M365UserID(t)
 		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	)
@@ -425,7 +434,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 		assert.NoError(t, err)
 	}()
 
-	info, err := RestoreExchangeEvent(context.Background(),
+	info, err := RestoreExchangeEvent(ctx,
 		mockconnector.GetMockEventWithAttendeesBytes(name),
 		suite.es,
 		control.Copy,
@@ -438,7 +447,9 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // TestGetRestoreContainer checks the ability to Create a "container" for the
 // GraphConnector's Restore Workflow based on OptionIdentifier.
 func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	dest := tester.DefaultTestRestoreDestination()
 	tests := []struct {
 		name        string
@@ -498,7 +509,9 @@ func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
 
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	userID := tester.M365UserID(t)
 	now := time.Now()
