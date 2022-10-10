@@ -18,18 +18,16 @@ To do this, you can run the following command:
 ```bash
 $ docker run -e CORSO_PASSPHRASE \
     --env-file ~/.corso/corso.env \
-    -v ~/.corso/config:/app/config \
-    -v ~/.corso/logs:/app/logs corso/corso:latest \
+    -v ~/.corso:/app/corso corso/corso:<release tag> \
     backup create exchange --user <your exchange email address>
+
+  Started At            ID                                    Status                Selectors
+  2022-10-10T19:46:43Z  41e93db7-650d-44ce-b721-ae2e8071c728  Completed (0 errors)  alice@example.com
 ```
 
 :::note
 Your first backup may take some time if your mailbox is large.
 :::
-
-<!-- vale proselint.Annotations = NO -->
-**TODO:** Update ^^^ after the finalization of Corso output from operations.
-<!-- vale proselint.Annotations = YES -->
 
 ## Restore an email
 
@@ -40,21 +38,20 @@ You can see all Exchange backups available with the following command:
 ```bash
 $ docker run -e CORSO_PASSPHRASE \
     --env-file ~/.corso/corso.env \
-    -v ~/.corso/config:/app/config \
-    -v ~/.corso/logs:/app/logs corso/corso:latest \
-    backup list exchange --user <your exchange email address>
+    -v ~/.corso:/app/corso corso/corso:<release tag> \
+    backup list exchange 
+
+  Started At            ID                                    Status                Selectors
+  2022-09-09T42:27:16Z  72d12ef6-420a-15bd-c862-fd7c9023a014  Completed (0 errors)  alice@example.com
+  2022-10-10T19:46:43Z  41e93db7-650d-44ce-b721-ae2e8071c728  Completed (0 errors)  alice@example.com
 ```
-<!-- vale proselint.Annotations = NO -->
-**TODO:** Update ^^^ after the finalization of Corso output from operations.
-<!-- vale proselint.Annotations = YES -->
 
 Select one of the available backups and search through its contents.
 
 ```bash
 $ docker run -e CORSO_PASSPHRASE \
     --env-file ~/.corso/corso.env \
-    -v ~/.corso/config:/app/config \
-    -v ~/.corso/logs:/app/logs corso/corso:latest \
+    -v ~/.corso:/app/corso corso/corso:<release tag> \
     backup details exchange \
     --backup <id of your selected backup> \
     --user <your exchange email address> \
@@ -69,8 +66,7 @@ When you are ready to restore, use the following command:
 ```bash
 $ docker run -e CORSO_PASSPHRASE \
     --env-file ~/.corso/corso.env \
-    -v ~/.corso/config:/app/config \
-    -v ~/.corso/logs:/app/logs corso/corso:latest \
+    -v ~/.corso:/app/corso corso/corso:<release tag> \
     backup details exchange \
     --backup <id of your selected backup> \
     --user <your exchange email address> \
