@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // StubRootCmd builds a stub cobra command to be used as
@@ -31,7 +32,12 @@ func StubRootCmd(args ...string) *cobra.Command {
 	return c
 }
 
-func NewContext() context.Context {
-	type stub struct{}
-	return context.WithValue(context.Background(), stub{}, stub{})
+func NewContext() (context.Context, func()) {
+	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
+	return ctx, func() { logger.Flush(ctx) }
+}
+
+func WithContext(ctx context.Context) (context.Context, func()) {
+	ctx, _ = logger.SeedLevel(ctx, logger.Development)
+	return ctx, func() { logger.Flush(ctx) }
 }

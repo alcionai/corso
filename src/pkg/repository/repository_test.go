@@ -1,7 +1,6 @@
 package repository_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,9 +45,12 @@ func (suite *RepositorySuite) TestInitialize() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			st, err := test.storage()
 			assert.NoError(t, err)
-			_, err = repository.Initialize(context.Background(), test.account, st, control.Options{})
+			_, err = repository.Initialize(ctx, test.account, st, control.Options{})
 			test.errCheck(t, err, "")
 		})
 	}
@@ -74,9 +76,12 @@ func (suite *RepositorySuite) TestConnect() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			st, err := test.storage()
 			assert.NoError(t, err)
-			_, err = repository.Connect(context.Background(), test.account, st, control.Options{})
+			_, err = repository.Connect(ctx, test.account, st, control.Options{})
 			test.errCheck(t, err)
 		})
 	}
@@ -110,7 +115,8 @@ func (suite *RepositoryIntegrationSuite) SetupSuite() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	table := []struct {
 		name     string
@@ -140,8 +146,10 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
@@ -155,8 +163,10 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestNewBackup() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	acct := tester.NewM365Account(t)
 
@@ -172,8 +182,10 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestNewRestore() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	acct := tester.NewM365Account(t)
 	dest := tester.DefaultTestRestoreDestination()

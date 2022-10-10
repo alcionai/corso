@@ -41,7 +41,9 @@ func TestWrapperUnitSuite(t *testing.T) {
 }
 
 func (suite *WrapperUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	k := conn{}
 
 	assert.NotPanics(suite.T(), func() {
@@ -73,8 +75,10 @@ func (suite *WrapperIntegrationSuite) SetupSuite() {
 }
 
 func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
@@ -88,8 +92,10 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 }
 
 func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	st := tester.NewPrefixedS3Storage(t)
 	st.Provider = storage.ProviderUnknown
@@ -99,8 +105,10 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 }
 
 func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
@@ -108,7 +116,9 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
@@ -119,7 +129,9 @@ func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
@@ -150,7 +162,9 @@ func (suite *WrapperIntegrationSuite) TestOpenAfterClose() {
 }
 
 func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
@@ -164,7 +178,9 @@ func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
 }
 
 func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
@@ -187,7 +203,9 @@ func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
 }
 
 func (suite *WrapperIntegrationSuite) TestSetCompressor() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	compressor := "pgzip"
 
@@ -280,7 +298,8 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
 			k, err := openKopiaRepo(t, ctx)
 			require.NoError(t, err)
@@ -309,7 +328,9 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 }
 
 func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)

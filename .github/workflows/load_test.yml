@@ -41,7 +41,7 @@ jobs:
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::951767375776:role/corso-testing-role
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
           aws-region: us-east-1
 
