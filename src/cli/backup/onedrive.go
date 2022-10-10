@@ -84,7 +84,11 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, _ = utils.AddCommand(parent, oneDriveListCmd())
+		c, fs = utils.AddCommand(parent, oneDriveListCmd())
+
+		fs.StringVar(&backupID,
+			"backup", "",
+			"ID of the backup to retrieve.")
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
@@ -245,6 +249,21 @@ func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	defer utils.CloseRepo(ctx, r)
+
+	if len(backupID) > 0 {
+		b, err := r.Backup(ctx, model.StableID(backupID))
+		if err != nil {
+			if errors.Is(err, kopia.ErrNotFound) {
+				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
+			}
+
+			return Only(ctx, errors.Wrap(err, "Failed to find backup "+backupID))
+		}
+
+		b.Print(ctx)
+
+		return nil
+	}
 
 	bs, err := r.Backups(ctx)
 	if err != nil {

@@ -253,6 +253,60 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
 	}
 }
 
+func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_singleID() {
+	recorder := strings.Builder{}
+
+	for _, set := range backupDataSets {
+		recorder.Reset()
+
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+			defer flush()
+
+			bID := suite.backupOps[set].Results.BackupID
+
+			cmd := tester.StubRootCmd(
+				"backup", "list", "exchange",
+				"--config-file", suite.cfgFP,
+				"--backup", string(bID))
+			cli.BuildCommandTree(cmd)
+
+			cmd.SetOut(&recorder)
+
+			ctx = print.SetRootCmd(ctx, cmd)
+
+			// run the command
+			require.NoError(t, cmd.ExecuteContext(ctx))
+
+			// compare the output
+			result := recorder.String()
+			assert.Contains(t, result, suite.backupOps[set].Results.BackupID)
+		})
+	}
+}
+
+func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_badID() {
+	for _, set := range backupDataSets {
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+			defer flush()
+
+			cmd := tester.StubRootCmd(
+				"backup", "list", "exchange",
+				"--config-file", suite.cfgFP,
+				"--backup", "smarfs")
+			cli.BuildCommandTree(cmd)
+
+			ctx = print.SetRootCmd(ctx, cmd)
+
+			// run the command
+			require.Error(t, cmd.ExecuteContext(ctx))
+		})
+	}
+}
+
 func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 	recorder := strings.Builder{}
 
