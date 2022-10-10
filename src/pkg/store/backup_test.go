@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -51,7 +51,8 @@ func TestStoreBackupUnitSuite(t *testing.T) {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetBackup() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	table := []struct {
 		name   string
@@ -83,7 +84,8 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetBackups() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	table := []struct {
 		name   string
@@ -116,7 +118,8 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 }
 
 func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	table := []struct {
 		name   string
@@ -144,7 +147,8 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetDetails() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	table := []struct {
 		name   string
@@ -176,7 +180,8 @@ func (suite *StoreBackupUnitSuite) TestGetDetails() {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetDetailsFromBackupID() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	table := []struct {
 		name   string

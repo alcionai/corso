@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/resty.v1"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -39,6 +40,8 @@ func driveItemReader(
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
+
+	logger.Ctx(ctx).Debugw("reading item", "name", *item.GetName(), "time", common.Now())
 
 	// Get the download URL - https://docs.microsoft.com/en-us/graph/api/driveitem-get-content
 	// These URLs are pre-authenticated and can be used to download the data using the standard

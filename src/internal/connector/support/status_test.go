@@ -1,13 +1,14 @@
 package support
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type GCStatusTestSuite struct {
@@ -51,8 +52,11 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			result := CreateStatus(
-				context.Background(),
+				ctx,
 				test.params.operationType,
 				test.params.folders,
 				CollectionMetrics{test.params.objects, test.params.success, 0},
@@ -69,8 +73,11 @@ func (suite *GCStatusTestSuite) TestCreateStatus_InvalidStatus() {
 	params := statusParams{Backup, 9, 3, 13, errors.New("invalidcl")}
 
 	require.Panics(t, func() {
+		ctx, flush := tester.NewContext()
+		defer flush()
+
 		CreateStatus(
-			context.Background(),
+			ctx,
 			params.operationType,
 			params.folders,
 			CollectionMetrics{
@@ -85,7 +92,9 @@ func (suite *GCStatusTestSuite) TestCreateStatus_InvalidStatus() {
 }
 
 func (suite *GCStatusTestSuite) TestMergeStatus() {
-	simpleContext := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	table := []struct {
 		name         string
 		one          ConnectorOperationStatus
@@ -95,7 +104,7 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 	}{
 		{
 			name:         "Test:  Status + unknown",
-			one:          *CreateStatus(simpleContext, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
+			one:          *CreateStatus(ctx, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
 			two:          ConnectorOperationStatus{},
 			expected:     statusParams{Backup, 1, 1, 1, nil},
 			isIncomplete: assert.False,
@@ -103,22 +112,22 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 		{
 			name:         "Test: unknown + Status",
 			one:          ConnectorOperationStatus{},
-			two:          *CreateStatus(simpleContext, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
+			two:          *CreateStatus(ctx, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
 			expected:     statusParams{Backup, 1, 1, 1, nil},
 			isIncomplete: assert.False,
 		},
 		{
 			name:         "Test: Successful + Successful",
-			one:          *CreateStatus(simpleContext, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
-			two:          *CreateStatus(simpleContext, Backup, 3, CollectionMetrics{3, 3, 0}, nil, ""),
+			one:          *CreateStatus(ctx, Backup, 1, CollectionMetrics{1, 1, 0}, nil, ""),
+			two:          *CreateStatus(ctx, Backup, 3, CollectionMetrics{3, 3, 0}, nil, ""),
 			expected:     statusParams{Backup, 4, 4, 4, nil},
 			isIncomplete: assert.False,
 		},
 		{
 			name: "Test: Successful + Unsuccessful",
-			one:  *CreateStatus(simpleContext, Backup, 13, CollectionMetrics{17, 17, 0}, nil, ""),
+			one:  *CreateStatus(ctx, Backup, 13, CollectionMetrics{17, 17, 0}, nil, ""),
 			two: *CreateStatus(
-				simpleContext,
+				ctx,
 				Backup,
 				8,
 				CollectionMetrics{

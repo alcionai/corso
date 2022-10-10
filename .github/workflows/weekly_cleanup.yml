@@ -11,15 +11,16 @@ permissions:
 jobs:
   S3-Test-Cleanup:
     runs-on: ubuntu-latest
+    environment: Testing
 
     steps:
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::951767375776:role/corso-testing-role
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
           aws-region: us-east-1
 
       - name: Delete all files in the test bucket
         run: |
-          aws s3 rm s3://test-corso-repo-init --recursive
+          aws s3 rm s3://${{ secrets.CI_TESTS_S3_BUCKET }} --recursive

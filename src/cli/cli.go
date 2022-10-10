@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -88,6 +89,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 func Handle() {
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
+	observe.SeedWriter(print.StderrWriter(ctx))
 
 	BuildCommandTree(corsoCmd)
 
