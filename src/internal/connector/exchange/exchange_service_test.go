@@ -679,6 +679,33 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 					return aPath
 				},
 			},
+			{
+				name:       "Event Cache Test",
+				category:   path.EventsCategory,
+				deleteFunc: DeleteCalendar,
+				pathFunc1: func() path.Path {
+					aPath, err := path.Builder{}.Append("Durmstrang").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.EventsCategory,
+							false,
+						)
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+				pathFunc2: func() path.Path {
+					aPath, err := path.Builder{}.Append("Beauxbatons").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.EventsCategory,
+							false,
+						)
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+			},
 		}
 	)
 
