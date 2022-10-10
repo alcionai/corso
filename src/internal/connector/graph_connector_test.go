@@ -45,7 +45,9 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 	suite.connector = loadConnector(ctx, suite.T())
@@ -61,7 +63,10 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 		Users:       make(map[string]string, 0),
 		credentials: suite.connector.credentials,
 	}
-	ctx := context.Background()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	service, err := newConnector.createService(false)
 	require.NoError(suite.T(), err)
 
@@ -80,7 +85,9 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 // - contacts
 // - events
 func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	connector := loadConnector(ctx, suite.T())
 	tests := []struct {
 		name        string
@@ -137,12 +144,14 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 // test account can be successfully downloaded into bytes and restored into
 // M365 mail objects
 func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
-	collection, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+	collection, err := connector.createCollections(ctx, sel.Scopes()[0])
 	require.NoError(t, err)
 
 	for _, edc := range collection {
@@ -170,7 +179,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression() {
-	connector := loadConnector(context.Background(), suite.T())
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	connector := loadConnector(ctx, suite.T())
 
 	tests := []struct {
 		name          string
@@ -181,7 +193,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
-				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -219,7 +231,10 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression() {
-	connector := loadConnector(context.Background(), suite.T())
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	connector := loadConnector(ctx, suite.T())
 
 	tests := []struct {
 		name, expected string
@@ -231,7 +246,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
-				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -243,7 +258,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}))
-				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -283,7 +298,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 // The final test insures that more than a 75% of the user collections are
 // returned. If an error was experienced, the test will fail overall
 func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
@@ -293,7 +310,7 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	for _, scope := range scopes {
 		users := scope.Get(selectors.ExchangeUser)
 		standard := (len(users) / 4) * 3
-		collections, err := connector.createCollections(context.Background(), scope)
+		collections, err := connector.createCollections(ctx, scope)
 		require.NoError(t, err)
 		suite.Greater(len(collections), standard)
 	}
@@ -342,7 +359,8 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
 			deets, err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
 			require.NoError(t, err)
@@ -645,7 +663,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			// Get a dest per test so they're independent.
 			dest := tester.DefaultTestRestoreDestination()
 
@@ -845,7 +865,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			restoreSel := getSelectorWith(test.service)
 			dests := make([]control.RestoreDestination, 0, len(test.collections))
 			allItems := 0
