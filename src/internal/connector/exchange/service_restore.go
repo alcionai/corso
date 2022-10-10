@@ -451,6 +451,8 @@ func establishMailRestoreLocation(
 	service graph.Service,
 	isNewCache bool,
 ) (string, error) {
+	// Process starts with the root folder in order to recreate
+	// the top-level folder with the same tactic
 	folderID := rootFolderAlias
 	pb := path.Builder{}
 
