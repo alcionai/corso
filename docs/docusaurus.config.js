@@ -9,7 +9,7 @@ const config = {
   title: 'Corso Documentation',
   tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
   url: 'https://corsobackup.io',
-  baseUrl: '/',
+  baseUrl: process.env.CORSO_DOCS_BASEURL || '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
   favicon: 'img/corso_logo.svg',
