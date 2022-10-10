@@ -3,9 +3,12 @@ name: Filechange Checker
 on:
   workflow_call:
     outputs:
-      fileschanged:
+      srcfileschanged:
         description: "'true' if src/** or .github/workflows/** files have changed in the branch"
-        value: ${{ jobs.file-change-check.outputs.fileschanged }}
+        value: ${{ jobs.file-change-check.outputs.srcfileschanged }}
+      docfileschanged:
+        description: "'true' if docs/** or src/** or .github/workflows/** files have changed in the branch"
+        value: ${{ jobs.file-change-check.outputs.docfileschanged }}
 
 jobs:
   file-change-check:
@@ -14,7 +17,8 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      fileschanged: ${{ steps.checker.outputs.fileschanged }}
+      srcfileschanged: ${{ steps.srcchecker.outputs.srcfileschanged }}
+      docfileschanged: ${{ steps.docchecker.outputs.docfileschanged }}
     steps:
       - uses: actions/checkout@v3
 
@@ -27,11 +31,21 @@ jobs:
           filters: |
             src:
               - 'src/**'
+            docs:
+              - 'docs/**'
             actions:
               - '.github/workflows/**'
-      - name: Check dorny for changes in specified filepaths
-        id: checker
+
+      - name: Check dorny for changes in src filepaths
+        id: srcchecker
         if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.actions == 'true'
         run: |
           echo "src or workflow file changes occurred"
-          echo ::set-output name=fileschanged::true
+          echo ::set-output name=srcfileschanged::true
+
+      - name: Check dorny for changes in docs related filepaths
+        id: docchecker
+        if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.docs == 'true' || steps.dornycheck.outputs.actions == 'true'
+        run: |
+          echo "docs, src or workflow file changes occurred"
+          echo ::set-output name=docfileschanged::true
