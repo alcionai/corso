@@ -604,27 +604,21 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 	var (
 		t               = suite.T()
-		now             = time.Now()
 		user            = tester.M365UserID(t)
 		ctx             = context.Background()
 		connector       = loadService(t)
 		pathCounter     = map[string]bool{}
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
-		folderName      = "CacheTesting_" + common.FormatSimpleDateTime(now)
+		folderName      = tester.DefaultTestRestoreDestination().ContainerName
 		tests           = []struct {
-			name       string
-			pathFunc1  func() path.Path
-			pathFunc2  func() path.Path
-			category   path.CategoryType
-			deleteFunc func(
-				ctx context.Context,
-				service graph.Service,
-				userID, folderID string) error
+			name      string
+			pathFunc1 func() path.Path
+			pathFunc2 func() path.Path
+			category  path.CategoryType
 		}{
 			{
-				name:       "First Cache Entry",
-				category:   path.EmailCategory,
-				deleteFunc: DeleteMailFolder,
+				name:     "Mail Cache Test",
+				category: path.EmailCategory,
 				pathFunc1: func() path.Path {
 					pth, err := path.Builder{}.Append("Griffindor").
 						Append("Croix").ToDataLayerExchangePathForCategory(
@@ -651,9 +645,8 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				},
 			},
 			{
-				name:       "Contact Cache Test",
-				category:   path.ContactsCategory,
-				deleteFunc: DeleteContactFolder,
+				name:     "Contact Cache Test",
+				category: path.ContactsCategory,
 				pathFunc1: func() path.Path {
 					aPath, err := path.Builder{}.Append("HufflePuff").
 						ToDataLayerExchangePathForCategory(
@@ -706,14 +699,12 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				directoryCaches,
 				pathCounter,
 			)
-			assert.NoError(t, err)
+
+			require.NoError(t, err)
 			_, err = resolver.IDToPath(ctx, secondID)
 			require.NoError(t, err)
-			// Test clean up
-			baseID, ok := resolver.PathInCache(folderName)
+			_, ok := resolver.PathInCache(folderName)
 			require.True(t, ok)
-			err = test.deleteFunc(ctx, connector, user, baseID)
-			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 		})
 	}
 }
