@@ -433,10 +433,20 @@ func GetContainerIDFromCache(
 			gs,
 			newCache)
 	case path.EventsCategory:
+		if directoryCache == nil {
+			ecc := &eventCalendarCache{
+				userID: user,
+				gs:     gs,
+			}
+			caches[category] = ecc
+			newCache = true
+			directoryCache = ecc
+		}
+
 		return establishEventsRestoreLocation(
 			ctx,
 			newPathFolders,
-			nil,
+			directoryCache,
 			user,
 			gs,
 			newCache,
@@ -544,18 +554,35 @@ func establishContactsRestoreLocation(
 func establishEventsRestoreLocation(
 	ctx context.Context,
 	folders []string,
-	cfc graph.ContainerResolver,
+	ecc graph.ContainerResolver, // eventCalendarCache
 	user string,
 	gs graph.Service,
 	isNewCache bool,
 ) (string, error) {
-	//TODO PR required to finish
+	cached, ok := ecc.PathInCache(folders[0])
+	if ok {
+		return cached, nil
+	}
+
 	temp, err := CreateCalendar(ctx, gs, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	folderID := *temp.GetId()
+
+	fmt.Println("Calendar Created, yes?  " + *temp.GetName())
+
+	if isNewCache {
+		if err = ecc.Populate(ctx, folderID, folders[0]); err != nil {
+			return "", errors.Wrap(err, "populating event cache")
+		}
+
+		transform := CreateCalendarDisplayable(temp, folderID)
+		if err = ecc.AddToCache(ctx, transform); err != nil {
+			return "", errors.Wrap(err, "adding ")
+		}
+	}
 
 	return folderID, nil
 }
