@@ -607,7 +607,6 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 		user            = tester.M365UserID(t)
 		ctx             = context.Background()
 		connector       = loadService(t)
-		pathCounter     = map[string]bool{}
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
 		folderName      = tester.DefaultTestRestoreDestination().ContainerName
 		tests           = []struct {
@@ -683,7 +682,6 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				test.pathFunc1(),
 				folderName,
 				directoryCaches,
-				pathCounter,
 			)
 
 			require.NoError(t, err)
@@ -697,7 +695,6 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				test.pathFunc2(),
 				folderName,
 				directoryCaches,
-				pathCounter,
 			)
 
 			require.NoError(t, err)
