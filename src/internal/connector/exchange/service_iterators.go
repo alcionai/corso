@@ -189,6 +189,51 @@ func IterateSelectAllEventsFromCalendars(
 	}
 }
 
+func collectionsFromResolver(
+	ctx context.Context,
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+	statusUpdater support.StatusUpdater,
+	collections map[string]*Collection,
+) error {
+	option, category, notMatcher := getCategoryAndValidation(qp.Scope)
+
+	for _, item := range resolver.Items() {
+		pathString := item.Path().String()
+		// Skip the root folder for mail which has an empty path.
+		if len(pathString) == 0 || notMatcher(&pathString) {
+			continue
+		}
+
+		completePath, err := item.Path().ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+		if err != nil {
+			return errors.Wrap(err, "getting matching cached folders")
+		}
+
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			return errors.Wrap(err, "making service instance")
+		}
+
+		tmp := NewCollection(
+			qp.User,
+			completePath,
+			option,
+			service,
+			statusUpdater,
+		)
+
+		collections[pathString] = &tmp
+	}
+
+	return nil
+}
+
 // IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
 // that places exchange objectsids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
