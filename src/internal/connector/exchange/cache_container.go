@@ -1,8 +1,6 @@
 package exchange
 
 import (
-	"strings"
-
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -17,18 +15,6 @@ type cachedContainer interface {
 	graph.Container
 	Path() *path.Builder
 	SetPath(*path.Builder)
-}
-
-// pathElementStringBuilder helper function for returning
-// a string separated with '/' based on the index.
-// Returns full slice separated w/ '/' if index is Greather Than or Equal
-// to the length of the slice.
-func pathElementStringBuilder(index int, slice []string) string {
-	if index >= len(slice) {
-		return strings.Join(slice, "/")
-	}
-
-	return strings.Join(slice[:index], "/")
 }
 
 // checkRequiredValues is a helper function to ensure that

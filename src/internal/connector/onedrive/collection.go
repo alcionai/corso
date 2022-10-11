@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -138,10 +139,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		byteCount += itemInfo.Size
 
 		itemInfo.ParentPath = parentPathString
+		progReader := observe.ItemProgress(itemData, itemInfo.ItemName, itemInfo.Size)
 
 		oc.data <- &Item{
 			id:   itemInfo.ItemName,
-			data: itemData,
+			data: progReader,
 			info: itemInfo,
 		}
 	}

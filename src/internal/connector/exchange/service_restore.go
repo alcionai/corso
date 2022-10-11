@@ -243,7 +243,6 @@ func RestoreExchangeDataCollections(
 	deets *details.Details,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		pathCounter = map[string]bool{}
 		// map of caches... but not yet...
 		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerResolver)
 		metrics         support.CollectionMetrics
@@ -258,6 +257,7 @@ func RestoreExchangeDataCollections(
 
 	for _, dc := range dcs {
 		userID := dc.FullPath().ResourceOwner()
+
 		userCaches := directoryCaches[userID]
 		if userCaches == nil {
 			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerResolver)
@@ -269,8 +269,7 @@ func RestoreExchangeDataCollections(
 			gs,
 			dc.FullPath(),
 			dest.ContainerName,
-			userCaches,
-			pathCounter)
+			userCaches)
 		if err != nil {
 			errs = support.WrapAndAppend(dc.FullPath().ShortRef(), err, errs)
 			continue
@@ -287,7 +286,7 @@ func RestoreExchangeDataCollections(
 
 	status := support.CreateStatus(ctx,
 		support.Restore,
-		len(pathCounter),
+		len(dcs),
 		metrics,
 		errs,
 		dest.ContainerName)
@@ -381,18 +380,14 @@ func GetContainerIDFromCache(
 	directory path.Path,
 	destination string,
 	caches map[path.CategoryType]graph.ContainerResolver,
-	pathCounter map[string]bool,
 ) (string, error) {
 	var (
-		newCache          bool
-		user              = directory.ResourceOwner()
-		category          = directory.Category()
-		directoryCache    = caches[category]
-		newPathFolders    = append([]string{destination}, directory.Folders()...)
-		restoreFolderPath = path.Builder{}.Append(newPathFolders...).String()
+		newCache       = false
+		user           = directory.ResourceOwner()
+		category       = directory.Category()
+		directoryCache = caches[category]
+		newPathFolders = append([]string{destination}, directory.Folders()...)
 	)
-
-	pathCounter[restoreFolderPath] = true
 
 	switch category {
 	case path.EmailCategory:
@@ -514,7 +509,7 @@ func establishMailRestoreLocation(
 
 // establishContactsRestoreLocation creates Contact Folders in sequence
 // and updates the container resolver appropriately. Contact Folders have
-// a flat representation. Therefore, only the root can be populated and all content
+// are displayed in a flat representation. Therefore, only the root can be populated and all content
 // must be restored into the root location.
 // @param folders is the list of intended folders from root to leaf (e.g. [root ...])
 // @param isNewCache bool representation of whether Populate function needs to be run

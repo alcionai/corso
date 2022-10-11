@@ -1,7 +1,6 @@
 package connector
 
 import (
-	"context"
 	"sync"
 	"testing"
 
@@ -30,7 +29,9 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	table := []struct {
 		name string
 		acct func(t *testing.T) account.Account
@@ -88,8 +89,11 @@ func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
 }
 
 func statusTestTask(gc *GraphConnector, objects, success, folder int) {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	status := support.CreateStatus(
-		context.Background(),
+		ctx,
 		support.Restore, folder,
 		support.CollectionMetrics{
 			Objects:    objects,
@@ -181,7 +185,10 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 
 func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
 	t := suite.T()
-	ctx := context.Background()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	gc := GraphConnector{wg: &sync.WaitGroup{}}
 	sel := selectors.Selector{
 		Service: selectors.ServiceUnknown,

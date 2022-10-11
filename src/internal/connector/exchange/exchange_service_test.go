@@ -260,7 +260,9 @@ func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 // TestGraphQueryFunctions verifies if Query functions APIs
 // through Microsoft Graph are functional
 func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	userID := tester.M365UserID(suite.T())
 	tests := []struct {
 		name     string
@@ -309,7 +311,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 // at the top level of the file tree
 func (suite *ExchangeServiceSuite) TestGetContainerID() {
 	userID := tester.M365UserID(suite.T())
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
+
 	tests := []struct {
 		name          string
 		containerName string
@@ -370,14 +375,16 @@ func (suite *ExchangeServiceSuite) TestGetContainerID() {
 
 //==========================
 // Restore Functions
-//======================
+//==========================
 
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
 func (suite *ExchangeServiceSuite) TestRestoreContact() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t          = suite.T()
-		ctx        = context.Background()
 		userID     = tester.M365UserID(t)
 		now        = time.Now()
 		folderName = "TestRestoreContact: " + common.FormatSimpleDateTime(now)
@@ -394,7 +401,7 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 		assert.NoError(t, err)
 	}()
 
-	info, err := RestoreExchangeContact(context.Background(),
+	info, err := RestoreExchangeContact(ctx,
 		mockconnector.GetMockContactBytes("Corso TestContact"),
 		suite.es,
 		control.Copy,
@@ -407,9 +414,11 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *ExchangeServiceSuite) TestRestoreEvent() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t      = suite.T()
-		ctx    = context.Background()
 		userID = tester.M365UserID(t)
 		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	)
@@ -425,7 +434,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 		assert.NoError(t, err)
 	}()
 
-	info, err := RestoreExchangeEvent(context.Background(),
+	info, err := RestoreExchangeEvent(ctx,
 		mockconnector.GetMockEventWithAttendeesBytes(name),
 		suite.es,
 		control.Copy,
@@ -435,71 +444,11 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	assert.NotNil(t, info, "event item info")
 }
 
-// TestGetRestoreContainer checks the ability to Create a "container" for the
-// GraphConnector's Restore Workflow based on OptionIdentifier.
-func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
-	//ctx := context.Background()
-	//dest := tester.DefaultTestRestoreDestination()
-	tests := []struct {
-		name        string
-		option      path.CategoryType
-		checkError  assert.ErrorAssertionFunc
-		cleanupFunc func(context.Context, graph.Service, string, string) error
-	}{
-		{
-			name:        "Establish User Restore Folder",
-			option:      path.CategoryType(-1),
-			checkError:  assert.Error,
-			cleanupFunc: nil,
-		},
-
-		// TODO: #884 - reinstate when able to specify root folder by name
-		// {
-		// 	name:        "Establish Event Restore Location",
-		// 	option:      path.EventsCategory,
-		// 	checkError:  assert.NoError,
-		// 	cleanupFunc: DeleteCalendar,
-		// },
-		{
-			name:        "Establish Restore Folder for Unknown",
-			option:      path.UnknownCategory,
-			checkError:  assert.Error,
-			cleanupFunc: nil,
-		},
-		{
-			name:        "Establish Restore folder for Mail",
-			option:      path.EmailCategory,
-			checkError:  assert.NoError,
-			cleanupFunc: DeleteMailFolder,
-		},
-		// TODO: #884 - reinstate when able to specify root folder by name
-		// {
-		// 	name:        "Establish Restore folder for Contacts",
-		// 	option:      path.ContactsCategory,
-		// 	checkError:  assert.NoError,
-		// 	cleanupFunc: DeleteContactFolder,
-		// },
-	}
-
-	userID := tester.M365UserID(suite.T())
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			t.Logf("UserID: %s on Test: %s", userID, test.name)
-			//containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option, dest.ContainerName)
-			//require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
-
-			//if test.cleanupFunc != nil {
-			//	err = test.cleanupFunc(ctx, suite.es, userID, containerID)
-			//	assert.NoError(t, err)
-			//}
-		})
-	}
-}
-
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	userID := tester.M365UserID(t)
 	now := time.Now()
@@ -604,27 +553,20 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 	var (
 		t               = suite.T()
-		now             = time.Now()
 		user            = tester.M365UserID(t)
 		ctx             = context.Background()
 		connector       = loadService(t)
-		pathCounter     = map[string]bool{}
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
-		folderName      = "CacheTesting_" + common.FormatSimpleDateTime(now)
+		folderName      = tester.DefaultTestRestoreDestination().ContainerName
 		tests           = []struct {
-			name       string
-			pathFunc1  func() path.Path
-			pathFunc2  func() path.Path
-			category   path.CategoryType
-			deleteFunc func(
-				ctx context.Context,
-				service graph.Service,
-				userID, folderID string) error
+			name      string
+			pathFunc1 func() path.Path
+			pathFunc2 func() path.Path
+			category  path.CategoryType
 		}{
 			{
-				name:       "First Cache Entry",
-				category:   path.EmailCategory,
-				deleteFunc: DeleteMailFolder,
+				name:     "Mail Cache Test",
+				category: path.EmailCategory,
 				pathFunc1: func() path.Path {
 					pth, err := path.Builder{}.Append("Griffindor").
 						Append("Croix").ToDataLayerExchangePathForCategory(
@@ -651,9 +593,8 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				},
 			},
 			{
-				name:       "Contact Cache Test",
-				category:   path.ContactsCategory,
-				deleteFunc: DeleteContactFolder,
+				name:     "Contact Cache Test",
+				category: path.ContactsCategory,
 				pathFunc1: func() path.Path {
 					aPath, err := path.Builder{}.Append("HufflePuff").
 						ToDataLayerExchangePathForCategory(
@@ -680,9 +621,8 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				},
 			},
 			{
-				name:       "Event Cache Test",
-				category:   path.EventsCategory,
-				deleteFunc: DeleteCalendar,
+				name:     "Event Cache Test",
+				category: path.EventsCategory,
 				pathFunc1: func() path.Path {
 					aPath, err := path.Builder{}.Append("Durmstrang").
 						ToDataLayerExchangePathForCategory(
@@ -717,7 +657,6 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				test.pathFunc1(),
 				folderName,
 				directoryCaches,
-				pathCounter,
 			)
 
 			require.NoError(t, err)
@@ -731,16 +670,13 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				test.pathFunc2(),
 				folderName,
 				directoryCaches,
-				pathCounter,
 			)
-			assert.NoError(t, err)
+
+			require.NoError(t, err)
 			_, err = resolver.IDToPath(ctx, secondID)
 			require.NoError(t, err)
-			// Test clean up
-			baseID, ok := resolver.PathInCache(folderName)
+			_, ok := resolver.PathInCache(folderName)
 			require.True(t, ok)
-			err = test.deleteFunc(ctx, connector, user, baseID)
-			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 		})
 	}
 }

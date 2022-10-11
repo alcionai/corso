@@ -227,9 +227,10 @@ func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains s
 	return containers, err
 }
 
-// GetAllContactFolders retrieves all contacts folders for the specified user.
-// If nameContains is populated, only returns folders matching that property.
-// Returns a slice of {ID, DisplayName} tuples.
+// GetAllContactFolders retrieves all contacts folders with a unique display
+// name for the specified user. If multiple folders have the same display name
+// the result is undefined. TODO: Replace with Cache Usage
+// https://github.com/alcionai/corso/issues/1122
 func GetAllContactFolders(
 	ctx context.Context,
 	gs graph.Service,
