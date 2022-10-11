@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	stdpath "path"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -124,50 +123,33 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		if err != nil {
 			return err
 		}
-		if _, found := c.collectionMap[collectionPath.String()]; !found {
-			if !includePath(context.Background(), c.scope, collectionPath) {
-				logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
-				continue
-			}
 
-			c.collectionMap[collectionPath.String()] = NewCollection(
-				collectionPath,
-				driveID,
-				c.service,
-				c.statusUpdater,
-			)
+		// Skip items that don't match the folder selectors we were given.
+		if !includePath(ctx, c.scope, collectionPath) {
+			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
+			continue
 		}
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			// For folders and packages we also create a collection to represent those
+			// Leave this here so we don't fall into the default case.
 			// TODO: This is where we might create a "special file" to represent these in the backup repository
 			// e.g. a ".folderMetadataFile"
-			itemPath, err := getCanonicalPath(
-				stdpath.Join(
-					*item.GetParentReference().GetPath(),
-					*item.GetName(),
-				),
-				c.tenant,
-				c.user,
-			)
-			if err != nil {
-				return err
-			}
 
-			if _, found := c.collectionMap[itemPath.String()]; !found {
-				c.collectionMap[itemPath.String()] = NewCollection(
-					itemPath,
+		case item.GetFile() != nil:
+			col, found := c.collectionMap[collectionPath.String()]
+			if !found {
+				col = NewCollection(
+					collectionPath,
 					driveID,
 					c.service,
 					c.statusUpdater,
 				)
+
+				c.collectionMap[collectionPath.String()] = col
 			}
-		case item.GetFile() != nil:
-			if !includePath(ctx, c.scope, collectionPath) {
-				continue
-			}
-			collection := c.collectionMap[collectionPath.String()].(*Collection)
+
+			collection := col.(*Collection)
 			collection.Add(*item.GetId())
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
