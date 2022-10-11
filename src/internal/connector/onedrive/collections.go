@@ -27,11 +27,10 @@ type Collections struct {
 	service       graph.Service
 	statusUpdater support.StatusUpdater
 
-	// Track stats from drive enumeration
-	numItems    int
-	numDirs     int
-	numFiles    int
-	numPackages int
+	// Track stats from drive enumeration. Represents the items backed up.
+	numItems      int
+	numFiles      int
+	numContainers int
 }
 
 func NewCollections(
@@ -100,11 +99,6 @@ func getDriveFolderPath(p path.Path) (string, error) {
 // A new collection is created for every OneDrive folder (or package)
 func (c *Collections) updateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
 	for _, item := range items {
-		err := c.stats(item)
-		if err != nil {
-			return err
-		}
-
 		if item.GetRoot() != nil {
 			// Skip the root item
 			continue
@@ -147,10 +141,15 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 				)
 
 				c.collectionMap[collectionPath.String()] = col
+				c.numContainers++
+				c.numItems++
 			}
 
 			collection := col.(*Collection)
 			collection.Add(*item.GetId())
+			c.numFiles++
+			c.numItems++
+
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
 		}
@@ -176,21 +175,4 @@ func includePath(ctx context.Context, scope selectors.OneDriveScope, folderPath 
 	logger.Ctx(ctx).Infof("Checking path %q", folderPathString)
 
 	return scope.Matches(selectors.OneDriveFolder, folderPathString)
-}
-
-func (c *Collections) stats(item models.DriveItemable) error {
-	switch {
-	case item.GetFolder() != nil:
-		c.numDirs++
-	case item.GetPackage() != nil:
-		c.numPackages++
-	case item.GetFile() != nil:
-		c.numFiles++
-	default:
-		return errors.Errorf("item type not supported. item name : %s", *item.GetName())
-	}
-
-	c.numItems++
-
-	return nil
 }
