@@ -67,7 +67,7 @@ func (suite *EventCalendarCacheSuite) TestPopulate() {
 		},
 		{
 			name:       "Default Event Folder Hidden",
-			folderName: DefaultContactFolder,
+			folderName: DefaultCalendar,
 			canFind:    assert.False,
 		},
 		{

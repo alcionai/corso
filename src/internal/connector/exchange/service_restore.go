@@ -573,7 +573,7 @@ func establishEventsRestoreLocation(
 
 		transform := CreateCalendarDisplayable(temp, folderID)
 		if err = ecc.AddToCache(ctx, transform); err != nil {
-			return "", errors.Wrap(err, "adding ")
+			return "", errors.Wrap(err, "adding new calendar to cache")
 		}
 	}
 
