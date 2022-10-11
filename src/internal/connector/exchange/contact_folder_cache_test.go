@@ -81,7 +81,6 @@ func (suite *ContactFolderCacheIntegrationSuite) TestDeltaFetch() {
 			require.NoError(t, cfc.Populate(ctx, DefaultContactFolder, test.basePath))
 			_, isFound := cfc.PathInCache(test.folderName)
 			test.canFind(t, isFound)
-
 		})
 	}
 }
