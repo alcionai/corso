@@ -374,7 +374,10 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	}
 }
 
+// TestRestoreAndBackup
+// nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
+	//nolint:gofumpt
 	//bodyText := "This email has some text. However, all the text is on the same line."
 	//subjectText := "Test message for restore"
 
@@ -721,7 +724,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	}
 }
 
+// TestMultiFolderBackupDifferentNames
+//nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
+	//nolint:gofumpt
 	//bodyText := "This email has some text. However, all the text is on the same line."
 	//subjectText := "Test message for restore"
 
