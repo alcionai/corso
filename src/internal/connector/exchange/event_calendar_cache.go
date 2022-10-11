@@ -49,7 +49,7 @@ func (ecc *eventCalendarCache) populateEventRoot(
 
 	identifier := *idPtr
 	transform := CreateCalendarDisplayable(cal, identifier)
-	temp := eventCalendar{
+	temp := cacheFolder{
 		Container: transform,
 		p:         path.Builder{}.Append(baseContainerPath...),
 	}
@@ -177,7 +177,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return nil
 	}
 
-	ecc.cache[*f.GetId()] = &eventCalendar{
+	ecc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
 	}
 

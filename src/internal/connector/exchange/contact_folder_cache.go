@@ -48,7 +48,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 		return errors.New("root folder has no ID")
 	}
 
-	temp := contactFolder{
+	temp := cacheFolder{
 		Container: f,
 		p:         path.Builder{}.Append(baseContainerPath...),
 	}
@@ -192,7 +192,7 @@ func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container
 		return nil
 	}
 
-	cfc.cache[*f.GetId()] = &contactFolder{
+	cfc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
 	}
 
