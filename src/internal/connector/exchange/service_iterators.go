@@ -24,6 +24,7 @@ type GraphIterateFunc func(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool
 
 // IterateSelectAllDescendablesForCollection utility function for
@@ -36,12 +37,12 @@ func IterateSelectAllDescendablesForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isCategorySet  bool
 		collectionType optionIdentifier
 		category       path.CategoryType
-		resolver       graph.ContainerResolver
 		dirPath        path.Path
 		err            error
 	)
@@ -57,12 +58,6 @@ func IterateSelectAllDescendablesForCollections(
 			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
 				collectionType = contacts
 				category = path.ContactsCategory
-			}
-
-			if r, err := maybeGetAndPopulateFolderResolver(ctx, qp, category); err != nil {
-				errUpdater("getting folder resolver for category "+category.String(), err)
-			} else {
-				resolver = r
 			}
 
 			isCategorySet = true
@@ -127,6 +122,7 @@ func IterateSelectAllEventsFromCalendars(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isEnabled bool
@@ -136,7 +132,7 @@ func IterateSelectAllEventsFromCalendars(
 	return func(pageItem any) bool {
 		if !isEnabled {
 			// Create Collections based on qp.Scope
-			err := CollectFolders(ctx, qp, collections, statusUpdater)
+			err := CollectFolders(ctx, qp, collections, statusUpdater, resolver)
 			if err != nil {
 				errUpdater(
 					qp.User,
@@ -243,10 +239,10 @@ func IterateAndFilterDescendablesForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isFilterSet bool
-		resolver    graph.ContainerResolver
 		cache       map[string]string
 	)
 
@@ -257,19 +253,15 @@ func IterateAndFilterDescendablesForCollections(
 				qp,
 				collections,
 				statusUpdater,
+				resolver,
 			)
 			if err != nil {
 				errUpdater(qp.User, err)
 				return false
 			}
+
 			// Caches folder directories
 			cache = make(map[string]string, 0)
-
-			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
-			if err != nil {
-				errUpdater("getting folder resolver for category "+path.EmailCategory.String(), err)
-			}
-
 			isFilterSet = true
 		}
 
@@ -367,12 +359,11 @@ func IterateFilterContainersForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
-		resolver    graph.ContainerResolver
 		isSet       bool
 		collectPath string
-		err         error
 		option      optionIdentifier
 		category    path.CategoryType
 		validate    func(*string) bool
@@ -381,11 +372,6 @@ func IterateFilterContainersForCollections(
 	return func(folderItem any) bool {
 		if !isSet {
 			option, category, validate = getCategoryAndValidation(qp.Scope)
-
-			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
-			if err != nil {
-				errUpdater("getting folder resolver for category "+category.String(), err)
-			}
 
 			isSet = true
 		}
@@ -457,6 +443,7 @@ func IterateSelectAllContactsForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isPrimarySet bool
@@ -478,6 +465,7 @@ func IterateSelectAllContactsForCollections(
 				qp,
 				collections,
 				statusUpdater,
+				resolver,
 			)
 			if err != nil {
 				errUpdater(qp.User, err)

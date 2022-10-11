@@ -172,7 +172,9 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				qp,
 				errUpdater,
 				collections,
-				nil)
+				nil,
+				nil,
+			)
 
 			iterateError := pageIterator.Iterate(ctx, callbackFunc)
 			assert.NoError(t, iterateError)
