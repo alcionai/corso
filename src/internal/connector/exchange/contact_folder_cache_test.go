@@ -46,7 +46,7 @@ func TestContactFolderCacheIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(ContactFolderCacheIntegrationSuite))
 }
 
-func (suite *ContactFolderCacheIntegrationSuite) TestDeltaFetch() {
+func (suite *ContactFolderCacheIntegrationSuite) TestPopulate() {
 	ctx := context.Background()
 	cfc := contactFolderCache{
 		userID: tester.M365UserID(suite.T()),
