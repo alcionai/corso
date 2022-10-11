@@ -240,33 +240,10 @@ func GetAllContactFolders(
 	var (
 		cs         = make(map[string]graph.Container)
 		containers = make([]graph.Container, 0)
-		err, errs  error
-		errUpdater = func(s string, e error) {
-			errs = support.WrapAndAppend(s, e, errs)
-		}
-	)
-	
-	resolver := Populate
-	
-}
-	resp, err := GetAllContactFolderNamesForUser(ctx, gs, user)
-	if err != nil {
-		return nil, err
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(
-		resp, gs.Adapter(), models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
-	if err != nil {
-		return nil, err
-	}
-
-	cb := IterativeCollectContactContainers(
-		cs, nameContains, errUpdater,
+		err        error
 	)
 
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return nil, err
-	}
+	//resolver, err := PopulateExchangeContainerResolver(ctx,)
 
 	for _, entry := range cs {
 		containers = append(containers, entry)
@@ -274,7 +251,6 @@ func GetAllContactFolders(
 
 	return containers, err
 }
-
 
 // SetupExchangeCollectionVars is a helper function returns a sets
 // Exchange.Type specific functions based on scope
@@ -330,10 +306,9 @@ func PopulateExchangeContainerResolver(
 		service, err = createService(qp.Credentials, qp.FailFast)
 	)
 
-	if err != nil{
+	if err != nil {
 		return err
 	}
-
 
 	switch category {
 	case path.EmailCategory:
