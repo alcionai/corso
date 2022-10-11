@@ -721,10 +721,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	}
 }
 
-/*
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
-	bodyText := "This email has some text. However, all the text is on the same line."
-	subjectText := "Test message for restore"
+	//bodyText := "This email has some text. However, all the text is on the same line."
+	//subjectText := "Test message for restore"
 
 	// TODO(ashmrtn): Update if we start mixing categories during backup/restore.
 	backupSelFunc := func(
@@ -769,41 +768,41 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		// backup later.
 		collections []colInfo
 	}{
-		{
-			name:     "Email",
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-1",
-								bodyText+" 1.",
-							),
-							lookupKey: subjectText + "-1",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Archive"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-2",
-								bodyText+" 2.",
-							),
-							lookupKey: subjectText + "-2",
-						},
-					},
-				},
-			},
-		},
+		// {
+		// 	name:     "Email",
+		// 	service:  path.ExchangeService,
+		// 	category: path.EmailCategory,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Inbox"},
+		// 			category:     path.EmailCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name: "someencodeditemID",
+		// 					data: mockconnector.GetMockMessageWithBodyBytes(
+		// 						subjectText+"-1",
+		// 						bodyText+" 1.",
+		// 					),
+		// 					lookupKey: subjectText + "-1",
+		// 				},
+		// 			},
+		// 		},
+		// 		{
+		// 			pathElements: []string{"Archive"},
+		// 			category:     path.EmailCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name: "someencodeditemID2",
+		// 					data: mockconnector.GetMockMessageWithBodyBytes(
+		// 						subjectText+"-2",
+		// 						bodyText+" 2.",
+		// 					),
+		// 					lookupKey: subjectText + "-2",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
 		{
 			name:     "Contacts",
 			service:  path.ExchangeService,
@@ -939,4 +938,3 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		})
 	}
 }
-*/
