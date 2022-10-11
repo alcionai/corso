@@ -1,6 +1,10 @@
 package exchange
 
 import (
+<<<<<<< HEAD
+=======
+	"context"
+>>>>>>> 28759ee (EventCalendarCache Testing:)
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,9 +50,13 @@ func (suite *EventCalendarCacheSuite) SetupSuite() {
 }
 
 func (suite *EventCalendarCacheSuite) TestPopulate() {
+<<<<<<< HEAD
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+=======
+	ctx := context.Background()
+>>>>>>> 28759ee (EventCalendarCache Testing:)
 	ecc := eventCalendarCache{
 		userID: tester.M365UserID(suite.T()),
 		gs:     suite.gs,
@@ -82,7 +90,10 @@ func (suite *EventCalendarCacheSuite) TestPopulate() {
 			require.NoError(t, ecc.Populate(ctx, DefaultCalendar, test.basePath))
 			_, isFound := ecc.PathInCache(test.folderName)
 			test.canFind(t, isFound)
+<<<<<<< HEAD
 			assert.Greater(t, len(ecc.cache), 0)
+=======
+>>>>>>> 28759ee (EventCalendarCache Testing:)
 		})
 	}
 }
