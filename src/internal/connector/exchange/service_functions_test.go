@@ -120,7 +120,13 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllContactFolders(ctx, gs, test.user, test.contains)
+			params := graph.QueryParams{
+				User:        test.user,
+				Scope:       nil,
+				FailFast:    false,
+				Credentials: suite.creds,
+			}
+			cals, err := GetAllContactFolders(ctx, params, gs, test.user, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
