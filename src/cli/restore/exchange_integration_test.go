@@ -1,6 +1,7 @@
 package restore_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -184,9 +185,9 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlag
 		}
 
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
-			ctx, _ = logger.SeedLevel(ctx, logger.Development)
-			defer logger.Flush(ctx)
+			ctx := config.SetViper(context.Background(), suite.vpr)
+			ctx, flush := tester.WithContext(ctx)
+			defer flush()
 
 			var timeFilter string
 			switch set {
