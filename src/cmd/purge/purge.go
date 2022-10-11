@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -310,14 +309,6 @@ func purgeContactFolders(
 
 // ----- OneDrive
 
-type oneDrivePurgable struct {
-	models.DriveItemable
-}
-
-func (op *oneDrivePurgable) GetDisplayName() *string {
-	return op.GetName()
-}
-
 func purgeOneDriveFolders(
 	ctx context.Context,
 	gc *connector.GraphConnector,
@@ -333,14 +324,14 @@ func purgeOneDriveFolders(
 		purgables := make([]purgable, len(cfs))
 
 		for i, v := range cfs {
-			purgables[i] = &oneDrivePurgable{v}
+			purgables[i] = v
 		}
 
 		return purgables, nil
 	}
 
 	deleter := func(gs graph.Service, uid string, f purgable) error {
-		driveFolder, ok := f.(*oneDrivePurgable)
+		driveFolder, ok := f.(*onedrive.Displayable)
 		if !ok {
 			return errors.New("non-OneDrive item")
 		}
