@@ -56,7 +56,7 @@ func (mc *mailFolderCache) populateMailRoot(
 		return errors.New("root folder has no ID")
 	}
 
-	temp := mailFolder{
+	temp := cacheFolder{
 		Container: f,
 		p:         path.Builder{}.Append(baseContainerPath...),
 	}
@@ -173,7 +173,7 @@ func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) er
 		return nil
 	}
 
-	mc.cache[*f.GetId()] = &mailFolder{
+	mc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
 	}
 

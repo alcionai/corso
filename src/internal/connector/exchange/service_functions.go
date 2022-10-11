@@ -235,7 +235,7 @@ func GetAllContactFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
 	gs graph.Service,
-	user, nameContains string,
+	nameContains string,
 ) ([]graph.Container, error) {
 	var (
 		cs         = make(map[string]graph.Container)
@@ -307,7 +307,11 @@ func PopulateExchangeContainerResolver(
 	)
 
 	if err != nil {
+<<<<<<< HEAD
 		return err
+=======
+		return nil, err
+>>>>>>> gc-hierarchy
 	}
 
 	switch category {

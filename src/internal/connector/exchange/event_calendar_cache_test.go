@@ -81,6 +81,7 @@ func (suite *EventCalendarCacheSuite) TestPopulate() {
 			require.NoError(t, ecc.Populate(ctx, DefaultCalendar, test.basePath))
 			_, isFound := ecc.PathInCache(test.folderName)
 			test.canFind(t, isFound)
+			assert.Greater(t, len(ecc.cache), 0)
 		})
 	}
 }

@@ -4,14 +4,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ServiceFunctionsIntegrationSuite struct {
 	suite.Suite
 	m365UserID string
+	creds      account.M365Config
 }
 
 func TestServiceFunctionsIntegrationSuite(t *testing.T) {
@@ -27,6 +32,12 @@ func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 
 func (suite *ServiceFunctionsIntegrationSuite) SetupSuite() {
 	suite.m365UserID = tester.M365UserID(suite.T())
+	a := tester.NewM365Account(t)
+	require.NoError(t, err)
+	m365, err := a.M365Config()
+	require.NoError(t, err)
+	suite.creds = m365
+
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
@@ -117,7 +128,15 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllContactFolders(ctx, gs, test.user, test.contains)
+			sel := selectors.NewExchangeBackup()
+			sel.Includes()
+			params := graph.QueryParams{
+				User:        test.user,
+				Scope:       nil,
+				FailFast:    false,
+				Credentials: suite.creds,
+			}
+			cals, err := GetAllContactFolders(ctx, params, gs, test.contains)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})

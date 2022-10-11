@@ -42,40 +42,9 @@ func checkRequiredValues(c graph.Container) error {
 // cachedContainer Implementations
 //======================
 
-var (
-	_ cachedContainer = &eventCalendar{}
-	_ cachedContainer = &contactFolder{}
-	_ cachedContainer = &mailFolder{}
-)
+var _ cachedContainer = &cacheFolder{}
 
-type contactFolder struct {
-	graph.Container
-	p *path.Builder
-}
-
-func (cf contactFolder) Path() *path.Builder {
-	return cf.p
-}
-
-func (cf *contactFolder) SetPath(newPath *path.Builder) {
-	cf.p = newPath
-}
-
-type eventCalendar struct {
-	graph.Container
-	p *path.Builder
-}
-
-func (ev eventCalendar) Path() *path.Builder {
-	return ev.p
-}
-
-func (ev *eventCalendar) SetPath(newPath *path.Builder) {
-	ev.p = newPath
-}
-
-// mailFolder structure that implements the cachedContainer interface
-type mailFolder struct {
+type cacheFolder struct {
 	graph.Container
 	p *path.Builder
 }
@@ -84,15 +53,14 @@ type mailFolder struct {
 // Required Functions to satisfy interfaces
 //=====================================
 
-func (mf mailFolder) Path() *path.Builder {
-	return mf.p
+func (cf cacheFolder) Path() *path.Builder {
+	return cf.p
 }
 
-func (mf *mailFolder) SetPath(newPath *path.Builder) {
-	mf.p = newPath
+func (cf *cacheFolder) SetPath(newPath *path.Builder) {
+	cf.p = newPath
 }
 
-//
 // CalendarDisplayable is a transformative struct that aligns
 // models.Calendarable interface with the container interface.
 // Calendars do not have the 2 of the
