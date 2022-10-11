@@ -68,4 +68,6 @@ type ContainerResolver interface {
 	PathInCache(pathString string) (string, bool)
 
 	AddToCache(ctx context.Context, m365Container Container) error
+
+	GetCacheFolders() []Container
 }
