@@ -12,20 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ cachedContainer = &contactFolder{}
-
-type contactFolder struct {
-	graph.Container
-	p *path.Builder
-}
-
-func (cf contactFolder) Path() *path.Builder {
-	return cf.p
-}
-
-func (cf *contactFolder) SetPath(newPath *path.Builder) {
-	cf.p = newPath
-}
+var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	cache          map[string]cachedContainer
@@ -61,7 +48,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 		return errors.New("root folder has no ID")
 	}
 
-	temp := contactFolder{
+	temp := cacheFolder{
 		Container: f,
 		p:         path.Builder{}.Append(baseContainerPath...),
 	}
@@ -205,7 +192,7 @@ func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container
 		return nil
 	}
 
-	cfc.cache[*f.GetId()] = &contactFolder{
+	cfc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
 	}
 

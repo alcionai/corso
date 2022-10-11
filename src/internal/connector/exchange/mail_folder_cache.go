@@ -12,35 +12,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ cachedContainer = &mailFolder{}
-
-// cachedContainer is used for local unit tests but also makes it so that this
-// code can be broken into generic- and service-specific chunks later on to
-// reuse logic in IDToPath.
-type cachedContainer interface {
-	graph.Container
-	Path() *path.Builder
-	SetPath(*path.Builder)
-}
-
-// mailFolder structure that implements the cachedContainer interface
-type mailFolder struct {
-	graph.Container
-	p *path.Builder
-}
-
-//=========================================
-// Required Functions to satisfy interfaces
-//=====================================
-
-func (mf mailFolder) Path() *path.Builder {
-	return mf.p
-}
-
-func (mf *mailFolder) SetPath(newPath *path.Builder) {
-	mf.p = newPath
-}
-
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
@@ -75,7 +46,7 @@ func (mc *mailFolderCache) populateMailRoot(
 		MailFoldersById(directoryID).
 		Get(ctx, opts)
 	if err != nil {
-		return errors.Wrapf(err, "fetching root folder")
+		return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 	}
 
 	// Root only needs the ID because we hide it's name for Mail.
@@ -85,33 +56,12 @@ func (mc *mailFolderCache) populateMailRoot(
 		return errors.New("root folder has no ID")
 	}
 
-	temp := mailFolder{
+	temp := cacheFolder{
 		Container: f,
 		p:         path.Builder{}.Append(baseContainerPath...),
 	}
 	mc.cache[*idPtr] = &temp
 	mc.rootID = *idPtr
-
-	return nil
-}
-
-// checkRequiredValues is a helper function to ensure that
-// all the pointers are set prior to being called.
-func checkRequiredValues(c graph.Container) error {
-	idPtr := c.GetId()
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("folder without ID")
-	}
-
-	ptr := c.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
-	}
-
-	ptr = c.GetParentFolderId()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
-	}
 
 	return nil
 }
@@ -223,7 +173,7 @@ func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) er
 		return nil
 	}
 
-	mc.cache[*f.GetId()] = &mailFolder{
+	mc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
 	}
 
