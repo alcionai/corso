@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -272,6 +273,22 @@ func (gc *GraphConnector) RestoreDataCollections(
 	return deets, err
 }
 
+func scopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
+	if scope.IncludesCategory(selectors.ExchangeMail) {
+		return path.EmailCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeContact) {
+		return path.ContactsCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeEvent) {
+		return path.EventsCategory
+	}
+
+	return path.UnknownCategory
+}
+
 // createCollection - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are stored.
@@ -318,10 +335,20 @@ func (gc *GraphConnector) createCollections(
 			errs = support.WrapAndAppend(id, err, errs)
 		}
 
+		// Currently only mail has a folder cache implemented.
+		resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
+			ctx,
+			qp,
+			scopeToPathCategory(scope),
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting folder cache")
+		}
+
 		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus)
+		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus, resolver)
 		iterateError := pageIterator.Iterate(ctx, callbackFunc)
 
 		if iterateError != nil {

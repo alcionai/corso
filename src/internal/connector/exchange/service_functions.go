@@ -384,11 +384,11 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
+// MaybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
 // this category of data. If one is not available, returns nil so that other
 // logic in the caller can complete as long as they check if the resolver is not
 // nil. If an error occurs populating the resolver, returns an error.
-func maybeGetAndPopulateFolderResolver(
+func MaybeGetAndPopulateFolderResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
 	category path.CategoryType,
