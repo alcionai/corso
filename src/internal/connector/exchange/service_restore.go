@@ -544,7 +544,8 @@ func establishEventsRestoreLocation(
 	gs graph.Service,
 	isNewCache bool,
 ) (string, error) {
-	//TODO PR required to finish
+	//nolint:gofumpt
+	// TODO PR required to finish
 	temp, err := CreateCalendar(ctx, gs, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
