@@ -59,8 +59,6 @@ func (suite *ObserveProgressUnitSuite) TestDoesThings() {
 		i++
 	}
 
-	assert.Equal(t, 4, i)
-
 	// mpb doesn't transmit any written values to the output writer until
 	// bar completion.  Since we clean up after the bars, the recorder
 	// traces nothing.
@@ -68,4 +66,5 @@ func (suite *ObserveProgressUnitSuite) TestDoesThings() {
 	// assert.Contains(t, recorded, "25%")
 	// assert.Contains(t, recorded, "50%")
 	// assert.Contains(t, recorded, "75%")
+	assert.Equal(t, 4, i)
 }
