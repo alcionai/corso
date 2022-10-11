@@ -513,7 +513,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		{
 			name:                   "MultipleContactsMutlipleFolders",
 			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			expectedRestoreFolders: 2,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
