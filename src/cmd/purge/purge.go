@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
@@ -43,6 +44,12 @@ var contactsCmd = &cobra.Command{
 	RunE:  handleContactsFolderPurge,
 }
 
+var oneDriveCmd = &cobra.Command{
+	Use:   "onedrive",
+	Short: "Purges OneDrive folders",
+	RunE:  handleOneDriveFolderPurge,
+}
+
 var (
 	before string
 	user   string
@@ -69,6 +76,7 @@ func main() {
 	purgeCmd.AddCommand(mailCmd)
 	purgeCmd.AddCommand(eventsCmd)
 	purgeCmd.AddCommand(contactsCmd)
+	purgeCmd.AddCommand(oneDriveCmd)
 
 	if err := purgeCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
@@ -92,6 +100,7 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 		purgeMailFolders,
 		purgeCalendarFolders,
 		purgeContactFolders,
+		purgeOneDriveFolders,
 	)
 	if err != nil {
 		return Only(ctx, ErrPurging)
@@ -157,6 +166,25 @@ func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func handleOneDriveFolderPurge(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	gc, t, err := getGCAndBoundaryTime(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := runPurgeForEachUser(ctx, gc, t, purgeOneDriveFolders); err != nil {
+		return Only(ctx, errors.Wrap(ErrPurging, "OneDrive folders"))
+	}
+
+	return nil
+}
+
 // ------------------------------------------------------------------------------------------
 // Purge Controllers
 // ------------------------------------------------------------------------------------------
@@ -212,8 +240,8 @@ func purgeMailFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteMailFolder(ctx, gs, uid, fid)
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		return exchange.DeleteMailFolder(ctx, gs, uid, *f.GetId())
 	}
 
 	return purgeFolders(ctx, gc, boundary, "Mail Folders", uid, getter, deleter)
@@ -242,8 +270,8 @@ func purgeCalendarFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteCalendar(ctx, gs, uid, fid)
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		return exchange.DeleteCalendar(ctx, gs, uid, *f.GetId())
 	}
 
 	return purgeFolders(ctx, gc, boundary, "Event Calendars", uid, getter, deleter)
@@ -272,11 +300,51 @@ func purgeContactFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid, fid string) error {
-		return exchange.DeleteContactFolder(ctx, gs, uid, fid)
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		return exchange.DeleteContactFolder(ctx, gs, uid, *f.GetId())
 	}
 
 	return purgeFolders(ctx, gc, boundary, "Contact Folders", uid, getter, deleter)
+}
+
+// ----- OneDrive
+
+func purgeOneDriveFolders(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	boundary time.Time,
+	uid string,
+) error {
+	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
+		cfs, err := onedrive.GetAllFolders(ctx, gs, uid, prefix)
+		if err != nil {
+			return nil, err
+		}
+
+		purgables := make([]purgable, len(cfs))
+
+		for i, v := range cfs {
+			purgables[i] = v
+		}
+
+		return purgables, nil
+	}
+
+	deleter := func(gs graph.Service, uid string, f purgable) error {
+		driveFolder, ok := f.(*onedrive.Displayable)
+		if !ok {
+			return errors.New("non-OneDrive item")
+		}
+
+		return onedrive.DeleteItem(
+			ctx,
+			gs,
+			*driveFolder.GetParentReference().GetDriveId(),
+			*f.GetId(),
+		)
+	}
+
+	return purgeFolders(ctx, gc, boundary, "OneDrive Folders", uid, getter, deleter)
 }
 
 // ----- controller
@@ -287,7 +355,7 @@ func purgeFolders(
 	boundary time.Time,
 	data, uid string,
 	getter func(graph.Service, string, string) ([]purgable, error),
-	deleter func(graph.Service, string, string) error,
+	deleter func(graph.Service, string, purgable) error,
 ) error {
 	Infof(ctx, "\nContainer: %s", data)
 
@@ -324,7 +392,7 @@ func purgeFolders(
 
 		Infof(ctx, "Deleting [%s]", displayName)
 
-		err = deleter(gc.Service(), uid, *fld.GetId())
+		err = deleter(gc.Service(), uid, fld)
 		if err != nil {
 			err = errors.Wrapf(err, "!! Error")
 			errs = multierror.Append(errs, err)
