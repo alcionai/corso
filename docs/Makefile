@@ -1,6 +1,5 @@
 .PHONY: buildimage build dev shell check genclidocs
 
-# 
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
 CORSO_BUILD_MOD := ${CORSO_BUILD_DIR}/mod
