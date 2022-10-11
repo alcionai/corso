@@ -139,13 +139,15 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		byteCount += itemInfo.Size
 
 		itemInfo.ParentPath = parentPathString
-		progReader := observe.ItemProgress(itemData, itemInfo.ItemName, itemInfo.Size)
+		progReader, closer := observe.ItemProgress(itemData, itemInfo.ItemName, itemInfo.Size)
 
 		oc.data <- &Item{
 			id:   itemInfo.ItemName,
 			data: progReader,
 			info: itemInfo,
 		}
+
+		closer()
 	}
 
 	oc.reportAsCompleted(ctx, itemsRead, byteCount, errs)

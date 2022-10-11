@@ -28,12 +28,20 @@ func (suite *ObserveProgressUnitSuite) TestDoesThings() {
 	recorder := strings.Builder{}
 	observe.SeedWriter(&recorder)
 
+	defer func() {
+		// don't cross-contaminate other tests.
+		observe.SeedWriter(nil)
+	}()
+
 	from := make([]byte, 100)
-	prog := observe.ItemProgress(
+	prog, closer := observe.ItemProgress(
 		io.NopCloser(bytes.NewReader(from)),
 		"test",
 		100)
 	require.NotNil(t, prog)
+	require.NotNil(t, closer)
+
+	defer closer()
 
 	for {
 		to := make([]byte, 25)
