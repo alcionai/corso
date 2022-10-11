@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"context"
 	stdpath "path"
 	"strings"
 	"testing"
@@ -220,7 +219,8 @@ func TestConfiguredMailFolderCacheUnitSuite(t *testing.T) {
 }
 
 func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	for _, c := range suite.allContainers {
 		suite.T().Run(*c.GetDisplayName(), func(t *testing.T) {
@@ -233,8 +233,10 @@ func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCa
 }
 
 func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 	c := suite.allContainers[len(suite.allContainers)-1]
 
 	p, err := suite.mc.IDToPath(ctx, c.id)
@@ -251,8 +253,10 @@ func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderCachesPat
 }
 
 func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderErrorsParentNotFound() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 	last := suite.allContainers[len(suite.allContainers)-1]
 	almostLast := suite.allContainers[len(suite.allContainers)-2]
 
@@ -263,8 +267,10 @@ func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderErrorsPar
 }
 
 func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderErrorsNotFound() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	_, err := suite.mc.IDToPath(ctx, "foo")
 	assert.Error(t, err)
@@ -305,6 +311,9 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 }
 
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	tests := []struct {
 		name string
 		root string
@@ -324,7 +333,6 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			path: []string{"some", "leading", "path"},
 		},
 	}
-	ctx := context.Background()
 	userID := tester.M365UserID(suite.T())
 
 	for _, test := range tests {

@@ -1,7 +1,6 @@
 package selectors
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -1129,8 +1129,11 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			sel := test.makeSelector()
-			results := sel.Reduce(context.Background(), test.deets)
+			results := sel.Reduce(ctx, test.deets)
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
 		})

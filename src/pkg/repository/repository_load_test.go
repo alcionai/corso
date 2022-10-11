@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -31,7 +30,9 @@ func initM365Repo(t *testing.T) (
 	)
 	require.NoError(t, err)
 
-	ctx := tester.NewContext()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	st := tester.NewPrefixedS3Storage(t)
 	ac := tester.NewM365Account(t)
 	opts := control.Options{
@@ -217,18 +218,12 @@ func (suite *RepositoryLoadTestExchangeSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestExchangeSuite) SetupTest() {
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
-}
-
-func (suite *RepositoryLoadTestExchangeSuite) TeardownTest() {
-	logger.Flush(suite.ctx)
-}
-
 func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t       = suite.T()
-		ctx     = context.Background()
 		r       = suite.repo
 		service = "exchange"
 	)
@@ -291,18 +286,12 @@ func (suite *RepositoryLoadTestOneDriveSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestOneDriveSuite) SetupTest() {
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
-}
-
-func (suite *RepositoryLoadTestOneDriveSuite) TeardownTest() {
-	logger.Flush(suite.ctx)
-}
-
 func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t       = suite.T()
-		ctx     = context.Background()
 		r       = suite.repo
 		service = "one_drive"
 	)

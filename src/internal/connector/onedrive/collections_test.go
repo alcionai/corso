@@ -1,7 +1,6 @@
 package onedrive
 
 import (
-	"context"
 	"testing"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -9,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
@@ -126,8 +127,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 
 	for _, tt := range tests {
 		suite.T().Run(tt.testCase, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			c := NewCollections(tenant, user, &MockGraphService{}, nil)
-			err := c.updateCollections(context.Background(), "driveID", tt.items)
+			err := c.updateCollections(ctx, "driveID", tt.items)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.collectionMap))
 			assert.Equal(t, tt.expectedItemCount, c.numItems)
