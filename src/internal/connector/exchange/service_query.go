@@ -2,15 +2,10 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
 // GraphQuery represents functions which perform exchange-specific queries
@@ -120,79 +115,4 @@ func RetrieveEventDataForUser(ctx context.Context, gs graph.Service, user, m365I
 // Attachment field is omitted due to size.
 func RetrieveMessageDataForUser(ctx context.Context, gs graph.Service, user, m365ID string) (absser.Parsable, error) {
 	return gs.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
-}
-
-// CollectFolders is a utility function for creating Collections based off parameters found
-// in the ExchangeScope found in the graph.QueryParams
-func CollectFolders(
-	ctx context.Context,
-	qp graph.QueryParams,
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-) error {
-	var (
-		query             GraphQuery
-		transformer       absser.ParsableFactory
-		queryService, err = createService(qp.Credentials, qp.FailFast)
-	)
-
-	if err != nil {
-		return errors.Wrapf(
-			err,
-			"unable to create graph.Service within CollectFolders service for "+qp.User,
-		)
-	}
-
-	option := scopeToOptionIdentifier(qp.Scope)
-	switch option {
-	case messages:
-		query = GetAllFolderNamesForUser
-		transformer = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
-	case contacts:
-		query = GetAllContactFolderNamesForUser
-		transformer = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
-	case events:
-		query = GetAllCalendarNamesForUser
-		transformer = models.CreateCalendarCollectionResponseFromDiscriminatorValue
-	default:
-		return fmt.Errorf("unsupported option %s used in CollectFolders", option)
-	}
-
-	response, err := query(ctx, queryService, qp.User)
-	if err != nil {
-		return fmt.Errorf(
-			"unable to query mail folder for %s: details: %s",
-			qp.User,
-			support.ConnectorStackErrorTrace(err),
-		)
-	}
-
-	// Iterator required to ensure all potential folders are inspected
-	// when the breadth of the folder space is large
-	pageIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		&queryService.adapter,
-		transformer)
-	if err != nil {
-		return errors.Wrap(err, "unable to create iterator during mail folder query service")
-	}
-
-	errUpdater := func(id string, e error) {
-		err = support.WrapAndAppend(id, e, err)
-	}
-
-	callbackFunc := IterateFilterContainersForCollections(
-		ctx,
-		qp,
-		errUpdater,
-		collections,
-		statusUpdater,
-	)
-
-	iterateFailure := pageIterator.Iterate(ctx, callbackFunc)
-	if iterateFailure != nil {
-		err = support.WrapAndAppend(qp.User+" iterate failure", iterateFailure, err)
-	}
-
-	return err
 }
