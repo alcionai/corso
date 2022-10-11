@@ -178,17 +178,21 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 }
 
 func includePath(ctx context.Context, scope selectors.OneDriveScope, folderPath path.Path) bool {
-	if !scope.IsAny(selectors.OneDriveFolder) {
-		return true
-	}
-
-	// check if the folder is allowed by the scope
+	// Check if the folder is allowed by the scope.
 	folderPathString, err := getDriveFolderPath(folderPath)
 	if err != nil {
 		logger.Ctx(ctx).Error(err)
 		return true
 	}
-	logger.Ctx(ctx).Infof("Skipping path %s", folderPathString)
+
+	// Hack for the edge case where we're looking at the root folder and can
+	// select any folder. Right now the root folder has an empty folder path.
+	if len(folderPathString) == 0 && scope.IsAny(selectors.OneDriveFolder) {
+		return true
+	}
+
+	logger.Ctx(ctx).Infof("Checking path %q", folderPathString)
+
 	return scope.Matches(selectors.OneDriveFolder, folderPathString)
 }
 
