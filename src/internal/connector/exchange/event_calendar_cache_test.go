@@ -67,7 +67,7 @@ func (suite *EventCalendarCacheSuite) TestPopulate() {
 		},
 		{
 			name:       "Default Event Folder Hidden",
-			folderName: DefaultCalendar,
+			folderName: DefaultContactFolder,
 			canFind:    assert.False,
 		},
 		{
@@ -81,6 +81,7 @@ func (suite *EventCalendarCacheSuite) TestPopulate() {
 			require.NoError(t, ecc.Populate(ctx, DefaultCalendar, test.basePath))
 			_, isFound := ecc.PathInCache(test.folderName)
 			test.canFind(t, isFound)
+			assert.Greater(t, len(ecc.cache), 0)
 		})
 	}
 }
