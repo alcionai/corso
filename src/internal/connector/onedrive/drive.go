@@ -160,6 +160,14 @@ func newItem(name string, folder bool) models.DriveItemable {
 	return itemToCreate
 }
 
+type Displayable struct {
+	models.DriveItemable
+}
+
+func (op *Displayable) GetDisplayName() *string {
+	return op.GetName()
+}
+
 // GetAllFolders returns all folders in all drives for the given user. If a
 // prefix is given, returns all folders with that prefix, regardless of if they
 // are a subfolder or top-level folder in the hierarchy.
@@ -168,13 +176,13 @@ func GetAllFolders(
 	gs graph.Service,
 	userID string,
 	prefix string,
-) ([]models.DriveItemable, error) {
+) ([]*Displayable, error) {
 	drives, err := drives(ctx, gs, userID)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}
 
-	res := []models.DriveItemable{}
+	res := []*Displayable{}
 
 	for _, d := range drives {
 		err = collectItems(
@@ -199,7 +207,7 @@ func GetAllFolders(
 
 					// Add the item instead of the folder because the item has more
 					// functionality.
-					res = append(res, item)
+					res = append(res, &Displayable{item})
 				}
 
 				return nil
