@@ -43,7 +43,7 @@ jobs:
         uses: ./.github/actions/go-setup-cache
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true'
         with:
-          go-version-file: src/go.mod
+          go-version-file: src/go.mod-invalid
 
   # ----------------------------------------------------------------------------------------------------
   # --- Generate CLI docs ------------------------------------------------------------------------------
