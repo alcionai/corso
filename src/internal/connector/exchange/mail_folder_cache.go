@@ -148,13 +148,9 @@ func (mc *mailFolderCache) Populate(ctx context.Context, baseID string) error {
 		}
 
 		for _, f := range resp.GetValue() {
-			if err := checkRequiredValues(f); err != nil {
+			if err := mc.AddToCache(ctx, f); err != nil {
 				errs = multierror.Append(errs, err)
 				continue
-			}
-
-			mc.cache[*f.GetId()] = &mailFolder{
-				folder: f,
 			}
 		}
 
