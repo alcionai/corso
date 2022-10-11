@@ -35,6 +35,7 @@ jobs:
               - 'docs/**'
             actions:
               - '.github/workflows/**'
+              - '.github/actions/**'
 
       - name: Check dorny for changes in src filepaths
         id: srcchecker
