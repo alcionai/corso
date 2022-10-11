@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	mu       sync.Mutex
 	wg       sync.WaitGroup
 	writer   io.Writer
 	progress *mpb.Progress
@@ -18,11 +19,6 @@ var (
 // Uses a noop writer until seeded.
 func SeedWriter(w io.Writer) {
 	writer = w
-
-	if w == nil {
-		progress = nil
-		return
-	}
 
 	progress = mpb.New(
 		mpb.WithWidth(32),
@@ -49,6 +45,8 @@ func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadClos
 		return rc, func() {}
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
 	wg.Add(1)
 
 	bar := progress.AddBar(
