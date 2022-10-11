@@ -566,8 +566,6 @@ func establishEventsRestoreLocation(
 
 	folderID := *temp.GetId()
 
-	fmt.Println("Calendar Created, yes?  " + *temp.GetName())
-
 	if isNewCache {
 		if err = ecc.Populate(ctx, folderID, folders[0]); err != nil {
 			return "", errors.Wrap(err, "populating event cache")
