@@ -248,16 +248,30 @@ func IterateAndFilterDescendablesForCollections(
 
 	return func(descendItem any) bool {
 		if !isFilterSet {
-			err := CollectFolders(
-				ctx,
-				qp,
-				collections,
-				statusUpdater,
-				resolver,
-			)
-			if err != nil {
-				errUpdater(qp.User, err)
-				return false
+			if resolver != nil {
+				err := collectionsFromResolver(
+					ctx,
+					qp,
+					resolver,
+					statusUpdater,
+					collections,
+				)
+				if err != nil {
+					errUpdater(qp.User, err)
+					return false
+				}
+			} else {
+				err := CollectFolders(
+					ctx,
+					qp,
+					collections,
+					statusUpdater,
+					resolver,
+				)
+				if err != nil {
+					errUpdater(qp.User, err)
+					return false
+				}
 			}
 
 			// Caches folder directories
