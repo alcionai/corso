@@ -69,4 +69,5 @@ type ContainerResolver interface {
 	// @param baseFolderID represents the M365ID base that the resolver will
 	// conclude its search. Default input is "".
 	Populate(ctx context.Context, baseFolderID string) error
+	AddToCache(ctx context.Context, m365Container Container) error
 }

@@ -207,3 +207,24 @@ func (mc *mailFolderCache) Init(ctx context.Context, baseNode string) error {
 
 	return mc.populateMailRoot(ctx, baseNode)
 }
+
+func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
+	if err := checkRequiredValues(f); err != nil {
+		return errors.Wrap(err, "adding cache entry")
+	}
+
+	if _, ok := mc.cache[*f.GetId()]; ok {
+		return nil
+	}
+
+	mc.cache[*f.GetId()] = &mailFolder{
+		folder: f,
+	}
+
+	_, err := mc.IDToPath(ctx, *f.GetId())
+	if err != nil {
+		return errors.Wrap(err, "adding cache entry")
+	}
+
+	return nil
+}
