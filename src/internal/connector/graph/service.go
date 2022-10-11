@@ -70,4 +70,6 @@ type ContainerResolver interface {
 	// conclude its search. Default input is "".
 	Populate(ctx context.Context, baseFolderID string) error
 	AddToCache(ctx context.Context, m365Container Container) error
+	// Items returns the containers in the cache.
+	Items() []CachedContainer
 }

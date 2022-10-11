@@ -224,3 +224,13 @@ func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) er
 
 	return nil
 }
+
+func (mc *mailFolderCache) Items() []graph.CachedContainer {
+	res := make([]graph.CachedContainer, 0, len(mc.cache))
+
+	for _, c := range mc.cache {
+		res = append(res, c)
+	}
+
+	return res
+}
