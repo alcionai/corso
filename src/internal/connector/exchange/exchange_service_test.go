@@ -435,68 +435,6 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	assert.NotNil(t, info, "event item info")
 }
 
-// TestGetRestoreContainer checks the ability to Create a "container" for the
-// GraphConnector's Restore Workflow based on OptionIdentifier.
-func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
-	//ctx := context.Background()
-	//dest := tester.DefaultTestRestoreDestination()
-	tests := []struct {
-		name        string
-		option      path.CategoryType
-		checkError  assert.ErrorAssertionFunc
-		cleanupFunc func(context.Context, graph.Service, string, string) error
-	}{
-		{
-			name:        "Establish User Restore Folder",
-			option:      path.CategoryType(-1),
-			checkError:  assert.Error,
-			cleanupFunc: nil,
-		},
-
-		// TODO: #884 - reinstate when able to specify root folder by name
-		// {
-		// 	name:        "Establish Event Restore Location",
-		// 	option:      path.EventsCategory,
-		// 	checkError:  assert.NoError,
-		// 	cleanupFunc: DeleteCalendar,
-		// },
-		{
-			name:        "Establish Restore Folder for Unknown",
-			option:      path.UnknownCategory,
-			checkError:  assert.Error,
-			cleanupFunc: nil,
-		},
-		{
-			name:        "Establish Restore folder for Mail",
-			option:      path.EmailCategory,
-			checkError:  assert.NoError,
-			cleanupFunc: DeleteMailFolder,
-		},
-		// TODO: #884 - reinstate when able to specify root folder by name
-		// {
-		// 	name:        "Establish Restore folder for Contacts",
-		// 	option:      path.ContactsCategory,
-		// 	checkError:  assert.NoError,
-		// 	cleanupFunc: DeleteContactFolder,
-		// },
-	}
-
-	userID := tester.M365UserID(suite.T())
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			t.Logf("UserID: %s on Test: %s", userID, test.name)
-			//containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option, dest.ContainerName)
-			//require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
-
-			//if test.cleanupFunc != nil {
-			//	err = test.cleanupFunc(ctx, suite.es, userID, containerID)
-			//	assert.NoError(t, err)
-			//}
-		})
-	}
-}
-
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 	ctx := context.Background()
