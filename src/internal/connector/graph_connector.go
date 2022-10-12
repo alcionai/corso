@@ -8,6 +8,7 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"github.com/hashicorp/go-multierror"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -287,6 +288,43 @@ func scopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
 	}
 
 	return path.UnknownCategory
+}
+
+func (gc *GraphConnector) fetchItemsByFolder(
+	ctx context.Context,
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+) (map[string]*exchange.Collection, error) {
+	var errs *multierror.Error
+
+	collections := map[string]*exchange.Collection{}
+	// This gets the collections, but does not get the items in the
+	// collection.
+	err := exchange.CollectionsFromResolver(
+		ctx,
+		qp,
+		resolver,
+		gc.UpdateStatus,
+		collections,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting target collections")
+	}
+
+	for id, col := range collections {
+		// Fetch items for said collection.
+		err := exchange.AddItemsToCollection(ctx, gc.Service(), qp.User, id, col)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"fetching items for collection %s with ID %s",
+				col.FullPath().String(),
+				id,
+			))
+		}
+	}
+
+	return collections, errs.ErrorOrNil()
 }
 
 func (gc *GraphConnector) legacyFetchItems(
