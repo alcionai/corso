@@ -15,7 +15,7 @@ import (
 var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
-	cache          map[string]cachedContainer
+	cache          map[string]graph.CachedContainer
 	gs             graph.Service
 	userID, rootID string
 }
@@ -48,11 +48,8 @@ func (ecc *eventCalendarCache) populateEventRoot(
 	}
 
 	identifier := *idPtr
-	transform := CreateCalendarDisplayable(cal, identifier)
-	temp := cacheFolder{
-		Container: transform,
-		p:         path.Builder{}.Append(baseContainerPath...),
-	}
+	transform := graph.CreateCalendarDisplayable(cal, identifier)
+	temp := graph.NewCacheFolder(transform, path.Builder{}.Append(baseContainerPath...))
 
 	ecc.cache[identifier] = &temp
 	ecc.rootID = identifier
@@ -134,7 +131,7 @@ func (ecc *eventCalendarCache) init(
 	}
 
 	if ecc.cache == nil {
-		ecc.cache = map[string]cachedContainer{}
+		ecc.cache = map[string]graph.CachedContainer{}
 	}
 
 	return ecc.populateEventRoot(ctx, baseNode, baseContainerPath)
@@ -169,7 +166,7 @@ func (ecc *eventCalendarCache) IDToPath(
 // this means that the object has to be transformed prior to calling
 // this function.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkRequiredValues(f); err != nil {
+	if err := graph.CheckRequiredValues(f); err != nil {
 		return err
 	}
 
@@ -177,7 +174,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return nil
 	}
 
-	ecc.cache[*f.GetId()] = &cacheFolder{
+	ecc.cache[*f.GetId()] = &graph.CacheFolder{
 		Container: f,
 	}
 
@@ -205,4 +202,14 @@ func (ecc *eventCalendarCache) PathInCache(pathString string) (string, bool) {
 	}
 
 	return "", false
+}
+
+func (ecc *eventCalendarCache) GetCacheFolders() []graph.CachedContainer {
+	cached := make([]graph.CachedContainer, 0)
+
+	for _, folder := range ecc.cache {
+		cached = append(cached, folder)
+	}
+
+	return cached
 }
