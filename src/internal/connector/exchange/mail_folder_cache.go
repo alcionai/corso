@@ -12,11 +12,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+var _ graph.ContainerResolver = &mailFolderCache{}
+
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	cache          map[string]cachedContainer
+	cache          map[string]graph.CachedContainer
 	gs             graph.Service
 	userID, rootID string
 }
@@ -56,10 +58,7 @@ func (mc *mailFolderCache) populateMailRoot(
 		return errors.New("root folder has no ID")
 	}
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(baseContainerPath...),
-	}
+	temp := graph.NewCacheFolder(f, path.Builder{}.Append(baseContainerPath...))
 	mc.cache[*idPtr] = &temp
 	mc.rootID = *idPtr
 
@@ -156,7 +155,7 @@ func (mc *mailFolderCache) init(
 	}
 
 	if mc.cache == nil {
-		mc.cache = map[string]cachedContainer{}
+		mc.cache = map[string]graph.CachedContainer{}
 	}
 
 	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)
@@ -165,7 +164,7 @@ func (mc *mailFolderCache) init(
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
 func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkRequiredValues(f); err != nil {
+	if err := graph.CheckRequiredValues(f); err != nil {
 		return err
 	}
 
@@ -173,7 +172,7 @@ func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) er
 		return nil
 	}
 
-	mc.cache[*f.GetId()] = &cacheFolder{
+	mc.cache[*f.GetId()] = &graph.CacheFolder{
 		Container: f,
 	}
 
@@ -205,4 +204,14 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 	}
 
 	return "", false
+}
+
+func (mc *mailFolderCache) GetCacheFolders() []graph.CachedContainer {
+	cached := make([]graph.CachedContainer, 0)
+
+	for _, folder := range mc.cache {
+		cached = append(cached, folder)
+	}
+
+	return cached
 }
