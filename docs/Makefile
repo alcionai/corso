@@ -1,6 +1,5 @@
 .PHONY: buildimage build dev shell check genclidocs
 
-# 
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
 CORSO_BUILD_MOD := ${CORSO_BUILD_DIR}/mod
@@ -12,7 +11,6 @@ CORSO_REPO_CONTAINER := /go/src/github.com/alcionai/corso
 MDGEN_SRC_CONTAINER := ${CORSO_REPO_CONTAINER}/src/cmd/mdgen/mdgen.go
 MDGEN_BINARY := ${CORSO_BUILD_BIN}/mdgen
 CLI_DOCS_CONTAINER := ${CORSO_REPO_CONTAINER}/docs/docs/cli
-
 
 buildimage:
 	docker build -t "alcion/docs:latest" .
@@ -28,7 +26,7 @@ dockercheck: genclidocs
 	docker run --rm \
 		-v ${PWD}:/usr/src/docs alcion/docs vale $(VALE_TARGET)
 	docker run --rm \
-	 	-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
+		-v ${PWD}:/usr/src/docs alcion/docs markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
 check: genclidocs
 	vale $(VALE_TARGET)
