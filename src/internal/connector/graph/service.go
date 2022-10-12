@@ -69,5 +69,5 @@ type ContainerResolver interface {
 
 	AddToCache(ctx context.Context, m365Container Container) error
 
-	GetCacheFolders() []Container
+	GetCacheFolders() []CachedContainer
 }
