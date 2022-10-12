@@ -48,6 +48,16 @@ type CacheFolder struct {
 	p *path.Builder
 }
 
+// NewCacheFolder public constructor for struct
+func NewCacheFolder(c Container, pb *path.Builder) CacheFolder {
+	cf := CacheFolder{
+		Container: c,
+		p:         pb,
+	}
+
+	return cf
+}
+
 //=========================================
 // Required Functions to satisfy interfaces
 //=====================================
