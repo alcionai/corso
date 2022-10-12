@@ -96,7 +96,7 @@ func IterateSelectEventsFromCalendars(
 			isEnabled = true
 		}
 
-		// Should be able to complete on the first run
+		// Should complete on the first run within iterator
 		for key, col := range collections {
 			eventIDs, err := ReturnEventIDsFromCalendar(ctx, col.service, qp.User, key)
 			if err != nil {
