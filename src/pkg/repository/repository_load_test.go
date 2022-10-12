@@ -256,6 +256,11 @@ func ensureAllUsersInDetails(
 
 			foundUsers[ro] = true
 			foundCategories[ct.String()] = struct{}{}
+
+			if _, ok := userCategories[ro]; !ok {
+				userCategories[ro] = map[string]struct{}{}
+			}
+
 			userCategories[ro][ct.String()] = struct{}{}
 		}
 
