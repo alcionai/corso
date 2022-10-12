@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/trace"
+	"strings"
 	"sync"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -50,7 +51,7 @@ func (gc *GraphConnector) Service() graph.Service {
 
 var (
 	_               graph.Service = &graphService{}
-	ErrPageNotFound               = errors.New("fetching next page failed")
+	ErrPageNotFound               = "fetching next page failed"
 )
 
 type graphService struct {
@@ -327,12 +328,15 @@ func (gc *GraphConnector) createCollections(
 		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus)
 		iterateError := pageIterator.Iterate(ctx, callbackFunc)
 
-		if iterateError != nil && !errors.Is(iterateError, ErrPageNotFound) {
-			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl()+" Failed as Iterator ", iterateError, errs)
-		}
-
 		if iterateError != nil {
-			logger.Ctx(ctx).Debug(support.ConnectorStackErrorTrace(err))
+			logger.Ctx(ctx).Debug(support.ConnectorStackErrorTrace(iterateError))
+
+			if !strings.Contains(iterateError.Error(), ErrPageNotFound) {
+				errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl()+
+					" createCollectionsIterator ",
+					iterateError,
+					errs)
+			}
 		}
 
 		if errs != nil {
