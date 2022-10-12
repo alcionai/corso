@@ -133,7 +133,7 @@ func (suite *MailFolderCacheUnitSuite) TestCheckRequiredValues() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.check(t, checkRequiredValues(test.c))
+			test.check(t, graph.CheckRequiredValues(test.c))
 		})
 	}
 }
