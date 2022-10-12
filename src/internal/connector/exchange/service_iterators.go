@@ -208,7 +208,7 @@ func collectionsFromResolver(
 			false,
 		)
 		if err != nil {
-			return errors.Wrap(err, "getting matching cached folders")
+			return errors.Wrap(err, "resolving collection item path")
 		}
 
 		service, err := createService(qp.Credentials, qp.FailFast)
