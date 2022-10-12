@@ -355,17 +355,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		if scope.IsAny(selectors.ExchangeMailFolder) {
-			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-				GetAllMessagesForUser,
-				IterateSelectAllDescendablesForCollections,
-				nil
-		}
-
-		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-			GetAllMessagesForUser,
-			IterateAndFilterDescendablesForCollections,
-			nil
+		return nil, nil, nil, errors.New("mail no longer supported this way")
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {

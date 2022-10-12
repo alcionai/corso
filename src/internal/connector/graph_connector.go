@@ -381,7 +381,7 @@ func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
 ) ([]*exchange.Collection, error) {
-	var errs error
+	var errs *multierror.Error
 
 	users := scope.Get(selectors.ExchangeUser)
 	allCollections := make([]*exchange.Collection, 0)
@@ -406,10 +406,21 @@ func (gc *GraphConnector) createCollections(
 			return nil, errors.Wrap(err, "getting folder cache")
 		}
 
-		collections, err = gc.legacyFetchItems(ctx, scope, qp, resolver)
-		// Preserving previous behavior.
-		if err != nil {
-			return nil, err // return error if snapshot is incomplete
+		if scopeToPathCategory(scope) == path.EmailCategory {
+			if resolver == nil {
+				return nil, errors.New("unable to create mail folder resolver")
+			}
+
+			collections, err = gc.fetchItemsByFolder(ctx, qp, resolver)
+			if err != nil {
+				errs = multierror.Append(errs, err)
+			}
+		} else {
+			collections, err = gc.legacyFetchItems(ctx, scope, qp, resolver)
+			// Preserving previous behavior.
+			if err != nil {
+				return nil, err // return error if snapshot is incomplete
+			}
 		}
 
 		for _, collection := range collections {
@@ -419,7 +430,7 @@ func (gc *GraphConnector) createCollections(
 		}
 	}
 
-	return allCollections, errs
+	return allCollections, errs.ErrorOrNil()
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
