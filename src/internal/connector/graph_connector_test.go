@@ -386,7 +386,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		service                path.ServiceType
 		collections            []colInfo
 		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
-		expectedRestoreFolders int
 	}{
 		// {
 		// 	name:                   "EmailsWithAttachments",
