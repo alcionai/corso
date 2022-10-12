@@ -384,42 +384,48 @@ func matchesPathValues[T scopeT, C categoryT](
 			return false
 		}
 
-		// all parts of the scope must match
 		cc := c.(C)
 
 		if isNoneTarget(sc, cc) {
 			return false
 		}
 
-		if !isAnyTarget(sc, cc) {
-			var match bool
+		if isAnyTarget(sc, cc) {
+			// continue, not return: all path keys must match the entry to succeed
+			continue
+		}
 
-			switch {
-			// Leaf category - the scope can match either the path value (the item ID itself),
-			// or the shortRef hash representing the item.
-			case c.isLeaf() && len(shortRef) > 0:
-				match = matches(sc, cc, pathVal) || matches(sc, cc, shortRef)
+		var (
+			match  bool
+			isLeaf = c.isLeaf()
+			isRoot = c == c.rootCat()
+		)
 
-			// Folder category - checks if any target folder is a prefix of the path folders.
-			// TODO: assumes all folders require prefix matchers.  Users can now specify whether
-			// the folder filter is a prefix match or not.  We should respect that configuration.
-			// Also assumes (correctly) that we need to split the targets and re-compose them into
-			// individual prefix matchers.
-			case !c.isLeaf() && c != c.rootCat():
-				for _, tgt := range getCatValue(sc, c) {
-					if filters.Prefix(tgt).Compare(pathVal) {
-						match = true
-						break
-					}
+		switch {
+		// Leaf category - the scope can match either the path value (the item ID itself),
+		// or the shortRef hash representing the item.
+		case isLeaf && len(shortRef) > 0:
+			match = matches(sc, cc, pathVal) || matches(sc, cc, shortRef)
+
+		// Folder category - checks if any target folder is a prefix of the path folders.
+		// Assumes (correctly) that we need to split the targets and re-compose them into
+		// individual prefix matchers.
+		// TODO: assumes all folders require prefix matchers.  Users can now specify whether
+		// the folder filter is a prefix match or not.  We should respect that configuration.
+		case !isLeaf && !isRoot:
+			for _, tgt := range getCatValue(sc, c) {
+				if filters.Prefix(tgt).Compare(pathVal) {
+					match = true
+					break
 				}
-
-			default:
-				match = matches(sc, cc, pathVal)
 			}
 
-			if !match {
-				return false
-			}
+		default:
+			match = matches(sc, cc, pathVal)
+		}
+
+		if !match {
+			return false
 		}
 	}
 
