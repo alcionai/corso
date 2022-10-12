@@ -36,9 +36,9 @@ To create the environment variables file, you can run the following.
 # create an env vars file
 $ cat <<EOF ~/.corso/corso.env 
 CORSO_PASSPHRASE
-AZURE_TENANT_ID
-AZURE_CLIENT_ID
-AZURE_CLIENT_SECRET
+TENANT_ID
+CLIENT_ID
+CLIENT_SECRET
 AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
 AWS_SESSION_TOKEN

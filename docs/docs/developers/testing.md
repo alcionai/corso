@@ -4,37 +4,39 @@
 
 - Set `CORSO_PASSWORD` environment variable
 
-    ```bash
-    export CORSO_PASSWORD=<some password>
-    ```
+```bash
+export CORSO_PASSWORD=<some password>
+```
 
 - Set AWS credential (needed for tests that use S3) environment variables
 
-    ```bash
-    export AWS_ACCESS_KEY_ID="...."
-    export AWS_SECRET_ACCESS_KEY="..."
-    export AWS_SESSION_TOKEN="..."
-    ```
+```bash
+export AWS_ACCESS_KEY_ID="...."
+export AWS_SECRET_ACCESS_KEY="..."
+export AWS_SESSION_TOKEN="..."
+```
 
 - Create a config file with the S3 bucket used for testing
 
-    ```toml
-    bucket = '<bucket name>'
-    ```
+```toml
+bucket = '<bucket name>'
+```
 
 - Set `CORSO_TEST_CONFIG_FILE` to use the test config file
 
-    ```bash
-    export CORSO_TEST_CONFIG_FILE=~/.corso_test.toml
-    ```
+```bash
+export CORSO_TEST_CONFIG_FILE=~/.corso_test.toml
+```
 
 - Set M365 Credentials environment variables
 
-    ```bash
-    export TENANT_ID=<tenant>
-    export CLIENT_ID=<id>
-    export CLIENT_SECRET=<secret>
-    ```
+> You can find more information on how to get these values in [configuration docs](/configuration/m365_access).
+
+```bash
+export TENANT_ID=<tenant>
+export CLIENT_ID=<id>
+export CLIENT_SECRET=<secret>
+```
 
 ## Running tests
 
