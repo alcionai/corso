@@ -27,94 +27,6 @@ type GraphIterateFunc func(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool
 
-// IterateSelectAllDescendablesForCollection utility function for
-// Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
-// objects belonging to any folder are
-// placed into a Collection based on the parent folder
-func IterateSelectAllDescendablesForCollections(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-) func(any) bool {
-	var (
-		isCategorySet  bool
-		collectionType optionIdentifier
-		category       path.CategoryType
-		resolver       graph.ContainerResolver
-		dirPath        path.Path
-		err            error
-	)
-
-	return func(pageItem any) bool {
-		// Defines the type of collection being created within the function
-		if !isCategorySet {
-			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
-				collectionType = messages
-				category = path.EmailCategory
-			}
-
-			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
-				collectionType = contacts
-				category = path.ContactsCategory
-			}
-
-			if r, err := maybeGetAndPopulateFolderResolver(ctx, qp, category); err != nil {
-				errUpdater("getting folder resolver for category "+category.String(), err)
-			} else {
-				resolver = r
-			}
-
-			isCategorySet = true
-		}
-
-		entry, ok := pageItem.(graph.Descendable)
-		if !ok {
-			errUpdater(qp.User, errors.New("descendable conversion failure"))
-			return true
-		}
-
-		// Saving to messages to list. Indexed by folder
-		directory := *entry.GetParentFolderId()
-
-		if _, ok = collections[directory]; !ok {
-			dirPath, err = getCollectionPath(
-				ctx,
-				qp,
-				resolver,
-				directory,
-				category,
-			)
-			if err != nil {
-				errUpdater(
-					"failure during IterateSelectAllDescendablesForCollections",
-					err,
-				)
-			}
-
-			service, err := createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errUpdater(qp.User, err)
-				return true
-			}
-
-			edc := NewCollection(
-				qp.User,
-				dirPath,
-				collectionType,
-				service,
-				statusUpdater,
-			)
-			collections[directory] = &edc
-		}
-
-		collections[directory].AddJob(*entry.GetId())
-
-		return true
-	}
-}
-
 // IterateSelectAllEventsForCollections
 // utility function for iterating through events
 // and storing events in collections based on
@@ -131,21 +43,13 @@ func IterateSelectAllEventsFromCalendars(
 ) func(any) bool {
 	var (
 		isEnabled bool
+		err       error
 		service   graph.Service
 	)
 
 	return func(pageItem any) bool {
 		if !isEnabled {
 			// Create Collections based on qp.Scope
-			err := CollectFolders(ctx, qp, collections, statusUpdater)
-			if err != nil {
-				errUpdater(
-					qp.User,
-					errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
-				)
-
-				return false
-			}
 
 			service, err = createService(qp.Credentials, qp.FailFast)
 			if err != nil {
@@ -156,7 +60,7 @@ func IterateSelectAllEventsFromCalendars(
 			isEnabled = true
 		}
 
-		pageItem = CreateCalendarDisplayable(pageItem, "")
+		pageItem = graph.CreateCalendarDisplayable(pageItem, "")
 
 		calendar, ok := pageItem.(graph.Displayable)
 		if !ok {
@@ -201,29 +105,59 @@ func IterateAndFilterDescendablesForCollections(
 	statusUpdater support.StatusUpdater,
 ) func(any) bool {
 	var (
-		isFilterSet bool
-		resolver    graph.ContainerResolver
-		cache       map[string]string
+		isFilterSet    bool
+		err            error
+		resolver       graph.ContainerResolver
+		collectionType optionIdentifier
+		category       path.CategoryType
 	)
 
 	return func(descendItem any) bool {
 		if !isFilterSet {
-			err := CollectFolders(
-				ctx,
-				qp,
-				collections,
-				statusUpdater,
-			)
-			if err != nil {
-				errUpdater(qp.User, err)
-				return false
+			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
+				collectionType = messages
+				category = path.EmailCategory
 			}
-			// Caches folder directories
-			cache = make(map[string]string, 0)
 
-			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
+			resolver, err = PopulateExchangeContainerResolver(ctx, qp, category, false)
 			if err != nil {
 				errUpdater("getting folder resolver for category "+path.EmailCategory.String(), err)
+				return false
+			}
+
+			for _, c := range resolver.GetCacheFolders() {
+				// Create receive all
+				fmt.Printf("This is %s\t", *c.GetDisplayName())
+				dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
+					qp.Credentials.TenantID,
+					qp.User,
+					path.EmailCategory,
+					false,
+				)
+
+				if dirPath == nil {
+					continue // Only true for root mail folder
+				}
+
+				directories := dirPath.Folders()
+
+				if qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1]) {
+					// Create only those that match
+					service, err := createService(qp.Credentials, qp.FailFast)
+					if err != nil {
+						errUpdater(qp.User, err)
+						return true
+					}
+
+					edc := NewCollection(
+						qp.User,
+						dirPath,
+						collectionType,
+						service,
+						statusUpdater,
+					)
+					collections[*c.GetId()] = &edc
+				}
 			}
 
 			isFilterSet = true
@@ -235,19 +169,7 @@ func IterateAndFilterDescendablesForCollections(
 			return true
 		}
 		// Saving only messages for the created directories
-		folderID := *message.GetParentFolderId()
-
-		directory, ok := cache[folderID]
-		if !ok {
-			result := translateIDToDirectory(ctx, qp, resolver, folderID)
-			if result == "" {
-				errUpdater(qp.User,
-					errors.New("getCollectionPath experienced error during translateID"))
-			}
-
-			cache[folderID] = result
-			directory = result
-		}
+		directory := *message.GetParentFolderId()
 
 		if _, ok = collections[directory]; !ok {
 			return true
@@ -317,96 +239,6 @@ func getCategoryAndValidation(es selectors.ExchangeScope) (
 	return option, category, validate
 }
 
-func IterateFilterContainersForCollections(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-) func(any) bool {
-	var (
-		resolver    graph.ContainerResolver
-		isSet       bool
-		collectPath string
-		err         error
-		option      optionIdentifier
-		category    path.CategoryType
-		validate    func(*string) bool
-	)
-
-	return func(folderItem any) bool {
-		if !isSet {
-			option, category, validate = getCategoryAndValidation(qp.Scope)
-
-			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
-			if err != nil {
-				errUpdater("getting folder resolver for category "+category.String(), err)
-			}
-
-			isSet = true
-		}
-
-		if option == events {
-			folderItem = CreateCalendarDisplayable(folderItem, "")
-		}
-
-		folder, ok := folderItem.(graph.Displayable)
-		if !ok {
-			errUpdater(qp.User,
-				fmt.Errorf("unable to convert input of %T for category: %s", folderItem, category.String()),
-			)
-
-			return true
-		}
-
-		if validate(folder.GetDisplayName()) {
-			return true
-		}
-
-		if option == messages {
-			collectPath = *folder.GetId()
-		} else {
-			collectPath = *folder.GetDisplayName()
-		}
-
-		dirPath, err := getCollectionPath(
-			ctx,
-			qp,
-			resolver,
-			collectPath,
-			category,
-		)
-		if err != nil {
-			errUpdater(
-				"failure converting path during IterateFilterFolderDirectoriesForCollections",
-				err,
-			)
-
-			return true
-		}
-
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			errUpdater(
-				*folder.GetDisplayName(),
-				errors.Wrap(err, "creating service to iterate filterFolder directories for user: "+qp.User))
-
-			return true
-		}
-
-		temp := NewCollection(
-			qp.User,
-			dirPath,
-			option,
-			service,
-			statusUpdater,
-		)
-		collections[*folder.GetDisplayName()] = &temp
-
-		return true
-	}
-}
-
 func IterateSelectAllContactsForCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
@@ -416,6 +248,7 @@ func IterateSelectAllContactsForCollections(
 ) func(any) bool {
 	var (
 		isPrimarySet bool
+		err          error
 		service      graph.Service
 	)
 
@@ -428,17 +261,7 @@ func IterateSelectAllContactsForCollections(
 			)
 		}
 
-		if !isPrimarySet && folder.GetParentFolderId() != nil {
-			err := CollectFolders(
-				ctx,
-				qp,
-				collections,
-				statusUpdater,
-			)
-			if err != nil {
-				errUpdater(qp.User, err)
-				return false
-			}
+		if !isPrimarySet {
 
 			service, err = createService(qp.Credentials, qp.FailFast)
 			if err != nil {
@@ -513,59 +336,6 @@ func IterateSelectAllContactsForCollections(
 		}
 
 		collection.jobs = append(collection.jobs, listOfIDs...)
-
-		return true
-	}
-}
-
-// iterateFindContainerID is a utility function that supports finding
-// M365 folders objects that matches the folderName. Iterator callback function
-// will work on folderCollection responses whose objects implement
-// the displayable interface. If folder exists, the function updates the
-// containerID memory address that was passed in.
-// @param containerName is the string representation of the folder, directory or calendar holds
-// the underlying M365 objects
-func iterateFindContainerID(
-	containerID **string,
-	containerName, errorIdentifier string,
-	isCalendar bool,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		if isCalendar {
-			entry = CreateCalendarDisplayable(entry, "")
-		}
-
-		// True when pagination needs more time to get additional responses or
-		// when entry is not able to be converted into a displayable
-		if entry == nil {
-			return true
-		}
-
-		folder, ok := entry.(graph.Displayable)
-		if !ok {
-			errUpdater(
-				errorIdentifier,
-				errors.New("struct does not implement displayable"),
-			)
-
-			return true
-		}
-
-		// Display name not set on folder
-		if folder.GetDisplayName() == nil {
-			return true
-		}
-
-		if containerName == *folder.GetDisplayName() {
-			if folder.GetId() == nil {
-				return true // invalid folder
-			}
-
-			*containerID = folder.GetId()
-
-			return false
-		}
 
 		return true
 	}
@@ -662,7 +432,7 @@ func IterativeCollectCalendarContainers(
 		include := len(nameContains) == 0 ||
 			strings.Contains(*cal.GetName(), nameContains)
 		if include {
-			temp := CreateCalendarDisplayable(cal, rootID)
+			temp := graph.CreateCalendarDisplayable(cal, rootID)
 			containers[*temp.GetDisplayName()] = temp
 		}
 
