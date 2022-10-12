@@ -242,7 +242,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 				Credentials: credentials,
 			}
 			collections := make(map[string]*Collection)
-			err := CollectFolders(ctx, qp, collections, nil)
+			err := CollectFolders(ctx, qp, collections, nil, nil)
 			assert.NoError(t, err)
 			test.expectedCount(t, len(collections), containerCount)
 
