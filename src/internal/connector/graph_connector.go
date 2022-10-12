@@ -48,7 +48,10 @@ func (gc *GraphConnector) Service() graph.Service {
 	return gc.graphService
 }
 
-var _ graph.Service = &graphService{}
+var (
+	_               graph.Service = &graphService{}
+	ErrPageNotFound               = errors.New("https://graph.microsoft.com/v1.0: fetching next page failed")
+)
 
 type graphService struct {
 	client   msgraphsdk.GraphServiceClient
@@ -324,8 +327,12 @@ func (gc *GraphConnector) createCollections(
 		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus)
 		iterateError := pageIterator.Iterate(ctx, callbackFunc)
 
+		if iterateError != nil && !errors.Is(iterateError, ErrPageNotFound) {
+			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl()+" Failed as Iterator ", iterateError, errs)
+		}
+
 		if iterateError != nil {
-			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
+			logger.Ctx(ctx).Debug(support.ConnectorStackErrorTrace(err))
 		}
 
 		if errs != nil {
