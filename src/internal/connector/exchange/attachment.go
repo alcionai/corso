@@ -18,14 +18,13 @@ import (
 // Use large attachment logic for attachments > 3MB
 const (
 	largeAttachmentSize           = int32(3 * 1024 * 1024)
-	typeKey                       = "@odata.type"
 	fileAttachmentOdataValue      = "#microsoft.graph.fileAttachment"
 	itemAttachmentOdataValue      = "#microsoft.graph.itemAttachment"
 	referenceAttachmentOdataValue = "#microsoft.graph.referenceAttachment"
 )
 
 func attachmentType(attachment models.Attachmentable) models.AttachmentType {
-	switch attachment.GetAdditionalData()[typeKey] {
+	switch *attachment.GetOdataType() {
 	case fileAttachmentOdataValue:
 		return models.FILE_ATTACHMENTTYPE
 	case itemAttachmentOdataValue:
@@ -43,6 +42,8 @@ func attachmentType(attachment models.Attachmentable) models.AttachmentType {
 func uploadAttachment(ctx context.Context, service graph.Service, userID, folderID, messageID string,
 	attachment models.Attachmentable,
 ) error {
+	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
+
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
 	if attachmentType(attachment) != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
 		_, err := service.Client().
