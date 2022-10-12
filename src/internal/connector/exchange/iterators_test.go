@@ -68,7 +68,8 @@ func loadService(t *testing.T) *exchangeService {
 }
 
 // TestIterativeFunctions verifies that GraphQuery to Iterate
-// functions are valid for current versioning of msgraph-go-sdk
+// functions are valid for current versioning of msgraph-go-sdk.
+// Tests for mail have been moved to graph_connector_test.go.
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -98,16 +99,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		folderNames       map[string]struct{}
 	}{
 		{
-			name:              "Mail Iterative Check",
-			queryFunction:     GetAllMessagesForUser,
-			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             mailScope[0],
-			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
-			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
-				"Sent Items":      {},
-			},
-		}, {
 			name:              "Contacts Iterative Check",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateSelectAllContactsForCollections,
@@ -125,15 +116,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			iterativeFunction: IterateSelectAllEventsFromCalendars,
 			scope:             eventScope[0],
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-		}, {
-			name:              "Folder Iterative Check Mail",
-			queryFunction:     GetAllFolderNamesForUser,
-			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             mailScope[0],
-			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
-			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
-			},
 		}, {
 			name:              "Folder Iterative Check Contacts",
 			queryFunction:     GetAllContactFolderNamesForUser,
@@ -179,25 +161,6 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			iterateError := pageIterator.Iterate(ctx, callbackFunc)
 			assert.NoError(t, iterateError)
 			assert.NoError(t, errs)
-
-			// TODO(ashmrtn): Only check Exchange Mail folder names right now because
-			// other resolvers aren't implemented. Once they are we can expand these
-			// checks, potentially by breaking things out into separate tests per
-			// category.
-			if !test.scope.IncludesCategory(selectors.ExchangeMail) {
-				return
-			}
-
-			for _, c := range collections {
-				require.NotEmpty(t, c.FullPath().Folder())
-				folder := c.FullPath().Folder()
-
-				if _, ok := test.folderNames[folder]; ok {
-					delete(test.folderNames, folder)
-				}
-			}
-
-			assert.Empty(t, test.folderNames)
 		})
 	}
 }

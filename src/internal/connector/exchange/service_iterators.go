@@ -185,7 +185,9 @@ func IterateSelectAllEventsFromCalendars(
 	}
 }
 
-func collectionsFromResolver(
+// CollectionsFromResolver returns the set of collections that match the
+// selector parameters.
+func CollectionsFromResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
 	resolver graph.ContainerResolver,
@@ -224,7 +226,7 @@ func collectionsFromResolver(
 			statusUpdater,
 		)
 
-		collections[pathString] = &tmp
+		collections[*item.GetId()] = &tmp
 	}
 
 	return nil
@@ -249,7 +251,7 @@ func IterateAndFilterDescendablesForCollections(
 	return func(descendItem any) bool {
 		if !isFilterSet {
 			if resolver != nil {
-				err := collectionsFromResolver(
+				err := CollectionsFromResolver(
 					ctx,
 					qp,
 					resolver,

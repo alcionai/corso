@@ -11,6 +11,7 @@ import (
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item"
+	msmfmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 	"github.com/pkg/errors"
@@ -135,6 +136,22 @@ func scopeToOptionIdentifier(selector selectors.ExchangeScope) optionIdentifier 
 // Graph queries and reduce / filter the amount of data returned
 // which reduces the overall latency of complex calls
 //----------------------------------------------------------------
+
+func optionsForFolderMessages(moreOps []string) (*msmfmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, messages)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &msmfmessage.MessagesRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msmfmessage.MessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
 
 // optionsForMessages - used to select allowable options for exchange.Mail types
 // @param moreOps is []string of options(e.g. "parentFolderId, subject")
