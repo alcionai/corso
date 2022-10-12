@@ -51,7 +51,7 @@ func (gc *GraphConnector) Service() graph.Service {
 
 var (
 	_               graph.Service = &graphService{}
-	ErrPageNotFound               = "fetching next page failed"
+	ErrFetchingPage               = "fetching next page failed"
 )
 
 type graphService struct {
