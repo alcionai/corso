@@ -11,3 +11,9 @@ import "strings"
 func NormalizeBucket(b string) string {
 	return strings.TrimPrefix(b, "s3://")
 }
+
+// NormalizePrefix ensures that a bucket prefix is always treated as
+// object store folder prefix.
+func NormalizePrefix(p string) string {
+	return strings.TrimRight(p, "/") + "/"
+}
