@@ -133,7 +133,7 @@ func (suite *MailFolderCacheUnitSuite) TestCheckRequiredValues() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.check(t, checkRequiredValues(test.c))
+			test.check(t, graph.CheckRequiredValues(test.c))
 		})
 	}
 }
@@ -207,7 +207,7 @@ func (suite *ConfiguredMailFolderCacheUnitSuite) SetupTest() {
 		)
 	}
 
-	suite.mc = mailFolderCache{cache: map[string]cachedContainer{}}
+	suite.mc = mailFolderCache{cache: map[string]graph.CachedContainer{}}
 
 	for _, c := range suite.allContainers {
 		suite.mc.cache[c.id] = c
