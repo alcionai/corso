@@ -331,7 +331,7 @@ func (gc *GraphConnector) createCollections(
 		if iterateError != nil {
 			logger.Ctx(ctx).Debugw("page iteration", "error", support.ConnectorStackErrorTrace(iterateError))
 
-			if !strings.Contains(iterateError.Error(), ErrPageNotFound) {
+			if !strings.Contains(iterateError.Error(), ErrFetchingPage) {
 				errs = support.WrapAndAppend(
 					gc.graphService.adapter.GetBaseUrl()+" createCollectionsIterator",
 					iterateError,
