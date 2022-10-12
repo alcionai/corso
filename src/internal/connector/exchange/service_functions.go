@@ -317,30 +317,6 @@ func PopulateExchangeContainerResolver(
 	return res, nil
 }
 
-func resolveCollectionPath(
-	ctx context.Context,
-	resolver graph.ContainerResolver,
-	tenantID, user, folderID string,
-	category path.CategoryType,
-) (path.Path, error) {
-	if resolver == nil {
-		// Allows caller to default to old-style path.
-		return nil, errors.WithStack(errNilResolver)
-	}
-
-	p, err := resolver.IDToPath(ctx, folderID)
-	if err != nil {
-		return nil, errors.Wrap(err, "resolving folder ID")
-	}
-
-	return p.ToDataLayerExchangePathForCategory(
-		tenantID,
-		user,
-		category,
-		false,
-	)
-}
-
 func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
 	fmt.Printf("This is %s\t", *c.GetDisplayName())
 	dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
