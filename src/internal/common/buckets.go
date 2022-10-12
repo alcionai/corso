@@ -15,5 +15,11 @@ func NormalizeBucket(b string) string {
 // NormalizePrefix ensures that a bucket prefix is always treated as
 // object store folder prefix.
 func NormalizePrefix(p string) string {
-	return strings.TrimRight(p, "/") + "/"
+	tp := strings.TrimRight(p, "/")
+
+	if len(tp) > 0 {
+		tp = tp + "/"
+	}
+
+	return tp
 }

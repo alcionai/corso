@@ -37,4 +37,6 @@ func (suite *CommonBucketsSuite) TestPrefixSuffix() {
 	assert.Equal(t, properPrefix, common.NormalizePrefix(properPrefix), "Properly formatted prefix should not change")
 	assert.Equal(t, properPrefix, common.NormalizePrefix(prefixBase+"///"), "Only one trailing / should exist")
 	assert.Equal(t, properPrefix+"/sub/", common.NormalizePrefix(properPrefix+"/sub"), "Only affect trailing /")
+	assert.Equal(t, "", common.NormalizePrefix(""), "Only normalize actual prefix.")
+	assert.Equal(t, "", common.NormalizePrefix("//"), "Only normalize actual prefix.")
 }
