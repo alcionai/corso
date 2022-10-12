@@ -382,10 +382,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	//subjectText := "Test message for restore"
 
 	table := []struct {
-		name                   string
-		service                path.ServiceType
-		collections            []colInfo
-		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
+		name          string
+		service       path.ServiceType
+		collections   []colInfo
+		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
 	}{
 		// {
 		// 	name:                   "EmailsWithAttachments",
@@ -474,9 +474,8 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 	},
 		// },
 		{
-			name:                   "MultipleContactsSingleFolder",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			name:    "MultipleContactsSingleFolder",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Contacts"},
@@ -513,8 +512,8 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:                   "MultipleContactsMutlipleFolders",
-			service:                path.ExchangeService,
+			name:    "MultipleContactsMutlipleFolders",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -567,9 +566,8 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:                   "MultipleEventsSingleCalendar",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			name:    "MultipleEventsSingleCalendar",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -606,9 +604,8 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:                   "MultipleEventsMultipleCalendars",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 2,
+			name:    "MultipleEventsMultipleCalendars",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -688,7 +685,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			assert.NotNil(t, deets)
 
 			status := restoreGC.AwaitStatus()
-			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 			assert.Equal(
@@ -715,7 +711,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			status = backupGC.AwaitStatus()
 			// TODO(ashmrtn): This will need to change when the restore layout is
 			// updated.
-			assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 		})
@@ -910,7 +905,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 				status := restoreGC.AwaitStatus()
 				// Always just 1 because it's just 1 collection.
-				assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 				assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 				assert.Equal(t, totalItems, status.Successful, "status.Successful")
 				assert.Equal(
@@ -936,7 +930,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			checkCollections(t, allItems, allExpectedData, dcs)
 
 			status := backupGC.AwaitStatus()
-			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
 			assert.Equal(t, allItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, allItems, status.Successful, "status.Successful")
 		})
