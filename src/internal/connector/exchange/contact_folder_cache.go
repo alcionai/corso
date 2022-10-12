@@ -15,7 +15,7 @@ import (
 var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
-	cache          map[string]cachedContainer
+	cache          map[string]graph.CachedContainer
 	gs             graph.Service
 	userID, rootID string
 }
@@ -48,10 +48,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 		return errors.New("root folder has no ID")
 	}
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(baseContainerPath...),
-	}
+	temp := graph.NewCacheFolder(f, path.Builder{}.Append(baseContainerPath...))
 	cfc.cache[*idPtr] = &temp
 	cfc.rootID = *idPtr
 
@@ -129,7 +126,7 @@ func (cfc *contactFolderCache) init(
 	}
 
 	if cfc.cache == nil {
-		cfc.cache = map[string]cachedContainer{}
+		cfc.cache = map[string]graph.CachedContainer{}
 	}
 
 	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)
@@ -184,7 +181,7 @@ func (cfc *contactFolderCache) PathInCache(pathString string) (string, bool) {
 // AddToCache places container into internal cache field.
 // @returns error iff input does not possess accessible values.
 func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkRequiredValues(f); err != nil {
+	if err := graph.CheckRequiredValues(f); err != nil {
 		return err
 	}
 
@@ -192,7 +189,7 @@ func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container
 		return nil
 	}
 
-	cfc.cache[*f.GetId()] = &cacheFolder{
+	cfc.cache[*f.GetId()] = &graph.CacheFolder{
 		Container: f,
 	}
 
@@ -204,4 +201,14 @@ func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container
 	}
 
 	return nil
+}
+
+func (cfc *contactFolderCache) GetCacheFolders() []graph.CachedContainer {
+	cached := make([]graph.CachedContainer, 0)
+
+	for _, folder := range cfc.cache {
+		cached = append(cached, folder)
+	}
+
+	return cached
 }
