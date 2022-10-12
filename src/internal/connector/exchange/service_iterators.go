@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -34,7 +33,7 @@ type GraphIterateFunc func(
 // @param pageItem is a CalendarCollectionResponse possessing two populated fields:
 // - id - M365 ID
 // - Name - Calendar Name
-func IterateSelectAllEventsFromCalendars(
+func IterateSelectEventsFromCalendars(
 	ctx context.Context,
 	qp graph.QueryParams,
 	errUpdater func(string, error),
@@ -44,53 +43,77 @@ func IterateSelectAllEventsFromCalendars(
 	var (
 		isEnabled bool
 		err       error
-		service   graph.Service
+		resolver  graph.ContainerResolver
+		category  = path.EventsCategory
 	)
 
 	return func(pageItem any) bool {
 		if !isEnabled {
-			// Create Collections based on qp.Scope
-
-			service, err = createService(qp.Credentials, qp.FailFast)
+			resolver, err = PopulateExchangeContainerResolver(ctx, qp, category, false)
 			if err != nil {
 				errUpdater(qp.User, err)
 				return false
 			}
 
+			rootPath, ok := checkRoot(qp, category)
+			if ok {
+				s, err := createService(qp.Credentials, qp.FailFast)
+				if err != nil {
+					errUpdater(qp.User, err)
+					return true
+				}
+
+				concrete := resolver.(*eventCalendarCache)
+				edc := NewCollection(
+					qp.User,
+					rootPath,
+					events,
+					s,
+					statusUpdater,
+				)
+				collections[concrete.rootID] = &edc
+			}
+
+			for _, c := range resolver.GetCacheFolders() {
+				dirPath, ok := pathAndMatch(qp, category, c)
+				if ok {
+					// Create only those that match
+					service, err := createService(qp.Credentials, qp.FailFast)
+					if err != nil {
+						errUpdater(qp.User, err)
+						return true
+					}
+
+					edc := NewCollection(
+						qp.User,
+						dirPath,
+						events,
+						service,
+						statusUpdater,
+					)
+					collections[*c.GetId()] = &edc
+				}
+
+			}
+
 			isEnabled = true
 		}
 
-		pageItem = graph.CreateCalendarDisplayable(pageItem, "")
+		// Should be able to complete on the first run
+		for key, col := range collections {
+			eventIDs, err := ReturnEventIDsFromCalendar(ctx, col.service, qp.User, key)
 
-		calendar, ok := pageItem.(graph.Displayable)
-		if !ok {
-			errUpdater(
-				qp.User,
-				fmt.Errorf("unable to parse pageItem into CalendarDisplayable: %T", pageItem),
-			)
+			if err != nil {
+				errUpdater(
+					qp.User,
+					errors.Wrap(err, support.ConnectorStackErrorTrace(err)))
+
+				continue
+			}
+
+			col.jobs = append(col.jobs, eventIDs...)
 		}
-
-		if calendar.GetDisplayName() == nil {
-			return true
-		}
-
-		collection, ok := collections[*calendar.GetDisplayName()]
-		if !ok {
-			return true
-		}
-
-		eventIDs, err := ReturnEventIDsFromCalendar(ctx, service, qp.User, *calendar.GetId())
-		if err != nil {
-			errUpdater(
-				qp.User,
-				errors.Wrap(err, support.ConnectorStackErrorTrace(err)))
-
-			return true
-		}
-
-		collection.jobs = append(collection.jobs, eventIDs...)
-
-		return true
+		return false
 	}
 }
 
@@ -192,64 +215,6 @@ func IterateAndFilterDescendablesForCollections(
 
 		return true
 	}
-}
-
-func translateIDToDirectory(
-	ctx context.Context,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-	directoryID string,
-) string {
-	fullPath, err := getCollectionPath(ctx, qp, resolver, directoryID, path.EmailCategory)
-	if err != nil {
-		return ""
-	}
-
-	return fullPath.Folder()
-}
-
-func getCategoryAndValidation(es selectors.ExchangeScope) (
-	optionIdentifier,
-	path.CategoryType,
-	func(namePtr *string) bool,
-) {
-	var (
-		option   = scopeToOptionIdentifier(es)
-		category path.CategoryType
-		validate func(namePtr *string) bool
-	)
-
-	switch option {
-	case messages:
-		category = path.EmailCategory
-		validate = func(namePtr *string) bool {
-			if namePtr == nil {
-				return true
-			}
-
-			return !es.Matches(selectors.ExchangeMailFolder, *namePtr)
-		}
-	case contacts:
-		category = path.ContactsCategory
-		validate = func(namePtr *string) bool {
-			if namePtr == nil {
-				return true
-			}
-
-			return !es.Matches(selectors.ExchangeContactFolder, *namePtr)
-		}
-	case events:
-		category = path.EventsCategory
-		validate = func(namePtr *string) bool {
-			if namePtr == nil {
-				return true
-			}
-
-			return !es.Matches(selectors.ExchangeEventCalendar, *namePtr)
-		}
-	}
-
-	return option, category, validate
 }
 
 // IDistFunc collection of helper functions which return a list of strings
