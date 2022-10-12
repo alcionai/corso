@@ -124,11 +124,16 @@ func RetrieveMessageDataForUser(ctx context.Context, gs graph.Service, user, m36
 
 // CollectFolders is a utility function for creating Collections based off parameters found
 // in the ExchangeScope found in the graph.QueryParams
+// TODO(ashmrtn): This may not need to do the query if we decide the cache
+// should always:
+//   1. be passed in
+//   2. be populated with all folders for the user
 func CollectFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) error {
 	var (
 		query             GraphQuery
@@ -187,6 +192,7 @@ func CollectFolders(
 		errUpdater,
 		collections,
 		statusUpdater,
+		resolver,
 	)
 
 	iterateFailure := pageIterator.Iterate(ctx, callbackFunc)

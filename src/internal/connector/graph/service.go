@@ -28,17 +28,23 @@ type Service interface {
 	ErrPolicy() bool
 }
 
+// Idable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of an ID.
+type Idable interface {
+	GetId() *string
+}
+
 // Descendable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a "parent folder".
 type Descendable interface {
-	GetId() *string
+	Idable
 	GetParentFolderId() *string
 }
 
 // Displayable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a display name.
 type Displayable interface {
-	GetId() *string
+	Idable
 	GetDisplayName() *string
 }
 
@@ -70,4 +76,6 @@ type ContainerResolver interface {
 	// conclude its search. Default input is "".
 	Populate(ctx context.Context, baseFolderID string) error
 	AddToCache(ctx context.Context, m365Container Container) error
+	// Items returns the containers in the cache.
+	Items() []CachedContainer
 }
