@@ -142,7 +142,7 @@ func GetAllMailFolders(
 ) ([]graph.CachedContainer, error) {
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EmailCategory)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EmailCategory, true)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func GetAllCalendars(
 ) ([]graph.CachedContainer, error) {
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EventsCategory)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EventsCategory, true)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func GetAllContactFolders(
 ) ([]graph.CachedContainer, error) {
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory, true)
 	if err != nil {
 		return nil, err
 	}
@@ -238,13 +238,6 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		if scope.IsAny(selectors.ExchangeMailFolder) {
-			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-				GetAllMessagesForUser,
-				IterateSelectAllDescendablesForCollections,
-				nil
-		}
-
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
 			IterateAndFilterDescendablesForCollections,
@@ -252,9 +245,9 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
-		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-			GetAllContactFolderNamesForUser,
-			IterateSelectAllContactsForCollections,
+		return models.CreateContactCollectionResponseFromDiscriminatorValue,
+			GetAllContactsForUser,
+			IterateAndFilterDescendablesForCollections,
 			nil
 	}
 
@@ -276,11 +269,12 @@ func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
 	category path.CategoryType,
+	showRoot bool,
 ) (graph.ContainerResolver, error) {
 	var (
-		res          graph.ContainerResolver
-		cacheRoot    string
-		service, err = createService(qp.Credentials, qp.FailFast)
+		res             graph.ContainerResolver
+		cacheRoot, base string
+		service, err    = createService(qp.Credentials, qp.FailFast)
 	)
 
 	if err != nil {
@@ -313,7 +307,11 @@ func PopulateExchangeContainerResolver(
 		return nil, fmt.Errorf("ContainerResolver not present for %s type", category)
 	}
 
-	if err := res.Populate(ctx, cacheRoot, cacheRoot); err != nil {
+	if showRoot {
+		base = cacheRoot
+	}
+
+	if err := res.Populate(ctx, cacheRoot, base); err != nil {
 		return nil, errors.Wrap(err, "populating directory resolver")
 	}
 
@@ -384,4 +382,65 @@ func getCollectionPath(
 			err,
 			err1,
 		)
+}
+
+func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
+	fmt.Printf("This is %s\t", *c.GetDisplayName())
+	dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
+		qp.Credentials.TenantID,
+		qp.User,
+		path.EmailCategory,
+		false,
+	)
+
+	if dirPath == nil {
+		return nil, false // Only true for root mail folder
+	}
+
+	directories := dirPath.Folders()
+
+	switch category {
+	case path.EmailCategory:
+		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1])
+	case path.ContactsCategory:
+		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1])
+	default:
+		return nil, false
+	}
+}
+
+func checkRoot(qp graph.QueryParams, category path.CategoryType) (path.Path, bool) {
+	var (
+		dirPath path.Path
+		pb      = path.Builder{}
+	)
+
+	if category == path.ContactsCategory {
+		dirPath, _ = pb.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+
+		dir := dirPath.Folder()
+		fmt.Println("From check root: " + dir)
+
+		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, dir)
+	}
+
+	if category == path.EventsCategory {
+		dirPath, _ = pb.Append(DefaultCalendar).ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+
+		dir := dirPath.Folder()
+
+		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, dir)
+	}
+
+	return nil, false
 }
