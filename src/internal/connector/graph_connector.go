@@ -8,7 +8,6 @@ import (
 	"runtime/trace"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
