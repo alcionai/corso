@@ -377,7 +377,6 @@ func AddItemsToCollection(
 }
 
 func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
-	fmt.Printf("This is %s\t", *c.GetDisplayName())
 	dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
 		qp.Credentials.TenantID,
 		qp.User,
@@ -416,7 +415,6 @@ func checkRoot(qp graph.QueryParams, category path.CategoryType) (path.Path, boo
 		)
 
 		dir := dirPath.Folder()
-		fmt.Println("From check root: " + dir)
 
 		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, dir)
 	}
