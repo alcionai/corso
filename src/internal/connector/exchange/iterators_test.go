@@ -117,7 +117,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		}, {
 			name:              "Events Iterative Check",
 			queryFunction:     GetAllCalendarNamesForUser,
-			iterativeFunction: IterateSelectAllEventsFromCalendars,
+			iterativeFunction: IterateSelectEventsFromCalendars,
 			scope:             eventScope[0],
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 		}, {
