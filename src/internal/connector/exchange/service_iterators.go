@@ -119,29 +119,42 @@ func IterateAndFilterDescendablesForCollections(
 				category = path.EmailCategory
 			}
 
+			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
+				collectionType = contacts
+				category = path.ContactsCategory
+			}
+
 			resolver, err = PopulateExchangeContainerResolver(ctx, qp, category, false)
 			if err != nil {
 				errUpdater("getting folder resolver for category "+path.EmailCategory.String(), err)
 				return false
 			}
 
+			if category == path.ContactsCategory {
+				rootPath, ok := checkRoot(qp, category)
+				if ok {
+					s, err := createService(qp.Credentials, qp.FailFast)
+					if err != nil {
+						errUpdater(qp.User, err)
+						return true
+					}
+
+					concrete := resolver.(*contactFolderCache)
+					edc := NewCollection(
+						qp.User,
+						rootPath,
+						collectionType,
+						s,
+						statusUpdater,
+					)
+					collections[concrete.rootID] = &edc
+				}
+			}
+
 			for _, c := range resolver.GetCacheFolders() {
 				// Create receive all
-				fmt.Printf("This is %s\t", *c.GetDisplayName())
-				dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
-					qp.Credentials.TenantID,
-					qp.User,
-					path.EmailCategory,
-					false,
-				)
-
-				if dirPath == nil {
-					continue // Only true for root mail folder
-				}
-
-				directories := dirPath.Folders()
-
-				if qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1]) {
+				dirPath, ok := pathAndMatch(qp, category, c)
+				if ok {
 					// Create only those that match
 					service, err := createService(qp.Credentials, qp.FailFast)
 					if err != nil {
@@ -237,108 +250,6 @@ func getCategoryAndValidation(es selectors.ExchangeScope) (
 	}
 
 	return option, category, validate
-}
-
-func IterateSelectAllContactsForCollections(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-) func(any) bool {
-	var (
-		isPrimarySet bool
-		err          error
-		service      graph.Service
-	)
-
-	return func(folderItem any) bool {
-		folder, ok := folderItem.(models.ContactFolderable)
-		if !ok {
-			errUpdater(
-				qp.User,
-				errors.New("casting folderItem to models.ContactFolderable"),
-			)
-		}
-
-		if !isPrimarySet {
-
-			service, err = createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errUpdater(
-					qp.User,
-					errors.Wrap(err, "unable to create service during IterateSelectAllContactsForCollections"),
-				)
-
-				return true
-			}
-
-			isPrimarySet = true
-
-			// Create and Populate Default Contacts folder Collection if true
-			if qp.Scope.Matches(selectors.ExchangeContactFolder, DefaultContactFolder) {
-				dirPath, err := path.Builder{}.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
-					qp.Credentials.TenantID,
-					qp.User,
-					path.ContactsCategory,
-					false,
-				)
-				if err != nil {
-					errUpdater(
-						qp.User,
-						err,
-					)
-
-					return false
-				}
-
-				edc := NewCollection(
-					qp.User,
-					dirPath,
-					contacts,
-					service,
-					statusUpdater,
-				)
-
-				listOfIDs, err := ReturnContactIDsFromDirectory(ctx, service, qp.User, *folder.GetParentFolderId())
-				if err != nil {
-					errUpdater(
-						qp.User,
-						err,
-					)
-
-					return false
-				}
-
-				edc.jobs = append(edc.jobs, listOfIDs...)
-				collections[DefaultContactFolder] = &edc
-			}
-		}
-
-		if folder.GetDisplayName() == nil {
-			// This should never happen. Skipping to avoid kernel panic
-			return true
-		}
-
-		collection, ok := collections[*folder.GetDisplayName()]
-		if !ok {
-			return true // Not included
-		}
-
-		listOfIDs, err := ReturnContactIDsFromDirectory(ctx, service, qp.User, *folder.GetId())
-		if err != nil {
-			errUpdater(
-				qp.User,
-				err,
-			)
-
-			return true
-		}
-
-		collection.jobs = append(collection.jobs, listOfIDs...)
-
-		return true
-	}
 }
 
 // IDistFunc collection of helper functions which return a list of strings
