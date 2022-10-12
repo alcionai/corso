@@ -24,8 +24,7 @@ const (
 	Fails
 	// passthrough for the target
 	IdentityValue
-	// target is a prefix of the value it is compared
-	// against
+	// "foo" is a prefix of "foo/bar/baz"
 	TargetPrefixes
 )
 
@@ -143,6 +142,18 @@ func newFilter(c comparator, target string, negate bool) Filter {
 // Comparisons
 // ----------------------------------------------------------------------------------------------------
 
+// CompareAny checks whether any one of all the provided
+// inputs passes the filter.
+func (f Filter) CompareAny(inputs ...string) bool {
+	for _, in := range inputs {
+		if f.Compare(in) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Compare checks whether the input passes the filter.
 func (f Filter) Compare(input string) bool {
 	var cmp func(string, string) bool
@@ -201,7 +212,7 @@ func in(target, input string) bool {
 
 // true if target has input as a prefix.
 func prefixed(target, input string) bool {
-	return strings.HasPrefix(target, input)
+	return strings.HasPrefix(input, target)
 }
 
 // ----------------------------------------------------------------------------------------------------
