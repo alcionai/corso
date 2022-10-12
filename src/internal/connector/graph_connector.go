@@ -325,7 +325,7 @@ func (gc *GraphConnector) createCollections(
 		iterateError := pageIterator.Iterate(ctx, callbackFunc)
 
 		if iterateError != nil {
-			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
+			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl()+" Failed as Iterator ", iterateError, errs)
 		}
 
 		if errs != nil {
