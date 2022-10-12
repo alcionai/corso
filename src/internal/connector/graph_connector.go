@@ -8,6 +8,7 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"github.com/hashicorp/go-multierror"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -289,6 +290,52 @@ func scopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
 	return path.UnknownCategory
 }
 
+func (gc *GraphConnector) legacyFetchItems(
+	ctx context.Context,
+	scope selectors.ExchangeScope,
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+) (map[string]*exchange.Collection, error) {
+	var (
+		errs        error
+		collections = map[string]*exchange.Collection{}
+	)
+
+	transformer, query, gIter, err := exchange.SetupExchangeCollectionVars(scope)
+	if err != nil {
+		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
+	}
+
+	response, err := query(ctx, &gc.graphService, qp.User)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"user %s M365 query: %s",
+			qp.User, support.ConnectorStackErrorTrace(err))
+	}
+
+	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
+	if err != nil {
+		return nil, err
+	}
+
+	errUpdater := func(id string, err error) {
+		errs = support.WrapAndAppend(id, err, errs)
+	}
+
+	// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
+	// with corresponding item M365IDs. New collections are created for each directory.
+	// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
+	callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus, resolver)
+	iterateError := pageIterator.Iterate(ctx, callbackFunc)
+
+	if iterateError != nil {
+		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
+	}
+
+	return collections, errs
+}
+
 // createCollection - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are stored.
@@ -297,42 +344,19 @@ func (gc *GraphConnector) createCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
 ) ([]*exchange.Collection, error) {
-	var (
-		errs                           error
-		transformer, query, gIter, err = exchange.SetupExchangeCollectionVars(scope)
-	)
-
-	if err != nil {
-		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
-	}
+	var errs error
 
 	users := scope.Get(selectors.ExchangeUser)
 	allCollections := make([]*exchange.Collection, 0)
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
+		var collections map[string]*exchange.Collection
+
 		qp := graph.QueryParams{
 			User:        user,
 			Scope:       scope,
 			FailFast:    gc.failFast,
 			Credentials: gc.credentials,
-		}
-		collections := make(map[string]*exchange.Collection)
-
-		response, err := query(ctx, &gc.graphService, qp.User)
-		if err != nil {
-			return nil, errors.Wrapf(
-				err,
-				"user %s M365 query: %s",
-				qp.User, support.ConnectorStackErrorTrace(err))
-		}
-
-		pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
-		if err != nil {
-			return nil, err
-		}
-
-		errUpdater := func(id string, err error) {
-			errs = support.WrapAndAppend(id, err, errs)
 		}
 
 		// Currently only mail has a folder cache implemented.
@@ -345,18 +369,10 @@ func (gc *GraphConnector) createCollections(
 			return nil, errors.Wrap(err, "getting folder cache")
 		}
 
-		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
-		// with corresponding item M365IDs. New collections are created for each directory.
-		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus, resolver)
-		iterateError := pageIterator.Iterate(ctx, callbackFunc)
-
-		if iterateError != nil {
-			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
-		}
-
-		if errs != nil {
-			return nil, errs // return error if snapshot is incomplete
+		collections, err = gc.legacyFetchItems(ctx, scope, qp, resolver)
+		// Preserving previous behavior.
+		if err != nil {
+			return nil, err // return error if snapshot is incomplete
 		}
 
 		for _, collection := range collections {
