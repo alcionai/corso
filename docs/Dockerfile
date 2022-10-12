@@ -9,13 +9,13 @@ RUN apt-get -y update && apt-get -y install gpg emacs curl git make \
   && apt-get autoclean \
   && node --version \
   && npm --version \
-  && cd /tmp && curl -O -L https://github.com/errata-ai/vale/releases/download/v2.20.1/vale_2.20.1_Linux_64-bit.tar.gz \ # NOTE: update in CI when updating
-  && tar -xvzf vale_2.20.1_Linux_64-bit.tar.gz -C /usr/bin vale \
-  && npm install -g markdownlint-cli@0.32.2 # NOTE: update in CI when updating
+  && cd /tmp && curl -O -L https://github.com/errata-ai/vale/releases/download/v2.20.1/vale_2.20.1_Linux_64-bit.tar.gz \ 
+  && tar -xvzf vale_2.20.1_Linux_64-bit.tar.gz -C /usr/bin vale 
 
 WORKDIR /usr/src
 COPY package.json package-lock.json* ./
 RUN npm ci \
+  && npm install -g markdownlint-cli
   && npm cache clean --force \
   && rm -f package.json package-lock.json*
 ENV PATH /usr/src/node_modules/.bin:$PATH
