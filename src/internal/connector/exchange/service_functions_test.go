@@ -195,7 +195,6 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-
 			params := graph.QueryParams{
 				User:        test.user,
 				Scope:       test.getScope(t),
