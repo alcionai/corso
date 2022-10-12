@@ -2,6 +2,7 @@ package observe_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type ObserveProgressUnitSuite struct {
@@ -23,15 +25,18 @@ func TestObserveProgressUnitSuite(t *testing.T) {
 }
 
 func (suite *ObserveProgressUnitSuite) TestDoesThings() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(&recorder)
+	observe.SeedWriter(ctx, &recorder)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		observe.Complete()
-		observe.SeedWriter(nil)
+		observe.SeedWriter(context.Background(), nil)
 	}()
 
 	from := make([]byte, 100)

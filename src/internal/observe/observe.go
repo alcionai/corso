@@ -1,6 +1,7 @@
 package observe
 
 import (
+	"context"
 	"io"
 	"sync"
 
@@ -11,16 +12,19 @@ import (
 var (
 	mu       sync.Mutex
 	wg       sync.WaitGroup
+	con      context.Context
 	writer   io.Writer
 	progress *mpb.Progress
 )
 
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
-func SeedWriter(w io.Writer) {
+func SeedWriter(ctx context.Context, w io.Writer) {
+	con = ctx
 	writer = w
 
-	progress = mpb.New(
+	progress = mpb.NewWithContext(
+		con,
 		mpb.WithWidth(32),
 		mpb.WithWaitGroup(&wg),
 		mpb.WithOutput(writer),
@@ -34,7 +38,7 @@ func Complete() {
 		progress.Wait()
 	}
 
-	SeedWriter(writer)
+	SeedWriter(con, writer)
 }
 
 // ItemProgress tracks the display of an item by counting the bytes
