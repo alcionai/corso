@@ -137,7 +137,6 @@ func scopeToOptionIdentifier(selector selectors.ExchangeScope) optionIdentifier 
 // which reduces the overall latency of complex calls
 //----------------------------------------------------------------
 
-//nolint:deadcode
 func optionsForFolderMessages(moreOps []string) (*msmfmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
