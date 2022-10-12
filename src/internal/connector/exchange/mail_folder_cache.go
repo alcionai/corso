@@ -219,7 +219,7 @@ func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) er
 
 	_, err := mc.IDToPath(ctx, *f.GetId())
 	if err != nil {
-		return errors.Wrap(err, "adding cache entry")
+		return errors.Wrap(err, "updating adding cache entry")
 	}
 
 	return nil
