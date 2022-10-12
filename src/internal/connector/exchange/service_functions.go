@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -254,7 +253,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 			GetAllCalendarNamesForUser,
-			IterateSelectAllEventsFromCalendars,
+			IterateSelectEventsFromCalendars,
 			nil
 	}
 
@@ -340,48 +339,6 @@ func resolveCollectionPath(
 		category,
 		false,
 	)
-}
-
-func getCollectionPath(
-	ctx context.Context,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-	directory string,
-	category path.CategoryType,
-) (path.Path, error) {
-	returnPath, err := resolveCollectionPath(
-		ctx,
-		resolver,
-		qp.Credentials.TenantID,
-		qp.User,
-		directory,
-		category,
-	)
-	if err == nil {
-		return returnPath, nil
-	}
-
-	aPath, err1 := path.Builder{}.Append(directory).
-		ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-	if err1 == nil {
-		return aPath, nil
-	}
-
-	return nil,
-		support.WrapAndAppend(
-			fmt.Sprintf(
-				"both path generate functions failed for %s:%s:%s",
-				qp.User,
-				category,
-				directory),
-			err,
-			err1,
-		)
 }
 
 func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
