@@ -14,8 +14,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-var errNilResolver = errors.New("nil resolver")
-
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
 type GraphIterateFunc func(
@@ -93,7 +91,6 @@ func IterateSelectEventsFromCalendars(
 					)
 					collections[*c.GetId()] = &edc
 				}
-
 			}
 
 			isEnabled = true
@@ -102,7 +99,6 @@ func IterateSelectEventsFromCalendars(
 		// Should be able to complete on the first run
 		for key, col := range collections {
 			eventIDs, err := ReturnEventIDsFromCalendar(ctx, col.service, qp.User, key)
-
 			if err != nil {
 				errUpdater(
 					qp.User,
@@ -113,6 +109,7 @@ func IterateSelectEventsFromCalendars(
 
 			col.jobs = append(col.jobs, eventIDs...)
 		}
+
 		return false
 	}
 }
@@ -131,19 +128,17 @@ func IterateAndFilterDescendablesForCollections(
 		isFilterSet    bool
 		err            error
 		resolver       graph.ContainerResolver
-		collectionType optionIdentifier
+		collectionType = scopeToOptionIdentifier(qp.Scope)
 		category       path.CategoryType
 	)
 
 	return func(descendItem any) bool {
 		if !isFilterSet {
 			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
-				collectionType = messages
 				category = path.EmailCategory
 			}
 
 			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
-				collectionType = contacts
 				category = path.ContactsCategory
 			}
 
