@@ -1,9 +1,7 @@
 package onedrive
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -11,11 +9,11 @@ import (
 	msup "github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item/createuploadsession"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
-	"gopkg.in/resty.v1"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -96,61 +94,5 @@ func driveItemWriter(ctx context.Context, service graph.Service, driveID, itemID
 
 	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", itemID, url)
 
-	return &itemWriter{id: itemID, contentLength: itemSize, url: url}, nil
-}
-
-// itemWriter implements an io.Writer for the OneDrive URL
-// it is initialized with
-type itemWriter struct {
-	// Item ID
-	id string
-	// Upload URL for this item
-	url string
-	// Tracks how much data will be written
-	contentLength int64
-	// Last item offset that was written to
-	lastWrittenOffset int64
-}
-
-const (
-	contentRangeHeaderKey = "Content-Range"
-	// Format for Content-Range is "bytes <start>-<end>/<total>"
-	contentRangeHeaderValueFmt = "bytes %d-%d/%d"
-	contentLengthHeaderKey     = "Content-Length"
-)
-
-// Write will upload the provided data to OneDrive. It sets the `Content-Length` and `Content-Range` headers based on
-// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession
-func (iw *itemWriter) Write(p []byte) (n int, err error) {
-	rangeLength := len(p)
-	logger.Ctx(context.Background()).Debugf("WRITE for %s. Size:%d, Offset: %d, TotalSize: %d",
-		iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
-
-	endOffset := iw.lastWrittenOffset + int64(rangeLength)
-
-	client := resty.New()
-
-	// PUT the request - set headers `Content-Range`to describe total size and `Content-Length` to describe size of
-	// data in the current request
-	resp, err := client.R().
-		SetHeaders(map[string]string{
-			contentRangeHeaderKey: fmt.Sprintf(contentRangeHeaderValueFmt,
-				iw.lastWrittenOffset,
-				endOffset-1,
-				iw.contentLength),
-			contentLengthHeaderKey: fmt.Sprintf("%d", iw.contentLength),
-		}).
-		SetBody(bytes.NewReader(p)).Put(iw.url)
-	if err != nil {
-		return 0, errors.Wrapf(err,
-			"failed to upload item %s. Upload failed at Size:%d, Offset: %d, TotalSize: %d ",
-			iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
-	}
-
-	// Update last offset
-	iw.lastWrittenOffset = endOffset
-
-	logger.Ctx(context.Background()).Debugf("Response: %s", resp.String())
-
-	return rangeLength, nil
+	return uploadsession.NewWriter(itemID, url, itemSize), nil
 }
