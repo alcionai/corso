@@ -55,7 +55,7 @@ runs:
       if: steps.cache.outputs.cache-hit != 'true'
       # cover all the bases, just to be make sure we loaded everything we'll use
       run: |
-        go mod download -v
+        go mod download -x
         go build -o compile
         go test -v -c -o compile_test
       shell: bash
