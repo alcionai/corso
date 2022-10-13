@@ -250,22 +250,21 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadBackupID() {
 	assert.Empty(t, output)
 }
 
-// TODO(ashmrtn): Uncomment these when the CLI validates flag input values.
-//func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
-// ctx, flush := tester.NewContext()
-// defer flush()
-//
-//	for _, test := range testdata.BadExchangeOptionsFormats {
-//		suite.T().Run(test.Name, func(t *testing.T) {
-//			output, err := runDetailsExchangeCmd(
-//				ctx,
-//				test.BackupGetter,
-//				"backup-ID",
-//				test.Opts,
-//			)
-//			assert.Error(t, err)
-//
-//			assert.Empty(t, output)
-//		})
-//	}
-//}
+func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	for _, test := range testdata.BadExchangeOptionsFormats {
+		suite.T().Run(test.Name, func(t *testing.T) {
+			output, err := runDetailsExchangeCmd(
+				ctx,
+				test.BackupGetter,
+				"backup-ID",
+				test.Opts,
+			)
+
+			assert.Error(t, err)
+			assert.Empty(t, output)
+		})
+	}
+}

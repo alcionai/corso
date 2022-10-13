@@ -125,7 +125,10 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 }
 
 // Create a new item in the specified folder
-func createItem(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
+func createItem(
+	ctx context.Context,
+	service graph.Service,
+	driveID, parentFolderID string,
 	newItem models.DriveItemable,
 ) (models.DriveItemable, error) {
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
