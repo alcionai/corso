@@ -15,9 +15,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-// Use large attachment logic for attachments > 3MB
 const (
+	// Use large attachment logic for attachments > 3MB
+	// https://learn.microsoft.com/en-us/graph/outlook-large-attachments
 	largeAttachmentSize           = int32(3 * 1024 * 1024)
+	attachmentChunkSize           = 4 * 1024 * 1024
 	fileAttachmentOdataValue      = "#microsoft.graph.fileAttachment"
 	itemAttachmentOdataValue      = "#microsoft.graph.itemAttachment"
 	referenceAttachmentOdataValue = "#microsoft.graph.referenceAttachment"
@@ -72,7 +74,7 @@ func uploadLargeAttachment(ctx context.Context, service graph.Service, userID, f
 	}
 
 	// Upload the stream data
-	copyBuffer := make([]byte, 5*1024*1024)
+	copyBuffer := make([]byte, attachmentChunkSize)
 
 	_, err = io.CopyBuffer(aw, bytes.NewReader(ab), copyBuffer)
 	if err != nil {

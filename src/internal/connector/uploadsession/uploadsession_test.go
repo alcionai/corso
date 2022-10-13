@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,16 +30,35 @@ func (suite *UploadSessionSuite) TestWriter() {
 	td, writeSize := mockDataReader(int64(100 * 1024))
 
 	// Expected Content-Range value format
-	contentRangeRegex := regexp.MustCompile(`^bytes \d+-\d+/\d+$`)
+	contentRangeRegex := regexp.MustCompile(`^bytes (?P<rangestart>\d+)-(?P<rangeend>\d+)/(?P<length>\d+)$`)
 
+	nextOffset := -1
 	// Initialize a test http server that validates expeected headers
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, r.Method, http.MethodPut)
-		// Validate the "Content-Length" header
-		assert.Equal(t, r.Header[contentLengthHeaderKey][0], fmt.Sprintf("%d", writeSize))
+
 		// Validate the "Content-Range" header
 		assert.True(t, contentRangeRegex.MatchString(r.Header[contentRangeHeaderKey][0]),
 			"%s does not match expected value", r.Header[contentRangeHeaderKey][0])
+
+		// Extract the Content-Range components
+		matches := contentRangeRegex.FindStringSubmatch(r.Header[contentRangeHeaderKey][0])
+		rangeStart, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("rangestart")])
+		assert.NoError(t, err)
+		rangeEnd, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("rangeend")])
+		assert.NoError(t, err)
+		length, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("length")])
+		assert.NoError(t, err)
+
+		// Validate total size and range start/end
+		assert.Equal(t, int(writeSize), length)
+		assert.Equal(t, nextOffset+1, rangeStart)
+		assert.Greater(t, rangeEnd, nextOffset)
+
+		// Validate the "Content-Length" header
+		assert.Equal(t, fmt.Sprintf("%d", (rangeEnd+1)-rangeStart), r.Header[contentLengthHeaderKey][0])
+
+		nextOffset = rangeEnd
 	}))
 	defer ts.Close()
 
@@ -56,5 +76,16 @@ func (suite *UploadSessionSuite) TestWriter() {
 
 func mockDataReader(size int64) (io.Reader, int64) {
 	data := bytes.Repeat([]byte("D"), int(size))
-	return bytes.NewReader(data), size
+	return &mockReader{r: bytes.NewReader(data)}, size
+}
+
+// mockReader allows us to wrap a `bytes.NewReader` but *disable*
+// ReaderFrom functionality. This forces io.CopyBuffer to do a
+// buffered read (useful to validate that chunked writes are working)
+type mockReader struct {
+	r io.Reader
+}
+
+func (mr *mockReader) Read(b []byte) (n int, err error) {
+	return mr.r.Read(b)
 }

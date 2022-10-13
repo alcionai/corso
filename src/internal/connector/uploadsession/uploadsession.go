@@ -29,10 +29,11 @@ type writer struct {
 	contentLength int64
 	// Last item offset that was written to
 	lastWrittenOffset int64
+	client            *resty.Client
 }
 
 func NewWriter(id, url string, size int64) *writer {
-	return &writer{id: id, url: url, contentLength: size}
+	return &writer{id: id, url: url, contentLength: size, client: resty.New()}
 }
 
 // Write will upload the provided data to M365. It sets the `Content-Length` and `Content-Range` headers based on
@@ -44,17 +45,15 @@ func (iw *writer) Write(p []byte) (n int, err error) {
 
 	endOffset := iw.lastWrittenOffset + int64(rangeLength)
 
-	client := resty.New()
-
 	// PUT the request - set headers `Content-Range`to describe total size and `Content-Length` to describe size of
 	// data in the current request
-	resp, err := client.R().
+	resp, err := iw.client.R().
 		SetHeaders(map[string]string{
 			contentRangeHeaderKey: fmt.Sprintf(contentRangeHeaderValueFmt,
 				iw.lastWrittenOffset,
 				endOffset-1,
 				iw.contentLength),
-			contentLengthHeaderKey: fmt.Sprintf("%d", iw.contentLength),
+			contentLengthHeaderKey: fmt.Sprintf("%d", rangeLength),
 		}).
 		SetBody(bytes.NewReader(p)).Put(iw.url)
 	if err != nil {
