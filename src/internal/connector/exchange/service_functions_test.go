@@ -291,8 +291,6 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 		})
 	}
 }
-<<<<<<< HEAD
-=======
 
 func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 	ctx, flush := tester.NewContext()
@@ -375,4 +373,3 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 		})
 	}
 }
->>>>>>> gc-hierarchy
