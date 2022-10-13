@@ -20,8 +20,12 @@ var (
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
 func SeedWriter(ctx context.Context, w io.Writer) {
-	con = ctx
 	writer = w
+	con = ctx
+
+	if con == nil {
+		con = context.Background()
+	}
 
 	progress = mpb.NewWithContext(
 		con,
