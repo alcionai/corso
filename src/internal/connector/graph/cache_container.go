@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// cachedContainer is used for local unit tests but also makes it so that this
+// CachedContainer is used for local unit tests but also makes it so that this
 // code can be broken into generic- and service-specific chunks later on to
 // reuse logic in IDToPath.
 type CachedContainer interface {

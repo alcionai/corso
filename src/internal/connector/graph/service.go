@@ -53,15 +53,6 @@ type Container interface {
 	Displayable
 }
 
-// CachedContainer is used for local unit tests but also makes it so that this
-// code can be broken into generic- and service-specific chunks later on to
-// reuse logic in IDToPath.
-type CachedContainer interface {
-	Container
-	Path() *path.Builder
-	SetPath(*path.Builder)
-}
-
 // ContainerResolver houses functions for getting information about containers
 // from remote APIs (i.e. resolve folder paths with Graph API). Resolvers may
 // cache information about containers.
