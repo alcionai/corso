@@ -7,10 +7,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -147,7 +149,7 @@ func GetAllMailFolders(
 		return nil, err
 	}
 
-	for _, c := range resolver.GetCacheFolders() {
+	for _, c := range resolver.Items() {
 		temp, _ := c.Path().ToDataLayerExchangePathForCategory(
 			"not",
 			"used",
@@ -179,7 +181,7 @@ func GetAllCalendars(
 		return nil, err
 	}
 
-	for _, c := range resolver.GetCacheFolders() {
+	for _, c := range resolver.Items() {
 		temp, _ := c.Path().ToDataLayerExchangePathForCategory(
 			"not",
 			"used",
@@ -212,7 +214,7 @@ func GetAllContactFolders(
 		return nil, err
 	}
 
-	for _, c := range resolver.GetCacheFolders() {
+	for _, c := range resolver.Items() {
 		temp := c.Path()
 		p, _ := temp.ToDataLayerExchangePathForCategory(
 			"not",
@@ -238,14 +240,10 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-<<<<<<< HEAD
 		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
 			GetAllMessagesForUser,
 			IterateAndFilterDescendablesForCollections,
 			nil
-=======
-		return nil, nil, nil, errors.New("mail no longer supported this way")
->>>>>>> gc-hierarchy
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
@@ -265,19 +263,11 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-<<<<<<< HEAD
 // PopulateExchangeContainerResolver gets a folder resolver if one is available for
 // this category of data. If one is not available, returns nil so that other
 // logic in the caller can complete as long as they check if the resolver is not
 // nil. If an error occurs populating the resolver, returns an error.
 func PopulateExchangeContainerResolver(
-=======
-// MaybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
-// this category of data. If one is not available, returns nil so that other
-// logic in the caller can complete as long as they check if the resolver is not
-// nil. If an error occurs populating the resolver, returns an error.
-func MaybeGetAndPopulateFolderResolver(
->>>>>>> gc-hierarchy
 	ctx context.Context,
 	qp graph.QueryParams,
 	category path.CategoryType,
