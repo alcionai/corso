@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-multierror"
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -231,36 +230,23 @@ func GetAllContactFolders(
 	return containers, err
 }
 
-// SetupExchangeCollectionVars is a helper function returns a sets
-// Exchange.Type specific functions based on scope
-func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
-	absser.ParsableFactory,
-	GraphQuery,
-	GraphIterateFunc,
-	error,
-) {
-	if scope.IncludesCategory(selectors.ExchangeMail) {
-		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-			GetAllMessagesForUser,
-			IterateAndFilterDescendablesForCollections,
-			nil
-	}
+func CollectFolders(
+	ctx context.Context,
+	qp graph.QueryParams,
+	gs graph.Service,
+) ([]graph.CachedContainer, error) {
+	category := graph.ScopeToPathCategory(qp.Scope)
 
-	if scope.IncludesCategory(selectors.ExchangeContact) {
-		return models.CreateContactCollectionResponseFromDiscriminatorValue,
-			GetAllContactsForUser,
-			IterateAndFilterDescendablesForCollections,
-			nil
+	switch category {
+	case path.ContactsCategory:
+		return GetAllContactFolders(ctx, qp, gs)
+	case path.EmailCategory:
+		return GetAllMailFolders(ctx, qp, gs)
+	case path.EventsCategory:
+		return GetAllCalendars(ctx, qp, gs)
+	default:
+		return nil, fmt.Errorf("path.Category %s not supported", category)
 	}
-
-	if scope.IncludesCategory(selectors.ExchangeEvent) {
-		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-			GetAllCalendarNamesForUser,
-			IterateSelectEventsFromCalendars,
-			nil
-	}
-
-	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
 // PopulateExchangeContainerResolver gets a folder resolver if one is available for
