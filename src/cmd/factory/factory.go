@@ -35,9 +35,10 @@ var (
 	user      string
 )
 
-// TODO: ErrGenerating       = errors.New("not all items were successfully generated")
-
-var ErrNotYetImplemeted = errors.New("not yet implemented")
+var (
+	ErrGenerating       = errors.New("not all items were successfully generated")
+	ErrNotYetImplemeted = errors.New("not yet implemented")
+)
 
 // ------------------------------------------------------------------------------------------
 // CLI command handlers
