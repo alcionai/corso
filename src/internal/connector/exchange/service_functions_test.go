@@ -291,3 +291,88 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 		})
 	}
 }
+<<<<<<< HEAD
+=======
+
+func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	failFast := false
+	containerCount := 1
+	t := suite.T()
+	user := tester.M365UserID(t)
+	a := tester.NewM365Account(t)
+	credentials, err := a.M365Config()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name, contains string
+		getScope       func() selectors.ExchangeScope
+		expectedCount  assert.ComparisonAssertionFunc
+	}{
+		{
+			name:          "All Events",
+			contains:      "Birthdays",
+			expectedCount: assert.Greater,
+			getScope: func() selectors.ExchangeScope {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{user}, selectors.Any()))
+
+				scopes := sel.Scopes()
+				assert.Equal(t, len(scopes), 1)
+
+				return scopes[0]
+			},
+		}, {
+			name:          "Default Calendar",
+			contains:      DefaultCalendar,
+			expectedCount: assert.Equal,
+			getScope: func() selectors.ExchangeScope {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.EventCalendars([]string{user}, []string{DefaultCalendar}))
+
+				scopes := sel.Scopes()
+				assert.Equal(t, len(scopes), 1)
+
+				return scopes[0]
+			},
+		}, {
+			name:          "Default Mail",
+			contains:      DefaultMailFolder,
+			expectedCount: assert.Equal,
+			getScope: func() selectors.ExchangeScope {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{user}, []string{DefaultMailFolder}))
+
+				scopes := sel.Scopes()
+				assert.Equal(t, len(scopes), 1)
+
+				return scopes[0]
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			qp := graph.QueryParams{
+				User:        user,
+				Scope:       test.getScope(),
+				FailFast:    failFast,
+				Credentials: credentials,
+			}
+			collections := make(map[string]*Collection)
+			err := CollectFolders(ctx, qp, collections, nil, nil)
+			assert.NoError(t, err)
+			test.expectedCount(t, len(collections), containerCount)
+
+			keys := make([]string, 0, len(collections))
+			for k := range collections {
+				keys = append(keys, k)
+			}
+			t.Logf("Collections Made: %v\n", keys)
+			assert.Contains(t, keys, test.contains)
+		})
+	}
+}
+>>>>>>> gc-hierarchy

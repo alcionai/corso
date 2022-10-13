@@ -12,7 +12,43 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+<<<<<<< HEAD
 var _ graph.ContainerResolver = &mailFolderCache{}
+=======
+var _ graph.CachedContainer = &mailFolder{}
+
+// mailFolder structure that implements the graph.CachedContainer interface
+type mailFolder struct {
+	folder graph.Container
+	p      *path.Builder
+}
+
+//=========================================
+// Required Functions to satisfy interfaces
+//=====================================
+
+func (mf mailFolder) Path() *path.Builder {
+	return mf.p
+}
+
+func (mf *mailFolder) SetPath(newPath *path.Builder) {
+	mf.p = newPath
+}
+
+func (mf *mailFolder) GetDisplayName() *string {
+	return mf.folder.GetDisplayName()
+}
+
+//nolint:revive
+func (mf *mailFolder) GetId() *string {
+	return mf.folder.GetId()
+}
+
+//nolint:revive
+func (mf *mailFolder) GetParentFolderId() *string {
+	return mf.folder.GetParentFolderId()
+}
+>>>>>>> gc-hierarchy
 
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
@@ -164,8 +200,13 @@ func (mc *mailFolderCache) init(
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
 func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
+<<<<<<< HEAD
 	if err := graph.CheckRequiredValues(f); err != nil {
 		return err
+=======
+	if err := checkRequiredValues(f); err != nil {
+		return errors.Wrap(err, "object not added to cache")
+>>>>>>> gc-hierarchy
 	}
 
 	if _, ok := mc.cache[*f.GetId()]; ok {
@@ -206,6 +247,7 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 	return "", false
 }
 
+<<<<<<< HEAD
 func (mc *mailFolderCache) GetCacheFolders() []graph.CachedContainer {
 	cached := make([]graph.CachedContainer, 0)
 
@@ -214,4 +256,14 @@ func (mc *mailFolderCache) GetCacheFolders() []graph.CachedContainer {
 	}
 
 	return cached
+=======
+func (mc *mailFolderCache) Items() []graph.CachedContainer {
+	res := make([]graph.CachedContainer, 0, len(mc.cache))
+
+	for _, c := range mc.cache {
+		res = append(res, c)
+	}
+
+	return res
+>>>>>>> gc-hierarchy
 }

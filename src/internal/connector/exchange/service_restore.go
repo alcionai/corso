@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"runtime/trace"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -18,6 +19,56 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// GetRestoreContainer utility function to create
+// an unique folder for the restore process
+//
+// @param category: input from fullPath()[2]
+// that defines the application the folder is created in.
+func GetRestoreContainer(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+	category path.CategoryType,
+	name string,
+) (string, error) {
+	option := categoryToOptionIdentifier(category)
+
+	folderID, err := GetContainerID(ctx, service, name, user, option)
+	if err == nil {
+		return *folderID, nil
+	}
+	// Experienced error other than folder does not exist
+	if !errors.Is(err, ErrFolderNotFound) {
+		return "", support.WrapAndAppend(user+": lookup failue during GetContainerID", err, err)
+	}
+
+	switch option {
+	case messages:
+		fold, err := CreateMailFolder(ctx, service, user, name)
+		if err != nil {
+			return "", support.WrapAndAppend(fmt.Sprintf("creating folder %s for user %s", name, user), err, err)
+		}
+
+		return *fold.GetId(), nil
+	case contacts:
+		fold, err := CreateContactFolder(ctx, service, user, name)
+		if err != nil {
+			return "", support.WrapAndAppend(user+"failure during CreateContactFolder during restore Contact", err, err)
+		}
+
+		return *fold.GetId(), nil
+	case events:
+		calendar, err := CreateCalendar(ctx, service, user, name)
+		if err != nil {
+			return "", support.WrapAndAppend(user+"failure during CreateCalendar during restore Event", err, err)
+		}
+
+		return *calendar.GetId(), nil
+	default:
+		return "", fmt.Errorf("category: %s not supported for folder creation: GetRestoreContainer", option)
+	}
+}
 
 // RestoreExchangeObject directs restore pipeline towards restore function
 // based on the path.CategoryType. All input params are necessary to perform
@@ -174,8 +225,19 @@ func RestoreMailMessage(
 			"policy", cp)
 		fallthrough
 	case control.Copy:
-		return MessageInfo(clone), SendMailToBackStore(ctx, service, user, destination, clone)
+		err := SendMailToBackStore(ctx, service, user, destination, clone)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	return MessageInfo(clone), nil
+}
+
+// attachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
+// TODO: Revisit how we retrieve/persist attachment content during backup so this is not needed
+func attachmentBytes(attachment models.Attachmentable) []byte {
+	return reflect.Indirect(reflect.ValueOf(attachment)).FieldByName("contentBytes").Bytes()
 }
 
 // SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
@@ -212,24 +274,19 @@ func SendMailToBackStore(
 	if len(attached) > 0 {
 		id := *sentMessage.GetId()
 		for _, attachment := range attached {
-			_, err = service.Client().
-				UsersById(user).
-				MailFoldersById(destination).
-				MessagesById(id).
-				Attachments().
-				Post(ctx, attachment, nil)
+			err := uploadAttachment(ctx, service, user, destination, id, attachment)
 			if err != nil {
-				errs = support.WrapAndAppend(id,
+				errs = support.WrapAndAppend(fmt.Sprintf("uploading attachment for message %s", id),
 					err,
 					errs,
 				)
+
+				break
 			}
 		}
-
-		return errs
 	}
 
-	return nil
+	return errs
 }
 
 // RestoreExchangeDataCollections restores M365 objects in data.Collection to MSFT

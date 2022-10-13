@@ -240,7 +240,13 @@ func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
 func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
 	userID := tester.M365UserID(suite.T())
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.Users([]string{userID}))
+	// Exchange mail uses a different system to fetch items. Right now the old
+	// function for it will return an error so we know if it gets called.
+	sel.Include(
+		sel.ContactFolders([]string{userID}, selectors.Any()),
+		sel.EventCalendars([]string{userID}, selectors.Any()),
+	)
+
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
 
@@ -413,6 +419,19 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func() string {
 				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name:        "Test Mail: One Large Attachment",
+			bytes:       mockconnector.GetMockMessageWithLargeAttachment("Restore Large Attachment"),
+			category:    path.EmailCategory,
+			cleanupFunc: DeleteMailFolder,
+			destination: func() string {
+				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
 

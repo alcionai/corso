@@ -28,24 +28,38 @@ type Service interface {
 	ErrPolicy() bool
 }
 
+// Idable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of an ID.
+type Idable interface {
+	GetId() *string
+}
+
 // Descendable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a "parent folder".
 type Descendable interface {
-	GetId() *string
+	Idable
 	GetParentFolderId() *string
 }
 
-// Displayable represents objects that implement msgraph-sdk-fo/models.entityable
+// Displayable represents objects that implement msgraph-sdk-go/models.entityable
 // and have the concept of a display name.
 type Displayable interface {
-	GetId() *string
+	Idable
 	GetDisplayName() *string
 }
 
-// Container is an interface that implements both the descendable and displayble interface.
 type Container interface {
 	Descendable
 	Displayable
+}
+
+// CachedContainer is used for local unit tests but also makes it so that this
+// code can be broken into generic- and service-specific chunks later on to
+// reuse logic in IDToPath.
+type CachedContainer interface {
+	Container
+	Path() *path.Builder
+	SetPath(*path.Builder)
 }
 
 // ContainerResolver houses functions for getting information about containers
@@ -59,15 +73,21 @@ type ContainerResolver interface {
 	// Populate performs initialization steps for the resolver
 	// @param ctx is necessary param for Graph API tracing
 	// @param baseFolderID represents the M365ID base that the resolver will
-	// conclude its search.
-	// @param baseFolderPath is the set of path elements of the baseFolder.
-	Populate(ctx context.Context, baseFolderID string, baseFolderPath ...string) error
+	// conclude its search. Default input is "".
+	Populate(ctx context.Context, baseFolderID string, baseContainerPather ...string) error
 
-	// PathInCache verifies if M365 container exists within the cache based
-	// by comparing the pathString representation to the paths of cachedContainers saved
+	// PathInCache performs a look up of a path reprensentation
+	// and returns the m365ID of directory iff the pathString
+	// matches the path of a container within the cache.
+	// @returns bool represents if m365ID was found.
 	PathInCache(pathString string) (string, bool)
 
 	AddToCache(ctx context.Context, m365Container Container) error
+<<<<<<< HEAD
 
 	GetCacheFolders() []CachedContainer
+=======
+	// Items returns the containers in the cache.
+	Items() []CachedContainer
+>>>>>>> gc-hierarchy
 }

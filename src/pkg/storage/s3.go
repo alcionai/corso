@@ -30,7 +30,7 @@ func (c S3Config) Normalize() S3Config {
 	return S3Config{
 		Bucket:   common.NormalizeBucket(c.Bucket),
 		Endpoint: c.Endpoint,
-		Prefix:   c.Prefix,
+		Prefix:   common.NormalizePrefix(c.Prefix),
 	}
 }
 
