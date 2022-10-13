@@ -93,6 +93,8 @@ jobs:
           npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
 
       - name: Run docs lint
+        env:
+          CORSO_USE_DOCKER: -1 # prevent using docker inside makefile
         run: |
           cd docs && make -o genclidocs check
 
