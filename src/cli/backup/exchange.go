@@ -376,12 +376,11 @@ func exchangeDetailsCmd() *cobra.Command {
 
 // lists the history of backup operations
 func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
+	ctx := cmd.Context()
 	opts := utils.ExchangeOpts{
 		Contacts:            contact,
 		ContactFolders:      contactFolder,
@@ -400,10 +399,6 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventStartsAfter:    eventStartsAfter,
 		EventStartsBefore:   eventStartsBefore,
 		EventSubject:        eventSubject,
-	}
-
-	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
-		return err
 	}
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
@@ -441,6 +436,10 @@ func runDetailsExchangeCmd(
 	backupID string,
 	opts utils.ExchangeOpts,
 ) (*details.Details, error) {
+	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
+		return nil, err
+	}
+
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
 		if errors.Is(err, kopia.ErrNotFound) {

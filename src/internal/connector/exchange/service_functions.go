@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -354,17 +355,7 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		if scope.IsAny(selectors.ExchangeMailFolder) {
-			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-				GetAllMessagesForUser,
-				IterateSelectAllDescendablesForCollections,
-				nil
-		}
-
-		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-			GetAllMessagesForUser,
-			IterateAndFilterDescendablesForCollections,
-			nil
+		return nil, nil, nil, errors.New("mail no longer supported this way")
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
@@ -384,11 +375,11 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
+// MaybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
 // this category of data. If one is not available, returns nil so that other
 // logic in the caller can complete as long as they check if the resolver is not
 // nil. If an error occurs populating the resolver, returns an error.
-func maybeGetAndPopulateFolderResolver(
+func MaybeGetAndPopulateFolderResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
 	category path.CategoryType,
@@ -500,4 +491,78 @@ func getCollectionPath(
 			err,
 			err1,
 		)
+}
+
+func AddItemsToCollection(
+	ctx context.Context,
+	gs graph.Service,
+	userID string,
+	folderID string,
+	collection *Collection,
+) error {
+	// TODO(ashmrtn): This can be removed when:
+	//   1. other data types have caching support
+	//   2. we have a good way to switch between the query for items for each data
+	//      type.
+	//   3. the below is updated to handle different data categories
+	//
+	// The alternative would be to eventually just have collections fetch items as
+	// they are read. This would allow for streaming all items instead of pulling
+	// the IDs and then later fetching all the item data.
+	if collection.FullPath().Category() != path.EmailCategory {
+		return errors.Errorf(
+			"unsupported data type %s",
+			collection.FullPath().Category().String(),
+		)
+	}
+
+	options, err := optionsForFolderMessages([]string{"id"})
+	if err != nil {
+		return errors.Wrap(err, "getting query options")
+	}
+
+	messageResp, err := gs.Client().UsersById(userID).MailFoldersById(folderID).Messages().Get(ctx, options)
+	if err != nil {
+		return errors.Wrap(
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+			"initial folder query",
+		)
+	}
+
+	pageIter, err := msgraphgocore.NewPageIterator(
+		messageResp,
+		gs.Adapter(),
+		models.CreateMessageCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return errors.Wrap(err, "creating graph iterator")
+	}
+
+	var errs *multierror.Error
+
+	err = pageIter.Iterate(ctx, func(got any) bool {
+		item, ok := got.(graph.Idable)
+		if !ok {
+			errs = multierror.Append(errs, errors.New("item without ID function"))
+			return true
+		}
+
+		if item.GetId() == nil {
+			errs = multierror.Append(errs, errors.New("item with nil ID"))
+			return true
+		}
+
+		collection.AddJob(*item.GetId())
+
+		return true
+	})
+
+	if err != nil {
+		errs = multierror.Append(errs, errors.Wrap(
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+			"getting folder messages",
+		))
+	}
+
+	return errs.ErrorOrNil()
 }

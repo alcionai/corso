@@ -12,11 +12,45 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+var _ graph.CachedContainer = &mailFolder{}
+
+// mailFolder structure that implements the graph.CachedContainer interface
+type mailFolder struct {
+	folder graph.Container
+	p      *path.Builder
+}
+
+//=========================================
+// Required Functions to satisfy interfaces
+//=====================================
+
+func (mf mailFolder) Path() *path.Builder {
+	return mf.p
+}
+
+func (mf *mailFolder) SetPath(newPath *path.Builder) {
+	mf.p = newPath
+}
+
+func (mf *mailFolder) GetDisplayName() *string {
+	return mf.folder.GetDisplayName()
+}
+
+//nolint:revive
+func (mf *mailFolder) GetId() *string {
+	return mf.folder.GetId()
+}
+
+//nolint:revive
+func (mf *mailFolder) GetParentFolderId() *string {
+	return mf.folder.GetParentFolderId()
+}
+
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	cache          map[string]cachedContainer
+	cache          map[string]graph.CachedContainer
 	gs             graph.Service
 	userID, rootID string
 }
@@ -62,6 +96,27 @@ func (mc *mailFolderCache) populateMailRoot(
 	}
 	mc.cache[*idPtr] = &temp
 	mc.rootID = *idPtr
+
+	return nil
+}
+
+// checkRequiredValues is a helper function to ensure that
+// all the pointers are set prior to being called.
+func checkRequiredValues(c graph.Container) error {
+	idPtr := c.GetId()
+	if idPtr == nil || len(*idPtr) == 0 {
+		return errors.New("folder without ID")
+	}
+
+	ptr := c.GetDisplayName()
+	if ptr == nil || len(*ptr) == 0 {
+		return errors.Errorf("folder %s without display name", *idPtr)
+	}
+
+	ptr = c.GetParentFolderId()
+	if ptr == nil || len(*ptr) == 0 {
+		return errors.Errorf("folder %s without parent ID", *idPtr)
+	}
 
 	return nil
 }
@@ -156,7 +211,7 @@ func (mc *mailFolderCache) init(
 	}
 
 	if mc.cache == nil {
-		mc.cache = map[string]cachedContainer{}
+		mc.cache = map[string]graph.CachedContainer{}
 	}
 
 	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)
@@ -205,4 +260,35 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 	}
 
 	return "", false
+}
+
+func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
+	if err := checkRequiredValues(f); err != nil {
+		return errors.Wrap(err, "adding cache entry")
+	}
+
+	if _, ok := mc.cache[*f.GetId()]; ok {
+		return nil
+	}
+
+	mc.cache[*f.GetId()] = &mailFolder{
+		folder: f,
+	}
+
+	_, err := mc.IDToPath(ctx, *f.GetId())
+	if err != nil {
+		return errors.Wrap(err, "updating adding cache entry")
+	}
+
+	return nil
+}
+
+func (mc *mailFolderCache) Items() []graph.CachedContainer {
+	res := make([]graph.CachedContainer, 0, len(mc.cache))
+
+	for _, c := range mc.cache {
+		res = append(res, c)
+	}
+
+	return res
 }

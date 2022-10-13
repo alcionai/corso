@@ -25,6 +25,7 @@ type GraphIterateFunc func(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool
 
 // IterateSelectAllDescendablesForCollection utility function for
@@ -37,12 +38,12 @@ func IterateSelectAllDescendablesForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isCategorySet  bool
 		collectionType optionIdentifier
 		category       path.CategoryType
-		resolver       graph.ContainerResolver
 		dirPath        path.Path
 		err            error
 	)
@@ -60,18 +61,12 @@ func IterateSelectAllDescendablesForCollections(
 				category = path.ContactsCategory
 			}
 
-			if r, err := maybeGetAndPopulateFolderResolver(ctx, qp, category); err != nil {
-				errUpdater("getting folder resolver for category "+category.String(), err)
-			} else {
-				resolver = r
-			}
-
 			isCategorySet = true
 		}
 
 		entry, ok := pageItem.(graph.Descendable)
 		if !ok {
-			errUpdater(qp.User, errors.New("descendable conversion failure"))
+			errUpdater(qp.User, errors.New("Descendable conversion failure"))
 			return true
 		}
 
@@ -128,6 +123,7 @@ func IterateSelectAllEventsFromCalendars(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isEnabled bool
@@ -137,7 +133,7 @@ func IterateSelectAllEventsFromCalendars(
 	return func(pageItem any) bool {
 		if !isEnabled {
 			// Create Collections based on qp.Scope
-			err := CollectFolders(ctx, qp, collections, statusUpdater)
+			err := CollectFolders(ctx, qp, collections, statusUpdater, resolver)
 			if err != nil {
 				errUpdater(
 					qp.User,
@@ -190,6 +186,53 @@ func IterateSelectAllEventsFromCalendars(
 	}
 }
 
+// CollectionsFromResolver returns the set of collections that match the
+// selector parameters.
+func CollectionsFromResolver(
+	ctx context.Context,
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+	statusUpdater support.StatusUpdater,
+	collections map[string]*Collection,
+) error {
+	option, category, notMatcher := getCategoryAndValidation(qp.Scope)
+
+	for _, item := range resolver.Items() {
+		pathString := item.Path().String()
+		// Skip the root folder for mail which has an empty path.
+		if len(pathString) == 0 || notMatcher(&pathString) {
+			continue
+		}
+
+		completePath, err := item.Path().ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+		if err != nil {
+			return errors.Wrap(err, "resolving collection item path")
+		}
+
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			return errors.Wrap(err, "making service instance")
+		}
+
+		tmp := NewCollection(
+			qp.User,
+			completePath,
+			option,
+			service,
+			statusUpdater,
+		)
+
+		collections[*item.GetId()] = &tmp
+	}
+
+	return nil
+}
+
 // IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
 // that places exchange objectsids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
@@ -199,39 +242,49 @@ func IterateAndFilterDescendablesForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isFilterSet bool
-		resolver    graph.ContainerResolver
 		cache       map[string]string
 	)
 
 	return func(descendItem any) bool {
 		if !isFilterSet {
-			err := CollectFolders(
-				ctx,
-				qp,
-				collections,
-				statusUpdater,
-			)
-			if err != nil {
-				errUpdater(qp.User, err)
-				return false
+			if resolver != nil {
+				err := CollectionsFromResolver(
+					ctx,
+					qp,
+					resolver,
+					statusUpdater,
+					collections,
+				)
+				if err != nil {
+					errUpdater(qp.User, err)
+					return false
+				}
+			} else {
+				err := CollectFolders(
+					ctx,
+					qp,
+					collections,
+					statusUpdater,
+					resolver,
+				)
+				if err != nil {
+					errUpdater(qp.User, err)
+					return false
+				}
 			}
+
 			// Caches folder directories
 			cache = make(map[string]string, 0)
-
-			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
-			if err != nil {
-				errUpdater("getting folder resolver for category "+path.EmailCategory.String(), err)
-			}
-
 			isFilterSet = true
 		}
 
 		message, ok := descendItem.(graph.Descendable)
 		if !ok {
-			errUpdater(qp.User, errors.New("casting messageItem to descendable"))
+			errUpdater(qp.User, errors.New("casting messageItem to Descendable"))
 			return true
 		}
 		// Saving only messages for the created directories
@@ -323,12 +376,11 @@ func IterateFilterContainersForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
-		resolver    graph.ContainerResolver
 		isSet       bool
 		collectPath string
-		err         error
 		option      optionIdentifier
 		category    path.CategoryType
 		validate    func(*string) bool
@@ -337,11 +389,6 @@ func IterateFilterContainersForCollections(
 	return func(folderItem any) bool {
 		if !isSet {
 			option, category, validate = getCategoryAndValidation(qp.Scope)
-
-			resolver, err = maybeGetAndPopulateFolderResolver(ctx, qp, category)
-			if err != nil {
-				errUpdater("getting folder resolver for category "+category.String(), err)
-			}
 
 			isSet = true
 		}
@@ -413,6 +460,7 @@ func IterateSelectAllContactsForCollections(
 	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) func(any) bool {
 	var (
 		isPrimarySet bool
@@ -434,6 +482,7 @@ func IterateSelectAllContactsForCollections(
 				qp,
 				collections,
 				statusUpdater,
+				resolver,
 			)
 			if err != nil {
 				errUpdater(qp.User, err)
@@ -521,7 +570,7 @@ func IterateSelectAllContactsForCollections(
 // iterateFindContainerID is a utility function that supports finding
 // M365 folders objects that matches the folderName. Iterator callback function
 // will work on folderCollection responses whose objects implement
-// the displayable interface. If folder exists, the function updates the
+// the Displayable interface. If folder exists, the function updates the
 // containerID memory address that was passed in.
 // @param containerName is the string representation of the folder, directory or calendar holds
 // the underlying M365 objects
@@ -537,7 +586,7 @@ func iterateFindContainerID(
 		}
 
 		// True when pagination needs more time to get additional responses or
-		// when entry is not able to be converted into a displayable
+		// when entry is not able to be converted into a Displayable
 		if entry == nil {
 			return true
 		}
@@ -546,7 +595,7 @@ func iterateFindContainerID(
 		if !ok {
 			errUpdater(
 				errorIdentifier,
-				errors.New("struct does not implement displayable"),
+				errors.New("struct does not implement Displayable"),
 			)
 
 			return true
