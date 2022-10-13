@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -69,9 +70,19 @@ func IsValidTimeFormat(in string) bool {
 	}
 
 	_, err := common.ParseTime(in)
-	if err != nil {
-		return false
+
+	return err == nil
+}
+
+// IsValidTimeFormat returns true if the input is regonized as a
+// boolean.  Returns true if the input is zero valued, which
+// indicates that the flag was not called.
+func IsValidBool(in string) bool {
+	if len(in) == 0 {
+		return true
 	}
 
-	return true
+	_, err := strconv.ParseBool(in)
+
+	return err == nil
 }
