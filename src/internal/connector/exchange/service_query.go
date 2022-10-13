@@ -2,10 +2,14 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
 // GraphQuery represents functions which perform exchange-specific queries
@@ -116,8 +120,6 @@ func RetrieveEventDataForUser(ctx context.Context, gs graph.Service, user, m365I
 func RetrieveMessageDataForUser(ctx context.Context, gs graph.Service, user, m365ID string) (absser.Parsable, error) {
 	return gs.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
 }
-<<<<<<< HEAD
-=======
 
 // CollectFolders is a utility function for creating Collections based off parameters found
 // in the ExchangeScope found in the graph.QueryParams
@@ -199,4 +201,3 @@ func CollectFolders(
 
 	return err
 }
->>>>>>> gc-hierarchy
