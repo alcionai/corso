@@ -51,9 +51,25 @@ func GetAllCalendarNamesForUser(ctx context.Context, gs graph.Service, user stri
 	return gs.Client().UsersById(user).Calendars().Get(ctx, options)
 }
 
+// GetDefaultContactFolderForUser is a GraphQuery function for getting the ContactFolderId
+// and display names for the default "Contacts" folder.
+// Only returns the default Contact Folder
+func GetDefaultContactFolderForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
+	options, err := optionsForContactChildFolders([]string{"displayName", "parentFolderId"})
+	if err != nil {
+		return nil, err
+	}
+
+	return gs.Client().
+		UsersById(user).
+		ContactFoldersById(rootFolderAlias).
+		ChildFolders().
+		Get(ctx, options)
+}
+
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting ContactFolderId
 // and display names for contacts. All other information is omitted.
-// Does not return the primary Contact Folder
+// Does not return the default Contact Folder
 func GetAllContactFolderNamesForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
 	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
 	if err != nil {

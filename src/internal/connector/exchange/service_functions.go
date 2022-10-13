@@ -346,10 +346,12 @@ func GetContainerID(
 }
 
 // SetupExchangeCollectionVars is a helper function returns a sets
-// Exchange.Type specific functions based on scope
+// Exchange.Type specific functions based on scope.
+// The []GraphQuery slice provides fallback queries in the event that
+// initial queries provide zero results.
 func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
-	GraphQuery,
+	[]GraphQuery,
 	GraphIterateFunc,
 	error,
 ) {
@@ -359,14 +361,14 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
 		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-			GetAllContactFolderNamesForUser,
+			[]GraphQuery{GetAllContactFolderNamesForUser, GetDefaultContactFolderForUser},
 			IterateSelectAllContactsForCollections,
 			nil
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-			GetAllCalendarNamesForUser,
+			[]GraphQuery{GetAllCalendarNamesForUser},
 			IterateSelectAllEventsFromCalendars,
 			nil
 	}

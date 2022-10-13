@@ -122,6 +122,12 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			iterativeFunction: IterateFilterContainersForCollections,
 			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+		}, {
+			name:              "Default Contacts Folder",
+			queryFunction:     GetDefaultContactFolderForUser,
+			iterativeFunction: IterateSelectAllContactsForCollections,
+			scope:             contactScope[0],
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},
 	}
 	for _, test := range tests {
