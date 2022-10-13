@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	stdpath "path"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -11,7 +10,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // Collections is used to retrieve OneDrive data for a
@@ -19,28 +20,30 @@ import (
 type Collections struct {
 	tenant string
 	user   string
+	scope  selectors.OneDriveScope
 	// collectionMap allows lookup of the data.Collection
 	// for a OneDrive folder
 	collectionMap map[string]data.Collection
 	service       graph.Service
 	statusUpdater support.StatusUpdater
 
-	// Track stats from drive enumeration
-	numItems    int
-	numDirs     int
-	numFiles    int
-	numPackages int
+	// Track stats from drive enumeration. Represents the items backed up.
+	numItems      int
+	numFiles      int
+	numContainers int
 }
 
 func NewCollections(
 	tenant string,
 	user string,
+	scope selectors.OneDriveScope,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{
 		tenant:        tenant,
 		user:          user,
+		scope:         scope,
 		collectionMap: map[string]data.Collection{},
 		service:       service,
 		statusUpdater: statusUpdater,
@@ -96,11 +99,6 @@ func getDriveFolderPath(p path.Path) (string, error) {
 // A new collection is created for every OneDrive folder (or package)
 func (c *Collections) updateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
 	for _, item := range items {
-		err := c.stats(item)
-		if err != nil {
-			return err
-		}
-
 		if item.GetRoot() != nil {
 			// Skip the root item
 			continue
@@ -120,43 +118,38 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 			return err
 		}
 
-		if _, found := c.collectionMap[collectionPath.String()]; !found {
-			c.collectionMap[collectionPath.String()] = NewCollection(
-				collectionPath,
-				driveID,
-				c.service,
-				c.statusUpdater,
-			)
+		// Skip items that don't match the folder selectors we were given.
+		if !includePath(ctx, c.scope, collectionPath) {
+			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
+			continue
 		}
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			// For folders and packages we also create a collection to represent those
+			// Leave this here so we don't fall into the default case.
 			// TODO: This is where we might create a "special file" to represent these in the backup repository
 			// e.g. a ".folderMetadataFile"
-			itemPath, err := getCanonicalPath(
-				stdpath.Join(
-					*item.GetParentReference().GetPath(),
-					*item.GetName(),
-				),
-				c.tenant,
-				c.user,
-			)
-			if err != nil {
-				return err
-			}
 
-			if _, found := c.collectionMap[itemPath.String()]; !found {
-				c.collectionMap[itemPath.String()] = NewCollection(
-					itemPath,
+		case item.GetFile() != nil:
+			col, found := c.collectionMap[collectionPath.String()]
+			if !found {
+				col = NewCollection(
+					collectionPath,
 					driveID,
 					c.service,
 					c.statusUpdater,
 				)
+
+				c.collectionMap[collectionPath.String()] = col
+				c.numContainers++
+				c.numItems++
 			}
-		case item.GetFile() != nil:
-			collection := c.collectionMap[collectionPath.String()].(*Collection)
+
+			collection := col.(*Collection)
 			collection.Add(*item.GetId())
+			c.numFiles++
+			c.numItems++
+
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
 		}
@@ -165,19 +158,21 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 	return nil
 }
 
-func (c *Collections) stats(item models.DriveItemable) error {
-	switch {
-	case item.GetFolder() != nil:
-		c.numDirs++
-	case item.GetPackage() != nil:
-		c.numPackages++
-	case item.GetFile() != nil:
-		c.numFiles++
-	default:
-		return errors.Errorf("item type not supported. item name : %s", *item.GetName())
+func includePath(ctx context.Context, scope selectors.OneDriveScope, folderPath path.Path) bool {
+	// Check if the folder is allowed by the scope.
+	folderPathString, err := getDriveFolderPath(folderPath)
+	if err != nil {
+		logger.Ctx(ctx).Error(err)
+		return true
 	}
 
-	c.numItems++
+	// Hack for the edge case where we're looking at the root folder and can
+	// select any folder. Right now the root folder has an empty folder path.
+	if len(folderPathString) == 0 && scope.IsAny(selectors.OneDriveFolder) {
+		return true
+	}
 
-	return nil
+	logger.Ctx(ctx).Infof("Checking path %q", folderPathString)
+
+	return scope.Matches(selectors.OneDriveFolder, folderPathString)
 }
