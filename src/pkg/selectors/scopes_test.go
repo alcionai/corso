@@ -65,7 +65,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize("fnords")
+				stub[rootCatStub.String()] = filterize(scopeConfig{}, "fnords")
 				return stub
 			},
 			check:  "",
@@ -75,7 +75,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(rootCatStub.String())
+				stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -85,7 +85,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "non-matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(rootCatStub.String())
+				stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
 				return stub
 			},
 			check:  "smarf",
@@ -105,7 +105,7 @@ func (suite *SelectorScopesSuite) TestGetCatValue() {
 	t := suite.T()
 
 	stub := stubScope("")
-	stub[rootCatStub.String()] = filterize(rootCatStub.String())
+	stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
 
 	assert.Equal(t,
 		[]string{rootCatStub.String()},
@@ -265,7 +265,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	t := suite.T()
 	s1 := stubScope("")
 	s2 := stubScope("")
-	s2[scopeKeyCategory] = filterize(unknownCatStub.String())
+	s2[scopeKeyCategory] = filterize(scopeConfig{}, unknownCatStub.String())
 	result := scopesByCategory[mockScope](
 		[]scope{scope(s1), scope(s2)},
 		map[path.CategoryType]mockCategorizer{
@@ -368,8 +368,8 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sc := stubScope("")
-			sc[rootCatStub.String()] = filterize(test.rootVal)
-			sc[leafCatStub.String()] = filterize(test.leafVal)
+			sc[rootCatStub.String()] = filterize(scopeConfig{}, test.rootVal)
+			sc[leafCatStub.String()] = filterize(scopeConfig{}, test.leafVal)
 
 			test.expect(t, matchesPathValues(sc, cat, pvs, test.shortRef))
 		})
@@ -483,6 +483,33 @@ func (suite *SelectorScopesSuite) TestWrapFilter() {
 			ff := wrapFilter(test.filter)(test.input)
 			assert.Equal(t, int(ff.Comparator), test.comparator)
 			assert.Equal(t, ff.Target, test.target)
+		})
+	}
+}
+
+func (suite *SelectorScopesSuite) TestScopeConfig() {
+	input := "input"
+
+	table := []struct {
+		name   string
+		config scopeConfig
+		expect int
+	}{
+		{
+			name:   "no configs set",
+			config: scopeConfig{},
+			expect: int(filters.EqualTo),
+		},
+		{
+			name:   "force prefix",
+			config: scopeConfig{usePrefixFilter: true},
+			expect: int(filters.TargetPrefixes),
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := filterize(test.config, input)
+			assert.Equal(t, test.expect, int(result.Comparator))
 		})
 	}
 }
