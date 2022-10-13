@@ -203,16 +203,6 @@ func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container
 	return nil
 }
 
-<<<<<<< HEAD
-func (cfc *contactFolderCache) GetCacheFolders() []graph.CachedContainer {
-	cached := make([]graph.CachedContainer, 0)
-
-	for _, folder := range cfc.cache {
-		cached = append(cached, folder)
-	}
-
-	return cached
-=======
 func (cfc *contactFolderCache) Items() []graph.CachedContainer {
 	res := make([]graph.CachedContainer, 0, len(cfc.cache))
 
@@ -221,5 +211,4 @@ func (cfc *contactFolderCache) Items() []graph.CachedContainer {
 	}
 
 	return res
->>>>>>> gc-hierarchy
 }

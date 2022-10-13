@@ -204,16 +204,6 @@ func (ecc *eventCalendarCache) PathInCache(pathString string) (string, bool) {
 	return "", false
 }
 
-<<<<<<< HEAD
-func (ecc *eventCalendarCache) GetCacheFolders() []graph.CachedContainer {
-	cached := make([]graph.CachedContainer, 0)
-
-	for _, folder := range ecc.cache {
-		cached = append(cached, folder)
-	}
-
-	return cached
-=======
 func (ecc *eventCalendarCache) Items() []graph.CachedContainer {
 	res := make([]graph.CachedContainer, 0, len(ecc.cache))
 
@@ -222,5 +212,4 @@ func (ecc *eventCalendarCache) Items() []graph.CachedContainer {
 	}
 
 	return res
->>>>>>> gc-hierarchy
 }
