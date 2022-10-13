@@ -54,12 +54,14 @@ func (cf *cacheFolder) SetPath(newPath *path.Builder) {
 
 // CalendarDisplayable is a transformative struct that aligns
 // models.Calendarable interface with the container interface.
-// Calendars do not have the 2 of the
+// Calendars do not have a parentFolderID. Therefore,
+// the call will always return nil
 type CalendarDisplayable struct {
 	models.Calendarable
 }
 
-// GetDisplayName returns the *string of the calendar name
+// GetDisplayName returns the *string of the models.Calendable
+// variant:  calendar.GetName()
 func (c CalendarDisplayable) GetDisplayName() *string {
 	return c.GetName()
 }
