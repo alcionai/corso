@@ -56,8 +56,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		// general flags
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to restore. (required)")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 
 		fs.StringSliceVar(&user,
 			utils.UserFN, nil,
@@ -120,15 +122,15 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		// contacts flags
 		fs.StringSliceVar(
 			&contact,
-			"contact", nil,
+			utils.ContactFN, nil,
 			"Restore contacts by contact ID; accepts '"+utils.Wildcard+"' to select all contacts.")
 		fs.StringSliceVar(
 			&contactFolder,
-			"contact-folder", nil,
+			utils.ContactFolderFN, nil,
 			"Restore contacts within a folder; accepts '"+utils.Wildcard+"' to select all contact folders.")
 		fs.StringVar(
 			&contactName,
-			"contact-name", "",
+			utils.ContactNameFN, "",
 			"Restore contacts whose contact name contains this value.")
 
 		// others

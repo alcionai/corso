@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -108,8 +109,8 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 			cmd := tester.StubRootCmd(
 				"backup", "create", "exchange",
 				"--config-file", suite.cfgFP,
-				"--user", suite.m365UserID,
-				"--data", set.String())
+				"--"+utils.UserFN, suite.m365UserID,
+				"--"+utils.DataFN, set.String())
 			cli.BuildCommandTree(cmd)
 
 			cmd.SetOut(&recorder)
@@ -273,7 +274,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 			cmd := tester.StubRootCmd(
 				"backup", "details", "exchange",
 				"--config-file", suite.cfgFP,
-				"--backup", string(bID))
+				"--"+utils.BackupFN, string(bID))
 			cli.BuildCommandTree(cmd)
 
 			cmd.SetOut(&recorder)
@@ -304,7 +305,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 			}
 
 			// At least the prefix of the path should be encoded as folders.
-			assert.Greater(suite.T(), foundFolders, 4)
+			assert.Greater(t, foundFolders, 4)
 		})
 	}
 }
@@ -387,7 +388,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.cfgFP,
-		"--backup", string(suite.backupOp.Results.BackupID))
+		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -413,7 +414,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_U
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.cfgFP,
-		"--backup", uuid.NewString())
+		"--"+utils.BackupFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup

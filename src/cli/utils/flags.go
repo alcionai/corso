@@ -3,9 +3,10 @@ package utils
 import (
 	"strconv"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 type PopulatedFlags map[string]struct{}

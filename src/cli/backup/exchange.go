@@ -132,7 +132,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to explore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 		fs.StringSliceVar(
 			&user,
 			utils.UserFN, nil,
@@ -215,8 +215,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to delete. (required)")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 	}
 
 	return c

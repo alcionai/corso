@@ -42,8 +42,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to restore. (required)")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 
 		fs.StringSliceVar(&user,
 			utils.UserFN, nil,

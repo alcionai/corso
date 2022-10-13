@@ -37,9 +37,27 @@ var (
 			},
 		},
 		{
+			Name: "EmptyEmailReceiveAfter",
+			Opts: utils.ExchangeOpts{
+				EmailReceivedAfter: "",
+				Populated: utils.PopulatedFlags{
+					utils.EmailReceivedAfterFN: struct{}{},
+				},
+			},
+		},
+		{
 			Name: "BadEmailReceiveBefore",
 			Opts: utils.ExchangeOpts{
 				EmailReceivedBefore: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.EmailReceivedBeforeFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyEmailReceiveBefore",
+			Opts: utils.ExchangeOpts{
+				EmailReceivedBefore: "",
 				Populated: utils.PopulatedFlags{
 					utils.EmailReceivedBeforeFN: struct{}{},
 				},
@@ -55,6 +73,15 @@ var (
 			},
 		},
 		{
+			Name: "EmptyEventRecurs",
+			Opts: utils.ExchangeOpts{
+				EventRecurs: "",
+				Populated: utils.PopulatedFlags{
+					utils.EventRecursFN: struct{}{},
+				},
+			},
+		},
+		{
 			Name: "BadEventStartsAfter",
 			Opts: utils.ExchangeOpts{
 				EventStartsAfter: "foo",
@@ -64,9 +91,27 @@ var (
 			},
 		},
 		{
+			Name: "EmptyEventStartsAfter",
+			Opts: utils.ExchangeOpts{
+				EventStartsAfter: "",
+				Populated: utils.PopulatedFlags{
+					utils.EventStartsAfterFN: struct{}{},
+				},
+			},
+		},
+		{
 			Name: "BadEventStartsBefore",
 			Opts: utils.ExchangeOpts{
 				EventStartsBefore: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.EventStartsBeforeFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyEventStartsBefore",
+			Opts: utils.ExchangeOpts{
+				EventStartsBefore: "",
 				Populated: utils.PopulatedFlags{
 					utils.EventStartsBeforeFN: struct{}{},
 				},
