@@ -4,17 +4,19 @@
 
 ### Building locally
 
-Corso source is contained in `<repo root>/src` directory of the repo. It's a go
-project and can be built like any other go project using `go build` if you have go available in your system:
-
-> You can find instructions to install go [here](https://go.dev/doc/install)
+Corso is a Go project, and you can build it with `go build` from `<repo root>/src`
+if you have Go installed on your system.
 
 ```bash
-go build -o corso # run from within `./src` directory
+# run from within `./src`
+go build -o corso 
 ```
 
-This will generate the built binary with the name `corso` in the
-directory you built it.
+:::info
+If you dong have Go available, you can find installation instructions [here](https://go.dev/doc/install)
+:::
+
+This will generate a binary named `corso` in the directory where you run the build.
 
 ### Building via Docker
 
