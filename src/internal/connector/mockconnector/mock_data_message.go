@@ -29,9 +29,9 @@ const (
 	//   5. sender user ID
 	//   6. received datetime
 	//   7. sender email
-	//   6. sent datetime
-	//   7. subject
-	//   8. recipient user addr
+	//   8. sent datetime
+	//   9. subject
+	//   10. recipient user addr
 	messageTmpl = `{
 		"id":"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA=",
 		"@odata.context":"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity",
