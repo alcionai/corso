@@ -83,11 +83,7 @@ type ContainerResolver interface {
 	PathInCache(pathString string) (string, bool)
 
 	AddToCache(ctx context.Context, m365Container Container) error
-<<<<<<< HEAD
 
-	GetCacheFolders() []CachedContainer
-=======
 	// Items returns the containers in the cache.
 	Items() []CachedContainer
->>>>>>> gc-hierarchy
 }
