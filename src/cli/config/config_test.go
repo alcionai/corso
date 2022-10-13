@@ -22,7 +22,7 @@ const (
 	configFileTemplate = `
 ` + BucketNameKey + ` = '%s'
 ` + EndpointKey + ` = 's3.amazonaws.com'
-` + PrefixKey + ` = 'test-prefix'
+` + PrefixKey + ` = 'test-prefix/'
 ` + StorageProviderTypeKey + ` = 'S3'
 ` + AccountProviderTypeKey + ` = 'M365'
 ` + TenantIDKey + ` = '%s'
@@ -208,7 +208,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	const (
 		bkt = "get-storage-and-account-bucket"
 		end = "https://get-storage-and-account.com"
-		pfx = "get-storage-and-account-prefix"
+		pfx = "get-storage-and-account-prefix/"
 		tid = "3a2faa4e-a882-445c-9d27-f552ef189381"
 	)
 
@@ -253,7 +253,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	const (
 		bkt = "get-storage-and-account-no-file-bucket"
 		end = "https://get-storage-and-account.com/no-file"
-		pfx = "get-storage-and-account-no-file-prefix"
+		pfx = "get-storage-and-account-no-file-prefix/"
 		tid = "88f8522b-18e4-4d0f-b514-2d7b34d4c5a1"
 	)
 
