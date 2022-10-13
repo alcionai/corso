@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	mu       sync.Mutex
 	wg       sync.WaitGroup
 	con      context.Context
 	writer   io.Writer
@@ -53,8 +52,6 @@ func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadClos
 		return rc, func() {}
 	}
 
-	mu.Lock()
-	defer mu.Unlock()
 	wg.Add(1)
 
 	bar := progress.AddBar(
