@@ -93,6 +93,10 @@ func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 		return errors.New("invalid time format for event-starts-before")
 	}
 
+	if !IsValidBool(opts.EventRecurs) {
+		return errors.New("invalid format for event-recurs")
+	}
+
 	return nil
 }
 

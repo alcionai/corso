@@ -251,10 +251,10 @@ func restoreItem(
 	}
 
 	// Upload the stream data
-	_, err = io.CopyBuffer(w, itemData.ToReader(), copyBuffer)
+	written, err := io.CopyBuffer(w, itemData.ToReader(), copyBuffer)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}
 
-	return driveItemInfo(newItem), nil
+	return driveItemInfo(newItem, written), nil
 }

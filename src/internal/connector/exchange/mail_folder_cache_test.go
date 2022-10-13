@@ -207,7 +207,7 @@ func (suite *ConfiguredMailFolderCacheUnitSuite) SetupTest() {
 		)
 	}
 
-	suite.mc = mailFolderCache{cache: map[string]cachedContainer{}}
+	suite.mc = mailFolderCache{cache: map[string]graph.CachedContainer{}}
 
 	for _, c := range suite.allContainers {
 		suite.mc.cache[c.id] = c
@@ -274,6 +274,26 @@ func (suite *ConfiguredMailFolderCacheUnitSuite) TestLookupCachedFolderErrorsNot
 
 	_, err := suite.mc.IDToPath(ctx, "foo")
 	assert.Error(t, err)
+}
+
+func (suite *ConfiguredMailFolderCacheUnitSuite) TestAddToCache() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	last := suite.allContainers[len(suite.allContainers)-1]
+
+	m := newMockCachedContainer("testAddFolder")
+
+	m.parentID = last.id
+	m.expectedPath = stdpath.Join(last.expectedPath, m.displayName)
+
+	require.NoError(t, suite.mc.AddToCache(ctx, m))
+
+	p, err := suite.mc.IDToPath(ctx, m.id)
+	require.NoError(t, err)
+	assert.Equal(t, m.expectedPath, p.String())
 }
 
 type MailFolderCacheIntegrationSuite struct {

@@ -58,24 +58,31 @@ func driveItemReader(
 		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
 	}
 
-	return driveItemInfo(item), resp.Body, nil
+	return driveItemInfo(item, *item.GetSize()), resp.Body, nil
 }
 
 // driveItemInfo will populate a details.OneDriveInfo struct
-// with properties from the drive item.
-func driveItemInfo(di models.DriveItemable) *details.OneDriveInfo {
+// with properties from the drive item.  ItemSize is specified
+// separately for restore processes because the local itemable
+// doesn't have its size value updated as a side effect of creation,
+// and kiota drops any SetSize update.
+func driveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
 	return &details.OneDriveInfo{
 		ItemType: details.OneDriveItem,
 		ItemName: *di.GetName(),
 		Created:  *di.GetCreatedDateTime(),
 		Modified: *di.GetLastModifiedDateTime(),
-		Size:     *di.GetSize(),
+		Size:     itemSize,
 	}
 }
 
 // driveItemWriter is used to initialize and return an io.Writer to upload data for the specified item
 // It does so by creating an upload session and using that URL to initialize an `itemWriter`
-func driveItemWriter(ctx context.Context, service graph.Service, driveID, itemID string, itemSize int64,
+func driveItemWriter(
+	ctx context.Context,
+	service graph.Service,
+	driveID, itemID string,
+	itemSize int64,
 ) (io.Writer, error) {
 	// TODO: @vkamra verify if var session is the desired input
 	session := msup.NewCreateUploadSessionPostRequestBody()
