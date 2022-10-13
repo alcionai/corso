@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -314,80 +313,6 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 		collections, err := connector.createCollections(ctx, scope)
 		require.NoError(t, err)
 		suite.Greater(len(collections), standard)
-	}
-}
-
-func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	var (
-		t      = suite.T()
-		userID = tester.M365UserID(t)
-		sel    = selectors.NewExchangeBackup()
-	)
-
-	tests := []struct {
-		name        string
-		scope       selectors.ExchangeScope
-		folderNames map[string]struct{}
-	}{
-		{
-			name:  "Mail Iterative Check",
-			scope: sel.MailFolders([]string{userID}, selectors.Any())[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-				"Sent Items":               {},
-			},
-		},
-		{
-			name: "Folder Iterative Check Mail",
-			scope: sel.MailFolders(
-				[]string{userID},
-				[]string{exchange.DefaultMailFolder},
-			)[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-			},
-		},
-	}
-
-	gc := loadConnector(ctx, t)
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			qp := graph.QueryParams{
-				User:        userID,
-				Scope:       test.scope,
-				Credentials: gc.credentials,
-				FailFast:    false,
-			}
-
-			resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
-				ctx,
-				qp,
-				scopeToPathCategory(qp.Scope),
-			)
-			require.NoError(t, err)
-
-			collections, err := gc.fetchItemsByFolder(
-				ctx,
-				qp,
-				resolver,
-			)
-			require.NoError(t, err)
-
-			for _, c := range collections {
-				require.NotEmpty(t, c.FullPath().Folder())
-				folder := c.FullPath().Folder()
-
-				if _, ok := test.folderNames[folder]; ok {
-					delete(test.folderNames, folder)
-				}
-			}
-
-			assert.Empty(t, test.folderNames)
-		})
 	}
 }
 
