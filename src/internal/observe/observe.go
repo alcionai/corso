@@ -58,8 +58,8 @@ func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadClos
 		mpb.BarFillerOnComplete(""),
 		mpb.BarRemoveOnComplete(),
 		mpb.PrependDecorators(
-			decor.OnComplete(decor.Percentage(decor.WCSyncSpace), ""),
-			decor.OnComplete(decor.TotalKiloByte("% .1f", decor.WCSyncSpace), ""),
+			decor.OnComplete(decor.NewPercentage("%d", decor.WC{W: 4}), ""),
+			decor.OnComplete(decor.TotalKiloByte("%.1f", decor.WCSyncSpace), ""),
 		),
 		mpb.AppendDecorators(
 			decor.OnComplete(decor.Name(iname), ""),
