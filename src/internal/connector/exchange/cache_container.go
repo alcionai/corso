@@ -8,15 +8,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// cachedContainer is used for local unit tests but also makes it so that this
-// code can be broken into generic- and service-specific chunks later on to
-// reuse logic in IDToPath.
-type cachedContainer interface {
-	graph.Container
-	Path() *path.Builder
-	SetPath(*path.Builder)
-}
-
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
 func checkRequiredValues(c graph.Container) error {
@@ -42,7 +33,7 @@ func checkRequiredValues(c graph.Container) error {
 // cachedContainer Implementations
 //======================
 
-var _ cachedContainer = &cacheFolder{}
+var _ graph.CachedContainer = &cacheFolder{}
 
 type cacheFolder struct {
 	graph.Container
