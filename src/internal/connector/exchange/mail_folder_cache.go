@@ -100,27 +100,6 @@ func (mc *mailFolderCache) populateMailRoot(
 	return nil
 }
 
-// checkRequiredValues is a helper function to ensure that
-// all the pointers are set prior to being called.
-func checkRequiredValues(c graph.Container) error {
-	idPtr := c.GetId()
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("folder without ID")
-	}
-
-	ptr := c.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
-	}
-
-	ptr = c.GetParentFolderId()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
-	}
-
-	return nil
-}
-
 // Populate utility function for populating the mailFolderCache.
 // Number of Graph Queries: 1.
 // @param baseID: M365ID of the base of the exchange.Mail.Folder
@@ -221,7 +200,7 @@ func (mc *mailFolderCache) init(
 // @returns error iff the required values are not accessible.
 func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkRequiredValues(f); err != nil {
-		return err
+		return errors.Wrap(err, "object not added to cache")
 	}
 
 	if _, ok := mc.cache[*f.GetId()]; ok {
@@ -260,27 +239,6 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 	}
 
 	return "", false
-}
-
-func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkRequiredValues(f); err != nil {
-		return errors.Wrap(err, "adding cache entry")
-	}
-
-	if _, ok := mc.cache[*f.GetId()]; ok {
-		return nil
-	}
-
-	mc.cache[*f.GetId()] = &mailFolder{
-		folder: f,
-	}
-
-	_, err := mc.IDToPath(ctx, *f.GetId())
-	if err != nil {
-		return errors.Wrap(err, "updating adding cache entry")
-	}
-
-	return nil
 }
 
 func (mc *mailFolderCache) Items() []graph.CachedContainer {
