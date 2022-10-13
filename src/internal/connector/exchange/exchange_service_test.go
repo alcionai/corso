@@ -555,6 +555,19 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			},
 		},
 		{
+			name:        "Test Mail: One Large Attachment",
+			bytes:       mockconnector.GetMockMessageWithLargeAttachment("Restore Large Attachment"),
+			category:    path.EmailCategory,
+			cleanupFunc: DeleteMailFolder,
+			destination: func() string {
+				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
 			name:        "Test Mail: Two Attachments",
 			bytes:       mockconnector.GetMockMessageWithTwoAttachments("Restore 2 Attachments"),
 			category:    path.EmailCategory,
