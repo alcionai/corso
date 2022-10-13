@@ -15,7 +15,7 @@ import (
 var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
-	cache          map[string]cachedContainer
+	cache          map[string]graph.CachedContainer
 	gs             graph.Service
 	userID, rootID string
 }
@@ -129,7 +129,7 @@ func (cfc *contactFolderCache) init(
 	}
 
 	if cfc.cache == nil {
-		cfc.cache = map[string]cachedContainer{}
+		cfc.cache = map[string]graph.CachedContainer{}
 	}
 
 	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)

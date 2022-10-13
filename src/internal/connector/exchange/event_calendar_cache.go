@@ -15,7 +15,7 @@ import (
 var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
-	cache          map[string]cachedContainer
+	cache          map[string]graph.CachedContainer
 	gs             graph.Service
 	userID, rootID string
 }
@@ -134,7 +134,7 @@ func (ecc *eventCalendarCache) init(
 	}
 
 	if ecc.cache == nil {
-		ecc.cache = map[string]cachedContainer{}
+		ecc.cache = map[string]graph.CachedContainer{}
 	}
 
 	return ecc.populateEventRoot(ctx, baseNode, baseContainerPath)
