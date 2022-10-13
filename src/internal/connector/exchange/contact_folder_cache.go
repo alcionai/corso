@@ -205,3 +205,13 @@ func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container
 
 	return nil
 }
+
+func (cfc *contactFolderCache) Items() []graph.CachedContainer {
+	res := make([]graph.CachedContainer, 0, len(cfc.cache))
+
+	for _, c := range cfc.cache {
+		res = append(res, c)
+	}
+
+	return res
+}
