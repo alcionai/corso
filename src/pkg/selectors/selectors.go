@@ -309,12 +309,23 @@ func addToSet(set []string, v []string) []string {
 }
 
 // ---------------------------------------------------------------------------
-// Destination
+// helpers
 // ---------------------------------------------------------------------------
 
-type Destination scope
+type scopeConfig struct {
+	usePrefixFilter bool
+}
 
-var ErrorDestinationAlreadySet = errors.New("destination is already declared")
+type option func(*scopeConfig)
+
+// PrefixMatch ensures the selector uses a Prefix comparator, instead
+// of contains or equals.  Will not override a default Any() or None()
+// comparator.
+func PrefixMatch() option {
+	return func(sc *scopeConfig) {
+		sc.usePrefixFilter = true
+	}
+}
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -322,10 +333,6 @@ var ErrorDestinationAlreadySet = errors.New("destination is already declared")
 
 func badCastErr(cast, is service) error {
 	return errors.Wrapf(ErrorBadSelectorCast, "%s service is not %s", cast, is)
-}
-
-func existingDestinationErr(category, is string) error {
-	return errors.Wrapf(ErrorDestinationAlreadySet, "%s destination already set to %s", category, is)
 }
 
 func join(s ...string) string {
@@ -362,20 +369,25 @@ func clean(s []string) []string {
 // filterize turns the slice into a filter.
 // if the input is Any(), returns a passAny filter.
 // if the input is None(), returns a failAny filter.
+// if the scopeConfig specifies a filter, use that filter.
 // if the input is len(1), returns an Equals filter.
 // otherwise returns a Contains filter.
-func filterize(s ...string) filters.Filter {
+func filterize(sc scopeConfig, s ...string) filters.Filter {
 	s = clean(s)
 
+	if len(s) == 0 || s[0] == NoneTgt {
+		return failAny
+	}
+
+	if s[0] == AnyTgt {
+		return passAny
+	}
+
+	if sc.usePrefixFilter {
+		return filters.Prefix(join(s...))
+	}
+
 	if len(s) == 1 {
-		if s[0] == AnyTgt {
-			return passAny
-		}
-
-		if s[0] == NoneTgt {
-			return failAny
-		}
-
 		return filters.Equal(s[0])
 	}
 
