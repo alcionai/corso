@@ -277,11 +277,9 @@ jobs:
           npm ci
           CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
 
-      # TODO(meain): post-merge: validate push to prod env
-      - name: Push docs
-        run: |
-          echo "$DOCS_BUCKET" | base64
-          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}/preview"
+      # - name: Push docs
+      #   run: |
+      #     aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}/preview"
 
       - name: Invalidate cloudfront
         run: |
