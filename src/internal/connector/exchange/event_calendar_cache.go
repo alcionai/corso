@@ -47,11 +47,12 @@ func (ecc *eventCalendarCache) populateEventRoot(
 		return errors.New("root calendar has no ID")
 	}
 
+	dir := *cal.GetName()
 	identifier := *idPtr
-	transform := CreateCalendarDisplayable(cal, identifier)
+	transform := CreateCalendarDisplayable(cal)
 	temp := cacheFolder{
 		Container: transform,
-		p:         path.Builder{}.Append(baseContainerPath...),
+		p:         path.Builder{}.Append(dir),
 	}
 
 	ecc.cache[identifier] = &temp
@@ -169,8 +170,9 @@ func (ecc *eventCalendarCache) IDToPath(
 // this means that the object has to be transformed prior to calling
 // this function.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkRequiredValues(f); err != nil {
-		return err
+	ptr := f.GetDisplayName()
+	if ptr == nil || len(*ptr) == 0 {
+		return errors.Errorf("folder %s without display name", *f.GetId())
 	}
 
 	if _, ok := ecc.cache[*f.GetId()]; ok {
@@ -179,6 +181,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 
 	ecc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
+		p:         path.Builder{}.Append(*f.GetDisplayName()),
 	}
 
 	_, err := ecc.IDToPath(ctx, *f.GetId())

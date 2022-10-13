@@ -152,7 +152,7 @@ func IterateSelectAllEventsFromCalendars(
 			isEnabled = true
 		}
 
-		pageItem = CreateCalendarDisplayable(pageItem, "")
+		pageItem = CreateCalendarDisplayable(pageItem)
 
 		calendar, ok := pageItem.(graph.Displayable)
 		if !ok {
@@ -394,7 +394,7 @@ func IterateFilterContainersForCollections(
 		}
 
 		if option == events {
-			folderItem = CreateCalendarDisplayable(folderItem, "")
+			folderItem = CreateCalendarDisplayable(folderItem)
 		}
 
 		folder, ok := folderItem.(graph.Displayable)
@@ -582,7 +582,7 @@ func iterateFindContainerID(
 ) func(any) bool {
 	return func(entry any) bool {
 		if isCalendar {
-			entry = CreateCalendarDisplayable(entry, "")
+			entry = CreateCalendarDisplayable(entry)
 		}
 
 		// True when pagination needs more time to get additional responses or
@@ -711,7 +711,7 @@ func IterativeCollectCalendarContainers(
 		include := len(nameContains) == 0 ||
 			strings.Contains(*cal.GetName(), nameContains)
 		if include {
-			temp := CreateCalendarDisplayable(cal, rootID)
+			temp := CreateCalendarDisplayable(cal)
 			containers[*temp.GetDisplayName()] = temp
 		}
 

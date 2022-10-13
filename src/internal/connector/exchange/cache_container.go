@@ -57,7 +57,6 @@ func (cf *cacheFolder) SetPath(newPath *path.Builder) {
 // Calendars do not have the 2 of the
 type CalendarDisplayable struct {
 	models.Calendarable
-	parentID string
 }
 
 // GetDisplayName returns the *string of the calendar name
@@ -70,7 +69,7 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 // at the default
 //nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
-	return &c.parentID
+	return nil
 }
 
 // CreateCalendarDisplayable helper function to create the
@@ -78,7 +77,7 @@ func (c CalendarDisplayable) GetParentFolderId() *string {
 // @param entry is the input supplied by pageIterator.Iterate()
 // @param parentID of Calendar sets. Only populate when used with
 // EventCalendarCache
-func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable {
+func CreateCalendarDisplayable(entry any) *CalendarDisplayable {
 	calendar, ok := entry.(models.Calendarable)
 	if !ok {
 		return nil
@@ -86,6 +85,5 @@ func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable 
 
 	return &CalendarDisplayable{
 		Calendarable: calendar,
-		parentID:     parentID,
 	}
 }
