@@ -182,8 +182,7 @@ func RestoreMailMessage(
 	bits []byte,
 	service graph.Service,
 	cp control.CollisionPolicy,
-	destination,
-	user string,
+	destination, user string,
 ) (*details.ExchangeInfo, error) {
 	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
