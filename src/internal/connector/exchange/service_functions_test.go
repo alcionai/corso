@@ -301,6 +301,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 	t := suite.T()
 	user := tester.M365UserID(t)
 	a := tester.NewM365Account(t)
+	service := loadService(t)
 	credentials, err := a.M365Config()
 	require.NoError(t, err)
 
@@ -359,14 +360,13 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 				FailFast:    failFast,
 				Credentials: credentials,
 			}
-			collections := make(map[string]*Collection)
-			err := CollectFolders(ctx, qp, collections, nil, nil)
+			collections, err := CollectFolders(ctx, qp, service)
 			assert.NoError(t, err)
 			test.expectedCount(t, len(collections), containerCount)
 
 			keys := make([]string, 0, len(collections))
-			for k := range collections {
-				keys = append(keys, k)
+			for _, k := range collections {
+				keys = append(keys, *k.GetDisplayName())
 			}
 			t.Logf("Collections Made: %v\n", keys)
 			assert.Contains(t, keys, test.contains)
