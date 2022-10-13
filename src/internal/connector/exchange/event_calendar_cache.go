@@ -206,3 +206,13 @@ func (ecc *eventCalendarCache) PathInCache(pathString string) (string, bool) {
 
 	return "", false
 }
+
+func (ecc *eventCalendarCache) Items() []graph.CachedContainer {
+	res := make([]graph.CachedContainer, 0, len(ecc.cache))
+
+	for _, c := range ecc.cache {
+		res = append(res, c)
+	}
+
+	return res
+}
