@@ -1,6 +1,7 @@
 package restore_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -169,6 +170,36 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 				"--config-file", suite.cfgFP,
 				"--backup", string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
+			cli.BuildCommandTree(cmd)
+
+			// run the command
+			require.Error(t, cmd.ExecuteContext(ctx))
+		})
+	}
+}
+
+func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlags() {
+	for _, set := range backupDataSets {
+		if set != events {
+			suite.T().Skip()
+		}
+
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx := config.SetViper(context.Background(), suite.vpr)
+			ctx, flush := tester.WithContext(ctx)
+			defer flush()
+
+			var timeFilter string
+			switch set {
+			case events:
+				timeFilter = "--event-recurs"
+			}
+
+			cmd := tester.StubRootCmd(
+				"restore", "exchange",
+				"--config-file", suite.cfgFP,
+				"--backup", string(suite.backupOps[set].Results.BackupID),
+				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)
 
 			// run the command
