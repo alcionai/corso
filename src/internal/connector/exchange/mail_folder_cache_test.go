@@ -337,6 +337,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	tests := []struct {
 		name string
 		root string
+		path []string
 	}{
 		{
 			name: "Default Root",
@@ -345,6 +346,11 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 		{
 			name: "Node Root",
 			root: topFolderID,
+		},
+		{
+			name: "Node Root Non-empty Path",
+			root: topFolderID,
+			path: []string{"some", "leading", "path"},
 		},
 	}
 	userID := tester.M365UserID(suite.T())
@@ -356,12 +362,16 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 				gs:     suite.gs,
 			}
 
-			require.NoError(t, mfc.Populate(ctx, test.root))
+			require.NoError(t, mfc.Populate(ctx, test.root, test.path...))
 
 			p, err := mfc.IDToPath(ctx, testFolderID)
 			require.NoError(t, err)
 
-			assert.Equal(t, expectedFolderPath, p.String())
+			expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
+			assert.Equal(t, expectedPath, p.String())
+			identifier, ok := mfc.PathInCache(p.String())
+			assert.True(t, ok)
+			assert.NotEmpty(t, identifier)
 		})
 	}
 }

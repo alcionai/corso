@@ -275,10 +275,6 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 		function GraphQuery
 	}{
 		{
-			name:     "GraphQuery: Get All Messages For User",
-			function: GetAllMessagesForUser,
-		},
-		{
 			name:     "GraphQuery: Get All Contacts For User",
 			function: GetAllContactsForUser,
 		},
@@ -450,69 +446,6 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 	assert.NotNil(t, info, "event item info")
 }
 
-// TestGetRestoreContainer checks the ability to Create a "container" for the
-// GraphConnector's Restore Workflow based on OptionIdentifier.
-func (suite *ExchangeServiceSuite) TestGetRestoreContainer() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	dest := tester.DefaultTestRestoreDestination()
-	tests := []struct {
-		name        string
-		option      path.CategoryType
-		checkError  assert.ErrorAssertionFunc
-		cleanupFunc func(context.Context, graph.Service, string, string) error
-	}{
-		{
-			name:        "Establish User Restore Folder",
-			option:      path.CategoryType(-1),
-			checkError:  assert.Error,
-			cleanupFunc: nil,
-		},
-
-		// TODO: #884 - reinstate when able to specify root folder by name
-		// {
-		// 	name:        "Establish Event Restore Location",
-		// 	option:      path.EventsCategory,
-		// 	checkError:  assert.NoError,
-		// 	cleanupFunc: DeleteCalendar,
-		// },
-		{
-			name:        "Establish Restore Folder for Unknown",
-			option:      path.UnknownCategory,
-			checkError:  assert.Error,
-			cleanupFunc: nil,
-		},
-		{
-			name:        "Establish Restore folder for Mail",
-			option:      path.EmailCategory,
-			checkError:  assert.NoError,
-			cleanupFunc: DeleteMailFolder,
-		},
-		// TODO: #884 - reinstate when able to specify root folder by name
-		// {
-		// 	name:        "Establish Restore folder for Contacts",
-		// 	option:      path.ContactsCategory,
-		// 	checkError:  assert.NoError,
-		// 	cleanupFunc: DeleteContactFolder,
-		// },
-	}
-
-	userID := tester.M365UserID(suite.T())
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			containerID, err := GetRestoreContainer(ctx, suite.es, userID, test.option, dest.ContainerName)
-			require.True(t, test.checkError(t, err, support.ConnectorStackErrorTrace(err)))
-
-			if test.cleanupFunc != nil {
-				err = test.cleanupFunc(ctx, suite.es, userID, containerID)
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 	ctx, flush := tester.NewContext()
@@ -627,6 +560,140 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 
 			cleanupError := test.cleanupFunc(ctx, service, userID, destination)
 			assert.NoError(t, cleanupError)
+		})
+	}
+}
+
+// Testing to ensure that cache system works for in multiple different environments
+func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t               = suite.T()
+		user            = tester.M365UserID(t)
+		connector       = loadService(t)
+		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
+		folderName      = tester.DefaultTestRestoreDestination().ContainerName
+		tests           = []struct {
+			name      string
+			pathFunc1 func() path.Path
+			pathFunc2 func() path.Path
+			category  path.CategoryType
+		}{
+			{
+				name:     "Mail Cache Test",
+				category: path.EmailCategory,
+				pathFunc1: func() path.Path {
+					pth, err := path.Builder{}.Append("Griffindor").
+						Append("Croix").ToDataLayerExchangePathForCategory(
+						suite.es.credentials.TenantID,
+						user,
+						path.EmailCategory,
+						false,
+					)
+
+					require.NoError(suite.T(), err)
+					return pth
+				},
+				pathFunc2: func() path.Path {
+					pth, err := path.Builder{}.Append("Griffindor").
+						Append("Felicius").ToDataLayerExchangePathForCategory(
+						suite.es.credentials.TenantID,
+						user,
+						path.EmailCategory,
+						false,
+					)
+
+					require.NoError(suite.T(), err)
+					return pth
+				},
+			},
+			{
+				name:     "Contact Cache Test",
+				category: path.ContactsCategory,
+				pathFunc1: func() path.Path {
+					aPath, err := path.Builder{}.Append("HufflePuff").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.ContactsCategory,
+							false,
+						)
+
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+				pathFunc2: func() path.Path {
+					aPath, err := path.Builder{}.Append("Ravenclaw").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.ContactsCategory,
+							false,
+						)
+
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+			},
+			{
+				name:     "Event Cache Test",
+				category: path.EventsCategory,
+				pathFunc1: func() path.Path {
+					aPath, err := path.Builder{}.Append("Durmstrang").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.EventsCategory,
+							false,
+						)
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+				pathFunc2: func() path.Path {
+					aPath, err := path.Builder{}.Append("Beauxbatons").
+						ToDataLayerExchangePathForCategory(
+							suite.es.credentials.TenantID,
+							user,
+							path.EventsCategory,
+							false,
+						)
+					require.NoError(suite.T(), err)
+					return aPath
+				},
+			},
+		}
+	)
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			folderID, err := GetContainerIDFromCache(
+				ctx,
+				connector,
+				test.pathFunc1(),
+				folderName,
+				directoryCaches,
+			)
+
+			require.NoError(t, err)
+			resolver := directoryCaches[test.category]
+			_, err = resolver.IDToPath(ctx, folderID)
+			assert.NoError(t, err)
+
+			secondID, err := GetContainerIDFromCache(
+				ctx,
+				connector,
+				test.pathFunc2(),
+				folderName,
+				directoryCaches,
+			)
+
+			require.NoError(t, err)
+			_, err = resolver.IDToPath(ctx, secondID)
+			require.NoError(t, err)
+			_, ok := resolver.PathInCache(folderName)
+			require.True(t, ok)
 		})
 	}
 }
