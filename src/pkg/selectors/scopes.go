@@ -119,12 +119,19 @@ type (
 func makeScope[T scopeT](
 	cat categorizer,
 	resources, vs []string,
+	opts ...option,
 ) T {
+	sc := scopeConfig{}
+
+	for _, opt := range opts {
+		opt(&sc)
+	}
+
 	s := T{
 		scopeKeyCategory:       filters.Identity(cat.String()),
 		scopeKeyDataType:       filters.Identity(cat.leafCat().String()),
-		cat.String():           filterize(vs...),
-		cat.rootCat().String(): filterize(resources...),
+		cat.String():           filterize(sc, vs...),
+		cat.rootCat().String(): filterize(scopeConfig{}, resources...),
 	}
 
 	return s
@@ -189,8 +196,18 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 // set sets a value by category to the scope.  Only intended for internal
 // use, not for exporting to callers.
 func set[T scopeT](s T, cat categorizer, v []string) T {
-	s[cat.String()] = filterize(v...)
+	s[cat.String()] = filterize(scopeConfig{}, v...)
 	return s
+}
+
+// returns true if the category is included in the scope's category type,
+// and the value is set to None().
+func isNoneTarget[T scopeT, C categoryT](s T, cat C) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
+		return false
+	}
+
+	return s[cat.String()].Target == NoneTgt
 }
 
 // returns true if the category is included in the scope's category type,
@@ -361,67 +378,54 @@ func matchesPathValues[T scopeT, C categoryT](
 	shortRef string,
 ) bool {
 	for _, c := range cat.pathKeys() {
-		scopeVals := getCatValue(sc, c)
-
-		// the scope must define the targets to match on
-		if len(scopeVals) == 0 {
-			return false
-		}
-
-		// None() fails all matches
-		if scopeVals[0] == NoneTgt {
-			return false
-		}
-
 		// the pathValues must have an entry for the given categorizer
 		pathVal, ok := pathValues[c]
 		if !ok {
 			return false
 		}
 
-		// all parts of the scope must match
 		cc := c.(C)
-		if !isAnyTarget(sc, cc) {
-			var (
-				match = false
-				// Used to check if the path contains the value specified in scopeVals
-				pathHas = filters.Contains(pathVal)
-				// Used to check if the path has the value specified in scopeVal as a prefix
-				pathPrefix = filters.Prefix(pathVal)
-				// Used to check if the shortRef equals the value specified in scopeVals
-				shortRefEq = filters.Equal(shortRef)
-			)
 
-			for _, scopeVal := range scopeVals {
-				switch {
-				case c.isLeaf() && len(shortRef) > 0:
-					// Leaf category - we do a "contains" match for path or equality match on
-					// the shortRef
-					if pathHas.Compare(scopeVal) || shortRefEq.Compare(scopeVal) {
-						match = true
-					}
-				case !c.isLeaf() && c != c.rootCat():
-					// Folder category - we check if the scope is a prefix
-					// TODO: If the scopeVal is not a "path" - then we'll want to check
-					// if any of the path elements match the scopeVal exactly
-					if pathPrefix.Compare(scopeVal) {
-						match = true
-					}
-				default:
-					if pathHas.Compare(scopeVal) {
-						match = true
-					}
-				}
-				// short circuit if we found a match
-				if match {
+		if isNoneTarget(sc, cc) {
+			return false
+		}
+
+		if isAnyTarget(sc, cc) {
+			// continue, not return: all path keys must match the entry to succeed
+			continue
+		}
+
+		var (
+			match  bool
+			isLeaf = c.isLeaf()
+			isRoot = c == c.rootCat()
+		)
+
+		switch {
+		// Leaf category - the scope can match either the path value (the item ID itself),
+		// or the shortRef hash representing the item.
+		case isLeaf && len(shortRef) > 0:
+			match = matches(sc, cc, pathVal) || matches(sc, cc, shortRef)
+
+		// Folder category - checks if any target folder is a prefix of the path folders.
+		// Assumes (correctly) that we need to split the targets and re-compose them into
+		// individual prefix matchers.
+		// TODO: assumes all folders require prefix matchers.  Users can now specify whether
+		// the folder filter is a prefix match or not.  We should respect that configuration.
+		case !isLeaf && !isRoot:
+			for _, tgt := range getCatValue(sc, c) {
+				if filters.Prefix(tgt).Compare(pathVal) {
+					match = true
 					break
 				}
 			}
 
-			if !match {
-				// Didn't match any scope
-				return false
-			}
+		default:
+			match = matches(sc, cc, pathVal)
+		}
+
+		if !match {
+			return false
 		}
 	}
 

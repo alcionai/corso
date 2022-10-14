@@ -29,11 +29,6 @@ func (suite *SelectorSuite) TestBadCastErr() {
 	assert.Error(suite.T(), err)
 }
 
-func (suite *SelectorSuite) TestExistingDestinationErr() {
-	err := existingDestinationErr("foo", "bar")
-	assert.Error(suite.T(), err)
-}
-
 func (suite *SelectorSuite) TestPrintable() {
 	t := suite.T()
 
@@ -57,7 +52,7 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 
 	stubWithResource := func(resource string) scope {
 		ss := stubScope("")
-		ss[rootCatStub.String()] = filterize(resource)
+		ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
 
 		return scope(ss)
 	}
@@ -102,8 +97,8 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			input: []scope{
 				scope(stubScope("")),
 				{
-					rootCatStub.String(): filterize("smarf"),
-					scopeKeyDataType:     filterize(unknownCatStub.String()),
+					rootCatStub.String(): filterize(scopeConfig{}, "smarf"),
+					scopeKeyDataType:     filterize(scopeConfig{}, unknownCatStub.String()),
 				},
 			},
 			expect: map[string][]string{
@@ -116,8 +111,8 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			input: []scope{
 				scope(stubScope("")),
 				{
-					rootCatStub.String(): filterize(AnyTgt),
-					scopeKeyDataType:     filterize("other"),
+					rootCatStub.String(): filterize(scopeConfig{}, AnyTgt),
+					scopeKeyDataType:     filterize(scopeConfig{}, "other"),
 				},
 			},
 			expect: map[string][]string{
@@ -138,9 +133,9 @@ func (suite *SelectorSuite) TestContains() {
 	key := rootCatStub
 	target := "fnords"
 	does := stubScope("")
-	does[key.String()] = filterize(target)
+	does[key.String()] = filterize(scopeConfig{}, target)
 	doesNot := stubScope("")
-	doesNot[key.String()] = filterize("smarf")
+	doesNot[key.String()] = filterize(scopeConfig{}, "smarf")
 
 	assert.True(t, matches(does, key, target), "does contain")
 	assert.False(t, matches(doesNot, key, target), "does not contain")
