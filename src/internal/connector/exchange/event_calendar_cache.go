@@ -106,9 +106,8 @@ func (ecc *eventCalendarCache) IDToPath(
 // this means that the object has to be transformed prior to calling
 // this function.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
-	ptr := f.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *f.GetId())
+	if err := checkIDAndName(f); err != nil {
+		return err
 	}
 
 	if _, ok := ecc.cache[*f.GetId()]; ok {
