@@ -209,7 +209,6 @@ func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains s
 	cb := IterativeCollectCalendarContainers(
 		cs,
 		nameContains,
-		"",
 		errUpdater,
 	)
 
