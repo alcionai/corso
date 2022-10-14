@@ -1,6 +1,7 @@
 package m365
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,6 +47,16 @@ func (suite *M365IntegrationSuite) TestUserIDs() {
 	acct := tester.NewM365Account(suite.T())
 
 	ids, err := UserIDs(context.Background(), acct)
+	require.NoError(suite.T(), err)
+
+	require.NotNil(suite.T(), ids)
+	require.Greater(suite.T(), len(ids), 0)
+}
+
+func (suite *M365IntegrationSuite) TestGetEmailAndUserID() {
+	acct := tester.NewM365Account(suite.T())
+
+	ids, err := GetEmailAndUserID(context.Background(), acct)
 	require.NoError(suite.T(), err)
 
 	require.NotNil(suite.T(), ids)

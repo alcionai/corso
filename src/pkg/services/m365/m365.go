@@ -30,3 +30,12 @@ func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error)
 
 	return gc.GetUsersIds(), nil
 }
+
+func GetEmailAndUserID(ctx context.Context, m365Account account.Account) (map[string]string, error) {
+	gc, err := connector.NewGraphConnector(ctx, m365Account)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+	}
+
+	return gc.Users, nil
+}
