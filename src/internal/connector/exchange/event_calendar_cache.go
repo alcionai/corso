@@ -120,11 +120,6 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		p:         path.Builder{}.Append(*f.GetDisplayName()),
 	}
 
-	_, err := ecc.IDToPath(ctx, *f.GetId())
-	if err != nil {
-		return errors.Wrap(err, "adding event cache entry")
-	}
-
 	return nil
 }
 
