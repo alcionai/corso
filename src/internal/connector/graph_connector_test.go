@@ -3,6 +3,7 @@ package connector
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -549,6 +551,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
 
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := onedrive.MustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service(),
+		suite.user,
+	)
+
 	table := []restoreBackupInfo{
 		{
 			name:    "EmailsWithAttachments",
@@ -756,6 +769,94 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							name:      "someencodeditemID5",
 							data:      mockconnector.GetMockEventWithSubjectBytes("Bernard"),
 							lookupKey: "Bernard",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "OneDriveMultipleFoldersAndFiles",
+			service: path.OneDriveService,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("b", 65)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("c", 129)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("d", 257)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("e", 257)),
+							lookupKey: "test-file.txt",
 						},
 					},
 				},
