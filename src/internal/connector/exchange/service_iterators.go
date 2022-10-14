@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -669,6 +670,53 @@ func ReturnContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, 
 	}
 
 	return stringArray, nil
+}
+
+func IterativeCollectContactContainers(
+	containers map[string]graph.Container,
+	nameContains string,
+	errUpdater func(string, error),
+) func(any) bool {
+	return func(entry any) bool {
+		folder, ok := entry.(models.ContactFolderable)
+		if !ok {
+			errUpdater("", errors.New("casting item to models.ContactFolderable"))
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			strings.Contains(*folder.GetDisplayName(), nameContains)
+
+		if include {
+			containers[*folder.GetDisplayName()] = folder
+		}
+
+		return true
+	}
+}
+
+func IterativeCollectCalendarContainers(
+	containers map[string]graph.Container,
+	nameContains string,
+	errUpdater func(string, error),
+) func(any) bool {
+	return func(entry any) bool {
+		cal, ok := entry.(models.Calendarable)
+		if !ok {
+			errUpdater("failure during IterativeCollectCalendarContainers",
+				errors.New("casting item to models.Calendarable"))
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			strings.Contains(*cal.GetName(), nameContains)
+		if include {
+			temp := CreateCalendarDisplayable(cal)
+			containers[*temp.GetDisplayName()] = temp
+		}
+
+		return true
+	}
 }
 
 // ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.

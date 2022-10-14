@@ -849,6 +849,7 @@ func collectionsForInfo(
 	return totalItems, collections, expectedData
 }
 
+//nolint:deadcode
 func getSelectorWith(service path.ServiceType) selectors.Selector {
 	s := selectors.ServiceUnknown
 
