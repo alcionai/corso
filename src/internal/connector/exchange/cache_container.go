@@ -20,6 +20,8 @@ func checkIDAndName(c graph.Container) error {
 	if ptr == nil || len(*ptr) == 0 {
 		return errors.Errorf("folder %s without display name", *idPtr)
 	}
+
+	return nil
 }
 
 // checkRequiredValues is a helper function to ensure that
@@ -31,7 +33,7 @@ func checkRequiredValues(c graph.Container) error {
 
 	ptr := c.GetParentFolderId()
 	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
+		return errors.Errorf("folder %s without parent ID", *c.GetId())
 	}
 
 	return nil
