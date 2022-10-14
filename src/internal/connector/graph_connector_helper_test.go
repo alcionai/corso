@@ -749,7 +749,7 @@ func backupSelectorForExpected(
 	}
 
 	// Fix compile error about no return. Should not reach here.
-	return selectors.NewExchangeBackup().Selector
+	return selectors.Selector{}
 }
 
 // backupInputFromPath returns a path.Builder with the path that a call to Backup
