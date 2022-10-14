@@ -48,11 +48,11 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
-          CORSO_LOAD_TESTS: true 
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_LOAD_TESTS: true 
         run: |
           set -euo pipefail
           go test       \
@@ -84,10 +84,10 @@ jobs:
         if: always()
         working-directory: ./src
         env:
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           DELETE_FOLDER_PREFIX: "Corso_Restore_"
-          TENANT_ID: ${{ secrets.TENANT_ID }}
         run: >
           go run ./cmd/purge/purge.go
           --user '*'

@@ -25,7 +25,7 @@ const (
 ` + PrefixKey + ` = 'test-prefix/'
 ` + StorageProviderTypeKey + ` = 'S3'
 ` + AccountProviderTypeKey + ` = 'M365'
-` + TenantIDKey + ` = '%s'
+` + AzureTenantIDKey + ` = '%s'
 `
 )
 
@@ -66,7 +66,7 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 
 	m365, err := m365ConfigsFromViper(vpr)
 	require.NoError(t, err)
-	assert.Equal(t, tID, m365.TenantID)
+	assert.Equal(t, tID, m365.AzureTenantID)
 }
 
 func (suite *ConfigSuite) TestWriteReadConfig() {
@@ -85,7 +85,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{Bucket: bkt}
-	m365 := account.M365Config{TenantID: tid}
+	m365 := account.M365Config{AzureTenantID: tid}
 
 	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365), "writing repo config")
 	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
@@ -96,7 +96,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 
 	readM365, err := m365ConfigsFromViper(vpr)
 	require.NoError(t, err)
-	assert.Equal(t, readM365.TenantID, m365.TenantID)
+	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
 }
 
 func (suite *ConfigSuite) TestMustMatchConfig() {
@@ -115,7 +115,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{Bucket: bkt}
-	m365 := account.M365Config{TenantID: tid}
+	m365 := account.M365Config{AzureTenantID: tid}
 
 	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365), "writing repo config")
 	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
@@ -128,16 +128,16 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 		{
 			name: "full match",
 			input: map[string]string{
-				storage.Bucket:   bkt,
-				account.TenantID: tid,
+				storage.Bucket:        bkt,
+				account.AzureTenantID: tid,
 			},
 			errCheck: assert.NoError,
 		},
 		{
 			name: "empty values",
 			input: map[string]string{
-				storage.Bucket:   "",
-				account.TenantID: "",
+				storage.Bucket:        "",
+				account.AzureTenantID: "",
 			},
 			errCheck: assert.NoError,
 		},
@@ -162,8 +162,8 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 		{
 			name: "mismatch",
 			input: map[string]string{
-				storage.Bucket:   tid,
-				account.TenantID: bkt,
+				storage.Bucket:        tid,
+				account.AzureTenantID: bkt,
 			},
 			errCheck: assert.Error,
 		},
@@ -221,7 +221,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 		Endpoint: end,
 		Prefix:   pfx,
 	}
-	m365 := account.M365Config{TenantID: tid}
+	m365 := account.M365Config{AzureTenantID: tid}
 
 	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365), "writing repo config")
 	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
@@ -241,9 +241,9 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 
 	readM365, err := ac.M365Config()
 	require.NoError(t, err, "reading m365 config from account")
-	assert.Equal(t, readM365.TenantID, m365.TenantID)
-	assert.Equal(t, readM365.ClientID, os.Getenv(credentials.ClientID))
-	assert.Equal(t, readM365.ClientSecret, os.Getenv(credentials.ClientSecret))
+	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
+	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))
+	assert.Equal(t, readM365.AzureClientSecret, os.Getenv(credentials.AzureClientSecret))
 }
 
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverrides() {
@@ -263,10 +263,10 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		Endpoint: end,
 		Prefix:   pfx,
 	}
-	m365 := account.M365Config{TenantID: tid}
+	m365 := account.M365Config{AzureTenantID: tid}
 
 	overrides := map[string]string{
-		account.TenantID:       tid,
+		account.AzureTenantID:  tid,
 		AccountProviderTypeKey: account.ProviderM365.String(),
 		storage.Bucket:         bkt,
 		storage.Endpoint:       end,
@@ -289,7 +289,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 
 	readM365, err := ac.M365Config()
 	require.NoError(t, err, "reading m365 config from account")
-	assert.Equal(t, readM365.TenantID, m365.TenantID)
-	assert.Equal(t, readM365.ClientID, os.Getenv(credentials.ClientID))
-	assert.Equal(t, readM365.ClientSecret, os.Getenv(credentials.ClientSecret))
+	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
+	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))
+	assert.Equal(t, readM365.AzureClientSecret, os.Getenv(credentials.AzureClientSecret))
 }
