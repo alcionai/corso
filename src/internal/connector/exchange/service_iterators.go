@@ -697,7 +697,7 @@ func IterativeCollectContactContainers(
 
 func IterativeCollectCalendarContainers(
 	containers map[string]graph.Container,
-	nameContains, rootID string,
+	nameContains string,
 	errUpdater func(string, error),
 ) func(any) bool {
 	return func(entry any) bool {
