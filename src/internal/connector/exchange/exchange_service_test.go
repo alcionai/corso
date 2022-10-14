@@ -275,10 +275,6 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 		function GraphQuery
 	}{
 		{
-			name:     "GraphQuery: Get All Messages For User",
-			function: GetAllMessagesForUser,
-		},
-		{
 			name:     "GraphQuery: Get All Contacts For User",
 			function: GetAllContactsForUser,
 		},
