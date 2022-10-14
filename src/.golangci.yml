@@ -62,21 +62,21 @@ issues:
   max-same-issues: 50
   exclude-rules:
     - linters:
-      - revive
+        - revive
       text: "exported:.*details.DetailsModel by other packages, and that stutters"
     - linters:
-      - revive
+        - revive
       text: "exported:.*details.DetailsEntry by other packages, and that stutters"
     - linters:
-      - revive
+        - revive
       text: "exported:.*mock.MockModelStore by other packages, and that stutters"
     - linters:
-      - revive
+        - revive
       text: "unexported-return:.*unexported type selectors.exchangeCategory"
     - linters:
-      - revive
+        - revive
       text: "unexported-return:.*unexported type.*kopia.conn"
     - path: _test\.go
       linters:
-      - revive
+        - revive
       text: "import-shadowing:.*'suite' shadows"
