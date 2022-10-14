@@ -135,6 +135,9 @@ func GetMockMessageBytes(subject string) []byte {
 	return []byte(message)
 }
 
+// GetMockMessageBytes returns bytes for a Messageable item.
+// Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
+// Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
 func GetMockMessageWithBodyBytes(subject, body string) []byte {
 	userID := "foobar@8qzvrj.onmicrosoft.com"
 	preview := body
@@ -162,6 +165,7 @@ func GetMockMessageWithBodyBytes(subject, body string) []byte {
 // GetMockMessageBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 // created, modified, sent, and received should be in the format 2006-01-02T15:04:05Z
+// Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
 func GetMockMessageWith(
 	to, from, sender, // user PNs
 	subject, body, // arbitrary data
