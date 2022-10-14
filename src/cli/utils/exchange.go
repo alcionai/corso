@@ -142,6 +142,8 @@ func IncludeExchangeRestoreDataSelectors(
 		return
 	}
 
+	opts.EmailFolder = trimFolderSlash(opts.EmailFolder)
+
 	// or add selectors for each type of data
 	AddExchangeInclude(sel, opts.Users, opts.ContactFolder, opts.Contact, sel.Contacts)
 	AddExchangeInclude(sel, opts.Users, opts.EmailFolder, opts.Email, sel.Mails)
