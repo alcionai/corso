@@ -264,7 +264,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
-	suite.T().Skip()
 	ctx, flush := tester.NewContext()
 	defer flush()
 
