@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -106,6 +107,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	// persist operation results to the model store on exit
 	defer func() {
+		// wait for the progress display to clean up
+		observe.Complete()
+
 		err = op.persistResults(startTime, &opStats)
 		if err != nil {
 			return

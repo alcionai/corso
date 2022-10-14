@@ -117,7 +117,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	folderPath, err := getCanonicalPath("folderPath", "a-tenant", "a-user")
+	folderPath, err := getCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user")
 	require.NoError(t, err)
 
 	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
