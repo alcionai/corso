@@ -212,14 +212,14 @@ func runRestoreLoadTest(
 }
 
 // noFolders removes all "folder" category details entries
-func noFolders(t *testing.T, des []details.DetailsEntry) []details.DetailsEntry {
+func noFolders(t *testing.T, des []details.DetailsEntry) []*details.DetailsEntry {
 	t.Helper()
 
-	sansfldr := []details.DetailsEntry{}
+	sansfldr := []*details.DetailsEntry{}
 
 	for _, ent := range des {
 		if ent.Folder == nil {
-			sansfldr = append(sansfldr, ent)
+			sansfldr = append(sansfldr, &ent)
 		}
 	}
 
@@ -246,13 +246,19 @@ func ensureAllUsersInDetails(
 
 		for _, ent := range noFolders(t, ds.Entries) {
 			p, err := path.FromDataLayerPath(ent.RepoRef, true)
-			require.NoError(t, err, "converting to path: "+ent.RepoRef)
+			if !assert.NoError(t, err, "converting to path: "+ent.RepoRef) {
+				continue
+			}
 
 			ro := p.ResourceOwner()
-			assert.NotEmpty(t, ro, "resource owner in path: "+ent.RepoRef)
+			if !assert.NotEmpty(t, ro, "resource owner in path: "+ent.RepoRef) {
+				continue
+			}
 
 			ct := p.Category()
-			assert.NotEmpty(t, ro, "category type of path: "+ent.RepoRef)
+			if !assert.NotEmpty(t, ro, "category type of path: "+ent.RepoRef) {
+				continue
+			}
 
 			foundUsers[ro] = true
 			foundCategories[ct.String()] = struct{}{}
