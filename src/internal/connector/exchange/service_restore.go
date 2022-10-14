@@ -430,7 +430,6 @@ func restoreCollection(
 // generateRestoreContainerFunc utility function that holds logic for creating
 // Root Directory or necessary functions based on path.CategoryType
 // Assumption: collisionPolicy == COPY
-// Constraint: Only works on exchange.Mail
 func GetContainerIDFromCache(
 	ctx context.Context,
 	gs graph.Service,
