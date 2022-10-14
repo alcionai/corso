@@ -37,6 +37,27 @@ func (suite *FiltersSuite) TestEquals() {
 	}
 }
 
+func (suite *FiltersSuite) TestEquals_any() {
+	f := filters.Equal("foo")
+	nf := filters.NotEqual("foo")
+
+	table := []struct {
+		name     string
+		input    []string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"includes target", []string{"foo", "bar"}, assert.True, assert.True},
+		{"not includes target", []string{"baz", "qux"}, assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			test.expectF(t, f.CompareAny(test.input...), "filter")
+			test.expectNF(t, nf.CompareAny(test.input...), "negated filter")
+		})
+	}
+}
+
 func (suite *FiltersSuite) TestGreater() {
 	f := filters.Greater("5")
 	nf := filters.NotGreater("5")
@@ -161,11 +182,13 @@ func (suite *FiltersSuite) TestIn_Joined() {
 }
 
 func (suite *FiltersSuite) TestPrefixes() {
-	input := "folderA"
+	target := "folderA"
+	f := filters.Prefix(target)
+	nf := filters.NotPrefix(target)
 
 	table := []struct {
 		name     string
-		target   string
+		input    string
 		expectF  assert.BoolAssertionFunc
 		expectNF assert.BoolAssertionFunc
 	}{
@@ -177,10 +200,8 @@ func (suite *FiltersSuite) TestPrefixes() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			f := filters.Prefix(test.target)
-			nf := filters.NotPrefix(test.target)
-			test.expectF(t, f.Compare(input), "filter")
-			test.expectNF(t, nf.Compare(input), "negated filter")
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }

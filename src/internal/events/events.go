@@ -57,8 +57,8 @@ type Bus struct {
 }
 
 var (
-	WriteKey     string
-	DataPlaneURL string
+	RudderStackWriteKey     string
+	RudderStackDataPlaneURL string
 )
 
 func NewBus(s storage.Storage, tenID string, opts control.Options) Bus {
@@ -70,17 +70,17 @@ func NewBus(s storage.Storage, tenID string, opts control.Options) Bus {
 
 	envWK := os.Getenv("RUDDERSTACK_CORSO_WRITE_KEY")
 	if len(envWK) > 0 {
-		WriteKey = envWK
+		RudderStackWriteKey = envWK
 	}
 
 	envDPU := os.Getenv("RUDDERSTACK_CORSO_DATA_PLANE_URL")
 	if len(envDPU) > 0 {
-		DataPlaneURL = envDPU
+		RudderStackDataPlaneURL = envDPU
 	}
 
 	var client analytics.Client
-	if len(WriteKey) > 0 && len(DataPlaneURL) > 0 {
-		client = analytics.New(WriteKey, DataPlaneURL)
+	if len(RudderStackWriteKey) > 0 && len(RudderStackDataPlaneURL) > 0 {
+		client = analytics.New(RudderStackWriteKey, RudderStackDataPlaneURL)
 	}
 
 	return Bus{
