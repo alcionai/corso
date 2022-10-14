@@ -335,14 +335,14 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 		r              = suite.repo
 		service        = "exchange"
 		usersUnderTest = users
-		any            = selectors.Any()
+		all            = selectors.Any()
 	)
 
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(usersUnderTest, any))
-	bsel.Include(bsel.ContactFolders(usersUnderTest, any))
-	bsel.Include(bsel.EventCalendars(usersUnderTest, any))
+	bsel.Include(bsel.MailFolders(usersUnderTest, all))
+	bsel.Include(bsel.ContactFolders(usersUnderTest, all))
+	bsel.Include(bsel.EventCalendars(usersUnderTest, all))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
