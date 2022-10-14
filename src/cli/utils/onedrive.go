@@ -6,14 +6,27 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+const (
+	FileFN               = "file"
+	FolderFN             = "folders"
+	NamesFN              = "names"
+	PathsFN              = "paths"
+	FileCreatedAfterFN   = "file-created-after"
+	FileCreatedBeforeFN  = "file-created-before"
+	FileModifiedAfterFN  = "file-modified-after"
+	FileModifiedBeforeFN = "file-modified-before"
+)
+
 type OneDriveOpts struct {
-	Users          []string
-	Names          []string
-	Paths          []string
-	CreatedAfter   string
-	CreatedBefore  string
-	ModifiedAfter  string
-	ModifiedBefore string
+	Users              []string
+	Names              []string
+	Paths              []string
+	FileCreatedAfter   string
+	FileCreatedBefore  string
+	FileModifiedAfter  string
+	FileModifiedBefore string
+
+	Populated PopulatedFlags
 }
 
 // ValidateOneDriveRestoreFlags checks common flags for correctness and interdependencies
@@ -22,19 +35,19 @@ func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 		return errors.New("a backup ID is required")
 	}
 
-	if !IsValidTimeFormat(opts.CreatedAfter) {
+	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
 		return errors.New("invalid time format for created-after")
 	}
 
-	if !IsValidTimeFormat(opts.CreatedBefore) {
+	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
 		return errors.New("invalid time format for created-before")
 	}
 
-	if !IsValidTimeFormat(opts.ModifiedAfter) {
+	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
 		return errors.New("invalid time format for modified-after")
 	}
 
-	if !IsValidTimeFormat(opts.ModifiedBefore) {
+	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
 		return errors.New("invalid time format for modified-before")
 	}
 
@@ -90,8 +103,8 @@ func FilterOneDriveRestoreInfoSelectors(
 	sel *selectors.OneDriveRestore,
 	opts OneDriveOpts,
 ) {
-	AddOneDriveFilter(sel, opts.CreatedAfter, sel.CreatedAfter)
-	AddOneDriveFilter(sel, opts.CreatedBefore, sel.CreatedBefore)
-	AddOneDriveFilter(sel, opts.ModifiedAfter, sel.ModifiedAfter)
-	AddOneDriveFilter(sel, opts.ModifiedBefore, sel.ModifiedBefore)
+	AddOneDriveFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
+	AddOneDriveFilter(sel, opts.FileCreatedBefore, sel.CreatedBefore)
+	AddOneDriveFilter(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
+	AddOneDriveFilter(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
 }
