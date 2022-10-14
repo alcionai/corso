@@ -197,6 +197,7 @@ func runRestoreLoadTest(
 	users []string,
 ) {
 	//revive:enable:context-as-argument
+	t.Skip("only validating backup at this time")
 	t.Run("restore_"+name, func(t *testing.T) {
 		var (
 			err    error
@@ -334,13 +335,14 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 		r              = suite.repo
 		service        = "exchange"
 		usersUnderTest = users
+		any            = selectors.Any()
 	)
 
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(usersUnderTest, []string{exchange.DefaultMailFolder}))
-	bsel.Include(bsel.ContactFolders(usersUnderTest, []string{exchange.DefaultContactFolder}))
-	bsel.Include(bsel.EventCalendars(usersUnderTest, []string{exchange.DefaultCalendar}))
+	bsel.Include(bsel.MailFolders(usersUnderTest, any))
+	bsel.Include(bsel.ContactFolders(usersUnderTest, any))
+	bsel.Include(bsel.EventCalendars(usersUnderTest, any))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
