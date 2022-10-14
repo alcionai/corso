@@ -479,55 +479,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 	}
 }
 
-func (suite *ExchangeSelectorSuite) TestNewExchangeDestination() {
-	t := suite.T()
-	dest := NewExchangeDestination()
-	assert.Len(t, dest, 0)
-}
-
-func (suite *ExchangeSelectorSuite) TestExchangeDestination_Set() {
-	dest := NewExchangeDestination()
-
-	table := []exchangeCategory{
-		ExchangeCategoryUnknown,
-		ExchangeContact,
-		ExchangeContactFolder,
-		ExchangeEvent,
-		ExchangeMail,
-		ExchangeMailFolder,
-		ExchangeUser,
-	}
-	for _, test := range table {
-		suite.T().Run(test.String(), func(t *testing.T) {
-			assert.NoError(t, dest.Set(test, "foo"))
-			assert.Error(t, dest.Set(test, "foo"))
-		})
-	}
-
-	assert.NoError(suite.T(), dest.Set(ExchangeUser, ""))
-}
-
-func (suite *ExchangeSelectorSuite) TestExchangeDestination_GetOrDefault() {
-	dest := NewExchangeDestination()
-
-	table := []exchangeCategory{
-		ExchangeCategoryUnknown,
-		ExchangeContact,
-		ExchangeContactFolder,
-		ExchangeEvent,
-		ExchangeMail,
-		ExchangeMailFolder,
-		ExchangeUser,
-	}
-	for _, test := range table {
-		suite.T().Run(test.String(), func(t *testing.T) {
-			assert.Equal(t, "bar", dest.GetOrDefault(test, "bar"))
-			assert.NoError(t, dest.Set(test, "foo"))
-			assert.Equal(t, "foo", dest.GetOrDefault(test, "bar"))
-		})
-	}
-}
-
 func (suite *ExchangeSelectorSuite) TestExchangeBackup_Scopes() {
 	eb := NewExchangeBackup()
 	eb.Include(eb.Users(Any()))
