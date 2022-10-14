@@ -79,7 +79,8 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
-		fs.StringArrayVar(&user, "user", nil,
+		fs.StringArrayVar(&user,
+			utils.UserFN, nil,
 			"Backup OneDrive data by user ID; accepts '"+utils.Wildcard+"' to select all users. (required)")
 		options.AddOperationFlags(c)
 
@@ -96,39 +97,41 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
 
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to explore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to explore. (required)")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 
 		// onedrive hierarchy flags
 
 		fs.StringSliceVar(
 			&folderPaths,
-			"folder", nil,
+			utils.FolderFN, nil,
 			"Select backup details by OneDrive folder; defaults to root.")
 
 		fs.StringSliceVar(
 			&fileNames,
-			"file", nil,
+			utils.FileFN, nil,
 			"Select backup details by file name or ID.")
 
 		// onedrive info flags
 
 		fs.StringVar(
 			&fileCreatedAfter,
-			"file-created-after", "",
+			utils.FileCreatedAfterFN, "",
 			"Select backup details for files created after this datetime.")
 		fs.StringVar(
 			&fileCreatedBefore,
-			"file-created-before", "",
+			utils.FileCreatedBeforeFN, "",
 			"Select backup details for files created before this datetime.")
 
 		fs.StringVar(
 			&fileModifiedAfter,
-			"file-modified-after", "",
+			utils.FileModifiedAfterFN, "",
 			"Select backup details for files modified after this datetime.")
 		fs.StringVar(
 			&fileModifiedBefore,
-			"file-modified-before", "",
+			utils.FileModifiedBeforeFN, "",
 			"Select backup details for files modified before this datetime.")
 
 	case deleteCommand:
@@ -137,8 +140,10 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples
 
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to delete. (required)")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 	}
 
 	return c
@@ -311,13 +316,15 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(ctx, r)
 
 	opts := utils.OneDriveOpts{
-		Users:          user,
-		Paths:          folderPaths,
-		Names:          fileNames,
-		CreatedAfter:   fileCreatedAfter,
-		CreatedBefore:  fileCreatedBefore,
-		ModifiedAfter:  fileModifiedAfter,
-		ModifiedBefore: fileModifiedBefore,
+		Users:              user,
+		Paths:              folderPaths,
+		Names:              fileNames,
+		FileCreatedAfter:   fileCreatedAfter,
+		FileCreatedBefore:  fileCreatedBefore,
+		FileModifiedAfter:  fileModifiedAfter,
+		FileModifiedBefore: fileModifiedBefore,
+
+		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
 	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts)
