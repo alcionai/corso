@@ -215,27 +215,6 @@ func optionsForCalendars(moreOps []string) (
 	return options, nil
 }
 
-// optionsForContactFoldersByID places allowed options for exchange.ContactFolder object
-// @return is first call in ContactFolders().GetWithRequestConfigurationAndResponseHandler
-func optionsForContactFoldersByID(moreOps []string) (
-	*mscontactfolderitem.ContactFolderItemRequestBuilderGetRequestConfiguration,
-	error,
-) {
-	selecting, err := buildOptions(moreOps, folders)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &mscontactfolderitem.ContactFolderItemRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &mscontactfolderitem.ContactFolderItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
 // optionsForContactFolders places allowed options for exchange.ContactFolder object
 // @return is first call in ContactFolders().GetWithRequestConfigurationAndResponseHandler
 func optionsForContactFolders(moreOps []string) (
