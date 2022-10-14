@@ -20,47 +20,6 @@ type eventCalendarCache struct {
 	userID, rootID string
 }
 
-func (ecc *eventCalendarCache) populateEventRoot(
-	ctx context.Context,
-	directoryID string,
-	baseContainerPath []string,
-) error {
-	wantedOpts := []string{"name"}
-
-	opts, err := optionsForIndividualCalendar(wantedOpts)
-	if err != nil {
-		return errors.Wrapf(err, "getting options for event cache %v", wantedOpts)
-	}
-
-	cal, err := ecc.gs.
-		Client().
-		UsersById(ecc.userID).
-		CalendarsById(directoryID).
-		Get(ctx, opts)
-	if err != nil {
-		return errors.Wrap(err, "fetching default calendar "+support.ConnectorStackErrorTrace(err))
-	}
-
-	idPtr := cal.GetId()
-
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("root calendar has no ID")
-	}
-
-	dir := *cal.GetName()
-	identifier := *idPtr
-	transform := CreateCalendarDisplayable(cal)
-	temp := cacheFolder{
-		Container: transform,
-		p:         path.Builder{}.Append(dir),
-	}
-
-	ecc.cache[identifier] = &temp
-	ecc.rootID = identifier
-
-	return nil
-}
-
 // Populate utility function for populating eventCalendarCache.
 // Executes 1 additional Graph Query
 // @param baseID: M365ID of the base exchange.Calendar
@@ -69,8 +28,8 @@ func (ecc *eventCalendarCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if err := ecc.init(ctx, baseID, baseContainerPath); err != nil {
-		return err
+	if ecc.cache == nil {
+		ecc.cache = map[string]graph.CachedContainer{}
 	}
 
 	options, err := optionsForCalendars([]string{"name"})
@@ -123,22 +82,6 @@ func (ecc *eventCalendarCache) Populate(
 	}
 
 	return iterateErr
-}
-
-func (ecc *eventCalendarCache) init(
-	ctx context.Context,
-	baseNode string,
-	baseContainerPath []string,
-) error {
-	if len(baseNode) == 0 {
-		return errors.New("m365ID calendarID required for base")
-	}
-
-	if ecc.cache == nil {
-		ecc.cache = map[string]graph.CachedContainer{}
-	}
-
-	return ecc.populateEventRoot(ctx, baseNode, baseContainerPath)
 }
 
 func (ecc *eventCalendarCache) IDToPath(
