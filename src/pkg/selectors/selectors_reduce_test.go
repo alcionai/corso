@@ -92,7 +92,10 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: testdata.ExchangeEmailItems,
+			expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[0],
+				testdata.ExchangeEmailItems[1],
+			},
 		},
 		{
 			name: "ExchangeMailReceivedTime",
