@@ -5,7 +5,7 @@ import (
 )
 
 // CalendarDisplayable is a transformative struct that aligns
-// models.Calendarable interface with the displayable interface.
+// models.Calendarable interface with the Displayable interface.
 type CalendarDisplayable struct {
 	models.Calendarable
 }

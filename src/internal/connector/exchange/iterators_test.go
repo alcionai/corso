@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"context"
 	"testing"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -39,7 +38,7 @@ func (suite *ExchangeIteratorSuite) TestDisplayable() {
 	contact, err := support.CreateContactFromBytes(bytes)
 	require.NoError(t, err)
 
-	aDisplayable, ok := contact.(displayable)
+	aDisplayable, ok := contact.(graph.Displayable)
 	assert.True(t, ok)
 	assert.NotNil(t, aDisplayable.GetId())
 	assert.NotNil(t, aDisplayable.GetDisplayName())
@@ -51,7 +50,7 @@ func (suite *ExchangeIteratorSuite) TestDescendable() {
 	message, err := support.CreateMessageFromBytes(bytes)
 	require.NoError(t, err)
 
-	aDescendable, ok := message.(descendable)
+	aDescendable, ok := message.(graph.Descendable)
 	assert.True(t, ok)
 	assert.NotNil(t, aDescendable.GetId())
 	assert.NotNil(t, aDescendable.GetParentFolderId())
@@ -69,37 +68,27 @@ func loadService(t *testing.T) *exchangeService {
 }
 
 // TestIterativeFunctions verifies that GraphQuery to Iterate
-// functions are valid for current versioning of msgraph-go-sdk
+// functions are valid for current versioning of msgraph-go-sdk.
+// Tests for mail have been moved to graph_connector_test.go.
 func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
-		ctx                                 = context.Background()
 		t                                   = suite.T()
-		mailScope, contactScope, eventScope selectors.ExchangeScope
+		mailScope, contactScope, eventScope []selectors.ExchangeScope
 		userID                              = tester.M365UserID(t)
 		sel                                 = selectors.NewExchangeBackup()
-		service                             = loadService(t)
 	)
-
-	sel.Include(sel.Users([]string{userID}))
 
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
 
-	scopes := eb.Scopes()
+	contactScope = sel.ContactFolders([]string{userID}, []string{DefaultContactFolder})
+	eventScope = sel.EventCalendars([]string{userID}, []string{DefaultCalendar})
+	mailScope = sel.MailFolders([]string{userID}, []string{DefaultMailFolder})
 
-	for _, scope := range scopes {
-		if scope.IncludesCategory(selectors.ExchangeContactFolder) {
-			contactScope = scope
-		}
-
-		if scope.IncludesCategory(selectors.ExchangeMail) {
-			mailScope = scope
-		}
-
-		if scope.IncludesCategory(selectors.ExchangeEvent) {
-			eventScope = scope
-		}
-	}
+	eb.Include(contactScope, eventScope, mailScope)
 
 	tests := []struct {
 		name              string
@@ -110,54 +99,34 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		folderNames       map[string]struct{}
 	}{
 		{
-			name:              "Mail Iterative Check",
-			queryFunction:     GetAllMessagesForUser,
-			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             mailScope,
-			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
-			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
-				"Sent Items":      {},
-			},
-		}, {
 			name:              "Contacts Iterative Check",
-			queryFunction:     GetAllContactsForUser,
-			iterativeFunction: IterateSelectAllDescendablesForCollections,
-			scope:             contactScope,
-			transformer:       models.CreateContactFromDiscriminatorValue,
+			queryFunction:     GetAllContactFolderNamesForUser,
+			iterativeFunction: IterateSelectAllContactsForCollections,
+			scope:             contactScope[0],
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Contact Folder Traversal",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateSelectAllContactsForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		}, {
 			name:              "Events Iterative Check",
 			queryFunction:     GetAllCalendarNamesForUser,
 			iterativeFunction: IterateSelectAllEventsFromCalendars,
-			scope:             eventScope,
+			scope:             eventScope[0],
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-		}, {
-			name:              "Folder Iterative Check Mail",
-			queryFunction:     GetAllFolderNamesForUser,
-			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             mailScope,
-			transformer:       models.CreateMailFolderCollectionResponseFromDiscriminatorValue,
-			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
-				"Sent Items":      {},
-				"Deleted Items":   {},
-			},
 		}, {
 			name:              "Folder Iterative Check Contacts",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             contactScope,
+			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			service := loadService(t)
 			response, err := test.queryFunction(ctx, service, userID)
 			require.NoError(t, err)
 			// Create Iterator
@@ -185,30 +154,13 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 				qp,
 				errUpdater,
 				collections,
-				nil)
+				nil,
+				nil,
+			)
 
 			iterateError := pageIterator.Iterate(ctx, callbackFunc)
 			assert.NoError(t, iterateError)
 			assert.NoError(t, errs)
-
-			// TODO(ashmrtn): Only check Exchange Mail folder names right now because
-			// other resolvers aren't implemented. Once they are we can expand these
-			// checks, potentially by breaking things out into separate tests per
-			// category.
-			if !test.scope.IncludesCategory(selectors.ExchangeMail) {
-				return
-			}
-
-			for _, c := range collections {
-				require.NotEmpty(t, c.FullPath().Folder())
-
-				folder := c.FullPath().Folder()
-				if _, ok := test.folderNames[folder]; ok {
-					delete(test.folderNames, folder)
-				}
-			}
-
-			assert.Empty(t, test.folderNames)
 		})
 	}
 }

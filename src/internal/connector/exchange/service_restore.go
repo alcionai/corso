@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"runtime/trace"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -20,7 +21,8 @@ import (
 )
 
 // GetRestoreContainer utility function to create
-//  an unique folder for the restore process
+// an unique folder for the restore process
+//
 // @param category: input from fullPath()[2]
 // that defines the application the folder is created in.
 func GetRestoreContainer(
@@ -223,8 +225,19 @@ func RestoreMailMessage(
 			"policy", cp)
 		fallthrough
 	case control.Copy:
-		return MessageInfo(clone), SendMailToBackStore(ctx, service, user, destination, clone)
+		err := SendMailToBackStore(ctx, service, user, destination, clone)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	return MessageInfo(clone), nil
+}
+
+// attachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
+// TODO: Revisit how we retrieve/persist attachment content during backup so this is not needed
+func attachmentBytes(attachment models.Attachmentable) []byte {
+	return reflect.Indirect(reflect.ValueOf(attachment)).FieldByName("contentBytes").Bytes()
 }
 
 // SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
@@ -261,24 +274,19 @@ func SendMailToBackStore(
 	if len(attached) > 0 {
 		id := *sentMessage.GetId()
 		for _, attachment := range attached {
-			_, err = service.Client().
-				UsersById(user).
-				MailFoldersById(destination).
-				MessagesById(id).
-				Attachments().
-				Post(ctx, attachment, nil)
+			err := uploadAttachment(ctx, service, user, destination, id, attachment)
 			if err != nil {
-				errs = support.WrapAndAppend(id,
+				errs = support.WrapAndAppend(fmt.Sprintf("uploading attachment for message %s", id),
 					err,
 					errs,
 				)
+
+				break
 			}
 		}
-
-		return errs
 	}
 
-	return nil
+	return errs
 }
 
 // RestoreExchangeDataCollections restores M365 objects in data.Collection to MSFT

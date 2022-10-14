@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -47,7 +46,9 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 	suite.connector = loadConnector(ctx, suite.T())
@@ -63,7 +64,10 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 		Users:       make(map[string]string, 0),
 		credentials: suite.connector.credentials,
 	}
-	ctx := context.Background()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	service, err := newConnector.createService(false)
 	require.NoError(suite.T(), err)
 
@@ -82,7 +86,9 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 // - contacts
 // - events
 func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	connector := loadConnector(ctx, suite.T())
 	tests := []struct {
 		name        string
@@ -139,12 +145,14 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 // test account can be successfully downloaded into bytes and restored into
 // M365 mail objects
 func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
-	collection, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+	collection, err := connector.createCollections(ctx, sel.Scopes()[0])
 	require.NoError(t, err)
 
 	for _, edc := range collection {
@@ -172,7 +180,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMailSerializationRegression() {
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression() {
-	connector := loadConnector(context.Background(), suite.T())
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	connector := loadConnector(ctx, suite.T())
 
 	tests := []struct {
 		name          string
@@ -183,7 +194,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
-				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -221,7 +232,10 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression() {
-	connector := loadConnector(context.Background(), suite.T())
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	connector := loadConnector(ctx, suite.T())
 
 	tests := []struct {
 		name, expected string
@@ -233,7 +247,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
-				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -245,7 +259,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}))
-				collections, err := connector.createCollections(context.Background(), sel.Scopes()[0])
+				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -285,7 +299,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 // The final test insures that more than a 75% of the user collections are
 // returned. If an error was experienced, the test will fail overall
 func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
@@ -295,84 +311,89 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	for _, scope := range scopes {
 		users := scope.Get(selectors.ExchangeUser)
 		standard := (len(users) / 4) * 3
-		collections, err := connector.createCollections(context.Background(), scope)
+		collections, err := connector.createCollections(ctx, scope)
 		require.NoError(t, err)
 		suite.Greater(len(collections), standard)
+	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t      = suite.T()
+		userID = tester.M365UserID(t)
+		sel    = selectors.NewExchangeBackup()
+	)
+
+	tests := []struct {
+		name        string
+		scope       selectors.ExchangeScope
+		folderNames map[string]struct{}
+	}{
+		{
+			name:  "Mail Iterative Check",
+			scope: sel.MailFolders([]string{userID}, selectors.Any())[0],
+			folderNames: map[string]struct{}{
+				exchange.DefaultMailFolder: {},
+				"Sent Items":               {},
+			},
+		},
+		{
+			name: "Folder Iterative Check Mail",
+			scope: sel.MailFolders(
+				[]string{userID},
+				[]string{exchange.DefaultMailFolder},
+			)[0],
+			folderNames: map[string]struct{}{
+				exchange.DefaultMailFolder: {},
+			},
+		},
+	}
+
+	gc := loadConnector(ctx, t)
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			qp := graph.QueryParams{
+				User:        userID,
+				Scope:       test.scope,
+				Credentials: gc.credentials,
+				FailFast:    false,
+			}
+
+			resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
+				ctx,
+				qp,
+				scopeToPathCategory(qp.Scope),
+			)
+			require.NoError(t, err)
+
+			collections, err := gc.fetchItemsByFolder(
+				ctx,
+				qp,
+				resolver,
+			)
+			require.NoError(t, err)
+
+			for _, c := range collections {
+				require.NotEmpty(t, c.FullPath().Folder())
+				folder := c.FullPath().Folder()
+
+				if _, ok := test.folderNames[folder]; ok {
+					delete(test.folderNames, folder)
+				}
+			}
+
+			assert.Empty(t, test.folderNames)
+		})
 	}
 }
 
 ///------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------
-
-// TestCreateAndDeleteMailFolder ensures GraphConnector has the ability
-// to create and remove folders within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteMailFolder() {
-	ctx := context.Background()
-	t := suite.T()
-	now := time.Now()
-	folderName := "TestFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateMailFolder(ctx, suite.connector.Service(), suite.user, folderName)
-	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
-
-	if aFolder != nil {
-		secondFolder, err := exchange.CreateMailFolderWithParent(
-			ctx,
-			suite.connector.Service(),
-			suite.user,
-			"SubFolder",
-			*aFolder.GetId(),
-		)
-		assert.NoError(t, err)
-		assert.True(t, *secondFolder.GetParentFolderId() == *aFolder.GetId())
-
-		err = exchange.DeleteMailFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
-		assert.NoError(t, err)
-
-		if err != nil {
-			t.Log(support.ConnectorStackErrorTrace(err))
-		}
-	}
-}
-
-// TestCreateAndDeleteContactFolder ensures GraphConnector has the ability
-// to create and remove contact folders within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteContactFolder() {
-	ctx := context.Background()
-	now := time.Now()
-	folderName := "TestContactFolder: " + common.FormatSimpleDateTime(now)
-	aFolder, err := exchange.CreateContactFolder(ctx, suite.connector.Service(), suite.user, folderName)
-	assert.NoError(suite.T(), err)
-
-	if aFolder != nil {
-		err = exchange.DeleteContactFolder(ctx, suite.connector.Service(), suite.user, *aFolder.GetId())
-		assert.NoError(suite.T(), err)
-
-		if err != nil {
-			suite.T().Log(support.ConnectorStackErrorTrace(err))
-		}
-	}
-}
-
-// TestCreateAndDeleteCalendar verifies GraphConnector has the ability to create and remove
-// exchange.Event.Calendars within the tenant
-func (suite *GraphConnectorIntegrationSuite) TestCreateAndDeleteCalendar() {
-	ctx := context.Background()
-	now := time.Now()
-	service := suite.connector.Service()
-	calendarName := "TestCalendar: " + common.FormatSimpleDateTime(now)
-	calendar, err := exchange.CreateCalendar(ctx, service, suite.user, calendarName)
-	assert.NoError(suite.T(), err)
-
-	if calendar != nil {
-		err = exchange.DeleteCalendar(ctx, service, suite.user, *calendar.GetId())
-		assert.NoError(suite.T(), err)
-
-		if err != nil {
-			suite.T().Log(support.ConnectorStackErrorTrace(err))
-		}
-	}
-}
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	dest := tester.DefaultTestRestoreDestination()
@@ -413,7 +434,8 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
 			deets, err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
 			require.NoError(t, err)
@@ -435,7 +457,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		name                   string
 		service                path.ServiceType
 		collections            []colInfo
-		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
 		expectedRestoreFolders int
 	}{
 		{
@@ -463,17 +484,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						},
 					},
 				},
-			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.MailFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
 			},
 		},
 		{
@@ -512,17 +522,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.MailFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
 		},
 		{
 			name:                   "MultipleContactsSingleFolder",
@@ -550,17 +549,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						},
 					},
 				},
-			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.ContactFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
 			},
 		},
 		{
@@ -606,17 +594,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.ContactFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
 		},
 		{
 			name:                   "MultipleEventsSingleCalendar",
@@ -644,17 +621,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						},
 					},
 				},
-			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.EventCalendars(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
 			},
 		},
 		{
@@ -700,23 +666,14 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.EventCalendars(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
 		},
 	}
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			// Get a dest per test so they're independent.
 			dest := tester.DefaultTestRestoreDestination()
 
@@ -750,7 +707,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			// Run a backup and compare its output with what we put in.
 
 			backupGC := loadConnector(ctx, t)
-			backupSel := test.backupSelFunc(dest, suite.user)
+			backupSel := backupSelectorForExpected(t, expectedData)
 			t.Logf("Selective backup of %s\n", backupSel)
 
 			dcs, err := backupGC.DataCollections(ctx, backupSel)
@@ -775,41 +732,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
-
-	// TODO(ashmrtn): Update if we start mixing categories during backup/restore.
-	backupSelFunc := func(
-		dests []control.RestoreDestination,
-		category path.CategoryType,
-		backupUser string,
-	) selectors.Selector {
-		destNames := make([]string, 0, len(dests))
-
-		for _, d := range dests {
-			destNames = append(destNames, d.ContainerName)
-		}
-
-		backupSel := selectors.NewExchangeBackup()
-
-		switch category {
-		case path.EmailCategory:
-			backupSel.Include(backupSel.MailFolders(
-				[]string{backupUser},
-				destNames,
-			))
-		case path.ContactsCategory:
-			backupSel.Include(backupSel.ContactFolders(
-				[]string{backupUser},
-				destNames,
-			))
-		case path.EventsCategory:
-			backupSel.Include(backupSel.EventCalendars(
-				[]string{backupUser},
-				destNames,
-			))
-		}
-
-		return backupSel.Selector
-	}
 
 	table := []struct {
 		name     string
@@ -916,7 +838,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			restoreSel := getSelectorWith(test.service)
 			dests := make([]control.RestoreDestination, 0, len(test.collections))
 			allItems := 0
@@ -968,7 +892,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			// Run a backup and compare its output with what we put in.
 
 			backupGC := loadConnector(ctx, t)
-			backupSel := backupSelFunc(dests, test.category, suite.user)
+			backupSel := backupSelectorForExpected(t, allExpectedData)
 			t.Logf("Selective backup of %s\n", backupSel)
 
 			dcs, err := backupGC.DataCollections(ctx, backupSel)

@@ -1,7 +1,6 @@
 package m365
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -31,9 +30,12 @@ func (suite *M365IntegrationSuite) SetupSuite() {
 }
 
 func (suite *M365IntegrationSuite) TestUsers() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	acct := tester.NewM365Account(suite.T())
 
-	users, err := Users(context.Background(), acct)
+	users, err := Users(ctx, acct)
 	require.NoError(suite.T(), err)
 
 	require.NotNil(suite.T(), users)

@@ -48,6 +48,9 @@ func TestItemIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ItemIntegrationSuite) SetupSuite() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
@@ -63,7 +66,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	suite.user = tester.M365UserID(suite.T())
 
-	drives, err := drives(context.TODO(), suite, suite.user)
+	drives, err := drives(ctx, suite, suite.user)
 	require.NoError(suite.T(), err)
 	// Test Requirement 1: Need a drive
 	require.Greaterf(suite.T(), len(drives), 0, "user %s does not have a drive", suite.user)
@@ -78,7 +81,8 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 // 2) It assumes the drive has a file it can use to test `driveItemReader`
 // The test checks these in below
 func (suite *ItemIntegrationSuite) TestItemReader() {
-	ctx := context.TODO()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	var driveItemID string
 	// This item collector tries to find "a" drive item that is a file to test the reader function
@@ -122,7 +126,8 @@ func (suite *ItemIntegrationSuite) TestItemReader() {
 // It creates a new `testfolder_<timestamp` folder with a new
 // testitem_<timestamp> item and writes data to it
 func (suite *ItemIntegrationSuite) TestItemWriter() {
-	ctx := context.TODO()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	root, err := suite.Client().DrivesById(suite.driveID).Root().Get(ctx, nil)
 	require.NoError(suite.T(), err)
@@ -175,7 +180,8 @@ func mockDataReader(size int64) (io.Reader, int64) {
 }
 
 func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
-	ctx := context.TODO()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	root, err := suite.Client().DrivesById(suite.driveID).Root().Get(ctx, nil)
 	require.NoError(suite.T(), err)

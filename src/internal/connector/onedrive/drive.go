@@ -3,6 +3,7 @@ package onedrive
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item"
@@ -124,7 +125,10 @@ func getFolder(ctx context.Context, service graph.Service, driveID string, paren
 }
 
 // Create a new item in the specified folder
-func createItem(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
+func createItem(
+	ctx context.Context,
+	service graph.Service,
+	driveID, parentFolderID string,
 	newItem models.DriveItemable,
 ) (models.DriveItemable, error) {
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
@@ -157,4 +161,79 @@ func newItem(name string, folder bool) models.DriveItemable {
 	}
 
 	return itemToCreate
+}
+
+type Displayable struct {
+	models.DriveItemable
+}
+
+func (op *Displayable) GetDisplayName() *string {
+	return op.GetName()
+}
+
+// GetAllFolders returns all folders in all drives for the given user. If a
+// prefix is given, returns all folders with that prefix, regardless of if they
+// are a subfolder or top-level folder in the hierarchy.
+func GetAllFolders(
+	ctx context.Context,
+	gs graph.Service,
+	userID string,
+	prefix string,
+) ([]*Displayable, error) {
+	drives, err := drives(ctx, gs, userID)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting OneDrive folders")
+	}
+
+	res := []*Displayable{}
+
+	for _, d := range drives {
+		err = collectItems(
+			ctx,
+			gs,
+			*d.GetId(),
+			func(innerCtx context.Context, driveID string, items []models.DriveItemable) error {
+				for _, item := range items {
+					// Skip the root item.
+					if item.GetRoot() != nil {
+						continue
+					}
+
+					// Only selecting folders right now, not packages.
+					if item.GetFolder() == nil {
+						continue
+					}
+
+					if !strings.HasPrefix(*item.GetName(), prefix) {
+						continue
+					}
+
+					// Add the item instead of the folder because the item has more
+					// functionality.
+					res = append(res, &Displayable{item})
+				}
+
+				return nil
+			},
+		)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting items for drive %s", *d.GetName())
+		}
+	}
+
+	return res, nil
+}
+
+func DeleteItem(
+	ctx context.Context,
+	gs graph.Service,
+	driveID string,
+	itemID string,
+) error {
+	err := gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil)
+	if err != nil {
+		return errors.Wrapf(err, "deleting item with ID %s", itemID)
+	}
+
+	return nil
 }

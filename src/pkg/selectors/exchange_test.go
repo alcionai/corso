@@ -1,7 +1,6 @@
 package selectors
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -476,55 +476,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 				},
 			)
 		}
-	}
-}
-
-func (suite *ExchangeSelectorSuite) TestNewExchangeDestination() {
-	t := suite.T()
-	dest := NewExchangeDestination()
-	assert.Len(t, dest, 0)
-}
-
-func (suite *ExchangeSelectorSuite) TestExchangeDestination_Set() {
-	dest := NewExchangeDestination()
-
-	table := []exchangeCategory{
-		ExchangeCategoryUnknown,
-		ExchangeContact,
-		ExchangeContactFolder,
-		ExchangeEvent,
-		ExchangeMail,
-		ExchangeMailFolder,
-		ExchangeUser,
-	}
-	for _, test := range table {
-		suite.T().Run(test.String(), func(t *testing.T) {
-			assert.NoError(t, dest.Set(test, "foo"))
-			assert.Error(t, dest.Set(test, "foo"))
-		})
-	}
-
-	assert.NoError(suite.T(), dest.Set(ExchangeUser, ""))
-}
-
-func (suite *ExchangeSelectorSuite) TestExchangeDestination_GetOrDefault() {
-	dest := NewExchangeDestination()
-
-	table := []exchangeCategory{
-		ExchangeCategoryUnknown,
-		ExchangeContact,
-		ExchangeContactFolder,
-		ExchangeEvent,
-		ExchangeMail,
-		ExchangeMailFolder,
-		ExchangeUser,
-	}
-	for _, test := range table {
-		suite.T().Run(test.String(), func(t *testing.T) {
-			assert.Equal(t, "bar", dest.GetOrDefault(test, "bar"))
-			assert.NoError(t, dest.Set(test, "foo"))
-			assert.Equal(t, "foo", dest.GetOrDefault(test, "bar"))
-		})
 	}
 }
 
@@ -1129,8 +1080,11 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			sel := test.makeSelector()
-			results := sel.Reduce(context.Background(), test.deets)
+			results := sel.Reduce(ctx, test.deets)
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
 		})

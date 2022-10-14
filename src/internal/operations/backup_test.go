@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -34,8 +33,10 @@ func TestBackupOpSuite(t *testing.T) {
 }
 
 func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
-		ctx  = context.Background()
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		acct = account.Account{}
@@ -155,8 +156,11 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			_, err := NewBackupOperation(
-				context.Background(),
+				ctx,
 				test.opts,
 				test.kw,
 				test.sw,
@@ -171,8 +175,10 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
 func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	m365UserID := tester.M365UserID(t)
 	acct := tester.NewM365Account(t)
@@ -262,8 +268,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	m365UserID := tester.M365UserID(t)
 	acct := tester.NewM365Account(t)

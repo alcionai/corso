@@ -28,6 +28,40 @@ type Service interface {
 	ErrPolicy() bool
 }
 
+// Idable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of an ID.
+type Idable interface {
+	GetId() *string
+}
+
+// Descendable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a "parent folder".
+type Descendable interface {
+	Idable
+	GetParentFolderId() *string
+}
+
+// Displayable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a display name.
+type Displayable interface {
+	Idable
+	GetDisplayName() *string
+}
+
+type Container interface {
+	Descendable
+	Displayable
+}
+
+// CachedContainer is used for local unit tests but also makes it so that this
+// code can be broken into generic- and service-specific chunks later on to
+// reuse logic in IDToPath.
+type CachedContainer interface {
+	Container
+	Path() *path.Builder
+	SetPath(*path.Builder)
+}
+
 // ContainerResolver houses functions for getting information about containers
 // from remote APIs (i.e. resolve folder paths with Graph API). Resolvers may
 // cache information about containers.
@@ -41,4 +75,7 @@ type ContainerResolver interface {
 	// @param baseFolderID represents the M365ID base that the resolver will
 	// conclude its search. Default input is "".
 	Populate(ctx context.Context, baseFolderID string) error
+	AddToCache(ctx context.Context, m365Container Container) error
+	// Items returns the containers in the cache.
+	Items() []CachedContainer
 }

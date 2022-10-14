@@ -16,11 +16,37 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
+
+var users = []string{
+	"AdeleV@8qzvrj.onmicrosoft.com",
+	"AlexW@8qzvrj.onmicrosoft.com",
+	"ashmarks@8qzvrj.onmicrosoft.com",
+	"DiegoS@8qzvrj.onmicrosoft.com",
+	"dustina@8qzvrj.onmicrosoft.com",
+	"george.martinez@8qzvrj.onmicrosoft.com",
+	"GradyA@8qzvrj.onmicrosoft.com",
+	"HenriettaM@8qzvrj.onmicrosoft.com",
+	"IsaiahL@8qzvrj.onmicrosoft.com",
+	"JohannaL@8qzvrj.onmicrosoft.com",
+	"JoniS@8qzvrj.onmicrosoft.com",
+	"LeeG@8qzvrj.onmicrosoft.com",
+	"LidiaH@8qzvrj.onmicrosoft.com",
+	"LynneR@8qzvrj.onmicrosoft.com",
+	"MeganB@8qzvrj.onmicrosoft.com",
+	"MiriamG@8qzvrj.onmicrosoft.com",
+	"NestorW@8qzvrj.onmicrosoft.com",
+	"ntoja@8qzvrj.onmicrosoft.com",
+	"PattiF@8qzvrj.onmicrosoft.com",
+	"PradeepG@8qzvrj.onmicrosoft.com",
+	"Rfinders@8qzvrj.onmicrosoft.com",
+	"vkarma@8qzvrj.onmicrosoft.com",
+	"greg.sanders@8qzvrj.onmicrosoft.com",
+}
 
 func initM365Repo(t *testing.T) (
 	context.Context, repository.Repository, account.Account, storage.Storage,
@@ -31,7 +57,9 @@ func initM365Repo(t *testing.T) (
 	)
 	require.NoError(t, err)
 
-	ctx := tester.NewContext()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	st := tester.NewPrefixedS3Storage(t)
 	ac := tester.NewM365Account(t)
 	opts := control.Options{
@@ -70,7 +98,7 @@ func runBackupLoadTest(
 		assert.Less(t, 0, b.Results.ItemsRead, "items read")
 		assert.Less(t, 0, b.Results.ItemsWritten, "items written")
 		assert.Less(t, int64(0), b.Results.BytesUploaded, "bytes uploaded")
-		assert.Less(t, 0, b.Results.ResourceOwners, "resource owners")
+		assert.Equal(t, len(users), b.Results.ResourceOwners, "resource owners")
 		assert.Zero(t, b.Results.ReadErrors, "read errors")
 		assert.Zero(t, b.Results.WriteErrors, "write errors")
 	})
@@ -139,17 +167,11 @@ func runBackupDetailsLoadTest(
 		require.NotNil(t, ds, "backup details must exist")
 		require.NotNil(t, b, "backup must exist")
 
-		sansfldr := []details.DetailsEntry{}
-
-		for _, ent := range ds.Entries {
-			if ent.Folder == nil {
-				sansfldr = append(sansfldr, ent)
-			}
-		}
-
 		assert.Equal(t,
-			b.ItemsWritten, len(sansfldr),
+			b.ItemsWritten, len(noFolders(t, ds.Entries)),
 			"items written to backup must match the count of entries, minus folder entries")
+
+		ensureAllUsersInDetails(t, ds, "backup", name)
 	})
 }
 
@@ -184,6 +206,76 @@ func runRestoreLoadTest(
 		assert.Zero(t, r.Results.ReadErrors, "read errors")
 		assert.Zero(t, r.Results.WriteErrors, "write errors")
 		assert.Equal(t, expectItemCount, r.Results.ItemsWritten, "backup and restore wrote the same count of items")
+
+		ensureAllUsersInDetails(t, ds, "restore", name)
+	})
+}
+
+// noFolders removes all "folder" category details entries
+func noFolders(t *testing.T, des []details.DetailsEntry) []*details.DetailsEntry {
+	t.Helper()
+
+	sansfldr := []*details.DetailsEntry{}
+
+	for _, ent := range des {
+		if ent.Folder == nil {
+			sansfldr = append(sansfldr, &ent)
+		}
+	}
+
+	return sansfldr
+}
+
+func ensureAllUsersInDetails(
+	t *testing.T,
+	ds *details.Details,
+	prefix, name string,
+) {
+	t.Run("details_"+prefix+"_"+name, func(t *testing.T) {
+		// assert that all users backed up at least one item of each category.
+		var (
+			foundUsers      = map[string]bool{}
+			foundCategories = map[string]struct{}{}
+			userCategories  = map[string]map[string]struct{}{}
+		)
+
+		for _, u := range users {
+			foundUsers[u] = false
+			userCategories[u] = map[string]struct{}{}
+		}
+
+		for _, ent := range noFolders(t, ds.Entries) {
+			p, err := path.FromDataLayerPath(ent.RepoRef, true)
+			if !assert.NoError(t, err, "converting to path: "+ent.RepoRef) {
+				continue
+			}
+
+			ro := p.ResourceOwner()
+			if !assert.NotEmpty(t, ro, "resource owner in path: "+ent.RepoRef) {
+				continue
+			}
+
+			ct := p.Category()
+			if !assert.NotEmpty(t, ro, "category type of path: "+ent.RepoRef) {
+				continue
+			}
+
+			foundUsers[ro] = true
+			foundCategories[ct.String()] = struct{}{}
+
+			if _, ok := userCategories[ro]; !ok {
+				userCategories[ro] = map[string]struct{}{}
+			}
+
+			userCategories[ro][ct.String()] = struct{}{}
+		}
+
+		for u, cats := range userCategories {
+			t.Run(u, func(t *testing.T) {
+				assert.True(t, foundUsers[u], "user was involved in operation")
+				assert.Equal(t, len(foundCategories), len(cats), "all app categories involved in operation")
+			})
+		}
 	})
 }
 
@@ -217,27 +309,21 @@ func (suite *RepositoryLoadTestExchangeSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestExchangeSuite) SetupTest() {
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
-}
-
-func (suite *RepositoryLoadTestExchangeSuite) TeardownTest() {
-	logger.Flush(suite.ctx)
-}
-
 func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t       = suite.T()
-		ctx     = context.Background()
 		r       = suite.repo
 		service = "exchange"
 	)
 
 	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}))
-	bsel.Include(bsel.ContactFolders(selectors.Any(), []string{exchange.DefaultContactFolder}))
-	bsel.Include(bsel.EventCalendars(selectors.Any(), []string{exchange.DefaultCalendar}))
+	bsel.Include(bsel.MailFolders(users, []string{exchange.DefaultMailFolder}))
+	bsel.Include(bsel.ContactFolders(users, []string{exchange.DefaultContactFolder}))
+	bsel.Include(bsel.EventCalendars(users, []string{exchange.DefaultCalendar}))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)
@@ -291,28 +377,19 @@ func (suite *RepositoryLoadTestOneDriveSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestOneDriveSuite) SetupTest() {
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
-}
-
-func (suite *RepositoryLoadTestOneDriveSuite) TeardownTest() {
-	logger.Flush(suite.ctx)
-}
-
 func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t       = suite.T()
-		ctx     = context.Background()
 		r       = suite.repo
 		service = "one_drive"
 	)
 
-	m356User := tester.M365UserID(t)
-
 	// backup
 	bsel := selectors.NewOneDriveBackup()
-	bsel.Include(bsel.Users([]string{m356User}))
-	// bsel.Include(bsel.Users(selectors.Any()))
+	bsel.Include(bsel.Users(users))
 
 	b, err := r.NewBackup(ctx, bsel.Selector)
 	require.NoError(t, err)

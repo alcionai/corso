@@ -2,10 +2,10 @@
 
 ## Prerequisites
 
-- Set `CORSO_PASSWORD` environment variable
+- Set `CORSO_PASSPHRASE` environment variable
 
     ```bash
-    export CORSO_PASSWORD=<some password>
+    export CORSO_PASSPHRASE=<some password>
     ```
 
 - Set AWS credential (needed for tests that use S3) environment variables
@@ -29,6 +29,8 @@
     ```
 
 - Set M365 Credentials environment variables
+
+    > You can find more information on how to get these values in [configuration docs](/configuration/m365_access).
 
     ```bash
     export TENANT_ID=<tenant>

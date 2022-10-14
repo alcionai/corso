@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,8 +33,10 @@ func (suite *ServiceFunctionsIntegrationSuite) SetupSuite() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	gs := loadService(suite.T())
-	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -79,9 +80,11 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	gs := loadService(suite.T())
 	user := tester.M365UserID(suite.T())
-	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -125,8 +128,10 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	gs := loadService(suite.T())
-	ctx := context.Background()
 
 	table := []struct {
 		name, contains, user string
@@ -170,7 +175,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	failFast := false
 	containerCount := 1
 	t := suite.T()
@@ -235,7 +242,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 				Credentials: credentials,
 			}
 			collections := make(map[string]*Collection)
-			err := CollectFolders(ctx, qp, collections, nil)
+			err := CollectFolders(ctx, qp, collections, nil, nil)
 			assert.NoError(t, err)
 			test.expectedCount(t, len(collections), containerCount)
 

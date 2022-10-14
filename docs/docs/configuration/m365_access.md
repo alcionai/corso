@@ -29,13 +29,13 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
 
 1. **Configure required permissions**
 
-   Select **App Permission** from the app management panel.
+   Select **API Permissions** from the app management panel.
 
    <img src="/img/m365app_permissions.png" className="guideImages"/>
 
-   The required permissions are as follows:
+   Select the following permissions from **Microsoft API &#8594; Microsoft Graph &#8594; Application Permissions**:
 
-<!-- vale Microsoft.Spacing = NO -->
+   <!-- vale Microsoft.Spacing = NO -->
    | API / Permissions Name | Type | Description
    |:--|:--|:--|
    | Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
@@ -43,7 +43,7 @@ The following steps outline a simplified procedure for creating an Azure Ad appl
    | Files.ReadWrite.All | Application | Read and write files in all site collections |
    | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
    | User.Read.All | Application | Read all users' full profiles |
-<!-- vale Microsoft.Spacing = YES -->
+   <!-- vale Microsoft.Spacing = YES -->
 
 1. **Grant admin consent**
 
@@ -60,8 +60,8 @@ To extract the tenant and client ID, select Overview from the app management pan
 environment variables.
 
 ```bash
-export AZURE_TENANT_ID=<Directory (tenent) ID for configured app>
-export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+export TENANT_ID=<Directory (tenent) ID for configured app>
+export CLIENT_ID=<Application (client) ID for configured app>
 ```
 
 <img src="/img/m365app_ids.png" className="guideImages"/>
@@ -75,7 +75,7 @@ Click **New Client Secret** and follow the instructions to create a secret. Afte
 value right away because it won't be available later and export it as an environment variable.
 
 ```bash
-export AZURE_CLIENT_SECRET=<client secret value>
+export CLIENT_SECRET=<client secret value>
 ```
 
 <img src="/img/m365app_secret.png" className="guideImages"/>

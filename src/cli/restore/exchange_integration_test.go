@@ -1,6 +1,7 @@
 package restore_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -14,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -59,6 +59,10 @@ func TestRestoreExchangeIntegrationSuite(t *testing.T) {
 
 func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
 		tester.M365AcctCredEnvs,
@@ -80,7 +84,6 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
 
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
@@ -125,9 +128,10 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	for _, set := range backupDataSets {
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
-			ctx, _ = logger.SeedLevel(ctx, logger.Development)
-			defer logger.Flush(ctx)
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+
+			defer flush()
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
@@ -148,9 +152,10 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 		}
 
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
-			ctx, _ = logger.SeedLevel(ctx, logger.Development)
-			defer logger.Flush(ctx)
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+
+			defer flush()
 
 			var timeFilter string
 			switch set {
@@ -165,6 +170,36 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 				"--config-file", suite.cfgFP,
 				"--backup", string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
+			cli.BuildCommandTree(cmd)
+
+			// run the command
+			require.Error(t, cmd.ExecuteContext(ctx))
+		})
+	}
+}
+
+func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlags() {
+	for _, set := range backupDataSets {
+		if set != events {
+			suite.T().Skip()
+		}
+
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx := config.SetViper(context.Background(), suite.vpr)
+			ctx, flush := tester.WithContext(ctx)
+			defer flush()
+
+			var timeFilter string
+			switch set {
+			case events:
+				timeFilter = "--event-recurs"
+			}
+
+			cmd := tester.StubRootCmd(
+				"restore", "exchange",
+				"--config-file", suite.cfgFP,
+				"--backup", string(suite.backupOps[set].Results.BackupID),
+				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)
 
 			// run the command
