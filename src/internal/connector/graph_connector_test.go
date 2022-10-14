@@ -452,8 +452,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 // TestRestoreAndBackup
 // nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
-	bodyText := "This email has some text. However, all the text is on the same line."
-	subjectText := "Test message for restore"
+	// nolint:gofmt
+	// bodyText := "This email has some text. However, all the text is on the same line."
+	// subjectText := "Test message for restore"
 
 	table := []struct {
 		name                   string
