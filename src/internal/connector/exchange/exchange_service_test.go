@@ -570,10 +570,12 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 
 // Testing to ensure that cache system works for in multiple different environments
 func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t               = suite.T()
 		user            = tester.M365UserID(t)
-		ctx             = context.Background()
 		connector       = loadService(t)
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
 		folderName      = tester.DefaultTestRestoreDestination().ContainerName
