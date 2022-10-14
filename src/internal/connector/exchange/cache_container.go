@@ -8,9 +8,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// checkRequiredValues is a helper function to ensure that
-// all the pointers are set prior to being called.
-func checkRequiredValues(c graph.Container) error {
+// checkIDAndName is a helper function to ensure that
+// the ID and name pointers are set prior to being called.
+func checkIDAndName(c graph.Container) error {
 	idPtr := c.GetId()
 	if idPtr == nil || len(*idPtr) == 0 {
 		return errors.New("folder without ID")
@@ -20,8 +20,16 @@ func checkRequiredValues(c graph.Container) error {
 	if ptr == nil || len(*ptr) == 0 {
 		return errors.Errorf("folder %s without display name", *idPtr)
 	}
+}
 
-	ptr = c.GetParentFolderId()
+// checkRequiredValues is a helper function to ensure that
+// all the pointers are set prior to being called.
+func checkRequiredValues(c graph.Container) error {
+	if err := checkIDAndName(c); err != nil {
+		return err
+	}
+
+	ptr := c.GetParentFolderId()
 	if ptr == nil || len(*ptr) == 0 {
 		return errors.Errorf("folder %s without parent ID", *idPtr)
 	}
