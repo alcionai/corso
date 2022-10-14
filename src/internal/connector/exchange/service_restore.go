@@ -564,7 +564,7 @@ func establishMailRestoreLocation(
 }
 
 // establishContactsRestoreLocation creates Contact Folders in sequence
-// and updates the container resolver appropriately. Contact Folders have
+// and updates the container resolver appropriately. Contact Folders
 // are displayed in a flat representation. Therefore, only the root can be populated and all content
 // must be restored into the root location.
 // @param folders is the list of intended folders from root to leaf (e.g. [root ...])
