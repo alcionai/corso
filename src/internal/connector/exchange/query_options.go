@@ -5,7 +5,6 @@ import (
 
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
-	mscalendarItem "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontactbyid "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
 	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
@@ -209,25 +208,6 @@ func optionsForCalendars(moreOps []string) (
 		Select: selecting,
 	}
 	options := &mscalendars.CalendarsRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParams,
-	}
-
-	return options, nil
-}
-
-func optionsForIndividualCalendar(moreOps []string) (
-	*mscalendarItem.CalendarItemRequestBuilderGetRequestConfiguration,
-	error,
-) {
-	selecting, err := buildOptions(moreOps, calendars)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParams := &mscalendarItem.CalendarItemRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &mscalendarItem.CalendarItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
 
