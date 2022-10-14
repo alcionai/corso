@@ -22,13 +22,13 @@ var (
 	goodS3Config = storage.S3Config{
 		Bucket:   "bkt",
 		Endpoint: "end",
-		Prefix:   "pre",
+		Prefix:   "pre/",
 	}
 
 	goodS3Map = map[string]string{
 		"s3_bucket":   "bkt",
 		"s3_endpoint": "end",
-		"s3_prefix":   "pre",
+		"s3_prefix":   "pre/",
 	}
 )
 
@@ -78,7 +78,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 		name string
 		cfg  storage.S3Config
 	}{
-		{"missing bucket", makeTestS3Cfg("", "end", "pre")},
+		{"missing bucket", makeTestS3Cfg("", "end", "pre/")},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

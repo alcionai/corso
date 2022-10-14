@@ -449,107 +449,86 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	}
 }
 
+// TestRestoreAndBackup
+// nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
-	bodyText := "This email has some text. However, all the text is on the same line."
-	subjectText := "Test message for restore"
+	// nolint:gofmt
+	// bodyText := "This email has some text. However, all the text is on the same line."
+	// subjectText := "Test message for restore"
 
 	table := []struct {
 		name                   string
 		service                path.ServiceType
 		collections            []colInfo
-		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
 		expectedRestoreFolders int
 	}{
+		// {
+		// 	name:                   "EmailsWithAttachments",
+		// 	service:                path.ExchangeService,
+		// 	expectedRestoreFolders: 1,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Inbox"},
+		// 			category:     path.EmailCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name: "someencodeditemID",
+		// 					data: mockconnector.GetMockMessageWithDirectAttachment(
+		// 						subjectText + "-1",
+		// 					),
+		// 					lookupKey: subjectText + "-1",
+		// 				},
+		// 				{
+		// 					name: "someencodeditemID2",
+		// 					data: mockconnector.GetMockMessageWithTwoAttachments(
+		// 						subjectText + "-2",
+		// 					),
+		// 					lookupKey: subjectText + "-2",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	name:                   "MultipleEmailsSingleFolder",
+		// 	service:                path.ExchangeService,
+		// 	expectedRestoreFolders: 1,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Inbox"},
+		// 			category:     path.EmailCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name: "someencodeditemID",
+		// 					data: mockconnector.GetMockMessageWithBodyBytes(
+		// 						subjectText+"-1",
+		// 						bodyText+" 1.",
+		// 					),
+		// 					lookupKey: subjectText + "-1",
+		// 				},
+		// 				{
+		// 					name: "someencodeditemID2",
+		// 					data: mockconnector.GetMockMessageWithBodyBytes(
+		// 						subjectText+"-2",
+		// 						bodyText+" 2.",
+		// 					),
+		// 					lookupKey: subjectText + "-2",
+		// 				},
+		// 				{
+		// 					name: "someencodeditemID3",
+		// 					data: mockconnector.GetMockMessageWithBodyBytes(
+		// 						subjectText+"-3",
+		// 						bodyText+" 3.",
+		// 					),
+		// 					lookupKey: subjectText + "-3",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
 		{
-			name:                   "EmailsWithAttachments",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithDirectAttachment(
-								subjectText + "-1",
-							),
-							lookupKey: subjectText + "-1",
-						},
-						{
-							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithTwoAttachments(
-								subjectText + "-2",
-							),
-							lookupKey: subjectText + "-2",
-						},
-					},
-				},
-			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.MailFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
-		},
-		{
-			name:                   "MultipleEmailsSingleFolder",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-1",
-								bodyText+" 1.",
-							),
-							lookupKey: subjectText + "-1",
-						},
-						{
-							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-2",
-								bodyText+" 2.",
-							),
-							lookupKey: subjectText + "-2",
-						},
-						{
-							name: "someencodeditemID3",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-3",
-								bodyText+" 3.",
-							),
-							lookupKey: subjectText + "-3",
-						},
-					},
-				},
-			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.MailFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
-		},
-		{
-			name:                   "MultipleContactsSingleFolder",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			name:    "MultipleContactsSingleFolder",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Contacts"},
@@ -573,22 +552,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.ContactFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
 		},
 		{
-			name:                   "MultipleContactsMutlipleFolders",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			name:    "MultipleContactsMutlipleFolders",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -628,22 +595,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.ContactFolders(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
 		},
 		{
-			name:                   "MultipleEventsSingleCalendar",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			name:    "MultipleEventsSingleCalendar",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -667,22 +622,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.EventCalendars(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
 		},
 		{
-			name:                   "MultipleEventsMultipleCalendars",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 2,
+			name:    "MultipleEventsMultipleCalendars",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -722,17 +665,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
-			// TODO(ashmrtn): Generalize this once we know the path transforms that
-			// occur during restore.
-			backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
-				backupSel := selectors.NewExchangeBackup()
-				backupSel.Include(backupSel.EventCalendars(
-					[]string{backupUser},
-					[]string{dest.ContainerName},
-				))
-
-				return backupSel.Selector
-			},
 		},
 	}
 
@@ -762,7 +694,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			assert.NotNil(t, deets)
 
 			status := restoreGC.AwaitStatus()
-			assert.Equal(t, test.expectedRestoreFolders, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 			assert.Equal(
@@ -774,7 +705,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			// Run a backup and compare its output with what we put in.
 
 			backupGC := loadConnector(ctx, t)
-			backupSel := test.backupSelFunc(dest, suite.user)
+			backupSel := backupSelectorForExpected(t, expectedData)
 			t.Logf("Selective backup of %s\n", backupSel)
 
 			dcs, err := backupGC.DataCollections(ctx, backupSel)
@@ -789,51 +720,18 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			status = backupGC.AwaitStatus()
 			// TODO(ashmrtn): This will need to change when the restore layout is
 			// updated.
-			assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 		})
 	}
 }
 
+// TestMultiFolderBackupDifferentNames
+//nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
-	bodyText := "This email has some text. However, all the text is on the same line."
-	subjectText := "Test message for restore"
-
-	// TODO(ashmrtn): Update if we start mixing categories during backup/restore.
-	backupSelFunc := func(
-		dests []control.RestoreDestination,
-		category path.CategoryType,
-		backupUser string,
-	) selectors.Selector {
-		destNames := make([]string, 0, len(dests))
-
-		for _, d := range dests {
-			destNames = append(destNames, d.ContainerName)
-		}
-
-		backupSel := selectors.NewExchangeBackup()
-
-		switch category {
-		case path.EmailCategory:
-			backupSel.Include(backupSel.MailFolders(
-				[]string{backupUser},
-				destNames,
-			))
-		case path.ContactsCategory:
-			backupSel.Include(backupSel.ContactFolders(
-				[]string{backupUser},
-				destNames,
-			))
-		case path.EventsCategory:
-			backupSel.Include(backupSel.EventCalendars(
-				[]string{backupUser},
-				destNames,
-			))
-		}
-
-		return backupSel.Selector
-	}
+	//nolint:gofumpt
+	//bodyText := "This email has some text. However, all the text is on the same line."
+	//subjectText := "Test message for restore"
 
 	table := []struct {
 		name     string
@@ -843,41 +741,41 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		// backup later.
 		collections []colInfo
 	}{
-		{
-			name:     "Email",
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-1",
-								bodyText+" 1.",
-							),
-							lookupKey: subjectText + "-1",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Archive"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-2",
-								bodyText+" 2.",
-							),
-							lookupKey: subjectText + "-2",
-						},
-					},
-				},
-			},
-		},
+		// {
+		// 	name:     "Email",
+		// 	service:  path.ExchangeService,
+		// 	category: path.EmailCategory,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Inbox"},
+		// 			category:     path.EmailCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name: "someencodeditemID",
+		// 					data: mockconnector.GetMockMessageWithBodyBytes(
+		// 						subjectText+"-1",
+		// 						bodyText+" 1.",
+		// 					),
+		// 					lookupKey: subjectText + "-1",
+		// 				},
+		// 			},
+		// 		},
+		// 		{
+		// 			pathElements: []string{"Archive"},
+		// 			category:     path.EmailCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name: "someencodeditemID2",
+		// 					data: mockconnector.GetMockMessageWithBodyBytes(
+		// 						subjectText+"-2",
+		// 						bodyText+" 2.",
+		// 					),
+		// 					lookupKey: subjectText + "-2",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
 		{
 			name:     "Contacts",
 			service:  path.ExchangeService,
@@ -981,7 +879,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 				status := restoreGC.AwaitStatus()
 				// Always just 1 because it's just 1 collection.
-				assert.Equal(t, 1, status.FolderCount, "status.FolderCount")
 				assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 				assert.Equal(t, totalItems, status.Successful, "status.Successful")
 				assert.Equal(
@@ -994,7 +891,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			// Run a backup and compare its output with what we put in.
 
 			backupGC := loadConnector(ctx, t)
-			backupSel := backupSelFunc(dests, test.category, suite.user)
+			backupSel := backupSelectorForExpected(t, allExpectedData)
 			t.Logf("Selective backup of %s\n", backupSel)
 
 			dcs, err := backupGC.DataCollections(ctx, backupSel)
@@ -1007,7 +904,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			checkCollections(t, allItems, allExpectedData, dcs)
 
 			status := backupGC.AwaitStatus()
-			assert.Equal(t, len(test.collections), status.FolderCount, "status.FolderCount")
 			assert.Equal(t, allItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, allItems, status.Successful, "status.Successful")
 		})

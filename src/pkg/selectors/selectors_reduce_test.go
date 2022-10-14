@@ -192,6 +192,23 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			},
 			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 		},
+		// TODO (keepers): all folders are treated as prefix-matches at this time.
+		// so this test actually does nothing different.  In the future, we'll
+		// need to amend the non-prefix folder tests to expect non-prefix matches.
+		{
+			name: "ExchangeMailByFolderPrefix",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.MailFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailBasePath.Folder()},
+					selectors.PrefixMatch(), // force prefix matching
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+		},
 		{
 			name: "ExchangeMailByFolderRoot",
 			selFunc: func() selectors.Reducer {

@@ -46,53 +46,44 @@ jobs:
           go-version-file: src/go.mod
 
   # ----------------------------------------------------------------------------------------------------
-  # --- Generate CLI docs ------------------------------------------------------------------------------
+  # --- Docs Linting -----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  Generate-CLI-Docs:
+  Docs-Linting:
     needs: [Precheck, Checkout]
     environment: Testing
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true' # docsfileschanged also includes srcfileschanged
+
     steps:
       - uses: actions/checkout@v3
 
       - name: Setup Golang with cache
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         uses: magnetikonline/action-golang-cache@v3
         with:
           go-version-file: src/go.mod
 
-      # run the markdown generator
-      - name: Generate Markdown
+      - name: Generate CLI Docs
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         working-directory: ./src
         run: |
           go run ./cmd/mdgen/mdgen.go generate
 
       # migrate generated md files into /docs/docs/cli
       - name: Move CLI .md to Docs
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         run: |
           mkdir -p ./docs/docs/cli
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
 
       - uses: actions/upload-artifact@master
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         name: Upload cli docs as artifacts
         with:
           name: cli-docs
           path: docs/docs/cli
-
-  # ----------------------------------------------------------------------------------------------------
-  # --- Docs Linting -----------------------------------------------------------------------------------
-  # ----------------------------------------------------------------------------------------------------
-
-  Docs-Linting:
-    needs: [Generate-CLI-Docs]
-    environment: Testing
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true'
-
-    steps:
-      - uses: actions/checkout@v3
 
       - name: Install dependencies for docs lint
         run: |
@@ -101,13 +92,9 @@ jobs:
           echo "$PWD/bin" >> $GITHUB_PATH
           npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
 
-      - uses: actions/download-artifact@master
-        name: Download cli docs from build step
-        with:
-          name: cli-docs
-          path: docs/docs/cli
-
       - name: Run docs lint
+        env:
+          CORSO_USE_DOCKER: -1 # prevent using docker inside makefile
         run: |
           cd docs && make -o genclidocs check
 
@@ -247,6 +234,9 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+      - id: version
+        run: echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD) 2>/dev/null || echo unreleased)-$(git rev-parse --short HEAD)"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3 # TODO(meain): make sure release builds work
         with:
@@ -255,6 +245,9 @@ jobs:
           workdir: src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUDDERSTACK_CORSO_WRITE_KEY: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
+          RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
+          CORSO_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Upload assets
         uses: actions/upload-artifact@v3
@@ -317,9 +310,11 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build Corso Binaries
-        run: >
-          ./build.sh
-          --platforms ${{ env.PLATFORMS }}
+        run: |
+          export CORSO_BUILD_LDFLAGS="-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' \
+          -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' \
+          -X 'github.com/alcionai/corso/src/cli.version=$(git describe --exact-match --tags $(git rev-parse HEAD) 2>/dev/null || echo unreleased)-$(git rev-parse --short HEAD)'"
+          ./build.sh --platforms ${{ env.PLATFORMS }}
 
       # apparently everyone uses this step
       - name: Set up QEMU
