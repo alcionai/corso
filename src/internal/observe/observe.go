@@ -1,49 +1,78 @@
 package observe
 
 import (
+	"context"
 	"io"
+	"sync"
 
-	"github.com/schollz/progressbar/v3"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
-var writer io.Writer
+var (
+	wg       sync.WaitGroup
+	con      context.Context
+	writer   io.Writer
+	progress *mpb.Progress
+)
 
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
-func SeedWriter(w io.Writer) {
+func SeedWriter(ctx context.Context, w io.Writer) {
 	writer = w
+	con = ctx
+
+	if con == nil {
+		con = context.Background()
+	}
+
+	progress = mpb.NewWithContext(
+		con,
+		mpb.WithWidth(32),
+		mpb.WithWaitGroup(&wg),
+		mpb.WithOutput(writer),
+	)
+}
+
+// Complete blocks until the progress finishes writing out all data.
+// Afterwards, the progress instance is reset.
+func Complete() {
+	if progress != nil {
+		progress.Wait()
+	}
+
+	SeedWriter(con, writer)
 }
 
 // ItemProgress tracks the display of an item by counting the bytes
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
-func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) io.ReadCloser {
-	if writer == nil {
-		return rc
+func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadCloser, func()) {
+	if writer == nil || rc == nil || totalBytes == 0 {
+		return rc, func() {}
 	}
 
-	opts := progressbar.NewOptions(
-		int(totalBytes),
-		progressbar.OptionSetWriter(writer),
-		progressbar.OptionClearOnFinish(),
-		progressbar.OptionSetDescription(" |  "+iname),
-		progressbar.OptionShowDescriptionAtLineEnd(),
-		progressbar.OptionSetRenderBlankState(true),
-		progressbar.OptionShowCount(),
-		progressbar.OptionSetPredictTime(false),
-		progressbar.OptionEnableColorCodes(true),
-		progressbar.OptionShowBytes(true),
-		progressbar.OptionSetWidth(20),
-		progressbar.OptionSetTheme(progressbar.Theme{
-			Saucer:        "[green]=[reset]",
-			SaucerHead:    "[green]>[reset]",
-			SaucerPadding: " ",
-			BarStart:      "[",
-			BarEnd:        "]",
-		}),
+	wg.Add(1)
+
+	bar := progress.AddBar(
+		totalBytes,
+		mpb.BarFillerOnComplete(""),
+		mpb.BarRemoveOnComplete(),
+		mpb.PrependDecorators(
+			decor.OnComplete(decor.NewPercentage("%d", decor.WC{W: 4}), ""),
+			decor.OnComplete(decor.TotalKiloByte("%.1f", decor.WCSyncSpace), ""),
+		),
+		mpb.AppendDecorators(
+			decor.OnComplete(decor.Name(iname), ""),
+		),
 	)
 
-	pbr := progressbar.NewReader(rc, opts)
+	return bar.ProxyReader(rc), waitAndCloseBar(iname, bar)
+}
 
-	return &pbr
+func waitAndCloseBar(n string, bar *mpb.Bar) func() {
+	return func() {
+		bar.Wait()
+		wg.Done()
+	}
 }
