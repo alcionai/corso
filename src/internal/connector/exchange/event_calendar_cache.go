@@ -22,7 +22,7 @@ type eventCalendarCache struct {
 
 // Populate utility function for populating eventCalendarCache.
 // Executes 1 additional Graph Query
-// @param baseID: M365ID of the base exchange.Calendar
+// @param baseID: ignored. Present to conform to interface
 func (ecc *eventCalendarCache) Populate(
 	ctx context.Context,
 	baseID string,
@@ -59,7 +59,6 @@ func (ecc *eventCalendarCache) Populate(
 	cb := IterativeCollectCalendarContainers(
 		directories,
 		"",
-		ecc.rootID,
 		errUpdater,
 	)
 
@@ -94,19 +93,13 @@ func (ecc *eventCalendarCache) IDToPath(
 	}
 
 	p := c.Path()
-	if p != nil {
-		return p, nil
+	if p == nil {
+		// Shouldn't happen
+		p := path.Builder{}.Append(*c.GetDisplayName())
+		c.SetPath(p)
 	}
 
-	parentPath, err := ecc.IDToPath(ctx, *c.GetParentFolderId())
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving parent calendar")
-	}
-
-	fullPath := parentPath.Append(*c.GetDisplayName())
-	c.SetPath(fullPath)
-
-	return fullPath, nil
+	return p, nil
 }
 
 // AddToCache places container into internal cache field. For EventCalendars
