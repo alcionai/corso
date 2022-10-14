@@ -19,6 +19,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+var version = "dev"
+
 // ------------------------------------------------------------------------------------------
 // Corso Command
 // ------------------------------------------------------------------------------------------
@@ -33,16 +35,12 @@ var corsoCmd = &cobra.Command{
 	PersistentPreRunE: config.InitFunc(),
 }
 
-// the root-level flags
-var (
-	version bool
-)
-
 // Handler for flat calls to `corso`.
 // Produces the same output as `corso --help`.
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
-	if version {
-		print.Infof(cmd.Context(), "Corso\nversion:\tpre-alpha\n")
+	v, _ := cmd.Flags().GetBool("version")
+	if v {
+		print.Infof(cmd.Context(), "Corso\nversion: "+version)
 		return nil
 	}
 
@@ -64,7 +62,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	// want to order flags explicitly
 	cmd.PersistentFlags().SortFlags = false
 
-	cmd.Flags().BoolP("version", "v", version, "current version info")
+	cmd.Flags().BoolP("version", "v", false, "current version info")
 	cmd.PersistentPostRunE = config.InitFunc()
 	config.AddConfigFlags(cmd)
 	logger.AddLogLevelFlag(cmd)
