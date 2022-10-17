@@ -260,9 +260,9 @@ func PopulateExchangeContainerResolver(
 	showRoot bool,
 ) (graph.ContainerResolver, error) {
 	var (
-		res          graph.ContainerResolver
-		cacheRoot    string
-		service, err = createService(qp.Credentials, qp.FailFast)
+		res             graph.ContainerResolver
+		cacheRoot, base string
+		service, err    = createService(qp.Credentials, qp.FailFast)
 	)
 
 	if err != nil {
@@ -300,65 +300,6 @@ func PopulateExchangeContainerResolver(
 	}
 
 	return res, nil
-}
-
-func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
-	dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
-		qp.Credentials.TenantID,
-		qp.User,
-		path.EmailCategory,
-		false,
-	)
-
-	if dirPath == nil {
-		return nil, false // Only true for root mail folder
-	}
-
-	directories := dirPath.Folders()
-
-	switch category {
-	case path.EmailCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1])
-	case path.ContactsCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1])
-	default:
-		return nil, false
-	}
-}
-
-func checkRoot(qp graph.QueryParams, category path.CategoryType) (path.Path, bool) {
-	var (
-		dirPath path.Path
-		pb      = path.Builder{}
-	)
-
-	if category == path.ContactsCategory {
-		dirPath, _ = pb.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-
-		dir := dirPath.Folder()
-
-		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, dir)
-	}
-
-	if category == path.EventsCategory {
-		dirPath, _ = pb.Append(DefaultCalendar).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-
-		dir := dirPath.Folder()
-
-		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, dir)
-	}
-
-	return nil, false
 }
 
 func AddItemsToCollection(
@@ -433,4 +374,65 @@ func AddItemsToCollection(
 	}
 
 	return errs.ErrorOrNil()
+}
+
+func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
+	fmt.Printf("This is %s\t", *c.GetDisplayName())
+	dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
+		qp.Credentials.TenantID,
+		qp.User,
+		path.EmailCategory,
+		false,
+	)
+
+	if dirPath == nil {
+		return nil, false // Only true for root mail folder
+	}
+
+	directories := dirPath.Folders()
+
+	switch category {
+	case path.EmailCategory:
+		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1])
+	case path.ContactsCategory:
+		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1])
+	default:
+		return nil, false
+	}
+}
+
+func checkRoot(qp graph.QueryParams, category path.CategoryType) (path.Path, bool) {
+	var (
+		dirPath path.Path
+		pb      = path.Builder{}
+	)
+
+	if category == path.ContactsCategory {
+		dirPath, _ = pb.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+
+		dir := dirPath.Folder()
+		fmt.Println("From check root: " + dir)
+
+		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, dir)
+	}
+
+	if category == path.EventsCategory {
+		dirPath, _ = pb.Append(DefaultCalendar).ToDataLayerExchangePathForCategory(
+			qp.Credentials.TenantID,
+			qp.User,
+			category,
+			false,
+		)
+
+		dir := dirPath.Folder()
+
+		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, dir)
+	}
+
+	return nil, false
 }
