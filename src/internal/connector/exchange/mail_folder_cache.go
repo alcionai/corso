@@ -4,6 +4,7 @@ import (
 	"context"
 
 	multierror "github.com/hashicorp/go-multierror"
+	//msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/delta"
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
 	"github.com/pkg/errors"
 
@@ -12,39 +13,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.CachedContainer = &mailFolder{}
-
-// mailFolder structure that implements the graph.CachedContainer interface
-type mailFolder struct {
-	folder graph.Container
-	p      *path.Builder
-}
-
-//=========================================
-// Required Functions to satisfy interfaces
-//=====================================
-
-func (mf mailFolder) Path() *path.Builder {
-	return mf.p
-}
-
-func (mf *mailFolder) SetPath(newPath *path.Builder) {
-	mf.p = newPath
-}
-
-func (mf *mailFolder) GetDisplayName() *string {
-	return mf.folder.GetDisplayName()
-}
-
-//nolint:revive
-func (mf *mailFolder) GetId() *string {
-	return mf.folder.GetId()
-}
-
-//nolint:revive
-func (mf *mailFolder) GetParentFolderId() *string {
-	return mf.folder.GetParentFolderId()
-}
+var _ graph.ContainerResolver = &mailFolderCache{}
 
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
