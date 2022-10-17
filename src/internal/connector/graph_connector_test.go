@@ -457,11 +457,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	// subjectText := "Test message for restore"
 
 	table := []struct {
-		name                   string
-		service                path.ServiceType
-		collections            []colInfo
-		backupSelFunc          func(dest control.RestoreDestination, backupUser string) selectors.Selector
-)
+		name          string
+		service       path.ServiceType
+		collections   []colInfo
+		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
 	}{
 		// {
 		// 	name:                   "EmailsWithAttachments",
