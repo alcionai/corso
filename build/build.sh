@@ -76,6 +76,6 @@ else
 		--platform ${PLATFORMS} \
 		--file ${ROOT}/build/Dockerfile \
 		--build-arg CORSO_BUILD_LDFLAGS="$CORSO_BUILD_LDFLAGS" \
-		--load  ${ROOT}
+		--load ${ROOT}
 	echo Built container image "$TAG"
 fi
