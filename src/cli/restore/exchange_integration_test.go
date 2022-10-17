@@ -28,12 +28,7 @@ var (
 	events   = path.EventsCategory
 )
 
-// TODO: bring back event restore testing when they no longer produce
-// notification emails.  Currently, the duplication causes our tests
-// dataset to grow until timeouts occur.
-// var backupDataSets = []path.CategoryType{email, contacts, events}
-
-var backupDataSets = []path.CategoryType{contacts, email}
+var backupDataSets = []path.CategoryType{email, contacts, events}
 
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite

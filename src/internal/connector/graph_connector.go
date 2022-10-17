@@ -77,7 +77,7 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 	}
 
 	gc := GraphConnector{
-		tenant:      m365.TenantID,
+		tenant:      m365.AzureTenantID,
 		Users:       make(map[string]string, 0),
 		wg:          &sync.WaitGroup{},
 		credentials: m365,
@@ -101,9 +101,9 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 // createService constructor for graphService component
 func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
 	adapter, err := graph.CreateAdapter(
-		gc.credentials.TenantID,
-		gc.credentials.ClientID,
-		gc.credentials.ClientSecret,
+		gc.credentials.AzureTenantID,
+		gc.credentials.AzureClientID,
+		gc.credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -526,7 +526,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
 			odcs, err := onedrive.NewCollections(
-				gc.credentials.TenantID,
+				gc.credentials.AzureTenantID,
 				user,
 				scope,
 				&gc.graphService,

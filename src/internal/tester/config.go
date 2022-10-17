@@ -20,7 +20,7 @@ const (
 	TestCfgStorageProvider = "provider"
 
 	// M365 config
-	TestCfgTenantID        = "tenantid"
+	TestCfgAzureTenantID   = "azure_tenantid"
 	TestCfgUserID          = "m365userid"
 	TestCfgAccountProvider = "account_provider"
 )
@@ -100,7 +100,7 @@ func readTestConfig() (map[string]string, error) {
 	fallbackTo(testEnv, TestCfgBucket, vpr.GetString(TestCfgBucket), "test-corso-repo-init")
 	fallbackTo(testEnv, TestCfgEndpoint, vpr.GetString(TestCfgEndpoint), "s3.amazonaws.com")
 	fallbackTo(testEnv, TestCfgPrefix, vpr.GetString(TestCfgPrefix))
-	fallbackTo(testEnv, TestCfgTenantID, os.Getenv(account.TenantID), vpr.GetString(TestCfgTenantID))
+	fallbackTo(testEnv, TestCfgAzureTenantID, os.Getenv(account.AzureTenantID), vpr.GetString(TestCfgAzureTenantID))
 	fallbackTo(
 		testEnv,
 		TestCfgUserID,

@@ -8,14 +8,14 @@ import (
 
 // envvar consts
 const (
-	ClientID     = "CLIENT_ID"
-	ClientSecret = "CLIENT_SECRET"
+	AzureClientID     = "AZURE_CLIENT_ID"
+	AzureClientSecret = "AZURE_CLIENT_SECRET"
 )
 
 // M365 aggregates m365 credentials from flag and env_var values.
 type M365 struct {
-	ClientID     string
-	ClientSecret string
+	AzureClientID     string
+	AzureClientSecret string
 }
 
 // M365 is a helper for aggregating m365 secrets and credentials.
@@ -23,15 +23,15 @@ func GetM365() M365 {
 	// todo (rkeeprs): read from either corso config file or env vars.
 	// https://github.com/alcionai/corso/issues/120
 	return M365{
-		ClientID:     os.Getenv(ClientID),
-		ClientSecret: os.Getenv(ClientSecret),
+		AzureClientID:     os.Getenv(AzureClientID),
+		AzureClientSecret: os.Getenv(AzureClientSecret),
 	}
 }
 
 func (c M365) Validate() error {
 	check := map[string]string{
-		ClientID:     c.ClientID,
-		ClientSecret: c.ClientSecret,
+		AzureClientID:     c.AzureClientID,
+		AzureClientSecret: c.AzureClientSecret,
 	}
 
 	for k, v := range check {
