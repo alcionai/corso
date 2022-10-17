@@ -145,7 +145,7 @@ func (pb *Builder) appendElements(escaped bool, elements []string) error {
 		tmp := e
 
 		if escaped {
-			tmp = trimTrailingSlash(tmp)
+			tmp = TrimTrailingSlash(tmp)
 			// If tmp was just the path separator then it will be empty now.
 			if len(tmp) == 0 {
 				continue
@@ -310,7 +310,7 @@ func (pb Builder) ToDataLayerOneDrivePath(
 // resource-specific type. If p does not match any resource-specific paths or
 // is malformed returns an error.
 func FromDataLayerPath(p string, isItem bool) (Path, error) {
-	p = trimTrailingSlash(p)
+	p = TrimTrailingSlash(p)
 	// If p was just the path separator then it will be empty now.
 	if len(p) == 0 {
 		return nil, errors.Errorf("logically empty path given: %s", p)
@@ -437,11 +437,11 @@ func validateEscapedElement(element string) error {
 	return nil
 }
 
-// trimTrailingSlash takes an escaped path element and returns an escaped path
+// TrimTrailingSlash takes an escaped path element and returns an escaped path
 // element with the trailing path separator character(s) removed if they were not
 // escaped. If there were no trailing path separator character(s) or the separator(s)
 // were escaped the input is returned unchanged.
-func trimTrailingSlash(element string) string {
+func TrimTrailingSlash(element string) string {
 	for len(element) > 0 && element[len(element)-1] == pathSeparator {
 		lastIdx := len(element) - 1
 		numSlashes := 0

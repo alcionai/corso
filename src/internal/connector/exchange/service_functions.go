@@ -48,9 +48,9 @@ func (es *exchangeService) ErrPolicy() bool {
 // NOTE: Incorrect account information will result in errors on subsequent queries.
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
-		credentials.TenantID,
-		credentials.ClientID,
-		credentials.ClientSecret,
+		credentials.AzureTenantID,
+		credentials.AzureClientID,
+		credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -460,7 +460,7 @@ func getCollectionPath(
 	returnPath, err := resolveCollectionPath(
 		ctx,
 		resolver,
-		qp.Credentials.TenantID,
+		qp.Credentials.AzureTenantID,
 		qp.User,
 		directory,
 		category,
@@ -471,7 +471,7 @@ func getCollectionPath(
 
 	aPath, err1 := path.Builder{}.Append(directory).
 		ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
+			qp.Credentials.AzureTenantID,
 			qp.User,
 			category,
 			false,

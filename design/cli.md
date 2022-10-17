@@ -37,8 +37,8 @@ Standard format:
 | --- | --- | --- | --- | --- |
 | repo | * |  |  | Same as `repo [*] --help`. |
 | repo | init | {repository} |  | Initialize a Corso repository. |
-| repo | init | {repository} | —tenant {tenant_id} | Provides the account’s tenant ID. |
-| repo | init | {repository} | —client {client_id} | Provides the account’s client ID. |
+| repo | init | {repository} | —tenant {azure_tenant_id} | Provides the account’s tenant ID. |
+| repo | init | {repository} | —client {azure_client_id} | Provides the account’s client ID. |
 | repo | connect | {repository} |  | Connects to the specified repo. |
 | repo | configure | {repository} |  | Sets mutable config properties to the provided values. |
 | repo | * | * | —config {cfg_file_path} | Specify a repo configuration file.  Values may also be provided via individual flags and env vars. |
@@ -68,10 +68,10 @@ Standard format:
 **First Run**
 
 ```bash
-$ export O365_SECRET=my_0365_secret
+$ export AZURE_CLIENT_SECRET=my_azure_secret
 $ export AWS_SECRET_ACCESS_KEY=my_s3_secret
 $ corso repo init s3 --bucket my_s3_bucket --access-key my_s3_key \
-		--tenant my_m365_acct --clientid my_m365_client_id
+		--tenant my_azure_tenant_id --clientid my_azure_client_id
 $ corso backup express
 ```
 
