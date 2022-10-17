@@ -378,7 +378,11 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
 
-	backup.PrintAll(ctx, bs)
+	if len(bs) == 0 {
+		Info(ctx, "No Exchange backups available")
+	} else {
+		backup.PrintAll(ctx, bs)
+	}
 
 	return nil
 }
@@ -523,6 +527,8 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err := r.DeleteBackup(ctx, model.StableID(backupID)); err != nil {
 		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
 	}
+
+	Info(ctx, "Deleted Exchange backup ", backupID)
 
 	return nil
 }

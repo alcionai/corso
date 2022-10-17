@@ -95,6 +95,32 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
+func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupListCmd_Empty() {
+	t := suite.T()
+	recorder := strings.Builder{}
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
+
+	cmd := tester.StubRootCmd(
+		"backup", "list", "exchange",
+		"--config-file", suite.cfgFP)
+	cli.BuildCommandTree(cmd)
+
+	cmd.SetErr(&recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	require.NoError(t, cmd.ExecuteContext(ctx))
+
+	result := recorder.String()
+
+	// as an offhand check: the result should contain the m365 user id
+	assert.Equal(t, result, "No Exchange backups available\n")
+}
+
 func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 	recorder := strings.Builder{}
 
@@ -121,6 +147,7 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 			require.NoError(t, cmd.ExecuteContext(ctx))
 
 			result := recorder.String()
+
 			t.Log("backup results", result)
 
 			// as an offhand check: the result should contain the m365 user id
@@ -434,6 +461,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 
 func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd() {
 	t := suite.T()
+	recorder := strings.Builder{}
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
 
@@ -444,9 +472,15 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 		"--config-file", suite.cfgFP,
 		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
+	cmd.SetErr(&recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
+
+	result := recorder.String()
+	assert.Equal(t, result, fmt.Sprintf("Deleted Exchange backup %s\n", string(suite.backupOp.Results.BackupID)))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = tester.StubRootCmd(
