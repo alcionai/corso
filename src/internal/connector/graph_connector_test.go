@@ -363,7 +363,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 				FailFast:    false,
 			}
 
-			resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
+			resolver, err := exchange.PopulateExchangeContainerResolver(
 				ctx,
 				qp,
 				scopeToPathCategory(qp.Scope),
