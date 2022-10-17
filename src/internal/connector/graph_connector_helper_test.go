@@ -193,6 +193,17 @@ func attachmentEqual(
 	return true
 }
 
+func recipientEqual(
+	expected models.Recipientable,
+	got models.Recipientable,
+) bool {
+	// Don't compare names as M365 will override the name if the address is known.
+	return emptyOrEqual(
+		expected.GetEmailAddress().GetAddress(),
+		got.GetEmailAddress().GetAddress(),
+	)
+}
+
 func checkMessage(
 	t *testing.T,
 	expected models.Messageable,
@@ -265,7 +276,7 @@ func checkMessage(
 
 	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
-	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
+	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), recipientEqual)
 
 	// Skip WebLink as it's tied to this specific instance of the item.
 
