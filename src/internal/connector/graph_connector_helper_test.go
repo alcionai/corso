@@ -628,7 +628,6 @@ func checkHasCollections(
 	assert.ElementsMatch(t, expectedNames, gotNames)
 }
 
-//nolint:deadcode
 func checkCollections(
 	t *testing.T,
 	expectedItems int,
