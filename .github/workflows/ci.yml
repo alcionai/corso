@@ -1,6 +1,6 @@
 name: Build/Release Corso
 on:
-  workflow_dispatch: # TODO(meain): post-merge: verify manual dispatch
+  workflow_dispatch:
   pull_request:
     branches: [ main ]
   push:
@@ -238,7 +238,7 @@ jobs:
         run: echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD) 2>/dev/null || echo unreleased)-$(git rev-parse --short HEAD)"
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3 # TODO(meain): make sure release builds work
+        uses: goreleaser/goreleaser-action@v3
         with:
           version: latest
           args: release --rm-dist --timeout 500m
@@ -285,7 +285,6 @@ jobs:
           npm ci
           CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
 
-      # TODO(meain): post-merge: validate push to prod env
       - name: Push docs
         run: |
           echo "$DOCS_BUCKET" | base64
@@ -327,7 +326,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.imageName }} # TODO(meain): post-merge: validate push with tag
+          images: ${{ env.imageName }}
           tags: |
             type=ref,event=tag
             type=sha,format=short,prefix=
