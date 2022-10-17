@@ -139,8 +139,38 @@ var (
 			},
 		},
 		{
-			Name:     "EmailsBySubject",
+			Name:     "EmailsFolderPrefixMatchTrailingSlash",
 			Expected: testdata.ExchangeEmailItems,
+			Opts: utils.ExchangeOpts{
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder() + "/"},
+			},
+		},
+		{
+			Name: "EmailsFolderWithSlashPrefixMatch",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[1],
+				testdata.ExchangeEmailItems[2],
+			},
+			Opts: utils.ExchangeOpts{
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder()},
+			},
+		},
+		{
+			Name: "EmailsFolderWithSlashPrefixMatchTrailingSlash",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[1],
+				testdata.ExchangeEmailItems[2],
+			},
+			Opts: utils.ExchangeOpts{
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder() + "/"},
+			},
+		},
+		{
+			Name: "EmailsBySubject",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[0],
+				testdata.ExchangeEmailItems[1],
+			},
 			Opts: utils.ExchangeOpts{
 				EmailSender: "a-person",
 			},
@@ -180,8 +210,11 @@ var (
 			},
 		},
 		{
-			Name:     "MultipleMailShortRef",
-			Expected: testdata.ExchangeEmailItems,
+			Name: "MultipleMailShortRef",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[0],
+				testdata.ExchangeEmailItems[1],
+			},
 			Opts: utils.ExchangeOpts{
 				Email: []string{
 					testdata.ExchangeEmailItemPath1.ShortRef(),
