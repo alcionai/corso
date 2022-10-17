@@ -800,10 +800,9 @@ func backupOutputPathFromRestore(
 		}
 	}
 
-	// TODO(ashmrtn): Uncomment when exchange mail supports restoring to subfolders.
-	// if inputPath.Service == path.ExchangeService && inputPath.Category() == path.EmailCategory {
-	//   base = append(base, inputPath.Folders()...)
-	// }
+	if inputPath.Service() == path.ExchangeService && inputPath.Category() == path.EmailCategory {
+		base = append(base, inputPath.Folders()...)
+	}
 
 	return mustToDataLayerPath(
 		t,
