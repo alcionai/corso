@@ -1,16 +1,15 @@
-package exchange
+package graph
 
 import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // checkIDAndName is a helper function to ensure that
 // the ID and name pointers are set prior to being called.
-func checkIDAndName(c graph.Container) error {
+func checkIDAndName(c Container) error {
 	idPtr := c.GetId()
 	if idPtr == nil || len(*idPtr) == 0 {
 		return errors.New("folder without ID")
@@ -26,7 +25,7 @@ func checkIDAndName(c graph.Container) error {
 
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
-func checkRequiredValues(c graph.Container) error {
+func checkRequiredValues(c Container) error {
 	if err := checkIDAndName(c); err != nil {
 		return err
 	}
@@ -43,10 +42,10 @@ func checkRequiredValues(c graph.Container) error {
 // cachedContainer Implementations
 //======================
 
-var _ graph.CachedContainer = &cacheFolder{}
+var _ CachedContainer = &CacheFolder{}
 
-type cacheFolder struct {
-	graph.Container
+type CacheFolder struct {
+	Container
 	p *path.Builder
 }
 
@@ -54,11 +53,11 @@ type cacheFolder struct {
 // Required Functions to satisfy interfaces
 //=====================================
 
-func (cf cacheFolder) Path() *path.Builder {
+func (cf CacheFolder) Path() *path.Builder {
 	return cf.p
 }
 
-func (cf *cacheFolder) SetPath(newPath *path.Builder) {
+func (cf *CacheFolder) SetPath(newPath *path.Builder) {
 	cf.p = newPath
 }
 
