@@ -99,11 +99,15 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 		folderNames       map[string]struct{}
 	}{
 		{
-			name:              "Contacts Iterative Check",
-			queryFunction:     GetAllContactFolderNamesForUser,
-			iterativeFunction: IterateSelectAllContactsForCollections,
-			scope:             contactScope[0],
-			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+			name:              "Mail Iterative Check",
+			queryFunction:     GetAllMessagesForUser,
+			iterativeFunction: IterateSelectAllDescendablesForCollections,
+			scope:             mailScope,
+			transformer:       models.CreateMessageCollectionResponseFromDiscriminatorValue,
+			folderNames: map[string]struct{}{
+				DefaultMailFolder: {},
+				"Sent Items":      {},
+			},
 		}, {
 			name:              "Contact Folder Traversal",
 			queryFunction:     GetAllContactFolderNamesForUser,
