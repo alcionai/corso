@@ -14,18 +14,6 @@ import (
 // TODO: use selector or path for granularity into specific folders or specific date ranges
 type GraphQuery func(ctx context.Context, gs graph.Service, userID string) (absser.Parsable, error)
 
-// GetAllMessagesForUser is a GraphQuery function for receiving all messages for a single user
-func GetAllMessagesForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
-	selecting := []string{"id", "parentFolderId"}
-
-	options, err := optionsForMessages(selecting)
-	if err != nil {
-		return nil, err
-	}
-
-	return gs.Client().UsersById(user).Messages().Get(ctx, options)
-}
-
 // GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
 func GetAllContactsForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"parentFolderId"}

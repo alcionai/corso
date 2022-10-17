@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,7 +46,9 @@ func TestContactFolderCacheIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ContactFolderCacheIntegrationSuite) TestPopulate() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	cfc := contactFolderCache{
 		userID: tester.M365UserID(suite.T()),
 		gs:     suite.gs,

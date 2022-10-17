@@ -132,8 +132,7 @@ func RestoreMailMessage(
 	bits []byte,
 	service graph.Service,
 	cp control.CollisionPolicy,
-	destination,
-	user string,
+	destination, user string,
 ) (*details.ExchangeInfo, error) {
 	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
@@ -380,7 +379,6 @@ func restoreCollection(
 // generateRestoreContainerFunc utility function that holds logic for creating
 // Root Directory or necessary functions based on path.CategoryType
 // Assumption: collisionPolicy == COPY
-// Constraint: Only works on exchange.Mail
 func GetContainerIDFromCache(
 	ctx context.Context,
 	gs graph.Service,
@@ -578,7 +576,7 @@ func establishEventsRestoreLocation(
 			return "", errors.Wrap(err, "populating event cache")
 		}
 
-		transform := graph.CreateCalendarDisplayable(temp, folderID)
+		transform := CreateCalendarDisplayable(temp)
 		if err = ecc.AddToCache(ctx, transform); err != nil {
 			return "", errors.Wrap(err, "adding new calendar to cache")
 		}

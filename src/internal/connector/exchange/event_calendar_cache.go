@@ -20,53 +20,16 @@ type eventCalendarCache struct {
 	userID, rootID string
 }
 
-func (ecc *eventCalendarCache) populateEventRoot(
-	ctx context.Context,
-	directoryID string,
-	baseContainerPath []string,
-) error {
-	wantedOpts := []string{"name"}
-
-	opts, err := optionsForIndividualCalendar(wantedOpts)
-	if err != nil {
-		return errors.Wrapf(err, "getting options for event cache %v", wantedOpts)
-	}
-
-	cal, err := ecc.gs.
-		Client().
-		UsersById(ecc.userID).
-		CalendarsById(directoryID).
-		Get(ctx, opts)
-	if err != nil {
-		return errors.Wrap(err, "fetching default calendar "+support.ConnectorStackErrorTrace(err))
-	}
-
-	idPtr := cal.GetId()
-
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("root calendar has no ID")
-	}
-
-	identifier := *idPtr
-	transform := graph.CreateCalendarDisplayable(cal, identifier)
-	temp := graph.NewCacheFolder(transform, path.Builder{}.Append(baseContainerPath...))
-
-	ecc.cache[identifier] = &temp
-	ecc.rootID = identifier
-
-	return nil
-}
-
 // Populate utility function for populating eventCalendarCache.
 // Executes 1 additional Graph Query
-// @param baseID: M365ID of the base exchange.Calendar
+// @param baseID: ignored. Present to conform to interface
 func (ecc *eventCalendarCache) Populate(
 	ctx context.Context,
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if err := ecc.init(ctx, baseID, baseContainerPath); err != nil {
-		return err
+	if ecc.cache == nil {
+		ecc.cache = map[string]graph.CachedContainer{}
 	}
 
 	options, err := optionsForCalendars([]string{"name"})
@@ -96,7 +59,6 @@ func (ecc *eventCalendarCache) Populate(
 	cb := IterativeCollectCalendarContainers(
 		directories,
 		"",
-		ecc.rootID,
 		errUpdater,
 	)
 
@@ -121,22 +83,6 @@ func (ecc *eventCalendarCache) Populate(
 	return iterateErr
 }
 
-func (ecc *eventCalendarCache) init(
-	ctx context.Context,
-	baseNode string,
-	baseContainerPath []string,
-) error {
-	if len(baseNode) == 0 {
-		return errors.New("m365ID calendarID required for base")
-	}
-
-	if ecc.cache == nil {
-		ecc.cache = map[string]graph.CachedContainer{}
-	}
-
-	return ecc.populateEventRoot(ctx, baseNode, baseContainerPath)
-}
-
 func (ecc *eventCalendarCache) IDToPath(
 	ctx context.Context,
 	calendarID string,
@@ -147,26 +93,20 @@ func (ecc *eventCalendarCache) IDToPath(
 	}
 
 	p := c.Path()
-	if p != nil {
-		return p, nil
+	if p == nil {
+		// Shouldn't happen
+		p := path.Builder{}.Append(*c.GetDisplayName())
+		c.SetPath(p)
 	}
 
-	parentPath, err := ecc.IDToPath(ctx, *c.GetParentFolderId())
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving parent calendar")
-	}
-
-	fullPath := parentPath.Append(*c.GetDisplayName())
-	c.SetPath(fullPath)
-
-	return fullPath, nil
+	return p, nil
 }
 
 // AddToCache places container into internal cache field. For EventCalendars
 // this means that the object has to be transformed prior to calling
 // this function.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := graph.CheckRequiredValues(f); err != nil {
+	if err := checkIDAndName(f); err != nil {
 		return err
 	}
 
@@ -174,13 +114,9 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return nil
 	}
 
-	ecc.cache[*f.GetId()] = &graph.CacheFolder{
+	ecc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
-	}
-
-	_, err := ecc.IDToPath(ctx, *f.GetId())
-	if err != nil {
-		return errors.Wrap(err, "adding event cache entry")
+		p:         path.Builder{}.Append(*f.GetDisplayName()),
 	}
 
 	return nil

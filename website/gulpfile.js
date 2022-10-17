@@ -213,7 +213,7 @@ gulp.task('copy:all', function () {
 
 gulp.task('copy:libs', function () {
     return gulp
-        .src(npmdist({ nodeModulesPath: '../' }), { base: paths.base.node.dir })
+        .src(npmdist({ nodeModulesPath: process.env.NODE_MODULES_PATH || './' }), { base: paths.base.node.dir })
         .pipe(rename(function (path) {
             path.dirname = path.dirname.replace(/\/dist/, '').replace(/\\dist/, '');
         }))

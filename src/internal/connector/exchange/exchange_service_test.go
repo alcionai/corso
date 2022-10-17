@@ -243,10 +243,6 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 		function GraphQuery
 	}{
 		{
-			name:     "GraphQuery: Get All Messages For User",
-			function: GetAllMessagesForUser,
-		},
-		{
 			name:     "GraphQuery: Get All Contacts For User",
 			function: GetAllContactsForUser,
 		},
@@ -354,9 +350,6 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
 	userID := tester.M365UserID(t)
 	now := time.Now()
@@ -365,14 +358,14 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 		bytes       []byte
 		category    path.CategoryType
 		cleanupFunc func(context.Context, graph.Service, string, string) error
-		destination func() string
+		destination func(context.Context) string
 	}{
 		{
 			name:        "Test Mail",
 			bytes:       mockconnector.GetMockMessageBytes("Restore Exchange Object"),
 			category:    path.EmailCategory,
 			cleanupFunc: DeleteMailFolder,
-			destination: func() string {
+			destination: func(ctx context.Context) string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
 				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
@@ -385,7 +378,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			bytes:       mockconnector.GetMockMessageWithDirectAttachment("Restore 1 Attachment"),
 			category:    path.EmailCategory,
 			cleanupFunc: DeleteMailFolder,
-			destination: func() string {
+			destination: func(ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
@@ -398,7 +391,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			bytes:       mockconnector.GetMockMessageWithLargeAttachment("Restore Large Attachment"),
 			category:    path.EmailCategory,
 			cleanupFunc: DeleteMailFolder,
-			destination: func() string {
+			destination: func(ctx context.Context) string {
 				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
@@ -411,7 +404,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			bytes:       mockconnector.GetMockMessageWithTwoAttachments("Restore 2 Attachments"),
 			category:    path.EmailCategory,
 			cleanupFunc: DeleteMailFolder,
-			destination: func() string {
+			destination: func(ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
 				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
@@ -420,38 +413,41 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			},
 		},
 		// TODO: #884 - reinstate when able to specify root folder by name
-		// {
-		// 	name:        "Test Contact",
-		// 	bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
-		// 	category:    path.ContactsCategory,
-		// 	cleanupFunc: DeleteContactFolder,
-		// 	destination: func() string {
-		// 		folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
-		// 		folder, err := CreateContactFolder(suite.es, userID, folderName)
-		// 		require.NoError(t, err)
+		{
+			name:        "Test Contact",
+			bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
+			category:    path.ContactsCategory,
+			cleanupFunc: DeleteContactFolder,
+			destination: func(ctx context.Context) string {
+				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateContactFolder(ctx, suite.es, userID, folderName)
+				require.NoError(t, err)
 
-		// 		return *folder.GetId()
-		// 	},
-		// },
-		// {
-		// 	name:        "Test Events",
-		// 	bytes:       mockconnector.GetMockEventBytes("Restored Event Object"),
-		// 	category:    path.EventsCategory,
-		// 	cleanupFunc: DeleteCalendar,
-		// 	destination: func() string {
-		// 		calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
-		// 		calendar, err := CreateCalendar(suite.es, userID, calendarName)
-		// 		require.NoError(t, err)
+				return *folder.GetId()
+			},
+		},
+		{
+			name:        "Test Events",
+			bytes:       mockconnector.GetMockEventBytes("Restored Event Object"),
+			category:    path.EventsCategory,
+			cleanupFunc: DeleteCalendar,
+			destination: func(ctx context.Context) string {
+				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
+				calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
+				require.NoError(t, err)
 
-		// 		return *calendar.GetId()
-		// 	},
-		// },
+				return *calendar.GetId()
+			},
+		},
 	}
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			service := loadService(t)
-			destination := test.destination()
+			destination := test.destination(ctx)
 			info, err := RestoreExchangeObject(
 				ctx,
 				test.bytes,
@@ -472,10 +468,12 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 
 // Testing to ensure that cache system works for in multiple different environments
 func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
 		t               = suite.T()
 		user            = tester.M365UserID(t)
-		ctx             = context.Background()
 		connector       = loadService(t)
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
 		folderName      = tester.DefaultTestRestoreDestination().ContainerName

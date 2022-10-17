@@ -58,7 +58,10 @@ func (mc *mailFolderCache) populateMailRoot(
 		return errors.New("root folder has no ID")
 	}
 
-	temp := graph.NewCacheFolder(f, path.Builder{}.Append(baseContainerPath...))
+	temp := cacheFolder{
+		Container: f,
+		p:         path.Builder{}.Append(baseContainerPath...),
+	}
 	mc.cache[*idPtr] = &temp
 	mc.rootID = *idPtr
 
@@ -164,15 +167,15 @@ func (mc *mailFolderCache) init(
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
 func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := graph.CheckRequiredValues(f); err != nil {
-		return err
+	if err := checkRequiredValues(f); err != nil {
+		return errors.Wrap(err, "object not added to cache")
 	}
 
 	if _, ok := mc.cache[*f.GetId()]; ok {
 		return nil
 	}
 
-	mc.cache[*f.GetId()] = &graph.CacheFolder{
+	mc.cache[*f.GetId()] = &cacheFolder{
 		Container: f,
 	}
 

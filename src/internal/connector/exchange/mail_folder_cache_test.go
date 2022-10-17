@@ -372,7 +372,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			assert.Equal(t, expectedPath, p.String())
 			identifier, ok := mfc.PathInCache(p.String())
 			assert.True(t, ok)
-			assert.Greater(t, len(identifier), 7)
+			assert.NotEmpty(t, identifier)
 		})
 	}
 }

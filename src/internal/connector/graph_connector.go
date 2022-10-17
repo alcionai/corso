@@ -437,6 +437,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			odcs, err := onedrive.NewCollections(
 				gc.credentials.TenantID,
 				user,
+				scope,
 				&gc.graphService,
 				gc.UpdateStatus,
 			).Get(ctx)

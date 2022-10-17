@@ -2,8 +2,10 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
+	multierror "github.com/hashicorp/go-multierror"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -11,12 +13,11 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
 // @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
-type GraphSetCollectionFunc func (
+type GraphSetCollectionFunc func(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]*Collection,
@@ -40,62 +41,60 @@ func FilterEventsFromCalendars(
 ) error {
 	category := path.EventsCategory
 
-		rootPath, ok := checkRoot(qp, category)
-			if ok {
-				s, err := createService(qp.Credentials, qp.FailFast)
-				if err != nil {
-					errUpdater(qp.User, err)
-					return true
-				}
-
-				concrete := resolver.(*eventCalendarCache)
-				edc := NewCollection(
-					qp.User,
-					rootPath,
-					events,
-					s,
-					statusUpdater,
-				)
-				collections[concrete.rootID] = &edc
-			}
-
-			for _, c := range resolver.Items() {
-				dirPath, ok := pathAndMatch(qp, category, c)
-				if ok {
-					// Create only those that match
-					service, err := createService(qp.Credentials, qp.FailFast)
-					if err != nil {
-						errUpdater(qp.User, err)
-						return true
-					}
-
-					edc := NewCollection(
-						qp.User,
-						dirPath,
-						events,
-						service,
-						statusUpdater,
-					)
-					collections[*c.GetId()] = &edc
-				}
-			}
-
-
-		// Should complete on the first run within iterator
-		for key, col := range collections {
-			eventIDs, err := ReturnEventIDsFromCalendar(ctx, col.service, qp.User, key)
-			if err != nil {
-				errUpdater(
-					qp.User,
-					errors.Wrap(err, support.ConnectorStackErrorTrace(err)))
-
-				continue
-			}
-
-			col.jobs = append(col.jobs, eventIDs...)
+	rootPath, ok := checkRoot(qp, category)
+	if ok {
+		s, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			return errors.Wrap(err, qp.User+" unable to create service FilterEventsFromCalendar")
 		}
 
-	return nil
+		concrete := resolver.(*eventCalendarCache)
+		edc := NewCollection(
+			qp.User,
+			rootPath,
+			events,
+			s,
+			statusUpdater,
+		)
+		collections[concrete.rootID] = &edc
+	}
+
+	for _, c := range resolver.Items() {
+		dirPath, ok := pathAndMatch(qp, category, c)
+		if ok {
+			// Create only those that match
+			service, err := createService(qp.Credentials, qp.FailFast)
+			if err != nil {
+				return errors.Wrap(err, qp.User+" unable to create service FilterEventsFromCalendar")
+			}
+
+			edc := NewCollection(
+				qp.User,
+				dirPath,
+				events,
+				service,
+				statusUpdater,
+			)
+			collections[*c.GetId()] = &edc
+		}
+	}
+
+	var errs error
+	for key, col := range collections {
+		eventIDs, err := FetchEventIDsFromCalendar(ctx, col.service, qp.User, key)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				qp.User,
+				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+				errs)
+
+			continue
+		}
+
+		col.jobs = append(col.jobs, eventIDs...)
+	}
+
+	return errs
 }
 
 // IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
@@ -110,72 +109,72 @@ func FilterDescendablesForCollections(
 ) error {
 	category := graph.ScopeToPathCategory(qp.Scope)
 	collectionType := categoryToOptionIdentifier(category)
-	
 
-			if category == path.ContactsCategory {
-				rootPath, ok := checkRoot(qp, category)
-				if ok {
-					s, err := createService(qp.Credentials, qp.FailFast)
-					if err != nil {
-						return errors.Wrap(err, "failed to create service for collection")
-					}
-
-
-					concrete := resolver.(*contactFolderCache)
-					edc := NewCollection(
-						qp.User,
-						rootPath,
-						collectionType,
-						s,
-						statusUpdater,
-					)
-					collections[concrete.rootID] = &edc
-				}
+	if category == path.ContactsCategory {
+		rootPath, ok := checkRoot(qp, category)
+		if ok {
+			s, err := createService(qp.Credentials, qp.FailFast)
+			if err != nil {
+				return errors.Wrap(err, "failed to create service for collection")
 			}
 
-			for _, c := range resolver.Items() {
-				// Create receive all
-				dirPath, ok := pathAndMatch(qp, category, c)
-				if ok {
-					// Create only those that match
-					service, err := createService(qp.Credentials, qp.FailFast)
-					if err != nil {
-						return errors.Wrap(err, "failed to create service for colleciton")
-					}
-
-					edc := NewCollection(
-						qp.User,
-						dirPath,
-						collectionType,
-						service,
-						statusUpdater,
-					)
-					collections[*c.GetId()] = &edc
-				}
-			}
-
-		for directoryID, col := range collections{
-			fetchFunc, err := getFetchIDFunc(category)
-			if err != nil{
-				err = errors. Wrap(err, qp.User)
-				if qp.FailFast{
-				return err
-				}
-				continue
-			}
-			jobs, err := fetchFunc(ctx, col.service, qp.User, directoryID)
-			if err != nil{
-				err = errors.Wrap(err, qp.User)
-			}
-			col.AddJob(*message.GetId())
-		
+			concrete := resolver.(*contactFolderCache)
+			edc := NewCollection(
+				qp.User,
+				rootPath,
+				collectionType,
+				s,
+				statusUpdater,
+			)
+			collections[concrete.rootID] = &edc
 		}
-		
-		return true
 	}
 
+	for _, c := range resolver.Items() {
+		// Create receive all
+		dirPath, ok := pathAndMatch(qp, category, c)
+		if ok {
+			// Create only those that match
+			service, err := createService(qp.Credentials, qp.FailFast)
+			if err != nil {
+				return errors.Wrap(err, "failed to create service for colleciton")
+			}
 
+			edc := NewCollection(
+				qp.User,
+				dirPath,
+				collectionType,
+				service,
+				statusUpdater,
+			)
+			collections[*c.GetId()] = &edc
+		}
+	}
 
+	var errs error
+	for directoryID, col := range collections {
+		fetchFunc, err := getFetchIDFunc(category)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				qp.User,
+				err,
+				errs)
+
+			if qp.FailFast {
+				return errs
+			}
+			continue
+		}
+		jobs, err := fetchFunc(ctx, col.service, qp.User, directoryID)
+		if err != nil {
+			err = errors.Wrap(err, qp.User)
+		}
+		col.jobs = append(col.jobs, jobs...)
+
+	}
+
+	return errs
+}
 
 func IterativeCollectContactContainers(
 	containers map[string]graph.Container,
@@ -202,7 +201,7 @@ func IterativeCollectContactContainers(
 
 func IterativeCollectCalendarContainers(
 	containers map[string]graph.Container,
-	nameContains, rootID string,
+	nameContains string,
 	errUpdater func(string, error),
 ) func(any) bool {
 	return func(entry any) bool {
@@ -216,7 +215,7 @@ func IterativeCollectCalendarContainers(
 		include := len(nameContains) == 0 ||
 			strings.Contains(*cal.GetName(), nameContains)
 		if include {
-			temp := graph.CreateCalendarDisplayable(cal, rootID)
+			temp := CreateCalendarDisplayable(cal)
 			containers[*temp.GetDisplayName()] = temp
 		}
 
@@ -229,15 +228,16 @@ func IterativeCollectCalendarContainers(
 type FetchIDFunc func(ctx context.Context, gs graph.Service, user, containerID string) ([]string, error)
 
 func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
-	switch category{
+	switch category {
 	case path.EmailCategory:
 		return FetchMessageIDsFromDirectory, nil
 	case path.EventsCategory:
-		return FetchEventIDsFromCalendar
+		return FetchEventIDsFromCalendar, nil
 	case path.ContactsCategory:
-		return FetchContactID
+		return FetchContactIDsFromDirectory, nil
+	default:
+		return nil, fmt.Errorf("")
 	}
-
 }
 
 // ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
@@ -338,37 +338,37 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 	return stringArray, nil
 }
 
-FetchMessageIDsFromDirectory(
+func FetchMessageIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Service,
 	user, directoryID string,
-)([]string, error){
+) ([]string, error) {
 	stringArray := []string{}
-	
+
 	options, err := optionsForFolderMessages([]string{"id"})
 	if err != nil {
-		return errors.Wrap(err, "getting query options")
+		return nil, errors.Wrap(err, "getting query options")
 	}
 
 	response, err := gs.Client().
-	UsersById(userID).
-	MailFoldersById(folderID).
-	Messages().
-	Get(ctx, options)
+		UsersById(user).
+		MailFoldersById(directoryID).
+		Messages().
+		Get(ctx, options)
 	if err != nil {
-		return errors.Wrap(
+		return nil, errors.Wrap(
 			errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
 			"initial folder query",
 		)
 	}
 
 	pageIter, err := msgraphgocore.NewPageIterator(
-		messageResp,
+		response,
 		gs.Adapter(),
 		models.CreateMessageCollectionResponseFromDiscriminatorValue,
 	)
 	if err != nil {
-		return errors.Wrap(err, "creating graph iterator")
+		return nil, errors.Wrap(err, "creating graph iterator")
 	}
 
 	var errs *multierror.Error
@@ -385,7 +385,7 @@ FetchMessageIDsFromDirectory(
 			return true
 		}
 
-		stringArray := append(stringArray, *item.GetId())
+		stringArray = append(stringArray, *item.GetId())
 
 		return true
 	})

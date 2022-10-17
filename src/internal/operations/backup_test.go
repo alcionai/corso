@@ -178,10 +178,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
-
-	m365UserID := tester.M365UserID(t)
-	acct := tester.NewM365Account(t)
+	m365UserID := tester.M365UserID(suite.T())
+	acct := tester.NewM365Account(suite.T())
 
 	tests := []struct {
 		name       string
@@ -195,7 +193,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 				return &sel.Selector
 			},
 		},
-
 		{
 			name: "Integration Exchange.Contacts",
 			selectFunc: func() *selectors.Selector {
@@ -209,7 +206,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}))
-
 				return &sel.Selector
 			},
 		},
@@ -250,14 +246,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			require.NoError(t, bo.Run(ctx))
 			require.NotEmpty(t, bo.Results)
 			require.NotEmpty(t, bo.Results.BackupID)
-			assert.Equal(t, bo.Status, Completed)
+			assert.Equalf(t, Completed, bo.Status, "backup status %s is not Completed", bo.Status)
 			assert.Less(t, 0, bo.Results.ItemsRead)
 			assert.Less(t, 0, bo.Results.ItemsWritten)
 			assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 			assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
 			assert.Equal(t, 1, bo.Results.ResourceOwners)
-			assert.Zero(t, bo.Results.ReadErrors)
-			assert.Zero(t, bo.Results.WriteErrors)
+			assert.NoError(t, bo.Results.ReadErrors)
+			assert.NoError(t, bo.Results.WriteErrors)
 			assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 			assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
 			assert.Equal(t,
@@ -316,7 +312,7 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results)
 	require.NotEmpty(t, bo.Results.BackupID)
-	assert.Equal(t, bo.Status, Completed)
+	assert.Equalf(t, Completed, bo.Status, "backup status %s is not Completed", bo.Status)
 	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
 	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")

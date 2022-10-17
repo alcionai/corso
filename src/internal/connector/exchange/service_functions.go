@@ -260,9 +260,9 @@ func PopulateExchangeContainerResolver(
 	showRoot bool,
 ) (graph.ContainerResolver, error) {
 	var (
-		res             graph.ContainerResolver
-		cacheRoot, base string
-		service, err    = createService(qp.Credentials, qp.FailFast)
+		res          graph.ContainerResolver
+		cacheRoot    string
+		service, err = createService(qp.Credentials, qp.FailFast)
 	)
 
 	if err != nil {
@@ -295,11 +295,7 @@ func PopulateExchangeContainerResolver(
 		return nil, fmt.Errorf("ContainerResolver not present for %s type", category)
 	}
 
-	if showRoot {
-		base = cacheRoot
-	}
-
-	if err := res.Populate(ctx, cacheRoot, base); err != nil {
+	if err := res.Populate(ctx, cacheRoot); err != nil {
 		return nil, errors.Wrap(err, "populating directory resolver")
 	}
 

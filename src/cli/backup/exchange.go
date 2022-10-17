@@ -110,16 +110,20 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.StringSliceVar(
 			&user,
-			"user", nil,
+			utils.UserFN, nil,
 			"Backup Exchange data by user ID; accepts '"+utils.Wildcard+"' to select all users")
 		fs.StringSliceVar(
 			&exchangeData,
-			"data", nil,
+			utils.DataFN, nil,
 			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, _ = utils.AddCommand(parent, exchangeListCmd())
+		c, fs = utils.AddCommand(parent, exchangeListCmd())
+
+		fs.StringVar(&backupID,
+			"backup", "",
+			"ID of the backup to retrieve.")
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
@@ -130,83 +134,83 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.StringVar(&backupID,
-			"backup", "",
+			utils.BackupFN, "",
 			"ID of the backup to explore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 		fs.StringSliceVar(
 			&user,
-			"user", nil,
+			utils.UserFN, nil,
 			"Select backup details by user ID; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// email flags
 		fs.StringSliceVar(
 			&email,
-			"email", nil,
+			utils.EmailFN, nil,
 			"Select backup details for emails by email ID; accepts '"+utils.Wildcard+"' to select all emails.")
 		fs.StringSliceVar(
 			&emailFolder,
-			"email-folder", nil,
+			utils.EmailFolderFN, nil,
 			"Select backup details for emails within a folder; accepts '"+utils.Wildcard+"' to select all email folders.")
 		fs.StringVar(
 			&emailSubject,
-			"email-subject", "",
+			utils.EmailSubjectFN, "",
 			"Select backup details for emails with a subject containing this value.")
 		fs.StringVar(
 			&emailSender,
-			"email-sender", "",
+			utils.EmailSenderFN, "",
 			"Select backup details for emails from a specific sender.")
 		fs.StringVar(
 			&emailReceivedAfter,
-			"email-received-after", "",
+			utils.EmailReceivedAfterFN, "",
 			"Select backup details for emails received after this datetime.")
 		fs.StringVar(
 			&emailReceivedBefore,
-			"email-received-before", "",
+			utils.EmailReceivedBeforeFN, "",
 			"Select backup details for emails received before this datetime.")
 
 		// event flags
 		fs.StringSliceVar(
 			&event,
-			"event", nil,
+			utils.EventFN, nil,
 			"Select backup details for events by event ID; accepts '"+utils.Wildcard+"' to select all events.")
 		fs.StringSliceVar(
 			&eventCalendar,
-			"event-calendar", nil,
+			utils.EventCalendarFN, nil,
 			"Select backup details for events under a calendar; accepts '"+utils.Wildcard+"' to select all events.")
 		fs.StringVar(
 			&eventSubject,
-			"event-subject", "",
+			utils.EventSubjectFN, "",
 			"Select backup details for events with a subject containing this value.")
 		fs.StringVar(
 			&eventOrganizer,
-			"event-organizer", "",
+			utils.EventOrganizerFN, "",
 			"Select backup details for events from a specific organizer.")
 		fs.StringVar(
 			&eventRecurs,
-			"event-recurs", "",
+			utils.EventRecursFN, "",
 			"Select backup details for recurring events. Use `--event-recurs false` to select non-recurring events.")
 		fs.StringVar(
 			&eventStartsAfter,
-			"event-starts-after", "",
+			utils.EventStartsAfterFN, "",
 			"Select backup details for events starting after this datetime.")
 		fs.StringVar(
 			&eventStartsBefore,
-			"event-starts-before", "",
+			utils.EventStartsBeforeFN, "",
 			"Select backup details for events starting before this datetime.")
 
 		// contact flags
 		fs.StringSliceVar(
 			&contact,
-			"contact", nil,
+			utils.ContactFN, nil,
 			"Select backup details for contacts by contact ID; accepts '"+utils.Wildcard+"' to select all contacts.")
 		fs.StringSliceVar(
 			&contactFolder,
-			"contact-folder", nil,
+			utils.ContactFolderFN, nil,
 			"Select backup details for contacts within a folder; accepts '"+utils.Wildcard+"' to select all contact folders.")
 
 		fs.StringVar(
 			&contactName,
-			"contact-name", "",
+			utils.ContactNameFN, "",
 			"Select backup details for contacts whose contact name contains this value.")
 
 	case deleteCommand:
@@ -215,8 +219,10 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to delete. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to delete. (required)")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 	}
 
 	return c
@@ -350,6 +356,21 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
+	if len(backupID) > 0 {
+		b, err := r.Backup(ctx, model.StableID(backupID))
+		if err != nil {
+			if errors.Is(err, kopia.ErrNotFound) {
+				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
+			}
+
+			return Only(ctx, errors.Wrap(err, "Failed to find backup "+backupID))
+		}
+
+		b.Print(ctx)
+
+		return nil
+	}
+
 	bs, err := r.Backups(ctx)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
@@ -382,12 +403,12 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	opts := utils.ExchangeOpts{
-		Contacts:            contact,
-		ContactFolders:      contactFolder,
-		Emails:              email,
-		EmailFolders:        emailFolder,
-		Events:              event,
-		EventCalendars:      eventCalendar,
+		Contact:             contact,
+		ContactFolder:       contactFolder,
+		Email:               email,
+		EmailFolder:         emailFolder,
+		Event:               event,
+		EventCalendar:       eventCalendar,
 		Users:               user,
 		ContactName:         contactName,
 		EmailReceivedAfter:  emailReceivedAfter,
@@ -399,6 +420,8 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventStartsAfter:    eventStartsAfter,
 		EventStartsBefore:   eventStartsBefore,
 		EventSubject:        eventSubject,
+
+		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
 	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
@@ -443,7 +466,7 @@ func runDetailsExchangeCmd(
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
 		if errors.Is(err, kopia.ErrNotFound) {
-			return nil, errors.Errorf("no backup exists with the id %s", backupID)
+			return nil, errors.Errorf("No backup exists with the id %s", backupID)
 		}
 
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
