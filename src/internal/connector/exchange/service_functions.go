@@ -237,41 +237,25 @@ func GetAllContactFolders(
 	gs graph.Service,
 	user, nameContains string,
 ) ([]graph.Container, error) {
-	var (
-		cs         = make(map[string]graph.Container)
-		containers = make([]graph.Container, 0)
-		err, errs  error
-		errUpdater = func(s string, e error) {
-			errs = support.WrapAndAppend(s, e, errs)
-		}
-	)
+	containers := make([]graph.Container, 0)
 
-	_, err = PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory)
 	if err != nil {
 		return nil, errors.Wrap(err, qp.User)
 	}
 
-	resp, err := GetAllContactFolderNamesForUser(ctx, gs, user)
-	if err != nil {
-		return nil, err
-	}
+	for _, c := range resolver.Items() {
+		temp := c.Path()
+		p, _ := temp.ToDataLayerExchangePathForCategory(
+			"not",
+			"used",
+			path.ContactsCategory,
+			false)
+		directories := p.Folders()
 
-	iter, err := msgraphgocore.NewPageIterator(
-		resp, gs.Adapter(), models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
-	if err != nil {
-		return nil, err
-	}
-
-	cb := IterativeCollectContactContainers(
-		cs, nameContains, errUpdater,
-	)
-
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return nil, err
-	}
-
-	for _, entry := range cs {
-		containers = append(containers, entry)
+		if qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1]) {
+			containers = append(containers, c)
+		}
 	}
 
 	return containers, err
