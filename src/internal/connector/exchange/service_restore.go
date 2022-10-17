@@ -371,7 +371,6 @@ func restoreCollection(
 		category  = directory.Category()
 		user      = directory.ResourceOwner()
 	)
-	// TODO... I need a
 
 	for {
 		select {
