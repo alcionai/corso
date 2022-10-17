@@ -87,6 +87,8 @@ func IncludeOneDriveRestoreDataSelectors(
 		return
 	}
 
+	opts.Paths = trimFolderSlash(opts.Paths)
+
 	if lp == 0 {
 		opts.Paths = selectors.Any()
 	}

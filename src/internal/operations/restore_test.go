@@ -179,7 +179,11 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	suite.sw = sw
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
+	bsel.Include(
+		bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}),
+		bsel.ContactFolders([]string{m365UserID}, []string{exchange.DefaultContactFolder}),
+		bsel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}),
+	)
 
 	bo, err := NewBackupOperation(
 		ctx,
