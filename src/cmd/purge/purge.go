@@ -415,8 +415,8 @@ func purgeFolders(
 func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	// get account info
 	m365Cfg := account.M365Config{
-		M365:     credentials.GetM365(),
-		TenantID: common.First(tenant, os.Getenv(account.TenantID)),
+		M365:          credentials.GetM365(),
+		AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
 	}
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)

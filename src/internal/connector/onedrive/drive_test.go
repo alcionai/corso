@@ -44,9 +44,9 @@ func loadService(t *testing.T) *testService {
 	require.NoError(t, err)
 
 	adapter, err := graph.CreateAdapter(
-		m365.TenantID,
-		m365.ClientID,
-		m365.ClientSecret,
+		m365.AzureTenantID,
+		m365.AzureClientID,
+		m365.AzureClientSecret,
 	)
 	require.NoError(t, err)
 

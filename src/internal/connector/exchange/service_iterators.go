@@ -205,7 +205,7 @@ func CollectionsFromResolver(
 		}
 
 		completePath, err := item.Path().ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
+			qp.Credentials.AzureTenantID,
 			qp.User,
 			category,
 			false,
@@ -504,7 +504,7 @@ func IterateSelectAllContactsForCollections(
 			// Create and Populate Default Contacts folder Collection if true
 			if qp.Scope.Matches(selectors.ExchangeContactFolder, DefaultContactFolder) {
 				dirPath, err := path.Builder{}.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
-					qp.Credentials.TenantID,
+					qp.Credentials.AzureTenantID,
 					qp.User,
 					path.ContactsCategory,
 					false,

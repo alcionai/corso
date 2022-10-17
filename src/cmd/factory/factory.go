@@ -98,12 +98,12 @@ func handleOneDriveFactory(cmd *cobra.Command, args []string) error {
 // ------------------------------------------------------------------------------------------
 
 func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphConnector, string, error) {
-	tid := common.First(tenant, os.Getenv(account.TenantID))
+	tid := common.First(tenant, os.Getenv(account.AzureTenantID))
 
 	// get account info
 	m365Cfg := account.M365Config{
-		M365:     credentials.GetM365(),
-		TenantID: tid,
+		M365:          credentials.GetM365(),
+		AzureTenantID: tid,
 	}
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)

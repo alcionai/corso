@@ -10,8 +10,8 @@ import (
 )
 
 var M365AcctCredEnvs = []string{
-	credentials.ClientID,
-	credentials.ClientSecret,
+	credentials.AzureClientID,
+	credentials.AzureClientSecret,
 }
 
 // NewM365Account returns an account.Account object initialized with environment
@@ -23,8 +23,8 @@ func NewM365Account(t *testing.T) account.Account {
 	acc, err := account.NewAccount(
 		account.ProviderM365,
 		account.M365Config{
-			M365:     credentials.GetM365(),
-			TenantID: cfg[TestCfgTenantID],
+			M365:          credentials.GetM365(),
+			AzureTenantID: cfg[TestCfgAzureTenantID],
 		},
 	)
 	require.NoError(t, err, "initializing account")
