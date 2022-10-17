@@ -2,6 +2,7 @@ package observe
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
@@ -15,6 +16,10 @@ var (
 	writer   io.Writer
 	progress *mpb.Progress
 )
+
+func init() {
+	makeSpinFrames()
+}
 
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
@@ -67,10 +72,82 @@ func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadClos
 		),
 	)
 
-	return bar.ProxyReader(rc), waitAndCloseBar(iname, bar)
+	return bar.ProxyReader(rc), waitAndCloseBar(bar)
 }
 
-func waitAndCloseBar(n string, bar *mpb.Bar) func() {
+var spinFrames []string
+
+func makeSpinFrames() {
+	s, l := rune('∙'), rune('●')
+
+	line := []rune{}
+	for i := 0; i < 32; i++ {
+		line = append(line, s)
+	}
+
+	sl := make([]string, 0, 33)
+	sl = append(sl, string(line))
+
+	for i := 1; i < 32; i++ {
+		l2 := make([]rune, len(line))
+		copy(l2, line)
+		l2[i] = l
+
+		sl = append(sl, string(l2))
+	}
+
+	spinFrames = sl
+}
+
+// ItemProgress tracks the display a spinner that idles while the collection
+// incrementing the count of items handled.  Each write to the provided channel
+// counts as a single increment.  The caller is expected to close the channel.
+func CollectionProgress(user, dirName string) (chan<- struct{}, func()) {
+	if writer == nil || len(dirName) == 0 {
+		return nil, func() {}
+	}
+
+	wg.Add(1)
+
+	bar := progress.New(
+		-1, // -1 to indicate an unbounded count
+		mpb.SpinnerStyle(spinFrames...),
+		mpb.BarFillerOnComplete(""),
+		mpb.BarRemoveOnComplete(),
+		// mpb.PrependDecorators(
+		// ),
+		mpb.AppendDecorators(
+			decor.OnComplete(decor.CurrentNoUnit("%d - ", decor.WCSyncSpace), ""),
+			decor.OnComplete(
+				decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
+				""),
+		),
+	)
+
+	ch := make(chan struct{})
+
+	go func(ci <-chan struct{}) {
+		for {
+			select {
+			case <-con.Done():
+				bar.SetTotal(-1, true)
+				return
+
+			case _, ok := <-ci:
+				if !ok {
+					bar.SetTotal(-1, true)
+					return
+				}
+
+				bar.Increment()
+			}
+		}
+	}(ch)
+
+	return ch, waitAndCloseBar(bar)
+}
+
+func waitAndCloseBar(bar *mpb.Bar) func() {
 	return func() {
 		bar.Wait()
 		wg.Done()

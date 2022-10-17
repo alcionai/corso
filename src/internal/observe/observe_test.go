@@ -24,7 +24,7 @@ func TestObserveProgressUnitSuite(t *testing.T) {
 	suite.Run(t, new(ObserveProgressUnitSuite))
 }
 
-func (suite *ObserveProgressUnitSuite) TestDoesThings() {
+func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -73,4 +73,37 @@ func (suite *ObserveProgressUnitSuite) TestDoesThings() {
 	// assert.Contains(t, recorded, "50%")
 	// assert.Contains(t, recorded, "75%")
 	assert.Equal(t, 4, i)
+}
+
+func (suite *ObserveProgressUnitSuite) TestCollectionProgress() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	t := suite.T()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		observe.Complete()
+		observe.SeedWriter(context.Background(), nil)
+	}()
+
+	progCh, closer := observe.CollectionProgress("test", "testertons")
+	require.NotNil(t, progCh)
+	require.NotNil(t, closer)
+
+	defer close(progCh)
+
+	for i := 0; i < 50; i++ {
+		progCh <- struct{}{}
+	}
+
+	cancel()
+
+	// blocks, but should resolve due to the cancel
+	closer()
 }

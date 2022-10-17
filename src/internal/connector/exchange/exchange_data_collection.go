@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -116,14 +117,15 @@ func (col *Collection) populateByOptionIdentifier(
 		errs       error
 		success    int
 		totalBytes int64
+
+		user         = col.user
+		objectWriter = kw.NewJsonSerializationWriter()
 	)
 
 	defer func() {
 		col.finishPopulation(ctx, success, totalBytes, errs)
 	}()
 
-	user := col.user
-	objectWriter := kw.NewJsonSerializationWriter()
 	// get QueryBasedonIdentifier
 	// verify that it is the correct type in called function
 	// serializationFunction
@@ -132,6 +134,10 @@ func (col *Collection) populateByOptionIdentifier(
 		errs = fmt.Errorf("unrecognized collection type: %s", col.collectionType.String())
 		return
 	}
+
+	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Folder())
+	defer closer()
+	defer close(colProgress)
 
 	for _, identifier := range col.jobs {
 		response, err := query(ctx, col.service, user, identifier)
@@ -159,6 +165,7 @@ func (col *Collection) populateByOptionIdentifier(
 		success++
 
 		totalBytes += int64(byteCount)
+		colProgress <- struct{}{}
 	}
 }
 
