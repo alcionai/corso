@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -27,12 +28,7 @@ var (
 	events   = path.EventsCategory
 )
 
-// TODO: bring back event restore testing when they no longer produce
-// notification emails.  Currently, the duplication causes our tests
-// dataset to grow until timeouts occur.
-// var backupDataSets = []path.CategoryType{email, contacts, events}
-
-var backupDataSets = []path.CategoryType{contacts, email}
+var backupDataSets = []path.CategoryType{email, contacts, events}
 
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
@@ -136,7 +132,7 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--backup", string(suite.backupOps[set].Results.BackupID))
+				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID))
 			cli.BuildCommandTree(cmd)
 
 			// run the command
@@ -160,15 +156,15 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 			var timeFilter string
 			switch set {
 			case email:
-				timeFilter = "--email-received-after"
+				timeFilter = "--" + utils.EmailReceivedAfterFN
 			case events:
-				timeFilter = "--event-starts-after"
+				timeFilter = "--" + utils.EventStartsAfterFN
 			}
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--backup", string(suite.backupOps[set].Results.BackupID),
+				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
 			cli.BuildCommandTree(cmd)
 
@@ -192,13 +188,13 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlag
 			var timeFilter string
 			switch set {
 			case events:
-				timeFilter = "--event-recurs"
+				timeFilter = "--" + utils.EventRecursFN
 			}
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--backup", string(suite.backupOps[set].Results.BackupID),
+				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)
 

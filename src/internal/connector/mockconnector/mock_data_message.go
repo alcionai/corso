@@ -22,22 +22,73 @@ const (
 		"\\nThanking you in adv"
 
 	// Order of fields to fill in:
-	//   1. message body
-	//   2. message preview
-	//   3. sender user ID
-	//   4. subject
-	messageTmpl = "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\"," +
-		"\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB2ZxqU\\\"\",\"categories\":[],\"changeKey\":\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB2ZxqU\",\"createdDateTime\":\"2022-09-26T23:15:50Z\",\"lastModifiedDateTime\":\"2022-09-26T23:15:51Z\",\"bccRecipients\":[],\"body\":{\"content\":\"<html><head>" +
-		"\\n<meta http-equiv=\\\"Content-Type\\\" content=\\\"text/html; charset=utf-8\\\"><style type=\\\"text/css\\\" style=\\\"display:none\\\">\\n<!--\\np\\n{margin-top:0;\\nmargin-bottom:0}\\n-->" +
-		"\\n</style></head><body dir=\\\"ltr\\\"><div class=\\\"elementToProof\\\" style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\">%s" +
-		"</div></body></html>\",\"contentType\":\"html\"}," +
-		"\"bodyPreview\":\"%s\"," +
-		"\"ccRecipients\":[],\"conversationId\":\"AAQkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAQAK5nNWRdNWpGpLp7Xpb-m7A=\",\"conversationIndex\":\"AQHY0f3Ermc1ZF01akakuntelv+bsA==\",\"flag\":{\"flagStatus\":\"notFlagged\"}," +
-		"\"from\":{\"emailAddress\":{\"address\":\"%s\",\"name\":\"A Stranger\"}},\"hasAttachments\":false,\"importance\":\"normal\",\"inferenceClassification\":\"focused\",\"internetMessageId\":\"<SJ0PR17MB562266A1E61A8EA12F5FB17BC3529@SJ0PR17MB5622.namprd17.prod.outlook.com>\"," +
-		"\"isDeliveryReceiptRequested\":false,\"isDraft\":false,\"isRead\":false,\"isReadReceiptRequested\":false,\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAAA=\",\"receivedDateTime\":\"2022-09-26T23:15:50Z\"," +
-		"\"replyTo\":[],\"sender\":{\"emailAddress\":{\"address\":\"foobar@8qzvrj.onmicrosoft.com\",\"name\":\"A Stranger\"}},\"sentDateTime\":\"2022-09-26T23:15:46Z\"," +
-		"\"subject\":\"%s\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"LidiaH@8qzvrj.onmicrosoft.com\",\"name\":\"Lidia Holloway\"}}]," +
-		"\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA%%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
+	//   1. created datetime
+	//   2. modified datetime
+	//   3. message body
+	//   4. message preview
+	//   5. sender user ID
+	//   6. received datetime
+	//   7. sender email
+	//   8. sent datetime
+	//   9. subject
+	//   10. recipient user addr
+	messageTmpl = `{
+		"id":"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA=",
+		"@odata.context":"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity",
+		"@odata.etag":"W/\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB2ZxqU\"",
+		"categories":[],
+		"changeKey":"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB2ZxqU",
+		"createdDateTime":"%s",
+		"lastModifiedDateTime":"%s",
+		"bccRecipients":[],
+		"body":{
+			"content":"<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\n<!--\np\n{margin-top:0;\nmargin-bottom:0}\n-->` +
+		`\n</style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">` +
+		`%s` +
+		`</div></body></html>",
+			"contentType":"html"
+		},
+		"bodyPreview":"%s",
+		"ccRecipients":[],
+		"conversationId":"AAQkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAQAK5nNWRdNWpGpLp7Xpb-m7A=",
+		"conversationIndex":"AQHY0f3Ermc1ZF01akakuntelv+bsA==",
+		"flag":{
+			"flagStatus":"notFlagged"},
+			"from":{
+				"emailAddress":{
+					"address":"%s",
+					"name":"A Stranger"
+				}
+			},
+		"hasAttachments":false,
+		"importance":"normal",
+		"inferenceClassification":"focused",
+		"internetMessageId":"<SJ0PR17MB562266A1E61A8EA12F5FB17BC3529@SJ0PR17MB5622.namprd17.prod.outlook.com>",
+		"isDeliveryReceiptRequested":false,
+		"isDraft":false,
+		"isRead":false,
+		"isReadReceiptRequested":false,
+		"parentFolderId":"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAAA=",
+		"receivedDateTime":"%s",
+		"replyTo":[],
+		"sender":{
+			"emailAddress":{
+				"address":"%s",
+				"name":"A Stranger"
+			}
+		},
+		"sentDateTime":"%s",
+		"subject":"%s",
+		"toRecipients":[
+			{
+				"emailAddress":{
+					"address":"%s",
+					"name":"A Stranger"
+				}
+			}
+		],
+		"webLink":"https://outlook.office365.com/owa/?ItemID=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA%%3D&exvsurl=1&viewmodel=ReadMessageItem"
+	}`
 
 	// Order of fields to fill in:
 	//   1. start/end date
@@ -62,7 +113,7 @@ const (
 		"\"type\":\"singleInstance\",\"webLink\":\"https://outlook.office365.com/owa/?itemid=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA%%3D&exvsurl=1&path=/calendar/item\"}"
 )
 
-// GetMockMessageBytes returns bytes for Messageable item.
+// GetMockMessageBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 func GetMockMessageBytes(subject string) []byte {
 	userID := "foobar@8qzvrj.onmicrosoft.com"
@@ -70,15 +121,23 @@ func GetMockMessageBytes(subject string) []byte {
 
 	message := fmt.Sprintf(
 		messageTmpl,
+		"2022-09-26T23:15:50Z", // created
+		"2022-09-26T23:15:51Z", // modified
 		defaultMessageBody,
 		defaultMessagePreview,
 		userID,
+		"2022-09-26T23:15:50Z",
+		"foobar@8qzvrj.onmicrosoft.com",
+		"2022-09-26T23:15:46Z",
 		"TPS Report "+subject+timestamp,
-	)
+		"LidiaH@8qzvrj.onmicrosoft.com")
 
 	return []byte(message)
 }
 
+// GetMockMessageBytes returns bytes for a Messageable item.
+// Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
+// Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
 func GetMockMessageWithBodyBytes(subject, body string) []byte {
 	userID := "foobar@8qzvrj.onmicrosoft.com"
 	preview := body
@@ -89,11 +148,47 @@ func GetMockMessageWithBodyBytes(subject, body string) []byte {
 
 	message := fmt.Sprintf(
 		messageTmpl,
+		"2022-09-26T23:15:50Z", // created
+		"2022-09-26T23:15:51Z", // modified
 		body,
 		preview,
 		userID,
+		"2022-09-26T23:15:50Z",
+		"foobar@8qzvrj.onmicrosoft.com",
+		"2022-09-26T23:15:46Z",
 		subject,
-	)
+		"LidiaH@8qzvrj.onmicrosoft.com")
+
+	return []byte(message)
+}
+
+// GetMockMessageBytes returns bytes for a Messageable item.
+// Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
+// created, modified, sent, and received should be in the format 2006-01-02T15:04:05Z
+// Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
+func GetMockMessageWith(
+	to, from, sender, // user PNs
+	subject, body, // arbitrary data
+	created, modified, sent, received string, // legacy datetimes
+) []byte {
+	preview := body
+
+	if len(preview) > 255 {
+		preview = preview[:256]
+	}
+
+	message := fmt.Sprintf(
+		messageTmpl,
+		created,
+		modified,
+		body,
+		preview,
+		from,
+		received,
+		sender,
+		sent,
+		subject,
+		to)
 
 	return []byte(message)
 }
