@@ -419,7 +419,11 @@ func MaybeGetAndPopulateFolderResolver(
 		return nil, nil
 	}
 
+<<<<<<< HEAD
 	if err := res.Populate(ctx, cacheRoot); err != nil {
+=======
+	if err := res.Populate(ctx, ""); err != nil {
+>>>>>>> 829e7ab (Populate abstraction updated.)
 		return nil, errors.Wrap(err, "populating directory resolver")
 	}
 
