@@ -208,7 +208,6 @@ func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
 
 	return "", false
 }
-<<<<<<< HEAD
 
 func (mc *mailFolderCache) Items() []graph.CachedContainer {
 	res := make([]graph.CachedContainer, 0, len(mc.cache))
@@ -219,5 +218,3 @@ func (mc *mailFolderCache) Items() []graph.CachedContainer {
 
 	return res
 }
-=======
->>>>>>> 3a4d8cf (PR Suggestion: Removal of pathStringBuilder from mail_folder_cache.go)

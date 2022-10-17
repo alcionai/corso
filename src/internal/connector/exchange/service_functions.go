@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -261,35 +260,6 @@ func GetAllContactFolders(
 	return containers, err
 }
 
-// SetupExchangeCollectionVars is a helper function returns a sets
-// Exchange.Type specific functions based on scope
-func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
-	absser.ParsableFactory,
-	GraphQuery,
-	GraphIterateFunc,
-	error,
-) {
-	if scope.IncludesCategory(selectors.ExchangeMail) {
-		return nil, nil, nil, errors.New("mail no longer supported this way")
-	}
-
-	if scope.IncludesCategory(selectors.ExchangeContact) {
-		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-			GetAllContactFolderNamesForUser,
-			IterateSelectAllContactsForCollections,
-			nil
-	}
-
-	if scope.IncludesCategory(selectors.ExchangeEvent) {
-		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-			GetAllCalendarNamesForUser,
-			IterateSelectAllEventsFromCalendars,
-			nil
-	}
-
-	return nil, nil, nil, errors.New("exchange scope option not supported")
-}
-
 // MaybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
 // this category of data. If one is not available, returns nil so that other
 // logic in the caller can complete as long as they check if the resolver is not
@@ -340,72 +310,6 @@ func PopulateExchangeContainerResolver(
 	}
 
 	return res, nil
-}
-
-func resolveCollectionPath(
-	ctx context.Context,
-	resolver graph.ContainerResolver,
-	tenantID, user, folderID string,
-	category path.CategoryType,
-) (path.Path, error) {
-	if resolver == nil {
-		// Allows caller to default to old-style path.
-		return nil, errors.WithStack(errNilResolver)
-	}
-
-	p, err := resolver.IDToPath(ctx, folderID)
-	if err != nil {
-		return nil, errors.Wrap(err, "resolving folder ID")
-	}
-
-	return p.ToDataLayerExchangePathForCategory(
-		tenantID,
-		user,
-		category,
-		false,
-	)
-}
-
-func getCollectionPath(
-	ctx context.Context,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-	directory string,
-	category path.CategoryType,
-) (path.Path, error) {
-	returnPath, err := resolveCollectionPath(
-		ctx,
-		resolver,
-		qp.Credentials.TenantID,
-		qp.User,
-		directory,
-		category,
-	)
-	if err == nil {
-		return returnPath, nil
-	}
-
-	aPath, err1 := path.Builder{}.Append(directory).
-		ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-	if err1 == nil {
-		return aPath, nil
-	}
-
-	return nil,
-		support.WrapAndAppend(
-			fmt.Sprintf(
-				"both path generate functions failed for %s:%s:%s",
-				qp.User,
-				category,
-				directory),
-			err,
-			err1,
-		)
 }
 
 func AddItemsToCollection(
