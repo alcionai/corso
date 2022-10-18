@@ -2,13 +2,12 @@ package print
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type PrintUnitSuite struct {
@@ -20,10 +19,10 @@ func TestPrintUnitSuite(t *testing.T) {
 }
 
 func (suite *PrintUnitSuite) TestOnly() {
-	ctx := tester.NewContext()
 	t := suite.T()
 	c := &cobra.Command{}
-	ctx = SetRootCmd(ctx, c)
+	// cannot use tester.NewContext() here: circular imports
+	ctx := SetRootCmd(context.Background(), c)
 	assert.NoError(t, Only(ctx, nil))
 	assert.True(t, c.SilenceUsage)
 }

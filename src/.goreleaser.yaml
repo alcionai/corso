@@ -1,0 +1,35 @@
+builds:
+  # https://goreleaser.com/customization/build/#builds
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch: # other options: 386, arm
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+          - -X 'github.com/alcionai/corso/src/cli.version={{.Env.CORSO_VERSION}}'
+          - -X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey={{.Env.RUDDERSTACK_CORSO_WRITE_KEY}}'
+          - -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL={{.Env.RUDDERSTACK_CORSO_DATA_PLANE_URL}}'
+
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj

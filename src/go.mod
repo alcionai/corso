@@ -22,12 +22,15 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/tidwall/pretty v1.2.0
 	github.com/tomlazar/table v0.1.2
+	github.com/vbauerster/mpb/v8 v8.1.2
 	go.uber.org/zap v1.23.0
 	golang.org/x/tools v0.1.12
 	gopkg.in/resty.v1 v1.12.0
 )
 
 require (
+	github.com/VividCortex/ewma v1.2.0 // indirect
+	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
@@ -70,7 +73,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
-	github.com/mattn/go-runewidth v0.0.13 // indirect
+	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/microsoft/kiota-serialization-text-go v0.6.0 // indirect

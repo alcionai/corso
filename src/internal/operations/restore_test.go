@@ -37,8 +37,10 @@ func TestRestoreOpSuite(t *testing.T) {
 }
 
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	var (
-		ctx  = context.Background()
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		acct = account.Account{}
@@ -142,11 +144,13 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *RestoreOpIntegrationSuite) SetupSuite() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
 
 	t := suite.T()
-	ctx := context.Background()
 
 	m365UserID := tester.M365UserID(t)
 	acct := tester.NewM365Account(t)
@@ -175,7 +179,11 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	suite.sw = sw
 
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
+	bsel.Include(
+		bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}),
+		bsel.ContactFolders([]string{m365UserID}, []string{exchange.DefaultContactFolder}),
+		bsel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}),
+	)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -194,7 +202,9 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	if suite.ms != nil {
 		suite.ms.Close(ctx)
 	}
@@ -229,8 +239,11 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			_, err := NewRestoreOperation(
-				context.Background(),
+				ctx,
 				test.opts,
 				test.kw,
 				test.sw,
@@ -245,8 +258,10 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
@@ -285,8 +300,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 
 	rsel := selectors.NewExchangeRestore()
 	rsel.Include(rsel.Users(selectors.None()))

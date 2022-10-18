@@ -6,11 +6,14 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
-	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
+	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
+	mscontactfolderchild "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
+	mscontactfolderitemcontact "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item"
+	msmfmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 	"github.com/pkg/errors"
@@ -136,6 +139,22 @@ func scopeToOptionIdentifier(selector selectors.ExchangeScope) optionIdentifier 
 // which reduces the overall latency of complex calls
 //----------------------------------------------------------------
 
+func optionsForFolderMessages(moreOps []string) (*msmfmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, messages)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &msmfmessage.MessagesRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &msmfmessage.MessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
 // optionsForMessages - used to select allowable options for exchange.Mail types
 // @param moreOps is []string of options(e.g. "parentFolderId, subject")
 // @return is first call in Messages().GetWithRequestConfigurationAndResponseHandler
@@ -217,6 +236,25 @@ func optionsForContactFolders(moreOps []string) (
 	return options, nil
 }
 
+func optionsForContactFolderByID(moreOps []string) (
+	*mscontactfolderitem.ContactFolderItemRequestBuilderGetRequestConfiguration,
+	error,
+) {
+	selecting, err := buildOptions(moreOps, folders)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &mscontactfolderitem.ContactFolderItemRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontactfolderitem.ContactFolderItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
 // optionsForMailFolders transforms the options into a more dynamic call for MailFolders.
 // @param moreOps is a []string of options(e.g. "displayName", "isHidden")
 // @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
@@ -261,16 +299,16 @@ func optionsForMailFoldersItem(
 // TODO: Remove after Issue #828; requires updating msgraph to v0.34
 func optionsForContactFoldersItem(
 	moreOps []string,
-) (*mscontactfolderitem.ContactsRequestBuilderGetRequestConfiguration, error) {
+) (*mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &mscontactfolderitem.ContactsRequestBuilderGetQueryParameters{
+	requestParameters := &mscontactfolderitemcontact.ContactsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &mscontactfolderitem.ContactsRequestBuilderGetRequestConfiguration{
+	options := &mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -289,6 +327,25 @@ func optionsForEvents(moreOps []string) (*msevents.EventsRequestBuilderGetReques
 		Select: selecting,
 	}
 	options := &msevents.EventsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
+// optionsForContactChildFolders builds a contacts child folders request.
+func optionsForContactChildFolders(
+	moreOps []string,
+) (*mscontactfolderchild.ChildFoldersRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, contacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &mscontactfolderchild.ChildFoldersRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscontactfolderchild.ChildFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 

@@ -1,7 +1,6 @@
 package selectors_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -23,7 +23,9 @@ func TestSelectorReduceSuite(t *testing.T) {
 }
 
 func (suite *SelectorReduceSuite) TestReduce() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	allDetails := testdata.GetDetailsSet()
 	table := []struct {
 		name     string
@@ -90,7 +92,10 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: testdata.ExchangeEmailItems,
+			expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[0],
+				testdata.ExchangeEmailItems[1],
+			},
 		},
 		{
 			name: "ExchangeMailReceivedTime",
@@ -184,6 +189,23 @@ func (suite *SelectorReduceSuite) TestReduce() {
 				sel.Include(sel.MailFolders(
 					selectors.Any(),
 					[]string{testdata.ExchangeEmailBasePath.Folder()},
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+		},
+		// TODO (keepers): all folders are treated as prefix-matches at this time.
+		// so this test actually does nothing different.  In the future, we'll
+		// need to amend the non-prefix folder tests to expect non-prefix matches.
+		{
+			name: "ExchangeMailByFolderPrefix",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.MailFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailBasePath.Folder()},
+					selectors.PrefixMatch(), // force prefix matching
 				))
 
 				return sel

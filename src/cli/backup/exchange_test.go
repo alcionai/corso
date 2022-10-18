@@ -1,7 +1,6 @@
 package backup
 
 import (
-	"context"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -215,7 +214,8 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 }
 
 func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	for _, test := range testdata.ExchangeOptionDetailLookups {
 		suite.T().Run(test.Name, func(t *testing.T) {
@@ -234,8 +234,10 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 
 func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadBackupID() {
 	t := suite.T()
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
 	backupGetter := &testdata.MockBackupGetter{}
+
+	defer flush()
 
 	output, err := runDetailsExchangeCmd(
 		ctx,
@@ -248,21 +250,21 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadBackupID() {
 	assert.Empty(t, output)
 }
 
-// TODO(ashmrtn): Uncomment these when the CLI validates flag input values.
-//func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
-//	ctx := context.Background()
-//
-//	for _, test := range testdata.BadExchangeOptionsFormats {
-//		suite.T().Run(test.Name, func(t *testing.T) {
-//			output, err := runDetailsExchangeCmd(
-//				ctx,
-//				test.BackupGetter,
-//				"backup-ID",
-//				test.Opts,
-//			)
-//			assert.Error(t, err)
-//
-//			assert.Empty(t, output)
-//		})
-//	}
-//}
+func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	for _, test := range testdata.BadExchangeOptionsFormats {
+		suite.T().Run(test.Name, func(t *testing.T) {
+			output, err := runDetailsExchangeCmd(
+				ctx,
+				test.BackupGetter,
+				"backup-ID",
+				test.Opts,
+			)
+
+			assert.Error(t, err)
+			assert.Empty(t, output)
+		})
+	}
+}

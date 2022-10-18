@@ -8,6 +8,7 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"github.com/hashicorp/go-multierror"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -22,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -75,7 +77,7 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 	}
 
 	gc := GraphConnector{
-		tenant:      m365.TenantID,
+		tenant:      m365.AzureTenantID,
 		Users:       make(map[string]string, 0),
 		wg:          &sync.WaitGroup{},
 		credentials: m365,
@@ -99,9 +101,9 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 // createService constructor for graphService component
 func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
 	adapter, err := graph.CreateAdapter(
-		gc.credentials.TenantID,
-		gc.credentials.ClientID,
-		gc.credentials.ClientSecret,
+		gc.credentials.AzureTenantID,
+		gc.credentials.AzureClientID,
+		gc.credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -272,35 +274,81 @@ func (gc *GraphConnector) RestoreDataCollections(
 	return deets, err
 }
 
-// createCollection - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.ExchangeScope
-// determines the type of collections that are stored.
-// to the GraphConnector struct.
-func (gc *GraphConnector) createCollections(
+func scopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
+	if scope.IncludesCategory(selectors.ExchangeMail) {
+		return path.EmailCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeContact) {
+		return path.ContactsCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeEvent) {
+		return path.EventsCategory
+	}
+
+	return path.UnknownCategory
+}
+
+func (gc *GraphConnector) fetchItemsByFolder(
+	ctx context.Context,
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+) (map[string]*exchange.Collection, error) {
+	var errs *multierror.Error
+
+	collections := map[string]*exchange.Collection{}
+	// This gets the collections, but does not get the items in the
+	// collection.
+	err := exchange.CollectionsFromResolver(
+		ctx,
+		qp,
+		resolver,
+		gc.UpdateStatus,
+		collections,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting target collections")
+	}
+
+	for id, col := range collections {
+		// Fetch items for said collection.
+		err := exchange.AddItemsToCollection(ctx, gc.Service(), qp.User, id, col)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"fetching items for collection %s with ID %s",
+				col.FullPath().String(),
+				id,
+			))
+		}
+	}
+
+	return collections, errs.ErrorOrNil()
+}
+
+func (gc *GraphConnector) legacyFetchItems(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
-) ([]*exchange.Collection, error) {
+	qp graph.QueryParams,
+	resolver graph.ContainerResolver,
+) (map[string]*exchange.Collection, error) {
 	var (
-		errs                           error
-		transformer, query, gIter, err = exchange.SetupExchangeCollectionVars(scope)
+		errs       error
+		errUpdater = func(id string, err error) {
+			errs = support.WrapAndAppend(id, err, errs)
+		}
+		collections = map[string]*exchange.Collection{}
 	)
 
+	transformer, queries, gIter, err := exchange.SetupExchangeCollectionVars(scope)
 	if err != nil {
 		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
 	}
 
-	users := scope.Get(selectors.ExchangeUser)
-	allCollections := make([]*exchange.Collection, 0)
-	// Create collection of ExchangeDataCollection
-	for _, user := range users {
-		qp := graph.QueryParams{
-			User:        user,
-			Scope:       scope,
-			FailFast:    gc.failFast,
-			Credentials: gc.credentials,
-		}
-		collections := make(map[string]*exchange.Collection)
-
+	// queries is assumed to provide fallbacks in case of empty results.  Any
+	// non-zero collection production will break out of the loop.
+	for _, query := range queries {
 		response, err := query(ctx, &gc.graphService, qp.User)
 		if err != nil {
 			return nil, errors.Wrapf(
@@ -314,22 +362,71 @@ func (gc *GraphConnector) createCollections(
 			return nil, err
 		}
 
-		errUpdater := func(id string, err error) {
-			errs = support.WrapAndAppend(id, err, errs)
-		}
-
 		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
 		// with corresponding item M365IDs. New collections are created for each directory.
 		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus)
-		iterateError := pageIterator.Iterate(ctx, callbackFunc)
+		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus, resolver)
 
-		if iterateError != nil {
-			errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
+		if err := pageIterator.Iterate(ctx, callbackFunc); err != nil {
+			return nil, support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), err, errs)
 		}
 
-		if errs != nil {
-			return nil, errs // return error if snapshot is incomplete
+		if len(collections) > 0 {
+			break
+		}
+	}
+
+	return collections, errs
+}
+
+// createCollection - utility function that retrieves M365
+// IDs through Microsoft Graph API. The selectors.ExchangeScope
+// determines the type of collections that are stored.
+// to the GraphConnector struct.
+func (gc *GraphConnector) createCollections(
+	ctx context.Context,
+	scope selectors.ExchangeScope,
+) ([]*exchange.Collection, error) {
+	var errs *multierror.Error
+
+	users := scope.Get(selectors.ExchangeUser)
+	allCollections := make([]*exchange.Collection, 0)
+	// Create collection of ExchangeDataCollection
+	for _, user := range users {
+		var collections map[string]*exchange.Collection
+
+		qp := graph.QueryParams{
+			User:        user,
+			Scope:       scope,
+			FailFast:    gc.failFast,
+			Credentials: gc.credentials,
+		}
+
+		// Currently only mail has a folder cache implemented.
+		resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
+			ctx,
+			qp,
+			scopeToPathCategory(scope),
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting folder cache")
+		}
+
+		if scopeToPathCategory(scope) == path.EmailCategory {
+			if resolver == nil {
+				return nil, errors.New("unable to create mail folder resolver")
+			}
+
+			collections, err = gc.fetchItemsByFolder(ctx, qp, resolver)
+			if err != nil {
+				errs = multierror.Append(errs, err)
+			}
+		} else {
+			collections, err = gc.legacyFetchItems(ctx, scope, qp, resolver)
+			// Preserving previous behavior.
+			if err != nil {
+				return nil, err // return error if snapshot is incomplete
+			}
 		}
 
 		for _, collection := range collections {
@@ -339,7 +436,7 @@ func (gc *GraphConnector) createCollections(
 		}
 	}
 
-	return allCollections, errs
+	return allCollections, errs.ErrorOrNil()
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
@@ -429,8 +526,9 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
 			odcs, err := onedrive.NewCollections(
-				gc.credentials.TenantID,
+				gc.credentials.AzureTenantID,
 				user,
+				scope,
 				&gc.graphService,
 				gc.UpdateStatus,
 			).Get(ctx)

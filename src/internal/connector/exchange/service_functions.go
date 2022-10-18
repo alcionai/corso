@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -47,9 +48,9 @@ func (es *exchangeService) ErrPolicy() bool {
 // NOTE: Incorrect account information will result in errors on subsequent queries.
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
-		credentials.TenantID,
-		credentials.ClientID,
-		credentials.ClientSecret,
+		credentials.AzureTenantID,
+		credentials.AzureClientID,
+		credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -184,10 +185,14 @@ func GetAllMailFolders(
 // GetAllCalendars retrieves all event calendars for the specified user.
 // If nameContains is populated, only returns calendars matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains string) ([]CalendarDisplayable, error) {
+func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains string) ([]graph.Container, error) {
 	var (
-		cs  = []CalendarDisplayable{}
-		err error
+		cs         = make(map[string]graph.Container)
+		containers = make([]graph.Container, 0)
+		err, errs  error
+		errUpdater = func(s string, e error) {
+			errs = support.WrapAndAppend(s, e, errs)
+		}
 	)
 
 	resp, err := GetAllCalendarNamesForUser(ctx, gs, user)
@@ -201,40 +206,43 @@ func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains s
 		return nil, err
 	}
 
-	cb := func(item any) bool {
-		cal, ok := item.(models.Calendarable)
-		if !ok {
-			err = errors.New("casting item to models.Calendarable")
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*cal.GetName(), nameContains))
-		if include {
-			cs = append(cs, *CreateCalendarDisplayable(cal))
-		}
-
-		return true
-	}
+	cb := IterativeCollectCalendarContainers(
+		cs,
+		nameContains,
+		errUpdater,
+	)
 
 	if err := iter.Iterate(ctx, cb); err != nil {
 		return nil, err
 	}
 
-	return cs, err
+	if errs != nil {
+		return nil, errs
+	}
+
+	for _, calendar := range cs {
+		containers = append(containers, calendar)
+	}
+
+	return containers, err
 }
 
-// GetAllContactFolders retrieves all contacts folders for the specified user.
-// If nameContains is populated, only returns folders matching that property.
-// Returns a slice of {ID, DisplayName} tuples.
+// GetAllContactFolders retrieves all contacts folders with a unique display
+// name for the specified user. If multiple folders have the same display name
+// the result is undefined. TODO: Replace with Cache Usage
+// https://github.com/alcionai/corso/issues/1122
 func GetAllContactFolders(
 	ctx context.Context,
 	gs graph.Service,
 	user, nameContains string,
-) ([]models.ContactFolderable, error) {
+) ([]graph.Container, error) {
 	var (
-		cs  = []models.ContactFolderable{}
-		err error
+		cs         = make(map[string]graph.Container)
+		containers = make([]graph.Container, 0)
+		err, errs  error
+		errUpdater = func(s string, e error) {
+			errs = support.WrapAndAppend(s, e, errs)
+		}
 	)
 
 	resp, err := GetAllContactFolderNamesForUser(ctx, gs, user)
@@ -248,135 +256,45 @@ func GetAllContactFolders(
 		return nil, err
 	}
 
-	cb := func(item any) bool {
-		folder, ok := item.(models.ContactFolderable)
-		if !ok {
-			err = errors.New("casting item to models.ContactFolderable")
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
-		if include {
-			cs = append(cs, folder)
-		}
-
-		return true
-	}
+	cb := IterativeCollectContactContainers(
+		cs, nameContains, errUpdater,
+	)
 
 	if err := iter.Iterate(ctx, cb); err != nil {
 		return nil, err
 	}
 
-	return cs, err
-}
-
-// GetContainerID query function to retrieve a container's M365 ID.
-// @param containerName is the target's name, user-readable and case sensitive
-// @param category switches query and iteration to support  multiple exchange applications
-// @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetContainerID(
-	ctx context.Context,
-	service graph.Service,
-	containerName,
-	user string,
-	category optionIdentifier,
-) (*string, error) {
-	var (
-		errs       error
-		targetID   *string
-		query      GraphQuery
-		transform  absser.ParsableFactory
-		isCalendar bool
-		errUpdater = func(id string, err error) {
-			errs = support.WrapAndAppend(id, err, errs)
-		}
-	)
-
-	switch category {
-	case messages:
-		query = GetAllFolderNamesForUser
-		transform = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
-	case contacts:
-		query = GetAllContactFolderNamesForUser
-		transform = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
-	case events:
-		query = GetAllCalendarNamesForUser
-		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
-		isCalendar = true
-	default:
-		return nil, fmt.Errorf("unsupported category %s for GetContainerID()", category)
+	for _, entry := range cs {
+		containers = append(containers, entry)
 	}
 
-	response, err := query(ctx, service, user)
-	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"user %s M365 query: %s",
-			user, support.ConnectorStackErrorTrace(err),
-		)
-	}
-
-	pageIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		service.Adapter(),
-		transform,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	callbackFunc := iterateFindContainerID(
-		&targetID,
-		containerName,
-		service.Adapter().GetBaseUrl(),
-		isCalendar,
-		errUpdater,
-	)
-
-	if err := pageIterator.Iterate(ctx, callbackFunc); err != nil {
-		return nil, support.WrapAndAppend(service.Adapter().GetBaseUrl(), err, errs)
-	}
-
-	if targetID == nil {
-		return nil, ErrFolderNotFound
-	}
-
-	return targetID, errs
+	return containers, err
 }
 
 // SetupExchangeCollectionVars is a helper function returns a sets
-// Exchange.Type specific functions based on scope
+// Exchange.Type specific functions based on scope.
+// The []GraphQuery slice provides fallback queries in the event that
+// initial queries provide zero results.
 func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
-	GraphQuery,
+	[]GraphQuery,
 	GraphIterateFunc,
 	error,
 ) {
 	if scope.IncludesCategory(selectors.ExchangeMail) {
-		if scope.IsAny(selectors.ExchangeMailFolder) {
-			return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-				GetAllMessagesForUser,
-				IterateSelectAllDescendablesForCollections,
-				nil
-		}
-
-		return models.CreateMessageCollectionResponseFromDiscriminatorValue,
-			GetAllMessagesForUser,
-			IterateAndFilterDescendablesForCollections,
-			nil
+		return nil, nil, nil, errors.New("mail no longer supported this way")
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
 		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-			GetAllContactFolderNamesForUser,
+			[]GraphQuery{GetAllContactFolderNamesForUser, GetDefaultContactFolderForUser},
 			IterateSelectAllContactsForCollections,
 			nil
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-			GetAllCalendarNamesForUser,
+			[]GraphQuery{GetAllCalendarNamesForUser},
 			IterateSelectAllEventsFromCalendars,
 			nil
 	}
@@ -384,34 +302,52 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	return nil, nil, nil, errors.New("exchange scope option not supported")
 }
 
-// maybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
+// MaybeGetAndPopulateFolderResolver gets a folder resolver if one is available for
 // this category of data. If one is not available, returns nil so that other
 // logic in the caller can complete as long as they check if the resolver is not
 // nil. If an error occurs populating the resolver, returns an error.
-func maybeGetAndPopulateFolderResolver(
+func MaybeGetAndPopulateFolderResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
 	category path.CategoryType,
 ) (graph.ContainerResolver, error) {
-	var res graph.ContainerResolver
+	var (
+		res          graph.ContainerResolver
+		cacheRoot    string
+		service, err = createService(qp.Credentials, qp.FailFast)
+	)
+
+	if err != nil {
+		return nil, err
+	}
 
 	switch category {
 	case path.EmailCategory:
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			return nil, err
-		}
-
 		res = &mailFolderCache{
 			userID: qp.User,
 			gs:     service,
 		}
+		cacheRoot = rootFolderAlias
+
+	case path.ContactsCategory:
+		res = &contactFolderCache{
+			userID: qp.User,
+			gs:     service,
+		}
+		cacheRoot = DefaultContactFolder
+
+	case path.EventsCategory:
+		res = &eventCalendarCache{
+			userID: qp.User,
+			gs:     service,
+		}
+		cacheRoot = DefaultCalendar
 
 	default:
 		return nil, nil
 	}
 
-	if err := res.Populate(ctx, rootFolderAlias); err != nil {
+	if err := res.Populate(ctx, cacheRoot); err != nil {
 		return nil, errors.Wrap(err, "populating directory resolver")
 	}
 
@@ -452,7 +388,7 @@ func getCollectionPath(
 	returnPath, err := resolveCollectionPath(
 		ctx,
 		resolver,
-		qp.Credentials.TenantID,
+		qp.Credentials.AzureTenantID,
 		qp.User,
 		directory,
 		category,
@@ -463,7 +399,7 @@ func getCollectionPath(
 
 	aPath, err1 := path.Builder{}.Append(directory).
 		ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
+			qp.Credentials.AzureTenantID,
 			qp.User,
 			category,
 			false,
@@ -482,4 +418,78 @@ func getCollectionPath(
 			err,
 			err1,
 		)
+}
+
+func AddItemsToCollection(
+	ctx context.Context,
+	gs graph.Service,
+	userID string,
+	folderID string,
+	collection *Collection,
+) error {
+	// TODO(ashmrtn): This can be removed when:
+	//   1. other data types have caching support
+	//   2. we have a good way to switch between the query for items for each data
+	//      type.
+	//   3. the below is updated to handle different data categories
+	//
+	// The alternative would be to eventually just have collections fetch items as
+	// they are read. This would allow for streaming all items instead of pulling
+	// the IDs and then later fetching all the item data.
+	if collection.FullPath().Category() != path.EmailCategory {
+		return errors.Errorf(
+			"unsupported data type %s",
+			collection.FullPath().Category().String(),
+		)
+	}
+
+	options, err := optionsForFolderMessages([]string{"id"})
+	if err != nil {
+		return errors.Wrap(err, "getting query options")
+	}
+
+	messageResp, err := gs.Client().UsersById(userID).MailFoldersById(folderID).Messages().Get(ctx, options)
+	if err != nil {
+		return errors.Wrap(
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+			"initial folder query",
+		)
+	}
+
+	pageIter, err := msgraphgocore.NewPageIterator(
+		messageResp,
+		gs.Adapter(),
+		models.CreateMessageCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return errors.Wrap(err, "creating graph iterator")
+	}
+
+	var errs *multierror.Error
+
+	err = pageIter.Iterate(ctx, func(got any) bool {
+		item, ok := got.(graph.Idable)
+		if !ok {
+			errs = multierror.Append(errs, errors.New("item without ID function"))
+			return true
+		}
+
+		if item.GetId() == nil {
+			errs = multierror.Append(errs, errors.New("item with nil ID"))
+			return true
+		}
+
+		collection.AddJob(*item.GetId())
+
+		return true
+	})
+
+	if err != nil {
+		errs = multierror.Append(errs, errors.Wrap(
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+			"getting folder messages",
+		))
+	}
+
+	return errs.ErrorOrNil()
 }

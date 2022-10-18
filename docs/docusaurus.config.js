@@ -9,7 +9,7 @@ const config = {
   title: 'Corso Documentation',
   tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
   url: 'https://corsobackup.io',
-  baseUrl: '/',
+  baseUrl: process.env.CORSO_DOCS_BASEURL || '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
   favicon: 'img/corso_logo.svg',
@@ -53,6 +53,16 @@ const config = {
           customCss: require.resolve('./src/css/custom.scss'),
         },
       }),
+    ],
+  ],
+
+  themes: [
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        hashed: true,
+        docsRouteBasePath: '/',
+      },
     ],
   ],
 

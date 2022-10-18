@@ -19,18 +19,6 @@ import (
 // TODO: use selector or path for granularity into specific folders or specific date ranges
 type GraphQuery func(ctx context.Context, gs graph.Service, userID string) (absser.Parsable, error)
 
-// GetAllMessagesForUser is a GraphQuery function for receiving all messages for a single user
-func GetAllMessagesForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
-	selecting := []string{"id", "parentFolderId"}
-
-	options, err := optionsForMessages(selecting)
-	if err != nil {
-		return nil, err
-	}
-
-	return gs.Client().UsersById(user).Messages().Get(ctx, options)
-}
-
 // GetAllContactsForUser is a GraphQuery function for querying all the contacts in a user's account
 func GetAllContactsForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
 	selecting := []string{"parentFolderId"}
@@ -63,9 +51,25 @@ func GetAllCalendarNamesForUser(ctx context.Context, gs graph.Service, user stri
 	return gs.Client().UsersById(user).Calendars().Get(ctx, options)
 }
 
+// GetDefaultContactFolderForUser is a GraphQuery function for getting the ContactFolderId
+// and display names for the default "Contacts" folder.
+// Only returns the default Contact Folder
+func GetDefaultContactFolderForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
+	options, err := optionsForContactChildFolders([]string{"displayName", "parentFolderId"})
+	if err != nil {
+		return nil, err
+	}
+
+	return gs.Client().
+		UsersById(user).
+		ContactFoldersById(rootFolderAlias).
+		ChildFolders().
+		Get(ctx, options)
+}
+
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting ContactFolderId
 // and display names for contacts. All other information is omitted.
-// Does not return the primary Contact Folder
+// Does not return the default Contact Folder
 func GetAllContactFolderNamesForUser(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
 	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
 	if err != nil {
@@ -124,11 +128,16 @@ func RetrieveMessageDataForUser(ctx context.Context, gs graph.Service, user, m36
 
 // CollectFolders is a utility function for creating Collections based off parameters found
 // in the ExchangeScope found in the graph.QueryParams
+// TODO(ashmrtn): This may not need to do the query if we decide the cache
+// should always:
+//   1. be passed in
+//   2. be populated with all folders for the user
 func CollectFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
+	resolver graph.ContainerResolver,
 ) error {
 	var (
 		query             GraphQuery
@@ -187,6 +196,7 @@ func CollectFolders(
 		errUpdater,
 		collections,
 		statusUpdater,
+		resolver,
 	)
 
 	iterateFailure := pageIterator.Iterate(ctx, callbackFunc)

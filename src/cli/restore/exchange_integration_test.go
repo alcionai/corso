@@ -1,6 +1,7 @@
 package restore_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -9,12 +10,12 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -27,12 +28,7 @@ var (
 	events   = path.EventsCategory
 )
 
-// TODO: bring back event restore testing when they no longer produce
-// notification emails.  Currently, the duplication causes our tests
-// dataset to grow until timeouts occur.
-// var backupDataSets = []path.CategoryType{email, contacts, events}
-
-var backupDataSets = []path.CategoryType{contacts, email}
+var backupDataSets = []path.CategoryType{email, contacts, events}
 
 type RestoreExchangeIntegrationSuite struct {
 	suite.Suite
@@ -59,6 +55,10 @@ func TestRestoreExchangeIntegrationSuite(t *testing.T) {
 
 func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	_, err := tester.GetRequiredEnvSls(
 		tester.AWSStorageCredEnvs,
 		tester.M365AcctCredEnvs,
@@ -80,7 +80,6 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
 	require.NoError(t, err)
 
-	ctx := config.SetViper(tester.NewContext(), suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
@@ -125,14 +124,15 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	for _, set := range backupDataSets {
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
-			ctx, _ = logger.SeedLevel(ctx, logger.Development)
-			defer logger.Flush(ctx)
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+
+			defer flush()
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--backup", string(suite.backupOps[set].Results.BackupID))
+				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID))
 			cli.BuildCommandTree(cmd)
 
 			// run the command
@@ -148,23 +148,54 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 		}
 
 		suite.T().Run(set.String(), func(t *testing.T) {
-			ctx := config.SetViper(tester.NewContext(), suite.vpr)
-			ctx, _ = logger.SeedLevel(ctx, logger.Development)
-			defer logger.Flush(ctx)
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+
+			defer flush()
 
 			var timeFilter string
 			switch set {
 			case email:
-				timeFilter = "--email-received-after"
+				timeFilter = "--" + utils.EmailReceivedAfterFN
 			case events:
-				timeFilter = "--event-starts-after"
+				timeFilter = "--" + utils.EventStartsAfterFN
 			}
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--backup", string(suite.backupOps[set].Results.BackupID),
+				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
+			cli.BuildCommandTree(cmd)
+
+			// run the command
+			require.Error(t, cmd.ExecuteContext(ctx))
+		})
+	}
+}
+
+func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlags() {
+	for _, set := range backupDataSets {
+		if set != events {
+			suite.T().Skip()
+		}
+
+		suite.T().Run(set.String(), func(t *testing.T) {
+			ctx := config.SetViper(context.Background(), suite.vpr)
+			ctx, flush := tester.WithContext(ctx)
+			defer flush()
+
+			var timeFilter string
+			switch set {
+			case events:
+				timeFilter = "--" + utils.EventRecursFN
+			}
+
+			cmd := tester.StubRootCmd(
+				"restore", "exchange",
+				"--config-file", suite.cfgFP,
+				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
+				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)
 
 			// run the command

@@ -156,6 +156,12 @@ type colInfo struct {
 	items        []itemInfo
 }
 
+type restoreBackupInfo struct {
+	name        string
+	service     path.ServiceType
+	collections []colInfo
+}
+
 func attachmentEqual(
 	expected models.Attachmentable,
 	got models.Attachmentable,
@@ -191,6 +197,17 @@ func attachmentEqual(
 	// array backing the content.
 
 	return true
+}
+
+func recipientEqual(
+	expected models.Recipientable,
+	got models.Recipientable,
+) bool {
+	// Don't compare names as M365 will override the name if the address is known.
+	return emptyOrEqual(
+		expected.GetEmailAddress().GetAddress(),
+		got.GetEmailAddress().GetAddress(),
+	)
 }
 
 func checkMessage(
@@ -265,7 +282,7 @@ func checkMessage(
 
 	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
-	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
+	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), recipientEqual)
 
 	// Skip WebLink as it's tied to this specific instance of the item.
 
@@ -660,6 +677,150 @@ func checkCollections(
 	assert.Equal(t, expectedItems, gotItems, "expected items")
 }
 
+func mustParsePath(t *testing.T, p string, isItem bool) path.Path {
+	res, err := path.FromDataLayerPath(p, isItem)
+	require.NoError(t, err)
+
+	return res
+}
+
+func makeExchangeBackupSel(
+	t *testing.T,
+	expected map[string]map[string][]byte,
+) selectors.Selector {
+	sel := selectors.NewExchangeBackup()
+	toInclude := [][]selectors.ExchangeScope{}
+
+	for p := range expected {
+		pth := mustParsePath(t, p, false)
+		require.Equal(t, path.ExchangeService.String(), pth.Service().String())
+
+		switch pth.Category() {
+		case path.EmailCategory:
+			toInclude = append(toInclude, sel.MailFolders(
+				[]string{pth.ResourceOwner()},
+				[]string{backupInputFromPath(pth).String()},
+			))
+		case path.ContactsCategory:
+			toInclude = append(toInclude, sel.ContactFolders(
+				[]string{pth.ResourceOwner()},
+				[]string{backupInputFromPath(pth).String()},
+			))
+		case path.EventsCategory:
+			toInclude = append(toInclude, sel.EventCalendars(
+				[]string{pth.ResourceOwner()},
+				[]string{backupInputFromPath(pth).String()},
+			))
+		}
+	}
+
+	sel.Include(toInclude...)
+
+	return sel.Selector
+}
+
+func makeOneDriveBackupSel(
+	t *testing.T,
+	expected map[string]map[string][]byte,
+) selectors.Selector {
+	sel := selectors.NewOneDriveBackup()
+	toInclude := [][]selectors.OneDriveScope{}
+
+	for p := range expected {
+		pth := mustParsePath(t, p, false)
+		require.Equal(t, path.OneDriveService.String(), pth.Service().String())
+
+		toInclude = append(toInclude, sel.Folders(
+			[]string{pth.ResourceOwner()},
+			[]string{backupInputFromPath(pth).String()},
+		))
+	}
+
+	sel.Include(toInclude...)
+
+	return sel.Selector
+}
+
+// backupSelectorForExpected creates a selector that can be used to backup the
+// given items in expected based on the item paths. Fails the test if items from
+// multiple services are in expected.
+func backupSelectorForExpected(
+	t *testing.T,
+	expected map[string]map[string][]byte,
+) selectors.Selector {
+	require.NotEmpty(t, expected)
+
+	// Sadly need to get the first item to figure out what sort of selector we
+	// need.
+	for p := range expected {
+		pth := mustParsePath(t, p, false)
+
+		switch pth.Service() {
+		case path.ExchangeService:
+			return makeExchangeBackupSel(t, expected)
+		case path.OneDriveService:
+			return makeOneDriveBackupSel(t, expected)
+		default:
+			assert.FailNowf(t, "bad serivce type %s", pth.Service().String())
+		}
+	}
+
+	// Fix compile error about no return. Should not reach here.
+	return selectors.Selector{}
+}
+
+// backupInputFromPath returns a path.Builder with the path that a call to Backup
+// can use to backup the given items.
+func backupInputFromPath(
+	inputPath path.Path,
+) *path.Builder {
+	startIdx := 0
+
+	if inputPath.Service() == path.OneDriveService {
+		// OneDrive has folders that are trimmed off in the app that are present in
+		// Corso.
+		startIdx = 3
+	}
+
+	return path.Builder{}.Append(inputPath.Folders()[startIdx:]...)
+}
+
+// backupOutputPathFromRestore returns a path.Path denoting the location in
+// kopia the data will be placed at. The location is a data-type specific
+// combination of the location the data was recently restored to and where the
+// data was originally in the hierarchy.
+func backupOutputPathFromRestore(
+	t *testing.T,
+	restoreDest control.RestoreDestination,
+	inputPath path.Path,
+) path.Path {
+	base := []string{restoreDest.ContainerName}
+
+	// OneDrive has leading information like the drive ID.
+	if inputPath.Service() == path.OneDriveService {
+		folders := inputPath.Folders()
+		base = append(append([]string{}, folders[:3]...), restoreDest.ContainerName)
+
+		if len(folders) > 3 {
+			base = append(base, folders[3:]...)
+		}
+	}
+
+	if inputPath.Service() == path.ExchangeService && inputPath.Category() == path.EmailCategory {
+		base = append(base, inputPath.Folders()...)
+	}
+
+	return mustToDataLayerPath(
+		t,
+		inputPath.Service(),
+		inputPath.Tenant(),
+		inputPath.ResourceOwner(),
+		inputPath.Category(),
+		base,
+		false,
+	)
+}
+
 func collectionsForInfo(
 	t *testing.T,
 	service path.ServiceType,
@@ -682,19 +843,7 @@ func collectionsForInfo(
 			false,
 		)
 		c := mockconnector.NewMockExchangeCollection(pth, len(info.items))
-
-		// TODO(ashmrtn): This will need expanded/broken up by service/category
-		// depending on how restore for that service/category places data back in
-		// M365.
-		baseDestPath := mustToDataLayerPath(
-			t,
-			service,
-			tenant,
-			user,
-			info.category,
-			[]string{dest.ContainerName},
-			false,
-		)
+		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
 
 		baseExpected := expectedData[baseDestPath.String()]
 		if baseExpected == nil {
@@ -716,6 +865,7 @@ func collectionsForInfo(
 	return totalItems, collections, expectedData
 }
 
+//nolint:deadcode
 func getSelectorWith(service path.ServiceType) selectors.Selector {
 	s := selectors.ServiceUnknown
 

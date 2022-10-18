@@ -56,79 +56,81 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		// general flags
-		fs.StringVar(&backupID, "backup", "", "ID of the backup to restore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired("backup"))
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to restore. (required)")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 
 		fs.StringSliceVar(&user,
-			"user", nil,
+			utils.UserFN, nil,
 			"Restore data by user ID; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// email flags
 		fs.StringSliceVar(&email,
-			"email", nil,
+			utils.EmailFN, nil,
 			"Restore emails by ID; accepts '"+utils.Wildcard+"' to select all emails.")
 		fs.StringSliceVar(
 			&emailFolder,
-			"email-folder", nil,
+			utils.EmailFolderFN, nil,
 			"Restore emails within a folder; accepts '"+utils.Wildcard+"' to select all email folders.")
 		fs.StringVar(
 			&emailSubject,
-			"email-subject", "",
+			utils.EmailSubjectFN, "",
 			"Restore emails with a subject containing this value.")
 		fs.StringVar(
 			&emailSender,
-			"email-sender", "",
+			utils.EmailSenderFN, "",
 			"Restore emails from a specific sender.")
 		fs.StringVar(
 			&emailReceivedAfter,
-			"email-received-after", "",
+			utils.EmailReceivedAfterFN, "",
 			"Restore emails received after this datetime.")
 		fs.StringVar(
 			&emailReceivedBefore,
-			"email-received-before", "",
+			utils.EmailReceivedBeforeFN, "",
 			"Restore emails received before this datetime.")
 
 		// event flags
 		fs.StringSliceVar(&event,
-			"event", nil,
+			utils.EventFN, nil,
 			"Restore events by event ID; accepts '"+utils.Wildcard+"' to select all events.")
 		fs.StringSliceVar(
 			&eventCalendar,
-			"event-calendar", nil,
+			utils.EventCalendarFN, nil,
 			"Restore events under a calendar; accepts '"+utils.Wildcard+"' to select all event calendars.")
 		fs.StringVar(
 			&eventSubject,
-			"event-subject", "",
+			utils.EventSubjectFN, "",
 			"Restore events with a subject containing this value.")
 		fs.StringVar(
 			&eventOrganizer,
-			"event-organizer", "",
+			utils.EventOrganizerFN, "",
 			"Restore events from a specific organizer.")
 		fs.StringVar(
 			&eventRecurs,
-			"event-recurs", "",
+			utils.EventRecursFN, "",
 			"Restore recurring events. Use `--event-recurs false` to restore non-recurring events.")
 		fs.StringVar(
 			&eventStartsAfter,
-			"event-starts-after", "",
+			utils.EventStartsAfterFN, "",
 			"Restore events starting after this datetime.")
 		fs.StringVar(
 			&eventStartsBefore,
-			"event-starts-before", "",
+			utils.EventStartsBeforeFN, "",
 			"Restore events starting before this datetime.")
 
 		// contacts flags
 		fs.StringSliceVar(
 			&contact,
-			"contact", nil,
+			utils.ContactFN, nil,
 			"Restore contacts by contact ID; accepts '"+utils.Wildcard+"' to select all contacts.")
 		fs.StringSliceVar(
 			&contactFolder,
-			"contact-folder", nil,
+			utils.ContactFolderFN, nil,
 			"Restore contacts within a folder; accepts '"+utils.Wildcard+"' to select all contact folders.")
 		fs.StringVar(
 			&contactName,
-			"contact-name", "",
+			utils.ContactNameFN, "",
 			"Restore contacts whose contact name contains this value.")
 
 		// others
@@ -177,12 +179,12 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.ExchangeOpts{
-		Contacts:            contact,
-		ContactFolders:      contactFolder,
-		Emails:              email,
-		EmailFolders:        emailFolder,
-		Events:              event,
-		EventCalendars:      eventCalendar,
+		Contact:             contact,
+		ContactFolder:       contactFolder,
+		Email:               email,
+		EmailFolder:         emailFolder,
+		Event:               event,
+		EventCalendar:       eventCalendar,
 		Users:               user,
 		ContactName:         contactName,
 		EmailReceivedAfter:  emailReceivedAfter,
@@ -194,6 +196,8 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		EventStartsAfter:    eventStartsAfter,
 		EventStartsBefore:   eventStartsBefore,
 		EventSubject:        eventSubject,
+
+		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
 	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
@@ -233,7 +237,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))
 	}
 
-	Infof(ctx, "Restored OneDrive in %s for user %s.\n", s.Provider, sel.ToPrintable().Resources())
+	Infof(ctx, "Restored Exchange in %s for user %s.\n", s.Provider, sel.ToPrintable().Resources())
 	ds.PrintEntries(ctx)
 
 	return nil

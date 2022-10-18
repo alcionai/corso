@@ -189,12 +189,12 @@ func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) ContactFolders(users, folders []string) []ExchangeScope {
+func (s *exchange) ContactFolders(users, folders []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContactFolder, users, folders),
+		makeScope[ExchangeScope](ExchangeContactFolder, users, folders, opts...),
 	)
 
 	return scopes
@@ -221,12 +221,12 @@ func (s *exchange) Events(users, calendars, events []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) EventCalendars(users, events []string) []ExchangeScope {
+func (s *exchange) EventCalendars(users, events []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEventCalendar, users, events),
+		makeScope[ExchangeScope](ExchangeEventCalendar, users, events, opts...),
 	)
 
 	return scopes
@@ -252,12 +252,12 @@ func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) MailFolders(users, folders []string) []ExchangeScope {
+func (s *exchange) MailFolders(users, folders []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMailFolder, users, folders),
+		makeScope[ExchangeScope](ExchangeMailFolder, users, folders, opts...),
 	)
 
 	return scopes
@@ -427,44 +427,6 @@ func (sr *ExchangeRestore) MailSubject(subject string) []ExchangeScope {
 			[]string{subject},
 			wrapFilter(filters.In)),
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Destination
-// ---------------------------------------------------------------------------
-
-type ExchangeDestination Destination
-
-func NewExchangeDestination() ExchangeDestination {
-	return ExchangeDestination{}
-}
-
-// GetOrDefault gets the destination of the provided category.  If no
-// destination is set, returns the current value.
-func (d ExchangeDestination) GetOrDefault(cat exchangeCategory, current string) string {
-	dest, ok := d[cat.String()]
-	if !ok {
-		return current
-	}
-
-	return dest.Target
-}
-
-// Sets the destination value of the provided category.  Returns an error
-// if a destination is already declared for that category.
-func (d ExchangeDestination) Set(cat exchangeCategory, dest string) error {
-	if len(dest) == 0 {
-		return nil
-	}
-
-	cs := cat.String()
-	if curr, ok := d[cs]; ok {
-		return existingDestinationErr(cs, curr.Target)
-	}
-
-	d[cs] = filterize(dest)
-
-	return nil
 }
 
 // ---------------------------------------------------------------------------

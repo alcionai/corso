@@ -2,74 +2,80 @@
 
 set -e
 
-SCRIPT_ROOT=$(dirname $(readlink -f $0))
-PROJECT_ROOT=$(dirname ${SCRIPT_ROOT})
+ROOT=$(dirname $(dirname $(readlink -f $0)))
+GOVER=1.18                           # go version
+CORSO_BUILD_CACHE="/tmp/.corsobuild" # shared persistent cache
 
-CORSO_BUILD_CONTAINER=/go/src/github.com/alcionai/corso
-CORSO_BUILD_CONTAINER_SRC=${CORSO_BUILD_CONTAINER}/src
-CORSO_BUILD_PKG_MOD=/go/pkg/mod
-CORSO_BUILD_TMP=/tmp/.corsobuild
-CORSO_BUILD_TMP_CACHE=${CORSO_BUILD_TMP}/cache
-CORSO_BUILD_TMP_MOD=${CORSO_BUILD_TMP}/mod
-CORSO_CACHE=${CORSO_BUILD_TMP_CACHE}
-CORSO_MOD_CACHE=${CORSO_BUILD_PKG_MOD}/cache
+# Figure out os and architecture
+case "$(uname -m)" in
+x86_64) GOARCH="amd64" ;;
+aarch64) GOARCH="arm64" ;;
+arm) GOARCH="arm" ;;
+i386) GOARCH="386" ;;
+*) echo "Unknown architecture" && exit 0 ;;
+esac
+case "$(uname)" in
+Linux) GOOS="linux" ;;
+Darwin) GOOS="darwin" ;; # TODO: verify this
+*) echo "Unknown OS" && exit 0 ;;
+esac
 
-CORSO_BUILD_ARGS=''
+PLATFORMS="$GOOS/$GOARCH" # default platform
+TAG="alcionai/corso"      # default image tag
 
-platforms=
-GOVER=1.18
-GOOS=linux
-GOARCH=amd64
+usage() {
+	echo "Usage: $(basename $0) <binary|image> [--platforms ...] [--tag ...]"
+	echo ""
+	echo "OPTIONS"
+	echo " -p|--platforms  Platforms to build for (default: $PLATFORMS)"
+    echo "                 Specify multiple platforms using ',' (eg: linux/amd64,darwin/arm)"
+	echo " -t|--tag        Tag for container image (default: $TAG)"
+}
 
-while [ "$#" -gt 0 ]
-do
-  case "$1" in
-  --platforms)
-    platforms=$2
-    shift
-    ;;
-  esac
-  shift
+MODE="binary"
+case "$1" in
+binary) MODE="binary" && shift ;;
+image) MODE="image" && shift ;;
+-h | --help) usage && exit 0 ;;
+*) usage && exit 1 ;;
+esac
+
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+	-p | --platforms) PLATFORMS="$2" && shift ;;
+	-t | --tag) TAG="$2" && shift ;;
+	*) echo "Invalid argument $1" && usage && exit 1 ;;
+	esac
+	shift
 done
 
-# temporary directory for caching go build
-mkdir -p ${CORSO_BUILD_TMP_CACHE}
-# temporary directory for caching go modules (needed for fast cross-platform build)
-mkdir -p ${CORSO_BUILD_TMP_MOD}
+if [ "$MODE" == "binary" ]; then
+	mkdir -p ${CORSO_BUILD_CACHE} # prep env
+	for platform in ${PLATFORMS/,/ }; do
+		IFS='/' read -r -a platform_split <<<"$platform"
+		GOOS=${platform_split[0]}
+		GOARCH=${platform_split[1]}
 
-if [ -z "$platforms" ]; then
-  platforms="${GOOS}/${GOARCH}"
+		printf "Building for %s...\r" "$platform"
+		docker run --rm \
+			--mount type=bind,src=${ROOT},dst="/app" \
+			--mount type=bind,src=${CORSO_BUILD_CACHE},dst=${CORSO_BUILD_CACHE} \
+			--env GOMODCACHE=${CORSO_BUILD_CACHE}/mod --env GOCACHE=${CORSO_BUILD_CACHE}/cache \
+			--env GOOS=${GOOS} --env GOARCH=${GOARCH} \
+			--workdir "/app/src" \
+			golang:${GOVER} \
+			go build -o corso -ldflags "${CORSO_BUILD_LDFLAGS}"
+
+		mkdir -p ${ROOT}/bin/${GOOS}-${GOARCH}
+		mv ${ROOT}/src/corso ${ROOT}/bin/${GOOS}-${GOARCH}/corso
+		echo Corso $platform binary available in ${ROOT}/bin/${GOOS}-${GOARCH}/corso
+	done
+else
+	echo Building "$TAG" image for "$PLATFORMS"
+	docker buildx build --tag ${TAG} \
+		--platform ${PLATFORMS} \
+		--file ${ROOT}/build/Dockerfile \
+		--build-arg CORSO_BUILD_LDFLAGS="$CORSO_BUILD_LDFLAGS" \
+		--load ${ROOT}
+	echo Built container image "$TAG"
 fi
-
-for platform in ${platforms/,/ }
-do
-  IFS='/' read -r -a platform_split <<< "${platform}"
-  GOOS=${platform_split[0]}
-  GOARCH=${platform_split[1]}
-
-  echo "-----"
-  echo "building corso binary for ${GOOS}/${GOARCH}"
-  echo "-----"
-
-  set -x
-  docker run --rm \
-    --mount type=bind,src=${PROJECT_ROOT},dst=${CORSO_BUILD_CONTAINER}          \
-    --mount type=bind,src=${CORSO_BUILD_TMP_CACHE},dst=${CORSO_BUILD_TMP_CACHE} \
-    --mount type=bind,src=${CORSO_BUILD_TMP_MOD},dst=${CORSO_BUILD_PKG_MOD}     \
-    --workdir ${CORSO_BUILD_CONTAINER_SRC}                                      \
-    --env GOMODCACHE=${CORSO_MOD_CACHE}                                         \
-    --env GOCACHE=${CORSO_CACHE}                                                \
-    --env GOOS=${GOOS}                                                          \
-    --env GOARCH=${GOARCH}                                                      \
-    --entrypoint /usr/local/go/bin/go                                           \
-    golang:${GOVER}                                                             \
-    build -o corso ${CORSO_BUILD_ARGS}
-  set +x
-
-  mkdir -p ${PROJECT_ROOT}/bin/${GOOS}-${GOARCH}
-  mv ${PROJECT_ROOT}/src/corso ${PROJECT_ROOT}/bin/${GOOS}-${GOARCH}/corso
-
-  echo "-----"
-  echo "created binary image in ${PROJECT_ROOT}/bin/${GOOS}-${GOARCH}/corso"
-  echo "-----"
-done

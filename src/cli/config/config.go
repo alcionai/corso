@@ -26,7 +26,7 @@ const (
 
 	// M365 config
 	AccountProviderTypeKey = "account_provider"
-	TenantIDKey            = "tenantid"
+	AzureTenantIDKey       = "azure_tenantid"
 )
 
 var (
@@ -198,7 +198,7 @@ func writeRepoConfigWithViper(vpr *viper.Viper, s3Config storage.S3Config, m365C
 	vpr.Set(PrefixKey, s3Config.Prefix)
 
 	vpr.Set(AccountProviderTypeKey, account.ProviderM365.String())
-	vpr.Set(TenantIDKey, m365Config.TenantID)
+	vpr.Set(AzureTenantIDKey, m365Config.AzureTenantID)
 
 	if err := vpr.SafeWriteConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
@@ -266,7 +266,7 @@ func getStorageAndAccountWithViper(
 // ---------------------------------------------------------------------------
 
 var constToTomlKeyMap = map[string]string{
-	account.TenantID:       TenantIDKey,
+	account.AzureTenantID:  AzureTenantIDKey,
 	AccountProviderTypeKey: AccountProviderTypeKey,
 	storage.Bucket:         BucketNameKey,
 	storage.Endpoint:       EndpointKey,
