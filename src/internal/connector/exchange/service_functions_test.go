@@ -60,9 +60,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{userID}, selectors.Any()))
-				return sel.Scopes()[0]
+				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, selectors.Any())[0]
 			},
 		},
 		{
@@ -71,9 +69,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{userID}, []string{DefaultCalendar}))
-				return sel.Scopes()[0]
+				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, []string{DefaultCalendar})[0]
 			},
 		},
 		{
@@ -82,9 +78,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{userID}, []string{"Birthdays"}))
-				return sel.Scopes()[0]
+				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, []string{"Birthdays"})[0]
 			},
 		},
 		{
@@ -93,9 +87,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{"fnords_mc_snarfens"}, []string{DefaultContactFolder}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{"fnords_mc_snarfens"}, []string{DefaultContactFolder})[0]
 			},
 		},
 		{
@@ -104,9 +98,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{userID}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{userID}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"})[0]
 			},
 		},
 	}
@@ -144,9 +138,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{user}, selectors.Any()))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, selectors.Any())[0]
 			},
 		},
 		{
@@ -155,9 +149,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{user}, []string{DefaultContactFolder}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, []string{DefaultContactFolder})[0]
 			},
 		},
 		{
@@ -166,9 +160,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{user}, []string{"TrialFolder"}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, []string{"TrialFolder"})[0]
 			},
 		},
 		{
@@ -177,9 +171,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{"fnords_mc_snarfens"}, []string{DefaultContactFolder}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{"fnords_mc_snarfens"}, []string{DefaultContactFolder})[0]
 			},
 		},
 		{
@@ -188,9 +182,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{user}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"})[0]
 			},
 		},
 	}
@@ -228,9 +222,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{userID}, selectors.Any()))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, selectors.Any())[0]
 			},
 		},
 		{
@@ -239,9 +233,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{userID}, []string{DefaultMailFolder}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, []string{DefaultMailFolder})[0]
 			},
 		},
 		{
@@ -250,9 +244,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{userID}, []string{"Drafts"}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, []string{"Drafts"})[0]
 			},
 		},
 		{
@@ -261,9 +255,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{"fnords_mc_snarfens"}, []string{DefaultMailFolder}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{"fnords_mc_snarfens"}, []string{DefaultMailFolder})[0]
 			},
 		},
 		{
@@ -272,9 +266,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{userID}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"}))
-				return sel.Scopes()[0]
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"})[0]
 			},
 		},
 	}
