@@ -48,6 +48,7 @@ const (
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
 	itemNotFoundErrorCode = "itemNotFound"
+	userDoesNotHaveDrive  = "BadRequest Unable to retrieve user's mysite URL"
 )
 
 // Enumerates the drives for the specified user
@@ -78,6 +79,10 @@ func drives(ctx context.Context, service graph.Service, user string) ([]models.D
 
 	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
 	if err != nil {
+		if strings.Contains(support.ConnectorStackErrorTrace(err), userDoesNotHaveDrive) {
+			return make([]models.Driveable, 0), nil // no license
+		}
+
 		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
 			user, support.ConnectorStackErrorTrace(err))
 	}
