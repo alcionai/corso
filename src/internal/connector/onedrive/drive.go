@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
@@ -55,22 +56,9 @@ const (
 func drives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
 	var hasDrive bool
 
-	resp, err := service.Client().UsersById(user).LicenseDetails().Get(ctx, nil)
+	hasDrive, err := hasLicense(ctx, service, user)
 	if err != nil {
-		return nil, errors.New("First call fails too")
-	}
-
-	licenses := resp.GetValue()
-	for _, entry := range licenses {
-		sku := entry.GetSkuId()
-		if sku == nil {
-			continue
-		}
-
-		if ok := hasLicense(*sku); ok {
-			hasDrive = true
-			break
-		}
+		return nil, errors.Wrap(err, user)
 	}
 
 	if !hasDrive {
@@ -291,12 +279,53 @@ func DeleteItem(
 	return nil
 }
 
-func hasLicense(skuID string) bool {
-	for _, license := range skuIDs {
-		if skuID == license {
-			return true
-		}
+func hasLicense(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+) (bool, error) {
+	var hasDrive bool
+
+	resp, err := service.Client().UsersById(user).LicenseDetails().Get(ctx, nil)
+	if err != nil {
+		return false,
+			errors.Wrap(err, "failure obtaining license details for user")
 	}
 
-	return false
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, service.Adapter(),
+		models.CreateLicenseDetailsCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	cb := func(pageItem any) bool {
+		entry, ok := pageItem.(models.LicenseDetailsable)
+		if !ok {
+			err = errors.New("casting item to models.MailFolderable")
+			return false
+		}
+
+		sku := entry.GetSkuId()
+		if sku == nil {
+			return true
+		}
+
+		for _, license := range skuIDs {
+			if *sku == license {
+				hasDrive = true
+				return false
+			}
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(ctx, cb); err != nil {
+		return false,
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	return hasDrive, nil
 }
