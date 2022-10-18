@@ -64,7 +64,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			},
 		},
 		{
-			name:        "root folder",
+			name:        "Get Default Calendar",
 			user:        userID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
@@ -73,7 +73,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			},
 		},
 		{
-			name:        "non-root folder",
+			name:        "non-root calendar",
 			user:        userID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
@@ -144,7 +144,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			},
 		},
 		{
-			name:        "root folder",
+			name:        "default contact folder",
 			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
