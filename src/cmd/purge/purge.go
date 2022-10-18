@@ -233,8 +233,7 @@ func purgeMailFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		sel := selectors.NewExchangeBackup()
-		scope := sel.MailFolders([]string{uid}, selectors.Any())[0]
+		scope := selectors.NewExchangeBackup().MailFolders([]string{uid}, selectors.Any())[0]
 		params := graph.QueryParams{
 			User:     uid,
 			Scope:    scope,
@@ -276,8 +275,7 @@ func purgeCalendarFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		sel := selectors.NewExchangeBackup()
-		scope := sel.EventCalendars([]string{uid}, selectors.Any())[0]
+		scope := selectors.NewExchangeBackup().EventCalendars([]string{uid}, selectors.Any())[0]
 		params := graph.QueryParams{
 			User:     uid,
 			Scope:    scope,
@@ -319,8 +317,7 @@ func purgeContactFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		sel := selectors.NewExchangeBackup()
-		scope := sel.ContactFolders([]string{uid}, selectors.Any())[0]
+		scope := selectors.NewExchangeBackup().ContactFolders([]string{uid}, selectors.Any())[0]
 		params := graph.QueryParams{
 			User:     uid,
 			Scope:    scope,
