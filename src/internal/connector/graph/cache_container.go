@@ -7,9 +7,18 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// CachedContainer is used for local unit tests but also makes it so that this
+// code can be broken into generic- and service-specific chunks later on to
+// reuse logic in IDToPath.
+type CachedContainer interface {
+	Container
+	Path() *path.Builder
+	SetPath(*path.Builder)
+}
+
 // checkIDAndName is a helper function to ensure that
 // the ID and name pointers are set prior to being called.
-func checkIDAndName(c Container) error {
+func CheckIDAndName(c Container) error {
 	idPtr := c.GetId()
 	if idPtr == nil || len(*idPtr) == 0 {
 		return errors.New("folder without ID")
@@ -25,8 +34,8 @@ func checkIDAndName(c Container) error {
 
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
-func checkRequiredValues(c Container) error {
-	if err := checkIDAndName(c); err != nil {
+func CheckRequiredValues(c Container) error {
+	if err := CheckIDAndName(c); err != nil {
 		return err
 	}
 
