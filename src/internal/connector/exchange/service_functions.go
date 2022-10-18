@@ -151,6 +151,9 @@ func GetAllMailFolders(
 
 	for _, c := range resolver.Items() {
 		directories := c.Path().Elements()
+		if len(directories) == 0 {
+			continue
+		}
 
 		if qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1]) {
 			containers = append(containers, c)
