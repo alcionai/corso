@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -234,9 +234,7 @@ func purgeMailFolders(
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
 		sel := selectors.NewExchangeBackup()
-		sel.Include(sel.MailFolders([]string{uid}, selectors.Any()))
-
-		scope := sel.Scopes()[0]
+		scope := sel.MailFolders([]string{uid}, selectors.Any())[0]
 		params := graph.QueryParams{
 			User:     uid,
 			Scope:    scope,
@@ -279,9 +277,7 @@ func purgeCalendarFolders(
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
 		sel := selectors.NewExchangeBackup()
-		sel.Include(sel.EventCalendars([]string{uid}, selectors.Any()))
-
-		scope := sel.Scopes()[0]
+		scope := sel.EventCalendars([]string{uid}, selectors.Any())[0]
 		params := graph.QueryParams{
 			User:     uid,
 			Scope:    scope,
@@ -324,9 +320,7 @@ func purgeContactFolders(
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
 		sel := selectors.NewExchangeBackup()
-		sel.Include(sel.ContactFolders([]string{uid}, selectors.Any()))
-
-		scope := sel.Scopes()[0]
+		scope := sel.ContactFolders([]string{uid}, selectors.Any())[0]
 		params := graph.QueryParams{
 			User:     uid,
 			Scope:    scope,
@@ -526,15 +520,14 @@ func userOrUsers(u string, us map[string]string) map[string]string {
 // containerFilter filters container list based on prefix
 // @returns cachedContainers that meet the requirements for purging.
 func containerFilter(nameContains string, containers []graph.CachedContainer) []graph.CachedContainer {
-	cacheContainers := make([]graph.CachedContainer, 0)
+	f := filters.In(nameContains)
+	result := make([]graph.CachedContainer, 0)
 
 	for _, folder := range containers {
-		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
-		if include {
-			cacheContainers = append(cacheContainers, folder)
+		if f.Compare(*folder.GetDisplayName()) {
+			result = append(result, folder)
 		}
 	}
 
-	return cacheContainers
+	return result
 }
