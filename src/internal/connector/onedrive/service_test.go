@@ -1,10 +1,14 @@
 package onedrive
 
 import (
+	"testing"
+
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -66,4 +70,15 @@ func (ods *oneDriveService) updateStatus(status *support.ConnectorOperationStatu
 	}
 
 	ods.status = support.MergeStatus(ods.status, *status)
+}
+
+func loadTestService(t *testing.T) *oneDriveService {
+	a := tester.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err)
+
+	service, err := NewOneDriveService(m365)
+	require.NoError(t, err)
+
+	return service
 }
