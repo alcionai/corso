@@ -17,6 +17,14 @@ const (
 	defaultMessagePreview = "Lidia,\\n\\nWe have not received any reports on the development during Q2. It is in our best interest to have a new TPS Report by next Thursday prior to the retreat. If you have any questions, please let me know so I can address them.\\n" +
 		"\\nThanking you in adv"
 
+	defaultMessageCreatedTime  = "2022-09-26T23:15:50Z"
+	defaultMessageModifiedTime = "2022-09-26T23:15:51Z"
+	defaultMessageReceivedTime = "2022-09-26T23:15:50Z"
+	defaultMessageSentTime     = "2022-09-26T23:15:46Z"
+	defaultMessageSender       = "foobar@8qzvrj.onmicrosoft.com"
+	defaultMessageTo           = "LidiaH@8qzvrj.onmicrosoft.com"
+	defaultMessageFrom         = "foobar@8qzvrj.onmicrosoft.com"
+
 	// Order of fields to fill in:
 	//   1. created datetime
 	//   2. modified datetime
@@ -90,50 +98,26 @@ const (
 // GetMockMessageBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 func GetMockMessageBytes(subject string) []byte {
-	userID := "foobar@8qzvrj.onmicrosoft.com"
-	timestamp := " " + common.FormatNow(common.SimpleDateTime)
-
-	message := fmt.Sprintf(
-		messageTmpl,
-		"2022-09-26T23:15:50Z", // created
-		"2022-09-26T23:15:51Z", // modified
-		defaultMessageBody,
-		defaultMessagePreview,
-		userID,
-		"2022-09-26T23:15:50Z",
-		"foobar@8qzvrj.onmicrosoft.com",
-		"2022-09-26T23:15:46Z",
-		"TPS Report "+subject+timestamp,
-		"LidiaH@8qzvrj.onmicrosoft.com")
-
-	return []byte(message)
+	return GetMockMessageWithBodyBytes(
+		"TPS Report "+subject+" "+common.FormatNow(common.SimpleDateTime),
+		defaultMessageBody)
 }
 
 // GetMockMessageBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
 func GetMockMessageWithBodyBytes(subject, body string) []byte {
-	userID := "foobar@8qzvrj.onmicrosoft.com"
-	preview := body
-
-	if len(preview) > 255 {
-		preview = preview[:256]
-	}
-
-	message := fmt.Sprintf(
-		messageTmpl,
-		"2022-09-26T23:15:50Z", // created
-		"2022-09-26T23:15:51Z", // modified
-		body,
-		preview,
-		userID,
-		"2022-09-26T23:15:50Z",
-		"foobar@8qzvrj.onmicrosoft.com",
-		"2022-09-26T23:15:46Z",
+	return GetMockMessageWith(
+		defaultMessageTo,
+		defaultMessageFrom,
+		defaultMessageSender,
 		subject,
-		"LidiaH@8qzvrj.onmicrosoft.com")
-
-	return []byte(message)
+		body,
+		defaultMessageCreatedTime,
+		defaultMessageModifiedTime,
+		defaultMessageSentTime,
+		defaultMessageReceivedTime,
+	)
 }
 
 // GetMockMessageWith returns bytes for a Messageable item.
@@ -301,17 +285,4 @@ func GetMockMessageWithTwoAttachments(subject string) []byte {
 		"\"subject\":\"" + subject + "\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"LidiaH@8qzvrj.onmicrosoft.com\",\"name\":\"Lidia Holloway\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"}],\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB6LpD0AAA%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
 
 	return []byte(message)
-}
-
-// GetMockContactBytes returns bytes for Contactable item.
-// When hydrated: contact.GetGivenName() shows differences
-func GetMockContactBytes(middleName string) []byte {
-	phone := generatePhoneNumber()
-	//nolint:lll
-	contact := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEOAADSEBNbUIB9RL6ePDeF3FIYAABS7DZnAAA=\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('foobar%408qzvrj.onmicrosoft.com')/contacts/$entity\"," +
-		"\"@odata.etag\":\"W/\\\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\\\"\",\"categories\":[],\"changeKey\":\"EQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAABSx4Tr\",\"createdDateTime\":\"2019-08-04T06:55:33Z\",\"lastModifiedDateTime\":\"2019-08-04T06:55:33Z\",\"businessAddress\":{},\"businessPhones\":[],\"children\":[]," +
-		"\"displayName\":\"Santiago Quail\",\"emailAddresses\":[],\"fileAs\":\"Quail, Santiago\",\"mobilePhone\": \"" + phone + "\"," +
-		"\"givenName\":\"Santiago\",\"homeAddress\":{},\"homePhones\":[],\"imAddresses\":[],\"otherAddress\":{},\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9FIYAAAAAAEOAAA=\",\"personalNotes\":\"\",\"middleName\":\"" + middleName + "\",\"surname\":\"Quail\"}"
-
-	return []byte(contact)
 }

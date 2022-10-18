@@ -116,13 +116,45 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 }
 
 func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
-	Err(cmd.Context(), ErrNotYetImplemeted)
+	var (
+		ctx      = cmd.Context()
+		service  = path.ExchangeService
+		category = path.ContactsCategory
+	)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	// generate mocked contacts
+	gc, tenantID, err := getGCAndVerifyUser(ctx, user)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	deets, err := generateAndRestoreItems(
+		ctx,
+		gc,
+		service,
+		category,
+		selectors.NewExchangeRestore().Selector,
+		tenantID, user, destination,
+		count,
+		func(id, now, subject, body string) []byte {
+			given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
+
+			return mockconnector.GetMockContactBytesWith(
+				given+" "+sur,
+				sur+", "+given,
+				given, mid, sur,
+				"123-456-7890",
+			)
+		},
+	)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	deets.PrintEntries(ctx)
 
 	return nil
 }
