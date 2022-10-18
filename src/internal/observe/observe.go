@@ -20,7 +20,7 @@ var (
 )
 
 func init() {
-	makeSpinFrames()
+	makeSpinFrames(progressBarWidth)
 }
 
 // SeedWriter adds default writer to the observe package.
@@ -79,18 +79,22 @@ func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadClos
 
 var spinFrames []string
 
-func makeSpinFrames() {
+// The bar width is set to a static 32 characters.  The default spinner is only
+// one char wide, which puts a lot of white space between it and the useful text.
+// This builds a custom spinner animation to fill up that whitespace for a cleaner
+// display.
+func makeSpinFrames(barWidth int) {
 	s, l := rune('∙'), rune('●')
 
 	line := []rune{}
-	for i := 0; i < progressBarWidth; i++ {
+	for i := 0; i < barWidth; i++ {
 		line = append(line, s)
 	}
 
-	sl := make([]string, 0, progressBarWidth+1)
+	sl := make([]string, 0, barWidth+1)
 	sl = append(sl, string(line))
 
-	for i := 1; i < progressBarWidth; i++ {
+	for i := 1; i < barWidth; i++ {
 		l2 := make([]rune, len(line))
 		copy(l2, line)
 		l2[i] = l
