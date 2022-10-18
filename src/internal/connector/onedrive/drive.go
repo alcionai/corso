@@ -25,20 +25,34 @@ var (
 	// OneDrive associated SKUs located at:
 	// https://learn.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
 	skuIDs = []string{
+		// Microsoft 365 Apps for Business 0365
 		"cdd28e44-67e3-425e-be4c-737fab2899d3",
+		// Microsoft 365 Apps for Business SMB_Business
 		"b214fe43-f5a3-4703-beeb-fa97188220fc",
+		// Microsoft 365 Apps for enterprise
 		"c2273bd0-dff7-4215-9ef5-2c7bcfb06425",
+		// Microsoft 365 Apps for Faculty
 		"12b8c807-2e20-48fc-b453-542b6ee9d171",
+		// Microsoft 365 Apps for Students
 		"c32f9321-a627-406d-a114-1f9c81aaafac",
+		// OneDrive for Business (Plan 1)
 		"e6778190-713e-4e4f-9119-8b8238de25df",
+		// OneDrive for Business (Plan 2)
 		"ed01faf2-1d88-4947-ae91-45ca18703a96",
+		// Visio Plan 1
 		"ca7f3140-d88c-455b-9a1c-7f0679e31a76",
+		// Visio Plan 2
 		"38b434d2-a15e-4cde-9a98-e737c75623e1",
+		// Visio Online Plan 1
 		"4b244418-9658-4451-a2b8-b5e2b364e9bd",
+		// Visio Online Plan 2
 		"c5928f49-12ba-48f7-ada3-0d743a3601d5",
+		// Visio Plan 2 for GCC
 		"4ae99959-6b0f-43b0-b1ce-68146001bdba",
+		// ONEDRIVEENTERPRISE
 		"afcafa6a-d966-4462-918c-ec0b4e0fe642",
-		"c42b9cae-ea4f-4ab7-9717-81576235ccac", // Microsoft 365 E5 Developer
+		// Microsoft 365 E5 Developer
+		"c42b9cae-ea4f-4ab7-9717-81576235ccac",
 	}
 )
 
