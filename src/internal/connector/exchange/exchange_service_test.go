@@ -292,6 +292,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			function: GetAllContactFolderNamesForUser,
 		},
 		{
+			name:     "GraphQuery: Get Default ContactFolder",
+			function: GetDefaultContactFolderForUser,
+		},
+		{
 			name:     "GraphQuery: Get All Events for User",
 			function: GetAllEventsForUser,
 		},
