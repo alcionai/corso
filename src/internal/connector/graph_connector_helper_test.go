@@ -156,6 +156,12 @@ type colInfo struct {
 	items        []itemInfo
 }
 
+type restoreBackupInfo struct {
+	name        string
+	service     path.ServiceType
+	collections []colInfo
+}
+
 func attachmentEqual(
 	expected models.Attachmentable,
 	got models.Attachmentable,
@@ -191,6 +197,17 @@ func attachmentEqual(
 	// array backing the content.
 
 	return true
+}
+
+func recipientEqual(
+	expected models.Recipientable,
+	got models.Recipientable,
+) bool {
+	// Don't compare names as M365 will override the name if the address is known.
+	return emptyOrEqual(
+		expected.GetEmailAddress().GetAddress(),
+		got.GetEmailAddress().GetAddress(),
+	)
 }
 
 func checkMessage(
@@ -265,7 +282,7 @@ func checkMessage(
 
 	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
 
-	assert.Equal(t, expected.GetToRecipients(), got.GetToRecipients(), "ToRecipients")
+	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), recipientEqual)
 
 	// Skip WebLink as it's tied to this specific instance of the item.
 
@@ -789,10 +806,9 @@ func backupOutputPathFromRestore(
 		}
 	}
 
-	// TODO(ashmrtn): Uncomment when exchange mail supports restoring to subfolders.
-	// if inputPath.Service == path.ExchangeService && inputPath.Category() == path.EmailCategory {
-	//   base = append(base, inputPath.Folders()...)
-	// }
+	if inputPath.Service() == path.ExchangeService && inputPath.Category() == path.EmailCategory {
+		base = append(base, inputPath.Folders()...)
+	}
 
 	return mustToDataLayerPath(
 		t,

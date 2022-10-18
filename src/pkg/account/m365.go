@@ -8,19 +8,19 @@ import (
 
 // config exported name consts
 const (
-	TenantID = "TENANT_ID"
+	AzureTenantID = "AZURE_TENANT_ID"
 )
 
 type M365Config struct {
 	credentials.M365 // requires: ClientID, ClientSecret
-	TenantID         string
+	AzureTenantID    string
 }
 
 // config key consts
 const (
-	keyM365ClientID     = "m365_clientID"
-	keyM365ClientSecret = "m365_clientSecret"
-	keyM365TenantID     = "m365_tenantID"
+	keyAzureClientID     = "azure_clientid"
+	keyAzureClientSecret = "azure_clientSecret"
+	keyAzureTenantID     = "azure_tenantid"
 )
 
 // StringConfig transforms a m365Config struct into a plain
@@ -28,9 +28,9 @@ const (
 // serialize into the map are expected to be strings.
 func (c M365Config) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
-		keyM365ClientID:     c.ClientID,
-		keyM365ClientSecret: c.ClientSecret,
-		keyM365TenantID:     c.TenantID,
+		keyAzureClientID:     c.AzureClientID,
+		keyAzureClientSecret: c.AzureClientSecret,
+		keyAzureTenantID:     c.AzureTenantID,
 	}
 
 	return cfg, c.validate()
@@ -39,7 +39,7 @@ func (c M365Config) StringConfig() (map[string]string, error) {
 // providerID returns the c.TenantID if ap is a ProviderM365.
 func (c M365Config) providerID(ap accountProvider) string {
 	if ap == ProviderM365 {
-		return c.TenantID
+		return c.AzureTenantID
 	}
 
 	return ""
@@ -49,9 +49,9 @@ func (c M365Config) providerID(ap accountProvider) string {
 func (a Account) M365Config() (M365Config, error) {
 	c := M365Config{}
 	if len(a.Config) > 0 {
-		c.ClientID = a.Config[keyM365ClientID]
-		c.ClientSecret = a.Config[keyM365ClientSecret]
-		c.TenantID = a.Config[keyM365TenantID]
+		c.AzureClientID = a.Config[keyAzureClientID]
+		c.AzureClientSecret = a.Config[keyAzureClientSecret]
+		c.AzureTenantID = a.Config[keyAzureTenantID]
 	}
 
 	return c, c.validate()
@@ -59,9 +59,9 @@ func (a Account) M365Config() (M365Config, error) {
 
 func (c M365Config) validate() error {
 	check := map[string]string{
-		credentials.ClientID:     c.ClientID,
-		credentials.ClientSecret: c.ClientSecret,
-		TenantID:                 c.TenantID,
+		credentials.AzureClientID:     c.AzureClientID,
+		credentials.AzureClientSecret: c.AzureClientSecret,
+		AzureTenantID:                 c.AzureTenantID,
 	}
 
 	for k, v := range check {

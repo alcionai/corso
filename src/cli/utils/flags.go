@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type PopulatedFlags map[string]struct{}
@@ -49,4 +50,17 @@ func IsValidTimeFormat(in string) bool {
 func IsValidBool(in string) bool {
 	_, err := strconv.ParseBool(in)
 	return err == nil
+}
+
+// trimFolderSlash takes a set of folder paths and returns a set of folder paths
+// with any unescaped trailing `/` characters removed.
+func trimFolderSlash(folders []string) []string {
+	res := make([]string, 0, len(folders))
+
+	for _, p := range folders {
+		// Use path package because it has logic to handle escaping already.
+		res = append(res, path.TrimTrailingSlash(p))
+	}
+
+	return res
 }

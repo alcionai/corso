@@ -43,10 +43,10 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 					account.ProviderM365,
 					account.M365Config{
 						M365: credentials.M365{
-							ClientID:     "Test",
-							ClientSecret: "without",
+							AzureClientID:     "Test",
+							AzureClientSecret: "without",
 						},
-						TenantID: "data",
+						AzureTenantID: "data",
 					},
 				)
 				require.NoError(t, err)

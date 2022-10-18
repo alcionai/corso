@@ -29,6 +29,7 @@ func TestExchangeServiceSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorExchangeTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -58,7 +59,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 func (suite *ExchangeServiceSuite) TestCreateService() {
 	creds := suite.es.credentials
 	invalidCredentials := suite.es.credentials
-	invalidCredentials.ClientSecret = ""
+	invalidCredentials.AzureClientSecret = ""
 
 	tests := []struct {
 		name        string
@@ -78,7 +79,7 @@ func (suite *ExchangeServiceSuite) TestCreateService() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			t.Log(test.credentials.ClientSecret)
+			t.Log(test.credentials.AzureClientSecret)
 			_, err := createService(test.credentials, false)
 			test.checkErr(t, err)
 		})
@@ -291,6 +292,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			function: GetAllContactFolderNamesForUser,
 		},
 		{
+			name:     "GraphQuery: Get Default ContactFolder",
+			function: GetDefaultContactFolderForUser,
+		},
+		{
 			name:     "GraphQuery: Get All Events for User",
 			function: GetAllEventsForUser,
 		},
@@ -305,72 +310,6 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			response, err := test.function(ctx, suite.es, userID)
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
-		})
-	}
-}
-
-// TestGetMailFolderID verifies the ability to retrieve folder ID of folders
-// at the top level of the file tree
-func (suite *ExchangeServiceSuite) TestGetContainerID() {
-	userID := tester.M365UserID(suite.T())
-	ctx, flush := tester.NewContext()
-
-	defer flush()
-
-	tests := []struct {
-		name          string
-		containerName string
-		// category references the current optionId :: TODO --> use selector fields
-		category   optionIdentifier
-		checkError assert.ErrorAssertionFunc
-	}{
-		{
-			name:          "Mail Valid",
-			containerName: DefaultMailFolder,
-			category:      messages,
-			checkError:    assert.NoError,
-		},
-		{
-			name:          "Mail Invalid",
-			containerName: "FolderThatIsNotHere",
-			category:      messages,
-			checkError:    assert.Error,
-		},
-		{
-			name:          "Contact Invalid",
-			containerName: "FolderThatIsNotHereContacts",
-			category:      contacts,
-			checkError:    assert.Error,
-		},
-		{
-			name:          "Contact Valid",
-			containerName: "TrialFolder",
-			category:      contacts,
-			checkError:    assert.NoError,
-		},
-		{
-			name:          "Event Invalid",
-			containerName: "NotAValid?@V'vCalendar",
-			category:      events,
-			checkError:    assert.Error,
-		},
-		{
-			name:          "Event Valid",
-			containerName: DefaultCalendar,
-			category:      events,
-			checkError:    assert.NoError,
-		},
-	}
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := GetContainerID(
-				ctx,
-				suite.es,
-				test.containerName,
-				userID,
-				test.category)
-			test.checkError(t, err, "error with container: "+test.containerName)
 		})
 	}
 }
@@ -587,7 +526,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc1: func() path.Path {
 					pth, err := path.Builder{}.Append("Griffindor").
 						Append("Croix").ToDataLayerExchangePathForCategory(
-						suite.es.credentials.TenantID,
+						suite.es.credentials.AzureTenantID,
 						user,
 						path.EmailCategory,
 						false,
@@ -599,7 +538,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc2: func() path.Path {
 					pth, err := path.Builder{}.Append("Griffindor").
 						Append("Felicius").ToDataLayerExchangePathForCategory(
-						suite.es.credentials.TenantID,
+						suite.es.credentials.AzureTenantID,
 						user,
 						path.EmailCategory,
 						false,
@@ -615,7 +554,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc1: func() path.Path {
 					aPath, err := path.Builder{}.Append("HufflePuff").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.TenantID,
+							suite.es.credentials.AzureTenantID,
 							user,
 							path.ContactsCategory,
 							false,
@@ -627,7 +566,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc2: func() path.Path {
 					aPath, err := path.Builder{}.Append("Ravenclaw").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.TenantID,
+							suite.es.credentials.AzureTenantID,
 							user,
 							path.ContactsCategory,
 							false,
@@ -643,7 +582,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc1: func() path.Path {
 					aPath, err := path.Builder{}.Append("Durmstrang").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.TenantID,
+							suite.es.credentials.AzureTenantID,
 							user,
 							path.EventsCategory,
 							false,
@@ -654,7 +593,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc2: func() path.Path {
 					aPath, err := path.Builder{}.Append("Beauxbatons").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.TenantID,
+							suite.es.credentials.AzureTenantID,
 							user,
 							path.EventsCategory,
 							false,
