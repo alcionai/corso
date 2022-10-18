@@ -17,5 +17,4 @@ func loadTestService(t *testing.T) *oneDriveService {
 	require.NoError(t, err)
 
 	return service
-
 }
