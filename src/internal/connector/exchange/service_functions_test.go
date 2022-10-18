@@ -19,6 +19,11 @@ type ServiceFunctionsIntegrationSuite struct {
 	creds      account.M365Config
 }
 
+const (
+	invalidUser       = "fnords_mc_snarfens"
+	nonExistantLookup = "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"
+)
+
 func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
@@ -83,13 +88,13 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 		},
 		{
 			name:        "nonsense user",
-			user:        "fnords_mc_snarfens",
+			user:        invalidUser,
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					EventCalendars([]string{"fnords_mc_snarfens"}, []string{DefaultContactFolder})[0]
+					EventCalendars([]string{invalidUser}, []string{DefaultContactFolder})[0]
 			},
 		},
 		{
@@ -100,7 +105,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					EventCalendars([]string{userID}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"})[0]
+					EventCalendars([]string{userID}, []string{nonExistantLookup})[0]
 			},
 		},
 	}
@@ -167,13 +172,13 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 		},
 		{
 			name:        "nonsense user",
-			user:        "fnords_mc_snarfens",
+			user:        invalidUser,
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					ContactFolders([]string{"fnords_mc_snarfens"}, []string{DefaultContactFolder})[0]
+					ContactFolders([]string{invalidUser}, []string{DefaultContactFolder})[0]
 			},
 		},
 		{
@@ -184,7 +189,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					ContactFolders([]string{user}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"})[0]
+					ContactFolders([]string{user}, []string{nonExistantLookup})[0]
 			},
 		},
 	}
@@ -251,13 +256,13 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 		},
 		{
 			name:        "nonsense user",
-			user:        "fnords_mc_snarfens",
+			user:        invalidUser,
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					MailFolders([]string{"fnords_mc_snarfens"}, []string{DefaultMailFolder})[0]
+					MailFolders([]string{invalidUser}, []string{DefaultMailFolder})[0]
 			},
 		},
 		{
@@ -268,7 +273,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					MailFolders([]string{userID}, []string{"∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"})[0]
+					MailFolders([]string{userID}, []string{nonExistantLookup})[0]
 			},
 		},
 	}
