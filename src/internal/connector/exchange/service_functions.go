@@ -150,13 +150,7 @@ func GetAllMailFolders(
 	}
 
 	for _, c := range resolver.Items() {
-		temp, _ := c.Path().ToDataLayerExchangePathForCategory(
-			"not",
-			"used",
-			path.EmailCategory,
-			false,
-		)
-		directories := temp.Folders()
+		directories := c.Path().Elements()
 
 		if qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1]) {
 			containers = append(containers, c)
@@ -182,13 +176,7 @@ func GetAllCalendars(
 	}
 
 	for _, c := range resolver.Items() {
-		temp, _ := c.Path().ToDataLayerExchangePathForCategory(
-			"not",
-			"used",
-			path.EventsCategory,
-			false,
-		)
-		directories := temp.Folders()
+		directories := c.Path().Elements()
 
 		if qp.Scope.Matches(selectors.ExchangeEventCalendar, directories[len(directories)-1]) {
 			containers = append(containers, c)
@@ -207,7 +195,10 @@ func GetAllContactFolders(
 	qp graph.QueryParams,
 	gs graph.Service,
 ) ([]graph.CachedContainer, error) {
-	containers := make([]graph.CachedContainer, 0)
+	var (
+		query      string
+		containers = make([]graph.CachedContainer, 0)
+	)
 
 	resolver, err := MaybeGetAndPopulateFolderResolver(ctx, qp, path.ContactsCategory)
 	if err != nil {
@@ -215,15 +206,15 @@ func GetAllContactFolders(
 	}
 
 	for _, c := range resolver.Items() {
-		temp := c.Path()
-		p, _ := temp.ToDataLayerExchangePathForCategory(
-			"not",
-			"used",
-			path.ContactsCategory,
-			false)
-		directories := p.Folders()
+		directories := c.Path().Elements()
 
-		if qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1]) {
+		if len(directories) == 0 {
+			query = DefaultContactFolder
+		} else {
+			query = directories[len(directories)-1]
+		}
+
+		if qp.Scope.Matches(selectors.ExchangeContactFolder, query) {
 			containers = append(containers, c)
 		}
 	}
