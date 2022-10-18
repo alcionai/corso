@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 var purgeCmd = &cobra.Command{
@@ -64,7 +65,11 @@ var ErrPurging = errors.New("not all items were successfully purged")
 // ------------------------------------------------------------------------------------------
 
 func main() {
-	ctx := SetRootCmd(context.Background(), purgeCmd)
+	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
+	ctx = SetRootCmd(ctx, purgeCmd)
+
+	defer logger.Flush(ctx)
+
 	fs := purgeCmd.PersistentFlags()
 	fs.StringVar(&before, "before", "", "folders older than this date are deleted.  (default: now in UTC)")
 	fs.StringVar(&user, "user", "", "m365 user id whose folders will be deleted")
@@ -410,8 +415,8 @@ func purgeFolders(
 func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	// get account info
 	m365Cfg := account.M365Config{
-		M365:     credentials.GetM365(),
-		TenantID: common.First(tenant, os.Getenv(account.TenantID)),
+		M365:          credentials.GetM365(),
+		AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
 	}
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)

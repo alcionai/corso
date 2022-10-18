@@ -31,30 +31,90 @@ var (
 			Name: "BadEmailReceiveAfter",
 			Opts: utils.ExchangeOpts{
 				EmailReceivedAfter: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.EmailReceivedAfterFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyEmailReceiveAfter",
+			Opts: utils.ExchangeOpts{
+				EmailReceivedAfter: "",
+				Populated: utils.PopulatedFlags{
+					utils.EmailReceivedAfterFN: struct{}{},
+				},
 			},
 		},
 		{
 			Name: "BadEmailReceiveBefore",
 			Opts: utils.ExchangeOpts{
 				EmailReceivedBefore: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.EmailReceivedBeforeFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyEmailReceiveBefore",
+			Opts: utils.ExchangeOpts{
+				EmailReceivedBefore: "",
+				Populated: utils.PopulatedFlags{
+					utils.EmailReceivedBeforeFN: struct{}{},
+				},
 			},
 		},
 		{
 			Name: "BadEventRecurs",
 			Opts: utils.ExchangeOpts{
 				EventRecurs: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.EventRecursFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyEventRecurs",
+			Opts: utils.ExchangeOpts{
+				EventRecurs: "",
+				Populated: utils.PopulatedFlags{
+					utils.EventRecursFN: struct{}{},
+				},
 			},
 		},
 		{
 			Name: "BadEventStartsAfter",
 			Opts: utils.ExchangeOpts{
 				EventStartsAfter: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.EventStartsAfterFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyEventStartsAfter",
+			Opts: utils.ExchangeOpts{
+				EventStartsAfter: "",
+				Populated: utils.PopulatedFlags{
+					utils.EventStartsAfterFN: struct{}{},
+				},
 			},
 		},
 		{
 			Name: "BadEventStartsBefore",
 			Opts: utils.ExchangeOpts{
 				EventStartsBefore: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.EventStartsBeforeFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyEventStartsBefore",
+			Opts: utils.ExchangeOpts{
+				EventStartsBefore: "",
+				Populated: utils.PopulatedFlags{
+					utils.EventStartsBeforeFN: struct{}{},
+				},
 			},
 		},
 	}
@@ -68,19 +128,49 @@ var (
 			Name:     "Emails",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				Emails: selectors.Any(),
+				Email: selectors.Any(),
 			},
 		},
 		{
 			Name:     "EmailsFolderPrefixMatch",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				EmailFolders: []string{testdata.ExchangeEmailInboxPath.Folder()},
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder()},
 			},
 		},
 		{
-			Name:     "EmailsBySubject",
+			Name:     "EmailsFolderPrefixMatchTrailingSlash",
 			Expected: testdata.ExchangeEmailItems,
+			Opts: utils.ExchangeOpts{
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder() + "/"},
+			},
+		},
+		{
+			Name: "EmailsFolderWithSlashPrefixMatch",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[1],
+				testdata.ExchangeEmailItems[2],
+			},
+			Opts: utils.ExchangeOpts{
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder()},
+			},
+		},
+		{
+			Name: "EmailsFolderWithSlashPrefixMatchTrailingSlash",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[1],
+				testdata.ExchangeEmailItems[2],
+			},
+			Opts: utils.ExchangeOpts{
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder() + "/"},
+			},
+		},
+		{
+			Name: "EmailsBySubject",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[0],
+				testdata.ExchangeEmailItems[1],
+			},
 			Opts: utils.ExchangeOpts{
 				EmailSender: "a-person",
 			},
@@ -109,21 +199,24 @@ var (
 			Name:     "MailID",
 			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
-				Emails: []string{testdata.ExchangeEmailItemPath1.Item()},
+				Email: []string{testdata.ExchangeEmailItemPath1.Item()},
 			},
 		},
 		{
 			Name:     "MailShortRef",
 			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
-				Emails: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
+				Email: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
 			},
 		},
 		{
-			Name:     "MultipleMailShortRef",
-			Expected: testdata.ExchangeEmailItems,
+			Name: "MultipleMailShortRef",
+			Expected: []details.DetailsEntry{
+				testdata.ExchangeEmailItems[0],
+				testdata.ExchangeEmailItems[1],
+			},
 			Opts: utils.ExchangeOpts{
-				Emails: []string{
+				Email: []string{
 					testdata.ExchangeEmailItemPath1.ShortRef(),
 					testdata.ExchangeEmailItemPath2.ShortRef(),
 				},
@@ -134,7 +227,7 @@ var (
 			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
 				EmailSubject: "foo",
-				Events:       selectors.Any(),
+				Event:        selectors.Any(),
 			},
 		},
 		{
@@ -152,8 +245,8 @@ var (
 				testdata.ExchangeEventsItems[0],
 			},
 			Opts: utils.ExchangeOpts{
-				Emails: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
-				Events: []string{testdata.ExchangeEventsItemPath1.ShortRef()},
+				Email: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
+				Event: []string{testdata.ExchangeEventsItemPath1.ShortRef()},
 			},
 		},
 	}

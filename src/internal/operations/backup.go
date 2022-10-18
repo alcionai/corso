@@ -231,7 +231,6 @@ func (op *BackupOperation) createBackupModels(
 			events.Service:    op.Selectors.Service.String(),
 			events.StartTime:  op.Results.StartedAt,
 			events.Status:     op.Status,
-			// TODO: events.ExchangeDataObserved: <amount of data retrieved>,
 		},
 	)
 

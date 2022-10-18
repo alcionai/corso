@@ -60,8 +60,8 @@ To extract the tenant and client ID, select Overview from the app management pan
 environment variables.
 
 ```bash
-export TENANT_ID=<Directory (tenent) ID for configured app>
-export CLIENT_ID=<Application (client) ID for configured app>
+export AZURE_TENANT_ID=<Directory (tenent) ID for configured app>
+export AZURE_CLIENT_ID=<Application (client) ID for configured app>
 ```
 
 <img src="/img/m365app_ids.png" className="guideImages"/>
@@ -75,7 +75,7 @@ Click **New Client Secret** and follow the instructions to create a secret. Afte
 value right away because it won't be available later and export it as an environment variable.
 
 ```bash
-export CLIENT_SECRET=<client secret value>
+export AZURE_CLIENT_SECRET=<client secret value>
 ```
 
 <img src="/img/m365app_secret.png" className="guideImages"/>

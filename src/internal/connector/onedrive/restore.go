@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -250,8 +251,13 @@ func restoreItem(
 		return nil, errors.Wrapf(err, "failed to create item upload session %s", itemName)
 	}
 
+	iReader := itemData.ToReader()
+	progReader, closer := observe.ItemProgress(iReader, itemName, ss.Size())
+
+	go closer()
+
 	// Upload the stream data
-	written, err := io.CopyBuffer(w, itemData.ToReader(), copyBuffer)
+	written, err := io.CopyBuffer(w, progReader, copyBuffer)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}

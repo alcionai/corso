@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -204,7 +205,7 @@ func CollectionsFromResolver(
 		}
 
 		completePath, err := item.Path().ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
+			qp.Credentials.AzureTenantID,
 			qp.User,
 			category,
 			false,
@@ -503,7 +504,7 @@ func IterateSelectAllContactsForCollections(
 			// Create and Populate Default Contacts folder Collection if true
 			if qp.Scope.Matches(selectors.ExchangeContactFolder, DefaultContactFolder) {
 				dirPath, err := path.Builder{}.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
-					qp.Credentials.TenantID,
+					qp.Credentials.AzureTenantID,
 					qp.User,
 					path.ContactsCategory,
 					false,
@@ -566,59 +567,6 @@ func IterateSelectAllContactsForCollections(
 	}
 }
 
-// iterateFindContainerID is a utility function that supports finding
-// M365 folders objects that matches the folderName. Iterator callback function
-// will work on folderCollection responses whose objects implement
-// the Displayable interface. If folder exists, the function updates the
-// containerID memory address that was passed in.
-// @param containerName is the string representation of the folder, directory or calendar holds
-// the underlying M365 objects
-func iterateFindContainerID(
-	containerID **string,
-	containerName, errorIdentifier string,
-	isCalendar bool,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		if isCalendar {
-			entry = CreateCalendarDisplayable(entry)
-		}
-
-		// True when pagination needs more time to get additional responses or
-		// when entry is not able to be converted into a Displayable
-		if entry == nil {
-			return true
-		}
-
-		folder, ok := entry.(graph.Displayable)
-		if !ok {
-			errUpdater(
-				errorIdentifier,
-				errors.New("struct does not implement Displayable"),
-			)
-
-			return true
-		}
-
-		// Display name not set on folder
-		if folder.GetDisplayName() == nil {
-			return true
-		}
-
-		if containerName == *folder.GetDisplayName() {
-			if folder.GetId() == nil {
-				return true // invalid folder
-			}
-
-			*containerID = folder.GetId()
-
-			return false
-		}
-
-		return true
-	}
-}
-
 // IDistFunc collection of helper functions which return a list of strings
 // from a response.
 type IDListFunc func(ctx context.Context, gs graph.Service, user, m365ID string) ([]string, error)
@@ -669,6 +617,53 @@ func ReturnContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, 
 	}
 
 	return stringArray, nil
+}
+
+func IterativeCollectContactContainers(
+	containers map[string]graph.Container,
+	nameContains string,
+	errUpdater func(string, error),
+) func(any) bool {
+	return func(entry any) bool {
+		folder, ok := entry.(models.ContactFolderable)
+		if !ok {
+			errUpdater("", errors.New("casting item to models.ContactFolderable"))
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			strings.Contains(*folder.GetDisplayName(), nameContains)
+
+		if include {
+			containers[*folder.GetDisplayName()] = folder
+		}
+
+		return true
+	}
+}
+
+func IterativeCollectCalendarContainers(
+	containers map[string]graph.Container,
+	nameContains string,
+	errUpdater func(string, error),
+) func(any) bool {
+	return func(entry any) bool {
+		cal, ok := entry.(models.Calendarable)
+		if !ok {
+			errUpdater("failure during IterativeCollectCalendarContainers",
+				errors.New("casting item to models.Calendarable"))
+			return false
+		}
+
+		include := len(nameContains) == 0 ||
+			strings.Contains(*cal.GetName(), nameContains)
+		if include {
+			temp := CreateCalendarDisplayable(cal)
+			containers[*temp.GetDisplayName()] = temp
+		}
+
+		return true
+	}
 }
 
 // ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
