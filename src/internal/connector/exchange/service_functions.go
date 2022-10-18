@@ -260,9 +260,9 @@ func PopulateExchangeContainerResolver(
 	showRoot bool,
 ) (graph.ContainerResolver, error) {
 	var (
-		res             graph.ContainerResolver
-		cacheRoot, base string
-		service, err    = createService(qp.Credentials, qp.FailFast)
+		res          graph.ContainerResolver
+		cacheRoot    string
+		service, err = createService(qp.Credentials, qp.FailFast)
 	)
 
 	if err != nil {

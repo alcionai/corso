@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -317,80 +316,6 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	}
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	var (
-		t      = suite.T()
-		userID = tester.M365UserID(t)
-		sel    = selectors.NewExchangeBackup()
-	)
-
-	tests := []struct {
-		name        string
-		scope       selectors.ExchangeScope
-		folderNames map[string]struct{}
-	}{
-		{
-			name:  "Mail Iterative Check",
-			scope: sel.MailFolders([]string{userID}, selectors.Any())[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-				"Sent Items":               {},
-			},
-		},
-		{
-			name: "Folder Iterative Check Mail",
-			scope: sel.MailFolders(
-				[]string{userID},
-				[]string{exchange.DefaultMailFolder},
-			)[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-			},
-		},
-	}
-
-	gc := loadConnector(ctx, t)
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			qp := graph.QueryParams{
-				User:        userID,
-				Scope:       test.scope,
-				Credentials: gc.credentials,
-				FailFast:    false,
-			}
-
-			resolver, err := exchange.PopulateExchangeContainerResolver(
-				ctx,
-				qp,
-				scopeToPathCategory(qp.Scope),
-			)
-			require.NoError(t, err)
-
-			collections, err := gc.fetchItemsByFolder(
-				ctx,
-				qp,
-				resolver,
-			)
-			require.NoError(t, err)
-
-			for _, c := range collections {
-				require.NotEmpty(t, c.FullPath().Folder())
-				folder := c.FullPath().Folder()
-
-				if _, ok := test.folderNames[folder]; ok {
-					delete(test.folderNames, folder)
-				}
-			}
-
-			assert.Empty(t, test.folderNames)
-		})
-	}
-}
-
 ///------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------
@@ -452,15 +377,27 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 // TestRestoreAndBackup
 // nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
-	// nolint:gofmt
-	// bodyText := "This email has some text. However, all the text is on the same line."
-	// subjectText := "Test message for restore"
+<<<<<<< HEAD
+	//nolint:gofumpt
+	//bodyText := "This email has some text. However, all the text is on the same line."
+	//subjectText := "Test message for restore"
 
 	table := []struct {
 		name          string
 		service       path.ServiceType
 		collections   []colInfo
 		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
+=======
+	// nolint:gofmt
+	// bodyText := "This email has some text. However, all the text is on the same line."
+	// subjectText := "Test message for restore"
+
+	table := []struct {
+		name                   string
+		service                path.ServiceType
+		collections            []colInfo
+		expectedRestoreFolders int
+>>>>>>> main
 	}{
 		// {
 		// 	name:                   "EmailsWithAttachments",
@@ -488,6 +425,20 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 			},
 		// 		},
 		// 	},
+<<<<<<< HEAD
+		// 	// TODO(ashmrtn): Generalize this once we know the path transforms that
+		// 	// occur during restore.
+		// 	backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+		// 		backupSel := selectors.NewExchangeBackup()
+		// 		backupSel.Include(backupSel.MailFolders(
+		// 			[]string{backupUser},
+		// 			[]string{dest.ContainerName},
+		// 		))
+
+		// 		return backupSel.Selector
+		// 	},
+=======
+>>>>>>> main
 		// },
 		// {
 		// 	name:                   "MultipleEmailsSingleFolder",
@@ -525,6 +476,20 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 			},
 		// 		},
 		// 	},
+<<<<<<< HEAD
+		// 	// TODO(ashmrtn): Generalize this once we know the path transforms that
+		// 	// occur during restore.
+		// 	backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
+		// 		backupSel := selectors.NewExchangeBackup()
+		// 		backupSel.Include(backupSel.MailFolders(
+		// 			[]string{backupUser},
+		// 			[]string{dest.ContainerName},
+		// 		))
+
+		// 		return backupSel.Selector
+		// 	},
+=======
+>>>>>>> main
 		// },
 		{
 			name:    "MultipleContactsSingleFolder",
@@ -732,6 +697,44 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 	//nolint:gofumpt
 	//bodyText := "This email has some text. However, all the text is on the same line."
 	//subjectText := "Test message for restore"
+<<<<<<< HEAD
+
+	// TODO(ashmrtn): Update if we start mixing categories during backup/restore.
+	backupSelFunc := func(
+		dests []control.RestoreDestination,
+		category path.CategoryType,
+		backupUser string,
+	) selectors.Selector {
+		destNames := make([]string, 0, len(dests))
+
+		for _, d := range dests {
+			destNames = append(destNames, d.ContainerName)
+		}
+
+		backupSel := selectors.NewExchangeBackup()
+
+		switch category {
+		case path.EmailCategory:
+			backupSel.Include(backupSel.MailFolders(
+				[]string{backupUser},
+				destNames,
+			))
+		case path.ContactsCategory:
+			backupSel.Include(backupSel.ContactFolders(
+				[]string{backupUser},
+				destNames,
+			))
+		case path.EventsCategory:
+			backupSel.Include(backupSel.EventCalendars(
+				[]string{backupUser},
+				destNames,
+			))
+		}
+
+		return backupSel.Selector
+	}
+=======
+>>>>>>> main
 
 	table := []struct {
 		name     string
