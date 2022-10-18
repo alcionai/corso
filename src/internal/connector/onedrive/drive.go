@@ -17,7 +17,29 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var errFolderNotFound = errors.New("folder not found")
+var (
+	errFolderNotFound = errors.New("folder not found")
+
+	// nolint:lll
+	// OneDrive associated SKUs located at:
+	// https://learn.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
+	skuIDs = []string{
+		"cdd28e44-67e3-425e-be4c-737fab2899d3",
+		"b214fe43-f5a3-4703-beeb-fa97188220fc",
+		"c2273bd0-dff7-4215-9ef5-2c7bcfb06425",
+		"12b8c807-2e20-48fc-b453-542b6ee9d171",
+		"c32f9321-a627-406d-a114-1f9c81aaafac",
+		"e6778190-713e-4e4f-9119-8b8238de25df",
+		"ed01faf2-1d88-4947-ae91-45ca18703a96",
+		"ca7f3140-d88c-455b-9a1c-7f0679e31a76",
+		"38b434d2-a15e-4cde-9a98-e737c75623e1",
+		"4b244418-9658-4451-a2b8-b5e2b364e9bd",
+		"c5928f49-12ba-48f7-ada3-0d743a3601d5",
+		"4ae99959-6b0f-43b0-b1ce-68146001bdba",
+		"afcafa6a-d966-4462-918c-ec0b4e0fe642",
+		"c42b9cae-ea4f-4ab7-9717-81576235ccac", // Microsoft 365 E5 Developer
+	}
+)
 
 const (
 	// nextLinkKey is used to find the next link in a paged
@@ -30,6 +52,30 @@ const (
 
 // Enumerates the drives for the specified user
 func drives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
+	var hasDrive bool
+
+	resp, err := service.Client().UsersById(user).LicenseDetails().Get(ctx, nil)
+	if err != nil {
+		return nil, errors.New("First call fails too")
+	}
+
+	licenses := resp.GetValue()
+	for _, entry := range licenses {
+		sku := entry.GetSkuId()
+		if sku == nil {
+			continue
+		}
+
+		if ok := hasLicense(*sku); ok {
+			hasDrive = true
+			break
+		}
+	}
+
+	if !hasDrive {
+		return make([]models.Driveable, 0), nil // no license
+	}
+
 	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
@@ -238,4 +284,14 @@ func DeleteItem(
 	}
 
 	return nil
+}
+
+func hasLicense(skuID string) bool {
+	for _, license := range skuIDs {
+		if skuID == license {
+			return true
+		}
+	}
+
+	return false
 }
