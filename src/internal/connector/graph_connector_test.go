@@ -450,6 +450,84 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	}
 }
 
+func runRestoreBackupTest(
+	t *testing.T,
+	test restoreBackupInfo,
+	tenant string,
+	users []string,
+) {
+	var (
+		collections  []data.Collection
+		expectedData = map[string]map[string][]byte{}
+		totalItems   = 0
+		// Get a dest per test so they're independent.
+		dest = tester.DefaultTestRestoreDestination()
+	)
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	for _, user := range users {
+		numItems, userCollections, userExpectedData := collectionsForInfo(
+			t,
+			test.service,
+			tenant,
+			user,
+			dest,
+			test.collections,
+		)
+
+		collections = append(collections, userCollections...)
+		totalItems += numItems
+
+		for k, v := range userExpectedData {
+			expectedData[k] = v
+		}
+	}
+
+	t.Logf(
+		"Restoring collections to %s for user(s) %v\n",
+		dest.ContainerName,
+		users,
+	)
+
+	restoreGC := loadConnector(ctx, t)
+	restoreSel := getSelectorWith(test.service)
+	deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+	require.NoError(t, err)
+	assert.NotNil(t, deets)
+
+	status := restoreGC.AwaitStatus()
+	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
+	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+	assert.Len(
+		t,
+		deets.Entries,
+		totalItems,
+		"details entries contains same item count as total successful items restored")
+
+	t.Logf("Restore complete\n")
+
+	// Run a backup and compare its output with what we put in.
+
+	backupGC := loadConnector(ctx, t)
+	backupSel := backupSelectorForExpected(t, expectedData)
+	t.Logf("Selective backup of %s\n", backupSel)
+
+	dcs, err := backupGC.DataCollections(ctx, backupSel)
+	require.NoError(t, err)
+
+	t.Logf("Backup enumeration complete\n")
+
+	// Pull the data prior to waiting for the status as otherwise it will
+	// deadlock.
+	checkCollections(t, totalItems, expectedData, dcs)
+
+	status = backupGC.AwaitStatus()
+	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
+	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+}
+
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
@@ -667,56 +745,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			// Get a dest per test so they're independent.
-			dest := tester.DefaultTestRestoreDestination()
-
-			totalItems, collections, expectedData := collectionsForInfo(
-				t,
-				test.service,
-				suite.connector.tenant,
-				suite.user,
-				dest,
-				test.collections,
-			)
-
-			t.Logf("Restoring collections to %s\n", dest.ContainerName)
-
-			restoreGC := loadConnector(ctx, t)
-			restoreSel := getSelectorWith(test.service)
-			deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
-			require.NoError(t, err)
-			assert.NotNil(t, deets)
-
-			status := restoreGC.AwaitStatus()
-			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-			assert.Equal(t, totalItems, status.Successful, "status.Successful")
-			assert.Equal(
-				t, totalItems, len(deets.Entries),
-				"details entries contains same item count as total successful items restored")
-
-			t.Logf("Restore complete\n")
-
-			// Run a backup and compare its output with what we put in.
-
-			backupGC := loadConnector(ctx, t)
-			backupSel := backupSelectorForExpected(t, expectedData)
-			t.Logf("Selective backup of %s\n", backupSel)
-
-			dcs, err := backupGC.DataCollections(ctx, backupSel)
-			require.NoError(t, err)
-
-			t.Logf("Backup enumeration complete\n")
-
-			// Pull the data prior to waiting for the status as otherwise it will
-			// deadlock.
-			checkCollections(t, totalItems, expectedData, dcs)
-
-			status = backupGC.AwaitStatus()
-			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-			assert.Equal(t, totalItems, status.Successful, "status.Successful")
+			runRestoreBackupTest(t, test, suite.connector.tenant, []string{suite.user})
 		})
 	}
 }
