@@ -231,7 +231,8 @@ func GetAllContactFolders(
 	return containers, err
 }
 
-func CollectFolders(
+// TODO: Initialize after the Iterative changes have been made.
+func CollectFolderrs(
 	ctx context.Context,
 	qp graph.QueryParams,
 	gs graph.Service,
