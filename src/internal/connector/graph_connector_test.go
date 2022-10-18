@@ -883,3 +883,111 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		})
 	}
 }
+
+func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
+	bodyText := "This email has some text. However, all the text is on the same line."
+	subjectText := "Test message for restore"
+
+	users := []string{
+		suite.user,
+		tester.SecondaryM365UserID(suite.T()),
+	}
+	table := []restoreBackupInfo{
+		{
+			name:    "Email",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-1",
+								bodyText+" 1.",
+							),
+							lookupKey: subjectText + "-1",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Archive"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-2",
+								bodyText+" 2.",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "Contacts",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "Events",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			runRestoreBackupTest(t, test, suite.connector.tenant, users)
+		})
+	}
+}
