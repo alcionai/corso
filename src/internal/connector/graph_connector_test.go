@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -491,6 +492,8 @@ func runRestoreBackupTest(
 		users,
 	)
 
+	start := time.Now()
+
 	restoreGC := loadConnector(ctx, t)
 	restoreSel := getSelectorWith(test.service)
 	deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
@@ -498,6 +501,8 @@ func runRestoreBackupTest(
 	assert.NotNil(t, deets)
 
 	status := restoreGC.AwaitStatus()
+	runTime := time.Now().Sub(start)
+
 	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 	assert.Equal(t, totalItems, status.Successful, "status.Successful")
 	assert.Len(
@@ -506,7 +511,7 @@ func runRestoreBackupTest(
 		totalItems,
 		"details entries contains same item count as total successful items restored")
 
-	t.Logf("Restore complete\n")
+	t.Logf("Restore complete in %v\n", runTime)
 
 	// Run a backup and compare its output with what we put in.
 
@@ -514,10 +519,11 @@ func runRestoreBackupTest(
 	backupSel := backupSelectorForExpected(t, expectedData)
 	t.Logf("Selective backup of %s\n", backupSel)
 
+	start = time.Now()
 	dcs, err := backupGC.DataCollections(ctx, backupSel)
 	require.NoError(t, err)
 
-	t.Logf("Backup enumeration complete\n")
+	t.Logf("Backup enumeration complete in %v\n", time.Now().Sub(start))
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
