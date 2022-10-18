@@ -62,12 +62,14 @@ func drives(ctx context.Context, service graph.Service, user string) ([]models.D
 	}
 
 	if !hasDrive {
+		logger.Ctx(ctx).Debugf("User %s does not have a license for OneDrive", user)
 		return make([]models.Driveable, 0), nil // no license
 	}
 
 	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
 	if err != nil {
 		if strings.Contains(support.ConnectorStackErrorTrace(err), userDoesNotHaveDrive) {
+			logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
 			return make([]models.Driveable, 0), nil // no license
 		}
 
