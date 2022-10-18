@@ -465,7 +465,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:        "Test Events",
-			bytes:       mockconnector.GetMockEventBytes("Restored Event Object"),
+			bytes:       mockconnector.GetDefaultMockEventBytes("Restored Event Object"),
 			category:    path.EventsCategory,
 			cleanupFunc: DeleteCalendar,
 			destination: func(ctx context.Context) string {
