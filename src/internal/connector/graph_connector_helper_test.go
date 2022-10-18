@@ -156,6 +156,12 @@ type colInfo struct {
 	items        []itemInfo
 }
 
+type restoreBackupInfo struct {
+	name        string
+	service     path.ServiceType
+	collections []colInfo
+}
+
 func attachmentEqual(
 	expected models.Attachmentable,
 	got models.Attachmentable,
