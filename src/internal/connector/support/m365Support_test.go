@@ -106,7 +106,7 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 		},
 		{
 			name:       "Valid Event",
-			byteArray:  mockconnector.GetMockEventBytes("Event Test"),
+			byteArray:  mockconnector.GetDefaultMockEventBytes("Event Test"),
 			checkError: assert.NoError,
 			isNil:      assert.NotNil,
 		},
