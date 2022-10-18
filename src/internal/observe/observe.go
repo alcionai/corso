@@ -110,7 +110,8 @@ func makeSpinFrames(barWidth int) {
 // counts as a single increment.  The caller is expected to close the channel.
 func CollectionProgress(user, dirName string) (chan<- struct{}, func()) {
 	if writer == nil || len(dirName) == 0 {
-		return nil, func() {}
+		// return a channel instead of nil to prevent nil panics on close
+		return make(chan struct{}), func() {}
 	}
 
 	wg.Add(1)
