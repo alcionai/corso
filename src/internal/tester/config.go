@@ -20,15 +20,17 @@ const (
 	TestCfgStorageProvider = "provider"
 
 	// M365 config
-	TestCfgTenantID        = "tenantid"
+	TestCfgAzureTenantID   = "azure_tenantid"
 	TestCfgUserID          = "m365userid"
+	TestCfgSecondaryUserID = "secondarym365userid"
 	TestCfgAccountProvider = "account_provider"
 )
 
 // test specific env vars
 const (
-	EnvCorsoM365TestUserID     = "CORSO_M356_TEST_USER_ID"
-	EnvCorsoTestConfigFilePath = "CORSO_TEST_CONFIG_FILE"
+	EnvCorsoM365TestUserID          = "CORSO_M356_TEST_USER_ID"
+	EnvCorsoSecondaryM365TestUserID = "CORSO_SECONDARY_M356_TEST_USER_ID"
+	EnvCorsoTestConfigFilePath      = "CORSO_TEST_CONFIG_FILE"
 )
 
 // global to hold the test config results.
@@ -100,13 +102,20 @@ func readTestConfig() (map[string]string, error) {
 	fallbackTo(testEnv, TestCfgBucket, vpr.GetString(TestCfgBucket), "test-corso-repo-init")
 	fallbackTo(testEnv, TestCfgEndpoint, vpr.GetString(TestCfgEndpoint), "s3.amazonaws.com")
 	fallbackTo(testEnv, TestCfgPrefix, vpr.GetString(TestCfgPrefix))
-	fallbackTo(testEnv, TestCfgTenantID, os.Getenv(account.TenantID), vpr.GetString(TestCfgTenantID))
+	fallbackTo(testEnv, TestCfgAzureTenantID, os.Getenv(account.AzureTenantID), vpr.GetString(TestCfgAzureTenantID))
 	fallbackTo(
 		testEnv,
 		TestCfgUserID,
 		os.Getenv(EnvCorsoM365TestUserID),
 		vpr.GetString(TestCfgUserID),
 		"lidiah@8qzvrj.onmicrosoft.com",
+	)
+	fallbackTo(
+		testEnv,
+		TestCfgSecondaryUserID,
+		os.Getenv(EnvCorsoSecondaryM365TestUserID),
+		vpr.GetString(TestCfgSecondaryUserID),
+		"lynner@8qzvrj.onmicrosoft.com",
 	)
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)

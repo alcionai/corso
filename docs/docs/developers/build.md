@@ -13,7 +13,7 @@ go build -o corso
 ```
 
 :::info
-If you dong have Go available, you can find installation instructions [here](https://go.dev/doc/install)
+If you don't have Go available, you can find installation instructions [here](https://go.dev/doc/install)
 :::
 
 This will generate a binary named `corso` in the directory where you run the build.
@@ -26,16 +26,17 @@ For convenience, the Corso build tooling is containerized. To take advantage, yo
 To build Corso via docker, use the following command from the root of your repo:
 
 ```bash
-./build/build.sh
+./build/build.sh binary
 ```
 
-You can pass in all the architectures/platforms you would like to
-build it for using the `--platforms` flag as a comma separated
-list. For example, if you would like to build `amd64` and `arm64`
-versions for Linux, you can run the following command:
+By default, we will build for your current platform. You can pass in
+all the architectures/platforms you would like to build it for using
+the `--platforms` flag as a comma separated list. For example, if you
+would like to build `amd64` and `arm64` versions for Linux, you can
+run the following command:
 
 ```bash
-./build/build.sh --platforms linux/amd64,linux/arm64
+./build/build.sh binary --platforms linux/amd64,linux/arm64
 ```
 
 Once built, the resulting binaries will be available in `<repo root>/bin` for all the different platforms you specified.
@@ -46,18 +47,29 @@ If you prefer to build Corso as a container image, use the following command ins
 
 ```bash
 # Use --help to see all available options
-./build/build-container.sh
+./build/build.sh image
 ```
 
-Below are the main customization flags that you can set when building a container image:
+:::note
+`Dockerfile` used to build the image is available at [`build/Dockerfile`](https://github.com/alcionai/corso/blob/main/build/Dockerfile)
+:::
 
-- `-a|--arch`: Set the architecture to the specified value. (default: amd64)
-- `-l|--local`: Build the corso binary on your local system, rather than a go image.
-- `-p|--prefix`: Prefix for the image name.
-- `-s|--suffix`: Suffix for the version.
+Similar to binaries, we build your a container image for your current
+platform by default, but you can change it by explicitly passing in
+the platforms that you would like to build for.
+In addition, you can optionally pass the tag that you would like to
+apply for the image using `--tag` option.
 
-For example, you can use the following command to create a `arm64` image with prefix of `ghcr.io` and the tag as `nightly`.
+For example, you can use the following command to create a `arm64`
+image with the tag `gcr.io/alcionai/corso:latest`, you can run:
 
 ```bash
-./build/build-container.sh --arch arm64 --prefix ghcr.io --suffix nightly
+./build/build.sh image --platforms linux/arm64 --tag gcr.io/alcionai/corso:latest
 ```
+
+:::info
+If you run into any issues with building cross platform images, make
+sure to follow the instructions on [Docker
+docs](https://docs.docker.com/build/building/multi-platform/) to setup
+the build environment for Multi-platform images.
+:::

@@ -2,7 +2,6 @@ package mock
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
@@ -17,27 +16,17 @@ import (
 // ------------------------------------------------------------
 
 type MockModelStore struct {
-	backup  []byte
-	details []byte
+	backup  *backup.Backup
+	details *details.Details
 	err     error
 }
 
 func NewMock(b *backup.Backup, d *details.Details, err error) *MockModelStore {
 	return &MockModelStore{
-		backup:  marshal(b),
-		details: marshal(d),
+		backup:  b,
+		details: d,
 		err:     err,
 	}
-}
-
-func marshal(a any) []byte {
-	bs, _ := json.Marshal(a)
-	return bs
-}
-
-func unmarshal(b []byte, a any) {
-	//nolint:errcheck
-	json.Unmarshal(b, a)
 }
 
 // ------------------------------------------------------------
@@ -68,9 +57,13 @@ func (mms *MockModelStore) Get(
 
 	switch s {
 	case model.BackupSchema:
-		unmarshal(mms.backup, data)
+		bm := data.(*backup.Backup)
+		*bm = *mms.backup
+
 	case model.BackupDetailsSchema:
-		unmarshal(mms.details, data)
+		dm := data.(*details.Details)
+		dm.DetailsModel = mms.details.DetailsModel
+
 	default:
 		return errors.Errorf("schema %s not supported by mock Get", s)
 	}
@@ -89,13 +82,12 @@ func (mms *MockModelStore) GetIDsForType(
 
 	switch s {
 	case model.BackupSchema:
-		b := backup.Backup{}
-		unmarshal(mms.backup, &b)
-
+		b := *mms.backup
 		return []*model.BaseModel{&b.BaseModel}, nil
+
 	case model.BackupDetailsSchema:
 		d := details.Details{}
-		unmarshal(mms.backup, &d)
+		d.DetailsModel = mms.details.DetailsModel
 
 		return []*model.BaseModel{&d.BaseModel}, nil
 	}
@@ -115,9 +107,13 @@ func (mms *MockModelStore) GetWithModelStoreID(
 
 	switch s {
 	case model.BackupSchema:
-		unmarshal(mms.backup, data)
+		bm := data.(*backup.Backup)
+		*bm = *mms.backup
+
 	case model.BackupDetailsSchema:
-		unmarshal(mms.details, data)
+		dm := data.(*details.Details)
+		dm.DetailsModel = mms.details.DetailsModel
+
 	default:
 		return errors.Errorf("schema %s not supported by mock GetWithModelStoreID", s)
 	}
@@ -132,9 +128,13 @@ func (mms *MockModelStore) GetWithModelStoreID(
 func (mms *MockModelStore) Put(ctx context.Context, s model.Schema, m model.Model) error {
 	switch s {
 	case model.BackupSchema:
-		mms.backup = marshal(m)
+		bm := m.(*backup.Backup)
+		mms.backup = bm
+
 	case model.BackupDetailsSchema:
-		mms.details = marshal(m)
+		dm := m.(*details.Details)
+		mms.details = dm
+
 	default:
 		return errors.Errorf("schema %s not supported by mock Put", s)
 	}
@@ -145,9 +145,13 @@ func (mms *MockModelStore) Put(ctx context.Context, s model.Schema, m model.Mode
 func (mms *MockModelStore) Update(ctx context.Context, s model.Schema, m model.Model) error {
 	switch s {
 	case model.BackupSchema:
-		mms.backup = marshal(m)
+		bm := m.(*backup.Backup)
+		mms.backup = bm
+
 	case model.BackupDetailsSchema:
-		mms.details = marshal(m)
+		dm := m.(*details.Details)
+		mms.details = dm
+
 	default:
 		return errors.Errorf("schema %s not supported by mock Update", s)
 	}

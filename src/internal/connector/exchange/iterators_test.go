@@ -25,6 +25,7 @@ func TestExchangeIteratorSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorExchangeTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -120,6 +121,12 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			name:              "Folder Iterative Check Contacts",
 			queryFunction:     GetAllContactFolderNamesForUser,
 			iterativeFunction: IterateFilterContainersForCollections,
+			scope:             contactScope[0],
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+		}, {
+			name:              "Default Contacts Folder",
+			queryFunction:     GetDefaultContactFolderForUser,
+			iterativeFunction: IterateSelectAllContactsForCollections,
 			scope:             contactScope[0],
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 		},

@@ -77,7 +77,7 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 	}
 
 	gc := GraphConnector{
-		tenant:      m365.TenantID,
+		tenant:      m365.AzureTenantID,
 		Users:       make(map[string]string, 0),
 		wg:          &sync.WaitGroup{},
 		credentials: m365,
@@ -101,9 +101,9 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 // createService constructor for graphService component
 func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
 	adapter, err := graph.CreateAdapter(
-		gc.credentials.TenantID,
-		gc.credentials.ClientID,
-		gc.credentials.ClientSecret,
+		gc.credentials.AzureTenantID,
+		gc.credentials.AzureClientID,
+		gc.credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -334,40 +334,46 @@ func (gc *GraphConnector) legacyFetchItems(
 	resolver graph.ContainerResolver,
 ) (map[string]*exchange.Collection, error) {
 	var (
-		errs        error
+		errs       error
+		errUpdater = func(id string, err error) {
+			errs = support.WrapAndAppend(id, err, errs)
+		}
 		collections = map[string]*exchange.Collection{}
 	)
 
-	transformer, query, gIter, err := exchange.SetupExchangeCollectionVars(scope)
+	transformer, queries, gIter, err := exchange.SetupExchangeCollectionVars(scope)
 	if err != nil {
 		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
 	}
 
-	response, err := query(ctx, &gc.graphService, qp.User)
-	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"user %s M365 query: %s",
-			qp.User, support.ConnectorStackErrorTrace(err))
-	}
+	// queries is assumed to provide fallbacks in case of empty results.  Any
+	// non-zero collection production will break out of the loop.
+	for _, query := range queries {
+		response, err := query(ctx, &gc.graphService, qp.User)
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"user %s M365 query: %s",
+				qp.User, support.ConnectorStackErrorTrace(err))
+		}
 
-	pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
-	if err != nil {
-		return nil, err
-	}
+		pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
+		if err != nil {
+			return nil, err
+		}
 
-	errUpdater := func(id string, err error) {
-		errs = support.WrapAndAppend(id, err, errs)
-	}
+		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
+		// with corresponding item M365IDs. New collections are created for each directory.
+		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
+		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus, resolver)
 
-	// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
-	// with corresponding item M365IDs. New collections are created for each directory.
-	// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-	callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus, resolver)
-	iterateError := pageIterator.Iterate(ctx, callbackFunc)
+		if err := pageIterator.Iterate(ctx, callbackFunc); err != nil {
+			return nil, support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), err, errs)
+		}
 
-	if iterateError != nil {
-		errs = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, errs)
+		if len(collections) > 0 {
+			break
+		}
 	}
 
 	return collections, errs
@@ -520,7 +526,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
 			odcs, err := onedrive.NewCollections(
-				gc.credentials.TenantID,
+				gc.credentials.AzureTenantID,
 				user,
 				scope,
 				&gc.graphService,

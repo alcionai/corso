@@ -86,8 +86,10 @@ func collectItems(
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
-func getFolder(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
-	folderName string,
+func getFolder(
+	ctx context.Context,
+	service graph.Service,
+	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
 	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
 	// will be sub-optimal.

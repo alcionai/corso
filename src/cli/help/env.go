@@ -67,8 +67,8 @@ var (
 			"It is impossible to use the repository or recover any backups without this key."},
 	}
 	azureEVs = []envVar{
-		{azure, "CLIENT_ID", "Client ID for your Azure AD application used to access your M365 tenant."},
-		{azure, "CLIENT_SECRET", "Azure secret for your Azure AD application used to access your M365 tenant."},
+		{azure, "AZURE_CLIENT_ID", "Client ID for your Azure AD application used to access your M365 tenant."},
+		{azure, "AZURE_CLIENT_SECRET", "Azure secret for your Azure AD application used to access your M365 tenant."},
 	}
 	awsEVs = []envVar{
 		{aws, "AWS_ACCESS_KEY_ID", "AWS access key for an IAM user or role for accessing S3 bucket repository."},

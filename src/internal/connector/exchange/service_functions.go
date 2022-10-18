@@ -48,9 +48,9 @@ func (es *exchangeService) ErrPolicy() bool {
 // NOTE: Incorrect account information will result in errors on subsequent queries.
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
-		credentials.TenantID,
-		credentials.ClientID,
-		credentials.ClientSecret,
+		credentials.AzureTenantID,
+		credentials.AzureClientID,
+		credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -271,85 +271,13 @@ func GetAllContactFolders(
 	return containers, err
 }
 
-// GetContainerID query function to retrieve a container's M365 ID.
-// @param containerName is the target's name, user-readable and case sensitive
-// @param category switches query and iteration to support  multiple exchange applications
-// @returns a *string if the folder exists. If the folder does not exist returns nil, error-> folder not found
-func GetContainerID(
-	ctx context.Context,
-	service graph.Service,
-	containerName,
-	user string,
-	category optionIdentifier,
-) (*string, error) {
-	var (
-		errs       error
-		targetID   *string
-		query      GraphQuery
-		transform  absser.ParsableFactory
-		isCalendar bool
-		errUpdater = func(id string, err error) {
-			errs = support.WrapAndAppend(id, err, errs)
-		}
-	)
-
-	switch category {
-	case messages:
-		query = GetAllFolderNamesForUser
-		transform = models.CreateMailFolderCollectionResponseFromDiscriminatorValue
-	case contacts:
-		query = GetAllContactFolderNamesForUser
-		transform = models.CreateContactFolderCollectionResponseFromDiscriminatorValue
-	case events:
-		query = GetAllCalendarNamesForUser
-		transform = models.CreateCalendarCollectionResponseFromDiscriminatorValue
-		isCalendar = true
-	default:
-		return nil, fmt.Errorf("unsupported category %s for GetContainerID()", category)
-	}
-
-	response, err := query(ctx, service, user)
-	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"user %s M365 query: %s",
-			user, support.ConnectorStackErrorTrace(err),
-		)
-	}
-
-	pageIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		service.Adapter(),
-		transform,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	callbackFunc := iterateFindContainerID(
-		&targetID,
-		containerName,
-		service.Adapter().GetBaseUrl(),
-		isCalendar,
-		errUpdater,
-	)
-
-	if err := pageIterator.Iterate(ctx, callbackFunc); err != nil {
-		return nil, support.WrapAndAppend(service.Adapter().GetBaseUrl(), err, errs)
-	}
-
-	if targetID == nil {
-		return nil, ErrFolderNotFound
-	}
-
-	return targetID, errs
-}
-
 // SetupExchangeCollectionVars is a helper function returns a sets
-// Exchange.Type specific functions based on scope
+// Exchange.Type specific functions based on scope.
+// The []GraphQuery slice provides fallback queries in the event that
+// initial queries provide zero results.
 func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
-	GraphQuery,
+	[]GraphQuery,
 	GraphIterateFunc,
 	error,
 ) {
@@ -359,14 +287,14 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
 		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-			GetAllContactFolderNamesForUser,
+			[]GraphQuery{GetAllContactFolderNamesForUser, GetDefaultContactFolderForUser},
 			IterateSelectAllContactsForCollections,
 			nil
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-			GetAllCalendarNamesForUser,
+			[]GraphQuery{GetAllCalendarNamesForUser},
 			IterateSelectAllEventsFromCalendars,
 			nil
 	}
@@ -460,7 +388,7 @@ func getCollectionPath(
 	returnPath, err := resolveCollectionPath(
 		ctx,
 		resolver,
-		qp.Credentials.TenantID,
+		qp.Credentials.AzureTenantID,
 		qp.User,
 		directory,
 		category,
@@ -471,7 +399,7 @@ func getCollectionPath(
 
 	aPath, err1 := path.Builder{}.Append(directory).
 		ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
+			qp.Credentials.AzureTenantID,
 			qp.User,
 			category,
 			false,
