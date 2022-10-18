@@ -215,7 +215,7 @@ func IterativeCollectCalendarContainers(
 		include := len(nameContains) == 0 ||
 			strings.Contains(*cal.GetName(), nameContains)
 		if include {
-			temp := CreateCalendarDisplayable(cal)
+			temp := graph.CreateCalendarDisplayable(cal)
 			containers[*temp.GetDisplayName()] = temp
 		}
 
