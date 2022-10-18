@@ -377,7 +377,6 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 // TestRestoreAndBackup
 // nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
-<<<<<<< HEAD
 	//nolint:gofumpt
 	//bodyText := "This email has some text. However, all the text is on the same line."
 	//subjectText := "Test message for restore"
@@ -387,17 +386,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		service       path.ServiceType
 		collections   []colInfo
 		backupSelFunc func(dest control.RestoreDestination, backupUser string) selectors.Selector
-=======
-	// nolint:gofmt
-	// bodyText := "This email has some text. However, all the text is on the same line."
-	// subjectText := "Test message for restore"
-
-	table := []struct {
-		name                   string
-		service                path.ServiceType
-		collections            []colInfo
-		expectedRestoreFolders int
->>>>>>> main
 	}{
 		// {
 		// 	name:                   "EmailsWithAttachments",
@@ -425,7 +413,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 			},
 		// 		},
 		// 	},
-<<<<<<< HEAD
 		// 	// TODO(ashmrtn): Generalize this once we know the path transforms that
 		// 	// occur during restore.
 		// 	backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
@@ -437,8 +424,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 		// 		return backupSel.Selector
 		// 	},
-=======
->>>>>>> main
 		// },
 		// {
 		// 	name:                   "MultipleEmailsSingleFolder",
@@ -476,7 +461,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 			},
 		// 		},
 		// 	},
-<<<<<<< HEAD
 		// 	// TODO(ashmrtn): Generalize this once we know the path transforms that
 		// 	// occur during restore.
 		// 	backupSelFunc: func(dest control.RestoreDestination, backupUser string) selectors.Selector {
@@ -488,8 +472,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 		// 		return backupSel.Selector
 		// 	},
-=======
->>>>>>> main
 		// },
 		{
 			name:    "MultipleContactsSingleFolder",
@@ -697,44 +679,41 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 	//nolint:gofumpt
 	//bodyText := "This email has some text. However, all the text is on the same line."
 	//subjectText := "Test message for restore"
-<<<<<<< HEAD
 
 	// TODO(ashmrtn): Update if we start mixing categories during backup/restore.
-	backupSelFunc := func(
-		dests []control.RestoreDestination,
-		category path.CategoryType,
-		backupUser string,
-	) selectors.Selector {
-		destNames := make([]string, 0, len(dests))
+	// backupSelFunc := func(
+	// 	dests []control.RestoreDestination,
+	// 	category path.CategoryType,
+	// 	backupUser string,
+	// ) selectors.Selector {
+	// 	destNames := make([]string, 0, len(dests))
 
-		for _, d := range dests {
-			destNames = append(destNames, d.ContainerName)
-		}
+	// 	for _, d := range dests {
+	// 		destNames = append(destNames, d.ContainerName)
+	// 	}
 
-		backupSel := selectors.NewExchangeBackup()
+	// 	backupSel := selectors.NewExchangeBackup()
 
-		switch category {
-		case path.EmailCategory:
-			backupSel.Include(backupSel.MailFolders(
-				[]string{backupUser},
-				destNames,
-			))
-		case path.ContactsCategory:
-			backupSel.Include(backupSel.ContactFolders(
-				[]string{backupUser},
-				destNames,
-			))
-		case path.EventsCategory:
-			backupSel.Include(backupSel.EventCalendars(
-				[]string{backupUser},
-				destNames,
-			))
-		}
+	// 	switch category {
+	// 	case path.EmailCategory:
+	// 		backupSel.Include(backupSel.MailFolders(
+	// 			[]string{backupUser},
+	// 			destNames,
+	// 		))
+	// 	case path.ContactsCategory:
+	// 		backupSel.Include(backupSel.ContactFolders(
+	// 			[]string{backupUser},
+	// 			destNames,
+	// 		))
+	// 	case path.EventsCategory:
+	// 		backupSel.Include(backupSel.EventCalendars(
+	// 			[]string{backupUser},
+	// 			destNames,
+	// 		))
+	// 	}
 
-		return backupSel.Selector
-	}
-=======
->>>>>>> main
+	// 	return backupSel.Selector
+	// }
 
 	table := []struct {
 		name     string
