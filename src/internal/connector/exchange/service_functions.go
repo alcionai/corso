@@ -48,9 +48,9 @@ func (es *exchangeService) ErrPolicy() bool {
 // NOTE: Incorrect account information will result in errors on subsequent queries.
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
-		credentials.TenantID,
-		credentials.ClientID,
-		credentials.ClientSecret,
+		credentials.AzureTenantID,
+		credentials.AzureClientID,
+		credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -272,10 +272,12 @@ func GetAllContactFolders(
 }
 
 // SetupExchangeCollectionVars is a helper function returns a sets
-// Exchange.Type specific functions based on scope
+// Exchange.Type specific functions based on scope.
+// The []GraphQuery slice provides fallback queries in the event that
+// initial queries provide zero results.
 func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 	absser.ParsableFactory,
-	GraphQuery,
+	[]GraphQuery,
 	GraphIterateFunc,
 	error,
 ) {
@@ -285,14 +287,14 @@ func SetupExchangeCollectionVars(scope selectors.ExchangeScope) (
 
 	if scope.IncludesCategory(selectors.ExchangeContact) {
 		return models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-			GetAllContactFolderNamesForUser,
+			[]GraphQuery{GetAllContactFolderNamesForUser, GetDefaultContactFolderForUser},
 			IterateSelectAllContactsForCollections,
 			nil
 	}
 
 	if scope.IncludesCategory(selectors.ExchangeEvent) {
 		return models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-			GetAllCalendarNamesForUser,
+			[]GraphQuery{GetAllCalendarNamesForUser},
 			IterateSelectAllEventsFromCalendars,
 			nil
 	}
@@ -386,7 +388,7 @@ func getCollectionPath(
 	returnPath, err := resolveCollectionPath(
 		ctx,
 		resolver,
-		qp.Credentials.TenantID,
+		qp.Credentials.AzureTenantID,
 		qp.User,
 		directory,
 		category,
@@ -397,7 +399,7 @@ func getCollectionPath(
 
 	aPath, err1 := path.Builder{}.Append(directory).
 		ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
+			qp.Credentials.AzureTenantID,
 			qp.User,
 			category,
 			false,

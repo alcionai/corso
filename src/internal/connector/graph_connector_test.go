@@ -38,6 +38,7 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorExchangeTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -450,11 +451,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 }
 
 // TestRestoreAndBackup
-// nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
-	// nolint:gofmt
-	// bodyText := "This email has some text. However, all the text is on the same line."
-	// subjectText := "Test message for restore"
+	bodyText := "This email has some text. However, all the text is on the same line."
+	subjectText := "Test message for restore"
 
 	table := []struct {
 		name                   string
@@ -462,70 +461,70 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		collections            []colInfo
 		expectedRestoreFolders int
 	}{
-		// {
-		// 	name:                   "EmailsWithAttachments",
-		// 	service:                path.ExchangeService,
-		// 	expectedRestoreFolders: 1,
-		// 	collections: []colInfo{
-		// 		{
-		// 			pathElements: []string{"Inbox"},
-		// 			category:     path.EmailCategory,
-		// 			items: []itemInfo{
-		// 				{
-		// 					name: "someencodeditemID",
-		// 					data: mockconnector.GetMockMessageWithDirectAttachment(
-		// 						subjectText + "-1",
-		// 					),
-		// 					lookupKey: subjectText + "-1",
-		// 				},
-		// 				{
-		// 					name: "someencodeditemID2",
-		// 					data: mockconnector.GetMockMessageWithTwoAttachments(
-		// 						subjectText + "-2",
-		// 					),
-		// 					lookupKey: subjectText + "-2",
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:                   "MultipleEmailsSingleFolder",
-		// 	service:                path.ExchangeService,
-		// 	expectedRestoreFolders: 1,
-		// 	collections: []colInfo{
-		// 		{
-		// 			pathElements: []string{"Inbox"},
-		// 			category:     path.EmailCategory,
-		// 			items: []itemInfo{
-		// 				{
-		// 					name: "someencodeditemID",
-		// 					data: mockconnector.GetMockMessageWithBodyBytes(
-		// 						subjectText+"-1",
-		// 						bodyText+" 1.",
-		// 					),
-		// 					lookupKey: subjectText + "-1",
-		// 				},
-		// 				{
-		// 					name: "someencodeditemID2",
-		// 					data: mockconnector.GetMockMessageWithBodyBytes(
-		// 						subjectText+"-2",
-		// 						bodyText+" 2.",
-		// 					),
-		// 					lookupKey: subjectText + "-2",
-		// 				},
-		// 				{
-		// 					name: "someencodeditemID3",
-		// 					data: mockconnector.GetMockMessageWithBodyBytes(
-		// 						subjectText+"-3",
-		// 						bodyText+" 3.",
-		// 					),
-		// 					lookupKey: subjectText + "-3",
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			name:                   "EmailsWithAttachments",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithDirectAttachment(
+								subjectText + "-1",
+							),
+							lookupKey: subjectText + "-1",
+						},
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithTwoAttachments(
+								subjectText + "-2",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:                   "MultipleEmailsSingleFolder",
+			service:                path.ExchangeService,
+			expectedRestoreFolders: 1,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-1",
+								bodyText+" 1.",
+							),
+							lookupKey: subjectText + "-1",
+						},
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-2",
+								bodyText+" 2.",
+							),
+							lookupKey: subjectText + "-2",
+						},
+						{
+							name: "someencodeditemID3",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-3",
+								bodyText+" 3.",
+							),
+							lookupKey: subjectText + "-3",
+						},
+					},
+				},
+			},
+		},
 		{
 			name:    "MultipleContactsSingleFolder",
 			service: path.ExchangeService,
@@ -727,11 +726,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 }
 
 // TestMultiFolderBackupDifferentNames
-//nolint:wsl
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
-	//nolint:gofumpt
-	//bodyText := "This email has some text. However, all the text is on the same line."
-	//subjectText := "Test message for restore"
+	bodyText := "This email has some text. However, all the text is on the same line."
+	subjectText := "Test message for restore"
 
 	table := []struct {
 		name     string
@@ -741,41 +738,41 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		// backup later.
 		collections []colInfo
 	}{
-		// {
-		// 	name:     "Email",
-		// 	service:  path.ExchangeService,
-		// 	category: path.EmailCategory,
-		// 	collections: []colInfo{
-		// 		{
-		// 			pathElements: []string{"Inbox"},
-		// 			category:     path.EmailCategory,
-		// 			items: []itemInfo{
-		// 				{
-		// 					name: "someencodeditemID",
-		// 					data: mockconnector.GetMockMessageWithBodyBytes(
-		// 						subjectText+"-1",
-		// 						bodyText+" 1.",
-		// 					),
-		// 					lookupKey: subjectText + "-1",
-		// 				},
-		// 			},
-		// 		},
-		// 		{
-		// 			pathElements: []string{"Archive"},
-		// 			category:     path.EmailCategory,
-		// 			items: []itemInfo{
-		// 				{
-		// 					name: "someencodeditemID2",
-		// 					data: mockconnector.GetMockMessageWithBodyBytes(
-		// 						subjectText+"-2",
-		// 						bodyText+" 2.",
-		// 					),
-		// 					lookupKey: subjectText + "-2",
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			name:     "Email",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-1",
+								bodyText+" 1.",
+							),
+							lookupKey: subjectText + "-1",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Archive"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-2",
+								bodyText+" 2.",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+		},
 		{
 			name:     "Contacts",
 			service:  path.ExchangeService,

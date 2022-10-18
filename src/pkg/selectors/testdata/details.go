@@ -36,6 +36,7 @@ func mustAppendPath(p path.Path, newElement string, isItem bool) path.Path {
 const (
 	ItemName1 = "item1"
 	ItemName2 = "item2"
+	ItemName3 = "item3"
 )
 
 var (
@@ -44,9 +45,11 @@ var (
 
 	ExchangeEmailInboxPath = mustParsePath("tenant-id/exchange/user-id/email/Inbox", false)
 	ExchangeEmailBasePath  = mustAppendPath(ExchangeEmailInboxPath, "subfolder", false)
-	ExchangeEmailBasePath2 = mustAppendPath(ExchangeEmailInboxPath, "othersubfolder", false)
+	ExchangeEmailBasePath2 = mustAppendPath(ExchangeEmailInboxPath, "othersubfolder/", false)
+	ExchangeEmailBasePath3 = mustAppendPath(ExchangeEmailBasePath2, "subsubfolder", false)
 	ExchangeEmailItemPath1 = mustAppendPath(ExchangeEmailBasePath, ItemName1, true)
 	ExchangeEmailItemPath2 = mustAppendPath(ExchangeEmailBasePath2, ItemName2, true)
+	ExchangeEmailItemPath3 = mustAppendPath(ExchangeEmailBasePath3, ItemName3, true)
 
 	ExchangeEmailItems = []details.DetailsEntry{
 		{
@@ -71,6 +74,19 @@ var (
 					ItemType: details.ExchangeMail,
 					Sender:   "a-person",
 					Subject:  "bar",
+					Received: Time2,
+				},
+			},
+		},
+		{
+			RepoRef:   ExchangeEmailItemPath3.String(),
+			ShortRef:  ExchangeEmailItemPath3.ShortRef(),
+			ParentRef: ExchangeEmailItemPath3.ToBuilder().Dir().ShortRef(),
+			ItemInfo: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					ItemType: details.ExchangeMail,
+					Sender:   "another-person",
+					Subject:  "baz",
 					Received: Time2,
 				},
 			},
