@@ -225,26 +225,6 @@ func GetAllContactFolders(
 	return containers, err
 }
 
-// TODO: Initialize after the Iterative changes have been made.
-func CollectFolderrs(
-	ctx context.Context,
-	qp graph.QueryParams,
-	gs graph.Service,
-) ([]graph.CachedContainer, error) {
-	category := graph.ScopeToPathCategory(qp.Scope)
-
-	switch category {
-	case path.ContactsCategory:
-		return GetAllContactFolders(ctx, qp, gs)
-	case path.EmailCategory:
-		return GetAllMailFolders(ctx, qp, gs)
-	case path.EventsCategory:
-		return GetAllCalendars(ctx, qp, gs)
-	default:
-		return nil, fmt.Errorf("path.Category %s not supported", category)
-	}
-}
-
 // SetupExchangeCollectionVars is a helper function returns a sets
 // Exchange.Type specific functions based on scope.
 // The []GraphQuery slice provides fallback queries in the event that
