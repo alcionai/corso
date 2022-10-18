@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,7 +76,7 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	assert.Equal(t, 4, i)
 }
 
-func (suite *ObserveProgressUnitSuite) TestCollectionProgress() {
+func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -102,7 +103,42 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress() {
 		progCh <- struct{}{}
 	}
 
-	cancel()
+	go func() {
+		time.Sleep(1 * time.Second)
+		cancel()
+	}()
+
+	// blocks, but should resolve due to the ctx cancel
+	closer()
+}
+
+func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelClose() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		observe.Complete()
+		observe.SeedWriter(context.Background(), nil)
+	}()
+
+	progCh, closer := observe.CollectionProgress("test", "testertons")
+	require.NotNil(t, progCh)
+	require.NotNil(t, closer)
+
+	for i := 0; i < 50; i++ {
+		progCh <- struct{}{}
+	}
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		close(progCh)
+	}()
 
 	// blocks, but should resolve due to the cancel
 	closer()

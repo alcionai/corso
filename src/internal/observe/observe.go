@@ -10,6 +10,8 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
+const progressBarWidth = 32
+
 var (
 	wg       sync.WaitGroup
 	con      context.Context
@@ -33,7 +35,7 @@ func SeedWriter(ctx context.Context, w io.Writer) {
 
 	progress = mpb.NewWithContext(
 		con,
-		mpb.WithWidth(32),
+		mpb.WithWidth(progressBarWidth),
 		mpb.WithWaitGroup(&wg),
 		mpb.WithOutput(writer),
 	)
@@ -81,14 +83,14 @@ func makeSpinFrames() {
 	s, l := rune('∙'), rune('●')
 
 	line := []rune{}
-	for i := 0; i < 32; i++ {
+	for i := 0; i < progressBarWidth; i++ {
 		line = append(line, s)
 	}
 
-	sl := make([]string, 0, 33)
+	sl := make([]string, 0, progressBarWidth+1)
 	sl = append(sl, string(line))
 
-	for i := 1; i < 32; i++ {
+	for i := 1; i < progressBarWidth; i++ {
 		l2 := make([]rune, len(line))
 		copy(l2, line)
 		l2[i] = l
