@@ -3,6 +3,7 @@ package onedrive
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -39,30 +40,41 @@ func (suite *OneDriveIntegrationSuite) SetupSuite() {
 	suite.creds = credentials
 }
 
-func (suite *OneDriveIntegrationSuite) TestOneDriveDataCollections() {
+func (suite *OneDriveIntegrationSuite) TestOneDriveNewCollections() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	user := suite.userID
-	scope := selectors.NewOneDriveBackup().Users([]string{user})[0]
-	t := suite.T()
-	service, err := NewOneDriveService(suite.creds)
-	require.NoError(t, err)
-
-	odcs, err := NewCollections(
-		suite.creds.AzureTenantID,
-		user,
-		scope,
-		service,
-		service.updateStatus,
-	).Get(ctx)
-
-	require.NoError(t, err)
-
-	for _, entry := range odcs {
-		t.Log(entry.FullPath())
+	tests := []struct {
+		name, user string
+	}{
+		{
+			name: "Test User w/ Drive",
+			user: suite.userID,
+		},
+		{
+			name: "Test User w/out Drive",
+			user: "testevents@8qzvrj.onmicrosoft.com",
+		},
 	}
 
-	t.Log(service.status.String())
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			service := loadTestService(t)
+			scope := selectors.
+				NewOneDriveBackup().
+				Users([]string{test.user})[0]
+			odcs, err := NewCollections(
+				suite.creds.AzureTenantID,
+				test.user,
+				scope,
+				service,
+				service.updateStatus,
+			).Get(ctx)
+			assert.NoError(t, err)
 
+			for _, entry := range odcs {
+				assert.NotEmpty(t, entry.FullPath())
+			}
+		})
+	}
 }
