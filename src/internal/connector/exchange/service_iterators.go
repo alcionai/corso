@@ -27,8 +27,11 @@ func FilterContainersAndFillCollections(
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 ) error {
-	category := graph.ScopeToPathCategory(qp.Scope)
-	collectionType := categoryToOptionIdentifier(category)
+	var (
+		category       = graph.ScopeToPathCategory(qp.Scope)
+		collectionType = categoryToOptionIdentifier(category)
+		errs           error
+	)
 
 	for _, c := range resolver.Items() {
 		dirPath, ok := pathAndMatch(qp, category, c)
@@ -36,7 +39,14 @@ func FilterContainersAndFillCollections(
 			// Create only those that match
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				return errors.Wrap(err, "failed to create service for collection")
+				errs = support.WrapAndAppend(
+					qp.User+" failed to create service during FilterContainerAndFillCollection",
+					err,
+					errs)
+
+				if qp.FailFast {
+					return errs
+				}
 			}
 
 			edc := NewCollection(
@@ -49,8 +59,6 @@ func FilterContainersAndFillCollections(
 			collections[*c.GetId()] = &edc
 		}
 	}
-
-	var errs error
 
 	for directoryID, col := range collections {
 		fetchFunc, err := getFetchIDFunc(category)
