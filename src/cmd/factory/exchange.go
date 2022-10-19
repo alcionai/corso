@@ -63,7 +63,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		func(id, now, subject, body string) []byte {
 			return mockconnector.GetMockMessageWith(
 				user, user, user,
-				subject, body,
+				subject, body, body,
 				now, now, now, now)
 		},
 	)

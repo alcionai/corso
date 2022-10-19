@@ -100,19 +100,20 @@ const (
 func GetMockMessageBytes(subject string) []byte {
 	return GetMockMessageWithBodyBytes(
 		"TPS Report "+subject+" "+common.FormatNow(common.SimpleDateTime),
-		defaultMessageBody)
+		defaultMessageBody, defaultMessagePreview)
 }
 
 // GetMockMessageBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
-func GetMockMessageWithBodyBytes(subject, body string) []byte {
+func GetMockMessageWithBodyBytes(subject, body, preview string) []byte {
 	return GetMockMessageWith(
 		defaultMessageTo,
 		defaultMessageFrom,
 		defaultMessageSender,
 		subject,
 		body,
+		preview,
 		defaultMessageCreatedTime,
 		defaultMessageModifiedTime,
 		defaultMessageSentTime,
@@ -126,10 +127,12 @@ func GetMockMessageWithBodyBytes(subject, body string) []byte {
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
 func GetMockMessageWith(
 	to, from, sender, // user PNs
-	subject, body, // arbitrary data
+	subject, body, preview, // arbitrary data
 	created, modified, sent, received string, // legacy datetimes
 ) []byte {
-	preview := body
+	if len(preview) == 0 {
+		preview = body
+	}
 
 	if len(preview) > 255 {
 		preview = preview[:256]
