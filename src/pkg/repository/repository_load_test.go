@@ -401,7 +401,6 @@ func TestRepositoryIndividualLoadTestExchangeSuite(t *testing.T) {
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
-	t.Skip("local testing")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 }
