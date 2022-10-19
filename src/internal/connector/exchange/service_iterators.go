@@ -213,7 +213,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		return nil, err
 	}
 
-	stringArray := []string{}
+	ids := []string{}
 
 	response, err := gs.Client().
 		UsersById(user).
@@ -237,7 +237,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 			return false
 		}
 
-		stringArray = append(stringArray, *entry.GetId())
+		ids = append(ids, *entry.GetId())
 
 		return true
 	}
@@ -250,7 +250,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		return nil, err
 	}
 
-	return stringArray, nil
+	return ids, nil
 }
 
 func FetchMessageIDsFromDirectory(
@@ -258,7 +258,7 @@ func FetchMessageIDsFromDirectory(
 	gs graph.Service,
 	user, directoryID string,
 ) ([]string, error) {
-	stringArray := []string{}
+	ids := []string{}
 
 	options, err := optionsForFolderMessages([]string{"id"})
 	if err != nil {
@@ -300,7 +300,7 @@ func FetchMessageIDsFromDirectory(
 			return true
 		}
 
-		stringArray = append(stringArray, *item.GetId())
+		ids = append(ids, *item.GetId())
 
 		return true
 	})
@@ -312,5 +312,5 @@ func FetchMessageIDsFromDirectory(
 		)
 	}
 
-	return stringArray, errs.ErrorOrNil()
+	return ids, errs.ErrorOrNil()
 }
