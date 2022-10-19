@@ -273,27 +273,6 @@ func (gc *GraphConnector) RestoreDataCollections(
 	return deets, err
 }
 
-func (gc *GraphConnector) fetchItems(
-	ctx context.Context,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-) (map[string]*exchange.Collection, error) {
-	collections := map[string]*exchange.Collection{}
-
-	err := exchange.FilterContainersAndFillCollections(
-		ctx,
-		qp,
-		collections,
-		gc.UpdateStatus,
-		resolver,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting all available content for collection")
-	}
-
-	return collections, nil
-}
-
 // createCollections - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are stored.
@@ -308,7 +287,7 @@ func (gc *GraphConnector) createCollections(
 	allCollections := make([]*exchange.Collection, 0)
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
-		var collections map[string]*exchange.Collection
+		collections := make(map[string]*exchange.Collection)
 
 		qp := graph.QueryParams{
 			User:        user,
