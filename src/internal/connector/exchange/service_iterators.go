@@ -171,28 +171,33 @@ func FetchEventIDsFromCalendar(
 		return nil, errors.Wrap(err, "iterator creation failure during fetchEventIDs")
 	}
 
-	callbackFunc := func(pageItem any) bool {
-		entry, ok := pageItem.(models.Eventable)
+	var errs *multierror.Error
+
+	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
+		entry, ok := pageItem.(graph.Idable)
 		if !ok {
-			err = errors.New("casting pageItem to models.Eventable")
-			return false
+			errs = multierror.Append(errs, errors.New("item without GetId() call"))
+			return true
+		}
+
+		if entry.GetId() == nil {
+			errs = multierror.Append(errs, errors.New("item with nil ID"))
 		}
 
 		ids = append(ids, *entry.GetId())
 
 		return true
-	}
-
-	if iterateErr := pageIterator.Iterate(ctx, callbackFunc); iterateErr != nil {
-		return nil,
-			errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(err))
-	}
+	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(
+			err,
+			support.ConnectorStackErrorTrace(err)+
+				" :iterateFailure for fetching events from calendar "+calendarID,
+		)
 	}
 
-	return ids, nil
+	return ids, errs.ErrorOrNil()
 }
 
 // FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
@@ -223,28 +228,34 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		return nil, errors.Wrap(err, "failure to create iterator during FecthContactIDs")
 	}
 
-	callbackFunc := func(pageItem any) bool {
-		entry, ok := pageItem.(models.Contactable)
+	var errs *multierror.Error
+
+	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
+		entry, ok := pageItem.(graph.Idable)
 		if !ok {
-			err = errors.New("casting pageItem to models.Contactable")
-			return false
+			errs = multierror.Append(
+				errs,
+				errors.New("casting pageItem to models.Contactable"),
+			)
+
+			return true
 		}
 
 		ids = append(ids, *entry.GetId())
 
 		return true
-	}
-
-	if iterateErr := pageIterator.Iterate(ctx, callbackFunc); iterateErr != nil {
-		return nil,
-			errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(err))
-	}
+	})
 
 	if err != nil {
-		return nil, err
+		return nil,
+			errors.Wrap(
+				err,
+				support.ConnectorStackErrorTrace(err)+
+					" :iterate failure during fetching contactIDs from directory "+directoryID,
+			)
 	}
 
-	return ids, nil
+	return ids, errs.ErrorOrNil()
 }
 
 // FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
@@ -304,7 +315,8 @@ func FetchMessageIDsFromDirectory(
 	if err != nil {
 		return nil, errors.Wrap(
 			err,
-			user+" iterateFailure for fetching messages from directory "+directoryID,
+			support.ConnectorStackErrorTrace(err)+
+				" :iterateFailure for fetching messages from directory "+directoryID,
 		)
 	}
 
