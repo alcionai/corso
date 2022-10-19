@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 type ExchangeOptionsTest struct {
@@ -265,7 +266,7 @@ func (MockBackupGetter) Backup(
 	return nil, errors.New("unexpected call to mock")
 }
 
-func (MockBackupGetter) Backups(context.Context) ([]backup.Backup, error) {
+func (MockBackupGetter) Backups(context.Context, ...store.FilterOption) ([]backup.Backup, error) {
 	return nil, errors.New("unexpected call to mock")
 }
 
