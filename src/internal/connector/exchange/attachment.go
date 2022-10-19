@@ -55,7 +55,7 @@ func uploadAttachment(ctx context.Context, service graph.Service, userID, folder
 			Attachments().
 			Post(ctx, attachment, nil)
 
-		return err
+		return errors.Wrapf(err, "failed to post attachment: "+support.ConnectorStackErrorTrace(err))
 	}
 
 	return uploadLargeAttachment(ctx, service, userID, folderID, messageID, attachment)

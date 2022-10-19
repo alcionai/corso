@@ -397,85 +397,98 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 		cleanupFunc func(context.Context, graph.Service, string, string) error
 		destination func(context.Context) string
 	}{
+		// {
+		// 	name:        "Test Mail",
+		// 	bytes:       mockconnector.GetMockMessageBytes("Restore Exchange Object"),
+		// 	category:    path.EmailCategory,
+		// 	cleanupFunc: DeleteMailFolder,
+		// 	destination: func(ctx context.Context) string {
+		// 		folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
+		// 		folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+		// 		require.NoError(t, err)
+
+		// 		return *folder.GetId()
+		// 	},
+		// },
+		// {
+		// 	name:        "Test Mail: One Direct Attachment",
+		// 	bytes:       mockconnector.GetMockMessageWithDirectAttachment("Restore 1 Attachment"),
+		// 	category:    path.EmailCategory,
+		// 	cleanupFunc: DeleteMailFolder,
+		// 	destination: func(ctx context.Context) string {
+		// 		folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
+		// 		folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+		// 		require.NoError(t, err)
+
+		// 		return *folder.GetId()
+		// 	},
+		// },
 		{
-			name:        "Test Mail",
-			bytes:       mockconnector.GetMockMessageBytes("Restore Exchange Object"),
+			name:        "Test Mail: One Reference Attachment",
+			bytes:       mockconnector.GetMessageWithOneDriveAttachment("Restore 1 Attachment"),
 			category:    path.EmailCategory,
 			cleanupFunc: DeleteMailFolder,
 			destination: func(ctx context.Context) string {
-				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
 			},
 		},
-		{
-			name:        "Test Mail: One Direct Attachment",
-			bytes:       mockconnector.GetMockMessageWithDirectAttachment("Restore 1 Attachment"),
-			category:    path.EmailCategory,
-			cleanupFunc: DeleteMailFolder,
-			destination: func(ctx context.Context) string {
-				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
-				require.NoError(t, err)
+		// {
+		// 	name:        "Test Mail: One Large Attachment",
+		// 	bytes:       mockconnector.GetMockMessageWithLargeAttachment("Restore Large Attachment"),
+		// 	category:    path.EmailCategory,
+		// 	cleanupFunc: DeleteMailFolder,
+		// 	destination: func(ctx context.Context) string {
+		// 		folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
+		// 		folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+		// 		require.NoError(t, err)
 
-				return *folder.GetId()
-			},
-		},
-		{
-			name:        "Test Mail: One Large Attachment",
-			bytes:       mockconnector.GetMockMessageWithLargeAttachment("Restore Large Attachment"),
-			category:    path.EmailCategory,
-			cleanupFunc: DeleteMailFolder,
-			destination: func(ctx context.Context) string {
-				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
-				require.NoError(t, err)
+		// 		return *folder.GetId()
+		// 	},
+		// },
+		// {
+		// 	name:        "Test Mail: Two Attachments",
+		// 	bytes:       mockconnector.GetMockMessageWithTwoAttachments("Restore 2 Attachments"),
+		// 	category:    path.EmailCategory,
+		// 	cleanupFunc: DeleteMailFolder,
+		// 	destination: func(ctx context.Context) string {
+		// 		folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
+		// 		folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+		// 		require.NoError(t, err)
 
-				return *folder.GetId()
-			},
-		},
-		{
-			name:        "Test Mail: Two Attachments",
-			bytes:       mockconnector.GetMockMessageWithTwoAttachments("Restore 2 Attachments"),
-			category:    path.EmailCategory,
-			cleanupFunc: DeleteMailFolder,
-			destination: func(ctx context.Context) string {
-				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
-				require.NoError(t, err)
+		// 		return *folder.GetId()
+		// 	},
+		// },
+		// // TODO: #884 - reinstate when able to specify root folder by name
+		// {
+		// 	name:        "Test Contact",
+		// 	bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
+		// 	category:    path.ContactsCategory,
+		// 	cleanupFunc: DeleteContactFolder,
+		// 	destination: func(ctx context.Context) string {
+		// 		folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
+		// 		folder, err := CreateContactFolder(ctx, suite.es, userID, folderName)
+		// 		require.NoError(t, err)
 
-				return *folder.GetId()
-			},
-		},
-		// TODO: #884 - reinstate when able to specify root folder by name
-		{
-			name:        "Test Contact",
-			bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
-			category:    path.ContactsCategory,
-			cleanupFunc: DeleteContactFolder,
-			destination: func(ctx context.Context) string {
-				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateContactFolder(ctx, suite.es, userID, folderName)
-				require.NoError(t, err)
+		// 		return *folder.GetId()
+		// 	},
+		// },
+		// {
+		// 	name:        "Test Events",
+		// 	bytes:       mockconnector.GetDefaultMockEventBytes("Restored Event Object"),
+		// 	category:    path.EventsCategory,
+		// 	cleanupFunc: DeleteCalendar,
+		// 	destination: func(ctx context.Context) string {
+		// 		calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
+		// 		calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
+		// 		require.NoError(t, err)
 
-				return *folder.GetId()
-			},
-		},
-		{
-			name:        "Test Events",
-			bytes:       mockconnector.GetDefaultMockEventBytes("Restored Event Object"),
-			category:    path.EventsCategory,
-			cleanupFunc: DeleteCalendar,
-			destination: func(ctx context.Context) string {
-				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
-				calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
-				require.NoError(t, err)
-
-				return *calendar.GetId()
-			},
-		},
+		// 		return *calendar.GetId()
+		// 	},
+		// },
 	}
 
 	for _, test := range tests {
