@@ -34,8 +34,6 @@ alternate ways to pass AWS credentials.
   * `AWS_ACCESS_KEY_ID`:
   * `AWS_SECRET_ACCESS_KEY`:
   * (Optional) `AWS_SESSION_TOKEN`:
-  * (Optional) `AWS_S3_ENDPOINT`:
-  * (Optional) `AWS_S3_REGION`:
 
 * Microsoft 365 Configuration
   * `AZURE_TENANT_ID`:
