@@ -145,7 +145,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 		}, {
 			name: "Event No Attendees Bytes",
 			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetMockEventBytes(subject)
+				bytes := mockconnector.GetDefaultMockEventBytes(subject)
 				_, err := support.CreateEventFromBytes(bytes)
 				return err
 			},

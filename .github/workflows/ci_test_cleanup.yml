@@ -28,7 +28,7 @@ jobs:
           echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
       # run the folder purge
-      - name: Purge folders
+      - name: Purge primary user folders
         working-directory: ./src
         env:
           AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -39,5 +39,19 @@ jobs:
         run: >
           go run ./cmd/purge/purge.go
           --user ${{ secrets.CORSO_M356_TEST_USER_ID }}
+          --prefix ${{ env.DELETE_FOLDER_PREFIX }}
+          --before ${{ env.HALF_HOUR_AGO }}
+
+      - name: Purge secondary user folders
+        working-directory: ./src
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M356_TEST_USER_ID }}
+          DELETE_FOLDER_PREFIX: "Corso_Restore_"
+        run: >
+          go run ./cmd/purge/purge.go
+          --user ${{ secrets.CORSO_SECONDARY_M356_TEST_USER_ID }}
           --prefix ${{ env.DELETE_FOLDER_PREFIX }}
           --before ${{ env.HALF_HOUR_AGO }}

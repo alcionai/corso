@@ -334,15 +334,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 		folderNames map[string]struct{}
 	}{
 		{
-			name:  "Mail Iterative Check",
-			scope: sel.MailFolders([]string{userID}, selectors.Any())[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-				"Sent Items":               {},
-			},
-		},
-		{
 			name: "Folder Iterative Check Mail",
+			// Only select specific folders so the test doesn't flake when the CI
+			// cleanup task deletes things.
 			scope: sel.MailFolders(
 				[]string{userID},
 				[]string{exchange.DefaultMailFolder},
@@ -450,21 +444,14 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	}
 }
 
-// TestRestoreAndBackup
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
 
-	table := []struct {
-		name                   string
-		service                path.ServiceType
-		collections            []colInfo
-		expectedRestoreFolders int
-	}{
+	table := []restoreBackupInfo{
 		{
-			name:                   "EmailsWithAttachments",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			name:    "EmailsWithAttachments",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -489,9 +476,8 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:                   "MultipleEmailsSingleFolder",
-			service:                path.ExchangeService,
-			expectedRestoreFolders: 1,
+			name:    "MultipleEmailsMultipleFolders",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -505,6 +491,12 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							),
 							lookupKey: subjectText + "-1",
 						},
+					},
+				},
+				{
+					pathElements: []string{"Work"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
 						{
 							name: "someencodeditemID2",
 							data: mockconnector.GetMockMessageWithBodyBytes(
@@ -717,66 +709,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			checkCollections(t, totalItems, expectedData, dcs)
 
 			status = backupGC.AwaitStatus()
-			// TODO(ashmrtn): This will need to change when the restore layout is
-			// updated.
 			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, totalItems, status.Successful, "status.Successful")
 		})
 	}
 }
 
-// TestMultiFolderBackupDifferentNames
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
-	bodyText := "This email has some text. However, all the text is on the same line."
-	subjectText := "Test message for restore"
-
-	table := []struct {
-		name     string
-		service  path.ServiceType
-		category path.CategoryType
-		// Each collection will be restored separately, creating multiple folders to
-		// backup later.
-		collections []colInfo
-	}{
+	table := []restoreBackupInfo{
 		{
-			name:     "Email",
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-1",
-								bodyText+" 1.",
-							),
-							lookupKey: subjectText + "-1",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Archive"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-2",
-								bodyText+" 2.",
-							),
-							lookupKey: subjectText + "-2",
-						},
-					},
-				},
-			},
-		},
-		{
-			name:     "Contacts",
-			service:  path.ExchangeService,
-			category: path.ContactsCategory,
+			name:    "Contacts",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -803,9 +746,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			},
 		},
 		{
-			name:     "Events",
-			service:  path.ExchangeService,
-			category: path.EventsCategory,
+			name:    "Events",
+			service: path.ExchangeService,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
