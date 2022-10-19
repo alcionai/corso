@@ -252,6 +252,148 @@ var (
 	}
 )
 
+type OneDriveOptionsTest struct {
+	Name         string
+	Opts         utils.OneDriveOpts
+	BackupGetter *MockBackupGetter
+	Expected     []details.DetailsEntry
+}
+
+var (
+	// BadOneDriveOptionsFormats contains OneDriveOpts with flags that should
+	// cause errors about the format of the input flag. Mocks are configured to
+	// allow the system to run if it doesn't throw an error on formatting.
+	BadOneDriveOptionsFormats = []OneDriveOptionsTest{
+		{
+			Name: "BadFileCreatedAfter",
+			Opts: utils.OneDriveOpts{
+				FileCreatedAfter: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.FileCreatedAfterFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyFileCreatedAfter",
+			Opts: utils.OneDriveOpts{
+				FileCreatedAfter: "",
+				Populated: utils.PopulatedFlags{
+					utils.FileCreatedAfterFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "BadFileCreatedBefore",
+			Opts: utils.OneDriveOpts{
+				FileCreatedBefore: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.FileCreatedBeforeFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyFileCreatedBefore",
+			Opts: utils.OneDriveOpts{
+				FileCreatedBefore: "",
+				Populated: utils.PopulatedFlags{
+					utils.FileCreatedBeforeFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "BadFileModifiedAfter",
+			Opts: utils.OneDriveOpts{
+				FileModifiedAfter: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.FileModifiedAfterFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyFileModifiedAfter",
+			Opts: utils.OneDriveOpts{
+				FileModifiedAfter: "",
+				Populated: utils.PopulatedFlags{
+					utils.FileModifiedAfterFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "BadFileModifiedBefore",
+			Opts: utils.OneDriveOpts{
+				FileModifiedBefore: "foo",
+				Populated: utils.PopulatedFlags{
+					utils.FileModifiedBeforeFN: struct{}{},
+				},
+			},
+		},
+		{
+			Name: "EmptyFileModifiedBefore",
+			Opts: utils.OneDriveOpts{
+				FileModifiedBefore: "",
+				Populated: utils.PopulatedFlags{
+					utils.FileModifiedBeforeFN: struct{}{},
+				},
+			},
+		},
+	}
+
+	// OneDriveOptionDetailLookups contains flag inputs and expected results for
+	// some choice input patterns. This set is not exhaustive. All inputs and
+	// outputs are according to the data laid out in selectors/testdata. Mocks are
+	// configured to return the full dataset listed in selectors/testdata.
+	OneDriveOptionDetailLookups = []OneDriveOptionsTest{
+		{
+			Name:     "AllFiles",
+			Expected: testdata.OneDriveItems,
+			Opts: utils.OneDriveOpts{
+				Paths: selectors.Any(),
+			},
+		},
+		{
+			Name:     "FolderPrefixMatch",
+			Expected: testdata.OneDriveItems,
+			Opts: utils.OneDriveOpts{
+				Paths: []string{testdata.OneDriveFolderFolder},
+			},
+		},
+		{
+			Name:     "FolderPrefixMatchTrailingSlash",
+			Expected: testdata.OneDriveItems,
+			Opts: utils.OneDriveOpts{
+				Paths: []string{testdata.OneDriveFolderFolder + "/"},
+			},
+		},
+		{
+			Name:     "FolderPrefixMatchTrailingSlash",
+			Expected: testdata.OneDriveItems,
+			Opts: utils.OneDriveOpts{
+				Paths: []string{testdata.OneDriveFolderFolder + "/"},
+			},
+		},
+		{
+			Name: "ShortRef",
+			Expected: []details.DetailsEntry{
+				testdata.OneDriveItems[0],
+				testdata.OneDriveItems[1],
+			},
+			Opts: utils.OneDriveOpts{
+				Names: []string{
+					testdata.OneDriveItems[0].ShortRef,
+					testdata.OneDriveItems[1].ShortRef,
+				},
+			},
+		},
+		{
+			Name:     "CreatedBefore",
+			Expected: []details.DetailsEntry{testdata.OneDriveItems[1]},
+			Opts: utils.OneDriveOpts{
+				FileCreatedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+			},
+		},
+	}
+)
+
 // MockBackupGetter implements the repo.BackupGetter interface and returns
 // (selectors/testdata.GetDetailsSet(), nil, nil) when BackupDetails is called
 // on the nil instance. If an instance is given or Backups is called returns an
