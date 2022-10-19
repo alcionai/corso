@@ -25,82 +25,10 @@ type GraphSetCollectionFunc func(
 	resolver graph.ContainerResolver,
 ) error
 
-// IterateSelectAllEventsForCollections
-// utility function for iterating through events
-// and storing events in collections based on
-// the calendarID which originates from M365.
-// @param pageItem is a CalendarCollectionResponse possessing two populated fields:
-// - id - M365 ID
-// - Name - Calendar Name
-func FilterEventsFromCalendars(
-	ctx context.Context,
-	qp graph.QueryParams,
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-	resolver graph.ContainerResolver,
-) error {
-	category := path.EventsCategory
-
-	rootPath, ok := checkRoot(qp, category)
-	if ok {
-		s, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			return errors.Wrap(err, qp.User+" unable to create service FilterEventsFromCalendar")
-		}
-
-		concrete := resolver.(*eventCalendarCache)
-		edc := NewCollection(
-			qp.User,
-			rootPath,
-			events,
-			s,
-			statusUpdater,
-		)
-		collections[concrete.rootID] = &edc
-	}
-
-	for _, c := range resolver.Items() {
-		dirPath, ok := pathAndMatch(qp, category, c)
-		if ok {
-			// Create only those that match
-			service, err := createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				return errors.Wrap(err, qp.User+" unable to create service FilterEventsFromCalendar")
-			}
-
-			edc := NewCollection(
-				qp.User,
-				dirPath,
-				events,
-				service,
-				statusUpdater,
-			)
-			collections[*c.GetId()] = &edc
-		}
-	}
-
-	var errs error
-	for key, col := range collections {
-		eventIDs, err := FetchEventIDsFromCalendar(ctx, col.service, qp.User, key)
-		if err != nil {
-			errs = support.WrapAndAppend(
-				qp.User,
-				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
-				errs)
-
-			continue
-		}
-
-		col.jobs = append(col.jobs, eventIDs...)
-	}
-
-	return errs
-}
-
 // IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
 // that places exchange objectsids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
-func FilterDescendablesForCollections(
+func FilterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]*Collection,
@@ -110,26 +38,6 @@ func FilterDescendablesForCollections(
 	category := graph.ScopeToPathCategory(qp.Scope)
 	collectionType := categoryToOptionIdentifier(category)
 
-	if category == path.ContactsCategory {
-		rootPath, ok := checkRoot(qp, category)
-		if ok {
-			s, err := createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				return errors.Wrap(err, "failed to create service for collection")
-			}
-
-			concrete := resolver.(*contactFolderCache)
-			edc := NewCollection(
-				qp.User,
-				rootPath,
-				collectionType,
-				s,
-				statusUpdater,
-			)
-			collections[concrete.rootID] = &edc
-		}
-	}
-
 	for _, c := range resolver.Items() {
 		// Create receive all
 		dirPath, ok := pathAndMatch(qp, category, c)
@@ -137,7 +45,7 @@ func FilterDescendablesForCollections(
 			// Create only those that match
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				return errors.Wrap(err, "failed to create service for colleciton")
+				return errors.Wrap(err, "failed to create service for collection")
 			}
 
 			edc := NewCollection(
@@ -152,6 +60,7 @@ func FilterDescendablesForCollections(
 	}
 
 	var errs error
+
 	for directoryID, col := range collections {
 		fetchFunc, err := getFetchIDFunc(category)
 		if err != nil {
@@ -163,14 +72,20 @@ func FilterDescendablesForCollections(
 			if qp.FailFast {
 				return errs
 			}
+
 			continue
 		}
+
 		jobs, err := fetchFunc(ctx, col.service, qp.User, directoryID)
 		if err != nil {
-			err = errors.Wrap(err, qp.User)
+			errs = support.WrapAndAppend(
+				qp.User,
+				err,
+				errs,
+			)
 		}
-		col.jobs = append(col.jobs, jobs...)
 
+		col.jobs = append(col.jobs, jobs...)
 	}
 
 	return errs
@@ -390,5 +305,12 @@ func FetchMessageIDsFromDirectory(
 		return true
 	})
 
-	return stringArray, nil
+	if err != nil {
+		return nil, errors.Wrap(
+			err,
+			user+" iterateFailure for fetching messages from directory "+directoryID,
+		)
+	}
+
+	return stringArray, errs.ErrorOrNil()
 }
