@@ -16,7 +16,7 @@ RUN apt-get -y update && apt-get -y install gpg emacs curl git make \
 
 WORKDIR /usr/src
 COPY package.json package-lock.json* ./
-RUN npm ci \
+RUN npm install \
   && npm cache clean --force \
   && rm -f package.json package-lock.json*
 ENV PATH /usr/src/node_modules/.bin:$PATH

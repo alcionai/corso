@@ -7,7 +7,7 @@ CORSO_BUILD_MOD := ${CORSO_BUILD_DIR}/mod
 CORSO_BUILD_BIN := ${CORSO_BUILD_DIR}/bin
 CORSO_REPO := /go/src/github.com/alcionai/corso
 CORSO_LOCAL_PATH := $(shell git rev-parse --show-toplevel)
-DOCSC := docker run --rm -it -p 3000:3000 -v ${PWD}:/usr/src/docs alcion/docs
+DOCSC := docker run --rm -it -p 3000:3000 -v ${PWD}:/usr/src/docs alcion/docs:latest
 DOCSE := ${DOCSC} # for enforcing docker container as environment
 GOC :=  docker run --rm -it \
 		-v ${CORSO_LOCAL_PATH}:${CORSO_REPO} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
