@@ -15,19 +15,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
-// @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
-type GraphSetCollectionFunc func(
-	ctx context.Context,
-	qp graph.QueryParams,
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-	resolver graph.ContainerResolver,
-) error
-
-// IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
-// that places exchange objectsids belonging to specific directories
+// FilterContainersAndFillCollections is a utility function
+// that places the M365 object ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
+// @param collection is filled with during this function.
+// Supports all exchange applications: Contacts, Events, and Mail
 func FilterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
