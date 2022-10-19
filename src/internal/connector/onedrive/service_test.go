@@ -26,6 +26,7 @@ func (ms *MockGraphService) ErrPolicy() bool {
 	return false
 }
 
+// TODO(ashmrtn): Merge with similar structs in graph and exchange packages.
 type oneDriveService struct {
 	client      msgraphsdk.GraphServiceClient
 	adapter     msgraphsdk.GraphRequestAdapter
