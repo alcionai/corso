@@ -4,60 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
-
-// TODO(ashmrtn): Merge with similar structs in graph and exchange packages.
-type testService struct {
-	adapter     msgraphsdk.GraphRequestAdapter
-	client      msgraphsdk.GraphServiceClient
-	failFast    bool
-	credentials account.M365Config
-}
-
-func (ts *testService) Client() *msgraphsdk.GraphServiceClient {
-	return &ts.client
-}
-
-func (ts *testService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return &ts.adapter
-}
-
-func (ts *testService) ErrPolicy() bool {
-	return ts.failFast
-}
-
-// TODO(ashmrtn): Merge with similar functions in connector and exchange
-// packages.
-func loadService(t *testing.T) *testService {
-	a := tester.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err)
-
-	adapter, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret,
-	)
-	require.NoError(t, err)
-
-	service := &testService{
-		adapter:     *adapter,
-		client:      *msgraphsdk.NewGraphServiceClient(adapter),
-		failFast:    false,
-		credentials: m365,
-	}
-
-	return service
-}
 
 type OneDriveSuite struct {
 	suite.Suite
@@ -87,7 +41,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderIDs := []string{}
 	folderName1 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
 	folderElements := []string{folderName1}
-	gs := loadService(t)
+	gs := loadTestService(t)
 
 	drives, err := drives(ctx, gs, suite.userID)
 	require.NoError(t, err)
@@ -142,6 +96,48 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 			}
 
 			assert.ElementsMatch(t, folderIDs, foundFolderIDs)
+		})
+	}
+}
+
+func (suite *OneDriveSuite) TestOneDriveNewCollections() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	creds, err := tester.NewM365Account(suite.T()).M365Config()
+	require.NoError(suite.T(), err)
+
+	tests := []struct {
+		name, user string
+	}{
+		{
+			name: "Test User w/ Drive",
+			user: suite.userID,
+		},
+		{
+			name: "Test User w/out Drive",
+			user: "testevents@8qzvrj.onmicrosoft.com",
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			service := loadTestService(t)
+			scope := selectors.
+				NewOneDriveBackup().
+				Users([]string{test.user})[0]
+			odcs, err := NewCollections(
+				creds.AzureTenantID,
+				test.user,
+				scope,
+				service,
+				service.updateStatus,
+			).Get(ctx)
+			assert.NoError(t, err)
+
+			for _, entry := range odcs {
+				assert.NotEmpty(t, entry.FullPath())
+			}
 		})
 	}
 }
