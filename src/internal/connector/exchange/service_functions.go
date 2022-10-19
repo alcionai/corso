@@ -143,7 +143,7 @@ func GetAllMailFolders(
 ) ([]graph.CachedContainer, error) {
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EmailCategory, true)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EmailCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func GetAllCalendars(
 ) ([]graph.CachedContainer, error) {
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EventsCategory, true)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EventsCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -197,9 +197,11 @@ func GetAllContactFolders(
 	qp graph.QueryParams,
 	gs graph.Service,
 ) ([]graph.CachedContainer, error) {
+	var query string
+
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory, true)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +250,6 @@ func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
 	category path.CategoryType,
-	showRoot bool,
 ) (graph.ContainerResolver, error) {
 	var (
 		res          graph.ContainerResolver
@@ -295,61 +296,29 @@ func PopulateExchangeContainerResolver(
 
 func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
 	dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
-		qp.Credentials.TenantID,
+		qp.Credentials.AzureTenantID,
 		qp.User,
-		path.EmailCategory,
+		category,
 		false,
 	)
 
 	if dirPath == nil {
+		fmt.Printf("path And Match return nil dirPath %s\n", category)
 		return nil, false // Only true for root mail folder
 	}
 
-	directories := dirPath.Folders()
+	directories := c.Path().Elements()
 
 	switch category {
 	case path.EmailCategory:
 		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1])
 	case path.ContactsCategory:
 		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1])
+	case path.EventsCategory:
+		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, directories[len(directories)-1])
 	default:
 		return nil, false
 	}
-}
-
-func checkRoot(qp graph.QueryParams, category path.CategoryType) (path.Path, bool) {
-	var (
-		dirPath path.Path
-		pb      = path.Builder{}
-	)
-
-	if category == path.ContactsCategory {
-		dirPath, _ = pb.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-
-		dir := dirPath.Folder()
-
-		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, dir)
-	}
-
-	if category == path.EventsCategory {
-		dirPath, _ = pb.Append(DefaultCalendar).ToDataLayerExchangePathForCategory(
-			qp.Credentials.TenantID,
-			qp.User,
-			category,
-			false,
-		)
-
-		dir := dirPath.Folder()
-
-		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, dir)
-	}
-
-	return nil, false
 }
 
 func AddItemsToCollection(
