@@ -96,7 +96,8 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 		},
 		{
 			name: "Contacts Iterative Check",
-		}, {
+		},
+		{
 			name: "Events Iterative Check",
 		},
 	}
