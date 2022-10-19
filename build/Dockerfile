@@ -1,34 +1,31 @@
-# syntax=docker/dockerfile:1
+FROM golang:1.18-alpine as builder
 
-# This dockerfile is configured to be run by the /corso/build/build-container.sh
-# script.  Using docker to build this file directly will fail.
+WORKDIR /go/src/app
+COPY src .
+
+ARG CORSO_BUILD_LDFLAGS="" # ldflags
+RUN go build -o corso -ldflags "$CORSO_BUILD_LDFLAGS"
 
 FROM alpine:3.16
 
-ENV CORSO_HOME /app/corso
+LABEL org.opencontainers.image.title="Corso"
+LABEL org.opencontainers.image.description="Free, Secure, and Open-Source Backup for Microsoft 365"
+LABEL org.opencontainers.image.url="https://github.com/alcionai/corso"
+LABEL org.opencontainers.image.source="https://github.com/alcionai/corso"
+LABEL org.opencontainers.image.vendor="Alcion, Inc."
 
-# Add a well-know corso user to use by default
-RUN addgroup -g 1001 corso && \
-    adduser --shell /sbin/nologin --disabled-password \
-    --home $CORSO_HOME --uid 1001 --ingroup corso corso
+COPY --from=builder /go/src/app/corso /corso
 
-# Update to latest cert bundle in case there are changes
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+#  Pull tls certs directly from latest upstream image
+COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Default locations for key Kopia config as set in https://github.com/kopia/kopia/blob/master/tools/docker/Dockerfile
-ENV KOPIA_CONFIG_PATH=$CORSO_HOME/kopia/config/repository.config \
+ENV CORSO_HOME=/app/corso
+ENV CORSO_CONFIG_DIR=$CORSO_HOME \
+	KOPIA_CONFIG_PATH=$CORSO_HOME/kopia/config/repository.config \
 	KOPIA_LOG_DIR=$CORSO_HOME/kopia/logs \
 	KOPIA_CACHE_DIRECTORY=$CORSO_HOME/kopia/cache \
 	RCLONE_CONFIG=$CORSO_HOME/kopia/rclone/rclone.conf \
 	KOPIA_PERSIST_CREDENTIALS_ON_CONNECT=false \
 	KOPIA_CHECK_FOR_UPDATES=false
-
-WORKDIR /
-
-ARG TARGETOS
-ARG TARGETARCH
-COPY ./bin/${TARGETOS}-${TARGETARCH}/corso ./
-
-USER corso
 
 ENTRYPOINT ["/corso"]

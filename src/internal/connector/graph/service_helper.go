@@ -14,6 +14,8 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 const (
@@ -64,4 +66,21 @@ func (handler *LoggingMiddleware) Intercept(
 	logger.Ctx(context.TODO()).Infof("REQUEST: %s", string(requestDump))
 
 	return pipeline.Next(req, middlewareIndex)
+}
+
+// ScopeToPathCategory helper function that maps selectors.ExchangeScope to path.CategoryType
+func ScopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
+	if scope.IncludesCategory(selectors.ExchangeMail) {
+		return path.EmailCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeContact) {
+		return path.ContactsCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeEvent) {
+		return path.EventsCategory
+	}
+
+	return path.UnknownCategory
 }

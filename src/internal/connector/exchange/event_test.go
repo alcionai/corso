@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -26,8 +27,8 @@ func TestEventSuite(t *testing.T) {
 // can be properly retrieved from a models.Eventable object
 func (suite *EventSuite) TestEventInfo() {
 	initial := time.Now()
-
 	now := common.FormatTime(initial)
+
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
 
 	tests := []struct {
@@ -37,56 +38,67 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Empty event",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				i := &details.ExchangeInfo{ItemType: details.ExchangeEvent}
-				return models.NewEvent(), i
+				return models.NewEvent(), &details.ExchangeInfo{
+					ItemType: details.ExchangeEvent,
+				}
 			},
 		},
 		{
 			name: "Start time only",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				event := models.NewEvent()
-				dateTime := models.NewDateTimeTimeZone()
+				var (
+					event     = models.NewEvent()
+					dateTime  = models.NewDateTimeTimeZone()
+					full, err = common.ParseTime(now)
+				)
+
+				require.NoError(suite.T(), err)
+
 				dateTime.SetDateTime(&now)
 				event.SetStart(dateTime)
-				full, err := common.ParseTime(now)
-				require.NoError(suite.T(), err)
-				i := &details.ExchangeInfo{
+
+				return event, &details.ExchangeInfo{
 					ItemType: details.ExchangeEvent,
 					Received: full,
 				}
-				return event, i
 			},
 		},
 		{
 			name: "Subject Only",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				subject := "Hello Corso"
-				event := models.NewEvent()
+				var (
+					subject = "Hello Corso"
+					event   = models.NewEvent()
+				)
+
 				event.SetSubject(&subject)
-				i := &details.ExchangeInfo{
+
+				return event, &details.ExchangeInfo{
 					ItemType: details.ExchangeEvent,
 					Subject:  subject,
 				}
-				return event, i
 			},
 		},
 		{
 			name: "Using mockable",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				bytes := mockconnector.GetMockEventBytes("Test Mock")
-				event, err := support.CreateEventFromBytes(bytes)
+				var (
+					organizer  = "foobar3@8qzvrj.onmicrosoft.com"
+					subject    = " Test Mock Review + Lunch"
+					bytes      = mockconnector.GetDefaultMockEventBytes("Test Mock")
+					future     = time.Now().UTC().AddDate(0, 0, 1)
+					eventTime  = time.Date(future.Year(), future.Month(), future.Day(), future.Hour(), 0, 0, 0, time.UTC)
+					event, err = support.CreateEventFromBytes(bytes)
+				)
+
 				require.NoError(suite.T(), err)
-				subject := " Test Mock Review + Lunch"
-				organizer := "foobar3@8qzvrj.onmicrosoft.com"
-				future := time.Now().AddDate(0, 0, 1)
-				eventTime := time.Date(2022, future.Month(), future.Day(), 6, 0, 0, 0, time.UTC)
-				i := &details.ExchangeInfo{
+
+				return event, &details.ExchangeInfo{
 					ItemType:   details.ExchangeEvent,
 					Subject:    subject,
 					Organizer:  organizer,
 					EventStart: eventTime,
 				}
-				return event, i
 			},
 		},
 	}
@@ -94,17 +106,20 @@ func (suite *EventSuite) TestEventInfo() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			event, expected := test.evtAndRP()
 			result := EventInfo(event)
-			suite.Equal(expected.Subject, result.Subject)
-			suite.Equal(expected.Sender, result.Sender)
+
+			assert.Equal(t, expected.Subject, result.Subject, "subject")
+			assert.Equal(t, expected.Sender, result.Sender, "sender")
+
 			expYear, expMonth, _ := expected.EventStart.Date() // Day not used at certain times of the day
 			expHr, expMin, expSec := expected.EventStart.Clock()
 			recvYear, recvMonth, _ := result.EventStart.Date()
 			recvHr, recvMin, recvSec := result.EventStart.Clock()
-			suite.Equal(expYear, recvYear)
-			suite.Equal(expMonth, recvMonth)
-			suite.Equal(expHr, recvHr)
-			suite.Equal(expMin, recvMin)
-			suite.Equal(expSec, recvSec)
+
+			assert.Equal(t, expYear, recvYear, "year")
+			assert.Equal(t, expMonth, recvMonth, "month")
+			assert.Equal(t, expHr, recvHr, "hour")
+			assert.Equal(t, expMin, recvMin, "minute")
+			assert.Equal(t, expSec, recvSec, "second")
 		})
 	}
 }
