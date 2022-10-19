@@ -303,7 +303,6 @@ func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.Cach
 	)
 
 	if dirPath == nil {
-		fmt.Printf("path And Match return nil dirPath %s\n", category)
 		return nil, false // Only true for root mail folder
 	}
 
