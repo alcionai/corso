@@ -3,6 +3,9 @@ package exchange
 import (
 	"testing"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -65,13 +68,14 @@ func loadService(t *testing.T) *exchangeService {
 	return service
 }
 
-// nolint:wsl
-// TestIterativeFunctions verifies that GraphQuery to Iterate
-// functions are valid for current versioning of msgraph-go-sdk.
+// TestCollectionFunctions verifies ability to gather
+// containers functions are valid for current versioning of msgraph-go-sdk.
 // Tests for mail have been moved to graph_connector_test.go.
+// exchange.Mail uses a sequential delta function.
+// TODO: Add exchange.Mail when delta iterator functionality implemented
 func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
-	// ctx, flush := tester.NewContext()
-	// defer flush()
+	ctx, flush := tester.NewContext()
+	defer flush()
 
 	var (
 		t                                   = suite.T()
@@ -90,28 +94,39 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 	eb.Include(contactScope, eventScope, mailScope)
 
 	tests := []struct {
-		name string
+		name              string
+		queryFunc         GraphQuery
+		scope             selectors.ExchangeScope
+		iterativeFunction func(
+			container map[string]graph.Container,
+			aFilter string,
+			errUpdater func(string, error)) func(any) bool
+		transformer absser.ParsableFactory
 	}{
+
 		{
-			name: "Mail Iterative Check",
+			name:              "Contacts Iterative Check",
+			queryFunc:         GetAllContactFolderNamesForUser,
+			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+			iterativeFunction: IterativeCollectContactContainers,
 		},
 		{
-			name: "Contacts Iterative Check",
-		},
-		{
-			name: "Events Iterative Check",
+			name:              "Events Iterative Check",
+			queryFunc:         GetAllCalendarNamesForUser,
+			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
+			iterativeFunction: IterativeCollectCalendarContainers,
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			// service := loadService(t)
-			// response, err := test.queryFunction(ctx, service, userID)
-			// require.NoError(t, err)
-			// // Create Iterator
-			// pageIterator, err := msgraphgocore.NewPageIterator(response,
-			// 	&service.adapter,
-			// 	test.transformer)
-			// require.NoError(t, err)
+			service := loadService(t)
+			response, err := test.queryFunc(ctx, service, userID)
+			require.NoError(t, err)
+			// Iterator Creation
+			pageIterator, err := msgraphgocore.NewPageIterator(response,
+				&service.adapter,
+				test.transformer)
+			require.NoError(t, err)
 
 			// qp := graph.QueryParams{
 			// 	User:        userID,
@@ -119,26 +134,19 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 			// 	Credentials: service.credentials,
 			// 	FailFast:    false,
 			// }
-			// // Create collection for iterate test
-			// collections := make(map[string]*Collection)
-			// var errs error
-			// errUpdater := func(id string, err error) {
-			// 	errs = support.WrapAndAppend(id, err, errs)
-			// }
-			// // callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
-			// // with corresponding item IDs. New collections are created for each directory
-			// callbackFunc := test.iterativeFunction(
-			// 	ctx,
-			// 	qp,
-			// 	errUpdater,
-			// 	collections,
-			// 	nil,
-			// 	nil,
-			// )
-
-			// iterateError := pageIterator.Iterate(ctx, callbackFunc)
-			// assert.NoError(t, iterateError)
-			// assert.NoError(t, errs)
+			// Create collection for iterate test
+			collections := make(map[string]graph.Container)
+			var errs error
+			errUpdater := func(id string, err error) {
+				errs = support.WrapAndAppend(id, err, errs)
+			}
+			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
+			// with corresponding item IDs. New collections are created for each directory
+			callbackFunc := test.iterativeFunction(
+				collections, "", errUpdater)
+			iterateError := pageIterator.Iterate(ctx, callbackFunc)
+			assert.NoError(t, iterateError)
+			assert.NoError(t, errs)
 		})
 	}
 }
