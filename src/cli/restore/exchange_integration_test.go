@@ -181,6 +181,7 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlag
 		}
 
 		suite.T().Run(set.String(), func(t *testing.T) {
+			//nolint:forbidigo
 			ctx := config.SetViper(context.Background(), suite.vpr)
 			ctx, flush := tester.WithContext(ctx)
 			defer flush()

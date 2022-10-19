@@ -22,7 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-var users = []string{
+var alcUsers = []string{
 	"AdeleV@8qzvrj.onmicrosoft.com",
 	"AlexW@8qzvrj.onmicrosoft.com",
 	"ashmarks@8qzvrj.onmicrosoft.com",
@@ -226,14 +226,14 @@ func runRestoreLoadTest(
 }
 
 // noFolders removes all "folder" category details entries
-func noFolders(t *testing.T, des []details.DetailsEntry) []*details.DetailsEntry {
+func noFolders(t *testing.T, des []details.DetailsEntry) []details.DetailsEntry {
 	t.Helper()
 
-	sansfldr := []*details.DetailsEntry{}
+	sansfldr := []details.DetailsEntry{}
 
 	for _, ent := range des {
 		if ent.Folder == nil {
-			sansfldr = append(sansfldr, &ent)
+			sansfldr = append(sansfldr, ent)
 		}
 	}
 
@@ -255,33 +255,30 @@ func ensureAllUsersInDetails(
 		)
 
 		for _, u := range users {
-			foundUsers[u] = false
 			userCategories[u] = map[string]struct{}{}
 		}
 
 		for _, ent := range noFolders(t, ds.Entries) {
-			p, err := path.FromDataLayerPath(ent.RepoRef, true)
-			if !assert.NoError(t, err, "converting to path: "+ent.RepoRef) {
+			e := ent
+			rr := e.RepoRef
+
+			p, err := path.FromDataLayerPath(rr, true)
+			if !assert.NoError(t, err, "converting to path: "+rr) {
 				continue
 			}
 
 			ro := p.ResourceOwner()
-			if !assert.NotEmpty(t, ro, "resource owner in path: "+ent.RepoRef) {
+			if !assert.NotEmpty(t, ro, "resource owner in path: "+rr) {
 				continue
 			}
 
 			ct := p.Category()
-			if !assert.NotEmpty(t, ro, "category type of path: "+ent.RepoRef) {
+			if !assert.NotEmpty(t, ro, "category type of path: "+rr) {
 				continue
 			}
 
 			foundUsers[ro] = true
 			foundCategories[ct.String()] = struct{}{}
-
-			if _, ok := userCategories[ro]; !ok {
-				userCategories[ro] = map[string]struct{}{}
-			}
-
 			userCategories[ro][ct.String()] = struct{}{}
 		}
 
@@ -334,7 +331,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 		t              = suite.T()
 		r              = suite.repo
 		service        = "exchange"
-		usersUnderTest = users
+		usersUnderTest = alcUsers
 		all            = selectors.Any()
 	)
 
@@ -470,7 +467,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 		t              = suite.T()
 		r              = suite.repo
 		service        = "one_drive"
-		usersUnderTest = users
+		usersUnderTest = alcUsers
 	)
 
 	// backup
