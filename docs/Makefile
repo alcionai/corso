@@ -26,6 +26,10 @@ dev: genclidocs
 VALE_TARGET ?= docs README.md
 
 check: genclidocs
+	vale $(VALE_TARGET)
+	markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
+
+dockercheck: genclidocs
 	$(DOCSC) vale $(VALE_TARGET)
 	$(DOCSC) markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
