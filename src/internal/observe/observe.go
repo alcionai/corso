@@ -108,7 +108,7 @@ func makeSpinFrames(barWidth int) {
 // ItemProgress tracks the display a spinner that idles while the collection
 // incrementing the count of items handled.  Each write to the provided channel
 // counts as a single increment.  The caller is expected to close the channel.
-func CollectionProgress(user, dirName string) (chan<- struct{}, func()) {
+func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()) {
 	if writer == nil || len(user) == 0 || len(dirName) == 0 {
 		ch := make(chan struct{})
 
@@ -128,8 +128,9 @@ func CollectionProgress(user, dirName string) (chan<- struct{}, func()) {
 		mpb.SpinnerStyle(spinFrames...),
 		mpb.BarFillerOnComplete(""),
 		mpb.BarRemoveOnComplete(),
-		// mpb.PrependDecorators(
-		// ),
+		mpb.PrependDecorators(
+			decor.OnComplete(decor.Name(category), ""),
+		),
 		mpb.AppendDecorators(
 			decor.OnComplete(decor.CurrentNoUnit("%d - ", decor.WCSyncSpace), ""),
 			decor.OnComplete(

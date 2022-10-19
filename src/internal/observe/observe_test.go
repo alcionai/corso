@@ -93,7 +93,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 		observe.SeedWriter(context.Background(), nil)
 	}()
 
-	progCh, closer := observe.CollectionProgress("test", "testertons")
+	progCh, closer := observe.CollectionProgress("test", "testcat", "testertons")
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 
@@ -127,7 +127,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 		observe.SeedWriter(context.Background(), nil)
 	}()
 
-	progCh, closer := observe.CollectionProgress("test", "testertons")
+	progCh, closer := observe.CollectionProgress("test", "testcat", "testertons")
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 

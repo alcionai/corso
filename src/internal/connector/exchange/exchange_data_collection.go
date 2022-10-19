@@ -122,7 +122,11 @@ func (col *Collection) populateByOptionIdentifier(
 		objectWriter = kw.NewJsonSerializationWriter()
 	)
 
+	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
+	go closer()
+
 	defer func() {
+		close(colProgress)
 		col.finishPopulation(ctx, success, totalBytes, errs)
 	}()
 
@@ -134,10 +138,6 @@ func (col *Collection) populateByOptionIdentifier(
 		errs = fmt.Errorf("unrecognized collection type: %s", col.collectionType.String())
 		return
 	}
-
-	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Folder())
-	defer closer()
-	defer close(colProgress)
 
 	for _, identifier := range col.jobs {
 		response, err := query(ctx, col.service, user, identifier)

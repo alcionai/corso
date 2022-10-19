@@ -323,7 +323,7 @@ func restoreCollection(
 		user      = directory.ResourceOwner()
 	)
 
-	colProgress, closer := observe.CollectionProgress(user, directory.Folder())
+	colProgress, closer := observe.CollectionProgress(user, category.String(), directory.Folder())
 	defer closer()
 	defer close(colProgress)
 
