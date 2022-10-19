@@ -90,6 +90,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 	defer func() {
 		// don't cross-contaminate other tests.
 		observe.Complete()
+		//nolint:forbidigo
 		observe.SeedWriter(context.Background(), nil)
 	}()
 
@@ -124,6 +125,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	defer func() {
 		// don't cross-contaminate other tests.
 		observe.Complete()
+		//nolint:forbidigo
 		observe.SeedWriter(context.Background(), nil)
 	}()
 
