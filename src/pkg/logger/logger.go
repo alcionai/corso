@@ -131,6 +131,8 @@ func Seed(ctx context.Context) (ctxOut context.Context, zsl *zap.SugaredLogger) 
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.String("log-level", "info", "set the log level to debug|info|warn|error")
+	// prevents overriding the corso/cobra help processor
+	fs.BoolP("help", "h", false, "")
 
 	// parse the os args list to find the log level flag
 	if err := fs.Parse(os.Args[1:]); err != nil {
