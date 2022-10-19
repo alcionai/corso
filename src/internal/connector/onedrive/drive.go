@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
@@ -17,7 +18,43 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var errFolderNotFound = errors.New("folder not found")
+var (
+	errFolderNotFound = errors.New("folder not found")
+
+	// nolint:lll
+	// OneDrive associated SKUs located at:
+	// https://learn.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
+	skuIDs = []string{
+		// Microsoft 365 Apps for Business 0365
+		"cdd28e44-67e3-425e-be4c-737fab2899d3",
+		// Microsoft 365 Apps for Business SMB_Business
+		"b214fe43-f5a3-4703-beeb-fa97188220fc",
+		// Microsoft 365 Apps for enterprise
+		"c2273bd0-dff7-4215-9ef5-2c7bcfb06425",
+		// Microsoft 365 Apps for Faculty
+		"12b8c807-2e20-48fc-b453-542b6ee9d171",
+		// Microsoft 365 Apps for Students
+		"c32f9321-a627-406d-a114-1f9c81aaafac",
+		// OneDrive for Business (Plan 1)
+		"e6778190-713e-4e4f-9119-8b8238de25df",
+		// OneDrive for Business (Plan 2)
+		"ed01faf2-1d88-4947-ae91-45ca18703a96",
+		// Visio Plan 1
+		"ca7f3140-d88c-455b-9a1c-7f0679e31a76",
+		// Visio Plan 2
+		"38b434d2-a15e-4cde-9a98-e737c75623e1",
+		// Visio Online Plan 1
+		"4b244418-9658-4451-a2b8-b5e2b364e9bd",
+		// Visio Online Plan 2
+		"c5928f49-12ba-48f7-ada3-0d743a3601d5",
+		// Visio Plan 2 for GCC
+		"4ae99959-6b0f-43b0-b1ce-68146001bdba",
+		// ONEDRIVEENTERPRISE
+		"afcafa6a-d966-4462-918c-ec0b4e0fe642",
+		// Microsoft 365 E5 Developer
+		"c42b9cae-ea4f-4ab7-9717-81576235ccac",
+	}
+)
 
 const (
 	// nextLinkKey is used to find the next link in a paged
@@ -26,12 +63,30 @@ const (
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
 	itemNotFoundErrorCode = "itemNotFound"
+	userDoesNotHaveDrive  = "BadRequest Unable to retrieve user's mysite URL"
 )
 
 // Enumerates the drives for the specified user
 func drives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
+	var hasDrive bool
+
+	hasDrive, err := hasDriveLicense(ctx, service, user)
+	if err != nil {
+		return nil, errors.Wrap(err, user)
+	}
+
+	if !hasDrive {
+		logger.Ctx(ctx).Debugf("User %s does not have a license for OneDrive", user)
+		return make([]models.Driveable, 0), nil // no license
+	}
+
 	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
 	if err != nil {
+		if strings.Contains(support.ConnectorStackErrorTrace(err), userDoesNotHaveDrive) {
+			logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
+			return make([]models.Driveable, 0), nil // no license
+		}
+
 		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
 			user, support.ConnectorStackErrorTrace(err))
 	}
@@ -86,8 +141,10 @@ func collectItems(
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
-func getFolder(ctx context.Context, service graph.Service, driveID string, parentFolderID string,
-	folderName string,
+func getFolder(
+	ctx context.Context,
+	service graph.Service,
+	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
 	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
 	// will be sub-optimal.
@@ -236,4 +293,57 @@ func DeleteItem(
 	}
 
 	return nil
+}
+
+// hasDriveLicense utility function that queries M365 server
+// to investigate the user's includes access to OneDrive.
+func hasDriveLicense(
+	ctx context.Context,
+	service graph.Service,
+	user string,
+) (bool, error) {
+	var hasDrive bool
+
+	resp, err := service.Client().UsersById(user).LicenseDetails().Get(ctx, nil)
+	if err != nil {
+		return false,
+			errors.Wrap(err, "failure obtaining license details for user")
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(
+		resp, service.Adapter(),
+		models.CreateLicenseDetailsCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	cb := func(pageItem any) bool {
+		entry, ok := pageItem.(models.LicenseDetailsable)
+		if !ok {
+			err = errors.New("casting item to models.MailFolderable")
+			return false
+		}
+
+		sku := entry.GetSkuId()
+		if sku == nil {
+			return true
+		}
+
+		for _, license := range skuIDs {
+			if *sku == license {
+				hasDrive = true
+				return false
+			}
+		}
+
+		return true
+	}
+
+	if err := iter.Iterate(ctx, cb); err != nil {
+		return false,
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	return hasDrive, nil
 }

@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -19,7 +19,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -233,21 +235,12 @@ func purgeMailFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		sel := selectors.NewExchangeBackup()
-		sel.Include(sel.MailFolders([]string{uid}, selectors.Any()))
-
-		scope := sel.Scopes()[0]
-		params := graph.QueryParams{
-			User:     uid,
-			Scope:    scope,
-			FailFast: false,
-			Credentials: account.M365Config{
-				M365:     credentials.GetM365(),
-				TenantID: common.First(tenant, os.Getenv(account.TenantID)),
-			},
+		params, err := exchangeQueryParamFactory(uid, path.EmailCategory)
+		if err != nil {
+			return nil, err
 		}
 
-		allFolders, err := exchange.GetAllMailFolders(ctx, params, gs)
+		allFolders, err := exchange.GetAllMailFolders(ctx, *params, gs)
 		if err != nil {
 			return nil, err
 		}
@@ -278,21 +271,12 @@ func purgeCalendarFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		sel := selectors.NewExchangeBackup()
-		sel.Include(sel.EventCalendars([]string{uid}, selectors.Any()))
-
-		scope := sel.Scopes()[0]
-		params := graph.QueryParams{
-			User:     uid,
-			Scope:    scope,
-			FailFast: false,
-			Credentials: account.M365Config{
-				M365:     credentials.GetM365(),
-				TenantID: common.First(tenant, os.Getenv(account.TenantID)),
-			},
+		params, err := exchangeQueryParamFactory(uid, path.EventsCategory)
+		if err != nil {
+			return nil, err
 		}
 
-		allCalendars, err := exchange.GetAllCalendars(ctx, params, gs)
+		allCalendars, err := exchange.GetAllCalendars(ctx, *params, gs)
 		if err != nil {
 			return nil, err
 		}
@@ -323,21 +307,12 @@ func purgeContactFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		sel := selectors.NewExchangeBackup()
-		sel.Include(sel.ContactFolders([]string{uid}, selectors.Any()))
-
-		scope := sel.Scopes()[0]
-		params := graph.QueryParams{
-			User:     uid,
-			Scope:    scope,
-			FailFast: false,
-			Credentials: account.M365Config{
-				M365:     credentials.GetM365(),
-				TenantID: common.First(tenant, os.Getenv(account.TenantID)),
-			},
+		params, err := exchangeQueryParamFactory(uid, path.ContactsCategory)
+		if err != nil {
+			return nil, err
 		}
-		allContainers, err := exchange.GetAllContactFolders(ctx, params, gs)
-		//, uid, prefix)
+
+		allContainers, err := exchange.GetAllContactFolders(ctx, *params, gs)
 		if err != nil {
 			return nil, err
 		}
@@ -462,8 +437,8 @@ func purgeFolders(
 func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	// get account info
 	m365Cfg := account.M365Config{
-		M365:     credentials.GetM365(),
-		TenantID: common.First(tenant, os.Getenv(account.TenantID)),
+		M365:          credentials.GetM365(),
+		AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
 	}
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
@@ -526,15 +501,41 @@ func userOrUsers(u string, us map[string]string) map[string]string {
 // containerFilter filters container list based on prefix
 // @returns cachedContainers that meet the requirements for purging.
 func containerFilter(nameContains string, containers []graph.CachedContainer) []graph.CachedContainer {
-	cacheContainers := make([]graph.CachedContainer, 0)
+	f := filters.In(nameContains)
+	result := make([]graph.CachedContainer, 0)
 
 	for _, folder := range containers {
-		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
-		if include {
-			cacheContainers = append(cacheContainers, folder)
+		if f.Compare(*folder.GetDisplayName()) {
+			result = append(result, folder)
 		}
 	}
 
-	return cacheContainers
+	return result
+}
+
+func exchangeQueryParamFactory(user string, category path.CategoryType) (*graph.QueryParams, error) {
+	var scope selectors.ExchangeScope
+
+	switch category {
+	case path.ContactsCategory:
+		scope = selectors.NewExchangeBackup().ContactFolders([]string{user}, selectors.Any())[0]
+	case path.EmailCategory:
+		scope = selectors.NewExchangeBackup().MailFolders([]string{user}, selectors.Any())[0]
+	case path.EventsCategory:
+		scope = selectors.NewExchangeBackup().EventCalendars([]string{user}, selectors.Any())[0]
+	default:
+		return nil, fmt.Errorf("category %s not supported", category)
+	}
+
+	params := &graph.QueryParams{
+		User:     user,
+		Scope:    scope,
+		FailFast: false,
+		Credentials: account.M365Config{
+			M365:          credentials.GetM365(),
+			AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
+		},
+	}
+
+	return params, nil
 }

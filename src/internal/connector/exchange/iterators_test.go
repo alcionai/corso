@@ -22,6 +22,7 @@ func TestExchangeIteratorSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorExchangeTests,
 	); err != nil {
 		t.Skip(err)
 	}

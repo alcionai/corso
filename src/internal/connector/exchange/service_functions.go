@@ -46,9 +46,9 @@ func (es *exchangeService) ErrPolicy() bool {
 // NOTE: Incorrect account information will result in errors on subsequent queries.
 func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
-		credentials.TenantID,
-		credentials.ClientID,
-		credentials.ClientSecret,
+		credentials.AzureTenantID,
+		credentials.AzureClientID,
+		credentials.AzureClientSecret,
 	)
 	if err != nil {
 		return nil, err
@@ -149,13 +149,10 @@ func GetAllMailFolders(
 	}
 
 	for _, c := range resolver.Items() {
-		temp, _ := c.Path().ToDataLayerExchangePathForCategory(
-			"not",
-			"used",
-			path.EmailCategory,
-			false,
-		)
-		directories := temp.Folders()
+		directories := c.Path().Elements()
+		if len(directories) == 0 {
+			continue
+		}
 
 		if qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1]) {
 			containers = append(containers, c)
@@ -181,13 +178,7 @@ func GetAllCalendars(
 	}
 
 	for _, c := range resolver.Items() {
-		temp, _ := c.Path().ToDataLayerExchangePathForCategory(
-			"not",
-			"used",
-			path.EventsCategory,
-			false,
-		)
-		directories := temp.Folders()
+		directories := c.Path().Elements()
 
 		if qp.Scope.Matches(selectors.ExchangeEventCalendar, directories[len(directories)-1]) {
 			containers = append(containers, c)
@@ -214,15 +205,15 @@ func GetAllContactFolders(
 	}
 
 	for _, c := range resolver.Items() {
-		temp := c.Path()
-		p, _ := temp.ToDataLayerExchangePathForCategory(
-			"not",
-			"used",
-			path.ContactsCategory,
-			false)
-		directories := p.Folders()
+		directories := c.Path().Elements()
 
-		if qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1]) {
+		if len(directories) == 0 {
+			query = DefaultContactFolder
+		} else {
+			query = directories[len(directories)-1]
+		}
+
+		if qp.Scope.Matches(selectors.ExchangeContactFolder, query) {
 			containers = append(containers, c)
 		}
 	}

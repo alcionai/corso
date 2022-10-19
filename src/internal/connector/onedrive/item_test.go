@@ -40,6 +40,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorOneDriveTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -59,7 +60,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	m365, err := a.M365Config()
 	require.NoError(suite.T(), err)
 
-	adapter, err := graph.CreateAdapter(m365.TenantID, m365.ClientID, m365.ClientSecret)
+	adapter, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
 	require.NoError(suite.T(), err)
 	suite.client = msgraphsdk.NewGraphServiceClient(adapter)
 	suite.adapter = adapter

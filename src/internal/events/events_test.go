@@ -42,10 +42,10 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 		account.ProviderM365,
 		account.M365Config{
 			M365: credentials.M365{
-				ClientID:     "id",
-				ClientSecret: "secret",
+				AzureClientID:     "id",
+				AzureClientSecret: "secret",
 			},
-			TenantID: "tid",
+			AzureTenantID: "tid",
 		},
 	)
 	require.NoError(t, err)
