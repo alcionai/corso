@@ -147,7 +147,7 @@ func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
 	}
 }
 
-// ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
+// FetchEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
 func FetchEventIDsFromCalendar(
 	ctx context.Context,
 	gs graph.Service,
@@ -197,7 +197,7 @@ func FetchEventIDsFromCalendar(
 	return ids, nil
 }
 
-// ReturnContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
+// FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
 // of the targeted directory
 func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, directoryID string) ([]string, error) {
 	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
@@ -245,6 +245,8 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 	return ids, nil
 }
 
+// FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
+// of the targeted directory
 func FetchMessageIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Service,
