@@ -8,9 +8,9 @@ import (
 
 const (
 	FileFN               = "file"
-	FolderFN             = "folders"
-	NamesFN              = "names"
-	PathsFN              = "paths"
+	FolderFN             = "folder"
+	NamesFN              = "name"
+	PathsFN              = "path"
 	FileCreatedAfterFN   = "file-created-after"
 	FileCreatedBeforeFN  = "file-created-before"
 	FileModifiedAfterFN  = "file-modified-after"

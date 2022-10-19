@@ -52,7 +52,7 @@ var (
 
 const (
 	dataContacts = "contacts"
-	dataEmail    = "email"
+	dataEmail    = "emails"
 	dataEvents   = "events"
 )
 
