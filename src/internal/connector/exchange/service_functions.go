@@ -295,14 +295,14 @@ func PopulateExchangeContainerResolver(
 }
 
 func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
-	dirPath, _ := c.Path().ToDataLayerExchangePathForCategory(
+	dirPath, err := c.Path().ToDataLayerExchangePathForCategory(
 		qp.Credentials.AzureTenantID,
 		qp.User,
 		category,
 		false,
 	)
 
-	if dirPath == nil {
+	if dirPath == nil || err != nil {
 		return nil, false // Only true for root mail folder
 	}
 
