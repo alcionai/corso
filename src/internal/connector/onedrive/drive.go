@@ -70,7 +70,7 @@ const (
 func drives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
 	var hasDrive bool
 
-	hasDrive, err := hasLicense(ctx, service, user)
+	hasDrive, err := hasDriveLicense(ctx, service, user)
 	if err != nil {
 		return nil, errors.Wrap(err, user)
 	}
@@ -295,7 +295,9 @@ func DeleteItem(
 	return nil
 }
 
-func hasLicense(
+// hasDriveLicense utility function that queries M365 server
+// to investigate the user's includes access to OneDrive.
+func hasDriveLicense(
 	ctx context.Context,
 	service graph.Service,
 	user string,
