@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"runtime/pprof"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,6 @@ var alcUsers = []string{
 	"MeganB@8qzvrj.onmicrosoft.com",
 	"MiriamG@8qzvrj.onmicrosoft.com",
 	"NestorW@8qzvrj.onmicrosoft.com",
-	"ntoja@8qzvrj.onmicrosoft.com",
 	"PattiF@8qzvrj.onmicrosoft.com",
 	"PradeepG@8qzvrj.onmicrosoft.com",
 	"Rfinders@8qzvrj.onmicrosoft.com",
@@ -50,6 +50,7 @@ var alcUsers = []string{
 	// they are reserved for other purposes
 
 	// "LeeG@8qzvrj.onmicrosoft.com",
+	// "ntoja@8qzvrj.onmicrosoft.com",
 }
 
 var largeDatasetUser = []string{"LeeG@8qzvrj.onmicrosoft.com"}
@@ -282,13 +283,31 @@ func ensureAllUsersInDetails(
 			userCategories[ro][ct.String()] = struct{}{}
 		}
 
+		foundCategoriesSl := normalizeCategorySet(t, foundCategories)
+
 		for u, cats := range userCategories {
+			userCategoriesSl := normalizeCategorySet(t, cats)
+
 			t.Run(u, func(t *testing.T) {
 				assert.True(t, foundUsers[u], "user was involved in operation")
-				assert.Equal(t, len(foundCategories), len(cats), "all app categories involved in operation")
+				assert.EqualValues(t, foundCategoriesSl, userCategoriesSl, "user had all app categories involved in operation")
 			})
 		}
 	})
+}
+
+// for an easier time comparing category presence/absence
+func normalizeCategorySet(t *testing.T, cats map[string]struct{}) []string {
+	t.Helper()
+
+	sl := []string{}
+	for k := range cats {
+		sl = append(sl, k)
+	}
+
+	sort.Strings(sl)
+
+	return sl
 }
 
 // ------------------------------------------------------------------------------------------------
