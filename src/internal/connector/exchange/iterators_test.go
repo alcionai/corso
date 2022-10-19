@@ -65,6 +65,7 @@ func loadService(t *testing.T) *exchangeService {
 	return service
 }
 
+// nolint:wsl
 // TestIterativeFunctions verifies that GraphQuery to Iterate
 // functions are valid for current versioning of msgraph-go-sdk.
 // Tests for mail have been moved to graph_connector_test.go.
