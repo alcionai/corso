@@ -22,6 +22,7 @@ func (suite *PrintUnitSuite) TestOnly() {
 	t := suite.T()
 	c := &cobra.Command{}
 	// cannot use tester.NewContext() here: circular imports
+	//nolint:forbidigo
 	ctx := SetRootCmd(context.Background(), c)
 	assert.NoError(t, Only(ctx, nil))
 	assert.True(t, c.SilenceUsage)
