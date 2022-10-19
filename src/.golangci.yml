@@ -7,6 +7,7 @@ linters:
     - gofmt
     - gofumpt
     - errcheck
+    - forbidigo
     - lll
     - misspell
     - revive
@@ -19,6 +20,11 @@ linters-settings:
       - default
       - prefix(github.com/alcionai/corso)
     skip-generated: true
+  forbidigo:
+    forbid:
+      # Don't allow creating contexts without logging in tests. Use an ignore
+      # lower down to ensure usages of this outside of tests aren't reported.
+      - 'context\.(Background|TODO)(# tests should use tester\.NewContext )?'
   lll:
     line-length: 120
   revive:
@@ -62,21 +68,31 @@ issues:
   max-same-issues: 50
   exclude-rules:
     - linters:
-      - revive
+        - revive
       text: "exported:.*details.DetailsModel by other packages, and that stutters"
     - linters:
-      - revive
+        - revive
       text: "exported:.*details.DetailsEntry by other packages, and that stutters"
     - linters:
-      - revive
+        - revive
       text: "exported:.*mock.MockModelStore by other packages, and that stutters"
     - linters:
-      - revive
+        - revive
       text: "unexported-return:.*unexported type selectors.exchangeCategory"
     - linters:
-      - revive
+        - revive
       text: "unexported-return:.*unexported type.*kopia.conn"
     - path: _test\.go
       linters:
-      - revive
+        - revive
       text: "import-shadowing:.*'suite' shadows"
+    # Don't output about context.Background or context.TODO in non-test files.
+    # Need complicated multi-part regex because golang doesn't support not regex
+    # operators for sequences of characters (only character sets). The below
+    # basically boils down to:
+    #   1. anything 4 characters long with .go suffix
+    #   2. anything >= 5 characters long that doesn't end in _test.go
+    - path: ^.{4}\.go|.*([^_].{4}|_[^t].{3}|_t[^e].{2}|_te[^s].{1}|_tes[^t])\.go
+      linters:
+        - forbidigo
+      text: "context.(Background|TODO)"

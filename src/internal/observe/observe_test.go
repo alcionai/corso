@@ -36,6 +36,7 @@ func (suite *ObserveProgressUnitSuite) TestDoesThings() {
 	defer func() {
 		// don't cross-contaminate other tests.
 		observe.Complete()
+		//nolint:forbidigo
 		observe.SeedWriter(context.Background(), nil)
 	}()
 
