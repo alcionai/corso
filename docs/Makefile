@@ -39,15 +39,16 @@ dockershell:
 build: genclidocs
 	$(DOCSC) npm run build
 
-genclidocs: ${MDGEN_BINARY}
+genclidocs: _validatemdgen ${MDGEN_BINARY}
 	@echo 'Auto-generating Corso CLI docs...'
 	$(DOCSC) rm -rf docs/cli
 	$(GOC) ${MDGEN_BINARY} --cli-folder ${CLI_DOCS}
 
 _validatemdgen: # in case we have a different architecture
+	@echo 'Verifying dependencies...'
 	$(GOC) ${MDGEN_BINARY} --help >/dev/null || $(GOC) rm -rf ${MDGEN_BINARY}
 
-${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shell find ${CORSO_LOCAL_PATH}/src -type d ) _validatemdgen
+${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shell find ${CORSO_LOCAL_PATH}/src -type d )
 	@echo 'Re-building Corso CLI docs auto-gen tooling...'
 		$(GOC) go mod download 
 		$(GOC) go build -o ${MDGEN_BINARY} ${MDGEN_SRC}
