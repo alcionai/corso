@@ -315,39 +315,27 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 			contains:      "Birthdays",
 			expectedCount: assert.Greater,
 			getScope: func() selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{user}, selectors.Any()))
-
-				scopes := sel.Scopes()
-				assert.Equal(t, len(scopes), 1)
-
-				return scopes[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{user}, selectors.Any())[0]
 			},
 		}, {
 			name:          "Default Calendar",
 			contains:      DefaultCalendar,
 			expectedCount: assert.Equal,
 			getScope: func() selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{user}, []string{DefaultCalendar}))
-
-				scopes := sel.Scopes()
-				assert.Equal(t, len(scopes), 1)
-
-				return scopes[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{user}, []string{DefaultCalendar})[0]
 			},
 		}, {
 			name:          "Default Mail",
 			contains:      DefaultMailFolder,
 			expectedCount: assert.Equal,
 			getScope: func() selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{user}, []string{DefaultMailFolder}))
-
-				scopes := sel.Scopes()
-				assert.Equal(t, len(scopes), 1)
-
-				return scopes[0]
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{user}, []string{DefaultMailFolder})[0]
 			},
 		},
 	}
