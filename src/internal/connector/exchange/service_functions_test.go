@@ -356,7 +356,6 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 			for _, k := range collections {
 				keys = append(keys, *k.GetDisplayName())
 			}
-			//t.Logf("Collections Made: %v\n", keys)
 			assert.Contains(t, keys, test.contains)
 		})
 	}
