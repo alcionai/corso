@@ -334,7 +334,7 @@ func (gc *GraphConnector) createCollections(
 			resolver)
 
 		if err != nil {
-			return nil, errors.Wrap(err, "failured to get all available content for collection")
+			return nil, errors.Wrap(err, "filling collections")
 		}
 
 		for _, collection := range collections {
