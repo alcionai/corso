@@ -348,7 +348,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 				FailFast:    failFast,
 				Credentials: credentials,
 			}
-			collections, err := CollectFolders(ctx, qp, service)
+			collections, err := GetContainers(ctx, qp, service)
 			assert.NoError(t, err)
 			test.expectedCount(t, len(collections), containerCount)
 

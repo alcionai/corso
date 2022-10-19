@@ -223,7 +223,7 @@ func GetAllContactFolders(
 	return containers, err
 }
 
-func CollectFolders(
+func GetContainers(
 	ctx context.Context,
 	qp graph.QueryParams,
 	gs graph.Service,
