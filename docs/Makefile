@@ -1,6 +1,5 @@
 .PHONY: buildimage build dev shell check genclidocs _validatemdgen
 
-# Specify `CORSO_USE_DOCKER=-1` to skip using Docker for builds
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
 CORSO_BUILD_MOD := ${CORSO_BUILD_DIR}/mod
@@ -9,18 +8,11 @@ CORSO_REPO := /go/src/github.com/alcionai/corso
 CORSO_LOCAL_PATH := $(shell git rev-parse --show-toplevel)
 CORSO_VERSION := $(shell git rev-parse --short HEAD)
 DOCSC := docker run --rm -it -p 3000:3000 -v ${PWD}:/usr/src/docs --env CORSO_VERSION=${CORSO_VERSION} corso/docs
-DOCSE := ${DOCSC} # for enforcing docker container as environment
 GOC :=  docker run --rm -it \
 		-v ${CORSO_LOCAL_PATH}:${CORSO_REPO} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
 		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
 		--workdir ${CORSO_REPO}/src \
 		golang:1.18
-ifeq (${CORSO_USE_DOCKER},-1)
-	DOCSC :=
-	GOC := cd ${CORSO_LOCAL_PATH}/src &&
-    CORSO_REPO := ${CORSO_LOCAL_PATH}
-endif
-
 MDGEN_SRC := ${CORSO_REPO}/src/cmd/mdgen/mdgen.go
 MDGEN_BINARY := ${CORSO_BUILD_BIN}/mdgen
 CLI_DOCS := ${CORSO_REPO}/docs/docs/cli
@@ -34,11 +26,15 @@ dev: genclidocs
 VALE_TARGET ?= docs README.md
 
 check: genclidocs
+	vale $(VALE_TARGET)
+	markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
+
+dockercheck: genclidocs
 	$(DOCSC) vale $(VALE_TARGET)
 	$(DOCSC) markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
 dockershell:
-	$(DOCSE) /bin/bash
+	$(DOCSC) bash
 
 build: genclidocs
 	$(DOCSC) npm run build
@@ -49,7 +45,7 @@ genclidocs: ${MDGEN_BINARY}
 	$(GOC) ${MDGEN_BINARY} --cli-folder ${CLI_DOCS}
 
 _validatemdgen: # in case we have a different architecture
-	${MDGEN_BINARY} --help >/dev/null || rm -rf ${MDGEN_BINARY}
+	$(GOC) ${MDGEN_BINARY} --help >/dev/null || $(GOC) rm -rf ${MDGEN_BINARY}
 
 ${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shell find ${CORSO_LOCAL_PATH}/src -type d ) _validatemdgen
 	@echo 'Re-building Corso CLI docs auto-gen tooling...'
@@ -58,4 +54,4 @@ ${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shel
 
 clean:
 	$(DOCSC) rm -rf docs/cli
-	$(DOCSC) rm -rf ${CORSO_BUILD_DIR}
+	$(GOC) rm -rf ${CORSO_BUILD_DIR}/*

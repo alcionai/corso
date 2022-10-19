@@ -9,13 +9,20 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ServiceFunctionsIntegrationSuite struct {
 	suite.Suite
 	m365UserID string
+	creds      account.M365Config
 }
+
+const (
+	invalidUser       = "fnords_mc_snarfens"
+	nonExistantLookup = "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√"
+)
 
 func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
@@ -30,7 +37,13 @@ func TestServiceFunctionsIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) SetupSuite() {
-	suite.m365UserID = tester.M365UserID(suite.T())
+	t := suite.T()
+	suite.m365UserID = tester.M365UserID(t)
+	a := tester.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err)
+
+	suite.creds = m365
 }
 
 func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
@@ -38,42 +51,73 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 	defer flush()
 
 	gs := loadService(suite.T())
+	userID := tester.M365UserID(suite.T())
 
 	table := []struct {
-		name, contains, user string
-		expectCount          assert.ComparisonAssertionFunc
-		expectErr            assert.ErrorAssertionFunc
+		name, user  string
+		expectCount assert.ComparisonAssertionFunc
+		getScope    func(t *testing.T) selectors.ExchangeScope
+		expectErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:        "plain lookup",
-			user:        suite.m365UserID,
+			user:        userID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, selectors.Any())[0]
+			},
 		},
 		{
-			name:        "root calendar",
-			contains:    DefaultCalendar,
-			user:        suite.m365UserID,
+			name:        "Get Default Calendar",
+			user:        userID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, []string{DefaultCalendar})[0]
+			},
+		},
+		{
+			name:        "non-root calendar",
+			user:        userID,
+			expectCount: assert.Greater,
+			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, []string{"Birthdays"})[0]
+			},
 		},
 		{
 			name:        "nonsense user",
-			user:        "fnords_mc_snarfens",
+			user:        invalidUser,
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{invalidUser}, []string{DefaultContactFolder})[0]
+			},
 		},
 		{
 			name:        "nonsense matcher",
-			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
-			user:        suite.m365UserID,
+			user:        userID,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{userID}, []string{nonExistantLookup})[0]
+			},
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllCalendars(ctx, gs, test.user, test.contains)
+			params := graph.QueryParams{
+				User:        test.user,
+				Scope:       test.getScope(t),
+				FailFast:    false,
+				Credentials: suite.creds,
+			}
+			cals, err := GetAllCalendars(ctx, params, gs)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -88,40 +132,76 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 	user := tester.M365UserID(suite.T())
 
 	table := []struct {
-		name, contains, user string
-		expectCount          assert.ComparisonAssertionFunc
-		expectErr            assert.ErrorAssertionFunc
+		name, user  string
+		expectCount assert.ComparisonAssertionFunc
+		getScope    func(t *testing.T) selectors.ExchangeScope
+		expectErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:        "plain lookup",
 			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, selectors.Any())[0]
+			},
 		},
 		{
-			name:        "root folder",
-			contains:    "Contact", // DefaultContactFolder doesn't work here?
+			name:        "default contact folder",
 			user:        user,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, []string{DefaultContactFolder})[0]
+			},
+		},
+		{
+			name:        "Trial folder lookup",
+			user:        user,
+			expectCount: assert.Greater,
+			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, []string{"TrialFolder"})[0]
+			},
 		},
 		{
 			name:        "nonsense user",
-			user:        "fnords_mc_snarfens",
+			user:        invalidUser,
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{invalidUser}, []string{DefaultContactFolder})[0]
+			},
 		},
 		{
 			name:        "nonsense matcher",
-			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
 			user:        user,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{user}, []string{nonExistantLookup})[0]
+			},
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllContactFolders(ctx, gs, test.user, test.contains)
+			params := graph.QueryParams{
+				User:        test.user,
+				Scope:       test.getScope(t),
+				FailFast:    false,
+				Credentials: suite.creds,
+			}
+			cals, err := GetAllContactFolders(ctx, params, gs)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
@@ -133,42 +213,79 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 	defer flush()
 
 	gs := loadService(suite.T())
+	userID := tester.M365UserID(suite.T())
 
 	table := []struct {
-		name, contains, user string
-		expectCount          assert.ComparisonAssertionFunc
-		expectErr            assert.ErrorAssertionFunc
+		name, user  string
+		expectCount assert.ComparisonAssertionFunc
+		getScope    func(t *testing.T) selectors.ExchangeScope
+		expectErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:        "plain lookup",
-			user:        suite.m365UserID,
+			user:        userID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, selectors.Any())[0]
+			},
 		},
 		{
-			name:        "Root folder",
-			contains:    DefaultMailFolder,
-			user:        suite.m365UserID,
+			name:        "root folder",
+			user:        userID,
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, []string{DefaultMailFolder})[0]
+			},
+		},
+		{
+			name:        "Trial folder lookup",
+			user:        userID,
+			expectCount: assert.Greater,
+			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, []string{"Drafts"})[0]
+			},
 		},
 		{
 			name:        "nonsense user",
-			user:        "fnords_mc_snarfens",
+			user:        invalidUser,
 			expectCount: assert.Equal,
 			expectErr:   assert.Error,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{invalidUser}, []string{DefaultMailFolder})[0]
+			},
 		},
 		{
 			name:        "nonsense matcher",
-			contains:    "∂ç∂ç∂√≈∂ƒß∂ç√ßç√≈ç√ß∂ƒçß√ß≈∂ƒßç√",
-			user:        suite.m365UserID,
+			user:        userID,
 			expectCount: assert.Equal,
 			expectErr:   assert.NoError,
+			getScope: func(t *testing.T) selectors.ExchangeScope {
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{userID}, []string{nonExistantLookup})[0]
+			},
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			cals, err := GetAllMailFolders(ctx, gs, test.user, test.contains)
+			params := graph.QueryParams{
+				User:        test.user,
+				Scope:       test.getScope(t),
+				FailFast:    false,
+				Credentials: suite.creds,
+			}
+			cals, err := GetAllMailFolders(ctx, params, gs)
 			test.expectErr(t, err)
 			test.expectCount(t, len(cals), 0)
 		})
