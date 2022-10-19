@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -325,7 +324,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 	var (
 		t      = suite.T()
 		userID = tester.M365UserID(t)
-		sel    = selectors.NewExchangeBackup()
 	)
 
 	tests := []struct {
@@ -335,7 +333,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 	}{
 		{
 			name:  "Mail Iterative Check",
-			scope: sel.MailFolders([]string{userID}, selectors.Any())[0],
+			scope: selectors.NewExchangeBackup().MailFolders([]string{userID}, selectors.Any())[0],
 			folderNames: map[string]struct{}{
 				exchange.DefaultMailFolder: {},
 				"Sent Items":               {},
@@ -343,7 +341,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 		},
 		{
 			name: "Folder Iterative Check Mail",
-			scope: sel.MailFolders(
+			scope: selectors.NewExchangeBackup().MailFolders(
 				[]string{userID},
 				[]string{exchange.DefaultMailFolder},
 			)[0],
@@ -357,25 +355,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			qp := graph.QueryParams{
-				User:        userID,
-				Scope:       test.scope,
-				Credentials: gc.credentials,
-				FailFast:    false,
-			}
-
-			resolver, err := exchange.PopulateExchangeContainerResolver(
-				ctx,
-				qp,
-				graph.ScopeToPathCategory(qp.Scope),
-			)
-			require.NoError(t, err)
-
-			collections, err := gc.fetchItems(
-				ctx,
-				qp,
-				resolver,
-			)
+			collections, err := gc.createCollections(ctx, test.scope)
 			require.NoError(t, err)
 
 			for _, c := range collections {
