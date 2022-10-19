@@ -5,7 +5,6 @@ import (
 
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
-	mscalendarItem "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
 	mscontactfolderchild "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
@@ -20,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 //-----------------------------------------------------------------------
@@ -120,19 +118,6 @@ func categoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 	}
 }
 
-func scopeToOptionIdentifier(selector selectors.ExchangeScope) optionIdentifier {
-	switch selector.Category() {
-	case selectors.ExchangeMailFolder, selectors.ExchangeMail:
-		return messages
-	case selectors.ExchangeContactFolder, selectors.ExchangeContact:
-		return contacts
-	case selectors.ExchangeEventCalendar, selectors.ExchangeEvent:
-		return events
-	default:
-		return unknown
-	}
-}
-
 //---------------------------------------------------------------------------
 // exchange.Query Option Section
 // These functions can be used to filter a response on M365
@@ -210,25 +195,6 @@ func optionsForCalendars(moreOps []string) (
 		Select: selecting,
 	}
 	options := &mscalendars.CalendarsRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParams,
-	}
-
-	return options, nil
-}
-
-func optionsForIndividualCalendar(moreOps []string) (
-	*mscalendarItem.CalendarItemRequestBuilderGetRequestConfiguration,
-	error,
-) {
-	selecting, err := buildOptions(moreOps, calendars)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParams := &mscalendarItem.CalendarItemRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &mscalendarItem.CalendarItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
 
