@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -274,35 +273,25 @@ func (gc *GraphConnector) RestoreDataCollections(
 	return deets, err
 }
 
-func (gc *GraphConnector) FetchItems(
+func (gc *GraphConnector) fetchItems(
 	ctx context.Context,
-	scope selectors.ExchangeScope,
 	qp graph.QueryParams,
 	resolver graph.ContainerResolver,
 ) (map[string]*exchange.Collection, error) {
-	var (
-		errs        error
-		gIter       exchange.GraphSetCollectionFunc
-		category    = graph.ScopeToPathCategory(qp.Scope)
-		collections = map[string]*exchange.Collection{}
+	collections := map[string]*exchange.Collection{}
+
+	err := exchange.FilterContainersAndFillCollections(
+		ctx,
+		qp,
+		collections,
+		gc.UpdateStatus,
+		resolver,
 	)
-	// switch session --> if it
-	if category == path.EventsCategory {
-		gIter = exchange.FilterDescendablesForCollections
-	} else {
-		gIter = exchange.FilterDescendablesForCollections
-	}
-
-	// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
-	// with corresponding item M365IDs. New collections are created for each directory.
-	// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-	err := gIter(ctx, qp, collections, gc.UpdateStatus, resolver)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "failured to get all available content for collection")
 	}
 
-	return collections, errs
+	return collections, nil
 }
 
 // createCollections - utility function that retrieves M365
@@ -327,16 +316,26 @@ func (gc *GraphConnector) createCollections(
 			FailFast:    gc.failFast,
 			Credentials: gc.credentials,
 		}
+
 		resolver, err := exchange.PopulateExchangeContainerResolver(
 			ctx,
 			qp,
-			graph.ScopeToPathCategory(qp.Scope), false,
+			graph.ScopeToPathCategory(qp.Scope),
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting folder cache")
 		}
 
-		gc.FetchItems(ctx, qp.Scope, qp, resolver)
+		err = exchange.FilterContainersAndFillCollections(
+			ctx,
+			qp,
+			collections,
+			gc.UpdateStatus,
+			resolver)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "failured to get all available content for collection")
+		}
 
 		for _, collection := range collections {
 			gc.incrementAwaitingMessages()
