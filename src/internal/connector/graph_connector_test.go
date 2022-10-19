@@ -364,14 +364,14 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 				FailFast:    false,
 			}
 
-			resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
+			resolver, err := exchange.PopulateExchangeContainerResolver(
 				ctx,
 				qp,
-				scopeToPathCategory(qp.Scope),
+				graph.ScopeToPathCategory(qp.Scope),
 			)
 			require.NoError(t, err)
 
-			collections, err := gc.fetchItemsByFolder(
+			collections, err := gc.fetchItems(
 				ctx,
 				qp,
 				resolver,
