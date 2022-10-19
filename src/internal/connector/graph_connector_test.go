@@ -334,15 +334,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 		folderNames map[string]struct{}
 	}{
 		{
-			name:  "Mail Iterative Check",
-			scope: sel.MailFolders([]string{userID}, selectors.Any())[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-				"Sent Items":               {},
-			},
-		},
-		{
 			name: "Folder Iterative Check Mail",
+			// Only select specific folders so the test doesn't flake when the CI
+			// cleanup task deletes things.
 			scope: sel.MailFolders(
 				[]string{userID},
 				[]string{exchange.DefaultMailFolder},

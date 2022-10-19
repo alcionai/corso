@@ -151,7 +151,9 @@ func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
 }
 
 func (suite *WrapperIntegrationSuite) TestOpenAfterClose() {
-	ctx := context.Background()
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
