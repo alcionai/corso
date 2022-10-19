@@ -313,7 +313,6 @@ func purgeContactFolders(
 		}
 
 		allContainers, err := exchange.GetAllContactFolders(ctx, *params, gs)
-		//, uid, prefix)
 		if err != nil {
 			return nil, err
 		}
