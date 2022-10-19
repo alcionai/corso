@@ -103,7 +103,6 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 			errUpdater func(string, error)) func(any) bool
 		transformer absser.ParsableFactory
 	}{
-
 		{
 			name:              "Contacts Iterative Check",
 			queryFunc:         GetAllContactFolderNamesForUser,
