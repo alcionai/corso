@@ -60,7 +60,7 @@ func NewCacheFolder(c Container, pb *path.Builder) CacheFolder {
 
 //=========================================
 // Required Functions to satisfy interfaces
-//=====================================
+//=========================================
 
 func (cf CacheFolder) Path() *path.Builder {
 	return cf.p
