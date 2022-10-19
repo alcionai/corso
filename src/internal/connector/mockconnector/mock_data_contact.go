@@ -38,7 +38,7 @@ const (
 }`
 
 	defaultContactDisplayName = "Santiago Quail"
-	defaultContactFileAsName  = "Santiago Quail"
+	defaultContactFileAsName  = "Quail, Santiago"
 	defaultContactGivenName   = "Santiago"
 	defaultContactSurname     = "Quail"
 )
