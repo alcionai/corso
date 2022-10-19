@@ -350,13 +350,13 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 			}
 			collections, err := GetContainers(ctx, qp, service)
 			assert.NoError(t, err)
-			test.expectedCount(t, containerCount, len(collections))
+			test.expectedCount(t, len(collections), containerCount)
 
 			keys := make([]string, 0, len(collections))
 			for _, k := range collections {
 				keys = append(keys, *k.GetDisplayName())
 			}
-			t.Logf("Collections Made: %v\n", keys)
+			//t.Logf("Collections Made: %v\n", keys)
 			assert.Contains(t, keys, test.contains)
 		})
 	}
