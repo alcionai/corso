@@ -142,7 +142,7 @@ func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
 	case path.ContactsCategory:
 		return FetchContactIDsFromDirectory, nil
 	default:
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc ", category)
 	}
 }
 
