@@ -288,7 +288,7 @@ func (gc *GraphConnector) fetchItems(
 		resolver,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failured to get all available content for collection")
+		return nil, errors.Wrap(err, "getting all available content for collection")
 	}
 
 	return collections, nil
