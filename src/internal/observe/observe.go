@@ -114,7 +114,10 @@ func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()
 
 		go func(ci <-chan struct{}) {
 			for {
-				<-ci
+				_, ok := <-ci
+				if !ok {
+					return
+				}
 			}
 		}(ch)
 
