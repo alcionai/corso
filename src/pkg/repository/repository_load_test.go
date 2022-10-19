@@ -282,10 +282,20 @@ func ensureAllUsersInDetails(
 			userCategories[ro][ct.String()] = struct{}{}
 		}
 
+		foundCatSl := []string{}
+		for k := range foundCategories {
+			foundCatSl = append(foundCatSl, k)
+		}
+
 		for u, cats := range userCategories {
+			userCatSl := []string{}
+			for k := range cats {
+				userCatSl = append(userCatSl, k)
+			}
+
 			t.Run(u, func(t *testing.T) {
 				assert.True(t, foundUsers[u], "user was involved in operation")
-				assert.Equal(t, len(foundCategories), len(cats), "all app categories involved in operation")
+				assert.EqualValues(t, foundCatSl, userCatSl, "user had all app categories involved in operation")
 			})
 		}
 	})
@@ -382,6 +392,7 @@ func TestRepositoryIndividualLoadTestExchangeSuite(t *testing.T) {
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
+	t.Skip("local testing")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 }
