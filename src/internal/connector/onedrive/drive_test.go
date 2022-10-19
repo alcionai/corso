@@ -1,7 +1,6 @@
 package onedrive
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -35,8 +34,10 @@ func (suite *OneDriveSuite) SetupSuite() {
 }
 
 func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
-	ctx := context.Background()
 	folderIDs := []string{}
 	folderName1 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
 	folderElements := []string{folderName1}
