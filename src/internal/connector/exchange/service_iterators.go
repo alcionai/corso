@@ -31,7 +31,6 @@ func FilterContainersAndFillCollections(
 	collectionType := categoryToOptionIdentifier(category)
 
 	for _, c := range resolver.Items() {
-		// Create receive all
 		dirPath, ok := pathAndMatch(qp, category, c)
 		if ok {
 			// Create only those that match
@@ -160,11 +159,7 @@ func FetchEventIDsFromCalendar(
 		CalendarsById(calendarID).
 		Events().Get(ctx, nil)
 	if err != nil {
-		return nil, err
-	}
-
-	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	pageIterator, err := msgraphgocore.NewPageIterator(
@@ -172,6 +167,9 @@ func FetchEventIDsFromCalendar(
 		gs.Adapter(),
 		models.CreateEventCollectionResponseFromDiscriminatorValue,
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "iterator creation failure during fetchEventIDs")
+	}
 
 	callbackFunc := func(pageItem any) bool {
 		entry, ok := pageItem.(models.Eventable)
@@ -213,7 +211,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		Contacts().
 		Get(ctx, options)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	pageIterator, err := msgraphgocore.NewPageIterator(
@@ -221,6 +219,9 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		gs.Adapter(),
 		models.CreateContactCollectionResponseFromDiscriminatorValue,
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failure to create iterator during FecthContactIDs")
+	}
 
 	callbackFunc := func(pageItem any) bool {
 		entry, ok := pageItem.(models.Contactable)
@@ -235,7 +236,8 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 	}
 
 	if iterateErr := pageIterator.Iterate(ctx, callbackFunc); iterateErr != nil {
-		return nil, iterateErr
+		return nil,
+			errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(err))
 	}
 
 	if err != nil {
