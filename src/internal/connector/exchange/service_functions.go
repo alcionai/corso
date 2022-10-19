@@ -149,12 +149,12 @@ func GetAllMailFolders(
 	}
 
 	for _, c := range resolver.Items() {
-		directories := c.Path().Elements()
-		if len(directories) == 0 {
+		directory := c.Path().String()
+		if len(directory) == 0 {
 			continue
 		}
 
-		if qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1]) {
+		if qp.Scope.Matches(selectors.ExchangeMailFolder, directory) {
 			containers = append(containers, c)
 		}
 	}
@@ -178,9 +178,9 @@ func GetAllCalendars(
 	}
 
 	for _, c := range resolver.Items() {
-		directories := c.Path().Elements()
+		directory := c.Path().String()
 
-		if qp.Scope.Matches(selectors.ExchangeEventCalendar, directories[len(directories)-1]) {
+		if qp.Scope.Matches(selectors.ExchangeEventCalendar, directory) {
 			containers = append(containers, c)
 		}
 	}
@@ -207,12 +207,12 @@ func GetAllContactFolders(
 	}
 
 	for _, c := range resolver.Items() {
-		directories := c.Path().Elements()
+		directory := c.Path().String()
 
-		if len(directories) == 0 {
+		if len(directory) == 0 {
 			query = DefaultContactFolder
 		} else {
-			query = directories[len(directories)-1]
+			query = directory
 		}
 
 		if qp.Scope.Matches(selectors.ExchangeContactFolder, query) {
@@ -306,15 +306,15 @@ func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.Cach
 		return nil, false // Only true for root mail folder
 	}
 
-	directories := c.Path().Elements()
+	directory := c.Path().String()
 
 	switch category {
 	case path.EmailCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1])
+		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directory)
 	case path.ContactsCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directories[len(directories)-1])
+		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directory)
 	case path.EventsCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, directories[len(directories)-1])
+		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, directory)
 	default:
 		return nil, false
 	}
