@@ -259,7 +259,7 @@ jobs:
     needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true' # docsfileschanged also includes srcfileschanged
     defaults:
       run:
         working-directory: docs
@@ -273,24 +273,27 @@ jobs:
           name: cli-docs
           path: docs/docs/cli
 
+      - name: Build docs
+        run: |
+          npm ci
+          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
+
       - name: Configure AWS credentials from Test account
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
           aws-region: us-east-1
 
-      - name: Build docs
-        run: |
-          npm ci
-          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
-
       - name: Push docs
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         run: |
           echo "$DOCS_BUCKET" | base64
           aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}/preview"
 
       - name: Invalidate cloudfront
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
 
