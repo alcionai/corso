@@ -46,8 +46,11 @@ Corso.
 
 ## Repository creation
 
-To create a secure backup location for Corso, we will create a bucket (`corso-test` is used as an example) in AWS S3.
-The following commands assume that all configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
+To create a secure backup location for Corso, you will create a bucket in AWS S3 and then initialize the Corso
+repository using an [encryption passphrase](/setup/configuration#environment-variables). The below steps use
+`corso-test` as the bucket name but, if you are using AWS, you will need a different unique name for the bucket.
+
+The following commands assume that all the configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
 `AWS_SECRET_ACCESS_KEY` are available to the Corso binary or container.
 
 <Tabs groupId="os">
@@ -56,32 +59,7 @@ The following commands assume that all configuration values from the previous st
   ```powershell
   # Create the AWS S3 Bucket
   aws s3api create-bucket --bucket corso-test
-  ```
 
-</TabItem>
-<TabItem value="unix" label="Linux/macOS">
-
-  ```bash
-  # Create the AWS S3 Bucket
-  aws s3api create-bucket --bucket corso-test
-  ```
-
-</TabItem>
-<TabItem value="docker" label="Docker">
-
-  ```bash
-  # Create the AWS S3 Bucket
-  aws s3api create-bucket --bucket corso-test
-  ```
-
-</TabItem>
-</Tabs>
-
-Next, let's initialize the Corso repository using an encryption passphrase.
-<Tabs groupId="os">
-<TabItem value="win" label="Powershell">
-
-  ```powershell
   # Initialize the Corso Repository
   $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
   .\corso.exe repo init s3 --bucket corso-test
@@ -91,6 +69,9 @@ Next, let's initialize the Corso repository using an encryption passphrase.
 <TabItem value="unix" label="Linux/macOS">
 
   ```bash
+  # Create the AWS S3 Bucket
+  aws s3api create-bucket --bucket corso-test
+
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
   corso repo init s3 --bucket corso-test
@@ -100,37 +81,81 @@ Next, let's initialize the Corso repository using an encryption passphrase.
 <TabItem value="docker" label="Docker">
 
   ```bash
+  # Create the AWS S3 Bucket
+  aws s3api create-bucket --bucket corso-test
+
+  # Create an environment variables file
+  mkdir -p $HOME/.corso
+  cat <<EOF > $HOME/.corso/corso.env
+  CORSO_PASSPHRASE
+  AZURE_TENANT_ID
+  AZURE_CLIENT_ID
+  AZURE_CLIENT_SECRET
+  AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY
+  AWS_SESSION_TOKEN
+  EOF
+
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  docker run --env-file ~/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso corso/corso:latest \
+  docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
     repo init s3 --bucket corso-test
   ```
 
 </TabItem>
 </Tabs>
 
-## Your first backup
+## Creating your first backup
 
-Corso can do much more, but you can start by creating a backup of your Exchange mailbox.
+Corso can do much more, but you can start by creating a backup of your Exchange mailbox. To do this, first ensure that
+you are connected with the repository and then backup your own Exchange mailbox.
 
-To do this, you can run the following command:
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
 
-```bash
-$ docker run -e CORSO_PASSPHRASE \
-    --env-file ~/.corso/corso.env \
-    -v ~/.corso:/app/corso corso/corso:<release tag> \
+  ```powershell
+  # Connect to the Corso Repository
+  .\corso.exe repo connect s3 --bucket corso-test
+
+  # Backup your inbox
+  .\corso.exe backup create exchange --user <your exchange email address>
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # Connect to the Corso Repository
+  corso repo connect s3 --bucket corso-test
+
+  # Backup your inbox
+  corso backup create exchange --user <your exchange email address>
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+  ```bash
+  # Connect to the Corso Repository
+  docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
+    repo connect s3 --bucket corso-test
+
+  # Backup your inbox
+  docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
     backup create exchange --user <your exchange email address>
+  ```
 
-  Started At            ID                                    Status                Selectors
-  2022-10-10T19:46:43Z  41e93db7-650d-44ce-b721-ae2e8071c728  Completed (0 errors)  alice@example.com
-```
+</TabItem>
+</Tabs>
 
 :::note
 Your first backup may take some time if your mailbox is large.
 :::
 
-## Restore an email
+## Restoring an email
 
 Now lets explore how you can restore data from one of your backups.
 
