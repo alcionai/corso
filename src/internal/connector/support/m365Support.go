@@ -4,6 +4,7 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 )
 
 // CreateFromBytes helper function to initialize m365 object form bytes.
@@ -11,12 +12,12 @@ import (
 func CreateFromBytes(bytes []byte, createFunc absser.ParsableFactory) (absser.Parsable, error) {
 	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", bytes)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to parse byte array into m365 object")
 	}
 
 	anObject, err := parseNode.GetObjectValue(createFunc)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "m365 object conversion failure")
 	}
 
 	return anObject, nil
@@ -26,7 +27,7 @@ func CreateFromBytes(bytes []byte, createFunc absser.ParsableFactory) (absser.Pa
 func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
 	aMessage, err := CreateFromBytes(bytes, models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to create m365 exchange.Mail object from provided bytes")
 	}
 
 	message := aMessage.(models.Messageable)
@@ -39,7 +40,7 @@ func CreateMessageFromBytes(bytes []byte) (models.Messageable, error) {
 func CreateContactFromBytes(bytes []byte) (models.Contactable, error) {
 	parsable, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to create m365 exchange.Contact object from provided bytes")
 	}
 
 	contact := parsable.(models.Contactable)
@@ -51,7 +52,7 @@ func CreateContactFromBytes(bytes []byte) (models.Contactable, error) {
 func CreateEventFromBytes(bytes []byte) (models.Eventable, error) {
 	parsable, err := CreateFromBytes(bytes, models.CreateEventFromDiscriminatorValue)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to create m365 exchange.Event object from provided bytes")
 	}
 
 	event := parsable.(models.Eventable)
