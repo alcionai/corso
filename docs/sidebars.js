@@ -20,12 +20,12 @@ const sidebars = {
     'tutorial',
     {
       type: 'category',
-      label: 'Initial Configuration',
+      label: 'Initial configuration',
       items: ['configuration/concepts', 'configuration/m365_access', 'configuration/repos'],
     },
     {
       type: 'category',
-      label: 'Command Line Reference',
+      label: 'Command line reference',
       link: {
         slug: 'cli/corso',
         description: 'Explore the commonly used Corso CLI commands',
@@ -42,7 +42,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Developer Guide',
+      label: 'Developer guide',
       items: [
         'developers/architecture', 'developers/build', 'developers/testing', 'developers/linters'
       ],
