@@ -24,6 +24,8 @@ func encodeElements(elements ...string) []string {
 // if they were a path. The elements are joined with the separator in the golang
 // path package.
 func encodeAsPath(elements ...string) string {
+	// Needs `/` to be used a separator here
+	//nolint:forbidigo
 	return path.Join(encodeElements(elements...)...)
 }
 
