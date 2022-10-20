@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -116,14 +117,19 @@ func (col *Collection) populateByOptionIdentifier(
 		errs       error
 		success    int
 		totalBytes int64
+
+		user         = col.user
+		objectWriter = kw.NewJsonSerializationWriter()
 	)
 
+	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
+	go closer()
+
 	defer func() {
+		close(colProgress)
 		col.finishPopulation(ctx, success, totalBytes, errs)
 	}()
 
-	user := col.user
-	objectWriter := kw.NewJsonSerializationWriter()
 	// get QueryBasedonIdentifier
 	// verify that it is the correct type in called function
 	// serializationFunction
@@ -159,6 +165,7 @@ func (col *Collection) populateByOptionIdentifier(
 		success++
 
 		totalBytes += int64(byteCount)
+		colProgress <- struct{}{}
 	}
 }
 
