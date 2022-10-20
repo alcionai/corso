@@ -3,7 +3,6 @@ package onedrive
 import (
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -206,18 +205,4 @@ func driveItem(name string, path string, isFile, isFolder, isPackage bool) model
 	}
 
 	return item
-}
-
-type MockGraphService struct{}
-
-func (ms *MockGraphService) Client() *msgraphsdk.GraphServiceClient {
-	return nil
-}
-
-func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return nil
-}
-
-func (ms *MockGraphService) ErrPolicy() bool {
-	return false
 }

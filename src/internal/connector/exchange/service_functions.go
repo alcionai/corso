@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -140,88 +139,51 @@ func DeleteContactFolder(ctx context.Context, gs graph.Service, user, folderID s
 // Returns a slice of {ID, DisplayName} tuples.
 func GetAllMailFolders(
 	ctx context.Context,
+	qp graph.QueryParams,
 	gs graph.Service,
-	user, nameContains string,
-) ([]models.MailFolderable, error) {
-	var (
-		mfs = []models.MailFolderable{}
-		err error
-	)
+) ([]graph.CachedContainer, error) {
+	containers := make([]graph.CachedContainer, 0)
 
-	resp, err := GetAllFolderNamesForUser(ctx, gs, user)
+	resolver, err := MaybeGetAndPopulateFolderResolver(ctx, qp, path.EmailCategory)
 	if err != nil {
 		return nil, err
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(
-		resp, gs.Adapter(), models.CreateMailFolderCollectionResponseFromDiscriminatorValue)
-	if err != nil {
-		return nil, err
-	}
-
-	cb := func(item any) bool {
-		folder, ok := item.(models.MailFolderable)
-		if !ok {
-			err = errors.New("casting item to models.MailFolderable")
-			return false
+	for _, c := range resolver.Items() {
+		directories := c.Path().Elements()
+		if len(directories) == 0 {
+			continue
 		}
 
-		include := len(nameContains) == 0 ||
-			(len(nameContains) > 0 && strings.Contains(*folder.GetDisplayName(), nameContains))
-		if include {
-			mfs = append(mfs, folder)
+		if qp.Scope.Matches(selectors.ExchangeMailFolder, directories[len(directories)-1]) {
+			containers = append(containers, c)
 		}
-
-		return true
 	}
 
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return nil, err
-	}
-
-	return mfs, err
+	return containers, nil
 }
 
 // GetAllCalendars retrieves all event calendars for the specified user.
 // If nameContains is populated, only returns calendars matching that property.
 // Returns a slice of {ID, DisplayName} tuples.
-func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains string) ([]graph.Container, error) {
-	var (
-		cs         = make(map[string]graph.Container)
-		containers = make([]graph.Container, 0)
-		err, errs  error
-		errUpdater = func(s string, e error) {
-			errs = support.WrapAndAppend(s, e, errs)
+func GetAllCalendars(
+	ctx context.Context,
+	qp graph.QueryParams,
+	gs graph.Service,
+) ([]graph.CachedContainer, error) {
+	containers := make([]graph.CachedContainer, 0)
+
+	resolver, err := MaybeGetAndPopulateFolderResolver(ctx, qp, path.EventsCategory)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range resolver.Items() {
+		directories := c.Path().Elements()
+
+		if qp.Scope.Matches(selectors.ExchangeEventCalendar, directories[len(directories)-1]) {
+			containers = append(containers, c)
 		}
-	)
-
-	resp, err := GetAllCalendarNamesForUser(ctx, gs, user)
-	if err != nil {
-		return nil, err
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(
-		resp, gs.Adapter(), models.CreateCalendarCollectionResponseFromDiscriminatorValue)
-	if err != nil {
-		return nil, err
-	}
-
-	cb := IterativeCollectCalendarContainers(
-		cs,
-		nameContains,
-		errUpdater,
-	)
-
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return nil, err
-	}
-
-	if errs != nil {
-		return nil, errs
-	}
-
-	for _, calendar := range cs {
-		containers = append(containers, calendar)
 	}
 
 	return containers, err
@@ -233,39 +195,31 @@ func GetAllCalendars(ctx context.Context, gs graph.Service, user, nameContains s
 // https://github.com/alcionai/corso/issues/1122
 func GetAllContactFolders(
 	ctx context.Context,
+	qp graph.QueryParams,
 	gs graph.Service,
-	user, nameContains string,
-) ([]graph.Container, error) {
+) ([]graph.CachedContainer, error) {
 	var (
-		cs         = make(map[string]graph.Container)
-		containers = make([]graph.Container, 0)
-		err, errs  error
-		errUpdater = func(s string, e error) {
-			errs = support.WrapAndAppend(s, e, errs)
+		query      string
+		containers = make([]graph.CachedContainer, 0)
+	)
+
+	resolver, err := MaybeGetAndPopulateFolderResolver(ctx, qp, path.ContactsCategory)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range resolver.Items() {
+		directories := c.Path().Elements()
+
+		if len(directories) == 0 {
+			query = DefaultContactFolder
+		} else {
+			query = directories[len(directories)-1]
 		}
-	)
 
-	resp, err := GetAllContactFolderNamesForUser(ctx, gs, user)
-	if err != nil {
-		return nil, err
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(
-		resp, gs.Adapter(), models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
-	if err != nil {
-		return nil, err
-	}
-
-	cb := IterativeCollectContactContainers(
-		cs, nameContains, errUpdater,
-	)
-
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return nil, err
-	}
-
-	for _, entry := range cs {
-		containers = append(containers, entry)
+		if qp.Scope.Matches(selectors.ExchangeContactFolder, query) {
+			containers = append(containers, c)
+		}
 	}
 
 	return containers, err
