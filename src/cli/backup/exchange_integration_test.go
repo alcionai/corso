@@ -121,7 +121,7 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupListCmd_empty() {
 	result := suite.recorder.String()
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Equal(t, result, "No backups available\n")
+	assert.Equal(t, "No backups available\n", result)
 }
 
 func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
@@ -484,7 +484,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 	require.NoError(t, cmd.ExecuteContext(ctx))
 
 	result := suite.recorder.String()
-	assert.Equal(t, result, fmt.Sprintf("Deleted Exchange backup %s\n", string(suite.backupOp.Results.BackupID)))
+	assert.Equal(t, fmt.Sprintf("Deleted Exchange backup %s\n", string(suite.backupOp.Results.BackupID)), result)
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = tester.StubRootCmd(
