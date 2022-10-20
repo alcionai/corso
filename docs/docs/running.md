@@ -1,29 +1,15 @@
 # Running Corso
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 Corso is available as a [Docker](https://docs.docker.com/engine/install/) image (Linux `x86_64` and `arm64`) and
-as an `x86_64` and `arm64` executable for Windows, Linux and OS X.
+as an `x86_64` and `arm64` executable for Windows, Linux and macOS.
 
-:::note
-
-We highly recommend the use of Corso's Docker container when getting started. For Windows, you can run the `amd64`
-container in [Linux Mode](https://docs.microsoft.com/en-us/virtualization/windowscontainers/quick-start/quick-start-windows-10-linux).
-
-While our documentation focuses on the Docker command-line, converting the examples to work with native executables
-should be straightforward.
-
-:::
-
-As shown in the following example command and described further below, two things are needed to run Corso commands in
-its Docker container:
+Two things are needed to run Corso:
 
 * Environment variables containing configuration information
-* A local directory (a `volume` in Docker terminology) for Corso to store configuration and logs
-
-```bash
-$ docker run --env-file ~/.corso/corso.env \
-    --volume ~/.corso/corso:/app/corso \
-    corso/corso <command> <command options>
-```
+* A directory for Corso to store its configuration file
 
 ## Environment Variables
 
@@ -31,37 +17,66 @@ Three distinct pieces of configuration are required by Corso:
 
 * S3 object storage configuration to store backups. See [AWS Credentials Setup](/configuration/repos##s3-creds-setup) for
 alternate ways to pass AWS credentials.
-  * `AWS_ACCESS_KEY_ID`:
-  * `AWS_SECRET_ACCESS_KEY`:
-  * (Optional) `AWS_SESSION_TOKEN`:
+  * `AWS_ACCESS_KEY_ID`: Access key for an IAM user or role for accessing an S3 bucket
+  * `AWS_SECRET_ACCESS_KEY`: Secret key associated with the access key
+  * (Optional) `AWS_SESSION_TOKEN`: Session token required when using temporary credentials
 
 * Microsoft 365 Configuration
-  * `AZURE_TENANT_ID`:
-  * `AZURE_CLIENT_ID`:
-  * `AZURE_CLIENT_SECRET`:
+  * `AZURE_CLIENT_ID`: Client ID for your Azure AD application used to access your M365 tenant
+  * `AZURE_CLIENT_SECRET`: Azure secret for your Azure AD application used to access your M365 tenant
+  * `AZURE_TENANT_ID`: ID for the M365 tenant where the Azure AD application is registered
 
 * Corso Security Passphrase
-  * `CORSO_PASSPHRASE`:
+  * `CORSO_PASSPHRASE`: Passphrase to protect encrypted repository contents
+
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+Ensure that all of the above environment variables are available in your Powershell environment.
+
+</TabItem>
+<TabItem value="docker" label="Docker">
 
 For ease of use with Docker, we recommend adding the names of the required environment variables (but not their
 values!) to a [Docker environment variables file](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables--e---env---env-file).
 To create the environment variables file, you can run the following command:
 
+  ```bash
+  # Create an environment variables file
+  cat <<EOF ~/.corso/corso.env
+  CORSO_PASSPHRASE
+  AZURE_TENANT_ID
+  AZURE_CLIENT_ID
+  AZURE_CLIENT_SECRET
+  AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY
+  AWS_SESSION_TOKEN
+  EOF
+  ```
+
+</TabItem>
+</Tabs>
+
+## Configuration File
+
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+By default, Corso store its configuration file (`.corso.toml`) in the directory where the binary is executed.
+The location of the configuration file can be specified using the `--config-file` option.
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+To preserve configuration across container runs, Corso requires access to a directory outside of its Docker container
+to read or create its configuration file (`.corso.toml`). This directory must be mapped, by Docker, to the `/app/corso`
+directory within the container.
+
 ```bash
-# create an env vars file
-$ cat <<EOF ~/.corso/corso.env
-CORSO_PASSPHRASE
-AZURE_TENANT_ID
-AZURE_CLIENT_ID
-AZURE_CLIENT_SECRET
-AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY
-AWS_SESSION_TOKEN
-EOF
+$ docker run --env-file ~/.corso/corso.env \
+    --volume ~/.corso/corso:/app/corso \
+    corso/corso <command> <command options>
 ```
 
-## Local directory
-
-To preserve configuration across container runs and for logs, if enabled, Corso requires access to a directory outside
-of its Docker container to read or create its configuration file (`corso.toml`). This directory is mapped by Docker to
-the `/app/corso` directory within the container.
+</TabItem>
+</Tabs>
