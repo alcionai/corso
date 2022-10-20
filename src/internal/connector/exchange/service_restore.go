@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -322,6 +323,10 @@ func restoreCollection(
 		user      = directory.ResourceOwner()
 	)
 
+	colProgress, closer := observe.CollectionProgress(user, category.String(), directory.Folder())
+	defer closer()
+	defer close(colProgress)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -372,6 +377,8 @@ func restoreCollection(
 				details.ItemInfo{
 					Exchange: info,
 				})
+
+			colProgress <- struct{}{}
 		}
 	}
 }
