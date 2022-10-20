@@ -36,6 +36,7 @@ type BackupOneDriveIntegrationSuite struct {
 	cfgFP      string
 	repo       repository.Repository
 	m365UserID string
+	recorder   strings.Builder
 }
 
 func TestBackupOneDriveIntegrationSuite(t *testing.T) {
@@ -85,30 +86,31 @@ func (suite *BackupOneDriveIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_Empty() {
+func (suite *BackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty() {
 	t := suite.T()
-	recorder := strings.Builder{}
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
+
+	suite.recorder.Reset()
 
 	cmd := tester.StubRootCmd(
 		"backup", "list", "onedrive",
 		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&recorder)
+	cmd.SetErr(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
 
-	result := recorder.String()
+	result := suite.recorder.String()
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Equal(t, result, "No OneDrive backups available\n")
+	assert.Equal(t, result, "No backups available\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -123,6 +125,7 @@ type BackupDeleteOneDriveIntegrationSuite struct {
 	cfgFP    string
 	repo     repository.Repository
 	backupOp operations.BackupOperation
+	recorder   strings.Builder
 }
 
 func TestBackupDeleteOneDriveIntegrationSuite(t *testing.T) {
@@ -181,25 +184,26 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 
 func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd() {
 	t := suite.T()
-	recorder := strings.Builder{}
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
+
+	suite.recorder.Reset()
 
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "onedrive",
 		"--config-file", suite.cfgFP,
 		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
-	cmd.SetErr(&recorder)
+	cmd.SetErr(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
 
-	result := recorder.String()
+	result := suite.recorder.String()
 
 	assert.Equal(t, result, fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)))
 
@@ -213,7 +217,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd()
 	require.Error(t, cmd.ExecuteContext(ctx))
 }
 
-func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd_UnknownID() {
+func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd_unknownID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)

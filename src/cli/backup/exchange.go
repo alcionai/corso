@@ -378,11 +378,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
 
-	if len(bs) == 0 {
-		Info(ctx, "No Exchange backups available")
-	} else {
-		backup.PrintAll(ctx, bs)
-	}
+	backup.PrintAll(ctx, bs)
 
 	return nil
 }

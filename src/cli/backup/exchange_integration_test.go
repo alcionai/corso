@@ -46,6 +46,7 @@ type BackupExchangeIntegrationSuite struct {
 	cfgFP      string
 	repo       repository.Repository
 	m365UserID string
+	recorder   strings.Builder
 }
 
 func TestBackupExchangeIntegrationSuite(t *testing.T) {
@@ -74,6 +75,7 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
 	suite.st = tester.NewPrefixedS3Storage(t)
+	suite.recorder = strings.Builder{}
 
 	cfg, err := suite.st.S3Config()
 	require.NoError(t, err)
@@ -95,37 +97,36 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupListCmd_Empty() {
+func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupListCmd_empty() {
 	t := suite.T()
-	recorder := strings.Builder{}
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
+
+	suite.recorder.Reset()
 
 	cmd := tester.StubRootCmd(
 		"backup", "list", "exchange",
 		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&recorder)
+	cmd.SetErr(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
 
-	result := recorder.String()
+	result := suite.recorder.String()
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Equal(t, result, "No Exchange backups available\n")
+	assert.Equal(t, result, "No backups available\n")
 }
 
 func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
-	recorder := strings.Builder{}
-
 	for _, set := range backupDataSets {
-		recorder.Reset()
+		suite.recorder.Reset()
 
 		suite.T().Run(set.String(), func(t *testing.T) {
 			ctx, flush := tester.NewContext()
@@ -139,14 +140,14 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 				"--"+utils.DataFN, set.String())
 			cli.BuildCommandTree(cmd)
 
-			cmd.SetOut(&recorder)
+			cmd.SetOut(&suite.recorder)
 
 			ctx = print.SetRootCmd(ctx, cmd)
 
 			// run the command
 			require.NoError(t, cmd.ExecuteContext(ctx))
 
-			result := recorder.String()
+			result := suite.recorder.String()
 
 			t.Log("backup results", result)
 
@@ -403,6 +404,7 @@ type BackupDeleteExchangeIntegrationSuite struct {
 	cfgFP    string
 	repo     repository.Repository
 	backupOp operations.BackupOperation
+	recorder strings.Builder
 }
 
 func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
@@ -427,6 +429,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
 	suite.st = tester.NewPrefixedS3Storage(t)
+	suite.recorder = strings.Builder{}
 
 	cfg, err := suite.st.S3Config()
 	require.NoError(t, err)
@@ -461,25 +464,26 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 
 func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd() {
 	t := suite.T()
-	recorder := strings.Builder{}
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
+
+	suite.recorder.Reset()
 
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.cfgFP,
 		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
-	cmd.SetErr(&recorder)
+	cmd.SetErr(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
 
-	result := recorder.String()
+	result := suite.recorder.String()
 	assert.Equal(t, result, fmt.Sprintf("Deleted Exchange backup %s\n", string(suite.backupOp.Results.BackupID)))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
@@ -492,7 +496,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 	require.Error(t, cmd.ExecuteContext(ctx))
 }
 
-func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_UnknownID() {
+func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_unknownID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)

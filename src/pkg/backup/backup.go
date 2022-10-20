@@ -75,12 +75,16 @@ func (b Backup) Print(ctx context.Context) {
 
 // PrintAll writes the slice of Backups to StdOut, in the format requested by the caller.
 func PrintAll(ctx context.Context, bs []Backup) {
-	ps := []print.Printable{}
-	for _, b := range bs {
-		ps = append(ps, print.Printable(b))
-	}
+	if len(bs) == 0 {
+		print.Info(ctx, "No backups available")
+	} else {
+		ps := []print.Printable{}
+		for _, b := range bs {
+			ps = append(ps, print.Printable(b))
+		}
 
-	print.All(ctx, ps...)
+		print.All(ctx, ps...)
+	}
 }
 
 type Printable struct {
