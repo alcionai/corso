@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ExchangeServiceSuite struct {
@@ -229,37 +228,6 @@ func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
 			if err == nil {
 				suite.Equal(test.expected, len(options.QueryParameters.Select))
 			}
-		})
-	}
-}
-
-// TestSetupExchangeCollection ensures SetupExchangeCollectionVars returns a non-nil variable for
-// the following selector types:
-// - Mail
-// - Contacts
-// - Events
-func (suite *ExchangeServiceSuite) TestSetupExchangeCollection() {
-	userID := tester.M365UserID(suite.T())
-	sel := selectors.NewExchangeBackup()
-	// Exchange mail uses a different system to fetch items. Right now the old
-	// function for it will return an error so we know if it gets called.
-	sel.Include(
-		sel.ContactFolders([]string{userID}, selectors.Any()),
-		sel.EventCalendars([]string{userID}, selectors.Any()),
-	)
-
-	eb, err := sel.ToExchangeBackup()
-	require.NoError(suite.T(), err)
-
-	scopes := eb.Scopes()
-
-	for _, test := range scopes {
-		suite.T().Run(test.Category().String(), func(t *testing.T) {
-			discriminateFunc, graphQuery, iterFunc, err := SetupExchangeCollectionVars(test)
-			assert.NoError(t, err)
-			assert.NotNil(t, discriminateFunc)
-			assert.NotNil(t, graphQuery)
-			assert.NotNil(t, iterFunc)
 		})
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -179,7 +180,13 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 		return nil, "", errors.Wrap(err, "connecting to graph api")
 	}
 
-	if _, ok := gc.Users[user]; !ok {
+	normUsers := map[string]struct{}{}
+
+	for k := range gc.Users {
+		normUsers[strings.ToLower(k)] = struct{}{}
+	}
+
+	if _, ok := normUsers[strings.ToLower(user)]; !ok {
 		return nil, "", errors.New("user not found within tenant")
 	}
 
