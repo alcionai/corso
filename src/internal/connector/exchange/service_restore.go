@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -322,6 +323,10 @@ func restoreCollection(
 		user      = directory.ResourceOwner()
 	)
 
+	colProgress, closer := observe.CollectionProgress(user, category.String(), directory.Folder())
+	defer closer()
+	defer close(colProgress)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -372,6 +377,8 @@ func restoreCollection(
 				details.ItemInfo{
 					Exchange: info,
 				})
+
+			colProgress <- struct{}{}
 		}
 	}
 }
@@ -513,8 +520,8 @@ func establishMailRestoreLocation(
 }
 
 // establishContactsRestoreLocation creates Contact Folders in sequence
-// and updates the container resolver appropriately. Contact Folders
-// are displayed in a flat representation. Therefore, only the root can be populated and all content
+// and updates the container resolver appropriately. Contact Folders are
+// displayed in a flat representation. Therefore, only the root can be populated and all content
 // must be restored into the root location.
 // @param folders is the list of intended folders from root to leaf (e.g. [root ...])
 // @param isNewCache bool representation of whether Populate function needs to be run

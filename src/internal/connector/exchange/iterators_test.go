@@ -68,10 +68,12 @@ func loadService(t *testing.T) *exchangeService {
 	return service
 }
 
-// TestIterativeFunctions verifies that GraphQuery to Iterate
-// functions are valid for current versioning of msgraph-go-sdk.
+// TestCollectionFunctions verifies ability to gather
+// containers functions are valid for current versioning of msgraph-go-sdk.
 // Tests for mail have been moved to graph_connector_test.go.
-func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
+// exchange.Mail uses a sequential delta function.
+// TODO: Add exchange.Mail when delta iterator functionality implemented
+func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -93,63 +95,39 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 
 	tests := []struct {
 		name              string
-		queryFunction     GraphQuery
-		iterativeFunction GraphIterateFunc
+		queryFunc         GraphQuery
 		scope             selectors.ExchangeScope
-		transformer       absser.ParsableFactory
-		folderNames       map[string]struct{}
+		iterativeFunction func(
+			container map[string]graph.Container,
+			aFilter string,
+			errUpdater func(string, error)) func(any) bool
+		transformer absser.ParsableFactory
 	}{
 		{
 			name:              "Contacts Iterative Check",
-			queryFunction:     GetAllContactFolderNamesForUser,
-			iterativeFunction: IterateSelectAllContactsForCollections,
-			scope:             contactScope[0],
+			queryFunc:         GetAllContactFolderNamesForUser,
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-		}, {
-			name:              "Contact Folder Traversal",
-			queryFunction:     GetAllContactFolderNamesForUser,
-			iterativeFunction: IterateSelectAllContactsForCollections,
-			scope:             contactScope[0],
-			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-		}, {
+			iterativeFunction: IterativeCollectContactContainers,
+		},
+		{
 			name:              "Events Iterative Check",
-			queryFunction:     GetAllCalendarNamesForUser,
-			iterativeFunction: IterateSelectAllEventsFromCalendars,
-			scope:             eventScope[0],
+			queryFunc:         GetAllCalendarNamesForUser,
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-		}, {
-			name:              "Folder Iterative Check Contacts",
-			queryFunction:     GetAllContactFolderNamesForUser,
-			iterativeFunction: IterateFilterContainersForCollections,
-			scope:             contactScope[0],
-			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
-		}, {
-			name:              "Default Contacts Folder",
-			queryFunction:     GetDefaultContactFolderForUser,
-			iterativeFunction: IterateSelectAllContactsForCollections,
-			scope:             contactScope[0],
-			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
+			iterativeFunction: IterativeCollectCalendarContainers,
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			service := loadService(t)
-			response, err := test.queryFunction(ctx, service, userID)
+			response, err := test.queryFunc(ctx, service, userID)
 			require.NoError(t, err)
-			// Create Iterator
+			// Iterator Creation
 			pageIterator, err := msgraphgocore.NewPageIterator(response,
 				&service.adapter,
 				test.transformer)
 			require.NoError(t, err)
-
-			qp := graph.QueryParams{
-				User:        userID,
-				Scope:       test.scope,
-				Credentials: service.credentials,
-				FailFast:    false,
-			}
 			// Create collection for iterate test
-			collections := make(map[string]*Collection)
+			collections := make(map[string]graph.Container)
 			var errs error
 			errUpdater := func(id string, err error) {
 				errs = support.WrapAndAppend(id, err, errs)
@@ -157,14 +135,7 @@ func (suite *ExchangeIteratorSuite) TestIterativeFunctions() {
 			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.jobs[]
 			// with corresponding item IDs. New collections are created for each directory
 			callbackFunc := test.iterativeFunction(
-				ctx,
-				qp,
-				errUpdater,
-				collections,
-				nil,
-				nil,
-			)
-
+				collections, "", errUpdater)
 			iterateError := pageIterator.Iterate(ctx, callbackFunc)
 			assert.NoError(t, iterateError)
 			assert.NoError(t, errs)

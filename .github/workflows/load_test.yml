@@ -35,7 +35,7 @@ jobs:
 
       # Install gotestfmt
       - name: Set up gotestfmt
-        run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
       # AWS creds
       - name: Configure AWS credentials from Test account
