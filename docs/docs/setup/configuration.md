@@ -1,4 +1,4 @@
-# Running Corso
+# Configuration
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -11,11 +11,11 @@ Two things are needed to run Corso:
 * Environment variables containing configuration information
 * A directory for Corso to store its configuration file
 
-## Environment Variables
+## Environment variables
 
 Three distinct pieces of configuration are required by Corso:
 
-* S3 object storage configuration to store backups. See [AWS Credentials Setup](/configuration/repos##s3-creds-setup) for
+* S3 object storage configuration to store backups. See [AWS Credentials Setup](/setup/repos##s3-creds-setup) for
 alternate ways to pass AWS credentials.
   * `AWS_ACCESS_KEY_ID`: Access key for an IAM user or role for accessing an S3 bucket
   * `AWS_SECRET_ACCESS_KEY`: Secret key associated with the access key
@@ -32,7 +32,12 @@ alternate ways to pass AWS credentials.
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
-Ensure that all of the above environment variables are available in your Powershell environment.
+Ensure that all of the above environment variables are defined in your Powershell environment.
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+Ensure that all of the above environment variables are defined in your shell environment.
 
 </TabItem>
 <TabItem value="docker" label="Docker">
@@ -43,7 +48,8 @@ To create the environment variables file, you can run the following command:
 
   ```bash
   # Create an environment variables file
-  cat <<EOF ~/.corso/corso.env
+  mkdir -p $HOME/.corso
+  cat <<EOF > $HOME/.corso/corso.env
   CORSO_PASSPHRASE
   AZURE_TENANT_ID
   AZURE_CLIENT_ID
@@ -62,7 +68,13 @@ To create the environment variables file, you can run the following command:
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
-By default, Corso store its configuration file (`.corso.toml`) in the directory where the binary is executed.
+By default, Corso stores its configuration file (`.corso.toml`) in the root of the home directory.
+The location of the configuration file can be specified using the `--config-file` option.
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+By default, Corso stores its configuration file (`.corso.toml`) in the root of the home directory.
 The location of the configuration file can be specified using the `--config-file` option.
 
 </TabItem>
@@ -73,9 +85,9 @@ to read or create its configuration file (`.corso.toml`). This directory must be
 directory within the container.
 
 ```bash
-$ docker run --env-file ~/.corso/corso.env \
-    --volume ~/.corso/corso:/app/corso \
-    corso/corso <command> <command options>
+$ docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso/corso:/app/corso \
+    ghcr.io/alcionai/corso <command> <command options>
 ```
 
 </TabItem>
