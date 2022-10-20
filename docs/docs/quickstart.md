@@ -1,11 +1,114 @@
 # Quick start
 
-In this quick start guide, you will perform your first backup followed by a restore.
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import TOCInline from '@theme/TOCInline';
 
-## Prerequisites
+This quick start guide runs through the following steps you to create your first Microsoft 365 backup and restore:
 
-* Configure connection to your M365 Tenant (see [M365 Access](/setup/m365_access))
-* Initialize a Corso backup repository (see [Repositories](/setup/repos))
+<TOCInline toc={toc} maxHeadingLevel={2}/>
+
+## Connecting to Microsoft 365
+
+Obtaining credentials from Microsoft 365 to allow Corso to run is moderately involved but is a one-time operation.
+Follow the instructions [here](setup/m365_access) to obtain the necessary credentials and then make them available to
+Corso.
+
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  $Env:AZURE_CLIENT_ID = "<Directory (tenant) ID for configured app>"
+  $Env:AZURE_TENANT_ID = "<Application (client) ID for configured app>"
+  $Env:AZURE_CLIENT_SECRET = "<Client secret value>"
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+   ```bash
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_CLIENT_SECRET=<Client secret value>
+   ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+   ```bash
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_CLIENT_SECRET=<Client secret value>
+   ```
+
+</TabItem>
+</Tabs>
+
+## Repository creation
+
+To create a secure backup location for Corso, we will create a bucket (`corso-test` is used as an example) in AWS S3.
+The following commands assume that all the configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
+`AWS_SECRET_ACCESS_KEY` are available to the Corso binary or container.
+
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  # Create the AWS S3 Bucket
+  aws s3api create-bucket --bucket corso-test
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # Create the AWS S3 Bucket
+  aws s3api create-bucket --bucket corso-test
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+  ```bash
+  # Create the AWS S3 Bucket
+  aws s3api create-bucket --bucket corso-test
+  ```
+
+</TabItem>
+</Tabs>
+
+Next, let's initialize the Corso repository using an encryption passphrase.
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  # Initialize the Corso Repository
+  $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
+  .\corso.exe repo init s3 --bucket corso-test
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # Initialize the Corso Repository
+  export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
+  corso repo init s3 --bucket corso-test
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+  ```bash
+  # Initialize the Corso Repository
+  export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
+  docker run --env-file ~/.corso/corso.env \
+    --volume $HOME/.corso:/app/corso corso/corso:latest \
+    repo init s3 --bucket corso-test
+  ```
+
+</TabItem>
+</Tabs>
 
 ## Your first backup
 
