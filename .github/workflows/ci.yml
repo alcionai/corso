@@ -200,10 +200,13 @@ jobs:
     environment: Testing
     runs-on: ubuntu-latest
     outputs:
-      environment: ${{ steps.set-env.outputs.environment }}
+      environment: ${{ steps.environment.outputs.environment }}
+      version: ${{ steps.version.outputs.version }}
     steps:
+      - uses: actions/checkout@v3
+
       - name: Figure out environment
-        id: set-env
+        id: environment
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
             echo "set-output name=environment::Production"
@@ -212,6 +215,18 @@ jobs:
             echo "set-output name=environment::Testing"
             echo "::set-output name=environment::Testing"
           fi
+
+      - name: Get version string
+        id: version
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+          else
+            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+          fi
+
 
 
   Publish-Binary:
@@ -233,9 +248,6 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - id: version
-        run: echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD) 2>/dev/null || echo unreleased)-$(git rev-parse --short HEAD)"
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -246,7 +258,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUDDERSTACK_CORSO_WRITE_KEY: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
           RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
-          CORSO_VERSION: ${{ steps.version.outputs.version }}
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
 
       - name: Upload assets
         uses: actions/upload-artifact@v3
@@ -272,11 +284,6 @@ jobs:
           name: cli-docs
           path: docs/docs/cli
 
-      - name: Build docs
-        run: |
-          npm ci
-          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
-
       - name: Configure AWS credentials from Test account
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v1
@@ -284,6 +291,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
           aws-region: us-east-1
+
+      - name: Build docs
+        env:
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+        run: |
+          npm ci
+          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
 
       - name: Push docs
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
