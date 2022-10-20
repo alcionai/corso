@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/trace"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -377,8 +378,14 @@ func IsNonRecoverableError(e error) bool {
 	return errors.As(e, &nonRecoverable)
 }
 
+// DataCollections utility function to launch backup operations for exchange and onedrive
 func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
 	defer trace.StartRegion(ctx, "gc:dataCollections:"+sels.Service.String()).End()
+
+	err := gc.verifyBackupInputs(sels)
+	if err != nil {
+		return nil, errors.Wrap(err, "user(s) not authorized with account")
+	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
@@ -432,4 +439,50 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	return collections, errs
+}
+
+func (gc *GraphConnector) verifyBackupInputs(sel selectors.Selector) error {
+	var personnel []string
+
+	// retrieve users from selectors
+	switch sel.Service {
+	case selectors.ServiceExchange:
+		backup, err := sel.ToExchangeBackup()
+		if err != nil {
+			return err
+		}
+
+		for _, scope := range backup.Scopes() {
+			temp := scope.Get(selectors.ExchangeUser)
+			personnel = append(personnel, temp...)
+		}
+	case selectors.ServiceOneDrive:
+		backup, err := sel.ToOneDriveBackup()
+		if err != nil {
+			return err
+		}
+
+		for _, user := range backup.Scopes() {
+			temp := user.Get(selectors.OneDriveUser)
+			personnel = append(personnel, temp...)
+		}
+
+	default:
+		return errors.New("service %s not supported for Corso backup operations")
+	}
+
+	// verify personnel
+	normUsers := map[string]struct{}{}
+
+	for k := range gc.Users {
+		normUsers[strings.ToLower(k)] = struct{}{}
+	}
+
+	for _, user := range personnel {
+		if _, ok := normUsers[strings.ToLower(user)]; !ok {
+			return fmt.Errorf("%s user not found within tenant", user)
+		}
+	}
+
+	return nil
 }
