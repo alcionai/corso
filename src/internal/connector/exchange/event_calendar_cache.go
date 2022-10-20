@@ -64,9 +64,10 @@ func (ecc *eventCalendarCache) Populate(
 
 	iterateErr := iter.Iterate(ctx, cb)
 	if iterateErr != nil {
-		return iterateErr
+		return errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(iterateErr))
 	}
 
+	// check for errors created during iteration
 	if err != nil {
 		return err
 	}
