@@ -45,20 +45,19 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 
 ## Repository creation
 
-To create a secure backup location for Corso, you will create a bucket in AWS S3 and then initialize the Corso
-repository using an [encryption passphrase](/setup/configuration#environment-variables). The steps below use
-`corso-test` as the bucket name but, if you are using AWS, you will need a different unique name for the bucket.
+To create a secure backup location for Corso, you will need to initialize the Corso repository using an
+[encryption passphrase](/setup/configuration#environment-variables) and a pre-created S3 bucket (Corso doesn't create
+the bucket if it doesn't exist). The steps below use `corso-test` as the bucket name but, if you are using AWS, you
+will need a different unique name for the bucket.
 
-The following commands assume that all the configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
-`AWS_SECRET_ACCESS_KEY` are available to the Corso binary or container.
+The following commands assume that in addition to the configuration values from the previous step, `AWS_ACCESS_KEY_ID`
+and `AWS_SECRET_ACCESS_KEY` (and `AWS_SESSION_TOKEN` if you are using temporary credentials) are available to the
+Corso binary or container.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  # Create the AWS S3 Bucket
-  aws s3api create-bucket --bucket corso-test
-
   # Initialize the Corso Repository
   $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
   .\corso.exe repo init s3 --bucket corso-test
@@ -68,9 +67,6 @@ The following commands assume that all the configuration values from the previou
 <TabItem value="unix" label="Linux/macOS">
 
   ```bash
-  # Create the AWS S3 Bucket
-  aws s3api create-bucket --bucket corso-test
-
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
   corso repo init s3 --bucket corso-test
@@ -80,9 +76,6 @@ The following commands assume that all the configuration values from the previou
 <TabItem value="docker" label="Docker">
 
   ```bash
-  # Create the AWS S3 Bucket
-  aws s3api create-bucket --bucket corso-test
-
   # Create an environment variables file
   mkdir -p $HOME/.corso
   cat <<EOF > $HOME/.corso/corso.env
@@ -107,16 +100,13 @@ The following commands assume that all the configuration values from the previou
 
 ## Create your first backup
 
-Corso can do much more, but you can start by creating a backup of your Exchange mailbox. To do this, first ensure that
-you are connected with the repository and then backup your own Exchange mailbox.
+Corso can do much more, but you can start by creating a backup of your Exchange mailbox. If it has been a while since
+you initialized the Corso repository, you might need to [connect to it again](/setup/repos#connect-to-a-repository).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  # Connect to the Corso Repository
-  .\corso.exe repo connect s3 --bucket corso-test
-
   # Backup your inbox
   .\corso.exe backup create exchange --user <your exchange email address>
   ```
@@ -125,9 +115,6 @@ you are connected with the repository and then backup your own Exchange mailbox.
 <TabItem value="unix" label="Linux/macOS">
 
   ```bash
-  # Connect to the Corso Repository
-  corso repo connect s3 --bucket corso-test
-
   # Backup your inbox
   corso backup create exchange --user <your exchange email address>
   ```
@@ -136,11 +123,6 @@ you are connected with the repository and then backup your own Exchange mailbox.
 <TabItem value="docker" label="Docker">
 
   ```bash
-  # Connect to the Corso Repository
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    repo connect s3 --bucket corso-test
-
   # Backup your inbox
   docker run --env-file $HOME/.corso/corso.env \
     --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
