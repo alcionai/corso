@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
@@ -17,20 +20,69 @@ var (
 	con      context.Context
 	writer   io.Writer
 	progress *mpb.Progress
+	cfg      *config
 )
 
 func init() {
 	makeSpinFrames(progressBarWidth)
 }
 
+// adds the persistent boolean flag --no-progress-bars to the provided command.
+// This is a hack for help displays.  Due to seeding the context, we also
+// need to parse the configuration before we execute the command.
+func AddProgressBarFlags(parent *cobra.Command) {
+	fs := parent.PersistentFlags()
+	fs.Bool("no-progress-bars", false, "turn off the progress bar displays")
+}
+
+// Due to races between the lazy evaluation of flags in cobra and the need to init observer
+// behavior in a ctx, these options get pre-processed manually here using pflags.  The canonical
+// AddProgressBarFlag() ensures the flags are displayed as part of the help/usage output.
+func PreloadFlags() bool {
+	fs := pflag.NewFlagSet("seed-observer", pflag.ContinueOnError)
+	fs.ParseErrorsWhitelist.UnknownFlags = true
+	fs.Bool("no-progress-bars", false, "turn off the progress bar displays")
+	// prevents overriding the corso/cobra help processor
+	fs.BoolP("help", "h", false, "")
+
+	// parse the os args list to find the log level flag
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		return false
+	}
+
+	// retrieve the user's preferred display
+	// automatically defaults to "info"
+	shouldHide, err := fs.GetBool("no-progress-bars")
+	if err != nil {
+		return false
+	}
+
+	return shouldHide
+}
+
+// ---------------------------------------------------------------------------
+// configuration
+// ---------------------------------------------------------------------------
+
+// config handles observer configuration
+type config struct {
+	doNotDisplay bool
+}
+
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
-func SeedWriter(ctx context.Context, w io.Writer) {
+func SeedWriter(ctx context.Context, w io.Writer, hide bool) {
 	writer = w
 	con = ctx
 
 	if con == nil {
 		con = context.Background()
+	}
+
+	if cfg == nil {
+		cfg = &config{
+			doNotDisplay: hide,
+		}
 	}
 
 	progress = mpb.NewWithContext(
@@ -48,14 +100,18 @@ func Complete() {
 		progress.Wait()
 	}
 
-	SeedWriter(con, writer)
+	SeedWriter(con, writer, false)
 }
+
+// ---------------------------------------------------------------------------
+// Progress for Known Quantities
+// ---------------------------------------------------------------------------
 
 // ItemProgress tracks the display of an item by counting the bytes
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
 func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadCloser, func()) {
-	if writer == nil || rc == nil || totalBytes == 0 {
+	if cfg.doNotDisplay || writer == nil || rc == nil || totalBytes == 0 {
 		return rc, func() {}
 	}
 
@@ -76,6 +132,10 @@ func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadClos
 
 	return bar.ProxyReader(rc), waitAndCloseBar(bar)
 }
+
+// ---------------------------------------------------------------------------
+// Progress for Unknown Quantities
+// ---------------------------------------------------------------------------
 
 var spinFrames []string
 
@@ -109,7 +169,7 @@ func makeSpinFrames(barWidth int) {
 // incrementing the count of items handled.  Each write to the provided channel
 // counts as a single increment.  The caller is expected to close the channel.
 func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()) {
-	if writer == nil || len(user) == 0 || len(dirName) == 0 {
+	if cfg.doNotDisplay || writer == nil || len(user) == 0 || len(dirName) == 0 {
 		ch := make(chan struct{})
 
 		go func(ci <-chan struct{}) {
