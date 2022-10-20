@@ -1,7 +1,7 @@
+# Running Corso
+
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-
-# Running Corso
 
 Corso is available as a [Docker](https://docs.docker.com/engine/install/) image (Linux `x86_64` and `arm64`) and
 as an `x86_64` and `arm64` executable for Windows, Linux and macOS.
