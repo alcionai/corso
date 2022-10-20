@@ -19,12 +19,12 @@ const sidebars = {
     'tutorial',
     {
       type: 'category',
-      label: 'Initial Setup',
-      items: ['setup/concepts', 'setup/m365_access', 'setup/repos','setup/configuration'],
+      label: 'Initial setup',
+      items: ['setup/concepts', 'setup/m365_access', 'setup/repos', 'setup/configuration'],
     },
     {
       type: 'category',
-      label: 'Command Line Reference',
+      label: 'Command line reference',
       link: {
         slug: 'cli/corso',
         description: 'Explore the commonly used Corso CLI commands',
@@ -41,7 +41,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Developer Guide',
+      label: 'Developer guide',
       items: [
         'developers/architecture', 'developers/build', 'developers/testing', 'developers/linters'
       ],
