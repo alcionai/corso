@@ -156,7 +156,7 @@ Your first backup may take some time if your mailbox is large.
 
 There will be progress indicators as the backup and, on completion, you should see output similar to:
 
-```
+```text
   Started At            ID                                    Status                Selectors
   2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
 ```
@@ -196,7 +196,7 @@ You can see all Exchange backups available with the following command:
 </TabItem>
 </Tabs>
 
-```
+```text
   Started At            ID                                    Status                Selectors
   2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
   2022-10-20T18:40:45Z  391ceeb3-b44d-4365-9a8e-8a8e1315b565  Completed (0 errors)  alice@contoso.com
@@ -237,7 +237,7 @@ Next, select one of the available backups and list all backed up emails. See
 The output from the command above should display a list of any matching emails. Note the reference
 of the email you would like to use for testing restore.
 
-```
+```text
   Reference     Sender                 Subject                                  Received
   360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
   84dbad89b9f5  ravi@cohovineyard.com  Come join us!                            2022-10-19T06:12:08Z
@@ -277,7 +277,7 @@ When you are ready to restore the selected email, use the following command.
 
 A confirmation of the recovered email will be shown and the email will appear in a new mailbox folder named `Corso_Restore_DD-MMM-YYYY_HH:MM:SS`.
 
-```
+```text
   Reference     Sender                 Subject                                  Received
   360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
 ```
