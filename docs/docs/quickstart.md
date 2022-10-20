@@ -27,8 +27,8 @@ Corso.
 <TabItem value="unix" label="Linux/macOS">
 
    ```bash
-   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
 
@@ -36,8 +36,8 @@ Corso.
 <TabItem value="docker" label="Docker">
 
    ```bash
-   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
 
