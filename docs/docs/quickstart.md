@@ -10,7 +10,7 @@ This quick start guide runs through the steps you can follow to create your firs
 
 ## Connecting to Microsoft 365
 
-Obtaining credentials from Microsoft 365 to allow Corso to run is an one-time operation. Follow the instructions
+Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time operation. Follow the instructions
 [here](setup/m365_access) to obtain the necessary credentials and then make them available to Corso.
 
 <Tabs groupId="os">
