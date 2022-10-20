@@ -198,7 +198,6 @@ jobs:
 
   SetEnv:
     environment: Testing
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
