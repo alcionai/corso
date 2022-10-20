@@ -98,7 +98,8 @@ func IterativeCollectContactContainers(
 	return func(entry any) bool {
 		folder, ok := entry.(models.ContactFolderable)
 		if !ok {
-			errUpdater("", errors.New("casting item to models.ContactFolderable"))
+			errUpdater("failure during IterateCollectContactContainers",
+				errors.New("casting item to models.ContactFolderable"))
 			return false
 		}
 
@@ -190,6 +191,7 @@ func FetchEventIDsFromCalendar(
 
 		if entry.GetId() == nil {
 			errs = multierror.Append(errs, errors.New("item with nil ID"))
+			return true
 		}
 
 		ids = append(ids, *entry.GetId())
@@ -233,7 +235,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		models.CreateContactCollectionResponseFromDiscriminatorValue,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failure to create iterator during FecthContactIDs")
+		return nil, errors.Wrap(err, "failure to create iterator during FetchContactIDs")
 	}
 
 	var errs *multierror.Error
@@ -246,6 +248,11 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 				errors.New("casting pageItem to models.Contactable"),
 			)
 
+			return true
+		}
+
+		if entry.GetId() == nil {
+			errs = multierror.Append(errs, errors.New("item with nil ID"))
 			return true
 		}
 
@@ -286,10 +293,8 @@ func FetchMessageIDsFromDirectory(
 		Messages().
 		Get(ctx, options)
 	if err != nil {
-		return nil, errors.Wrap(
-			errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
-			"initial folder query",
-		)
+		return nil,
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	pageIter, err := msgraphgocore.NewPageIterator(
