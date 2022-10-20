@@ -66,9 +66,12 @@ if [ "$MODE" == "binary" ]; then
 			golang:${GOVER} \
 			go build -o corso -ldflags "${CORSO_BUILD_LDFLAGS}"
 
+        OUTFILE="corso"
+        [ "$GOOS" == "windows" ] && OUTFILE="corso.exe"
+
 		mkdir -p ${ROOT}/bin/${GOOS}-${GOARCH}
-		mv ${ROOT}/src/corso ${ROOT}/bin/${GOOS}-${GOARCH}/corso
-		echo Corso $platform binary available in ${ROOT}/bin/${GOOS}-${GOARCH}/corso
+		mv ${ROOT}/src/corso ${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}
+		echo Corso $platform binary available in ${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}
 	done
 else
 	echo Building "$TAG" image for "$PLATFORMS"
