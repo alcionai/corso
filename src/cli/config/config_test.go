@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -50,7 +50,7 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 
 	// Generate test config file
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID)
-	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
+	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
 	require.NoError(t, err)
 
@@ -81,7 +81,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	)
 
 	// Configure viper to read test config file
-	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
+	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{Bucket: bkt}
@@ -111,7 +111,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	)
 
 	// Configure viper to read test config file
-	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
+	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{Bucket: bkt}
@@ -213,7 +213,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	)
 
 	// Configure viper to read test config file
-	testConfigFilePath := path.Join(t.TempDir(), "corso.toml")
+	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{
