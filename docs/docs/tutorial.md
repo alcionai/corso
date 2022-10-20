@@ -5,8 +5,8 @@ In this tutorial you will perform your first backup followed by a restore.
 ## Prerequisites
 
 * Install Docker
-* Configure connection to your M365 Tenant (see [M365 Access](/configuration/m365_access))
-* Initialize a Corso backup repository (see [Repositories](/configuration/repos))
+* Configure connection to your M365 Tenant (see [M365 Access](/setup/m365_access))
+* Initialize a Corso backup repository (see [Repositories](/setup/repos))
 
 ## Your first backup
 
