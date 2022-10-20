@@ -25,7 +25,7 @@ Depending on community interest, Corso will add support for other object storage
 Before setting up your Corso S3 repository, the following prerequisites must be met:
 
 * The S3 bucket for the repository already exists. Corso won't create it for you.
-* You have access to credentials for a user or an IAM role that has the following permissions
+* You have access to credentials for a user or an IAM role that has the following permissions:
 
 ```json
 {
