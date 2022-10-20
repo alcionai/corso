@@ -192,9 +192,10 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 		{
 			name: "Default Contact Folder",
 			getCollection: func(t *testing.T) []*exchange.Collection {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
-				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
+				scope := selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder})[0]
+				collections, err := connector.createCollections(ctx, scope)
 				require.NoError(t, err)
 
 				return collections
@@ -205,7 +206,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			edcs := test.getCollection(t)
-			assert.Equal(t, len(edcs), 1)
+			require.Equal(t, len(edcs), 1)
 			edc := edcs[0]
 			assert.Equal(t, edc.FullPath().Folder(), exchange.DefaultContactFolder)
 			streamChannel := edc.Items()
