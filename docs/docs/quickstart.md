@@ -10,9 +10,8 @@ This quick start guide runs through the steps you can follow to create your firs
 
 ## Connecting to Microsoft 365
 
-Obtaining credentials from Microsoft 365 to allow Corso to run is a moderately involved one-time operation.
-Follow the instructions [here](setup/m365_access) to obtain the necessary credentials and then make them available to
-Corso.
+Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time operation. Follow the instructions
+[here](setup/m365_access) to obtain the necessary credentials and then make them available to Corso.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -88,8 +87,8 @@ The following commands assume that all the configuration values from the previou
   mkdir -p $HOME/.corso
   cat <<EOF > $HOME/.corso/corso.env
   CORSO_PASSPHRASE
-  AZURE_TENANT_ID
   AZURE_CLIENT_ID
+  AZURE_TENANT_ID
   AZURE_CLIENT_SECRET
   AWS_ACCESS_KEY_ID
   AWS_SECRET_ACCESS_KEY
@@ -106,7 +105,7 @@ The following commands assume that all the configuration values from the previou
 </TabItem>
 </Tabs>
 
-## Creating your first backup
+## Create your first backup
 
 Corso can do much more, but you can start by creating a backup of your Exchange mailbox. To do this, first ensure that
 you are connected with the repository and then backup your own Exchange mailbox.
@@ -155,50 +154,137 @@ you are connected with the repository and then backup your own Exchange mailbox.
 Your first backup may take some time if your mailbox is large.
 :::
 
-## Restoring an email
+There will be progress indicators as the backup and, on completion, you should see output similar to:
 
-Now lets explore how you can restore data from one of your backups.
+```text
+  Started At            ID                                    Status                Selectors
+  2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
+```
+
+## Restore an email
+
+Now, lets explore how you can restore data from one of your backups.
 
 You can see all Exchange backups available with the following command:
 
-```bash
-$ docker run -e CORSO_PASSPHRASE \
-    --env-file ~/.corso/corso.env \
-    -v ~/.corso:/app/corso corso/corso:<release tag> \
-    backup list exchange 
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
 
+  ```powershell
+  # List all Exchange backups
+  .\corso.exe backup list exchange
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # List all Exchange backups
+  corso backup list exchange
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+  ```bash
+  # List all Exchange backups
+  docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
+    backup list exchange
+  ```
+
+</TabItem>
+</Tabs>
+
+```text
   Started At            ID                                    Status                Selectors
-  2022-09-09T42:27:16Z  72d12ef6-420a-15bd-c862-fd7c9023a014  Completed (0 errors)  alice@example.com
-  2022-10-10T19:46:43Z  41e93db7-650d-44ce-b721-ae2e8071c728  Completed (0 errors)  alice@example.com
+  2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
+  2022-10-20T18:40:45Z  391ceeb3-b44d-4365-9a8e-8a8e1315b565  Completed (0 errors)  alice@contoso.com
 ```
 
-Select one of the available backups and search through its contents.
+Next, select one of the available backups and list all backed up emails. See
+[here](cli/corso_backup_details_exchange) for more advanced filtering options.
 
-```bash
-$ docker run -e CORSO_PASSPHRASE \
-    --env-file ~/.corso/corso.env \
-    -v ~/.corso:/app/corso corso/corso:<release tag> \
-    backup details exchange \
-    --backup <id of your selected backup> \
-    --user <your exchange email address> \
-    --email-subject <portion of subject of email you want to recover>
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  # List emails in a selected backup
+  .\corso.exe backup details exchange --backup <id of your selected backup> --email "*" | Select-Object -First 5
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # List emails in a selected backup
+  corso backup details exchange --backup <id of your selected backup> --email "*" | head
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+  ```bash
+  # List emails in a selected backup
+  docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
+    backup details exchange --backup <id of your selected backup> --email "*" | head
+  ```
+
+</TabItem>
+</Tabs>
+
+The output from the command above should display a list of any matching emails. Note the reference
+of the email you would like to use for testing restore.
+
+```text
+  Reference     Sender                 Subject                                  Received
+  360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
+  84dbad89b9f5  ravi@cohovineyard.com  Come join us!                            2022-10-19T06:12:08Z
+  ...
 ```
 
-The output from the command above should display a list of any matching emails. Note the ID
-of the one to use for testing restore.
+When you are ready to restore the selected email, use the following command.
 
-When you are ready to restore, use the following command:
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
 
-```bash
-$ docker run -e CORSO_PASSPHRASE \
-    --env-file ~/.corso/corso.env \
-    -v ~/.corso:/app/corso corso/corso:<release tag> \
-    backup details exchange \
-    --backup <id of your selected backup> \
-    --user <your exchange email address> \
-    --email <id of your selected email>
+  ```powershell
+  # Restore a selected email
+  .\corso.exe restore exchange --backup <id of your selected backup> --email <email reference>
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # Restore a selected email
+  corso restore exchange --backup <id of your selected backup> --email <email reference>
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+  ```bash
+  # Restore a selected email
+  docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
+    restore exchange --backup <id of your selected backup> --email <email reference>
+  ```
+
+</TabItem>
+</Tabs>
+
+A confirmation of the recovered email will be shown and the email will appear in a new mailbox folder named `Corso_Restore_DD-MMM-YYYY_HH:MM:SS`.
+
+```text
+  Reference     Sender                 Subject                                  Received
+  360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
 ```
 
-You can now find the recovered email in a mailbox folder named `Corso_Restore_DD-MMM-YYYY_HH:MM:SS`.
+## Next Steps
 
-You are now ready to explore the [Command Line Reference](cli/corso) and try everything that Corso can do.
+The above tutorial only scratches the surface for Corso's capabilities. We encourage you to dig deeper by:
+
+* Learning about [Corso concepts and setup](setup/concepts)
+* Explore Corso backup and restore options for Exchange and Onedrive in the [Command Line Reference](cli/corso)
