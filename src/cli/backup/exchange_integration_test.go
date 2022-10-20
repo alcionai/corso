@@ -136,7 +136,6 @@ type BackupExchangeIntegrationSuite struct {
 	cfgFP      string
 	repo       repository.Repository
 	m365UserID string
-	recorder   strings.Builder
 }
 
 func TestBackupExchangeIntegrationSuite(t *testing.T) {
@@ -165,7 +164,6 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
 	suite.st = tester.NewPrefixedS3Storage(t)
-	suite.recorder = strings.Builder{}
 
 	cfg, err := suite.st.S3Config()
 	require.NoError(t, err)
@@ -188,8 +186,10 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 }
 
 func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
+	recorder := strings.Builder{}
+
 	for _, set := range backupDataSets {
-		suite.recorder.Reset()
+		recorder.Reset()
 
 		suite.T().Run(set.String(), func(t *testing.T) {
 			ctx, flush := tester.NewContext()
@@ -203,15 +203,14 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 				"--"+utils.DataFN, set.String())
 			cli.BuildCommandTree(cmd)
 
-			cmd.SetOut(&suite.recorder)
+			cmd.SetOut(&recorder)
 
 			ctx = print.SetRootCmd(ctx, cmd)
 
 			// run the command
 			require.NoError(t, cmd.ExecuteContext(ctx))
 
-			result := suite.recorder.String()
-
+			result := recorder.String()
 			t.Log("backup results", result)
 
 			// as an offhand check: the result should contain the m365 user id
@@ -467,7 +466,6 @@ type BackupDeleteExchangeIntegrationSuite struct {
 	cfgFP    string
 	repo     repository.Repository
 	backupOp operations.BackupOperation
-	recorder strings.Builder
 }
 
 func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
@@ -492,7 +490,6 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
 	suite.st = tester.NewPrefixedS3Storage(t)
-	suite.recorder = strings.Builder{}
 
 	cfg, err := suite.st.S3Config()
 	require.NoError(t, err)
@@ -532,22 +529,14 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 
 	defer flush()
 
-	suite.recorder.Reset()
-
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.cfgFP,
 		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
-	cmd.SetErr(&suite.recorder)
-
-	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
 	require.NoError(t, cmd.ExecuteContext(ctx))
-
-	result := suite.recorder.String()
-	assert.Equal(t, fmt.Sprintf("Deleted Exchange backup %s\n", string(suite.backupOp.Results.BackupID)), result)
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = tester.StubRootCmd(
@@ -559,7 +548,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 	require.Error(t, cmd.ExecuteContext(ctx))
 }
 
-func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_unknownID() {
+func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_UnknownID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
