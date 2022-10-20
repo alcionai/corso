@@ -12,6 +12,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -32,6 +34,16 @@ func FilterContainersAndFillCollections(
 		collectionType = categoryToOptionIdentifier(category)
 		errs           error
 	)
+
+	logger.Ctx(ctx).Debugw("preparing collection", "user", qp.User)
+
+	colProgress, closer := observe.CollectionProgress(
+		qp.User,
+		"Exchange",
+		"Gathering Data")
+	defer close(colProgress)
+
+	go closer()
 
 	for _, c := range resolver.Items() {
 		dirPath, ok := pathAndMatch(qp, category, c)
@@ -57,6 +69,13 @@ func FilterContainersAndFillCollections(
 				statusUpdater,
 			)
 			collections[*c.GetId()] = &edc
+
+			logger.Ctx(ctx).
+				With("user", qp.User).
+				With("dirPath", dirPath.Folder()).
+				Debug("adding collection to backup")
+
+			colProgress <- struct{}{}
 		}
 	}
 
@@ -162,6 +181,11 @@ func FetchEventIDsFromCalendar(
 ) ([]string, error) {
 	ids := []string{}
 
+	logger.Ctx(ctx).
+		With("user", user).
+		With("containerID", calendarID).
+		Debug("retrieving events")
+
 	response, err := gs.Client().
 		UsersById(user).
 		CalendarsById(calendarID).
@@ -181,6 +205,14 @@ func FetchEventIDsFromCalendar(
 
 	var errs *multierror.Error
 
+	colProgress, closer := observe.CollectionProgress(
+		user,
+		"Events",
+		calendarID)
+	defer close(colProgress)
+
+	go closer()
+
 	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
 		entry, ok := pageItem.(graph.Idable)
 		if !ok {
@@ -193,6 +225,8 @@ func FetchEventIDsFromCalendar(
 		}
 
 		ids = append(ids, *entry.GetId())
+
+		colProgress <- struct{}{}
 
 		return true
 	})
@@ -218,6 +252,11 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 
 	ids := []string{}
 
+	logger.Ctx(ctx).
+		With("user", user).
+		With("containerID", directoryID).
+		Debug("retrieving contacts")
+
 	response, err := gs.Client().
 		UsersById(user).
 		ContactFoldersById(directoryID).
@@ -238,6 +277,14 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 
 	var errs *multierror.Error
 
+	colProgress, closer := observe.CollectionProgress(
+		user,
+		"Contacts",
+		directoryID)
+	defer close(colProgress)
+
+	go closer()
+
 	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
 		entry, ok := pageItem.(graph.Idable)
 		if !ok {
@@ -250,6 +297,8 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		}
 
 		ids = append(ids, *entry.GetId())
+
+		colProgress <- struct{}{}
 
 		return true
 	})
@@ -274,6 +323,11 @@ func FetchMessageIDsFromDirectory(
 	user, directoryID string,
 ) ([]string, error) {
 	ids := []string{}
+
+	logger.Ctx(ctx).
+		With("user", user).
+		With("containerID", directoryID).
+		Debug("retrieving emails")
 
 	options, err := optionsForFolderMessages([]string{"id"})
 	if err != nil {
@@ -303,6 +357,14 @@ func FetchMessageIDsFromDirectory(
 
 	var errs *multierror.Error
 
+	colProgress, closer := observe.CollectionProgress(
+		user,
+		"Emails",
+		directoryID)
+	defer close(colProgress)
+
+	go closer()
+
 	err = pageIter.Iterate(ctx, func(pageItem any) bool {
 		item, ok := pageItem.(graph.Idable)
 		if !ok {
@@ -316,6 +378,8 @@ func FetchMessageIDsFromDirectory(
 		}
 
 		ids = append(ids, *item.GetId())
+
+		colProgress <- struct{}{}
 
 		return true
 	})
