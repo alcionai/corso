@@ -16,12 +16,11 @@ const sidebars = {
   // By default, Docusaurus generates a sidebar from the docs folder structure
   docsSidebar: [
     'intro',
-    'running',
     'tutorial',
     {
       type: 'category',
-      label: 'Initial Configuration',
-      items: ['configuration/concepts', 'configuration/m365_access', 'configuration/repos'],
+      label: 'Initial Setup',
+      items: ['setup/concepts', 'setup/m365_access', 'setup/repos','setup/configuration'],
     },
     {
       type: 'category',
