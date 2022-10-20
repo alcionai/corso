@@ -67,7 +67,7 @@ To create the environment variables file, you can run the following command:
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
-By default, Corso store its configuration file (`.corso.toml`) in the root of the home directory.
+By default, Corso stores its configuration file (`.corso.toml`) in the root of the home directory.
 The location of the configuration file can be specified using the `--config-file` option.
 
 </TabItem>
