@@ -10,7 +10,7 @@ CORSO_BUILD_CACHE="/tmp/.corsobuild" # shared persistent cache
 case "$(uname -m)" in
 x86_64) GOARCH="amd64" ;;
 aarch64) GOARCH="arm64" ;;
-arm) GOARCH="arm" ;;
+arm64) GOARCH="arm64" ;;
 i386) GOARCH="386" ;;
 *) echo "Unknown architecture" && exit 0 ;;
 esac
