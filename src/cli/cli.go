@@ -29,8 +29,8 @@ var version = "dev"
 // `corso <command> [<subcommand>] [<service>] [<flag>...]`
 var corsoCmd = &cobra.Command{
 	Use:               "corso",
-	Short:             "Protect your Microsoft 365 data.",
-	Long:              `Reliable, secure, and efficient data protection for Microsoft 365.`,
+	Short:             "Free, Secure, Open-Source Backup for M365.",
+	Long:              `Free, Secure, and Open-Source Backup for Microsoft 365.`,
 	RunE:              handleCorsoCmd,
 	PersistentPreRunE: config.InitFunc(),
 }

@@ -2,7 +2,7 @@
 description: "Configure backup repository"
 ---
 
-# Repositories
+# Corso repositories
 
 A Corso [repository](concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are
 supported on the following object storage systems:
