@@ -48,6 +48,7 @@ func FilterContainersAndFillCollections(
 					return errs
 				}
 			}
+
 			edc := NewCollection(
 				qp.User,
 				dirPath,
