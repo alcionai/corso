@@ -25,7 +25,7 @@ Before setting you your Corso S3 repository, the following prerequisites must be
 * You have access to credentials for a user or an IAM role that represent the following permissions
 
 <!-- vale proselint.Annotations = NO -->
-**TODO: Verify if these permissions are correct? What about multi-part upload permissions?**
+**TODO: Verify if these permissions are correct?
 <!-- vale proselint.Annotations = YES -->
 
 ```json
@@ -40,9 +40,6 @@ Before setting you your Corso S3 repository, the following prerequisites must be
                 "s3:ListBucket",
                 "s3:DeleteObject",
                 "s3:GetBucketLocation",
-                "s3:AbortMultipartUpload", 
-                "s3:ListMultipartUploadParts",
-                "s3:ListBucketMultipartUploads"
             ],
             "Resource": [
                 "arn:aws:s3:::<YOUR_BUCKET_NAME>",
