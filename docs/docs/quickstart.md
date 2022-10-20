@@ -209,26 +209,26 @@ Next, select one of the available backups and list all backed up emails. See
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  # List all emails in a selected backup
-  .\corso.exe backup details exchange --backup <id of your selected backup> --email "*"
+  # List emails in a selected backup
+  .\corso.exe backup details exchange --backup <id of your selected backup> --email "*" | Select-Object -First 5
   ```
 
 </TabItem>
 <TabItem value="unix" label="Linux/macOS">
 
   ```bash
-  # List all emails in a selected backup
-  corso backup details exchange --backup <id of your selected backup> --email "*"
+  # List emails in a selected backup
+  corso backup details exchange --backup <id of your selected backup> --email "*" | head
   ```
 
 </TabItem>
 <TabItem value="docker" label="Docker">
 
   ```bash
-  # List all emails in a selected backup
+  # List emails in a selected backup
   docker run --env-file $HOME/.corso/corso.env \
     --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    backup details exchange --backup <id of your selected backup> --email "*"
+    backup details exchange --backup <id of your selected backup> --email "*" | head
   ```
 
 </TabItem>
