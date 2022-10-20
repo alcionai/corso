@@ -29,7 +29,7 @@ From the list of [Azure services](https://portal.azure.com/#allservices), select
 
 ### Configure basic settings
 
-Next:
+Next, configure the following:
 
 * Give the application a name
 * Select **Accounts in this organizational directory only**
