@@ -13,6 +13,11 @@ GOC :=  docker run --rm -it \
 		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
 		--workdir ${CORSO_REPO}/src \
 		golang:1.18
+GOBASHC :=  docker run --rm -it \
+		-v ${CORSO_LOCAL_PATH}:${CORSO_REPO} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
+		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
+		--workdir ${CORSO_REPO}/src --entrypoint bash \
+		golang:1.18
 MDGEN_SRC := ${CORSO_REPO}/src/cmd/mdgen/mdgen.go
 MDGEN_BINARY := ${CORSO_BUILD_BIN}/mdgen
 CLI_DOCS := ${CORSO_REPO}/docs/docs/cli
@@ -46,7 +51,7 @@ genclidocs: _validatemdgen ${MDGEN_BINARY}
 
 _validatemdgen: # in case we have a different architecture
 	@echo 'Verifying dependencies...'
-	$(GOC) ${MDGEN_BINARY} --help >/dev/null || $(GOC) rm -rf ${MDGEN_BINARY}
+	$(GOBASHC) -c "${MDGEN_BINARY} --help >/dev/null || rm -rf ${MDGEN_BINARY}"
 
 ${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shell find ${CORSO_LOCAL_PATH}/src -type d )
 	@echo 'Re-building Corso CLI docs auto-gen tooling...'
