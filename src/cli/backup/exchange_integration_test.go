@@ -124,7 +124,6 @@ func (suite *NoBackupExchangeIntegrationSuite) TestExchangeBackupListCmd_empty()
 	assert.Equal(t, "No backups available\n", result)
 }
 
-
 // ---------------------------------------------------------------------------
 // tests with no prior backup
 // ---------------------------------------------------------------------------

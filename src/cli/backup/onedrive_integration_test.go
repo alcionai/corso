@@ -125,7 +125,7 @@ type BackupDeleteOneDriveIntegrationSuite struct {
 	cfgFP    string
 	repo     repository.Repository
 	backupOp operations.BackupOperation
-	recorder   strings.Builder
+	recorder strings.Builder
 }
 
 func TestBackupDeleteOneDriveIntegrationSuite(t *testing.T) {
