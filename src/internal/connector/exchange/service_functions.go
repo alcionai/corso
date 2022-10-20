@@ -51,7 +51,7 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 		credentials.AzureClientSecret,
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to create microsoft graph service for exchange")
 	}
 
 	service := exchangeService{
@@ -61,7 +61,7 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 		credentials: credentials,
 	}
 
-	return &service, err
+	return &service, nil
 }
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
@@ -145,7 +145,7 @@ func GetAllMailFolders(
 
 	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EmailCategory)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to build directory resolver in GetAllMailFolders")
 	}
 
 	for _, c := range resolver.Items() {
@@ -174,7 +174,7 @@ func GetAllCalendars(
 
 	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EventsCategory)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to build calendar resolver in GetAllCalendars")
 	}
 
 	for _, c := range resolver.Items() {
@@ -203,7 +203,7 @@ func GetAllContactFolders(
 
 	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to build directory resolver in GetAllContactFolders")
 	}
 
 	for _, c := range resolver.Items() {
