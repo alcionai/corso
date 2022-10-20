@@ -48,7 +48,8 @@ To create the environment variables file, you can run the following command:
 
   ```bash
   # Create an environment variables file
-  cat <<EOF > ~/.corso/corso.env
+  mkdir -p $HOME/.corso
+  cat <<EOF > $HOME/.corso/corso.env
   CORSO_PASSPHRASE
   AZURE_CLIENT_ID
   AZURE_TENANT_ID
@@ -73,7 +74,7 @@ The location of the configuration file can be specified using the `--config-file
 </TabItem>
 <TabItem value="unix" label="Linux/macOS">
 
-By default, Corso store its configuration file (`.corso.toml`) in the root of the home directory.
+By default, Corso stores its configuration file (`.corso.toml`) in the root of the home directory.
 The location of the configuration file can be specified using the `--config-file` option.
 
 </TabItem>
@@ -84,9 +85,9 @@ to read or create its configuration file (`.corso.toml`). This directory must be
 directory within the container.
 
 ```bash
-$ docker run --env-file ~/.corso/corso.env \
-    --volume ~/.corso/corso:/app/corso \
-    corso/corso <command> <command options>
+$ docker run --env-file $HOME/.corso/corso.env \
+    --volume $HOME/.corso/corso:/app/corso \
+    ghcr.io/alcionai/corso <command> <command options>
 ```
 
 </TabItem>
