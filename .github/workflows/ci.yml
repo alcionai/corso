@@ -284,13 +284,6 @@ jobs:
           name: cli-docs
           path: docs/docs/cli
 
-      - name: Build docs
-        env:
-          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
-        run: |
-          npm ci
-          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
-
       - name: Configure AWS credentials from Test account
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v1
@@ -298,6 +291,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
           aws-region: us-east-1
+
+      - name: Build docs
+        env:
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+        run: |
+          npm ci
+          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
 
       - name: Push docs
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
