@@ -25,7 +25,7 @@ Before setting you your Corso S3 repository, the following prerequisites must be
 * You have access to credentials for a user or an IAM role that represent the following permissions
 
 <!-- vale proselint.Annotations = NO -->
-**TODO: Verify if these permissions are correct? What about multi-part upload permissions?**
+**TODO: Verify if these permissions are correct?
 <!-- vale proselint.Annotations = YES -->
 
 ```json
@@ -40,9 +40,6 @@ Before setting you your Corso S3 repository, the following prerequisites must be
                 "s3:ListBucket",
                 "s3:DeleteObject",
                 "s3:GetBucketLocation",
-                "s3:AbortMultipartUpload", 
-                "s3:ListMultipartUploadParts",
-                "s3:ListBucketMultipartUploads"
             ],
             "Resource": [
                 "arn:aws:s3:::<YOUR_BUCKET_NAME>",
@@ -55,7 +52,7 @@ Before setting you your Corso S3 repository, the following prerequisites must be
 
 ### Credential setup {#s3-creds-setup}
 
-Corso supports the credential options offered by the Go SDK. For Full details, see the *Specifying Credentials*
+Corso supports the credential options offered by the AWS Go SDK. For Full details, see the *Specifying Credentials*
 section of the [official documentation](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html).
 
 * **Environment variables** - set and export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. If using temporary

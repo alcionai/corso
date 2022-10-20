@@ -63,15 +63,16 @@ const (
 
 var (
 	corsoEVs = []envVar{
-		{corso, "CORSO_PASSPHRASE", "Passphrase to protect repository encryption material." +
+		{corso, "CORSO_PASSPHRASE", "Passphrase to protect encrypted repository contents. " +
 			"It is impossible to use the repository or recover any backups without this key."},
 	}
 	azureEVs = []envVar{
 		{azure, "AZURE_CLIENT_ID", "Client ID for your Azure AD application used to access your M365 tenant."},
 		{azure, "AZURE_CLIENT_SECRET", "Azure secret for your Azure AD application used to access your M365 tenant."},
+		{azure, "AZURE_TENANT_ID", "ID for the M365 tenant where the Azure AD application is registered."},
 	}
 	awsEVs = []envVar{
-		{aws, "AWS_ACCESS_KEY_ID", "AWS access key for an IAM user or role for accessing S3 bucket repository."},
+		{aws, "AWS_ACCESS_KEY_ID", "Access key for an IAM user or role for accessing an S3 bucket."},
 		{aws, "AWS_SECRET_ACCESS_KEY", "Secret key associated with the access key."},
 		{aws, "AWS_SESSION_TOKEN", "Session token required when using temporary credentials."},
 	}
