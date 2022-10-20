@@ -84,14 +84,14 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 
 	aService, err := gc.createService(false)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to log into M365 account")
 	}
 
 	gc.graphService = *aService
 
 	err = gc.setTenantUsers(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "connector unable to gain access to tenant resources")
 	}
 
 	return &gc, nil
@@ -114,7 +114,7 @@ func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, err
 		failFast: shouldFailFast,
 	}
 
-	return &connector, err
+	return &connector, nil
 }
 
 func (gs *graphService) EnableFailFast() {
@@ -398,7 +398,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 ) ([]data.Collection, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "collecting onedrive data")
+		return nil, errors.Wrap(err, "oneDriveDataCollection: unable to parse selector")
 	}
 
 	collections := []data.Collection{}
