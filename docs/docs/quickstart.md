@@ -216,11 +216,11 @@ Next, select one of the available backups and list all backed up emails. See
 </TabItem>
 </Tabs>
 
-The output from the command above should display a list of any matching emails. Note the reference
+The output from the command above should display a list of any matching emails. Note the ID
 of the email you would like to use for testing restore.
 
 ```text
-  Reference     Sender                 Subject                                  Received
+  ID            Sender                 Subject                                  Received
   360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
   84dbad89b9f5  ravi@cohovineyard.com  Come join us!                            2022-10-19T06:12:08Z
   ...
@@ -233,7 +233,7 @@ When you are ready to restore the selected email, use the following command.
 
   ```powershell
   # Restore a selected email
-  .\corso.exe restore exchange --backup <id of your selected backup> --email <email reference>
+  .\corso.exe restore exchange --backup <id of your selected backup> --email <email ID>
   ```
 
 </TabItem>
@@ -241,7 +241,7 @@ When you are ready to restore the selected email, use the following command.
 
   ```bash
   # Restore a selected email
-  corso restore exchange --backup <id of your selected backup> --email <email reference>
+  corso restore exchange --backup <id of your selected backup> --email <email ID>
   ```
 
 </TabItem>
@@ -251,7 +251,7 @@ When you are ready to restore the selected email, use the following command.
   # Restore a selected email
   docker run --env-file $HOME/.corso/corso.env \
     --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    restore exchange --backup <id of your selected backup> --email <email reference>
+    restore exchange --backup <id of your selected backup> --email <email ID>
   ```
 
 </TabItem>
@@ -260,7 +260,7 @@ When you are ready to restore the selected email, use the following command.
 A confirmation of the recovered email will be shown and the email will appear in a new mailbox folder named `Corso_Restore_DD-MMM-YYYY_HH:MM:SS`.
 
 ```text
-  Reference     Sender                 Subject                                  Received
+  ID            Sender                 Subject                                  Received
   360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
 ```
 
