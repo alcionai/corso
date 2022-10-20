@@ -382,9 +382,9 @@ func IsNonRecoverableError(e error) bool {
 func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
 	defer trace.StartRegion(ctx, "gc:dataCollections:"+sels.Service.String()).End()
 
-	err := gc.verifyBackupInputs(sels)
+	err := verifyBackupInputs(sels, gc.Users)
 	if err != nil {
-		return nil, errors.Wrap(err, "user(s) not authorized with account")
+		return nil, err
 	}
 
 	switch sels.Service {
@@ -441,7 +441,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	return collections, errs
 }
 
-func (gc *GraphConnector) verifyBackupInputs(sel selectors.Selector) error {
+func verifyBackupInputs(sel selectors.Selector, mapOfUsers map[string]string) error {
 	var personnel []string
 
 	// retrieve users from selectors
@@ -468,13 +468,13 @@ func (gc *GraphConnector) verifyBackupInputs(sel selectors.Selector) error {
 		}
 
 	default:
-		return errors.New("service %s not supported for Corso backup operations")
+		return errors.New("service %s not supported")
 	}
 
 	// verify personnel
 	normUsers := map[string]struct{}{}
 
-	for k := range gc.Users {
+	for k := range mapOfUsers {
 		normUsers[strings.ToLower(k)] = struct{}{}
 	}
 
