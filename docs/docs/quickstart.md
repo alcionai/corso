@@ -10,7 +10,7 @@ This quick start guide runs through the steps you can follow to create your firs
 
 ## Connecting to Microsoft 365
 
-Obtaining credentials from Microsoft 365 to allow Corso to run is moderately involved but is a one-time operation.
+Obtaining credentials from Microsoft 365 to allow Corso to run is a moderately involved one-time operation.
 Follow the instructions [here](setup/m365_access) to obtain the necessary credentials and then make them available to
 Corso.
 
@@ -47,7 +47,7 @@ Corso.
 ## Repository creation
 
 To create a secure backup location for Corso, we will create a bucket (`corso-test` is used as an example) in AWS S3.
-The following commands assume that all the configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
+The following commands assume that all configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
 `AWS_SECRET_ACCESS_KEY` are available to the Corso binary or container.
 
 <Tabs groupId="os">
