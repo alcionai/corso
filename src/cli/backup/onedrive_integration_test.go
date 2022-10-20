@@ -28,7 +28,7 @@ import (
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
-type BackupOneDriveIntegrationSuite struct {
+type NoBackupOneDriveIntegrationSuite struct {
 	suite.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -39,7 +39,7 @@ type BackupOneDriveIntegrationSuite struct {
 	recorder   strings.Builder
 }
 
-func TestBackupOneDriveIntegrationSuite(t *testing.T) {
+func TestNoBackupOneDriveIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
@@ -48,10 +48,10 @@ func TestBackupOneDriveIntegrationSuite(t *testing.T) {
 		t.Skip(err)
 	}
 
-	suite.Run(t, new(BackupOneDriveIntegrationSuite))
+	suite.Run(t, new(NoBackupOneDriveIntegrationSuite))
 }
 
-func (suite *BackupOneDriveIntegrationSuite) SetupSuite() {
+func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -86,7 +86,7 @@ func (suite *BackupOneDriveIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty() {
+func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
