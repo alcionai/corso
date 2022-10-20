@@ -11,7 +11,7 @@ Two things are needed to run Corso:
 * Environment variables containing configuration information
 * A directory for Corso to store its configuration file
 
-## Environment Variables
+## Environment variables
 
 Three distinct pieces of configuration are required by Corso:
 
@@ -32,7 +32,12 @@ alternate ways to pass AWS credentials.
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
-Ensure that all of the above environment variables are available in your Powershell environment.
+Ensure that all of the above environment variables are defined in your Powershell environment.
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+Ensure that all of the above environment variables are defined in your shell environment.
 
 </TabItem>
 <TabItem value="docker" label="Docker">
@@ -43,7 +48,7 @@ To create the environment variables file, you can run the following command:
 
   ```bash
   # Create an environment variables file
-  cat <<EOF ~/.corso/corso.env
+  cat <<EOF > ~/.corso/corso.env
   CORSO_PASSPHRASE
   AZURE_TENANT_ID
   AZURE_CLIENT_ID
@@ -62,7 +67,13 @@ To create the environment variables file, you can run the following command:
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
-By default, Corso store its configuration file (`.corso.toml`) in the directory where the binary is executed.
+By default, Corso stores its configuration file (`.corso.toml`) in the root of the home directory.
+The location of the configuration file can be specified using the `--config-file` option.
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+By default, Corso store its configuration file (`.corso.toml`) in the root of the home directory.
 The location of the configuration file can be specified using the `--config-file` option.
 
 </TabItem>

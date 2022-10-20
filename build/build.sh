@@ -10,7 +10,7 @@ CORSO_BUILD_CACHE="/tmp/.corsobuild" # shared persistent cache
 case "$(uname -m)" in
 x86_64) GOARCH="amd64" ;;
 aarch64) GOARCH="arm64" ;;
-arm) GOARCH="arm" ;;
+arm64) GOARCH="arm64" ;;
 i386) GOARCH="386" ;;
 *) echo "Unknown architecture" && exit 0 ;;
 esac
@@ -58,24 +58,27 @@ if [ "$MODE" == "binary" ]; then
 
 		printf "Building for %s...\r" "$platform"
 		docker run --rm \
-			--mount type=bind,src=${ROOT},dst="/app" \
-			--mount type=bind,src=${CORSO_BUILD_CACHE},dst=${CORSO_BUILD_CACHE} \
-			--env GOMODCACHE=${CORSO_BUILD_CACHE}/mod --env GOCACHE=${CORSO_BUILD_CACHE}/cache \
+			--mount type=bind,src="${ROOT}",dst="/app" \
+			--mount type=bind,src="${CORSO_BUILD_CACHE}",dst="${CORSO_BUILD_CACHE}" \
+			--env GOMODCACHE="${CORSO_BUILD_CACHE}/mod" --env GOCACHE="${CORSO_BUILD_CACHE}/cache" \
 			--env GOOS=${GOOS} --env GOARCH=${GOARCH} \
 			--workdir "/app/src" \
 			golang:${GOVER} \
 			go build -o corso -ldflags "${CORSO_BUILD_LDFLAGS}"
 
-		mkdir -p ${ROOT}/bin/${GOOS}-${GOARCH}
-		mv ${ROOT}/src/corso ${ROOT}/bin/${GOOS}-${GOARCH}/corso
-		echo Corso $platform binary available in ${ROOT}/bin/${GOOS}-${GOARCH}/corso
+        OUTFILE="corso"
+        [ "$GOOS" == "windows" ] && OUTFILE="corso.exe"
+
+		mkdir -p "${ROOT}/bin/${GOOS}-${GOARCH}"
+		mv "${ROOT}/src/corso" "${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}"
+		echo Corso $platform binary available in "${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}"
 	done
 else
 	echo Building "$TAG" image for "$PLATFORMS"
 	docker buildx build --tag ${TAG} \
 		--platform ${PLATFORMS} \
-		--file ${ROOT}/build/Dockerfile \
+		--file "${ROOT}/build/Dockerfile" \
 		--build-arg CORSO_BUILD_LDFLAGS="$CORSO_BUILD_LDFLAGS" \
-		--load ${ROOT}
+		--load "${ROOT}"
 	echo Built container image "$TAG"
 fi
