@@ -101,7 +101,7 @@ func (mc *mailFolderCache) Populate(
 
 		for _, f := range resp.GetValue() {
 			if err := mc.AddToCache(ctx, f); err != nil {
-				errs = multierror.Append(errs, err)
+				errs = multierror.Append(errs, errors.Wrap(err, "delta fetch"))
 				continue
 			}
 		}
