@@ -45,18 +45,12 @@ This command generates static content into the `build` directory for integration
 
 ```bash
 # Lint all docs
-make dockercheck
+make check
 # Lint specific files and/or folders
-make dockercheck VALE_TARGET="README.md docs/concepts"
+make check VALE_TARGET="README.md docs/concepts"
 ```
 
 This command will lint all Markdown files and check them for style issues using the Docker container
-
-```bash
-make check
-```
-
-Same as `make dockercheck` but runs locally. Requires `vale` to be installed.
 
 ## Documentation platform development
 

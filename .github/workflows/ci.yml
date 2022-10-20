@@ -96,7 +96,7 @@ jobs:
         env:
           CORSO_USE_DOCKER: -1 # prevent using docker inside makefile
         run: |
-          cd docs && make -o genclidocs check
+          cd docs && make -o genclidocs localcheck
 
   # ----------------------------------------------------------------------------------------------------
   # --- Integration and Unit Testing -------------------------------------------------------------------

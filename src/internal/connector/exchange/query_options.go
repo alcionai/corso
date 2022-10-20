@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 //-----------------------------------------------------------------------
@@ -113,19 +112,6 @@ func categoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 	case path.ContactsCategory:
 		return contacts
 	case path.EventsCategory:
-		return events
-	default:
-		return unknown
-	}
-}
-
-func scopeToOptionIdentifier(selector selectors.ExchangeScope) optionIdentifier {
-	switch selector.Category() {
-	case selectors.ExchangeMailFolder, selectors.ExchangeMail:
-		return messages
-	case selectors.ExchangeContactFolder, selectors.ExchangeContact:
-		return contacts
-	case selectors.ExchangeEventCalendar, selectors.ExchangeEvent:
 		return events
 	default:
 		return unknown
