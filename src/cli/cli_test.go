@@ -23,8 +23,8 @@ func (suite *CLISuite) TestAddCommands_noPanics() {
 
 	test := &cobra.Command{
 		Use:   "test",
-		Short: "Protect your Microsoft 365 data.",
-		Long:  `Reliable, secure, and efficient data protection for Microsoft 365.`,
+		Short: "Free, Secure, Open-Source Backup for M365.",
+		Long:  `Free, Secure, and Open-Source Backup for Microsoft 365.`,
 		RunE:  func(c *cobra.Command, args []string) error { return nil },
 	}
 
