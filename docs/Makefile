@@ -8,11 +8,12 @@ CORSO_REPO := /go/src/github.com/alcionai/corso
 CORSO_LOCAL_PATH := $(shell git rev-parse --show-toplevel)
 CORSO_VERSION := $(shell git rev-parse --short HEAD)
 DOCSC := docker run --rm -it -p 3000:3000 -v ${PWD}:/usr/src/docs --env CORSO_VERSION=${CORSO_VERSION} corso/docs
-GOC :=  docker run --rm -it \
+CBASE :=  docker run --rm -it \
 		-v ${CORSO_LOCAL_PATH}:${CORSO_REPO} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
 		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
-		--workdir ${CORSO_REPO}/src \
-		golang:1.18
+		--workdir ${CORSO_REPO}/src
+GOC :=  ${CBASE} golang:1.18
+GOBASHC :=  ${CBASE} --entrypoint bash golang:1.18
 MDGEN_SRC := ${CORSO_REPO}/src/cmd/mdgen/mdgen.go
 MDGEN_BINARY := ${CORSO_BUILD_BIN}/mdgen
 CLI_DOCS := ${CORSO_REPO}/docs/docs/cli
@@ -26,12 +27,12 @@ dev: genclidocs
 VALE_TARGET ?= docs README.md
 
 check: genclidocs
-	vale $(VALE_TARGET)
-	markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
-
-dockercheck: genclidocs
 	$(DOCSC) vale $(VALE_TARGET)
 	$(DOCSC) markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
+
+localcheck: genclidocs
+	vale $(VALE_TARGET)
+	markdownlint '**/*.md' --ignore styles/ --ignore src/ --ignore node_modules/
 
 dockershell:
 	$(DOCSC) bash
@@ -46,7 +47,7 @@ genclidocs: _validatemdgen ${MDGEN_BINARY}
 
 _validatemdgen: # in case we have a different architecture
 	@echo 'Verifying dependencies...'
-	$(GOC) ${MDGEN_BINARY} --help >/dev/null || $(GOC) rm -rf ${MDGEN_BINARY}
+	$(GOBASHC) -c "${MDGEN_BINARY} --help >/dev/null || rm -rf ${MDGEN_BINARY}"
 
 ${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shell find ${CORSO_LOCAL_PATH}/src -type d )
 	@echo 'Re-building Corso CLI docs auto-gen tooling...'
