@@ -4,7 +4,7 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 
-This quick start guide runs through the following steps you to create your first Microsoft 365 backup and restore:
+This quick start guide runs through the steps you can follow to create your first Microsoft 365 backup and restore:
 
 <TOCInline toc={toc} maxHeadingLevel={2}/>
 
