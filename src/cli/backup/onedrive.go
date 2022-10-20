@@ -350,6 +350,10 @@ func runDetailsOneDriveCmd(
 	backupID string,
 	opts utils.OneDriveOpts,
 ) (*details.Details, error) {
+	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {
+		return nil, err
+	}
+
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
 		if errors.Is(err, kopia.ErrNotFound) {
