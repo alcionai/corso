@@ -110,7 +110,7 @@ func (suite *BackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty() {
 	result := suite.recorder.String()
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Equal(t, result, "No backups available\n")
+	assert.Equal(t, "No backups available\n", result)
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +205,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd()
 
 	result := suite.recorder.String()
 
-	assert.Equal(t, result, fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)))
+	assert.Equal(t, fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)), result)
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = tester.StubRootCmd(
