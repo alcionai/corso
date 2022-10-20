@@ -33,7 +33,7 @@ type CategoryType int
 //go:generate stringer -type=CategoryType -linecomment
 const (
 	UnknownCategory  CategoryType = iota
-	EmailCategory                 // email
+	EmailCategory                 // emails
 	ContactsCategory              // contacts
 	EventsCategory                // events
 	FilesCategory                 // files
