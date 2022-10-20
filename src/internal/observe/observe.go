@@ -13,7 +13,10 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-const progressBarWidth = 32
+const (
+	noProgressBarsFN = "no-progress-bars"
+	progressBarWidth = 32
+)
 
 var (
 	wg       sync.WaitGroup
@@ -32,7 +35,7 @@ func init() {
 // need to parse the configuration before we execute the command.
 func AddProgressBarFlags(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
-	fs.Bool("no-progress-bars", false, "turn off the progress bar displays")
+	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
 }
 
 // Due to races between the lazy evaluation of flags in cobra and the need to init observer
@@ -41,7 +44,7 @@ func AddProgressBarFlags(parent *cobra.Command) {
 func PreloadFlags() bool {
 	fs := pflag.NewFlagSet("seed-observer", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
-	fs.Bool("no-progress-bars", false, "turn off the progress bar displays")
+	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
@@ -52,7 +55,7 @@ func PreloadFlags() bool {
 
 	// retrieve the user's preferred display
 	// automatically defaults to "info"
-	shouldHide, err := fs.GetBool("no-progress-bars")
+	shouldHide, err := fs.GetBool(noProgressBarsFN)
 	if err != nil {
 		return false
 	}

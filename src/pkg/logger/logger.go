@@ -27,13 +27,15 @@ const (
 	Production
 )
 
+const logLevelFN = "log-level"
+
 // adds the persistent flag --log-level to the provided command.
 // defaults to "info".
 // This is a hack for help displays.  Due to seeding the context, we also
 // need to parse the log level before we execute the command.
 func AddLogLevelFlag(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
-	fs.StringVar(&llFlag, "log-level", "info", "set the log level to debug|info|warn|error")
+	fs.StringVar(&llFlag, logLevelFN, "info", "set the log level to debug|info|warn|error")
 }
 
 // Due to races between the lazy evaluation of flags in cobra and the need to init logging
@@ -42,7 +44,7 @@ func AddLogLevelFlag(parent *cobra.Command) {
 func PreloadLogLevel() string {
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
-	fs.String("log-level", "info", "set the log level to debug|info|warn|error")
+	fs.String(logLevelFN, "info", "set the log level to debug|info|warn|error")
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
@@ -53,7 +55,7 @@ func PreloadLogLevel() string {
 
 	// retrieve the user's preferred log level
 	// automatically defaults to "info"
-	levelString, err := fs.GetString("log-level")
+	levelString, err := fs.GetString(logLevelFN)
 	if err != nil {
 		return "info"
 	}
