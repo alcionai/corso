@@ -15,9 +15,9 @@ func _() {
 	_ = x[FilesCategory-4]
 }
 
-const _CategoryType_name = "UnknownCategoryemailscontactseventsfiles"
+const _CategoryType_name = "UnknownCategoryemailcontactseventsfiles"
 
-var _CategoryType_index = [...]uint8{0, 15, 21, 29, 35, 40}
+var _CategoryType_index = [...]uint8{0, 15, 20, 28, 34, 39}
 
 func (i CategoryType) String() string {
 	if i < 0 || i >= CategoryType(len(_CategoryType_index)-1) {
