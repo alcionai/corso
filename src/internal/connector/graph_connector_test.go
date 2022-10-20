@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -193,9 +192,10 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 		{
 			name: "Default Contact Folder",
 			getCollection: func(t *testing.T) []*exchange.Collection {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
-				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
+				scope := selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder})[0]
+				collections, err := connector.createCollections(ctx, scope)
 				require.NoError(t, err)
 
 				return collections
@@ -206,7 +206,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			edcs := test.getCollection(t)
-			assert.Equal(t, len(edcs), 1)
+			require.Equal(t, len(edcs), 1)
 			edc := edcs[0]
 			assert.Equal(t, edc.FullPath().Folder(), exchange.DefaultContactFolder)
 			streamChannel := edc.Items()
@@ -325,7 +325,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 	var (
 		t      = suite.T()
 		userID = tester.M365UserID(t)
-		sel    = selectors.NewExchangeBackup()
 	)
 
 	tests := []struct {
@@ -334,10 +333,16 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 		folderNames map[string]struct{}
 	}{
 		{
+			name:  "Mail Iterative Check",
+			scope: selectors.NewExchangeBackup().MailFolders([]string{userID}, selectors.Any())[0],
+			folderNames: map[string]struct{}{
+				exchange.DefaultMailFolder: {},
+				"Sent Items":               {},
+			},
+		},
+		{
 			name: "Folder Iterative Check Mail",
-			// Only select specific folders so the test doesn't flake when the CI
-			// cleanup task deletes things.
-			scope: sel.MailFolders(
+			scope: selectors.NewExchangeBackup().MailFolders(
 				[]string{userID},
 				[]string{exchange.DefaultMailFolder},
 			)[0],
@@ -351,25 +356,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			qp := graph.QueryParams{
-				User:        userID,
-				Scope:       test.scope,
-				Credentials: gc.credentials,
-				FailFast:    false,
-			}
-
-			resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
-				ctx,
-				qp,
-				scopeToPathCategory(qp.Scope),
-			)
-			require.NoError(t, err)
-
-			collections, err := gc.fetchItemsByFolder(
-				ctx,
-				qp,
-				resolver,
-			)
+			collections, err := gc.createCollections(ctx, test.scope)
 			require.NoError(t, err)
 
 			for _, c := range collections {
