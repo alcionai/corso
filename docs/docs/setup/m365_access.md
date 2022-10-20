@@ -4,6 +4,9 @@ description: "Connect to a Microsft 365 tenant"
 
 # Microsoft 365 access
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 To perform backup and restore operations, Corso requires access to your [M365 tenant](concepts#m365-concepts)
 through an [Azure AD application](concepts#m365-concepts) with appropriate permissions.
 
@@ -59,10 +62,32 @@ as environment variables.
 To extract the tenant and client ID, select Overview from the app management panel and export the corresponding
 environment variables.
 
-```bash
-export AZURE_TENANT_ID=<Directory (tenent) ID for configured app>
-export AZURE_CLIENT_ID=<Application (client) ID for configured app>
-```
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  $Env:AZURE_CLIENT_ID = "<Directory (tenant) ID for configured app>"
+  $Env:AZURE_TENANT_ID = "<Application (client) ID for configured app>"
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+   ```bash
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+   ```bash
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   ```
+
+</TabItem>
+</Tabs>
 
 <img src="/img/m365app_ids.png" className="guideImages"/>
 
@@ -74,8 +99,28 @@ management panel.
 Click **New Client Secret** and follow the instructions to create a secret. After creating the secret, copy the secret
 value right away because it won't be available later and export it as an environment variable.
 
-```bash
-export AZURE_CLIENT_SECRET=<client secret value>
-```
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  $Env:AZURE_CLIENT_SECRET = "<Client secret value>"
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+   ```bash
+   export AZURE_CLIENT_SECRET=<Client secret value>
+   ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+   ```bash
+   export AZURE_CLIENT_SECRET=<Client secret value>
+   ```
+
+</TabItem>
+</Tabs>
 
 <img src="/img/m365app_secret.png" className="guideImages"/>
