@@ -12,6 +12,6 @@ beyond M365, will expand based on the interest and needs of the community.
 
 ## Getting started
 
-You can follow the [Quick Start](/quickstart) guide for a quick end-to-end Corso walk through. Alternatively, follow
+You can follow the [Quick Start](/quickstart) guide for an end-to-end Corso walk through. Alternatively, follow
 the instructions in the [Initial Setup](/setup/concepts) section to dive into the details on how to configure and
 run Corso.
