@@ -126,13 +126,6 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 				&service.adapter,
 				test.transformer)
 			require.NoError(t, err)
-
-			// qp := graph.QueryParams{
-			// 	User:        userID,
-			// 	Scope:       test.scope,
-			// 	Credentials: service.credentials,
-			// 	FailFast:    false,
-			// }
 			// Create collection for iterate test
 			collections := make(map[string]graph.Container)
 			var errs error
