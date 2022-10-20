@@ -51,8 +51,9 @@ To create a secure backup location for Corso, you will need to initialize the Co
 the bucket if it doesn't exist). The steps below use `corso-test` as the bucket name but, if you are using AWS, you
 will need a different unique name for the bucket.
 
-The following commands assume that all the configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
-`AWS_SECRET_ACCESS_KEY` are available to the Corso binary or container.
+The following commands assume that in addition to the configuration values from the previous step, `AWS_ACCESS_KEY_ID`
+and `AWS_SECRET_ACCESS_KEY` (and `AWS_SESSION_TOKEN` if you are using temporary credentials) are available to the
+Corso binary or container.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
