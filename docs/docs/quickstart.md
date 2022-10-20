@@ -47,7 +47,7 @@ Corso.
 ## Repository creation
 
 To create a secure backup location for Corso, you will create a bucket in AWS S3 and then initialize the Corso
-repository using an [encryption passphrase](/setup/configuration#environment-variables). The below steps use
+repository using an [encryption passphrase](/setup/configuration#environment-variables). The steps below use
 `corso-test` as the bucket name but, if you are using AWS, you will need a different unique name for the bucket.
 
 The following commands assume that all the configuration values from the previous step, `AWS_ACCESS_KEY_ID`, and
