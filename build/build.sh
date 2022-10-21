@@ -16,26 +16,21 @@ i386) GOARCH="386" ;;
 esac
 case "$(uname)" in
 Linux) GOOS="linux" ;;
-Darwin) GOOS="darwin" ;; # TODO: verify this
+Darwin) GOOS="darwin" ;;
 *) echo "Unknown OS" && exit 0 ;;
 esac
 
 PLATFORMS="$GOOS/$GOARCH" # default platform
 TAG="alcionai/corso"      # default image tag
 
-usage() {
-	echo "Usage: $(basename $0) <binary|image> [--platforms ...] [--tag ...]"
-	echo ""
-	echo "OPTIONS"
-	echo " -p|--platforms  Platforms to build for (default: $PLATFORMS)"
-    echo "                 Specify multiple platforms using ',' (eg: linux/amd64,darwin/arm)"
-	echo " -t|--tag        Tag for container image (default: $TAG)"
-}
-
 MODE="binary"
 case "$1" in
 binary) MODE="binary" && shift ;;
-image) MODE="image" && shift ;;
+image)
+	MODE="image"
+	shift
+	GOOS="linux" # darwin container images are not a thing
+	;;
 -h | --help) usage && exit 0 ;;
 *) usage && exit 1 ;;
 esac
@@ -48,6 +43,15 @@ while [ "$#" -gt 0 ]; do
 	esac
 	shift
 done
+
+usage() {
+	echo "Usage: $(basename $0) <binary|image> [--platforms ...] [--tag ...]"
+	echo ""
+	echo "OPTIONS"
+	echo " -p|--platforms  Platforms to build for (default: $PLATFORMS)"
+	echo "                 Specify multiple platforms using ',' (eg: linux/amd64,darwin/arm)"
+	echo " -t|--tag        Tag for container image (default: $TAG)"
+}
 
 if [ "$MODE" == "binary" ]; then
 	mkdir -p ${CORSO_BUILD_CACHE} # prep env
@@ -66,14 +70,19 @@ if [ "$MODE" == "binary" ]; then
 			golang:${GOVER} \
 			go build -o corso -ldflags "${CORSO_BUILD_LDFLAGS}"
 
-        OUTFILE="corso"
-        [ "$GOOS" == "windows" ] && OUTFILE="corso.exe"
+		OUTFILE="corso"
+		[ "$GOOS" == "windows" ] && OUTFILE="corso.exe"
 
 		mkdir -p "${ROOT}/bin/${GOOS}-${GOARCH}"
 		mv "${ROOT}/src/corso" "${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}"
 		echo Corso $platform binary available in "${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}"
 	done
 else
+	for platform in ${PLATFORMS/,/ }; do
+		IFS='/' read -r -a platform_split <<<"$platform"
+		GOOS=${platform_split[0]}
+		[ "$GOOS" == "darwin" ] && echo Cannot create darwin images "($platform)" && exit 1
+	done
 	echo Building "$TAG" image for "$PLATFORMS"
 	docker buildx build --tag ${TAG} \
 		--platform ${PLATFORMS} \
