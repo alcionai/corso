@@ -346,6 +346,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=sha,format=short,prefix=
+            type=raw,value=nightly
 
       # deploy the image
       - name: Build image and push to GitHub Container Registry
