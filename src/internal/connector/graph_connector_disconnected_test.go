@@ -204,3 +204,64 @@ func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
 	assert.Equal(t, 0, status.FolderCount)
 	assert.Equal(t, 0, status.Successful)
 }
+
+func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
+	users := make(map[string]string)
+	users["elliotReid@someHospital.org"] = ""
+	users["chrisTurk@someHospital.org"] = ""
+	users["carlaEspinosa@someHospital.org"] = ""
+	users["bobKelso@someHospital.org"] = ""
+	users["johnDorian@someHospital.org"] = ""
+
+	tests := []struct {
+		name        string
+		getSelector func(t *testing.T) selectors.Selector
+		checkError  assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Invalid User",
+			checkError: assert.Error,
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Include(sel.Folders([]string{"foo@SomeCompany.org"}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name:       "Valid Single User",
+			checkError: assert.NoError,
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{"bobkelso@someHospital.org"}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name:       "Partial invalid user",
+			checkError: assert.Error,
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{"bobkelso@someHospital.org", "janitor@someHospital.org"}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name:       "Multiple Valid Users",
+			checkError: assert.NoError,
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Include(
+					sel.Users([]string{"elliotReid@someHospital.org", "johnDorian@someHospital.org", "christurk@somehospital.org"}))
+
+				return sel.Selector
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			err := verifyBackupInputs(test.getSelector(t), users)
+			test.checkError(t, err)
+		})
+	}
+}

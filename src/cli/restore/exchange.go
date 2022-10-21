@@ -237,7 +237,6 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))
 	}
 
-	Infof(ctx, "Restored Exchange in %s for user %s.\n", s.Provider, sel.ToPrintable().Resources())
 	ds.PrintEntries(ctx)
 
 	return nil
