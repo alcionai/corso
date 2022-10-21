@@ -85,14 +85,14 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 
 	aService, err := gc.createService(false)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating service connection")
 	}
 
 	gc.graphService = *aService
 
 	err = gc.setTenantUsers(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "retrieving tenant user list")
 	}
 
 	return &gc, nil
@@ -115,7 +115,7 @@ func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, err
 		failFast: shouldFailFast,
 	}
 
-	return &connector, err
+	return &connector, nil
 }
 
 func (gs *graphService) EnableFailFast() {
@@ -150,7 +150,7 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
+			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("received non-User on iteration"), err)
 			return true
 		}
 
@@ -217,7 +217,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 ) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "exchangeDataCollection: unable to parse selector")
+		return nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
 	}
 
 	var (
@@ -393,7 +393,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	default:
-		return nil, errors.Errorf("Service %s not supported", sels)
+		return nil, errors.Errorf("service %s not supported", sels)
 	}
 }
 
@@ -405,7 +405,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 ) ([]data.Collection, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "collecting onedrive data")
+		return nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
 	}
 
 	collections := []data.Collection{}
