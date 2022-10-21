@@ -142,7 +142,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
 
 	// hand the results to the consumer
-	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs)
+	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs, op.Selectors.PathService())
 	if err != nil {
 		err = errors.Wrap(err, "backing up service data")
 		opStats.writeErr = err
@@ -228,7 +228,7 @@ func (op *BackupOperation) createBackupModels(
 			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.EndTime:    op.Results.CompletedAt,
 			events.Resources:  op.Results.ResourceOwners,
-			events.Service:    op.Selectors.Service.String(),
+			events.Service:    op.Selectors.PathService().String(),
 			events.StartTime:  op.Results.StartedAt,
 			events.Status:     op.Status,
 		},
