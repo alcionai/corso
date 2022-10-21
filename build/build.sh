@@ -79,9 +79,8 @@ if [ "$MODE" == "binary" ]; then
 	done
 else
 	for platform in ${PLATFORMS/,/ }; do
-		IFS='/' read -r -a platform_split <<<"$platform"
-		GOOS=${platform_split[0]}
-		[ "$GOOS" == "darwin" ] && echo Cannot create darwin images "($platform)" && exit 1
+		echo "$platform" | grep -Eq "^darwin" &&
+			echo Cannot create darwin images "($platform)" && exit 1
 	done
 	echo Building "$TAG" image for "$PLATFORMS"
 	docker buildx build --tag ${TAG} \
