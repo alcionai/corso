@@ -50,6 +50,9 @@ func New(
 	return &Backup{
 		BaseModel: model.BaseModel{
 			ID: id,
+			Tags: map[string]string{
+				model.ServiceTag: selector.PathService().String(),
+			},
 		},
 		CreationTime:    time.Now(),
 		SnapshotID:      snapshotID,

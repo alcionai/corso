@@ -20,6 +20,11 @@ const (
 	BackupDetailsSchema
 )
 
+// common tags for filtering
+const (
+	ServiceTag = "service"
+)
+
 // Valid returns true if the ModelType value fits within the iota range.
 func (mt Schema) Valid() bool {
 	return mt > 0 && mt < BackupDetailsSchema+1

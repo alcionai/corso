@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -472,6 +473,7 @@ func inflateDirTree(
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	collections []data.Collection,
+	service path.ServiceType,
 ) (*BackupStats, *details.Details, error) {
 	if w.c == nil {
 		return nil, nil, errNotConnected
@@ -486,6 +488,10 @@ func (w Wrapper) BackupCollections(
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Details{},
+	}
+
+	progress.deets.Tags = map[string]string{
+		model.ServiceTag: service.String(),
 	}
 
 	dirTree, err := inflateDirTree(ctx, collections, progress)
