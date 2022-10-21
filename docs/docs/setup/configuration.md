@@ -23,8 +23,8 @@ alternate ways to pass AWS credentials.
 
 * Microsoft 365 Configuration
   * `AZURE_CLIENT_ID`: Client ID for your Azure AD application used to access your M365 tenant
-  * `AZURE_CLIENT_SECRET`: Azure secret for your Azure AD application used to access your M365 tenant
   * `AZURE_TENANT_ID`: ID for the M365 tenant where the Azure AD application is registered
+  * `AZURE_CLIENT_SECRET`: Azure secret for your Azure AD application used to access your M365 tenant
 
 * Corso Security Passphrase
   * `CORSO_PASSPHRASE`: Passphrase to protect encrypted repository contents
@@ -51,8 +51,8 @@ To create the environment variables file, you can run the following command:
   mkdir -p $HOME/.corso
   cat <<EOF > $HOME/.corso/corso.env
   CORSO_PASSPHRASE
-  AZURE_TENANT_ID
   AZURE_CLIENT_ID
+  AZURE_TENANT_ID
   AZURE_CLIENT_SECRET
   AWS_ACCESS_KEY_ID
   AWS_SECRET_ACCESS_KEY

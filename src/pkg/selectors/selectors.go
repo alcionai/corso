@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type service int
@@ -20,6 +21,12 @@ const (
 	ServiceExchange                // Exchange
 	ServiceOneDrive                // OneDrive
 )
+
+var serviceToPathType = map[service]path.ServiceType{
+	ServiceUnknown:  path.UnknownService,
+	ServiceExchange: path.ExchangeService,
+	ServiceOneDrive: path.OneDriveService,
+}
 
 var (
 	ErrorBadSelectorCast = errors.New("wrong selector service type")
@@ -176,6 +183,11 @@ func discreteScopes[T scopeT, C categoryT](
 	}
 
 	return sl
+}
+
+// Returns the path.ServiceType matching the selector service.
+func (s Selector) PathService() path.ServiceType {
+	return serviceToPathType[s.Service]
 }
 
 // ---------------------------------------------------------------------------
