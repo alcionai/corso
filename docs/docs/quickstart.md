@@ -5,6 +5,7 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 import {Version} from '@site/src/corsoEnv';
+import DownloadBinaries from './setup/_download_binary.md';
 
 This quick start guide runs through the steps you can follow to create your first Microsoft 365 backup and restore:
 
@@ -12,65 +13,10 @@ This quick start guide runs through the steps you can follow to create your firs
 
 ## Download Corso
 
-Download a Corso binary or Docker image.
+Download a Corso binary for your platform. If you would like to use a Docker container, the first `docker run` will
+pull the image.
 
-<!-- vale Vale.Spelling = NO -->
-<!-- markdownlint-disable MD034 -->
-
-<Tabs groupId="download">
-<TabItem value="win" label="Windows (Powershell)">
-
-<CodeBlock language="powershell">{
-`Invoke-WebRequest \`
-  -Uri https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Windows_x86_64.tar.gz \`
-  -UseBasicParsing -Outfile corso_${Version()}_Windows_x86_64.tar.gz
-tar zxvf .\\corso_${Version()}_Windows_x86_64.tar.gz`
-}</CodeBlock>
-
-</TabItem>
-<TabItem value="linux-arm" label="Linux - arm64">
-
-<CodeBlock language="bash">{
-`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Linux_arm64.tar.gz && \\
-  tar zxvf corso_${Version()}_Linux_arm64.tar.gz`
-}</CodeBlock>
-
-</TabItem>
-<TabItem value="linux-x86-64" label="Linux - x86_64">
-
-<CodeBlock language="bash">{
-`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Linux_x86_64.tar.gz && \\
-  tar zxvf corso_${Version()}_Linux_x86_64.tar.gz`
-}</CodeBlock>
-
-</TabItem>
-<TabItem value="macos-arm" label="macOS - arm64">
-
-<CodeBlock language="bash">{
-`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Darwin_arm64.tar.gz && \\
-  tar zxvf corso_${Version()}_Darwin_arm64.tar.gz`
-}</CodeBlock>
-
-</TabItem>
-<TabItem value="macos-x86-64" label="macOS - x86_64">
-
-<CodeBlock language="bash">{
-`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Darwin_x86_64.tar.gz && \\
-  tar zxvf corso_${Version()}_Darwin_x86_64.tar.gz`
-}</CodeBlock>
-
-</TabItem>
-<TabItem value="docker" label="Docker">
-
-<CodeBlock language="bash">{
-`docker pull ghcr.io/alcionai/corso:${Version()}`
-}</CodeBlock>
-
-</TabItem>
-</Tabs>
-
-<!-- vale Vale.Spelling = YES -->
-<!-- markdownlint-enable MD034 -->
+<DownloadBinaries />
 
 ## Connect to Microsoft 365
 
