@@ -65,7 +65,7 @@ tar zxvf .\\corso_${Version()}_Windows_x86_64.tar.gz`
 
 <CodeBlock language="bash">{
 `curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Linux_arm64.tar.gz && \\
-  tar zxvf corso_${Version()}_Linux_arm.tar.gz`
+  tar zxvf corso_${Version()}_Linux_arm64.tar.gz`
 }</CodeBlock>
 
 </TabItem>
@@ -81,7 +81,7 @@ tar zxvf .\\corso_${Version()}_Windows_x86_64.tar.gz`
 
 <CodeBlock language="bash">{
 `curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Darwin_arm64.tar.gz && \\
-  tar zxvf corso_${Version()}_Darwin_arm.tar.gz`
+  tar zxvf corso_${Version()}_Darwin_arm64.tar.gz`
 }</CodeBlock>
 
 </TabItem>
