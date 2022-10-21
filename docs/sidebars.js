@@ -20,7 +20,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Corso setup',
-      items: ['setup/concepts', 'setup/m365_access', 'setup/configuration', 'setup/repos'],
+      items: ['setup/concepts', 'setup/download', 'setup/m365_access', 'setup/configuration', 'setup/repos'],
     },
     {
       type: 'category',
