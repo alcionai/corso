@@ -74,7 +74,7 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
   ```powershell
   # Initialize the Corso Repository
   $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
-  .\corso.exe repo init s3 --bucket corso-test
+  .\corso repo init s3 --bucket corso-test
   ```
 
 </TabItem>
@@ -83,7 +83,7 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
   ```bash
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  corso repo init s3 --bucket corso-test
+  ./corso repo init s3 --bucket corso-test
   ```
 
 </TabItem>
@@ -110,7 +110,7 @@ If a repository already exists, you can connect to it with `corso repo connect s
 
   ```powershell
   # Connect to the Corso Repository
-  .\corso.exe repo connect s3 --bucket corso-test
+  .\corso repo connect s3 --bucket corso-test
   ```
 
 </TabItem>
@@ -118,7 +118,7 @@ If a repository already exists, you can connect to it with `corso repo connect s
 
   ```bash
   # Connect to the Corso Repository
-  corso repo connect s3 --bucket corso-test
+  ./corso repo connect s3 --bucket corso-test
   ```
 
 </TabItem>
