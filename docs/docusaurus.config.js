@@ -28,6 +28,10 @@ const config = {
   },
   staticDirectories: ['static', 'public'],
 
+  customFields: {
+    corsoVersion: process.env.CORSO_VERSION
+  },
+
   plugins: [
     'docusaurus-plugin-sass',
     require.resolve('docusaurus-plugin-image-zoom')
