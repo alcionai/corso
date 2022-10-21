@@ -26,8 +26,8 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="unix" label="Linux/macOS">
 
    ```bash
-   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
 
@@ -35,8 +35,8 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="docker" label="Docker">
 
    ```bash
-   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
 
@@ -45,7 +45,8 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 
 ## Repository creation
 
-To create a secure backup location for Corso, you will need to initialize the Corso repository using an
+To create a secure backup location for Corso, you will first need to [download Corso](setup/download).
+Use the container or native executable to initialize the Corso repository using an
 [encryption passphrase](/setup/configuration#environment-variables) and a pre-created S3 bucket (Corso doesn't create
 the bucket if it doesn't exist). The steps below use `corso-test` as the bucket name but, if you are using AWS, you
 will need a different unique name for the bucket.
@@ -264,7 +265,7 @@ A confirmation of the recovered email will be shown and the email will appear in
   360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
 ```
 
-## Next Steps
+## Next steps
 
 The above tutorial only scratches the surface for Corso's capabilities. We encourage you to dig deeper by:
 

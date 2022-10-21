@@ -31,6 +31,9 @@ func stubBackup(t time.Time) backup.Backup {
 	return backup.Backup{
 		BaseModel: model.BaseModel{
 			ID: model.StableID("id"),
+			Tags: map[string]string{
+				model.ServiceTag: sel.PathService().String(),
+			},
 		},
 		CreationTime: t,
 		SnapshotID:   "snapshot",
