@@ -61,7 +61,7 @@ Corso binary or container.
   ```powershell
   # Initialize the Corso Repository
   $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
-  .\corso.exe repo init s3 --bucket corso-test
+  .\corso repo init s3 --bucket corso-test
   ```
 
 </TabItem>
@@ -70,7 +70,7 @@ Corso binary or container.
   ```bash
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  corso repo init s3 --bucket corso-test
+  ./corso repo init s3 --bucket corso-test
   ```
 
 </TabItem>
@@ -109,7 +109,7 @@ you initialized the Corso repository, you might need to [connect to it again](/s
 
   ```powershell
   # Backup your inbox
-  .\corso.exe backup create exchange --user <your exchange email address>
+  .\corso backup create exchange --user <your exchange email address>
   ```
 
 </TabItem>
@@ -117,7 +117,7 @@ you initialized the Corso repository, you might need to [connect to it again](/s
 
   ```bash
   # Backup your inbox
-  corso backup create exchange --user <your exchange email address>
+  ./corso backup create exchange --user <your exchange email address>
   ```
 
 </TabItem>
@@ -155,7 +155,7 @@ You can see all Exchange backups available with the following command:
 
   ```powershell
   # List all Exchange backups
-  .\corso.exe backup list exchange
+  .\corso backup list exchange
   ```
 
 </TabItem>
@@ -163,7 +163,7 @@ You can see all Exchange backups available with the following command:
 
   ```bash
   # List all Exchange backups
-  corso backup list exchange
+  ./corso backup list exchange
   ```
 
 </TabItem>
@@ -193,7 +193,7 @@ Next, select one of the available backups and list all backed up emails. See
 
   ```powershell
   # List emails in a selected backup
-  .\corso.exe backup details exchange --backup <id of your selected backup> --email "*" | Select-Object -First 5
+  .\corso backup details exchange --backup <id of your selected backup> --email "*" | Select-Object -First 5
   ```
 
 </TabItem>
@@ -201,7 +201,7 @@ Next, select one of the available backups and list all backed up emails. See
 
   ```bash
   # List emails in a selected backup
-  corso backup details exchange --backup <id of your selected backup> --email "*" | head
+  ./corso backup details exchange --backup <id of your selected backup> --email "*" | head
   ```
 
 </TabItem>
@@ -234,7 +234,7 @@ When you are ready to restore the selected email, use the following command.
 
   ```powershell
   # Restore a selected email
-  .\corso.exe restore exchange --backup <id of your selected backup> --email <email reference>
+  .\corso restore exchange --backup <id of your selected backup> --email <email reference>
   ```
 
 </TabItem>
@@ -242,7 +242,7 @@ When you are ready to restore the selected email, use the following command.
 
   ```bash
   # Restore a selected email
-  corso restore exchange --backup <id of your selected backup> --email <email reference>
+  ./corso restore exchange --backup <id of your selected backup> --email <email reference>
   ```
 
 </TabItem>
