@@ -93,13 +93,13 @@ Corso binary or container.
 `# Create an environment variables file
 mkdir -p $HOME/.corso
 cat <<EOF > $HOME/.corso/corso.env
-CORSO_PASSPHRASE
-AZURE_CLIENT_ID
-AZURE_TENANT_ID
-AZURE_CLIENT_SECRET
 AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
 AWS_SESSION_TOKEN
+AZURE_CLIENT_ID
+AZURE_TENANT_ID
+AZURE_CLIENT_SECRET
+CORSO_PASSPHRASE
 EOF
   
 # Initialize the Corso Repository
@@ -162,9 +162,8 @@ There will be progress indicators as the backup and, on completion, you should s
 
 ## Restore an email
 
-Now, lets explore how you can restore data from one of your backups.
-
-You can see all Exchange backups available with the following command:
+Now, lets explore how you can restore data from one of your backups. You can see all Exchange backups available with
+the following command:
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -199,6 +198,7 @@ docker run --env-file $HOME/.corso/corso.env \\
   Started At            ID                                    Status                Selectors
   2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
   2022-10-20T18:40:45Z  391ceeb3-b44d-4365-9a8e-8a8e1315b565  Completed (0 errors)  alice@contoso.com
+  ...
 ```
 
 Next, select one of the available backups and list all backed up emails. See
@@ -243,7 +243,7 @@ of the email you would like to use for testing restore.
   ...
 ```
 
-When you are ready to restore the selected email, use the following command.
+To restore the selected email, use the following command.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">

@@ -1,12 +1,11 @@
 # Configuration
 
+import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import {Version} from '@site/src/corsoEnv';
 
-Corso is available as a [Docker](https://docs.docker.com/engine/install/) image (Linux `x86_64` and `arm64`) and
-as an `x86_64` and `arm64` executable for Windows, Linux and macOS.
-
-Two things are needed to run Corso:
+Two things are needed to configure Corso:
 
 * Environment variables containing configuration information
 * A directory for Corso to store its configuration file
@@ -34,10 +33,34 @@ alternate ways to pass AWS credentials.
 
 Ensure that all of the above environment variables are defined in your Powershell environment.
 
+  ```powershell
+  $Env:AWS_ACCESS_KEY_ID = "..."
+  $Env:AWS_SECRET_ACCESS_KEY = "..."
+  $Env:AWS_SESSION_TOKEN = ""
+
+  $Env:AZURE_CLIENT_ID = "..."
+  $Env:AZURE_TENANT_ID = "..."
+  $Env:AZURE_CLIENT_SECRET = "..."
+
+  $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
+  ```
+
 </TabItem>
 <TabItem value="unix" label="Linux/macOS">
 
 Ensure that all of the above environment variables are defined in your shell environment.
+
+  ```bash
+  export AWS_ACCESS_KEY_ID=...
+  export AWS_SECRET_ACCESS_KEY=...
+  export AWS_SESSION_TOKEN=...
+
+  export AZURE_CLIENT_ID=...
+  export AZURE_TENANT_ID=...
+  export AZURE_CLIENT_SECRET=...
+
+  export CORSO_PASSPHRASE=CHANGE-ME-THIS-IS-INSECURE
+  ```
 
 </TabItem>
 <TabItem value="docker" label="Docker">
@@ -50,14 +73,25 @@ To create the environment variables file, you can run the following command:
   # Create an environment variables file
   mkdir -p $HOME/.corso
   cat <<EOF > $HOME/.corso/corso.env
-  CORSO_PASSPHRASE
-  AZURE_CLIENT_ID
-  AZURE_TENANT_ID
-  AZURE_CLIENT_SECRET
   AWS_ACCESS_KEY_ID
   AWS_SECRET_ACCESS_KEY
   AWS_SESSION_TOKEN
+  AZURE_CLIENT_ID
+  AZURE_TENANT_ID
+  AZURE_CLIENT_SECRET
+  CORSO_PASSPHRASE
   EOF
+
+  # Export required variables
+  export AWS_ACCESS_KEY_ID=...
+  export AWS_SECRET_ACCESS_KEY=...
+  export AWS_SESSION_TOKEN=...
+
+  export AZURE_CLIENT_ID=...
+  export AZURE_TENANT_ID=...
+  export AZURE_CLIENT_SECRET=...
+
+  export CORSO_PASSPHRASE=CHANGE-ME-THIS-IS-INSECURE
   ```
 
 </TabItem>
@@ -68,13 +102,13 @@ To create the environment variables file, you can run the following command:
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
-By default, Corso stores its configuration file (`.corso.toml`) in the root of the home directory.
+By default, Corso stores its configuration file (`.corso.toml`) in the user's home directory.
 The location of the configuration file can be specified using the `--config-file` option.
 
 </TabItem>
 <TabItem value="unix" label="Linux/macOS">
 
-By default, Corso stores its configuration file (`.corso.toml`) in the root of the home directory.
+By default, Corso stores its configuration file (`.corso.toml`) in the user's home directory.
 The location of the configuration file can be specified using the `--config-file` option.
 
 </TabItem>
@@ -84,11 +118,11 @@ To preserve configuration across container runs, Corso requires access to a dire
 to read or create its configuration file (`.corso.toml`). This directory must be mapped, by Docker, to the `/app/corso`
 directory within the container.
 
-```bash
-$ docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso/corso:/app/corso \
-    ghcr.io/alcionai/corso <command> <command options>
-```
+<CodeBlock language="bash">{
+`docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  <command> <command options>`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
