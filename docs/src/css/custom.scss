@@ -45,10 +45,13 @@ html[data-theme='dark'] {
 .guideImages {
   max-width: 650px;
   width: 100%;
-  border: 1px solid #80808029
 }
 
 .markdown {
+  img {
+    border: 1px solid #80808029;
+  }
+
   code {
     border-color: transparent;
     vertical-align: initial;

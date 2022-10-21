@@ -24,7 +24,7 @@ import (
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context) ([]backup.Backup, error)
+	Backups(ctx context.Context, fs ...store.FilterOption) ([]backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
@@ -214,9 +214,9 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 }
 
 // backups lists backups in a repository
-func (r repository) Backups(ctx context.Context) ([]backup.Backup, error) {
+func (r repository) Backups(ctx context.Context, fs ...store.FilterOption) ([]backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetBackups(ctx)
+	return sw.GetBackups(ctx, fs...)
 }
 
 // BackupDetails returns the specified backup details object
