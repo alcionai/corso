@@ -11,9 +11,9 @@ import {Version} from '@site/src/corsoEnv';
 
 <CodeBlock language="powershell">{
 `Invoke-WebRequest \`
-  -Uri https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Windows_x86_64.tar.gz \`
-  -UseBasicParsing -Outfile corso_${Version()}_Windows_x86_64.tar.gz
-tar zxvf .\\corso_${Version()}_Windows_x86_64.tar.gz`
+  -Uri https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Windows_x86_64.zip \`
+  -UseBasicParsing -Outfile corso_${Version()}_Windows_x86_64.zip
+Expand-Archive .\\corso_${Version()}_Windows_x86_64.zip`
 }</CodeBlock>
 
 </TabItem>
