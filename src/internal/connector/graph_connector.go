@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -274,112 +273,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	return deets, err
 }
 
-func scopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
-	if scope.IncludesCategory(selectors.ExchangeMail) {
-		return path.EmailCategory
-	}
-
-	if scope.IncludesCategory(selectors.ExchangeContact) {
-		return path.ContactsCategory
-	}
-
-	if scope.IncludesCategory(selectors.ExchangeEvent) {
-		return path.EventsCategory
-	}
-
-	return path.UnknownCategory
-}
-
-func (gc *GraphConnector) fetchItemsByFolder(
-	ctx context.Context,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-) (map[string]*exchange.Collection, error) {
-	var errs *multierror.Error
-
-	collections := map[string]*exchange.Collection{}
-	// This gets the collections, but does not get the items in the
-	// collection.
-	err := exchange.CollectionsFromResolver(
-		ctx,
-		qp,
-		resolver,
-		gc.UpdateStatus,
-		collections,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting target collections")
-	}
-
-	for id, col := range collections {
-		// Fetch items for said collection.
-		err := exchange.AddItemsToCollection(ctx, gc.Service(), qp.User, id, col)
-		if err != nil {
-			errs = multierror.Append(errs, errors.Wrapf(
-				err,
-				"fetching items for collection %s with ID %s",
-				col.FullPath().String(),
-				id,
-			))
-		}
-	}
-
-	return collections, errs.ErrorOrNil()
-}
-
-func (gc *GraphConnector) legacyFetchItems(
-	ctx context.Context,
-	scope selectors.ExchangeScope,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-) (map[string]*exchange.Collection, error) {
-	var (
-		errs       error
-		errUpdater = func(id string, err error) {
-			errs = support.WrapAndAppend(id, err, errs)
-		}
-		collections = map[string]*exchange.Collection{}
-	)
-
-	transformer, queries, gIter, err := exchange.SetupExchangeCollectionVars(scope)
-	if err != nil {
-		return nil, support.WrapAndAppend(gc.Service().Adapter().GetBaseUrl(), err, nil)
-	}
-
-	// queries is assumed to provide fallbacks in case of empty results.  Any
-	// non-zero collection production will break out of the loop.
-	for _, query := range queries {
-		response, err := query(ctx, &gc.graphService, qp.User)
-		if err != nil {
-			return nil, errors.Wrapf(
-				err,
-				"user %s M365 query: %s",
-				qp.User, support.ConnectorStackErrorTrace(err))
-		}
-
-		pageIterator, err := msgraphgocore.NewPageIterator(response, &gc.graphService.adapter, transformer)
-		if err != nil {
-			return nil, err
-		}
-
-		// callbackFunc iterates through all M365 object target and fills exchange.Collection.jobs[]
-		// with corresponding item M365IDs. New collections are created for each directory.
-		// Each directory used the M365 Identifier. The use of ID stops collisions betweens users
-		callbackFunc := gIter(ctx, qp, errUpdater, collections, gc.UpdateStatus, resolver)
-
-		if err := pageIterator.Iterate(ctx, callbackFunc); err != nil {
-			return nil, support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), err, errs)
-		}
-
-		if len(collections) > 0 {
-			break
-		}
-	}
-
-	return collections, errs
-}
-
-// createCollection - utility function that retrieves M365
+// createCollections - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are stored.
 // to the GraphConnector struct.
@@ -393,7 +287,7 @@ func (gc *GraphConnector) createCollections(
 	allCollections := make([]*exchange.Collection, 0)
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
-		var collections map[string]*exchange.Collection
+		collections := make(map[string]*exchange.Collection)
 
 		qp := graph.QueryParams{
 			User:        user,
@@ -402,31 +296,24 @@ func (gc *GraphConnector) createCollections(
 			Credentials: gc.credentials,
 		}
 
-		// Currently only mail has a folder cache implemented.
-		resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
+		resolver, err := exchange.PopulateExchangeContainerResolver(
 			ctx,
 			qp,
-			scopeToPathCategory(scope),
+			graph.ScopeToPathCategory(qp.Scope),
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting folder cache")
 		}
 
-		if scopeToPathCategory(scope) == path.EmailCategory {
-			if resolver == nil {
-				return nil, errors.New("unable to create mail folder resolver")
-			}
+		err = exchange.FilterContainersAndFillCollections(
+			ctx,
+			qp,
+			collections,
+			gc.UpdateStatus,
+			resolver)
 
-			collections, err = gc.fetchItemsByFolder(ctx, qp, resolver)
-			if err != nil {
-				errs = multierror.Append(errs, err)
-			}
-		} else {
-			collections, err = gc.legacyFetchItems(ctx, scope, qp, resolver)
-			// Preserving previous behavior.
-			if err != nil {
-				return nil, err // return error if snapshot is incomplete
-			}
+		if err != nil {
+			return nil, errors.Wrap(err, "filling collections")
 		}
 
 		for _, collection := range collections {

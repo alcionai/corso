@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -118,14 +117,14 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 	// We also configure the path, type and filename
 	// because `vpr.SafeWriteConfig` needs these set to
 	// work correctly (it does not use the configured file)
-	vpr.AddConfigPath(path.Dir(configFP))
+	vpr.AddConfigPath(filepath.Dir(configFP))
 
-	ext := path.Ext(configFP)
+	ext := filepath.Ext(configFP)
 	if len(ext) == 0 {
 		return errors.New("config file requires an extension e.g. `toml`")
 	}
 
-	fileName := path.Base(configFP)
+	fileName := filepath.Base(configFP)
 	fileName = strings.TrimSuffix(fileName, ext)
 	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
 	vpr.SetConfigName(fileName)

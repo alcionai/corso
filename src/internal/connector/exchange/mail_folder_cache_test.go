@@ -133,7 +133,7 @@ func (suite *MailFolderCacheUnitSuite) TestCheckRequiredValues() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.check(t, checkRequiredValues(test.c))
+			test.check(t, graph.CheckRequiredValues(test.c))
 		})
 	}
 }
@@ -366,6 +366,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			require.NoError(t, mfc.Populate(ctx, test.root, test.path...))
 
 			p, err := mfc.IDToPath(ctx, testFolderID)
+			t.Logf("Path: %s\n", p.String())
 			require.NoError(t, err)
 
 			expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
