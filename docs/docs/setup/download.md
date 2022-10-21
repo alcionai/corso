@@ -48,6 +48,8 @@ Corso is also available as an `x86_64` and `arm64` executable for Windows, Linux
 the [GitHub releases page](https://github.com/alcionai/corso/releases).
 
 <!-- vale Vale.Spelling = NO -->
+<!-- markdownlint-disable MD034 -->
+
 <Tabs groupId="download">
 <TabItem value="win" label="Windows (Powershell)">
 
@@ -94,3 +96,4 @@ tar zxvf .\\corso_${Version()}_Windows_x86_64.tar.gz`
 </Tabs>
 
 <!-- vale Vale.Spelling = YES -->
+<!-- markdownlint-enable MD034 -->
