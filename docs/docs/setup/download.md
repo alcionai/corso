@@ -4,7 +4,7 @@ import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import {Version} from '@site/src/corsoEnv';
-import DownloadBinaries from '@site/src/components/_download_binary.md';
+import DownloadBinaries from './_download_binary.md';
 
 Corso is available as a Docker container image or as native binaries.
 

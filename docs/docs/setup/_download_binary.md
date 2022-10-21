@@ -1,10 +1,10 @@
+<!-- markdownlint-disable MD034 MD041 -->
+<!-- vale Vale.Spelling = NO -->
+
 import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import {Version} from '@site/src/corsoEnv';
-
-<!-- vale Vale.Spelling = NO -->
-<!-- markdownlint-disable MD034 -->
 
 <Tabs groupId="download">
 <TabItem value="win" label="Windows (Powershell)">
@@ -52,4 +52,4 @@ tar zxvf .\\corso_${Version()}_Windows_x86_64.tar.gz`
 </Tabs>
 
 <!-- vale Vale.Spelling = YES -->
-<!-- markdownlint-enable MD034 -->
+<!-- markdownlint-enable MD034 MD041 -->

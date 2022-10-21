@@ -5,7 +5,7 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 import {Version} from '@site/src/corsoEnv';
-import DownloadBinaries from '@site/src/components/_download_binary.md';
+import DownloadBinaries from './setup/_download_binary.md';
 
 This quick start guide runs through the steps you can follow to create your first Microsoft 365 backup and restore:
 
