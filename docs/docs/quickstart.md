@@ -10,7 +10,69 @@ This quick start guide runs through the steps you can follow to create your firs
 
 <TOCInline toc={toc} maxHeadingLevel={2}/>
 
-## Connecting to Microsoft 365
+## Download Corso
+
+Download a Corso binary or Docker image.
+
+<!-- vale Vale.Spelling = NO -->
+<!-- markdownlint-disable MD034 -->
+
+<Tabs groupId="download">
+<TabItem value="win" label="Windows (Powershell)">
+
+<CodeBlock language="powershell">{
+`Invoke-WebRequest \`
+  -Uri https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Windows_x86_64.tar.gz \`
+  -UseBasicParsing -Outfile corso_${Version()}_Windows_x86_64.tar.gz
+tar zxvf .\\corso_${Version()}_Windows_x86_64.tar.gz`
+}</CodeBlock>
+
+</TabItem>
+<TabItem value="linux-arm" label="Linux - arm64">
+
+<CodeBlock language="bash">{
+`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Linux_arm64.tar.gz && \\
+  tar zxvf corso_${Version()}_Linux_arm64.tar.gz`
+}</CodeBlock>
+
+</TabItem>
+<TabItem value="linux-x86-64" label="Linux - x86_64">
+
+<CodeBlock language="bash">{
+`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Linux_x86_64.tar.gz && \\
+  tar zxvf corso_${Version()}_Linux_x86_64.tar.gz`
+}</CodeBlock>
+
+</TabItem>
+<TabItem value="macos-arm" label="macOS - arm64">
+
+<CodeBlock language="bash">{
+`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Darwin_arm64.tar.gz && \\
+  tar zxvf corso_${Version()}_Darwin_arm64.tar.gz`
+}</CodeBlock>
+
+</TabItem>
+<TabItem value="macos-x86-64" label="macOS - x86_64">
+
+<CodeBlock language="bash">{
+`curl -L -O https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Darwin_x86_64.tar.gz && \\
+  tar zxvf corso_${Version()}_Darwin_x86_64.tar.gz`
+}</CodeBlock>
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+<CodeBlock language="bash">{
+`docker pull ghcr.io/alcionai/corso:${Version()}`
+}</CodeBlock>
+
+</TabItem>
+</Tabs>
+
+<!-- vale Vale.Spelling = YES -->
+<!-- markdownlint-enable MD034 -->
+
+## Connect to Microsoft 365
 
 Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time operation. Follow the instructions
 [here](setup/m365_access) to obtain the necessary credentials and then make them available to Corso.
@@ -45,7 +107,7 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 </TabItem>
 </Tabs>
 
-## Repository creation
+## Create a Corso repository
 
 To create a secure backup location for Corso, you will first need to [download Corso](setup/download).
 Use the container or native executable to initialize the Corso repository using an
@@ -273,7 +335,7 @@ A confirmation of the recovered email will be shown and the email will appear in
   360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
 ```
 
-## Next steps
+## Read more
 
 The above tutorial only scratches the surface for Corso's capabilities. We encourage you to dig deeper by:
 
