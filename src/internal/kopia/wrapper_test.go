@@ -955,7 +955,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 
 			assert.Equal(t, BackupStats{}, *s)
 			assert.Empty(t, d.Entries)
-			assert.Equal(t, path.UnknownService.String(), d.Tags[model.ServiceTag])
+			// unknownService resolves to an empty string here.
+			assert.Equal(t, "", d.Tags[model.ServiceTag])
 		})
 	}
 }
