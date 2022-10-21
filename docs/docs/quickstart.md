@@ -26,8 +26,8 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="unix" label="Linux/macOS">
 
    ```bash
-   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
 
@@ -35,8 +35,8 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="docker" label="Docker">
 
    ```bash
-   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
 

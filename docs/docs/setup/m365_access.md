@@ -8,49 +8,62 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 To perform backup and restore operations, Corso requires access to your [M365 tenant](concepts#m365-concepts)
-through an [Azure AD application](concepts#m365-concepts) with appropriate permissions.
+by creating an [Azure AD application](concepts#m365-concepts) with appropriate permissions.
+
+The following steps outline a simplified procedure for creating an Azure Ad application suitable for use with Corso.
+For more details, please refer to the
+[official documentation](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
+for adding an Azure AD Application and Service Principal using the Azure Portal.
 
 ## Create an Azure AD application
 
-For the official documentation for adding an Azure AD Application and Service Principal using the Azure Portal see
-[here](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal).
+Sign in into the [Azure Portal](https://portal.azure.com/) with a user that has sufficient permissions to create an
+AD application.
 
-The following steps outline a simplified procedure for creating an Azure Ad application suitable for use with Corso.
+### Register a new application
 
-1. **Create a new application**
+From the list of [Azure services](https://portal.azure.com/#allservices), select
+**Azure Active Directory &#8594; App Registrations &#8594; New Registration**
 
- Select **Azure Active Directory &#8594; App Registrations &#8594; New Registration**
- <img src="/img/m365app_create_new.png" className="guideImages"/>
+![Registering a new application](/img/m365app_create_new.png)
 
-1. **Configure basic settings**
+### Configure basic settings
 
-   * Give the application a name
-   * Select **Accounts in this organizational directory only**
-   * Skip the **Redirect URI** option
+Next, configure the following:
 
-   <br/><img src="/img/m365app_configure.png" className="guideImages"/>
+* Give the application a name
+* Select **Accounts in this organizational directory only**
+* Skip the **Redirect URI** option
+* Click **Register** at the bottom of the screen
 
-1. **Configure required permissions**
+![Configuring the application](/img/m365app_configure.png)
 
-   Select **API Permissions** from the app management panel.
+### Configure required permissions
 
-   <img src="/img/m365app_permissions.png" className="guideImages"/>
+Within the new application (`CorsoApp` in the below diagram), select **API Permissions &#8594; Add a permission** from
+the management panel.
 
-   Select the following permissions from **Microsoft API &#8594; Microsoft Graph &#8594; Application Permissions**:
+![Adding application permissions](/img/m365app_permissions.png)
 
-   <!-- vale Microsoft.Spacing = NO -->
-   | API / Permissions Name | Type | Description
-   |:--|:--|:--|
-   | Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
-   | Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
-   | Files.ReadWrite.All | Application | Read and write files in all site collections |
-   | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
-   | User.Read.All | Application | Read all users' full profiles |
-   <!-- vale Microsoft.Spacing = YES -->
+Select the following permissions from **Microsoft API &#8594; Microsoft Graph &#8594; Application Permissions** and
+then click **Add permissions**.
 
-1. **Grant admin consent**
+<!-- vale Microsoft.Spacing = NO -->
+| API / Permissions Name | Type | Description
+|:--|:--|:--|
+| Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
+| Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
+| Files.ReadWrite.All | Application | Read and write files in all site collections |
+| Mail.ReadWrite | Application | Read and write mail in all mailboxes |
+| User.Read.All | Application | Read all users' full profiles |
+<!-- vale Microsoft.Spacing = YES -->
 
-   <img src="/img/m365app_consent.png" className="guideImages"/>
+### Grant admin consent
+
+Finally, grant admin consent to this application. This step is required even if the user that created the application
+is an Microsoft 365 admin.
+
+![Granting administrator consent](/img/m365app_consent.png)
 
 ## Export application credentials
 
@@ -59,8 +72,11 @@ as environment variables.
 
 ### Tenant ID and client ID
 
-To extract the tenant and client ID, select Overview from the app management panel and export the corresponding
-environment variables.
+To view the tenant and client ID, select Overview from the app management panel.
+
+![Obtaining Tenant and Client IDs](/img/m365app_ids.png)
+
+Copy the client and tenant IDs and export them into the following environment variables.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -89,15 +105,17 @@ environment variables.
 </TabItem>
 </Tabs>
 
-<img src="/img/m365app_ids.png" className="guideImages"/>
-
 ### Azure client secret
 
-Lastly, you need to configure a client secret associated with the app using **Certificates & Secrets** from the app
+Finally, you need to obtain a client secret associated with the app using **Certificates & Secrets** from the app
 management panel.
 
-Click **New Client Secret** and follow the instructions to create a secret. After creating the secret, copy the secret
-value right away because it won't be available later and export it as an environment variable.
+Click **New Client Secret** under **Client secrets** and follow the instructions to create a secret.
+
+![Obtaining the Azure client secrete](/img/m365app_secret.png)
+
+After creating the secret, immediately copy the secret **Value** because it won't be available later. Export it as an
+environment variable.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -122,5 +140,3 @@ value right away because it won't be available later and export it as an environ
 
 </TabItem>
 </Tabs>
-
-<img src="/img/m365app_secret.png" className="guideImages"/>
