@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -10,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -65,6 +67,8 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 			return nil, err
 		}
 	}
+
+	observe.Progress(fmt.Sprintf("Discovered %d items to backup", c.numItems))
 
 	collections := make([]data.Collection, 0, len(c.collectionMap))
 	for _, coll := range c.collectionMap {
@@ -171,8 +175,6 @@ func includePath(ctx context.Context, scope selectors.OneDriveScope, folderPath 
 	if len(folderPathString) == 0 && scope.IsAny(selectors.OneDriveFolder) {
 		return true
 	}
-
-	logger.Ctx(ctx).Infof("Checking path %q", folderPathString)
 
 	return scope.Matches(selectors.OneDriveFolder, folderPathString)
 }

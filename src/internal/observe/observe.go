@@ -51,31 +51,161 @@ func Complete() {
 	SeedWriter(con, writer)
 }
 
-// ItemProgress tracks the display of an item by counting the bytes
+const (
+	ItemBackupMsg  = "Backing up item:"
+	ItemRestoreMsg = "Restoring item:"
+	ItemQueueMsg   = "Queuing items:"
+	// Use the longest message
+	dynamicBarMsgLength = len(ItemBackupMsg)
+)
+
+// ---------------------------------------------------------------------------
+// Progress for Known Quantities
+// ---------------------------------------------------------------------------
+
+// ItemProgress tracks the display of an item in a folder by counting the bytes
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
-func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadCloser, func()) {
+func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.ReadCloser, func()) {
 	if writer == nil || rc == nil || totalBytes == 0 {
 		return rc, func() {}
 	}
 
 	wg.Add(1)
 
-	bar := progress.AddBar(
+	bar := progress.New(
 		totalBytes,
-		mpb.BarFillerOnComplete(""),
+		mpb.NopStyle(),
 		mpb.BarRemoveOnComplete(),
 		mpb.PrependDecorators(
-			decor.OnComplete(decor.NewPercentage("%d", decor.WC{W: 4}), ""),
-			decor.OnComplete(decor.TotalKiloByte("%.1f", decor.WCSyncSpace), ""),
-		),
-		mpb.AppendDecorators(
-			decor.OnComplete(decor.Name(iname), ""),
+			decor.Name(header, decor.WCSyncSpaceR),
+			decor.Name(iname, decor.WCSyncSpaceR),
+			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
+			decor.NewPercentage("%d ", decor.WC{W: 4}),
 		),
 	)
 
 	return bar.ProxyReader(rc), waitAndCloseBar(bar)
 }
+
+// Progress is used to display progress with a message
+func Progress(message string) {
+	if writer == nil {
+		return
+	}
+
+	wg.Add(1)
+
+	bar := progress.New(
+		-1,
+		mpb.NopStyle(),
+		mpb.PrependDecorators(
+			decor.Name(message, decor.WC{W: len(message) + 1, C: decor.DidentRight}),
+		),
+	)
+
+	// Complete the bar immediately
+	bar.SetTotal(-1, true)
+
+	waitAndCloseBar(bar)()
+}
+
+// ProgressWithCompletion is used to display progress with a spinner
+// that switches to "done" when the completion channel is signalled
+func ProgressWithCompletion(message string) (chan<- struct{}, func()) {
+	completionCh := make(chan struct{}, 1)
+
+	if writer == nil {
+		return completionCh, func() {}
+	}
+
+	wg.Add(1)
+	frames := []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙"}
+	bar := progress.New(
+		-1,
+		mpb.SpinnerStyle(frames...).PositionLeft(),
+		mpb.PrependDecorators(
+			decor.Name(message),
+		),
+		mpb.BarFillerOnComplete("done"),
+	)
+
+	go func(ci <-chan struct{}) {
+		for {
+			select {
+			case <-con.Done():
+				bar.SetTotal(-1, true)
+			case <-ci:
+				// We don't care whether the channel was signalled or closed
+				// Use either one as an indication that the bar is done
+				bar.SetTotal(-1, true)
+			}
+		}
+	}(completionCh)
+
+	return completionCh, waitAndCloseBar(bar)
+}
+
+// ProgressWithCount tracks the display of a bar that tracks the completion
+// of the specified count.
+// Each write to the provided channel counts as a single increment.
+// The caller is expected to close the channel.
+func ProgressWithCount(header, message string, count int64) (chan<- struct{}, func()) {
+	progressCh := make(chan struct{})
+
+	if writer == nil {
+
+		go func(ci <-chan struct{}) {
+			for {
+				_, ok := <-ci
+				if !ok {
+					return
+				}
+			}
+		}(progressCh)
+
+		return progressCh, func() {}
+	}
+
+	wg.Add(1)
+
+	bar := progress.New(
+		count,
+		mpb.NopStyle(),
+		mpb.BarRemoveOnComplete(),
+		mpb.PrependDecorators(
+			decor.Name(header, decor.WCSyncSpaceR),
+			decor.Counters(0, " %d/%d "),
+			decor.Name(message),
+		),
+	)
+
+	ch := make(chan struct{})
+
+	go func(ci <-chan struct{}) {
+		for {
+			select {
+			case <-con.Done():
+				bar.Abort(true)
+				return
+
+			case _, ok := <-ci:
+				if !ok {
+					bar.Abort(true)
+					return
+				}
+
+				bar.Increment()
+			}
+		}
+	}(ch)
+
+	return ch, waitAndCloseBar(bar)
+}
+
+// ---------------------------------------------------------------------------
+// Progress for Unknown Quantities
+// ---------------------------------------------------------------------------
 
 var spinFrames []string
 

@@ -121,6 +121,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		return
 	}
 
+	folderProgress, colCloser := observe.ProgressWithCount(observe.ItemQueueMsg, "Folder: /"+parentPathString, int64(len(oc.driveItemIDs)))
+	defer colCloser()
+	defer close(folderProgress)
+
 	for _, itemID := range oc.driveItemIDs {
 		// Read the item
 		itemInfo, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
@@ -139,7 +143,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		byteCount += itemInfo.Size
 
 		itemInfo.ParentPath = parentPathString
-		progReader, closer := observe.ItemProgress(itemData, itemInfo.ItemName, itemInfo.Size)
+		progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
 
 		go closer()
 
@@ -148,6 +152,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			data: progReader,
 			info: itemInfo,
 		}
+		folderProgress <- struct{}{}
 	}
 
 	oc.reportAsCompleted(ctx, itemsRead, byteCount, errs)

@@ -44,6 +44,7 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	from := make([]byte, 100)
 	prog, closer := observe.ItemProgress(
 		io.NopCloser(bytes.NewReader(from)),
+		"folder",
 		"test",
 		100)
 	require.NotNil(t, prog)
@@ -144,4 +145,16 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 
 	// blocks, but should resolve due to the cancel
 	closer()
+}
+
+func (suite *ObserveProgressUnitSuite) TestObserveMessage() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder, false)
+
+	observe.Progress("Test Message")
+	observe.Complete()
+	require.NotEmpty(suite.T(), recorder.String())
 }
