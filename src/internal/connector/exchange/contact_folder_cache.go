@@ -39,7 +39,9 @@ func (cfc *contactFolderCache) populateContactRoot(
 		ContactFoldersById(directoryID).
 		Get(ctx, opts)
 	if err != nil {
-		return errors.Wrapf(err, "fetching root contact folder")
+		return errors.Wrapf(
+			err,
+			"fetching root contact folder: "+support.ConnectorStackErrorTrace(err))
 	}
 
 	idPtr := f.GetId()
@@ -92,14 +94,14 @@ func (cfc *contactFolderCache) Populate(
 	iter, err := msgraphgocore.NewPageIterator(query, cfc.gs.Adapter(),
 		models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return err
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	cb := IterativeCollectContactContainers(containers,
 		"",
 		errUpdater)
 	if err := iter.Iterate(ctx, cb); err != nil {
-		return err
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	if errs != nil {
@@ -141,7 +143,7 @@ func (cfc *contactFolderCache) IDToPath(
 ) (*path.Builder, error) {
 	c, ok := cfc.cache[folderID]
 	if !ok {
-		return nil, errors.Errorf("folder %s not cached", folderID)
+		return nil, errors.Errorf("contact folder %s not cached", folderID)
 	}
 
 	p := c.Path()
