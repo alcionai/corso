@@ -4,13 +4,14 @@ description: "Configure backup repository"
 
 # Repositories
 
+import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import TOCInline from '@theme/TOCInline';
+import {Version} from '@site/src/corsoEnv';
 
 A Corso [repository](concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are
 supported on the following object storage systems:
-
-import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} maxHeadingLevel={2}/><br/>
 
@@ -74,7 +75,7 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
   ```powershell
   # Initialize the Corso Repository
   $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
-  .\corso.exe repo init s3 --bucket corso-test
+  .\corso repo init s3 --bucket corso-test
   ```
 
 </TabItem>
@@ -83,19 +84,19 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
   ```bash
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  corso repo init s3 --bucket corso-test
+  ./corso repo init s3 --bucket corso-test
   ```
 
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # Initialize the Corso Repository
-  export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    repo init s3 --bucket corso-test
-  ```
+<CodeBlock language="bash">{
+`# Initialize the Corso Repository
+export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  repo init s3 --bucket corso-test`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
@@ -110,7 +111,7 @@ If a repository already exists, you can connect to it with `corso repo connect s
 
   ```powershell
   # Connect to the Corso Repository
-  .\corso.exe repo connect s3 --bucket corso-test
+  .\corso repo connect s3 --bucket corso-test
   ```
 
 </TabItem>
@@ -118,18 +119,18 @@ If a repository already exists, you can connect to it with `corso repo connect s
 
   ```bash
   # Connect to the Corso Repository
-  corso repo connect s3 --bucket corso-test
+  ./corso repo connect s3 --bucket corso-test
   ```
 
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # Connect to the Corso Repository
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    repo connect s3 --bucket corso-test
-  ```
+<CodeBlock language="bash">{
+`# Connect to the Corso Repository
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  repo connect s3 --bucket corso-test`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>

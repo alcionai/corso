@@ -9,7 +9,9 @@
             "img",
             "div",
             "Tabs",
-            "TabItem"
+            "TabItem",
+            "CodeBlock",
+            "DownloadBinaries"
         ]
     },
 }
