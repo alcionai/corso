@@ -1,8 +1,10 @@
 # Quick start
 
+import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
+import {Version} from '@site/src/corsoEnv';
 
 This quick start guide runs through the steps you can follow to create your first Microsoft 365 backup and restore:
 
@@ -76,25 +78,31 @@ Corso binary or container.
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # Create an environment variables file
-  mkdir -p $HOME/.corso
-  cat <<EOF > $HOME/.corso/corso.env
-  CORSO_PASSPHRASE
-  AZURE_CLIENT_ID
-  AZURE_TENANT_ID
-  AZURE_CLIENT_SECRET
-  AWS_ACCESS_KEY_ID
-  AWS_SECRET_ACCESS_KEY
-  AWS_SESSION_TOKEN
-  EOF
+<!-- vale Vale.Spelling = NO -->
+<!-- markdownlint-disable MD022 MD025 MD033 -->
 
-  # Initialize the Corso Repository
-  export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    repo init s3 --bucket corso-test
-  ```
+<CodeBlock language="bash">{
+`# Create an environment variables file
+mkdir -p $HOME/.corso
+cat <<EOF > $HOME/.corso/corso.env
+CORSO_PASSPHRASE
+AZURE_CLIENT_ID
+AZURE_TENANT_ID
+AZURE_CLIENT_SECRET
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_SESSION_TOKEN
+EOF
+  
+# Initialize the Corso Repository
+export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  repo init s3 --bucket corso-test`
+}</CodeBlock>
+
+<!-- markdownlint-enable MD022 MD025 MD033 -->
+<!-- vale Vale.Spelling = YES -->
 
 </TabItem>
 </Tabs>
@@ -123,12 +131,12 @@ you initialized the Corso repository, you might need to [connect to it again](/s
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # Backup your inbox
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    backup create exchange --user <your exchange email address>
-  ```
+<CodeBlock language="bash">{
+`# Backup your inbox
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  backup create exchange --user <your exchange email address>`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
@@ -169,12 +177,12 @@ You can see all Exchange backups available with the following command:
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # List all Exchange backups
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    backup list exchange
-  ```
+<CodeBlock language="bash">{
+`# List all Exchange backups
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  backup list exchange`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
@@ -207,12 +215,12 @@ Next, select one of the available backups and list all backed up emails. See
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # List emails in a selected backup
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    backup details exchange --backup <id of your selected backup> --email "*" | head
-  ```
+<CodeBlock language="bash">{
+`# List emails in a selected backup
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  backup details exchange --backup <id of your selected backup> --email "*" | head`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
@@ -248,12 +256,12 @@ When you are ready to restore the selected email, use the following command.
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # Restore a selected email
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    restore exchange --backup <id of your selected backup> --email <email reference>
-  ```
+<CodeBlock language="bash">{
+`# Restore a selected email
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  restore exchange --backup <id of your selected backup> --email <email reference>`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
