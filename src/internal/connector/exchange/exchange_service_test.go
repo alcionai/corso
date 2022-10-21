@@ -322,36 +322,36 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
-func (suite *ExchangeServiceSuite) TestRestoreEvent() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+// func (suite *ExchangeServiceSuite) TestRestoreEvent() {
+// 	ctx, flush := tester.NewContext()
+// 	defer flush()
 
-	var (
-		t      = suite.T()
-		userID = tester.M365UserID(t)
-		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
-	)
+// 	var (
+// 		t      = suite.T()
+// 		userID = tester.M365UserID(t)
+// 		name   = tester.DefaultTestRestoreDestination().ContainerName
+// 	)
 
-	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
-	require.NoError(t, err)
+// 	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
+// 	require.NoError(t, err)
 
-	calendarID := *calendar.GetId()
+// 	calendarID := *calendar.GetId()
 
-	defer func() {
-		// Removes calendar containing events created during the test
-		err = DeleteCalendar(ctx, suite.es, userID, calendarID)
-		assert.NoError(t, err)
-	}()
+// 	defer func() {
+// 		// Removes calendar containing events created during the test
+// 		err = DeleteCalendar(ctx, suite.es, userID, calendarID)
+// 		assert.NoError(t, err)
+// 	}()
 
-	info, err := RestoreExchangeEvent(ctx,
-		mockconnector.GetMockEventWithAttendeesBytes(name),
-		suite.es,
-		control.Copy,
-		calendarID,
-		userID)
-	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
-	assert.NotNil(t, info, "event item info")
-}
+// 	info, err := RestoreExchangeEvent(ctx,
+// 		mockconnector.GetMockEventWithAttendeesBytes(name),
+// 		suite.es,
+// 		control.Copy,
+// 		calendarID,
+// 		userID)
+// 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+// 	assert.NotNil(t, info, "event item info")
+// }
 
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
@@ -431,19 +431,19 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 				return *folder.GetId()
 			},
 		},
-		{
-			name:        "Test Events",
-			bytes:       mockconnector.GetDefaultMockEventBytes("Restored Event Object"),
-			category:    path.EventsCategory,
-			cleanupFunc: DeleteCalendar,
-			destination: func(ctx context.Context) string {
-				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
-				calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
-				require.NoError(t, err)
+		// {
+		// 	name:        "Test Events",
+		// 	bytes:       mockconnector.GetDefaultMockEventBytes("Restored Event Object"),
+		// 	category:    path.EventsCategory,
+		// 	cleanupFunc: DeleteCalendar,
+		// 	destination: func(ctx context.Context) string {
+		// 		calendarName := tester.DefaultTestRestoreDestination().ContainerName
+		// 		calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
+		// 		require.NoError(t, err)
 
-				return *calendar.GetId()
-			},
-		},
+		// 		return *calendar.GetId()
+		// 	},
+		// },
 	}
 
 	for _, test := range tests {
