@@ -42,7 +42,7 @@ const sidebars = {
       type: 'category',
       label: 'Developer guide',
       items: [
-        'developers/architecture', 'developers/build', 'developers/testing', 'developers/linters'
+        'developers/build', 'developers/testing', 'developers/linters'
       ],
     },
 
