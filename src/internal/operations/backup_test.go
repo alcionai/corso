@@ -269,7 +269,7 @@ func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
 
 	t := suite.T()
 
-	m365UserID := tester.M365UserID(t)
+	m365UserID := tester.SecondaryM365UserID(t)
 	acct := tester.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
