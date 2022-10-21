@@ -33,6 +33,10 @@ const config = {
     require.resolve('docusaurus-plugin-image-zoom')
   ],
 
+  customFields: {
+    corsoVersion: `${process.env.CORSO_VERSION}`,
+  },
+
   presets: [
     [
       'classic',
