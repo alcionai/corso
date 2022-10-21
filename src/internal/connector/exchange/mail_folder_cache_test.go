@@ -333,6 +333,7 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	suite.T().Skipf("Test depends on hardcoded folder names. Skipping till that is fixed")
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
