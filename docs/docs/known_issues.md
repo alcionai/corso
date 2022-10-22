@@ -1,4 +1,4 @@
-# Known Issues
+# Known issues
 
 Below is a list of known Corso issues and limitations:
 
