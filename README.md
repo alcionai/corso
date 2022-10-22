@@ -20,16 +20,6 @@ services, possibly beyond M365, will expand based on the interest and needs of t
 
 See the [Corso Documentation](https://docs.corsobackup.io) for more information.
 
-# Corso container images
-
-Corso container images are convenienty hosted on [ghrc.io](https://github.com/alcionai/corso/pkgs/container/corso).
-
-For a sepcific release, use the following command:
-
-```sh
-docker pull ghcr.io/alcionai/corso:<release tag>
-```
-
 # Building Corso
 
 To learn more about working with the project source core and building Corso, see the
