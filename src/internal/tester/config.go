@@ -2,7 +2,7 @@ package tester
 
 import (
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -59,16 +59,16 @@ func NewTestViper() (*viper.Viper, error) {
 	}
 
 	// Or use a custom file location
-	ext := path.Ext(configFilePath)
+	ext := filepath.Ext(configFilePath)
 	if len(ext) == 0 {
 		return nil, errors.New("corso_test requires an extension")
 	}
 
 	vpr.SetConfigFile(configFilePath)
-	vpr.AddConfigPath(path.Dir(configFilePath))
+	vpr.AddConfigPath(filepath.Dir(configFilePath))
 	vpr.SetConfigType(ext[1:])
 
-	fileName := path.Base(configFilePath)
+	fileName := filepath.Base(configFilePath)
 	fileName = strings.TrimSuffix(fileName, ext)
 	vpr.SetConfigName(fileName)
 
@@ -108,14 +108,16 @@ func readTestConfig() (map[string]string, error) {
 		TestCfgUserID,
 		os.Getenv(EnvCorsoM365TestUserID),
 		vpr.GetString(TestCfgUserID),
-		"lidiah@8qzvrj.onmicrosoft.com",
+		"lynner@8qzvrj.onmicrosoft.com",
+		//"lidiah@8qzvrj.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
 		TestCfgSecondaryUserID,
 		os.Getenv(EnvCorsoSecondaryM365TestUserID),
 		vpr.GetString(TestCfgSecondaryUserID),
-		"lynner@8qzvrj.onmicrosoft.com",
+		"lidiah@8qzvrj.onmicrosoft.com",
+		//"lynner@8qzvrj.onmicrosoft.com",
 	)
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
@@ -139,19 +141,19 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 		return nil, "", err
 	}
 
-	fName := path.Base(os.Getenv(EnvCorsoTestConfigFilePath))
+	fName := filepath.Base(os.Getenv(EnvCorsoTestConfigFilePath))
 	if len(fName) == 0 || fName == "." || fName == "/" {
 		fName = ".corso_test.toml"
 	}
 
 	tDir := t.TempDir()
-	tDirFp := path.Join(tDir, fName)
+	tDirFp := filepath.Join(tDir, fName)
 
 	if _, err := os.Create(tDirFp); err != nil {
 		return nil, "", err
 	}
 
-	ext := path.Ext(fName)
+	ext := filepath.Ext(fName)
 	vpr := viper.New()
 	vpr.SetConfigFile(tDirFp)
 	vpr.AddConfigPath(tDir)

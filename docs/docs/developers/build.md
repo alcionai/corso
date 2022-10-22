@@ -61,10 +61,10 @@ In addition, you can optionally pass the tag that you would like to
 apply for the image using `--tag` option.
 
 For example, you can use the following command to create a `arm64`
-image with the tag `gcr.io/alcionai/corso:latest`, you can run:
+image with the tag `ghcr.io/alcionai/corso:latest`, you can run:
 
 ```bash
-./build/build.sh image --platforms linux/arm64 --tag gcr.io/alcionai/corso:latest
+./build/build.sh image --platforms linux/arm64 --tag ghcr.io/alcionai/corso:latest
 ```
 
 :::info

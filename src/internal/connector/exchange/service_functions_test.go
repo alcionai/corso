@@ -301,6 +301,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 	t := suite.T()
 	user := tester.M365UserID(t)
 	a := tester.NewM365Account(t)
+	service := loadService(t)
 	credentials, err := a.M365Config()
 	require.NoError(t, err)
 
@@ -314,39 +315,27 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 			contains:      "Birthdays",
 			expectedCount: assert.Greater,
 			getScope: func() selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{user}, selectors.Any()))
-
-				scopes := sel.Scopes()
-				assert.Equal(t, len(scopes), 1)
-
-				return scopes[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{user}, selectors.Any())[0]
 			},
 		}, {
 			name:          "Default Calendar",
 			contains:      DefaultCalendar,
 			expectedCount: assert.Equal,
 			getScope: func() selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{user}, []string{DefaultCalendar}))
-
-				scopes := sel.Scopes()
-				assert.Equal(t, len(scopes), 1)
-
-				return scopes[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{user}, []string{DefaultCalendar})[0]
 			},
 		}, {
 			name:          "Default Mail",
 			contains:      DefaultMailFolder,
 			expectedCount: assert.Equal,
 			getScope: func() selectors.ExchangeScope {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{user}, []string{DefaultMailFolder}))
-
-				scopes := sel.Scopes()
-				assert.Equal(t, len(scopes), 1)
-
-				return scopes[0]
+				return selectors.
+					NewExchangeBackup().
+					MailFolders([]string{user}, []string{DefaultMailFolder})[0]
 			},
 		},
 	}
@@ -359,16 +348,14 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 				FailFast:    failFast,
 				Credentials: credentials,
 			}
-			collections := make(map[string]*Collection)
-			err := CollectFolders(ctx, qp, collections, nil, nil)
+			collections, err := GetContainers(ctx, qp, service)
 			assert.NoError(t, err)
 			test.expectedCount(t, len(collections), containerCount)
 
 			keys := make([]string, 0, len(collections))
-			for k := range collections {
-				keys = append(keys, k)
+			for _, k := range collections {
+				keys = append(keys, *k.GetDisplayName())
 			}
-			t.Logf("Collections Made: %v\n", keys)
 			assert.Contains(t, keys, test.contains)
 		})
 	}

@@ -133,7 +133,7 @@ func (suite *MailFolderCacheUnitSuite) TestCheckRequiredValues() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.check(t, checkRequiredValues(test.c))
+			test.check(t, graph.CheckRequiredValues(test.c))
 		})
 	}
 }
@@ -332,6 +332,8 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 }
 
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
+	suite.T().Skipf("Test depends on hardcoded folder names. Skipping till that is fixed")
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -367,6 +369,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 
 			p, err := mfc.IDToPath(ctx, testFolderID)
 			require.NoError(t, err)
+			t.Logf("Path: %s\n", p.String())
 
 			expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
 			assert.Equal(t, expectedPath, p.String())

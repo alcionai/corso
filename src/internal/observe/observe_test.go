@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,7 @@ func TestObserveProgressUnitSuite(t *testing.T) {
 	suite.Run(t, new(ObserveProgressUnitSuite))
 }
 
-func (suite *ObserveProgressUnitSuite) TestDoesThings() {
+func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -73,4 +74,74 @@ func (suite *ObserveProgressUnitSuite) TestDoesThings() {
 	// assert.Contains(t, recorded, "50%")
 	// assert.Contains(t, recorded, "75%")
 	assert.Equal(t, 4, i)
+}
+
+func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	t := suite.T()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		observe.Complete()
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil)
+	}()
+
+	progCh, closer := observe.CollectionProgress("test", "testcat", "testertons")
+	require.NotNil(t, progCh)
+	require.NotNil(t, closer)
+
+	defer close(progCh)
+
+	for i := 0; i < 50; i++ {
+		progCh <- struct{}{}
+	}
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		cancel()
+	}()
+
+	// blocks, but should resolve due to the ctx cancel
+	closer()
+}
+
+func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelClose() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		observe.Complete()
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil)
+	}()
+
+	progCh, closer := observe.CollectionProgress("test", "testcat", "testertons")
+	require.NotNil(t, progCh)
+	require.NotNil(t, closer)
+
+	for i := 0; i < 50; i++ {
+		progCh <- struct{}{}
+	}
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		close(progCh)
+	}()
+
+	// blocks, but should resolve due to the cancel
+	closer()
 }
