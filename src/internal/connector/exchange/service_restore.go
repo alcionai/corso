@@ -65,7 +65,7 @@ func RestoreExchangeContact(
 ) (*details.ExchangeInfo, error) {
 	contact, err := support.CreateContactFromBytes(bits)
 	if err != nil {
-		return nil, errors.Wrap(err, "failure to create contact from bytes: RestoreExchangeContact")
+		return nil, errors.Wrap(err, "creating contact from bytes: RestoreExchangeContact")
 	}
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
@@ -74,7 +74,7 @@ func RestoreExchangeContact(
 
 		return nil, errors.Wrap(
 			err,
-			"failure to create Contact during RestoreExchangeContact: "+name+" "+
+			"uploading Contact during RestoreExchangeContact: "+name+" "+
 				support.ConnectorStackErrorTrace(err),
 		)
 	}
@@ -101,7 +101,7 @@ func RestoreExchangeEvent(
 ) (*details.ExchangeInfo, error) {
 	event, err := support.CreateEventFromBytes(bits)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating event from bytes: RestoreExchangeEvent")
 	}
 
 	transformedEvent := support.ToEventSimplified(event)
@@ -110,7 +110,7 @@ func RestoreExchangeEvent(
 	if err != nil {
 		return nil, errors.Wrap(err,
 			fmt.Sprintf(
-				"failure to event creation failure during RestoreExchangeEvent: %s",
+				"uploading event during RestoreExchangeEvent: %s",
 				support.ConnectorStackErrorTrace(err)),
 		)
 	}
@@ -138,7 +138,7 @@ func RestoreMailMessage(
 	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating email from bytes: RestoreMailMessage")
 	}
 	// Sets fields from original message from storage
 	clone := support.ToMessage(originalMessage)
@@ -226,7 +226,9 @@ func SendMailToBackStore(
 		for _, attachment := range attached {
 			err := uploadAttachment(ctx, service, user, destination, id, attachment)
 			if err != nil {
-				errs = support.WrapAndAppend(fmt.Sprintf("uploading attachment for message %s", id),
+				errs = support.WrapAndAppend(
+					fmt.Sprintf("uploading attachment for message %s: %s",
+						id, support.ConnectorStackErrorTrace(err)),
 					err,
 					errs,
 				)

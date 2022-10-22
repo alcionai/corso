@@ -79,6 +79,44 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	suite.Greater(len(newConnector.Users), 0)
 }
 
+// TestInvalidUserForDataCollections ensures verification process for users
+func (suite *GraphConnectorIntegrationSuite) TestInvalidUserForDataCollections() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	invalidUser := "foo@example.com"
+	connector := loadConnector(ctx, suite.T())
+	tests := []struct {
+		name        string
+		getSelector func(t *testing.T) selectors.Selector
+	}{
+		{
+			name: "invalid exchange backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{invalidUser}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "Invalid onedrive backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Include(sel.Folders([]string{invalidUser}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections, err := connector.DataCollections(ctx, test.getSelector(t))
+			assert.Error(t, err)
+			assert.Empty(t, collections)
+		})
+	}
+}
+
 // TestExchangeDataCollection verifies interface between operation and
 // GraphConnector remains stable to receive a non-zero amount of Collections
 // for the Exchange Package. Enabled exchange applications:
