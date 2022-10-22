@@ -105,10 +105,6 @@ const config = {
             title: 'Community',
             items: [
               {
-                label: 'Discussions',
-                href: 'https://github.com/alcionai/corso/discussions',
-              },
-              {
                 label: 'Discord',
                 href: 'https://discord.gg/63DTTSnuhT',
               },
