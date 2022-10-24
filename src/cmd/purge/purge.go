@@ -131,6 +131,7 @@ func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := runPurgeForEachUser(ctx, gc, t, purgeMailFolders); err != nil {
+		logger.Ctx(ctx).Error(err)
 		return Only(ctx, errors.Wrap(ErrPurging, "mail folders"))
 	}
 
@@ -150,6 +151,7 @@ func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := runPurgeForEachUser(ctx, gc, t, purgeCalendarFolders); err != nil {
+		logger.Ctx(ctx).Error(err)
 		return Only(ctx, errors.Wrap(ErrPurging, "event calendars"))
 	}
 
@@ -169,6 +171,7 @@ func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := runPurgeForEachUser(ctx, gc, t, purgeContactFolders); err != nil {
+		logger.Ctx(ctx).Error(err)
 		return Only(ctx, errors.Wrap(ErrPurging, "contact folders"))
 	}
 
@@ -188,6 +191,7 @@ func handleOneDriveFolderPurge(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := runPurgeForEachUser(ctx, gc, t, purgeOneDriveFolders); err != nil {
+		logger.Ctx(ctx).Error(err)
 		return Only(ctx, errors.Wrap(ErrPurging, "OneDrive folders"))
 	}
 
@@ -384,7 +388,7 @@ func purgeFolders(
 	getter func(graph.Service, string, string) ([]purgable, error),
 	deleter func(graph.Service, string, purgable) error,
 ) error {
-	Infof(ctx, "\nContainer: %s", data)
+	Infof(ctx, "Container: %s", data)
 
 	// get them folders
 	fs, err := getter(gc.Service(), uid, prefix)
@@ -417,7 +421,7 @@ func purgeFolders(
 			continue
 		}
 
-		Infof(ctx, "Deleting [%s]", displayName)
+		Infof(ctx, "∙ Deleting [%s]", displayName)
 
 		err = deleter(gc.Service(), uid, fld)
 		if err != nil {
