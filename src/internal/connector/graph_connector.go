@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -297,6 +298,12 @@ func (gc *GraphConnector) createCollections(
 			Credentials: gc.credentials,
 		}
 
+		itemCategory := graph.ScopeToPathCategory(qp.Scope)
+
+		foldersComplete, closer := observe.ProgressWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
+		defer closer()
+		defer close(foldersComplete)
+
 		resolver, err := exchange.PopulateExchangeContainerResolver(
 			ctx,
 			qp,
@@ -316,6 +323,8 @@ func (gc *GraphConnector) createCollections(
 		if err != nil {
 			return nil, errors.Wrap(err, "filling collections")
 		}
+
+		foldersComplete <- struct{}{}
 
 		for _, collection := range collections {
 			gc.incrementAwaitingMessages()
