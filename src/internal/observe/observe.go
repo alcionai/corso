@@ -27,6 +27,8 @@ var (
 )
 
 func init() {
+	cfg = &config{}
+
 	makeSpinFrames(progressBarWidth)
 }
 
@@ -82,10 +84,8 @@ func SeedWriter(ctx context.Context, w io.Writer, hide bool) {
 		con = context.Background()
 	}
 
-	if cfg == nil {
-		cfg = &config{
-			doNotDisplay: hide,
-		}
+	cfg = &config{
+		doNotDisplay: hide,
 	}
 
 	progress = mpb.NewWithContext(
@@ -103,7 +103,7 @@ func Complete() {
 		progress.Wait()
 	}
 
-	SeedWriter(con, writer, false)
+	SeedWriter(con, writer, cfg.doNotDisplay)
 }
 
 // ---------------------------------------------------------------------------
