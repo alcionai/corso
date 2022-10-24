@@ -45,12 +45,12 @@ while [ "$#" -gt 0 ]; do
 done
 
 usage() {
-	echo "Usage: $(basename $0) <binary|image> [--platforms ...] [--tag ...]"
+	echo "Usage: $(basename $0) binary | image [--platforms ...] [--tag ...]"
 	echo ""
 	echo "OPTIONS"
-	echo " -p|--platforms  Platforms to build for (default: $PLATFORMS)"
+	echo " -p | --platforms  Platforms to build for (default: $PLATFORMS)"
 	echo "                 Specify multiple platforms using ',' (eg: linux/amd64,darwin/arm)"
-	echo " -t|--tag        Tag for container image (default: $TAG)"
+	echo " -t | --tag        Tag for container image (default: $TAG)"
 }
 
 if [ "$MODE" == "binary" ]; then
