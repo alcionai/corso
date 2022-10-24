@@ -31,8 +31,8 @@ Release date: 2022-10-24
   * Non-destructive restore to a new folder/calendar in the same account
 
 * Backup storage
-  * Zero knowledge encrypted backups with user conrolled passphrase
+  * Zero knowledge encrypted backups with user controlled passphrase
   * Initialize and connect to an S3-compliant backup repository
 
-* Miscelaneous
+* Miscellaneous
   * Optional usage statistics reporting
