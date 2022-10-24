@@ -122,7 +122,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	complete, closer := observe.ProgressWithCompletion("Connecting to M365:")
+	complete, closer := observe.MessageWithCompletion("Connecting to M365:")
 	defer closer()
 	defer close(complete)
 
@@ -136,7 +136,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}
 	complete <- struct{}{}
 
-	discoverCh, closer := observe.ProgressWithCompletion("Discovering items to backup:")
+	discoverCh, closer := observe.MessageWithCompletion("Discovering items to backup:")
 	defer closer()
 	defer close(discoverCh)
 
@@ -152,7 +152,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
 
-	backupCh, closer := observe.ProgressWithCompletion("Backing up data:")
+	backupCh, closer := observe.MessageWithCompletion("Backing up data:")
 	defer closer()
 	defer close(backupCh)
 

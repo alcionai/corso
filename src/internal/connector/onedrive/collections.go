@@ -68,7 +68,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		}
 	}
 
-	observe.Progress(fmt.Sprintf("Discovered %d items to backup", c.numItems))
+	observe.Message(fmt.Sprintf("Discovered %d items to backup", c.numItems))
 
 	collections := make([]data.Collection, 0, len(c.collectionMap))
 	for _, coll := range c.collectionMap {

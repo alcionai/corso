@@ -142,9 +142,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
-	observe.Progress(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	observe.Message(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
-	kopiaComplete, closer := observe.ProgressWithCompletion("Enumerating items in repository:")
+	kopiaComplete, closer := observe.MessageWithCompletion("Enumerating items in repository:")
 	defer closer()
 	defer close(kopiaComplete)
 
@@ -160,7 +160,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
-	gcComplete, closer := observe.ProgressWithCompletion("Connecting to M365:")
+	gcComplete, closer := observe.MessageWithCompletion("Connecting to M365:")
 	defer closer()
 	defer close(gcComplete)
 
@@ -174,7 +174,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}
 	gcComplete <- struct{}{}
 
-	restoreComplete, closer := observe.ProgressWithCompletion("Restoring data:")
+	restoreComplete, closer := observe.MessageWithCompletion("Restoring data:")
 	defer closer()
 	defer close(restoreComplete)
 

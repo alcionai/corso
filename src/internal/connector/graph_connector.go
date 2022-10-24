@@ -300,7 +300,7 @@ func (gc *GraphConnector) createCollections(
 
 		itemCategory := graph.ScopeToPathCategory(qp.Scope)
 
-		foldersComplete, closer := observe.ProgressWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
+		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
 		defer closer()
 		defer close(foldersComplete)
 
