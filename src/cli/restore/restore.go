@@ -11,10 +11,11 @@ var restoreCommands = []func(parent *cobra.Command) *cobra.Command{
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
 func AddCommands(parent *cobra.Command) {
-	parent.AddCommand(restoreCmd)
+	restoreC := restoreCmd()
+	parent.AddCommand(restoreC)
 
 	for _, addRestoreTo := range restoreCommands {
-		addRestoreTo(restoreCmd)
+		addRestoreTo(restoreC)
 	}
 }
 
@@ -22,12 +23,14 @@ const restoreCommand = "restore"
 
 // The restore category of commands.
 // `corso restore [<subcommand>] [<flag>...]`
-var restoreCmd = &cobra.Command{
-	Use:   restoreCommand,
-	Short: "Restore your service data",
-	Long:  `Restore the data stored in one of your M365 services.`,
-	RunE:  handleRestoreCmd,
-	Args:  cobra.NoArgs,
+func restoreCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   restoreCommand,
+		Short: "Restore your service data",
+		Long:  `Restore the data stored in one of your M365 services.`,
+		RunE:  handleRestoreCmd,
+		Args:  cobra.NoArgs,
+	}
 }
 
 // Handler for flat calls to `corso restore`.
