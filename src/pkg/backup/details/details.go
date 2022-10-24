@@ -184,7 +184,7 @@ func (de DetailsEntry) MinimumPrintable() any {
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
 func (de DetailsEntry) Headers() []string {
-	hs := []string{"Reference"}
+	hs := []string{"ID"}
 
 	if de.ItemInfo.Folder != nil {
 		hs = append(hs, de.ItemInfo.Folder.Headers()...)

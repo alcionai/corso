@@ -33,6 +33,10 @@ const config = {
     require.resolve('docusaurus-plugin-image-zoom')
   ],
 
+  customFields: {
+    corsoVersion: `${process.env.CORSO_VERSION}`,
+  },
+
   presets: [
     [
       'classic',
@@ -100,10 +104,6 @@ const config = {
           {
             title: 'Community',
             items: [
-              {
-                label: 'Discussions',
-                href: 'https://github.com/alcionai/corso/discussions',
-              },
               {
                 label: 'Discord',
                 href: 'https://discord.gg/63DTTSnuhT',

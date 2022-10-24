@@ -25,7 +25,7 @@ linters-settings:
       # Don't allow creating contexts without logging in tests. Use an ignore
       # lower down to ensure usages of this outside of tests aren't reported.
       - 'context\.(Background|TODO)(# tests should use tester\.NewContext )?'
-      # Don't allow use of pathas it hardcodes separator to `/`.
+      # Don't allow use of path as it hardcodes separator to `/`.
       # Use filepath instead.
       - '\bpath\.(Ext|Base|Dir|Join)'
   lll:
