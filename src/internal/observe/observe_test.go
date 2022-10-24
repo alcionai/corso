@@ -32,13 +32,13 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	t := suite.T()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		observe.Complete()
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil)
+		observe.SeedWriter(context.Background(), nil, false)
 	}()
 
 	from := make([]byte, 100)
@@ -85,13 +85,13 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 	t := suite.T()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		observe.Complete()
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil)
+		observe.SeedWriter(context.Background(), nil, false)
 	}()
 
 	progCh, closer := observe.CollectionProgress("test", "testcat", "testertons")
@@ -120,13 +120,13 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	t := suite.T()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		observe.Complete()
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil)
+		observe.SeedWriter(context.Background(), nil, false)
 	}()
 
 	progCh, closer := observe.CollectionProgress("test", "testcat", "testertons")
