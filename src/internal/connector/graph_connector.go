@@ -300,7 +300,7 @@ func (gc *GraphConnector) createCollections(
 
 		itemCategory := graph.ScopeToPathCategory(qp.Scope)
 
-		foldersComplete, closer := observe.ProgressWithCompletion(fmt.Sprintf("Discovering %s folders for user %s:", itemCategory.String(), user))
+		foldersComplete, closer := observe.ProgressWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
 		defer closer()
 		defer close(foldersComplete)
 
@@ -313,12 +313,6 @@ func (gc *GraphConnector) createCollections(
 			return nil, errors.Wrap(err, "getting folder cache")
 		}
 
-		foldersComplete <- struct{}{}
-
-		itemsComplete, closer := observe.ProgressWithCompletion(fmt.Sprintf("Gathering %s for user %s:", itemCategory.String(), user))
-		defer closer()
-		defer close(itemsComplete)
-
 		err = exchange.FilterContainersAndFillCollections(
 			ctx,
 			qp,
@@ -330,7 +324,7 @@ func (gc *GraphConnector) createCollections(
 			return nil, errors.Wrap(err, "filling collections")
 		}
 
-		itemsComplete <- struct{}{}
+		foldersComplete <- struct{}{}
 
 		for _, collection := range collections {
 			gc.incrementAwaitingMessages()
