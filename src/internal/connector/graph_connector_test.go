@@ -934,6 +934,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
+								bodyText+" 1.",
 							),
 							lookupKey: subjectText + "-1",
 						},
@@ -947,6 +948,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
 							name: "someencodeditemID2",
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-2",
+								bodyText+" 2.",
 								bodyText+" 2.",
 							),
 							lookupKey: subjectText + "-2",
