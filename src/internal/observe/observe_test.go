@@ -153,11 +153,17 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil, false)
+	}()
 
 	message := "Test Message"
 
-	observe.Progress(message)
+	observe.Message(message)
 	observe.Complete()
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
@@ -168,11 +174,17 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil, false)
+	}()
 
 	message := "Test Message"
 
-	ch, closer := observe.ProgressWithCompletion(message)
+	ch, closer := observe.MessageWithCompletion(message)
 
 	// Trigger completion
 	ch <- struct{}{}
@@ -192,11 +204,17 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil, false)
+	}()
 
 	message := "Test Message"
 
-	ch, closer := observe.ProgressWithCompletion(message)
+	ch, closer := observe.MessageWithCompletion(message)
 
 	// Close channel without completing
 	close(ch)
@@ -218,11 +236,17 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 	ctx, cancel := context.WithCancel(ctx)
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil, false)
+	}()
 
 	message := "Test Message"
 
-	_, closer := observe.ProgressWithCompletion(message)
+	_, closer := observe.MessageWithCompletion(message)
 
 	// cancel context
 	cancel()
@@ -241,7 +265,13 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil, false)
+	}()
 
 	header := "Header"
 	message := "Test Message"
@@ -268,7 +298,13 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCountChannelClosed
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder)
+	observe.SeedWriter(ctx, &recorder, false)
+
+	defer func() {
+		// don't cross-contaminate other tests.
+		//nolint:forbidigo
+		observe.SeedWriter(context.Background(), nil, false)
+	}()
 
 	header := "Header"
 	message := "Test Message"
