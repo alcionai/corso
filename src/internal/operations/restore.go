@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -105,6 +107,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	)
 
 	defer func() {
+		// wait for the progress display to clean up
+		observe.Complete()
+
 		err = op.persistResults(ctx, startTime, &opStats)
 		if err != nil {
 			return
@@ -137,7 +142,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
-	logger.Ctx(ctx).Infof("Discovered %d items in backup %s to restore", len(paths), op.BackupID)
+	observe.Progress(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+
+	kopiaComplete, closer := observe.ProgressWithCompletion("Enumerating items in repository:")
+	defer closer()
+	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
@@ -146,9 +155,14 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+	kopiaComplete <- struct{}{}
 
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
+
+	gcComplete, closer := observe.ProgressWithCompletion("Connecting to M365:")
+	defer closer()
+	defer close(gcComplete)
 
 	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(ctx, op.account)
@@ -158,6 +172,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+	gcComplete <- struct{}{}
+
+	restoreComplete, closer := observe.ProgressWithCompletion("Restoring data:")
+	defer closer()
+	defer close(restoreComplete)
 
 	restoreDetails, err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
 	if err != nil {
@@ -166,6 +185,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+	restoreComplete <- struct{}{}
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
