@@ -90,7 +90,7 @@ func SetEventMessageRequest(orig models.Messageable, adtl map[string]any) (model
 
 	eventMessage, err := setEventRequestableFields(message, additional)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to set all fields for eventMessageRequestable")
 	}
 
 	return eventMessage, nil
@@ -275,7 +275,7 @@ func SetAdditionalDataToEventMessage(
 
 					value, err := node.GetStringValue()
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrapf(err, "could not parse string value for %s", key)
 					}
 
 					switch key {
@@ -304,7 +304,7 @@ func SetAdditionalDataToEventMessage(
 
 					value, err := node.GetStringValue()
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrapf(err, "could not parse string value for %s", key)
 					}
 
 					switch key {
@@ -333,7 +333,7 @@ func SetAdditionalDataToEventMessage(
 
 					value, err := node.GetStringValue()
 					if err != nil {
-						return nil, errors.New("map[string]*JsonParseNode conversion failure")
+						return nil, errors.Wrapf(err, "could not parse string value for key %s", key)
 					}
 
 					switch key {

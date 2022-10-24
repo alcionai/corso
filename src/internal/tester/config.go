@@ -108,14 +108,16 @@ func readTestConfig() (map[string]string, error) {
 		TestCfgUserID,
 		os.Getenv(EnvCorsoM365TestUserID),
 		vpr.GetString(TestCfgUserID),
-		"lidiah@8qzvrj.onmicrosoft.com",
+		"lynner@8qzvrj.onmicrosoft.com",
+		//"lidiah@8qzvrj.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
 		TestCfgSecondaryUserID,
 		os.Getenv(EnvCorsoSecondaryM365TestUserID),
 		vpr.GetString(TestCfgSecondaryUserID),
-		"lynner@8qzvrj.onmicrosoft.com",
+		"lidiah@8qzvrj.onmicrosoft.com",
+		//"lynner@8qzvrj.onmicrosoft.com",
 	)
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)

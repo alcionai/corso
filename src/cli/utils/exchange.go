@@ -8,11 +8,11 @@ import (
 
 // flag names
 const (
-	ContactFN             = "contacts"
+	ContactFN             = "contact"
 	ContactFolderFN       = "contact-folder"
 	EmailFN               = "email"
 	EmailFolderFN         = "email-folder"
-	EventFN               = "events"
+	EventFN               = "event"
 	EventCalendarFN       = "event-calendar"
 	ContactNameFN         = "contact-name"
 	EmailReceivedAfterFN  = "email-received-after"

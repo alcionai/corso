@@ -45,7 +45,7 @@ const sidebars = {
         'developers/build', 'developers/testing', 'developers/linters'
       ],
     },
-
+    'known_issues',
   ],
 };
 

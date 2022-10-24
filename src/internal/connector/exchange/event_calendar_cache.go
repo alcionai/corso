@@ -37,10 +37,13 @@ func (ecc *eventCalendarCache) Populate(
 		return err
 	}
 
-	directories := make(map[string]graph.Container)
-	errUpdater := func(s string, e error) {
-		err = support.WrapAndAppend(s, e, err)
-	}
+	var (
+		asyncError  error
+		directories = make(map[string]graph.Container)
+		errUpdater  = func(s string, e error) {
+			asyncError = support.WrapAndAppend(s, e, err)
+		}
+	)
 
 	query, err := ecc.gs.Client().UsersById(ecc.userID).Calendars().Get(ctx, options)
 	if err != nil {
@@ -64,10 +67,11 @@ func (ecc *eventCalendarCache) Populate(
 
 	iterateErr := iter.Iterate(ctx, cb)
 	if iterateErr != nil {
-		return iterateErr
+		return errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(iterateErr))
 	}
 
-	if err != nil {
+	// check for errors created during iteration
+	if asyncError != nil {
 		return err
 	}
 
