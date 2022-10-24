@@ -175,7 +175,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewOneDriveBackup()
-	sel.Include(sel.Folders([]string{m365UserID}, []string{"*"}))
+	sel.Include(sel.Folders([]string{m365UserID}, selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

@@ -77,14 +77,15 @@ func (b Backup) Print(ctx context.Context) {
 func PrintAll(ctx context.Context, bs []Backup) {
 	if len(bs) == 0 {
 		print.Info(ctx, "No backups available")
-	} else {
-		ps := []print.Printable{}
-		for _, b := range bs {
-			ps = append(ps, print.Printable(b))
-		}
-
-		print.All(ctx, ps...)
+		return
 	}
+
+	ps := []print.Printable{}
+	for _, b := range bs {
+		ps = append(ps, print.Printable(b))
+	}
+
+	print.All(ctx, ps...)
 }
 
 type Printable struct {
