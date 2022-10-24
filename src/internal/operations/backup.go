@@ -122,6 +122,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	complete, closer := observe.MessageWithCompletion("Connecting to M365:")
+	defer closer()
+	defer close(complete)
+
 	// retrieve data from the producer
 	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
@@ -130,6 +134,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 		return err
 	}
+	complete <- struct{}{}
+
+	discoverCh, closer := observe.MessageWithCompletion("Discovering items to backup:")
+	defer closer()
+	defer close(discoverCh)
 
 	cs, err := gc.DataCollections(ctx, op.Selectors)
 	if err != nil {
@@ -139,7 +148,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	discoverCh <- struct{}{}
+
 	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
+
+	backupCh, closer := observe.MessageWithCompletion("Backing up data:")
+	defer closer()
+	defer close(backupCh)
 
 	// hand the results to the consumer
 	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs, op.Selectors.PathService())
@@ -149,6 +164,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 		return err
 	}
+	backupCh <- struct{}{}
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
