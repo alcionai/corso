@@ -143,9 +143,10 @@ jobs:
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
         run: |
           set -euo pipefail
-          go test \
-          -json   \
-          -v      \
+          go test       \
+          -json         \
+          -v            \
+          -tags testing \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.
