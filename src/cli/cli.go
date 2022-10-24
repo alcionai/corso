@@ -29,8 +29,8 @@ var version = "dev"
 // `corso <command> [<subcommand>] [<service>] [<flag>...]`
 var corsoCmd = &cobra.Command{
 	Use:               "corso",
-	Short:             "Protect your Microsoft 365 data.",
-	Long:              `Reliable, secure, and efficient data protection for Microsoft 365.`,
+	Short:             "Free, Secure, Open-Source Backup for M365.",
+	Long:              `Free, Secure, and Open-Source Backup for Microsoft 365.`,
 	RunE:              handleCorsoCmd,
 	PersistentPreRunE: config.InitFunc(),
 }
@@ -66,6 +66,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.PersistentPostRunE = config.InitFunc()
 	config.AddConfigFlags(cmd)
 	logger.AddLogLevelFlag(cmd)
+	observe.AddProgressBarFlags(cmd)
 	print.AddOutputFlag(cmd)
 	options.AddGlobalOperationFlags(cmd)
 
@@ -87,11 +88,11 @@ func BuildCommandTree(cmd *cobra.Command) {
 func Handle() {
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
-	observe.SeedWriter(ctx, print.StderrWriter(ctx))
+	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
 
 	BuildCommandTree(corsoCmd)
 
-	ctx, log := logger.Seed(ctx)
+	ctx, log := logger.Seed(ctx, logger.PreloadLogLevel())
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()

@@ -40,7 +40,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
 			},
-			expectHs: []string{"Reference"},
+			expectHs: []string{"ID"},
 			expectVs: []string{"deadbeef"},
 		},
 		{
@@ -58,7 +58,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Reference", "Organizer", "Subject", "Starts", "Recurring"},
+			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Recurring"},
 			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, "true"},
 		},
 		{
@@ -73,7 +73,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Reference", "Contact Name"},
+			expectHs: []string{"ID", "Contact Name"},
 			expectVs: []string{"deadbeef", "contactName"},
 		},
 		{
@@ -90,7 +90,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Reference", "Sender", "Subject", "Received"},
+			expectHs: []string{"ID", "Sender", "Subject", "Received"},
 			expectVs: []string{"deadbeef", "sender", "subject", nowStr},
 		},
 		{
@@ -102,7 +102,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					Sharepoint: &details.SharepointInfo{},
 				},
 			},
-			expectHs: []string{"Reference"},
+			expectHs: []string{"ID"},
 			expectVs: []string{"deadbeef"},
 		},
 		{
@@ -120,7 +120,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Reference", "ItemName", "ParentPath", "Size", "Created", "Modified"},
+			expectHs: []string{"ID", "ItemName", "ParentPath", "Size", "Created", "Modified"},
 			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", nowStr, nowStr},
 		},
 	}

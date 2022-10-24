@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -13,10 +16,12 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var factoryCmd = &cobra.Command{
@@ -94,6 +99,64 @@ func handleOneDriveFactory(cmd *cobra.Command, args []string) error {
 }
 
 // ------------------------------------------------------------------------------------------
+// Restoration
+// ------------------------------------------------------------------------------------------
+
+type dataBuilderFunc func(id, now, subject, body string) []byte
+
+func generateAndRestoreItems(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	service path.ServiceType,
+	cat path.CategoryType,
+	sel selectors.Selector,
+	tenantID, userID, destFldr string,
+	howMany int,
+	dbf dataBuilderFunc,
+) (*details.Details, error) {
+	items := make([]item, 0, howMany)
+
+	for i := 0; i < howMany; i++ {
+		var (
+			now       = common.Now()
+			nowLegacy = common.FormatLegacyTime(time.Now())
+			id        = uuid.NewString()
+			subject   = "automated " + now[:16] + " - " + id[:8]
+			body      = "automated " + cat.String() + " generation for " + userID + " at " + now + " - " + id
+		)
+
+		items = append(items, item{
+			name: id,
+			data: dbf(id, nowLegacy, subject, body),
+		})
+	}
+
+	collections := []collection{{
+		pathElements: []string{destFldr},
+		category:     cat,
+		items:        items,
+	}}
+
+	// TODO: fit the desination to the containers
+	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
+	dest.ContainerName = destFldr
+
+	dataColls, err := buildCollections(
+		service,
+		tenantID, userID,
+		dest,
+		collections,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, destination)
+
+	return gc.RestoreDataCollections(ctx, sel, dest, dataColls)
+}
+
+// ------------------------------------------------------------------------------------------
 // Common Helpers
 // ------------------------------------------------------------------------------------------
 
@@ -117,7 +180,13 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 		return nil, "", errors.Wrap(err, "connecting to graph api")
 	}
 
-	if _, ok := gc.Users[user]; !ok {
+	normUsers := map[string]struct{}{}
+
+	for k := range gc.Users {
+		normUsers[strings.ToLower(k)] = struct{}{}
+	}
+
+	if _, ok := normUsers[strings.ToLower(user)]; !ok {
 		return nil, "", errors.New("user not found within tenant")
 	}
 

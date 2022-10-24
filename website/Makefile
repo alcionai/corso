@@ -1,10 +1,7 @@
 .PHONY: buildimage dev shell build publish sync
 
 WEBC := docker run --rm -it --init -p 5050:3000 -p 5051:3001 \
-		-v ${PWD}:/usr/src/website corso/website
-ifeq (${CORSO_USE_DOCKER},-1)
-	WEBC :=
-endif
+		-v ${PWD}:/usr/src/website corso/website:latest
 
 buildimage:
 	docker build -t "corso/website:latest" .
@@ -20,7 +17,7 @@ build:
 
 publish: build
 	docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN --rm -v ${PWD}:/usr/src/website corso/website \
+		-e AWS_SESSION_TOKEN --rm -v ${PWD}:/usr/src/website corso/website:latest \
 		make sync
 
 sync:

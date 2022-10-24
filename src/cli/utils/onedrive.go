@@ -8,9 +8,9 @@ import (
 
 const (
 	FileFN               = "file"
-	FolderFN             = "folders"
-	NamesFN              = "names"
-	PathsFN              = "paths"
+	FolderFN             = "folder"
+	NamesFN              = "name"
+	PathsFN              = "path"
 	FileCreatedAfterFN   = "file-created-after"
 	FileCreatedBeforeFN  = "file-created-before"
 	FileModifiedAfterFN  = "file-modified-after"
@@ -47,7 +47,7 @@ func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 		return errors.New("invalid time format for modified-after")
 	}
 
-	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
+	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
 		return errors.New("invalid time format for modified-before")
 	}
 

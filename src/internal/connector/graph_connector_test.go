@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -79,6 +78,44 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	err = newConnector.setTenantUsers(ctx)
 	assert.NoError(suite.T(), err)
 	suite.Greater(len(newConnector.Users), 0)
+}
+
+// TestInvalidUserForDataCollections ensures verification process for users
+func (suite *GraphConnectorIntegrationSuite) TestInvalidUserForDataCollections() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	invalidUser := "foo@example.com"
+	connector := loadConnector(ctx, suite.T())
+	tests := []struct {
+		name        string
+		getSelector func(t *testing.T) selectors.Selector
+	}{
+		{
+			name: "invalid exchange backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{invalidUser}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "Invalid onedrive backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Include(sel.Folders([]string{invalidUser}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections, err := connector.DataCollections(ctx, test.getSelector(t))
+			assert.Error(t, err)
+			assert.Empty(t, collections)
+		})
+	}
 }
 
 // TestExchangeDataCollection verifies interface between operation and
@@ -194,9 +231,10 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 		{
 			name: "Default Contact Folder",
 			getCollection: func(t *testing.T) []*exchange.Collection {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
-				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
+				scope := selectors.
+					NewExchangeBackup().
+					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder})[0]
+				collections, err := connector.createCollections(ctx, scope)
 				require.NoError(t, err)
 
 				return collections
@@ -207,7 +245,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			edcs := test.getCollection(t)
-			assert.Equal(t, len(edcs), 1)
+			require.Equal(t, len(edcs), 1)
 			edc := edcs[0]
 			assert.Equal(t, edc.FullPath().Folder(), exchange.DefaultContactFolder)
 			streamChannel := edc.Items()
@@ -326,7 +364,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 	var (
 		t      = suite.T()
 		userID = tester.M365UserID(t)
-		sel    = selectors.NewExchangeBackup()
 	)
 
 	tests := []struct {
@@ -336,7 +373,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 	}{
 		{
 			name:  "Mail Iterative Check",
-			scope: sel.MailFolders([]string{userID}, selectors.Any())[0],
+			scope: selectors.NewExchangeBackup().MailFolders([]string{userID}, selectors.Any())[0],
 			folderNames: map[string]struct{}{
 				exchange.DefaultMailFolder: {},
 				"Sent Items":               {},
@@ -344,7 +381,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 		},
 		{
 			name: "Folder Iterative Check Mail",
-			scope: sel.MailFolders(
+			scope: selectors.NewExchangeBackup().MailFolders(
 				[]string{userID},
 				[]string{exchange.DefaultMailFolder},
 			)[0],
@@ -358,25 +395,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			qp := graph.QueryParams{
-				User:        userID,
-				Scope:       test.scope,
-				Credentials: gc.credentials,
-				FailFast:    false,
-			}
-
-			resolver, err := exchange.MaybeGetAndPopulateFolderResolver(
-				ctx,
-				qp,
-				scopeToPathCategory(qp.Scope),
-			)
-			require.NoError(t, err)
-
-			collections, err := gc.fetchItemsByFolder(
-				ctx,
-				qp,
-				resolver,
-			)
+			collections, err := gc.createCollections(ctx, test.scope)
 			require.NoError(t, err)
 
 			for _, c := range collections {
@@ -578,6 +597,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
+								bodyText+" 1.",
 							),
 							lookupKey: subjectText + "-1",
 						},
@@ -592,6 +612,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-2",
 								bodyText+" 2.",
+								bodyText+" 2.",
 							),
 							lookupKey: subjectText + "-2",
 						},
@@ -599,6 +620,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							name: "someencodeditemID3",
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-3",
+								bodyText+" 3.",
 								bodyText+" 3.",
 							),
 							lookupKey: subjectText + "-3",

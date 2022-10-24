@@ -12,8 +12,11 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 const (
@@ -27,7 +30,7 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := az.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating m365 client secret credentials")
 	}
 
 	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
@@ -35,7 +38,7 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 		[]string{"https://graph.microsoft.com/.default"},
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating new AzureIdentityAuthentication")
 	}
 
 	clientOptions := msgraphsdk.GetDefaultClientOptions()
@@ -64,4 +67,21 @@ func (handler *LoggingMiddleware) Intercept(
 	logger.Ctx(context.TODO()).Infof("REQUEST: %s", string(requestDump))
 
 	return pipeline.Next(req, middlewareIndex)
+}
+
+// ScopeToPathCategory helper function that maps selectors.ExchangeScope to path.CategoryType
+func ScopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
+	if scope.IncludesCategory(selectors.ExchangeMail) {
+		return path.EmailCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeContact) {
+		return path.ContactsCategory
+	}
+
+	if scope.IncludesCategory(selectors.ExchangeEvent) {
+		return path.EventsCategory
+	}
+
+	return path.UnknownCategory
 }

@@ -16,16 +16,15 @@ const sidebars = {
   // By default, Docusaurus generates a sidebar from the docs folder structure
   docsSidebar: [
     'intro',
-    'install',
-    'tutorial',
+    'quickstart',
     {
       type: 'category',
-      label: 'Initial Configuration',
-      items: ['configuration/concepts', 'configuration/m365_access', 'configuration/repos'],
+      label: 'Corso setup',
+      items: ['setup/concepts', 'setup/download', 'setup/m365_access', 'setup/configuration', 'setup/repos'],
     },
     {
       type: 'category',
-      label: 'Command Line Reference',
+      label: 'Command line reference',
       link: {
         slug: 'cli/corso',
         description: 'Explore the commonly used Corso CLI commands',
@@ -34,20 +33,19 @@ const sidebars = {
       items: [
         'cli/corso_repo_init_s3', 'cli/corso_repo_connect_s3',
         'cli/corso_backup_create_exchange', 'cli/corso_backup_list_exchange', 'cli/corso_backup_details_exchange',
-        'cli/corso_restore_exchange',
         'cli/corso_backup_create_onedrive', 'cli/corso_backup_list_onedrive', 'cli/corso_backup_details_onedrive',
-        'cli/corso_restore_onedrive',
+        'cli/corso_restore_exchange', 'cli/corso_restore_onedrive',
         'cli/corso_env'
       ]
     },
     {
       type: 'category',
-      label: 'Developer Guide',
+      label: 'Developer guide',
       items: [
-        'developers/architecture', 'developers/build', 'developers/testing', 'developers/linters'
+        'developers/build', 'developers/testing', 'developers/linters'
       ],
     },
-
+    'known_issues',
   ],
 };
 

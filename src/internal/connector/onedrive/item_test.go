@@ -65,7 +65,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.client = msgraphsdk.NewGraphServiceClient(adapter)
 	suite.adapter = adapter
 
-	suite.user = tester.M365UserID(suite.T())
+	suite.user = tester.SecondaryM365UserID(suite.T())
 
 	drives, err := drives(ctx, suite, suite.user)
 	require.NoError(suite.T(), err)

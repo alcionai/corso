@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	multierror "github.com/hashicorp/go-multierror"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -12,86 +13,40 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-var errNilResolver = errors.New("nil resolver")
-
-// GraphIterateFuncs are iterate functions to be used with the M365 iterators (e.g. msgraphgocore.NewPageIterator)
-// @returns a callback func that works with msgraphgocore.PageIterator.Iterate function
-type GraphIterateFunc func(
+// FilterContainersAndFillCollections is a utility function
+// that places the M365 object ids belonging to specific directories
+// into a Collection. Messages outside of those directories are omitted.
+// @param collection is filled with during this function.
+// Supports all exchange applications: Contacts, Events, and Mail
+func FilterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errUpdater func(string, error),
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
-) func(any) bool
-
-// IterateSelectAllDescendablesForCollection utility function for
-// Iterating through MessagesCollectionResponse or ContactsCollectionResponse,
-// objects belonging to any folder are
-// placed into a Collection based on the parent folder
-func IterateSelectAllDescendablesForCollections(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-	resolver graph.ContainerResolver,
-) func(any) bool {
+) error {
 	var (
-		isCategorySet  bool
-		collectionType optionIdentifier
-		category       path.CategoryType
-		dirPath        path.Path
-		err            error
+		category       = graph.ScopeToPathCategory(qp.Scope)
+		collectionType = categoryToOptionIdentifier(category)
+		errs           error
 	)
 
-	return func(pageItem any) bool {
-		// Defines the type of collection being created within the function
-		if !isCategorySet {
-			if qp.Scope.IncludesCategory(selectors.ExchangeMail) {
-				collectionType = messages
-				category = path.EmailCategory
-			}
-
-			if qp.Scope.IncludesCategory(selectors.ExchangeContact) {
-				collectionType = contacts
-				category = path.ContactsCategory
-			}
-
-			isCategorySet = true
-		}
-
-		entry, ok := pageItem.(graph.Descendable)
-		if !ok {
-			errUpdater(qp.User, errors.New("Descendable conversion failure"))
-			return true
-		}
-
-		// Saving to messages to list. Indexed by folder
-		directory := *entry.GetParentFolderId()
-
-		if _, ok = collections[directory]; !ok {
-			dirPath, err = getCollectionPath(
-				ctx,
-				qp,
-				resolver,
-				directory,
-				category,
-			)
-			if err != nil {
-				errUpdater(
-					"failure during IterateSelectAllDescendablesForCollections",
-					err,
-				)
-			}
-
+	for _, c := range resolver.Items() {
+		dirPath, ok := pathAndMatch(qp, category, c)
+		if ok {
+			// Create only those that match
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
-				errUpdater(qp.User, err)
-				return true
+				errs = support.WrapAndAppend(
+					qp.User+" FilterContainerAndFillCollection",
+					err,
+					errs)
+
+				if qp.FailFast {
+					return errs
+				}
 			}
 
 			edc := NewCollection(
@@ -101,522 +56,38 @@ func IterateSelectAllDescendablesForCollections(
 				service,
 				statusUpdater,
 			)
-			collections[directory] = &edc
+			collections[*c.GetId()] = &edc
 		}
-
-		collections[directory].AddJob(*entry.GetId())
-
-		return true
 	}
-}
 
-// IterateSelectAllEventsForCollections
-// utility function for iterating through events
-// and storing events in collections based on
-// the calendarID which originates from M365.
-// @param pageItem is a CalendarCollectionResponse possessing two populated fields:
-// - id - M365 ID
-// - Name - Calendar Name
-func IterateSelectAllEventsFromCalendars(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-	resolver graph.ContainerResolver,
-) func(any) bool {
-	var (
-		isEnabled bool
-		service   graph.Service
-	)
-
-	return func(pageItem any) bool {
-		if !isEnabled {
-			// Create Collections based on qp.Scope
-			err := CollectFolders(ctx, qp, collections, statusUpdater, resolver)
-			if err != nil {
-				errUpdater(
-					qp.User,
-					errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
-				)
-
-				return false
-			}
-
-			service, err = createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errUpdater(qp.User, err)
-				return false
-			}
-
-			isEnabled = true
-		}
-
-		pageItem = CreateCalendarDisplayable(pageItem)
-
-		calendar, ok := pageItem.(graph.Displayable)
-		if !ok {
-			errUpdater(
-				qp.User,
-				fmt.Errorf("unable to parse pageItem into CalendarDisplayable: %T", pageItem),
-			)
-		}
-
-		if calendar.GetDisplayName() == nil {
-			return true
-		}
-
-		collection, ok := collections[*calendar.GetDisplayName()]
-		if !ok {
-			return true
-		}
-
-		eventIDs, err := ReturnEventIDsFromCalendar(ctx, service, qp.User, *calendar.GetId())
+	for directoryID, col := range collections {
+		fetchFunc, err := getFetchIDFunc(category)
 		if err != nil {
-			errUpdater(
+			errs = support.WrapAndAppend(
 				qp.User,
-				errors.Wrap(err, support.ConnectorStackErrorTrace(err)))
+				err,
+				errs)
 
-			return true
-		}
+			if qp.FailFast {
+				return errs
+			}
 
-		collection.jobs = append(collection.jobs, eventIDs...)
-
-		return true
-	}
-}
-
-// CollectionsFromResolver returns the set of collections that match the
-// selector parameters.
-func CollectionsFromResolver(
-	ctx context.Context,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-	statusUpdater support.StatusUpdater,
-	collections map[string]*Collection,
-) error {
-	option, category, notMatcher := getCategoryAndValidation(qp.Scope)
-
-	for _, item := range resolver.Items() {
-		pathString := item.Path().String()
-		// Skip the root folder for mail which has an empty path.
-		if len(pathString) == 0 || notMatcher(&pathString) {
 			continue
 		}
 
-		completePath, err := item.Path().ToDataLayerExchangePathForCategory(
-			qp.Credentials.AzureTenantID,
-			qp.User,
-			category,
-			false,
-		)
+		jobs, err := fetchFunc(ctx, col.service, qp.User, directoryID)
 		if err != nil {
-			return errors.Wrap(err, "resolving collection item path")
-		}
-
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			return errors.Wrap(err, "making service instance")
-		}
-
-		tmp := NewCollection(
-			qp.User,
-			completePath,
-			option,
-			service,
-			statusUpdater,
-		)
-
-		collections[*item.GetId()] = &tmp
-	}
-
-	return nil
-}
-
-// IterateAndFilterDescendablesForCollections is a filtering GraphIterateFunc
-// that places exchange objectsids belonging to specific directories
-// into a Collection. Messages outside of those directories are omitted.
-func IterateAndFilterDescendablesForCollections(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-	resolver graph.ContainerResolver,
-) func(any) bool {
-	var (
-		isFilterSet bool
-		cache       map[string]string
-	)
-
-	return func(descendItem any) bool {
-		if !isFilterSet {
-			if resolver != nil {
-				err := CollectionsFromResolver(
-					ctx,
-					qp,
-					resolver,
-					statusUpdater,
-					collections,
-				)
-				if err != nil {
-					errUpdater(qp.User, err)
-					return false
-				}
-			} else {
-				err := CollectFolders(
-					ctx,
-					qp,
-					collections,
-					statusUpdater,
-					resolver,
-				)
-				if err != nil {
-					errUpdater(qp.User, err)
-					return false
-				}
-			}
-
-			// Caches folder directories
-			cache = make(map[string]string, 0)
-			isFilterSet = true
-		}
-
-		message, ok := descendItem.(graph.Descendable)
-		if !ok {
-			errUpdater(qp.User, errors.New("casting messageItem to Descendable"))
-			return true
-		}
-		// Saving only messages for the created directories
-		folderID := *message.GetParentFolderId()
-
-		directory, ok := cache[folderID]
-		if !ok {
-			result := translateIDToDirectory(ctx, qp, resolver, folderID)
-			if result == "" {
-				errUpdater(qp.User,
-					errors.New("getCollectionPath experienced error during translateID"))
-			}
-
-			cache[folderID] = result
-			directory = result
-		}
-
-		if _, ok = collections[directory]; !ok {
-			return true
-		}
-
-		collections[directory].AddJob(*message.GetId())
-
-		return true
-	}
-}
-
-func translateIDToDirectory(
-	ctx context.Context,
-	qp graph.QueryParams,
-	resolver graph.ContainerResolver,
-	directoryID string,
-) string {
-	fullPath, err := getCollectionPath(ctx, qp, resolver, directoryID, path.EmailCategory)
-	if err != nil {
-		return ""
-	}
-
-	return fullPath.Folder()
-}
-
-func getCategoryAndValidation(es selectors.ExchangeScope) (
-	optionIdentifier,
-	path.CategoryType,
-	func(namePtr *string) bool,
-) {
-	var (
-		option   = scopeToOptionIdentifier(es)
-		category path.CategoryType
-		validate func(namePtr *string) bool
-	)
-
-	switch option {
-	case messages:
-		category = path.EmailCategory
-		validate = func(namePtr *string) bool {
-			if namePtr == nil {
-				return true
-			}
-
-			return !es.Matches(selectors.ExchangeMailFolder, *namePtr)
-		}
-	case contacts:
-		category = path.ContactsCategory
-		validate = func(namePtr *string) bool {
-			if namePtr == nil {
-				return true
-			}
-
-			return !es.Matches(selectors.ExchangeContactFolder, *namePtr)
-		}
-	case events:
-		category = path.EventsCategory
-		validate = func(namePtr *string) bool {
-			if namePtr == nil {
-				return true
-			}
-
-			return !es.Matches(selectors.ExchangeEventCalendar, *namePtr)
-		}
-	}
-
-	return option, category, validate
-}
-
-func IterateFilterContainersForCollections(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-	resolver graph.ContainerResolver,
-) func(any) bool {
-	var (
-		isSet       bool
-		collectPath string
-		option      optionIdentifier
-		category    path.CategoryType
-		validate    func(*string) bool
-	)
-
-	return func(folderItem any) bool {
-		if !isSet {
-			option, category, validate = getCategoryAndValidation(qp.Scope)
-
-			isSet = true
-		}
-
-		if option == events {
-			folderItem = CreateCalendarDisplayable(folderItem)
-		}
-
-		folder, ok := folderItem.(graph.Displayable)
-		if !ok {
-			errUpdater(qp.User,
-				fmt.Errorf("unable to convert input of %T for category: %s", folderItem, category.String()),
-			)
-
-			return true
-		}
-
-		if validate(folder.GetDisplayName()) {
-			return true
-		}
-
-		if option == messages {
-			collectPath = *folder.GetId()
-		} else {
-			collectPath = *folder.GetDisplayName()
-		}
-
-		dirPath, err := getCollectionPath(
-			ctx,
-			qp,
-			resolver,
-			collectPath,
-			category,
-		)
-		if err != nil {
-			errUpdater(
-				"failure converting path during IterateFilterFolderDirectoriesForCollections",
-				err,
-			)
-
-			return true
-		}
-
-		service, err := createService(qp.Credentials, qp.FailFast)
-		if err != nil {
-			errUpdater(
-				*folder.GetDisplayName(),
-				errors.Wrap(err, "creating service to iterate filterFolder directories for user: "+qp.User))
-
-			return true
-		}
-
-		temp := NewCollection(
-			qp.User,
-			dirPath,
-			option,
-			service,
-			statusUpdater,
-		)
-		collections[*folder.GetDisplayName()] = &temp
-
-		return true
-	}
-}
-
-func IterateSelectAllContactsForCollections(
-	ctx context.Context,
-	qp graph.QueryParams,
-	errUpdater func(string, error),
-	collections map[string]*Collection,
-	statusUpdater support.StatusUpdater,
-	resolver graph.ContainerResolver,
-) func(any) bool {
-	var (
-		isPrimarySet bool
-		service      graph.Service
-	)
-
-	return func(folderItem any) bool {
-		folder, ok := folderItem.(models.ContactFolderable)
-		if !ok {
-			errUpdater(
-				qp.User,
-				errors.New("casting folderItem to models.ContactFolderable"),
-			)
-		}
-
-		if !isPrimarySet && folder.GetParentFolderId() != nil {
-			err := CollectFolders(
-				ctx,
-				qp,
-				collections,
-				statusUpdater,
-				resolver,
-			)
-			if err != nil {
-				errUpdater(qp.User, err)
-				return false
-			}
-
-			service, err = createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errUpdater(
-					qp.User,
-					errors.Wrap(err, "unable to create service during IterateSelectAllContactsForCollections"),
-				)
-
-				return true
-			}
-
-			isPrimarySet = true
-
-			// Create and Populate Default Contacts folder Collection if true
-			if qp.Scope.Matches(selectors.ExchangeContactFolder, DefaultContactFolder) {
-				dirPath, err := path.Builder{}.Append(DefaultContactFolder).ToDataLayerExchangePathForCategory(
-					qp.Credentials.AzureTenantID,
-					qp.User,
-					path.ContactsCategory,
-					false,
-				)
-				if err != nil {
-					errUpdater(
-						qp.User,
-						err,
-					)
-
-					return false
-				}
-
-				edc := NewCollection(
-					qp.User,
-					dirPath,
-					contacts,
-					service,
-					statusUpdater,
-				)
-
-				listOfIDs, err := ReturnContactIDsFromDirectory(ctx, service, qp.User, *folder.GetParentFolderId())
-				if err != nil {
-					errUpdater(
-						qp.User,
-						err,
-					)
-
-					return false
-				}
-
-				edc.jobs = append(edc.jobs, listOfIDs...)
-				collections[DefaultContactFolder] = &edc
-			}
-		}
-
-		if folder.GetDisplayName() == nil {
-			// This should never happen. Skipping to avoid kernel panic
-			return true
-		}
-
-		collection, ok := collections[*folder.GetDisplayName()]
-		if !ok {
-			return true // Not included
-		}
-
-		listOfIDs, err := ReturnContactIDsFromDirectory(ctx, service, qp.User, *folder.GetId())
-		if err != nil {
-			errUpdater(
+			errs = support.WrapAndAppend(
 				qp.User,
 				err,
+				errs,
 			)
-
-			return true
 		}
 
-		collection.jobs = append(collection.jobs, listOfIDs...)
-
-		return true
-	}
-}
-
-// IDistFunc collection of helper functions which return a list of strings
-// from a response.
-type IDListFunc func(ctx context.Context, gs graph.Service, user, m365ID string) ([]string, error)
-
-// ReturnContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
-// of the targeted directory
-func ReturnContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, directoryID string) ([]string, error) {
-	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
-	if err != nil {
-		return nil, err
+		col.jobs = append(col.jobs, jobs...)
 	}
 
-	stringArray := []string{}
-
-	response, err := gs.Client().
-		UsersById(user).
-		ContactFoldersById(directoryID).
-		Contacts().
-		Get(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-
-	pageIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		gs.Adapter(),
-		models.CreateContactCollectionResponseFromDiscriminatorValue,
-	)
-
-	callbackFunc := func(pageItem any) bool {
-		entry, ok := pageItem.(models.Contactable)
-		if !ok {
-			err = errors.New("casting pageItem to models.Contactable")
-			return false
-		}
-
-		stringArray = append(stringArray, *entry.GetId())
-
-		return true
-	}
-
-	if iterateErr := pageIterator.Iterate(ctx, callbackFunc); iterateErr != nil {
-		return nil, iterateErr
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return stringArray, nil
+	return errs
 }
 
 func IterativeCollectContactContainers(
@@ -627,7 +98,8 @@ func IterativeCollectContactContainers(
 	return func(entry any) bool {
 		folder, ok := entry.(models.ContactFolderable)
 		if !ok {
-			errUpdater("", errors.New("casting item to models.ContactFolderable"))
+			errUpdater("iterateCollectContactContainers",
+				errors.New("casting item to models.ContactFolderable"))
 			return false
 		}
 
@@ -650,7 +122,7 @@ func IterativeCollectCalendarContainers(
 	return func(entry any) bool {
 		cal, ok := entry.(models.Calendarable)
 		if !ok {
-			errUpdater("failure during IterativeCollectCalendarContainers",
+			errUpdater("iterativeCollectCalendarContainers",
 				errors.New("casting item to models.Calendarable"))
 			return false
 		}
@@ -666,8 +138,25 @@ func IterativeCollectCalendarContainers(
 	}
 }
 
-// ReturnEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
-func ReturnEventIDsFromCalendar(
+// FetchIDFunc collection of helper functions which return a list of strings
+// from a response.
+type FetchIDFunc func(ctx context.Context, gs graph.Service, user, containerID string) ([]string, error)
+
+func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
+	switch category {
+	case path.EmailCategory:
+		return FetchMessageIDsFromDirectory, nil
+	case path.EventsCategory:
+		return FetchEventIDsFromCalendar, nil
+	case path.ContactsCategory:
+		return FetchContactIDsFromDirectory, nil
+	default:
+		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
+	}
+}
+
+// FetchEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
+func FetchEventIDsFromCalendar(
 	ctx context.Context,
 	gs graph.Service,
 	user, calendarID string,
@@ -679,11 +168,7 @@ func ReturnEventIDsFromCalendar(
 		CalendarsById(calendarID).
 		Events().Get(ctx, nil)
 	if err != nil {
-		return nil, err
-	}
-
-	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	pageIterator, err := msgraphgocore.NewPageIterator(
@@ -691,27 +176,162 @@ func ReturnEventIDsFromCalendar(
 		gs.Adapter(),
 		models.CreateEventCollectionResponseFromDiscriminatorValue,
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "iterator creation failure during fetchEventIDs")
+	}
 
-	callbackFunc := func(pageItem any) bool {
-		entry, ok := pageItem.(models.Eventable)
+	var errs *multierror.Error
+
+	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
+		entry, ok := pageItem.(graph.Idable)
 		if !ok {
-			err = errors.New("casting pageItem to models.Eventable")
-			return false
+			errs = multierror.Append(errs, errors.New("item without GetId() call"))
+			return true
+		}
+
+		if entry.GetId() == nil {
+			errs = multierror.Append(errs, errors.New("item with nil ID"))
+			return true
 		}
 
 		ids = append(ids, *entry.GetId())
 
 		return true
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(
+			err,
+			support.ConnectorStackErrorTrace(err)+
+				" :fetching events from calendar "+calendarID,
+		)
 	}
 
-	if iterateErr := pageIterator.Iterate(ctx, callbackFunc); iterateErr != nil {
-		return nil,
-			errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(err))
-	}
+	return ids, errs.ErrorOrNil()
+}
 
+// FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
+// of the targeted directory
+func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, directoryID string) ([]string, error) {
+	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
 	if err != nil {
 		return nil, err
 	}
 
-	return ids, nil
+	ids := []string{}
+
+	response, err := gs.Client().
+		UsersById(user).
+		ContactFoldersById(directoryID).
+		Contacts().
+		Get(ctx, options)
+	if err != nil {
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	pageIterator, err := msgraphgocore.NewPageIterator(
+		response,
+		gs.Adapter(),
+		models.CreateContactCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "iterator creation during FetchContactIDs")
+	}
+
+	var errs *multierror.Error
+
+	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
+		entry, ok := pageItem.(graph.Idable)
+		if !ok {
+			errs = multierror.Append(
+				errs,
+				errors.New("casting pageItem to models.Contactable"),
+			)
+
+			return true
+		}
+
+		if entry.GetId() == nil {
+			errs = multierror.Append(errs, errors.New("item with nil ID"))
+			return true
+		}
+
+		ids = append(ids, *entry.GetId())
+
+		return true
+	})
+
+	if err != nil {
+		return nil,
+			errors.Wrap(
+				err,
+				support.ConnectorStackErrorTrace(err)+
+					" :fetching contactIDs from directory "+directoryID,
+			)
+	}
+
+	return ids, errs.ErrorOrNil()
+}
+
+// FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
+// of the targeted directory
+func FetchMessageIDsFromDirectory(
+	ctx context.Context,
+	gs graph.Service,
+	user, directoryID string,
+) ([]string, error) {
+	ids := []string{}
+
+	options, err := optionsForFolderMessages([]string{"id"})
+	if err != nil {
+		return nil, errors.Wrap(err, "getting query options")
+	}
+
+	response, err := gs.Client().
+		UsersById(user).
+		MailFoldersById(directoryID).
+		Messages().
+		Get(ctx, options)
+	if err != nil {
+		return nil,
+			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	pageIter, err := msgraphgocore.NewPageIterator(
+		response,
+		gs.Adapter(),
+		models.CreateMessageCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating graph iterator")
+	}
+
+	var errs *multierror.Error
+
+	err = pageIter.Iterate(ctx, func(pageItem any) bool {
+		item, ok := pageItem.(graph.Idable)
+		if !ok {
+			errs = multierror.Append(errs, errors.New("item without ID function"))
+			return true
+		}
+
+		if item.GetId() == nil {
+			errs = multierror.Append(errs, errors.New("item with nil ID"))
+			return true
+		}
+
+		ids = append(ids, *item.GetId())
+
+		return true
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(
+			err,
+			support.ConnectorStackErrorTrace(err)+
+				" :fetching messages from directory "+directoryID,
+		)
+	}
+
+	return ids, errs.ErrorOrNil()
 }

@@ -33,6 +33,10 @@ const config = {
     require.resolve('docusaurus-plugin-image-zoom')
   ],
 
+  customFields: {
+    corsoVersion: `${process.env.CORSO_VERSION}`,
+  },
+
   presets: [
     [
       'classic',
@@ -53,16 +57,6 @@ const config = {
           customCss: require.resolve('./src/css/custom.scss'),
         },
       }),
-    ],
-  ],
-
-  themes: [
-    [
-      require.resolve('@easyops-cn/docusaurus-search-local'),
-      {
-        hashed: true,
-        docsRouteBasePath: '/',
-      },
     ],
   ],
 
@@ -111,10 +105,6 @@ const config = {
             title: 'Community',
             items: [
               {
-                label: 'Discussions',
-                href: 'https://github.com/alcionai/corso/discussions',
-              },
-              {
                 label: 'Discord',
                 href: 'https://discord.gg/63DTTSnuhT',
               },
@@ -139,7 +129,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()}`,
+        copyright: `Copyright © ${new Date().getFullYear()} | Version ${process.env.CORSO_VERSION}`,
       },
       colorMode: {
         defaultMode: 'dark',
@@ -164,6 +154,7 @@ const config = {
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
+        additionalLanguages: ['powershell'],
       },
     }),
 };

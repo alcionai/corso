@@ -42,6 +42,8 @@ const (
 var (
 	Time1 = time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
 	Time2 = time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
+	Time3 = time.Date(2023, 9, 21, 10, 0, 0, 0, time.UTC)
+	Time4 = time.Date(2023, 10, 21, 10, 0, 0, 0, time.UTC)
 
 	ExchangeEmailInboxPath = mustParsePath("tenant-id/exchange/user-id/email/Inbox", false)
 	ExchangeEmailBasePath  = mustAppendPath(ExchangeEmailInboxPath, "subfolder", false)
@@ -161,9 +163,18 @@ var (
 		},
 	}
 
-	OneDriveBasePath  = mustParsePath("tenant-id/onedrive/user-id/files/folder/subfolder", false)
-	OneDriveItemPath1 = mustAppendPath(OneDriveBasePath, ItemName1, true)
-	OneDriveItemPath2 = mustAppendPath(OneDriveBasePath, ItemName2, true)
+	OneDriveRootPath   = mustParsePath("tenant-id/onedrive/user-id/files/drives/foo/root:", false)
+	OneDriveFolderPath = mustAppendPath(OneDriveRootPath, "folder", false)
+	OneDriveBasePath1  = mustAppendPath(OneDriveFolderPath, "a", false)
+	OneDriveBasePath2  = mustAppendPath(OneDriveFolderPath, "b", false)
+
+	OneDriveItemPath1 = mustAppendPath(OneDriveFolderPath, ItemName1, true)
+	OneDriveItemPath2 = mustAppendPath(OneDriveBasePath1, ItemName2, true)
+	OneDriveItemPath3 = mustAppendPath(OneDriveBasePath2, ItemName3, true)
+
+	OneDriveFolderFolder  = stdpath.Join(OneDriveFolderPath.Folders()[3:]...)
+	OneDriveParentFolder1 = stdpath.Join(OneDriveBasePath1.Folders()[3:]...)
+	OneDriveParentFolder2 = stdpath.Join(OneDriveBasePath2.Folders()[3:]...)
 
 	OneDriveItems = []details.DetailsEntry{
 		{
@@ -172,18 +183,12 @@ var (
 			ParentRef: OneDriveItemPath1.ToBuilder().Dir().ShortRef(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
-					ItemType: details.OneDriveItem,
-					ParentPath: stdpath.Join(
-						append(
-							[]string{
-								"drives",
-								"foo",
-								"root:",
-							},
-							OneDriveItemPath1.Folders()...,
-						)...,
-					),
-					ItemName: OneDriveItemPath1.Item() + "name",
+					ItemType:   details.OneDriveItem,
+					ParentPath: OneDriveFolderFolder,
+					ItemName:   OneDriveItemPath1.Item() + "name",
+					Size:       int64(23),
+					Created:    Time2,
+					Modified:   Time4,
 				},
 			},
 		},
@@ -193,18 +198,27 @@ var (
 			ParentRef: OneDriveItemPath2.ToBuilder().Dir().ShortRef(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
-					ItemType: details.OneDriveItem,
-					ParentPath: stdpath.Join(
-						append(
-							[]string{
-								"drives",
-								"foo",
-								"root:",
-							},
-							OneDriveItemPath2.Folders()...,
-						)...,
-					),
-					ItemName: OneDriveItemPath2.Item() + "name",
+					ItemType:   details.OneDriveItem,
+					ParentPath: OneDriveParentFolder1,
+					ItemName:   OneDriveItemPath2.Item() + "name",
+					Size:       int64(42),
+					Created:    Time1,
+					Modified:   Time3,
+				},
+			},
+		},
+		{
+			RepoRef:   OneDriveItemPath3.String(),
+			ShortRef:  OneDriveItemPath3.ShortRef(),
+			ParentRef: OneDriveItemPath3.ToBuilder().Dir().ShortRef(),
+			ItemInfo: details.ItemInfo{
+				OneDrive: &details.OneDriveInfo{
+					ItemType:   details.OneDriveItem,
+					ParentPath: OneDriveParentFolder2,
+					ItemName:   OneDriveItemPath3.Item() + "name",
+					Size:       int64(19),
+					Created:    Time2,
+					Modified:   Time4,
 				},
 			},
 		},

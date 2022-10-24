@@ -15,8 +15,10 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -270,7 +272,7 @@ func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	bs, err := r.Backups(ctx)
+	bs, err := r.Backups(ctx, store.Service(path.OneDriveService))
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
@@ -350,6 +352,10 @@ func runDetailsOneDriveCmd(
 	backupID string,
 	opts utils.OneDriveOpts,
 ) (*details.Details, error) {
+	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {
+		return nil, err
+	}
+
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
 		if errors.Is(err, kopia.ErrNotFound) {
