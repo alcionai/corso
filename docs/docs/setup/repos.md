@@ -134,3 +134,13 @@ docker run --env-file $HOME/.corso/corso.env \\
 
 </TabItem>
 </Tabs>
+
+## S3-compatible object storage
+
+Configuring Corso to use object storage systems compatible with the AWS S3 API (for example, Google Cloud Storage,
+Backblaze B2, MinIO, etc.) is almost identical to the Amazon S3 instructions above with the exception that you will
+need to use the following flag with the initial Corso `repo init` command:
+
+```bash
+  --endpoint <domain.example.com>
+```
