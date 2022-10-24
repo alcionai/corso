@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -147,14 +148,142 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	closer()
 }
 
-func (suite *ObserveProgressUnitSuite) TestObserveMessage() {
+func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, false)
+	observe.SeedWriter(ctx, &recorder)
 
-	observe.Progress("Test Message")
+	message := "Test Message"
+
+	observe.Progress(message)
 	observe.Complete()
 	require.NotEmpty(suite.T(), recorder.String())
+	require.Contains(suite.T(), recorder.String(), message)
+}
+
+func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	message := "Test Message"
+
+	ch, closer := observe.ProgressWithCompletion(message)
+
+	// Trigger completion
+	ch <- struct{}{}
+
+	// Run the closer - this should complete because the bar was compelted above
+	closer()
+
+	observe.Complete()
+
+	require.NotEmpty(suite.T(), recorder.String())
+	require.Contains(suite.T(), recorder.String(), message)
+	require.Contains(suite.T(), recorder.String(), "done")
+}
+
+func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	message := "Test Message"
+
+	ch, closer := observe.ProgressWithCompletion(message)
+
+	// Close channel without completing
+	close(ch)
+
+	// Run the closer - this should complete because the channel was closed above
+	closer()
+
+	observe.Complete()
+
+	require.NotEmpty(suite.T(), recorder.String())
+	require.Contains(suite.T(), recorder.String(), message)
+	require.Contains(suite.T(), recorder.String(), "done")
+}
+
+func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	message := "Test Message"
+
+	_, closer := observe.ProgressWithCompletion(message)
+
+	// cancel context
+	cancel()
+
+	// Run the closer - this should complete because the context was closed above
+	closer()
+
+	observe.Complete()
+
+	require.NotEmpty(suite.T(), recorder.String())
+	require.Contains(suite.T(), recorder.String(), message)
+}
+
+func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	header := "Header"
+	message := "Test Message"
+	count := 3
+
+	ch, closer := observe.ProgressWithCount(header, message, int64(count))
+
+	for i := 0; i < count; i++ {
+		ch <- struct{}{}
+	}
+
+	// Run the closer - this should complete because the context was closed above
+	closer()
+
+	observe.Complete()
+
+	require.NotEmpty(suite.T(), recorder.String())
+	require.Contains(suite.T(), recorder.String(), message)
+	require.Contains(suite.T(), recorder.String(), fmt.Sprintf("%d/%d", count, count))
+}
+
+func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCountChannelClosed() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	recorder := strings.Builder{}
+	observe.SeedWriter(ctx, &recorder)
+
+	header := "Header"
+	message := "Test Message"
+	count := 3
+
+	ch, closer := observe.ProgressWithCount(header, message, int64(count))
+
+	close(ch)
+
+	// Run the closer - this should complete because the context was closed above
+	closer()
+
+	observe.Complete()
+
+	require.NotEmpty(suite.T(), recorder.String())
+	require.Contains(suite.T(), recorder.String(), message)
+	require.Contains(suite.T(), recorder.String(), fmt.Sprintf("%d/%d", 0, count))
 }
