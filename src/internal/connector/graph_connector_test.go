@@ -372,14 +372,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 		folderNames map[string]struct{}
 	}{
 		{
-			name:  "Mail Iterative Check",
-			scope: selectors.NewExchangeBackup().MailFolders([]string{userID}, selectors.Any())[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-				"Sent Items":               {},
-			},
-		},
-		{
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup().MailFolders(
 				[]string{userID},
