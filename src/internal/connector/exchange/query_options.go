@@ -105,7 +105,7 @@ const (
 	contacts
 )
 
-func categoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
+func CategoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 	switch category {
 	case path.EmailCategory:
 		return messages

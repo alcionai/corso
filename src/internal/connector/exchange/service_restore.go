@@ -36,7 +36,7 @@ func RestoreExchangeObject(
 		return nil, fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
 	}
 
-	setting := categoryToOptionIdentifier(category)
+	setting := CategoryToOptionIdentifier(category)
 
 	switch setting {
 	case messages:

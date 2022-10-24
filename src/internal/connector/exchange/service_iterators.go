@@ -29,7 +29,7 @@ func FilterContainersAndFillCollections(
 ) error {
 	var (
 		category       = graph.ScopeToPathCategory(qp.Scope)
-		collectionType = categoryToOptionIdentifier(category)
+		collectionType = CategoryToOptionIdentifier(category)
 		errs           error
 	)
 
