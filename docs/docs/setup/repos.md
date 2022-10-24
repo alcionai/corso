@@ -4,13 +4,14 @@ description: "Configure backup repository"
 
 # Repositories
 
+import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import TOCInline from '@theme/TOCInline';
+import {Version} from '@site/src/corsoEnv';
 
 A Corso [repository](concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are
 supported on the following object storage systems:
-
-import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} maxHeadingLevel={2}/><br/>
 
@@ -89,13 +90,13 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # Initialize the Corso Repository
-  export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    repo init s3 --bucket corso-test
-  ```
+<CodeBlock language="bash">{
+`# Initialize the Corso Repository
+export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  repo init s3 --bucket corso-test`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
@@ -124,12 +125,22 @@ If a repository already exists, you can connect to it with `corso repo connect s
 </TabItem>
 <TabItem value="docker" label="Docker">
 
-  ```bash
-  # Connect to the Corso Repository
-  docker run --env-file $HOME/.corso/corso.env \
-    --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:latest \
-    repo connect s3 --bucket corso-test
-  ```
+<CodeBlock language="bash">{
+`# Connect to the Corso Repository
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  repo connect s3 --bucket corso-test`
+}</CodeBlock>
 
 </TabItem>
 </Tabs>
+
+## S3-compatible object storage
+
+Configuring Corso to use object storage systems compatible with the AWS S3 API (for example, Google Cloud Storage,
+Backblaze B2, MinIO, etc.) is almost identical to the Amazon S3 instructions above with the exception that you will
+need to use the following flag with the initial Corso `repo init` command:
+
+```bash
+  --endpoint <domain.example.com>
+```
