@@ -226,7 +226,6 @@ func runRestoreLoadTest(
 	users []string,
 ) {
 	//revive:enable:context-as-argument
-	t.Skip("only validating backup at this time")
 	t.Run("restore_"+name, func(t *testing.T) {
 		var (
 			err    error
