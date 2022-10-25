@@ -22,4 +22,4 @@ publish: build
 
 sync:
 	aws s3 sync /usr/src/website/dist/ s3://corsobackup.io/ --exclude ".git/*" --delete
-	aws cloudfront create-invalidation --distribution-id XXXXX --paths "/*"
+	aws cloudfront create-invalidation --distribution-id E1W9NGI9YTVZ1A --paths "/*"
