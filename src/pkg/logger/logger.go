@@ -207,20 +207,57 @@ func Flush(ctx context.Context) {
 
 type wrapper struct {
 	zap.SugaredLogger
+
+	forceDebugLogLevel bool
+}
+
+func (w *wrapper) process(opts ...option) {
+	for _, opt := range opts {
+		opt(w)
+	}
+}
+
+type option func(*wrapper)
+
+// ForceDebugLogLevel reduces all logs emitted in the wrapper to
+// debug level, independent of their original log level.  Useful
+// for silencing noisy dependency packages without losing the info
+// altogether.
+func ForceDebugLogLevel() option {
+	return func(w *wrapper) {
+		w.forceDebugLogLevel = true
+	}
 }
 
 // Wrap returns the logger in the package with an extended api used for
 // dependency package interface compliance.
-func WrapCtx(ctx context.Context) *wrapper {
-	return Wrap(Ctx(ctx))
+func WrapCtx(ctx context.Context, opts ...option) *wrapper {
+	return Wrap(Ctx(ctx), opts...)
 }
 
 // Wrap returns the sugaredLogger with an extended api used for
 // dependency package interface compliance.
-func Wrap(zsl *zap.SugaredLogger) *wrapper {
-	return &wrapper{*zsl}
+func Wrap(zsl *zap.SugaredLogger, opts ...option) *wrapper {
+	w := &wrapper{SugaredLogger: *zsl}
+	w.process(opts...)
+
+	return w
 }
 
 func (w *wrapper) Logf(tmpl string, args ...any) {
-	w.Infof(tmpl, args...)
+	if w.forceDebugLogLevel {
+		w.SugaredLogger.Debugf(tmpl, args...)
+		return
+	}
+
+	w.SugaredLogger.Infof(tmpl, args...)
+}
+
+func (w *wrapper) Errorf(tmpl string, args ...any) {
+	if w.forceDebugLogLevel {
+		w.SugaredLogger.Debugf(tmpl, args...)
+		return
+	}
+
+	w.SugaredLogger.Errorf(tmpl, args...)
 }

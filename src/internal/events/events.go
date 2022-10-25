@@ -87,7 +87,7 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 			RudderStackWriteKey,
 			RudderStackDataPlaneURL,
 			analytics.Config{
-				Logger: logger.WrapCtx(ctx),
+				Logger: logger.WrapCtx(ctx, logger.ForceDebugLogLevel()),
 			})
 
 		if err != nil {
