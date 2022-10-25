@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -83,6 +82,35 @@ func initM365Repo(t *testing.T) (
 // ------------------------------------------------------------------------------------------------
 // Common
 // ------------------------------------------------------------------------------------------------
+
+//revive:disable:context-as-argument
+func runLoadTest(
+	t *testing.T,
+	ctx context.Context,
+	r repository.Repository,
+	service string,
+	usersUnderTest []string,
+	bupSel, restSel selectors.Selector,
+) {
+	//revive:enable:context-as-argument
+	t.Run("load_test_main", func(t *testing.T) {
+		b, err := r.NewBackup(ctx, bupSel)
+		require.NoError(t, err)
+
+		runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
+		bid := string(b.Results.BackupID)
+
+		runBackupListLoadTest(t, ctx, r, service, bid)
+		runBackupDetailsLoadTest(t, ctx, r, service, bid, usersUnderTest)
+
+		dest := tester.DefaultTestRestoreDestination()
+
+		rst, err := r.NewRestore(ctx, bid, restSel, dest)
+		require.NoError(t, err)
+
+		runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten, usersUnderTest)
+	})
+}
 
 //revive:disable:context-as-argument
 func runBackupLoadTest(
@@ -345,39 +373,22 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	var (
-		t              = suite.T()
-		r              = suite.repo
-		service        = "exchange"
-		usersUnderTest = alcUsers
-		all            = selectors.Any()
-	)
+	usersUnderTest := alcUsers
 
-	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(usersUnderTest, all))
-	bsel.Include(bsel.ContactFolders(usersUnderTest, all))
-	bsel.Include(bsel.EventCalendars(usersUnderTest, all))
+	bsel.Include(bsel.MailFolders(usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.ContactFolders(usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.EventCalendars(usersUnderTest, selectors.Any()))
+	sel := bsel.Selector
 
-	b, err := r.NewBackup(ctx, bsel.Selector)
-	require.NoError(t, err)
-
-	runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
-	bid := string(b.Results.BackupID)
-
-	runBackupListLoadTest(t, ctx, r, service, bid)
-	runBackupDetailsLoadTest(t, ctx, r, service, bid, usersUnderTest)
-
-	// restore
-	rsel, err := bsel.ToExchangeRestore()
-	require.NoError(t, err)
-
-	dest := tester.DefaultTestRestoreDestination()
-
-	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
-	require.NoError(t, err)
-
-	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten, usersUnderTest)
+	runLoadTest(
+		suite.T(),
+		ctx,
+		suite.repo,
+		"exchange",
+		usersUnderTest,
+		sel, sel, // same selection for backup and restore
+	)
 }
 
 // single user, lots of data
@@ -412,38 +423,22 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	var (
-		t              = suite.T()
-		r              = suite.repo
-		service        = "exchange"
-		usersUnderTest = largeDatasetUser
-	)
+	usersUnderTest := largeDatasetUser
 
-	// backup
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(usersUnderTest, []string{exchange.DefaultMailFolder}))
-	bsel.Include(bsel.ContactFolders(usersUnderTest, []string{exchange.DefaultContactFolder}))
-	bsel.Include(bsel.EventCalendars(usersUnderTest, []string{exchange.DefaultCalendar}))
+	bsel.Include(bsel.MailFolders(usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.ContactFolders(usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.EventCalendars(usersUnderTest, selectors.Any()))
+	sel := bsel.Selector
 
-	b, err := r.NewBackup(ctx, bsel.Selector)
-	require.NoError(t, err)
-
-	runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
-	bid := string(b.Results.BackupID)
-
-	runBackupListLoadTest(t, ctx, r, service, bid)
-	runBackupDetailsLoadTest(t, ctx, r, service, bid, usersUnderTest)
-
-	// restore
-	rsel, err := bsel.ToExchangeRestore()
-	require.NoError(t, err)
-
-	dest := tester.DefaultTestRestoreDestination()
-
-	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
-	require.NoError(t, err)
-
-	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten, usersUnderTest)
+	runLoadTest(
+		suite.T(),
+		ctx,
+		suite.repo,
+		"exchange",
+		usersUnderTest,
+		sel, sel, // same selection for backup and restore
+	)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -481,36 +476,20 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	var (
-		t              = suite.T()
-		r              = suite.repo
-		service        = "one_drive"
-		usersUnderTest = alcUsers
-	)
+	usersUnderTest := alcUsers
 
-	// backup
 	bsel := selectors.NewOneDriveBackup()
 	bsel.Include(bsel.Users(usersUnderTest))
+	sel := bsel.Selector
 
-	b, err := r.NewBackup(ctx, bsel.Selector)
-	require.NoError(t, err)
-
-	runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
-	bid := string(b.Results.BackupID)
-
-	runBackupListLoadTest(t, ctx, r, service, bid)
-	runBackupDetailsLoadTest(t, ctx, r, service, bid, usersUnderTest)
-
-	// restore
-	rsel, err := bsel.ToOneDriveRestore()
-	require.NoError(t, err)
-
-	dest := tester.DefaultTestRestoreDestination()
-
-	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
-	require.NoError(t, err)
-
-	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten, usersUnderTest)
+	runLoadTest(
+		suite.T(),
+		ctx,
+		suite.repo,
+		"one_drive",
+		usersUnderTest,
+		sel, sel, // same selection for backup and restore
+	)
 }
 
 type RepositoryIndividualLoadTestOneDriveSuite struct {
@@ -544,34 +523,18 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	var (
-		t              = suite.T()
-		r              = suite.repo
-		service        = "one_drive"
-		usersUnderTest = largeDatasetUser
-	)
+	usersUnderTest := largeDatasetUser
 
-	// backup
 	bsel := selectors.NewOneDriveBackup()
 	bsel.Include(bsel.Users(usersUnderTest))
+	sel := bsel.Selector
 
-	b, err := r.NewBackup(ctx, bsel.Selector)
-	require.NoError(t, err)
-
-	runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
-	bid := string(b.Results.BackupID)
-
-	runBackupListLoadTest(t, ctx, r, service, bid)
-	runBackupDetailsLoadTest(t, ctx, r, service, bid, usersUnderTest)
-
-	// restore
-	rsel, err := bsel.ToOneDriveRestore()
-	require.NoError(t, err)
-
-	dest := tester.DefaultTestRestoreDestination()
-
-	rst, err := r.NewRestore(ctx, bid, rsel.Selector, dest)
-	require.NoError(t, err)
-
-	runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten, usersUnderTest)
+	runLoadTest(
+		suite.T(),
+		ctx,
+		suite.repo,
+		"one_drive",
+		usersUnderTest,
+		sel, sel, // same selection for backup and restore
+	)
 }
