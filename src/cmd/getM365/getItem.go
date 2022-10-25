@@ -57,7 +57,6 @@ func main() {
 		"m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
 	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object to be created")
 	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events or files)") // files not supported
-	// Based on this we will have to determine what type of object wea re hunting.
 
 	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("user"))
 	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("m365ID"))
@@ -80,8 +79,7 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// commands := []
-	err = runDisplayM365ID(
+	err = runDisplayM365JSON(
 		ctx,
 		gc)
 	if err != nil {
@@ -91,7 +89,7 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runDisplayM365ID(
+func runDisplayM365JSON(
 	ctx context.Context,
 	gs graph.Service,
 ) error {
