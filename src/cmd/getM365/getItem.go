@@ -1,6 +1,6 @@
-// mckgen package defines a package to create mock data from an existing M365 account.
-// Data displayed is representative of the current serialization abstraction
-// used by Corso.
+// getItem.go is a source file designed to retrieve an m365 object from an
+// existing M365 account. Data displayed is representative of the current
+// serialization abstraction versioning used by Microsoft Graph and stored by Corso.
 
 package main
 
@@ -39,8 +39,8 @@ var (
 	tenant, user, m365ID, category string
 )
 
-// main function will produce the json String for a given m365 object of a signed
-// in user. Displayed Objects can be used as inputs for Mockable data
+// main function will produce the JSON String for a given m365 object of a
+// user. Displayed Objects can be used as inputs for Mockable data
 // Supports:
 // - exchange (contacts, email, and events)
 // Input: go run ./mckgen.go     --user <user>
@@ -109,6 +109,8 @@ func runCreateMockableFromID(
 	}
 
 	channel := make(chan data.Stream, 1)
+	defer close(channel)
+
 	sw := kw.NewJsonSerializationWriter()
 
 	response, err := get(ctx, gs, user, m365ID)
@@ -145,7 +147,7 @@ func runCreateMockableFromID(
 			return errors.Wrapf(err, "unable to serialize new value from M365:%s", m365ID)
 		}
 
-		fmt.Printf("%s\n", string(array))
+		fmt.Println(string(array))
 
 		return nil
 	}
