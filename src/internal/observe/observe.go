@@ -4,33 +4,90 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-const progressBarWidth = 32
+const (
+	noProgressBarsFN = "no-progress-bars"
+	progressBarWidth = 32
+)
 
 var (
-	wg       sync.WaitGroup
+	wg sync.WaitGroup
+	// TODO: Revisit this being a global nd make it a parameter to the progress methods
+	// so that each bar can be initialized with different contexts if needed.
 	con      context.Context
 	writer   io.Writer
 	progress *mpb.Progress
+	cfg      *config
 )
 
 func init() {
+	cfg = &config{}
+
 	makeSpinFrames(progressBarWidth)
+}
+
+// adds the persistent boolean flag --no-progress-bars to the provided command.
+// This is a hack for help displays.  Due to seeding the context, we also
+// need to parse the configuration before we execute the command.
+func AddProgressBarFlags(parent *cobra.Command) {
+	fs := parent.PersistentFlags()
+	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
+}
+
+// Due to races between the lazy evaluation of flags in cobra and the need to init observer
+// behavior in a ctx, these options get pre-processed manually here using pflags.  The canonical
+// AddProgressBarFlag() ensures the flags are displayed as part of the help/usage output.
+func PreloadFlags() bool {
+	fs := pflag.NewFlagSet("seed-observer", pflag.ContinueOnError)
+	fs.ParseErrorsWhitelist.UnknownFlags = true
+	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
+	// prevents overriding the corso/cobra help processor
+	fs.BoolP("help", "h", false, "")
+
+	// parse the os args list to find the log level flag
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		return false
+	}
+
+	// retrieve the user's preferred display
+	// automatically defaults to "info"
+	shouldHide, err := fs.GetBool(noProgressBarsFN)
+	if err != nil {
+		return false
+	}
+
+	return shouldHide
+}
+
+// ---------------------------------------------------------------------------
+// configuration
+// ---------------------------------------------------------------------------
+
+// config handles observer configuration
+type config struct {
+	doNotDisplay bool
 }
 
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
-func SeedWriter(ctx context.Context, w io.Writer) {
+func SeedWriter(ctx context.Context, w io.Writer, hide bool) {
 	writer = w
 	con = ctx
 
 	if con == nil {
 		con = context.Background()
+	}
+
+	cfg = &config{
+		doNotDisplay: hide,
 	}
 
 	progress = mpb.NewWithContext(
@@ -48,34 +105,165 @@ func Complete() {
 		progress.Wait()
 	}
 
-	SeedWriter(con, writer)
+	SeedWriter(con, writer, cfg.doNotDisplay)
 }
 
-// ItemProgress tracks the display of an item by counting the bytes
+const (
+	ItemBackupMsg  = "Backing up item:"
+	ItemRestoreMsg = "Restoring item:"
+	ItemQueueMsg   = "Queuing items:"
+)
+
+// Progress Updates
+
+// Message is used to display a progress message
+func Message(message string) {
+	if writer == nil {
+		return
+	}
+
+	wg.Add(1)
+
+	bar := progress.New(
+		-1,
+		mpb.NopStyle(),
+		mpb.PrependDecorators(
+			decor.Name(message, decor.WC{W: len(message) + 1, C: decor.DidentRight}),
+		),
+	)
+
+	// Complete the bar immediately
+	bar.SetTotal(-1, true)
+
+	waitAndCloseBar(bar)()
+}
+
+// MessageWithCompletion is used to display progress with a spinner
+// that switches to "done" when the completion channel is signalled
+func MessageWithCompletion(message string) (chan<- struct{}, func()) {
+	completionCh := make(chan struct{}, 1)
+
+	if writer == nil {
+		return completionCh, func() {}
+	}
+
+	wg.Add(1)
+
+	frames := []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙"}
+
+	bar := progress.New(
+		-1,
+		mpb.SpinnerStyle(frames...).PositionLeft(),
+		mpb.PrependDecorators(
+			decor.Name(message),
+		),
+		mpb.BarFillerOnComplete("done"),
+	)
+
+	go func(ci <-chan struct{}) {
+		for {
+			select {
+			case <-con.Done():
+				bar.SetTotal(-1, true)
+			case <-ci:
+				// We don't care whether the channel was signalled or closed
+				// Use either one as an indication that the bar is done
+				bar.SetTotal(-1, true)
+			}
+		}
+	}(completionCh)
+
+	return completionCh, waitAndCloseBar(bar)
+}
+
+// ---------------------------------------------------------------------------
+// Progress for Known Quantities
+// ---------------------------------------------------------------------------
+
+// ItemProgress tracks the display of an item in a folder by counting the bytes
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
-func ItemProgress(rc io.ReadCloser, iname string, totalBytes int64) (io.ReadCloser, func()) {
-	if writer == nil || rc == nil || totalBytes == 0 {
+func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.ReadCloser, func()) {
+	if cfg.doNotDisplay || writer == nil || rc == nil || totalBytes == 0 {
 		return rc, func() {}
 	}
 
 	wg.Add(1)
 
-	bar := progress.AddBar(
+	bar := progress.New(
 		totalBytes,
-		mpb.BarFillerOnComplete(""),
+		mpb.NopStyle(),
 		mpb.BarRemoveOnComplete(),
 		mpb.PrependDecorators(
-			decor.OnComplete(decor.NewPercentage("%d", decor.WC{W: 4}), ""),
-			decor.OnComplete(decor.TotalKiloByte("%.1f", decor.WCSyncSpace), ""),
-		),
-		mpb.AppendDecorators(
-			decor.OnComplete(decor.Name(iname), ""),
+			decor.Name(header, decor.WCSyncSpaceR),
+			decor.Name(iname, decor.WCSyncSpaceR),
+			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
+			decor.NewPercentage("%d ", decor.WC{W: 4}),
 		),
 	)
 
 	return bar.ProxyReader(rc), waitAndCloseBar(bar)
 }
+
+// ProgressWithCount tracks the display of a bar that tracks the completion
+// of the specified count.
+// Each write to the provided channel counts as a single increment.
+// The caller is expected to close the channel.
+func ProgressWithCount(header, message string, count int64) (chan<- struct{}, func()) {
+	progressCh := make(chan struct{})
+
+	if cfg.doNotDisplay || writer == nil {
+		go func(ci <-chan struct{}) {
+			for {
+				_, ok := <-ci
+				if !ok {
+					return
+				}
+			}
+		}(progressCh)
+
+		return progressCh, func() {}
+	}
+
+	wg.Add(1)
+
+	bar := progress.New(
+		count,
+		mpb.NopStyle(),
+		mpb.BarRemoveOnComplete(),
+		mpb.PrependDecorators(
+			decor.Name(header, decor.WCSyncSpaceR),
+			decor.Counters(0, " %d/%d "),
+			decor.Name(message),
+		),
+	)
+
+	ch := make(chan struct{})
+
+	go func(ci <-chan struct{}) {
+		for {
+			select {
+			case <-con.Done():
+				bar.Abort(true)
+				return
+
+			case _, ok := <-ci:
+				if !ok {
+					bar.Abort(true)
+					return
+				}
+
+				bar.Increment()
+			}
+		}
+	}(ch)
+
+	return ch, waitAndCloseBar(bar)
+}
+
+// ---------------------------------------------------------------------------
+// Progress for Unknown Quantities
+// ---------------------------------------------------------------------------
 
 var spinFrames []string
 
@@ -105,11 +293,11 @@ func makeSpinFrames(barWidth int) {
 	spinFrames = sl
 }
 
-// ItemProgress tracks the display a spinner that idles while the collection
+// CollectionProgress tracks the display a spinner that idles while the collection
 // incrementing the count of items handled.  Each write to the provided channel
 // counts as a single increment.  The caller is expected to close the channel.
 func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()) {
-	if writer == nil || len(user) == 0 || len(dirName) == 0 {
+	if cfg.doNotDisplay || writer == nil || len(user) == 0 || len(dirName) == 0 {
 		ch := make(chan struct{})
 
 		go func(ci <-chan struct{}) {
@@ -129,16 +317,13 @@ func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()
 	bar := progress.New(
 		-1, // -1 to indicate an unbounded count
 		mpb.SpinnerStyle(spinFrames...),
-		mpb.BarFillerOnComplete(""),
 		mpb.BarRemoveOnComplete(),
 		mpb.PrependDecorators(
-			decor.OnComplete(decor.Name(category), ""),
+			decor.Name(category),
 		),
 		mpb.AppendDecorators(
-			decor.OnComplete(decor.CurrentNoUnit("%d - ", decor.WCSyncSpace), ""),
-			decor.OnComplete(
-				decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
-				""),
+			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
+			decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
 		),
 	)
 

@@ -66,6 +66,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.PersistentPostRunE = config.InitFunc()
 	config.AddConfigFlags(cmd)
 	logger.AddLogLevelFlag(cmd)
+	observe.AddProgressBarFlags(cmd)
 	print.AddOutputFlag(cmd)
 	options.AddGlobalOperationFlags(cmd)
 
@@ -87,11 +88,11 @@ func BuildCommandTree(cmd *cobra.Command) {
 func Handle() {
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
-	observe.SeedWriter(ctx, print.StderrWriter(ctx))
+	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
 
 	BuildCommandTree(corsoCmd)
 
-	ctx, log := logger.Seed(ctx)
+	ctx, log := logger.Seed(ctx, logger.PreloadLogLevel())
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()
