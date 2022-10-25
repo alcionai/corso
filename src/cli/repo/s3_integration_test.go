@@ -76,6 +76,11 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 
 			// run the command
 			require.NoError(t, cmd.ExecuteContext(ctx))
+
+			// a second initialization should result in an error
+			err = cmd.ExecuteContext(ctx)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, repository.ErrorRepoAlreadyExists)
 		})
 	}
 }
