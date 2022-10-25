@@ -524,10 +524,10 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	usersUnderTest := alcUsers
+	usersUnderTest := largeDatasetUser
 
 	bsel := selectors.NewOneDriveBackup()
-	bsel.Include(bsel.Users(largeDatasetUser))
+	bsel.Include(bsel.Users(usersUnderTest))
 	sel := bsel.Selector
 
 	runLoadTest(
