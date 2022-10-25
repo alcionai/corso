@@ -136,6 +136,10 @@ func singleton(level logLevel) *zap.SugaredLogger {
 	return loggerton
 }
 
+// ------------------------------------------------------------------------------------------------
+// context management
+// ------------------------------------------------------------------------------------------------
+
 type loggingKey string
 
 const ctxKey loggingKey = "corsoLogger"
@@ -195,4 +199,28 @@ func levelOf(lvl string) logLevel {
 // Flush writes out all buffered logs.
 func Flush(ctx context.Context) {
 	_ = Ctx(ctx).Sync()
+}
+
+// ------------------------------------------------------------------------------------------------
+// log wrapper for downstream api compliance
+// ------------------------------------------------------------------------------------------------
+
+type wrapper struct {
+	zap.SugaredLogger
+}
+
+// Wrap returns the logger in the package with an extended api used for
+// dependency package interface compliance.
+func WrapCtx(ctx context.Context) *wrapper {
+	return Wrap(Ctx(ctx))
+}
+
+// Wrap returns the sugaredLogger with an extended api used for
+// dependency package interface compliance.
+func Wrap(zsl *zap.SugaredLogger) *wrapper {
+	return &wrapper{*zsl}
+}
+
+func (w *wrapper) Logf(tmpl string, args ...any) {
+	w.Infof(tmpl, args...)
 }
