@@ -61,6 +61,8 @@ func main() {
 	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
 	ctx = SetRootCmd(ctx, factoryCmd)
 
+	defer logger.Flush(ctx)
+
 	// persistent flags that are common to all use cases
 	fs := factoryCmd.PersistentFlags()
 	fs.StringVar(&tenant, "tenant", "", "m365 tenant containing the user")
@@ -80,8 +82,6 @@ func main() {
 		logger.Flush(ctx)
 		os.Exit(1)
 	}
-
-	logger.Flush(ctx)
 }
 
 func handleFactoryRoot(cmd *cobra.Command, args []string) error {

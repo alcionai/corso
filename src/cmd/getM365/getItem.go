@@ -49,6 +49,8 @@ func main() {
 	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
 	ctx = SetRootCmd(ctx, getCmd)
 
+	defer logger.Flush(ctx)
+
 	fs := getCmd.PersistentFlags()
 	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
 	fs.StringVar(&tenant, "tenant", "",
@@ -64,8 +66,6 @@ func main() {
 		logger.Flush(ctx)
 		os.Exit(1)
 	}
-
-	logger.Flush(ctx)
 }
 
 func handleGetCommand(cmd *cobra.Command, args []string) error {

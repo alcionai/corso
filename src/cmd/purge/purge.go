@@ -72,6 +72,8 @@ func main() {
 	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
 	ctx = SetRootCmd(ctx, purgeCmd)
 
+	defer logger.Flush(ctx)
+
 	fs := purgeCmd.PersistentFlags()
 	fs.StringVar(&before, "before", "", "folders older than this date are deleted.  (default: now in UTC)")
 	fs.StringVar(&user, "user", "", "m365 user id whose folders will be deleted")
@@ -89,8 +91,6 @@ func main() {
 		logger.Flush(ctx)
 		os.Exit(1)
 	}
-
-	logger.Flush(ctx)
 }
 
 func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
