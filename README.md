@@ -2,7 +2,6 @@
 
 # Corso
 
-[![CI](https://github.com/alcionai/corso/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alcionai/corso/actions)
 [![Discord](https://img.shields.io/badge/discuss-discord-blue)](https://discord.gg/63DTTSnuhT)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
