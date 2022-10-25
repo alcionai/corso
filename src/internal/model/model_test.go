@@ -3,6 +3,7 @@ package model_test
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -35,4 +36,12 @@ func (suite *ModelUnitSuite) TestValid() {
 			test.expect(t, test.mt.Valid())
 		})
 	}
+}
+
+func (suite *ModelUnitSuite) TestGetID() {
+	bm := model.BaseModel{
+		ID: model.StableID(uuid.NewString()),
+	}
+
+	assert.Equal(suite.T(), string(bm.ID), bm.GetID())
 }
