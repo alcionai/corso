@@ -25,6 +25,13 @@ See the [Corso Documentation](https://docs.corsobackup.io) for more information.
 To learn more about working with the project source core and building Corso, see the
 [Developer section](https://docs.corsobackup.io/developers/build) of the Corso Documentation.
 
+# Roadmap
+
+You can learn more about the Corso roadmap and how to interpret it [here](https://github.com/alcionai/corso-roadmap).
+
+If you have feature requests, please file a [GitHub issue](https://github.com/alcionai/corso/issues/)
+and attach the `enhancement` label to the issue.
+
 # Contribution Guidelines
 
 ## Code of Conduct
