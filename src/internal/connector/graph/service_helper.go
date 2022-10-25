@@ -5,6 +5,7 @@ import (
 	nethttp "net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -84,4 +85,21 @@ func ScopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
 	}
 
 	return path.UnknownCategory
+}
+
+func StringToPathCategory(input string) path.CategoryType {
+	param := strings.ToLower(input)
+
+	switch param {
+	case "email":
+		return path.EmailCategory
+	case "contacts":
+		return path.ContactsCategory
+	case "events":
+		return path.EventsCategory
+	case "files":
+		return path.FilesCategory
+	default:
+		return path.UnknownCategory
+	}
 }
