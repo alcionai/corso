@@ -13,6 +13,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+var localRun bool
+
 /*
 Currently using AWS x-ray for observability:
 https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-annotations
@@ -47,6 +49,7 @@ func Start(ctx context.Context, name string) (context.Context, func()) {
 	seg.TraceID = xray.NewTraceID()
 
 	rgn := trace.StartRegion(ctx, name)
+	localRun = true
 
 	return ctx, func() {
 		seg.Close(nil)
@@ -135,7 +138,15 @@ func Span(ctx context.Context, name string, ext ...extender) (context.Context, f
 		rgn.End()
 
 		if span != nil {
-			span.CloseAndStream(nil)
+			return
 		}
+
+		// during a local run we always deliver segment info to the daemon
+		if localRun {
+			span.CloseAndStream(nil)
+			return
+		}
+
+		span.Close(nil)
 	}
 }

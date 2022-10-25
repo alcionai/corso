@@ -39,12 +39,11 @@ otel-daemon:
 		-e AWS_REGION \
 		-v ~/.aws/:/root/.aws/:ro \
 		--name xray-daemon \
-		-p 2000:2000 \
+		-p 2000:2000/udp \
 		--rm \
 	xray-daemon \
 		--local-mode \
-		--log-level debug \
-		--bind "0.0.0.0:2000" 
+		--log-level debug 
 
 # --net=host \
 
