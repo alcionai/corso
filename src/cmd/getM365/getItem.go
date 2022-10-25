@@ -28,13 +28,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var mockCmd = &cobra.Command{
-	Use:   "mock",
-	Short: "Mock M365ID into a string value",
-	RunE:  handleMockCommand,
+var getCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get a M365ID item JSON",
+	RunE:  handleGetCommand,
 }
 
-// Required inputs from user from the user
+// Required inputs from user for command execution
 var (
 	tenant, user, m365ID, category string
 )
@@ -43,15 +43,15 @@ var (
 // user. Displayed Objects can be used as inputs for Mockable data
 // Supports:
 // - exchange (contacts, email, and events)
-// Input: go run ./mckgen.go     --user <user>
+// Input: go run ./getItem.go     --user <user>
 //   --m365ID <m365ID> --category <oneof: contacts, email, events>
 func main() {
 	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
-	ctx = SetRootCmd(ctx, mockCmd)
+	ctx = SetRootCmd(ctx, getCmd)
 
 	defer logger.Flush(ctx)
 
-	fs := mockCmd.PersistentFlags()
+	fs := getCmd.PersistentFlags()
 	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
 	fs.StringVar(&tenant, "tenant", "",
 		"m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
@@ -59,16 +59,16 @@ func main() {
 	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events or files)") // files not supported
 	// Based on this we will have to determine what type of object wea re hunting.
 
-	cobra.CheckErr(mockCmd.MarkPersistentFlagRequired("user"))
-	cobra.CheckErr(mockCmd.MarkPersistentFlagRequired("m365ID"))
-	cobra.CheckErr(mockCmd.MarkPersistentFlagRequired("category"))
+	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("user"))
+	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("m365ID"))
+	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("category"))
 
-	if err := mockCmd.ExecuteContext(ctx); err != nil {
+	if err := getCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
 }
 
-func handleMockCommand(cmd *cobra.Command, args []string) error {
+func handleGetCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
@@ -81,7 +81,7 @@ func handleMockCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// commands := []
-	err = runCreateMockableFromID(
+	err = runDisplayM365ID(
 		ctx,
 		gc)
 	if err != nil {
@@ -91,7 +91,7 @@ func handleMockCommand(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runCreateMockableFromID(
+func runDisplayM365ID(
 	ctx context.Context,
 	gs graph.Service,
 ) error {
@@ -109,7 +109,6 @@ func runCreateMockableFromID(
 	}
 
 	channel := make(chan data.Stream, 1)
-	defer close(channel)
 
 	sw := kw.NewJsonSerializationWriter()
 
