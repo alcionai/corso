@@ -356,7 +356,7 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 	t := suite.T()
-	userID := tester.M365UserID(t)
+	userID := "LidiaH@8qzvrj.onmicrosoft.com"
 	now := time.Now()
 	tests := []struct {
 		name        string
@@ -438,6 +438,19 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteCalendar,
 			destination: func(ctx context.Context) string {
 				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
+				calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
+				require.NoError(t, err)
+
+				return *calendar.GetId()
+			},
+		},
+		{
+			name:        "Test Event with Attachment",
+			bytes:       mockconnector.GetMockEventWithAttachment("Restored Event Attachment"),
+			category:    path.EventsCategory,
+			cleanupFunc: DeleteCalendar,
+			destination: func(ctx context.Context) string {
+				calendarName := "TestRestoreEventObject_" + common.FormatSimpleDateTime(now)
 				calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
 				require.NoError(t, err)
 
