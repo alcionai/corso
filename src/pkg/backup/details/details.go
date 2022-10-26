@@ -102,6 +102,21 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 	return res
 }
 
+// Folders returns a slice of *ItemInfo that contains only FolderInfo entries.
+func (dm DetailsModel) Folders() []*DetailsEntry {
+	res := []*DetailsEntry{}
+
+	for i := 0; i < len(dm.Entries); i++ {
+		if dm.Entries[i].Folder == nil {
+			continue
+		}
+
+		res = append(res, &dm.Entries[i])
+	}
+
+	return res
+}
+
 // --------------------------------------------------------------------------------
 // Details
 // --------------------------------------------------------------------------------

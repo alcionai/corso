@@ -136,9 +136,10 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 }
 
 var pathItemsTable = []struct {
-	name       string
-	ents       []details.DetailsEntry
-	expectRefs []string
+	name             string
+	ents             []details.DetailsEntry
+	expectRefs       []string
+	expectFolderRefs []string
 }{
 	{
 		name:       "nil entries",
@@ -174,7 +175,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRefs: []string{"abcde", "12345"},
+		expectRefs:       []string{"abcde", "12345"},
+		expectFolderRefs: []string{"deadbeef"},
 	},
 }
 
@@ -205,6 +207,25 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 
 			for _, e := range ents {
 				assert.Contains(t, test.expectRefs, e.RepoRef)
+			}
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestDetailsModel_Folders() {
+	for _, test := range pathItemsTable {
+		suite.T().Run(test.name, func(t *testing.T) {
+			d := details.Details{
+				DetailsModel: details.DetailsModel{
+					Entries: test.ents,
+				},
+			}
+
+			ents := d.Folders()
+			assert.Len(t, ents, len(test.expectFolderRefs))
+
+			for _, e := range ents {
+				assert.Contains(t, test.expectFolderRefs, e.RepoRef)
 			}
 		})
 	}
