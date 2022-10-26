@@ -31,6 +31,8 @@ var serviceToPathType = map[service]path.ServiceType{
 var (
 	ErrorBadSelectorCast = errors.New("wrong selector service type")
 	ErrorNoMatchingItems = errors.New("no items match the specified selectors")
+	ErrorNotShortRef     = errors.New("string doesn't match ShortRef pattern")
+	ErrorNotFound        = errors.New("no matching item found")
 )
 
 const (
@@ -117,6 +119,33 @@ func (s Selector) String() string {
 	}
 
 	return string(bs)
+}
+
+// folderRefToPath takes a string that may be a ShortRef and returns a path.Path
+// if it matches a folder in deets. If ref does not match the pattern for
+// a ShortRef or it does not match any ShortRef in deets returns an error.
+func folderRefToPath(ref string, deets *details.Details) (path.Path, error) {
+	if !path.MaybeShortRef(ref) {
+		return nil, ErrorNotShortRef
+	}
+
+	for _, folder := range deets.Folders() {
+		if folder.ShortRef != ref {
+			continue
+		}
+
+		p, err := path.FromDataLayerPath(folder.RepoRef, false)
+		if err != nil {
+			// Either we were given a ref for something further up the hierarchy than
+			// the folder itself or the path is malformed (i.e. bad service/category
+			// pair etc).
+			return nil, errors.Wrapf(err, "resolving folder ShortRef %s", ref)
+		}
+
+		return p, nil
+	}
+
+	return nil, ErrorNotFound
 }
 
 // appendScopes iterates through each scope in the list of scope slices,
