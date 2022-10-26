@@ -817,7 +817,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			var aMatch bool
 			for _, scope := range scopes {
 				pv := ExchangeMail.pathValues(pth)
-				if matchesPathValues(scope, ExchangeMail, pv, short) {
+				if matchesPathValues(scope, ExchangeMail, pv, short, nil) {
 					aMatch = true
 					break
 				}

@@ -278,6 +278,85 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			},
 			expected: testdata.ExchangeEventsItems,
 		},
+		{
+			name: "ExchangeMailFolderRefPrefixMatch",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.MailFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailInboxPath.ShortRef()},
+				))
+
+				return sel
+			},
+			expected: testdata.ExchangeEmailItems,
+		},
+		{
+			name: "ExchangeMailByFolderRef",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.MailFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeEmailBasePath.ShortRef()},
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+		},
+		{
+			name: "ExchangeContactByFolderRef",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.ContactFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeContactsBasePath.ShortRef()},
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeContactsItems[0]},
+		},
+		{
+			name: "ExchangeContactByFolderRefRoot",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.ContactFolders(
+					selectors.Any(),
+					[]string{testdata.ExchangeContactsRootPath.ShortRef()},
+				))
+
+				return sel
+			},
+			expected: testdata.ExchangeContactsItems,
+		},
+
+		{
+			name: "ExchangeEventsByFolderRef",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.EventCalendars(
+					selectors.Any(),
+					[]string{testdata.ExchangeEventsBasePath.ShortRef()},
+				))
+
+				return sel
+			},
+			expected: []details.DetailsEntry{testdata.ExchangeEventsItems[0]},
+		},
+		{
+			name: "ExchangeEventsByFolderRefRoot",
+			selFunc: func() selectors.Reducer {
+				sel := selectors.NewExchangeRestore()
+				sel.Include(sel.EventCalendars(
+					selectors.Any(),
+					[]string{testdata.ExchangeEventsRootPath.ShortRef()},
+				))
+
+				return sel
+			},
+			expected: testdata.ExchangeEventsItems,
+		},
 	}
 
 	for _, test := range table {
