@@ -61,6 +61,46 @@ func uploadAttachment(ctx context.Context, service graph.Service, userID, folder
 	return uploadLargeAttachment(ctx, service, userID, folderID, messageID, attachment)
 }
 
+func uploadEventAttachment(ctx context.Context, service graph.Service, userID, calendardID, eventID string,
+	attachment models.Attachmentable,
+) error {
+	logger.Ctx(ctx).Debugf("uploading event attachment with size %d", *attachment.GetSize())
+
+	if attachmentType(attachment) != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
+		_, err := service.Client().
+			UsersById(userID).
+			CalendarsById(calendardID).
+			EventsById(eventID).
+			Attachments().
+			Post(ctx, attachment, nil)
+
+		return err
+	}
+
+	return uploadLargeEventAttachment(ctx, service, userID, calendardID, eventID, attachment)
+}
+
+// uploadLargeAttachment will upload the specified attachment for an event using an upload session
+func uploadLargeEventAttachment(ctx context.Context, service graph.Service, userID, calendarID, eventID string,
+	attachment models.Attachmentable,
+) error {
+	ab := attachmentBytes(attachment)
+
+	aw, err := attachmentEventWriter(ctx, service, userID, calendarID, eventID, attachment, int64(len(ab)))
+	if err != nil {
+		return err
+	}
+
+	copyBuffer := make([]byte, attachmentChunkSize)
+
+	_, err = io.CopyBuffer(aw, bytes.NewReader(ab), copyBuffer)
+	if err != nil {
+		return errors.Wrapf(err, "failed to upload attachment: item %s", eventID)
+	}
+
+	return nil
+}
+
 // uploadLargeAttachment will upload the specified attachment by creating an upload session and
 // doing a chunked upload
 func uploadLargeAttachment(ctx context.Context, service graph.Service, userID, folderID, messageID string,
@@ -114,4 +154,38 @@ func attachmentWriter(ctx context.Context, service graph.Service, userID, folder
 	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", messageID, url)
 
 	return uploadsession.NewWriter(messageID, url, size), nil
+}
+
+func attachmentEventWriter(ctx context.Context, service graph.Service, userID, calendarID, eventID string,
+	attachment models.Attachmentable, size int64,
+) (io.Writer, error) {
+	session := createuploadsession.NewCreateUploadSessionPostRequestBody()
+
+	attItem := models.NewAttachmentItem()
+	attType := models.FILE_ATTACHMENTTYPE
+	attItem.SetAttachmentType(&attType)
+	attItem.SetName(attachment.GetName())
+	attItem.SetSize(&size)
+	session.SetAttachmentItem(attItem)
+
+	r, err := service.Client().
+		UsersById(userID).
+		CalendarsById(calendarID).
+		EventsById(eventID).
+		Attachments().
+		CreateUploadSession().
+		Post(ctx, session, nil)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"failed to create attachment upload session for event item %s. details: %s",
+			eventID, support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	url := *r.GetUploadUrl()
+
+	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", eventID, url)
+
+	return uploadsession.NewWriter(eventID, url, size), nil
 }
