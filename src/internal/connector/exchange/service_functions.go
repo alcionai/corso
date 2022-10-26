@@ -225,7 +225,7 @@ func GetContainers(
 	qp graph.QueryParams,
 	gs graph.Service,
 ) ([]graph.CachedContainer, error) {
-	category := graph.ScopeToPathCategory(qp.Scope)
+	category := qp.Scope.Category().PathType()
 
 	switch category {
 	case path.ContactsCategory:

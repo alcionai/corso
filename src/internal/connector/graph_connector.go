@@ -298,7 +298,7 @@ func (gc *GraphConnector) createCollections(
 			Credentials: gc.credentials,
 		}
 
-		itemCategory := graph.ScopeToPathCategory(qp.Scope)
+		itemCategory := qp.Scope.Category().PathType()
 
 		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
 		defer closer()
@@ -307,7 +307,7 @@ func (gc *GraphConnector) createCollections(
 		resolver, err := exchange.PopulateExchangeContainerResolver(
 			ctx,
 			qp,
-			graph.ScopeToPathCategory(qp.Scope),
+			qp.Scope.Category().PathType(),
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting folder cache")

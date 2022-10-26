@@ -336,3 +336,24 @@ func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
 		})
 	}
 }
+
+func (suite *OneDriveSelectorSuite) TestCategory_PathType() {
+	table := []struct {
+		cat      oneDriveCategory
+		pathType path.CategoryType
+	}{
+		{OneDriveCategoryUnknown, path.UnknownCategory},
+		{OneDriveUser, path.UnknownCategory},
+		{OneDriveItem, path.FilesCategory},
+		{OneDriveFolder, path.FilesCategory},
+		{FileFilterCreatedAfter, path.FilesCategory},
+		{FileFilterCreatedBefore, path.FilesCategory},
+		{FileFilterModifiedAfter, path.FilesCategory},
+		{FileFilterModifiedBefore, path.FilesCategory},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			assert.Equal(t, test.pathType, test.cat.PathType())
+		})
+	}
+}
