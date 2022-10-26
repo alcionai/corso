@@ -99,10 +99,10 @@ type Path interface {
 	ToBuilder() *Builder
 }
 
-// MaybeShortRef takes a stirng and returns true if this string could possibly
-// be a ShortRef. Otherwise it returns false. A return value of true does not
-// absolutely mean the string is a ShortRef returned by some item, only that it
-// fits the pattern ShortRefs use.
+// MaybeShortRef takes a stirng and returns true if the string complies with
+// the ShortRef format. Otherwise it returns false. A return value of true does
+// not guarantee the string is a ShortRef, nor that it represents an existing
+// item.
 func MaybeShortRef(ref string) bool {
 	// Keep separate from regex match below in case we start supporting multiple
 	// sizes. Also avoids having to change multiple bits of code if we do update
