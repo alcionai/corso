@@ -466,14 +466,24 @@ const (
 	// append new filter cats here
 )
 
-// exchangePathSet describes the category type keys used in Exchange paths.
-// The order of each slice is important, and should match the order in which
-// these types appear in the canonical Path for each type.
-var exchangePathSet = map[categorizer][]categorizer{
-	ExchangeContact: {ExchangeUser, ExchangeContactFolder, ExchangeContact},
-	ExchangeEvent:   {ExchangeUser, ExchangeEventCalendar, ExchangeEvent},
-	ExchangeMail:    {ExchangeUser, ExchangeMailFolder, ExchangeMail},
-	ExchangeUser:    {ExchangeUser}, // the root category must be represented
+// exchangeLeafProperties describes common metadata of the leaf categories
+var exchangeLeafProperties = map[categorizer]leafProperty{
+	ExchangeContact: {
+		pathKeys: []categorizer{ExchangeUser, ExchangeContactFolder, ExchangeContact},
+		pathType: path.ContactsCategory,
+	},
+	ExchangeEvent: {
+		pathKeys: []categorizer{ExchangeUser, ExchangeEventCalendar, ExchangeEvent},
+		pathType: path.EventsCategory,
+	},
+	ExchangeMail: {
+		pathKeys: []categorizer{ExchangeUser, ExchangeMailFolder, ExchangeMail},
+		pathType: path.EmailCategory,
+	},
+	ExchangeUser: { // the root category must be represented, even though it isn't a leaf
+		pathKeys: []categorizer{ExchangeUser},
+		pathType: path.UnknownCategory,
+	},
 }
 
 func (ec exchangeCategory) String() string {
@@ -551,7 +561,12 @@ func (ec exchangeCategory) pathValues(p path.Path) map[categorizer]string {
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
 func (ec exchangeCategory) pathKeys() []categorizer {
-	return exchangePathSet[ec.leafCat()]
+	return exchangeLeafProperties[ec.leafCat()].pathKeys
+}
+
+// PathType converts the category's leaf type into the matching path.CategoryType.
+func (ec exchangeCategory) PathType() path.CategoryType {
+	return exchangeLeafProperties[ec.leafCat()].pathType
 }
 
 // ---------------------------------------------------------------------------
