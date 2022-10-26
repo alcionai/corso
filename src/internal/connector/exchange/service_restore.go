@@ -106,6 +106,17 @@ func RestoreExchangeEvent(
 
 	transformedEvent := support.ToEventSimplified(event)
 
+	var (
+		attached []models.Attachmentable
+		errs     error
+	)
+
+	if *event.GetHasAttachments() {
+		attached = event.GetAttachments()
+
+		transformedEvent.SetAttachments([]models.Attachmentable{})
+	}
+
 	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
 	if err != nil {
 		return nil, errors.Wrap(err,
@@ -119,7 +130,26 @@ func RestoreExchangeEvent(
 		return nil, errors.New("msgraph event post fail: REST response not received")
 	}
 
-	return EventInfo(event), nil
+	for _, attach := range attached {
+		err := uploadEventAttachment(ctx,
+			service,
+			user,
+			destination,
+			*response.GetId(),
+			attach)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				fmt.Sprintf("uploading attachment for message %s: %s",
+					*transformedEvent.GetId(), support.ConnectorStackErrorTrace(err)),
+				err,
+				errs,
+			)
+
+			break
+		}
+	}
+
+	return EventInfo(event), errs
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
