@@ -363,7 +363,14 @@ func matchesEntry[T scopeT, C categoryT](
 		return sc.matchesInfo(entry.ItemInfo)
 	}
 
-	return matchesPathValues(sc, cat, pathValues, entry.ShortRef)
+	// Swallow error and match on folder names instead. If the item is picked
+	// the error will be reported when it gets the path later.
+	itemPath, err := path.FromDataLayerPath(entry.RepoRef, true)
+	if err != nil {
+		itemPath = nil
+	}
+
+	return matchesPathValues(sc, cat, pathValues, entry.ShortRef, itemPath)
 }
 
 // matchesPathValues will check whether the pathValues have matching entries
@@ -376,6 +383,7 @@ func matchesPathValues[T scopeT, C categoryT](
 	cat C,
 	pathValues map[categorizer]string,
 	shortRef string,
+	itemPath path.Path,
 ) bool {
 	for _, c := range cat.pathKeys() {
 		// the pathValues must have an entry for the given categorizer
@@ -416,6 +424,34 @@ func matchesPathValues[T scopeT, C categoryT](
 			for _, tgt := range getCatValue(sc, c) {
 				if filters.Prefix(tgt).Compare(pathVal) {
 					match = true
+					break
+				}
+
+				if itemPath == nil || !path.MaybeShortRef(tgt) {
+					continue
+				}
+
+				// Compare folder ShortRefs to tgt. Assumes prefix matching.
+				// A bit inefficient in that it checks all folders for OneDrive even
+				// though the first three are hidden from users.
+				for len(itemPath.Folders()) > 0 {
+					if itemPath.ShortRef() == tgt {
+						match = true
+						break
+					}
+
+					// Need to pre-declare because otherwise it shadows the outer
+					// itemPath. Really shouldn't be getting an error here though because
+					// we stop looping when there's no folders left.
+					var err error
+
+					itemPath, err = itemPath.Dir()
+					if err != nil {
+						break
+					}
+				}
+
+				if match {
 					break
 				}
 			}
