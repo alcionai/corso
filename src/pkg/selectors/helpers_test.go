@@ -62,6 +62,15 @@ func (mc mockCategorizer) pathKeys() []categorizer {
 	return []categorizer{rootCatStub, leafCatStub}
 }
 
+func (mc mockCategorizer) PathType() path.CategoryType {
+	switch mc {
+	case leafCatStub:
+		return path.EventsCategory
+	default:
+		return path.UnknownCategory
+	}
+}
+
 func stubPathValues() map[categorizer]string {
 	return map[categorizer]string{
 		rootCatStub: rootCatStub.String(),
