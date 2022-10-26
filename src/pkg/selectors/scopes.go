@@ -17,7 +17,7 @@ import (
 // leafProperty describes metadata associated with a leaf categorizer
 type leafProperty struct {
 	// pathKeys describes the categorizer keys used to map scope type to a value
-	// extraced from a path.Path.
+	// extracted from a path.Path.
 	// The order of the slice is important, and should match the order in which
 	// these types appear in the path.Path for each type.
 	// Ex: given: exchangeMail
@@ -28,7 +28,7 @@ type leafProperty struct {
 
 	// pathType produces the path.CategoryType representing this leafType.
 	// This allows the scope to type to be compared using the more commonly recognized
-	// path category contsts.
+	// path category consts.
 	// Ex: given: exchangeMail
 	//	pathType => path.EmailCategory
 	pathType path.CategoryType
