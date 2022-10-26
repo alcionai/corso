@@ -107,10 +107,15 @@ func Label(k string, v any) extender {
 
 // Adds a Span to the given context.  Spans may be extended with indexes
 // for filtering and grouping, or with labels for contextual info.
-func Span(ctx context.Context, name string, ext ...extender) (context.Context, func()) {
-	// spans created without the presence of a parent segment will panic.
+// Named variable returns are necessary here to prevent nil responses
+// during panic handling.
+func Span(ctx context.Context, name string, ext ...extender) (_ctx context.Context, _fn func()) {
+	// spans created without an existing parent segment in the ctx will panic.
 	defer func() {
 		if r := recover(); r != nil {
+			_ctx = ctx
+			_fn = func() {}
+
 			var rmsg string
 
 			if s, ok := r.(string); ok {
@@ -134,7 +139,8 @@ func Span(ctx context.Context, name string, ext ...extender) (context.Context, f
 		e.extend(ctx, span)
 	}
 
-	return ctx, func() {
+	_ctx = ctx
+	_fn = func() {
 		rgn.End()
 
 		if span != nil {
@@ -149,4 +155,6 @@ func Span(ctx context.Context, name string, ext ...extender) (context.Context, f
 
 		span.Close(nil)
 	}
+
+	return _ctx, _fn
 }
