@@ -426,6 +426,50 @@ func (suite *PathUnitSuite) TestShortRefUniqueWithEscaping() {
 	assert.NotEqual(suite.T(), pb1.ShortRef(), pb2.ShortRef())
 }
 
+func (suite *PathUnitSuite) TestMaybeShortRef() {
+	table := []struct {
+		name  string
+		input string
+		check assert.BoolAssertionFunc
+	}{
+		{
+			name:  "FromPath",
+			input: Builder{}.Append(`this`, `is/a`, `path`).ShortRef(),
+			check: assert.True,
+		},
+		{
+			name:  "TooShort",
+			input: Builder{}.Append(`this`, `is/a`, `path`).ShortRef()[:shortRefCharacters-1],
+			check: assert.False,
+		},
+		{
+			name:  "TooLong",
+			input: Builder{}.Append(`this`, `is/a`, `path`).ShortRef() + "a",
+			check: assert.False,
+		},
+		{
+			name:  "WrongStartingCharacter",
+			input: "z0123456789ab",
+			check: assert.False,
+		},
+		{
+			name:  "WrongEndingCharacter",
+			input: "0123456789abz",
+			check: assert.False,
+		},
+		{
+			name:  "WrongCharacter",
+			input: "0123z456789ab",
+			check: assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			test.check(t, MaybeShortRef(test.input))
+		})
+	}
+}
+
 func (suite *PathUnitSuite) TestFromStringErrors() {
 	table := []struct {
 		name        string
