@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -1391,6 +1392,106 @@ func (suite *ExchangeSelectorSuite) TestCategoryFromItemType() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			result := categoryFromItemType(test.input)
 			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
+func (suite *ExchangeSelectorSuite) TestFolderRefToPath() {
+	folder1 := path.Builder{}.Append(
+		"a-tenant",
+		path.ExchangeService.String(),
+		"a-user",
+		path.EmailCategory.String(),
+		"Inbox",
+	)
+	folder2 := folder1.Append("Work")
+	email1 := folder1.Append("email1")
+	email2 := folder2.Append("email2")
+
+	deets := &details.Details{
+		DetailsModel: details.DetailsModel{
+			Entries: []details.DetailsEntry{
+				{
+					RepoRef:  folder1.String(),
+					ShortRef: folder1.ShortRef(),
+					ItemInfo: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
+				},
+				{
+					RepoRef:   folder2.String(),
+					ShortRef:  folder2.ShortRef(),
+					ParentRef: folder1.ShortRef(),
+					ItemInfo: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
+				},
+				{
+					RepoRef:   email1.String(),
+					ShortRef:  email1.ShortRef(),
+					ParentRef: folder1.ShortRef(),
+					ItemInfo: details.ItemInfo{
+						Exchange: &details.ExchangeInfo{},
+					},
+				},
+				{
+					RepoRef:   email2.String(),
+					ShortRef:  email2.ShortRef(),
+					ParentRef: folder2.ShortRef(),
+					ItemInfo: details.ItemInfo{
+						Exchange: &details.ExchangeInfo{},
+					},
+				},
+			},
+		},
+	}
+	table := []struct {
+		name     string
+		ref      string
+		expected string
+		errCheck assert.ErrorAssertionFunc
+	}{
+		{
+			name:     "RefTooShort",
+			ref:      folder1.ShortRef()[:len(folder1.ShortRef())-1],
+			errCheck: assert.Error,
+		},
+		{
+			name:     "RefTooLong",
+			ref:      folder1.ShortRef() + "a",
+			errCheck: assert.Error,
+		},
+		{
+			name:     "NotFound",
+			ref:      strings.Repeat("a", len(folder1.ShortRef())),
+			errCheck: assert.Error,
+		},
+		{
+			name:     "TopLevelFolder",
+			ref:      folder1.ShortRef(),
+			errCheck: assert.NoError,
+			expected: "Inbox",
+		},
+		{
+			name:     "SubFolder",
+			ref:      folder2.ShortRef(),
+			errCheck: assert.NoError,
+			expected: "Inbox/Work",
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := NewExchangeBackup()
+
+			p, err := sel.FolderRefToPath(test.ref, deets)
+			test.errCheck(t, err)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expected, p)
 		})
 	}
 }
