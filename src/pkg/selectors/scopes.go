@@ -431,6 +431,14 @@ func matchesPathValues[T scopeT, C categoryT](
 					continue
 				}
 
+				// Get the parent of the current item since this is a folder comparison.
+				// We shouldn't be getting an error here though as that's just if the
+				// path has no more items to pop off the end.
+				itemPath, err := itemPath.Dir()
+				if err != nil {
+					continue
+				}
+
 				// Compare folder ShortRefs to tgt. Assumes prefix matching.
 				// A bit inefficient in that it checks all folders for OneDrive even
 				// though the first three are hidden from users.
