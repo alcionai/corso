@@ -131,11 +131,15 @@ func RestoreExchangeEvent(
 	}
 
 	for _, attach := range attached {
-		err := uploadEventAttachment(ctx,
-			service,
-			user,
-			destination,
-			*response.GetId(),
+		uploader := &eventAttachmentUploader{
+			calendarID: destination,
+			userID:     user,
+			service:    service,
+			itemID:     *response.GetId(),
+		}
+
+		err := uploadAttachment(ctx,
+			uploader,
 			attach)
 		if err != nil {
 			errs = support.WrapAndAppend(
@@ -251,20 +255,24 @@ func SendMailToBackStore(
 		return errors.New("message not Sent: blocked by server")
 	}
 
-	if len(attached) > 0 {
-		id := *sentMessage.GetId()
-		for _, attachment := range attached {
-			err := uploadAttachment(ctx, service, user, destination, id, attachment)
-			if err != nil {
-				errs = support.WrapAndAppend(
-					fmt.Sprintf("uploading attachment for message %s: %s",
-						id, support.ConnectorStackErrorTrace(err)),
-					err,
-					errs,
-				)
+	id := *sentMessage.GetId()
 
-				break
-			}
+	for _, attachment := range attached {
+		uploader := &mailAttachmentUploader{
+			userID:   user,
+			folderID: destination,
+			itemID:   id,
+			service:  service,
+		}
+		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
+			errs = support.WrapAndAppend(
+				fmt.Sprintf("uploading attachment for message %s: %s",
+					id, support.ConnectorStackErrorTrace(err)),
+				err,
+				errs,
+			)
+
+			break
 		}
 	}
 
