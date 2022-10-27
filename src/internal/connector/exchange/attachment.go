@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	ups "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events/item/attachments/createuploadsession"
 	"github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item/attachments/createuploadsession"
 	"github.com/pkg/errors"
 
@@ -159,7 +160,7 @@ func attachmentWriter(ctx context.Context, service graph.Service, userID, folder
 func attachmentEventWriter(ctx context.Context, service graph.Service, userID, calendarID, eventID string,
 	attachment models.Attachmentable, size int64,
 ) (io.Writer, error) {
-	session := createuploadsession.NewCreateUploadSessionPostRequestBody()
+	session := ups.NewCreateUploadSessionPostRequestBody()
 
 	attItem := models.NewAttachmentItem()
 	attType := models.FILE_ATTACHMENTTYPE
