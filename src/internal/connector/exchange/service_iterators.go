@@ -28,7 +28,7 @@ func FilterContainersAndFillCollections(
 	resolver graph.ContainerResolver,
 ) error {
 	var (
-		category       = graph.ScopeToPathCategory(qp.Scope)
+		category       = qp.Scope.Category().PathType()
 		collectionType = CategoryToOptionIdentifier(category)
 		errs           error
 	)

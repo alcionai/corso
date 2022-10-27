@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -351,8 +352,8 @@ func restoreCollection(
 	deets *details.Details,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
-	defer trace.StartRegion(ctx, "gc:exchange:restoreCollection").End()
-	trace.Log(ctx, "gc:exchange:restoreCollection", dc.FullPath().String())
+	ctx, end := D.Span(ctx, "gc:exchange:restoreCollection", D.Label("path", dc.FullPath()))
+	defer end()
 
 	var (
 		metrics   support.CollectionMetrics
