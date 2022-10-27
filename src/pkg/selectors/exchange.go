@@ -4,8 +4,6 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -507,6 +505,20 @@ func (ec exchangeCategory) leafCat() categorizer {
 	return ec
 }
 
+func (ec exchangeCategory) folderCat() categorizer {
+	lc := ec.leafCat()
+	switch lc {
+	case ExchangeContact:
+		return ExchangeContactFolder
+	case ExchangeEvent:
+		return ExchangeEventCalendar
+	case ExchangeMail:
+		return ExchangeMailFolder
+	}
+
+	return lc
+}
+
 // rootCat returns the root category type.
 func (ec exchangeCategory) rootCat() categorizer {
 	return ExchangeUser
@@ -641,15 +653,6 @@ func (s ExchangeScope) setDefaults() {
 // Backup Details Filtering
 // ---------------------------------------------------------------------------
 
-func (s exchange) FolderRefToPath(ref string, deets *details.Details) (string, error) {
-	p, err := folderRefToPath(ref, deets)
-	if err != nil {
-		return "", errors.Wrap(err, "resolving Exchange folder ref")
-	}
-
-	return p.Folder(), nil
-}
-
 // Reduce filters the entries in a details struct to only those that match the
 // inclusions, filters, and exclusions in the selector.
 func (s exchange) Reduce(ctx context.Context, deets *details.Details) *details.Details {
@@ -662,6 +665,7 @@ func (s exchange) Reduce(ctx context.Context, deets *details.Details) *details.D
 			path.EventsCategory:   ExchangeEvent,
 			path.EmailCategory:    ExchangeMail,
 		},
+		noPathTransform,
 	)
 }
 

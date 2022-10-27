@@ -254,7 +254,8 @@ func (suite *SelectorScopesSuite) TestReduce() {
 				ctx,
 				&ds,
 				test.sel().Selector,
-				dataCats)
+				dataCats,
+				noPathTransform)
 			require.NotNil(t, result)
 			assert.Len(t, result.Entries, test.expectLen)
 		})

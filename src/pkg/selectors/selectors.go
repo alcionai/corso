@@ -124,28 +124,24 @@ func (s Selector) String() string {
 // folderRefToPath takes a string that may be a ShortRef and returns a path.Path
 // if it matches a folder in deets. If ref does not match the pattern for
 // a ShortRef or it does not match any ShortRef in deets returns an error.
-func folderRefToPath(ref string, deets *details.Details) (path.Path, error) {
+func folderRefToPath(ref string, ent *details.DetailsEntry) (path.Path, error) {
 	if !path.MaybeShortRef(ref) {
 		return nil, ErrorNotShortRef
 	}
 
-	for _, folder := range deets.Folders() {
-		if folder.ShortRef != ref {
-			continue
-		}
-
-		p, err := path.FromDataLayerPath(folder.RepoRef, false)
-		if err != nil {
-			// Either we were given a ref for something further up the hierarchy than
-			// the folder itself or the path is malformed (i.e. bad service/category
-			// pair etc).
-			return nil, errors.Wrapf(err, "resolving folder ShortRef %s", ref)
-		}
-
-		return p, nil
+	if ent.ShortRef != ref {
+		return nil, ErrorNotFound
 	}
 
-	return nil, ErrorNotFound
+	p, err := path.FromDataLayerPath(ent.RepoRef, false)
+	if err != nil {
+		// Either we were given a ref for something further up the hierarchy than
+		// the folder itself or the path is malformed (i.e. bad service/category
+		// pair etc).
+		return nil, errors.Wrapf(err, "resolving folder ShortRef %s", ref)
+	}
+
+	return p, nil
 }
 
 // appendScopes iterates through each scope in the list of scope slices,

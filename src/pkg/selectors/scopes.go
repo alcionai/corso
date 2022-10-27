@@ -27,6 +27,9 @@ type (
 		// Ex: fooFolder.leafCat() => foo.
 		leafCat() categorizer
 
+		// folderCat returns the folder category for the categorizer
+		folderCat() categorizer
+
 		// rootCat returns the root category for the categorizer
 		rootCat() categorizer
 
@@ -227,6 +230,7 @@ func reduce[T scopeT, C categoryT](
 	deets *details.Details,
 	s Selector,
 	dataCategories map[path.CategoryType]C,
+	pathTF pathToFolderFn,
 ) *details.Details {
 	defer trace.StartRegion(ctx, "selectors:reduce").End()
 
@@ -239,10 +243,17 @@ func reduce[T scopeT, C categoryT](
 	filts := scopesByCategory[T](s.Filters, dataCategories, true)
 	incls := scopesByCategory[T](s.Includes, dataCategories, false)
 
+	items, folders := deets.ItemsFolders()
+
+	// replace any shortRef hashes which match a folder with the actual folder path
+	excls = checkFolderRefs(excls, folders, pathTF)
+	filts = checkFolderRefs(filts, folders, pathTF)
+	incls = checkFolderRefs(incls, folders, pathTF)
+
 	ents := []details.DetailsEntry{}
 
 	// for each entry, compare that entry against the scopes of the same data type
-	for _, ent := range deets.Items() {
+	for _, ent := range items {
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 		if err != nil {
 			logger.Ctx(ctx).Debugw("transforming repoRef to path", "err", err)
@@ -271,6 +282,57 @@ func reduce[T scopeT, C categoryT](
 	reduced.Entries = ents
 
 	return reduced
+}
+
+// pathToFolderFn allows each application to provide a standardized transformer
+// to apply to the path.  Generally used to slice out directories that are
+// present in the repoRef, but no utilized in comparisons.
+type pathToFolderFn func(path.Path) string
+
+// standard noop for applications with no transformation.
+func noPathTransform(p path.Path) string {
+	return p.Folder()
+}
+
+// replaces any folder-level category value which matches a `parentRef`
+// (ie: the shortRef hash of a item's directory location) with the
+// actual directory string used for comparisons.
+func checkFolderRefs[T scopeT, C categoryT](
+	scopes map[C][]T,
+	folders []*details.DetailsEntry,
+	tform pathToFolderFn,
+) map[C][]T {
+	for _, fldr := range folders {
+		for c, ts := range scopes {
+			fldrCat := C(c.folderCat().String())
+
+			for _, t := range ts {
+				if isAnyTarget(t, fldrCat) || isNoneTarget(t, fldrCat) {
+					continue
+				}
+
+				// if any value in the filter matches a folder reference...
+				vs := getCatValue(t, fldrCat)
+				for i := range vs {
+					p, err := folderRefToPath(vs[i], fldr)
+					if err != nil {
+						continue
+					}
+
+					// ...replace that value with the directory string.
+					vs[i] = tform(p)
+				}
+
+				// finally, update the filter values with any changes
+				// from the above loop.
+				f := t[fldrCat.String()]
+				f.Target = join(vs...)
+				t[fldrCat.String()] = f
+			}
+		}
+	}
+
+	return scopes
 }
 
 // groups each scope by its category of data (specified by the service-selector).

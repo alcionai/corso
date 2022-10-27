@@ -316,6 +316,16 @@ func (c oneDriveCategory) leafCat() categorizer {
 	return c
 }
 
+func (c oneDriveCategory) folderCat() categorizer {
+	lc := c.leafCat()
+	switch lc {
+	case OneDriveItem:
+		return OneDriveFolder
+	}
+
+	return lc
+}
+
 // rootCat returns the root category type.
 func (c oneDriveCategory) rootCat() categorizer {
 	return OneDriveUser
@@ -460,5 +470,13 @@ func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.D
 		map[path.CategoryType]oneDriveCategory{
 			path.FilesCategory: OneDriveItem,
 		},
+		clipPrefixFromPath,
 	)
+}
+
+// path transformer used when formatting folder lookups
+// clips off the `drives/id/root:` prefix from the folders
+func clipPrefixFromPath(p path.Path) string {
+	//nolint:forbidigo
+	return path.Join(p.Folders()[3:])
 }

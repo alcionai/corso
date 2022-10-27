@@ -85,36 +85,38 @@ func (dm DetailsModel) Paths() []string {
 	return r
 }
 
+// ItemsFolders returns DetailsModel entries separated into two disjoint sets:
+// first the set containing only non-folder info (items) second the set containing
+// only folder info (folders).
+func (dm DetailsModel) ItemsFolders() ([]*DetailsEntry, []*DetailsEntry) {
+	is := make([]*DetailsEntry, 0, len(dm.Entries))
+	fs := []*DetailsEntry{}
+
+	for _, ent := range dm.Entries {
+		e := ent
+
+		if e.Folder != nil {
+			fs = append(fs, &e)
+		} else {
+			is = append(is, &e)
+		}
+	}
+
+	return is, fs
+}
+
 // Items returns a slice of *ItemInfo that does not contain any FolderInfo
 // entries. Required because not all folders in the details are valid resource
 // paths.
 func (dm DetailsModel) Items() []*DetailsEntry {
-	res := make([]*DetailsEntry, 0, len(dm.Entries))
-
-	for i := 0; i < len(dm.Entries); i++ {
-		if dm.Entries[i].Folder != nil {
-			continue
-		}
-
-		res = append(res, &dm.Entries[i])
-	}
-
-	return res
+	i, _ := dm.ItemsFolders()
+	return i
 }
 
 // Folders returns a slice of *ItemInfo that contains only FolderInfo entries.
 func (dm DetailsModel) Folders() []*DetailsEntry {
-	res := []*DetailsEntry{}
-
-	for i := 0; i < len(dm.Entries); i++ {
-		if dm.Entries[i].Folder == nil {
-			continue
-		}
-
-		res = append(res, &dm.Entries[i])
-	}
-
-	return res
+	_, f := dm.ItemsFolders()
+	return f
 }
 
 // --------------------------------------------------------------------------------

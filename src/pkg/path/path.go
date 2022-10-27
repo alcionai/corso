@@ -219,7 +219,7 @@ func (pb Builder) String() string {
 		escaped = append(escaped, escapeElement(e))
 	}
 
-	return join(escaped)
+	return Join(escaped)
 }
 
 func (pb Builder) ShortRef() string {
@@ -254,7 +254,7 @@ func (pb Builder) Elements() []string {
 
 //nolint:unused
 func (pb Builder) join(start, end int) string {
-	return join(pb.elements[start:end])
+	return Join(pb.elements[start:end])
 }
 
 func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
@@ -486,9 +486,9 @@ func TrimTrailingSlash(element string) string {
 	return element
 }
 
-// join returns a string containing the given elements joined by the path
+// Join returns a string containing the given elements joined by the path
 // separator '/'.
-func join(elements []string) string {
+func Join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(pathSeparator))

@@ -22,8 +22,9 @@ type mockCategorizer string
 const (
 	unknownCatStub mockCategorizer = ""
 	// wrap Exchange data here to get around path pkg assertions about path content.
-	rootCatStub mockCategorizer = mockCategorizer(ExchangeUser)
-	leafCatStub mockCategorizer = mockCategorizer(ExchangeEvent)
+	rootCatStub   mockCategorizer = mockCategorizer(ExchangeUser)
+	folderCatStub mockCategorizer = mockCategorizer(ExchangeContactFolder)
+	leafCatStub   mockCategorizer = mockCategorizer(ExchangeEvent)
 
 	pathServiceStub = path.ExchangeService
 	pathCatStub     = path.EmailCategory
@@ -37,6 +38,10 @@ func (mc mockCategorizer) String() string {
 
 func (mc mockCategorizer) leafCat() categorizer {
 	return mc
+}
+
+func (mc mockCategorizer) folderCat() categorizer {
+	return folderCatStub
 }
 
 func (mc mockCategorizer) rootCat() categorizer {
