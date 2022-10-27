@@ -461,6 +461,7 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
+	suite.T().Skip("testing")
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
