@@ -488,7 +488,7 @@ func establishMailRestoreLocation(
 	// newCache to false in this we'll only try to populate it once per function
 	// call even if we make a new cache.
 	if isNewCache {
-		if err := mfc.Populate(ctx, folderID, folders[0]); err != nil {
+		if err := mfc.Populate(ctx, folderID, ""); err != nil {
 			return "", errors.Wrap(err, "populating folder cache")
 		}
 	}
@@ -535,7 +535,7 @@ func establishContactsRestoreLocation(
 	isNewCache bool,
 ) (string, error) {
 	if isNewCache {
-		if err := cfc.Populate(ctx, DefaultContactFolder, folders[0]); err != nil {
+		if err := cfc.Populate(ctx, DefaultContactFolder, ""); err != nil {
 			return "", errors.Wrap(err, "populating contact cache")
 		}
 	}
