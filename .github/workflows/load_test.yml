@@ -52,6 +52,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          CORSO_M356_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M356_LOAD_TEST_USER_ID }}
           CORSO_LOAD_TESTS: true 
         run: |
           set -euo pipefail
@@ -78,6 +79,37 @@ jobs:
           path: src/test_results/*
           if-no-files-found: error
           retention-days: 14
+        
+      # currently, we're required to generate a unique folder for each factory
+      # production.  Whenever possible, this should be reverted to increasing the
+      # item count of a single folder instead, to prevent overproduction of folders
+      # during restore.
+      - name: Set folder destination date
+        run: |
+          echo "NOW=$(date -u +"%Y-%m-%d_%H-%M-%S")" >> $GITHUB_ENV
+
+      # generate new entries to roll into the next load test
+      # only runs if the test was successful
+      - name: New Data Creation
+        working-directory: ./src/cmd/factory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_M356_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M356_LOAD_TEST_USER_ID }}
+        run: |
+          go run . exchange emails \
+          --user ${{ env.CORSO_M356_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+          go run . exchange contacts \
+          --user ${{ env.CORSO_M356_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+          go run . exchange events \
+          --user ${{ env.CORSO_M356_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
 
       # cleanup folders produced by load test
       - name: Restored Folder Purge
@@ -92,4 +124,3 @@ jobs:
           go run ./cmd/purge/purge.go
           --user '*'
           --prefix ${{ env.DELETE_FOLDER_PREFIX }}
-        
