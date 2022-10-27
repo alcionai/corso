@@ -23,10 +23,10 @@ runtime/trace is also collected for load_test metrics gathering.
 */
 
 // Initialize trace and span collection and emission.
-// Should be called as an initialization
+// Should only be called as an initialization step in the context of a local run
+// (such as load testing).  SDK users need not initialize the xray, as they should
+// already be running their own collector.
 func InitCollector() error {
-	// TODO: ignore configuration if observability tooling (such as the x-ray daemon)
-	// is either not present, or turned off by the user.
 	cfg := xray.Config{
 		DaemonAddr:     "0.0.0.0:2000",
 		ServiceVersion: "3.3.5",
@@ -36,6 +36,7 @@ func InitCollector() error {
 		return errors.Wrap(err, "initializing observability tooling")
 	}
 
+	// TODO: feed in the corso logger
 	xray.SetLogger(xraylog.NewDefaultLogger(os.Stderr, xraylog.LogLevelInfo))
 
 	return nil
@@ -44,6 +45,10 @@ func InitCollector() error {
 // Start kicks off a parent segment for tracking.  Start should only be called
 // internally, and only once per corso execution.  SDK users may provide contexts
 // with existing segments rather calling Start.
+// The returned context will contain the parent segment (you should only ever have
+// one) for all child spans to collect within; adding a span to any context besides
+// this one (and its descendants) will slice that span from observation.
+// The returned func closes and flushes the parent segment.
 func Start(ctx context.Context, name string) (context.Context, func()) {
 	ctx, seg := xray.BeginSegment(ctx, name)
 	seg.TraceID = xray.NewTraceID()
@@ -110,6 +115,11 @@ func Label(k string, v any) extender {
 // Named variable returns are necessary here to prevent nil responses
 // during panic handling.
 func Span(ctx context.Context, name string, ext ...extender) (_ctx context.Context, _fn func()) {
+	// no-op if no parent segment exists
+	if xray.GetSegment(ctx) == nil {
+		return ctx, func() {}
+	}
+
 	// spans created without an existing parent segment in the ctx will panic.
 	defer func() {
 		if r := recover(); r != nil {
