@@ -484,6 +484,15 @@ func establishMailRestoreLocation(
 	folderID := rootFolderAlias
 	pb := path.Builder{}
 
+	// Only populate the cache if we actually had to create it. Since we set
+	// newCache to false in this we'll only try to populate it once per function
+	// call even if we make a new cache.
+	if isNewCache {
+		if err := mfc.Populate(ctx, folderID, folders[0]); err != nil {
+			return "", errors.Wrap(err, "populating folder cache")
+		}
+	}
+
 	for _, folder := range folders {
 		pb = *pb.Append(folder)
 		cached, ok := mfc.PathInCache(pb.String())
@@ -501,17 +510,6 @@ func establishMailRestoreLocation(
 		}
 
 		folderID = *temp.GetId()
-
-		// Only populate the cache if we actually had to create it. Since we set
-		// newCache to false in this we'll only try to populate it once per function
-		// call even if we make a new cache.
-		if isNewCache {
-			if err := mfc.Populate(ctx, folderID, folder); err != nil {
-				return "", errors.Wrap(err, "populating folder cache")
-			}
-
-			isNewCache = false
-		}
 
 		// NOOP if the folder is already in the cache.
 		if err = mfc.AddToCache(ctx, temp); err != nil {
@@ -536,6 +534,12 @@ func establishContactsRestoreLocation(
 	gs graph.Service,
 	isNewCache bool,
 ) (string, error) {
+	if isNewCache {
+		if err := cfc.Populate(ctx, DefaultContactFolder, folders[0]); err != nil {
+			return "", errors.Wrap(err, "populating contact cache")
+		}
+	}
+
 	cached, ok := cfc.PathInCache(folders[0])
 	if ok {
 		return cached, nil
@@ -548,14 +552,8 @@ func establishContactsRestoreLocation(
 
 	folderID := *temp.GetId()
 
-	if isNewCache {
-		if err := cfc.Populate(ctx, folderID, folders[0]); err != nil {
-			return "", errors.Wrap(err, "populating contact cache")
-		}
-
-		if err = cfc.AddToCache(ctx, temp); err != nil {
-			return "", errors.Wrap(err, "adding contact folder to cache")
-		}
+	if err = cfc.AddToCache(ctx, temp); err != nil {
+		return "", errors.Wrap(err, "adding contact folder to cache")
 	}
 
 	return folderID, nil
@@ -569,6 +567,12 @@ func establishEventsRestoreLocation(
 	gs graph.Service,
 	isNewCache bool,
 ) (string, error) {
+	if isNewCache {
+		if err := ecc.Populate(ctx, "", folders[0]); err != nil {
+			return "", errors.Wrap(err, "populating event cache")
+		}
+	}
+
 	cached, ok := ecc.PathInCache(folders[0])
 	if ok {
 		return cached, nil
@@ -580,16 +584,10 @@ func establishEventsRestoreLocation(
 	}
 
 	folderID := *temp.GetId()
+	transform := CreateCalendarDisplayable(temp)
 
-	if isNewCache {
-		if err = ecc.Populate(ctx, folderID, folders[0]); err != nil {
-			return "", errors.Wrap(err, "populating event cache")
-		}
-
-		transform := CreateCalendarDisplayable(temp)
-		if err = ecc.AddToCache(ctx, transform); err != nil {
-			return "", errors.Wrap(err, "adding new calendar to cache")
-		}
+	if err = ecc.AddToCache(ctx, transform); err != nil {
+		return "", errors.Wrap(err, "adding new calendar to cache")
 	}
 
 	return folderID, nil
