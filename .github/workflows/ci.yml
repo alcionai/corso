@@ -297,13 +297,13 @@ jobs:
           CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
         run: |
           npm ci
-          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
+          npm run build
 
       - name: Push docs
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         run: |
           echo "$DOCS_BUCKET" | base64
-          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}/preview"
+          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}"
 
       - name: Invalidate cloudfront
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
