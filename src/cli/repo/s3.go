@@ -9,7 +9,6 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -121,7 +120,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Initialize(ctx, a, s, options.Control())
 	if err != nil {
-		if succeedIfExists && kopia.IsRepoAlreadyExistsError(err) {
+		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
 

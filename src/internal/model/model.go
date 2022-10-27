@@ -61,3 +61,8 @@ type BaseModel struct {
 func (bm *BaseModel) Base() *BaseModel {
 	return bm
 }
+
+// GetID returns the baseModel.ID as a string rather than a model.StableID.
+func (bm *BaseModel) GetID() string {
+	return string(bm.ID)
+}

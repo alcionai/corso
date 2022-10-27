@@ -23,6 +23,7 @@ const (
 	TestCfgAzureTenantID   = "azure_tenantid"
 	TestCfgUserID          = "m365userid"
 	TestCfgSecondaryUserID = "secondarym365userid"
+	TestCfgLoadTestUserID  = "loadttestm365userid"
 	TestCfgAccountProvider = "account_provider"
 )
 
@@ -30,6 +31,7 @@ const (
 const (
 	EnvCorsoM365TestUserID          = "CORSO_M356_TEST_USER_ID"
 	EnvCorsoSecondaryM365TestUserID = "CORSO_SECONDARY_M356_TEST_USER_ID"
+	EnvCorsoM365LoadTestUserID      = "CORSO_M356_LOAD_TEST_USER_ID"
 	EnvCorsoTestConfigFilePath      = "CORSO_TEST_CONFIG_FILE"
 )
 
@@ -118,6 +120,13 @@ func readTestConfig() (map[string]string, error) {
 		vpr.GetString(TestCfgSecondaryUserID),
 		"lidiah@8qzvrj.onmicrosoft.com",
 		//"lynner@8qzvrj.onmicrosoft.com",
+	)
+	fallbackTo(
+		testEnv,
+		TestCfgLoadTestUserID,
+		os.Getenv(EnvCorsoM365LoadTestUserID),
+		vpr.GetString(TestCfgLoadTestUserID),
+		"leeg@8qzvrj.onmicrosoft.com",
 	)
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
