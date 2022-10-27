@@ -79,6 +79,7 @@ func main() {
 	addOneDriveCommands(oneDriveCmd)
 
 	if err := factoryCmd.ExecuteContext(ctx); err != nil {
+		logger.Flush(ctx)
 		os.Exit(1)
 	}
 }
