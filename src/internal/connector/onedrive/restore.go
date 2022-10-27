@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -95,7 +96,8 @@ func restoreCollection(
 	deets *details.Details,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
-	defer trace.StartRegion(ctx, "gc:oneDrive:restoreCollection").End()
+	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
+	defer end()
 
 	var (
 		metrics    = support.CollectionMetrics{}
@@ -228,7 +230,8 @@ func restoreItem(
 	driveID, parentFolderID string,
 	copyBuffer []byte,
 ) (*details.OneDriveInfo, error) {
-	defer trace.StartRegion(ctx, "gc:oneDrive:restoreItem").End()
+	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
+	defer end()
 
 	itemName := itemData.UUID()
 	trace.Log(ctx, "gc:oneDrive:restoreItem", itemName)

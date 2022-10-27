@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -277,7 +278,8 @@ func getStreamItemFunc(
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
-		defer trace.StartRegion(ctx, "kopia:getStreamItemFunc").End()
+		ctx, end := D.Span(ctx, "kopia:getStreamItemFunc")
+		defer end()
 
 		// Collect all errors and return them at the end so that iteration for this
 		// directory doesn't end early.
@@ -479,7 +481,8 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, errNotConnected
 	}
 
-	defer trace.StartRegion(ctx, "kopia:backupCollections").End()
+	ctx, end := D.Span(ctx, "kopia:backupCollections")
+	defer end()
 
 	if len(collections) == 0 {
 		return &BackupStats{}, &details.Details{}, nil
@@ -665,7 +668,8 @@ func (w Wrapper) RestoreMultipleItems(
 	paths []path.Path,
 	bcounter byteCounter,
 ) ([]data.Collection, error) {
-	defer trace.StartRegion(ctx, "kopia:restore:multiple").End()
+	ctx, end := D.Span(ctx, "kopia:restoreMultipleItems")
+	defer end()
 
 	if len(paths) == 0 {
 		return nil, errors.WithStack(errNoRestorePath)
