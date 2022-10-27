@@ -356,6 +356,8 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 	t := suite.T()
+	service := loadService(t)
+
 	userID := tester.M365UserID(t)
 	now := time.Now()
 	tests := []struct {
@@ -464,7 +466,6 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			service := loadService(t)
 			destination := test.destination(ctx)
 			info, err := RestoreExchangeObject(
 				ctx,
