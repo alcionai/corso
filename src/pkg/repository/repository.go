@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
 )
+
+var ErrorRepoAlreadyExists = errors.New("a repository was already initialized with that configuration")
 
 // BackupGetter deals with retrieving metadata about backups from the
 // repository.
@@ -78,6 +81,11 @@ func Initialize(
 ) (Repository, error) {
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
+		// replace common internal errors so that sdk users can check results with errors.Is()
+		if kopia.IsRepoAlreadyExistsError(err) {
+			return nil, ErrorRepoAlreadyExists
+		}
+
 		return nil, err
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
@@ -94,12 +102,17 @@ func Initialize(
 		return nil, err
 	}
 
+	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &repository{
 		ID:         uuid.New(),
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct.ID(), opts),
+		Bus:        bus,
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -138,12 +151,17 @@ func Connect(
 		return nil, err
 	}
 
+	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
+	if err != nil {
+		return nil, err
+	}
+
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct.ID(), opts),
+		Bus:        bus,
 		dataLayer:  w,
 		modelStore: ms,
 	}, nil

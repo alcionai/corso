@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"runtime/trace"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -85,7 +85,8 @@ type backupStats struct {
 
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
-	defer trace.StartRegion(ctx, "operations:backup:run").End()
+	ctx, end := D.Span(ctx, "operations:backup:run")
+	defer end()
 
 	var (
 		opStats       backupStats

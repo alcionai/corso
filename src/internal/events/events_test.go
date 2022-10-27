@@ -27,6 +27,9 @@ func TestMetricsIntegrationSuite(t *testing.T) {
 }
 
 func (suite *EventsIntegrationSuite) TestNewBus() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	s, err := storage.NewStorage(
@@ -50,11 +53,13 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 	)
 	require.NoError(t, err)
 
-	b := events.NewBus(s, a.ID(), control.Options{})
+	b, err := events.NewBus(ctx, s, a.ID(), control.Options{})
 	require.NotEmpty(t, b)
+	require.NoError(t, err)
 	require.NoError(t, b.Close())
 
-	b2 := events.NewBus(s, a.ID(), control.Options{DisableMetrics: true})
+	b2, err := events.NewBus(ctx, s, a.ID(), control.Options{DisableMetrics: true})
 	require.Empty(t, b2)
+	require.NoError(t, err)
 	require.NoError(t, b2.Close())
 }
