@@ -130,21 +130,20 @@ func RestoreExchangeEvent(
 		return nil, errors.New("msgraph event post fail: REST response not received")
 	}
 
-	for _, attach := range attached {
-		uploader := &eventAttachmentUploader{
-			calendarID: destination,
-			userID:     user,
-			service:    service,
-			itemID:     *response.GetId(),
-		}
+	uploader := &eventAttachmentUploader{
+		calendarID: destination,
+		userID:     user,
+		service:    service,
+		itemID:     *response.GetId(),
+	}
 
-		err := uploadAttachment(ctx,
-			uploader,
-			attach)
-		if err != nil {
+	for _, attach := range attached {
+		if err := uploadAttachment(ctx, uploader, attach); err != nil {
 			errs = support.WrapAndAppend(
-				fmt.Sprintf("uploading attachment for message %s: %s",
-					*transformedEvent.GetId(), support.ConnectorStackErrorTrace(err)),
+				fmt.Sprintf(
+					"uploading attachment for message %s: %s",
+					*transformedEvent.GetId(), support.ConnectorStackErrorTrace(err),
+				),
 				err,
 				errs,
 			)
@@ -257,13 +256,14 @@ func SendMailToBackStore(
 
 	id := *sentMessage.GetId()
 
+	uploader := &mailAttachmentUploader{
+		userID:   user,
+		folderID: destination,
+		itemID:   id,
+		service:  service,
+	}
+
 	for _, attachment := range attached {
-		uploader := &mailAttachmentUploader{
-			userID:   user,
-			folderID: destination,
-			itemID:   id,
-			service:  service,
-		}
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
 			errs = support.WrapAndAppend(
 				fmt.Sprintf("uploading attachment for message %s: %s",
