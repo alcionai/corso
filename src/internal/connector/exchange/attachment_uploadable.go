@@ -58,13 +58,7 @@ func (mau *mailAttachmentUploader) uploadSession(
 	attachmentSize int64,
 ) (models.UploadSessionable, error) {
 	session := createuploadsession.NewCreateUploadSessionPostRequestBody()
-
-	attItem := models.NewAttachmentItem()
-	attType := models.FILE_ATTACHMENTTYPE
-	attItem.SetAttachmentType(&attType)
-	attItem.SetName(&attachmentName)
-	attItem.SetSize(&attachmentSize)
-	session.SetAttachmentItem(attItem)
+	session.SetAttachmentItem(makeSessionAttachment(attachmentName, attachmentSize))
 
 	r, err := mau.service.Client().UsersById(mau.userID).MailFoldersById(mau.folderID).
 		MessagesById(mau.itemID).Attachments().CreateUploadSession().Post(ctx, session, nil)
@@ -80,7 +74,7 @@ func (mau *mailAttachmentUploader) uploadSession(
 	return r, nil
 }
 
-// eventAttachmentUploader is a struct capable of uploadings attachments for exchange.Event objects
+// eventAttachmentUploader is a struct capable of uploading attachments for exchange.Event objects
 type eventAttachmentUploader struct {
 	userID     string
 	calendarID string
@@ -112,13 +106,7 @@ func (eau *eventAttachmentUploader) uploadSession(
 	attachmentSize int64,
 ) (models.UploadSessionable, error) {
 	session := ups.NewCreateUploadSessionPostRequestBody()
-
-	attItem := models.NewAttachmentItem()
-	attType := models.FILE_ATTACHMENTTYPE
-	attItem.SetAttachmentType(&attType)
-	attItem.SetName(&attachmentName)
-	attItem.SetSize(&attachmentSize)
-	session.SetAttachmentItem(attItem)
+	session.SetAttachmentItem(makeSessionAttachment(attachmentName, attachmentSize))
 
 	r, err := eau.service.Client().
 		UsersById(eau.userID).
@@ -136,4 +124,14 @@ func (eau *eventAttachmentUploader) uploadSession(
 	}
 
 	return r, nil
+}
+
+func makeSessionAttachment(name string, size int64) *models.AttachmentItem {
+	attItem := models.NewAttachmentItem()
+	attType := models.FILE_ATTACHMENTTYPE
+	attItem.SetAttachmentType(&attType)
+	attItem.SetName(&name)
+	attItem.SetSize(&size)
+
+	return attItem
 }
