@@ -1,0 +1,40 @@
+name: Publish website
+on:
+  workflow_dispatch:
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+  packages: write
+  pull-requests: read
+
+jobs:
+  Publish-Website:
+    environment: Production
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      - name: Build docs
+        run: |
+          # Uses docker inside GA to build website
+          make buildimage && make build
+
+      - name: Push docs
+        run: |
+          aws s3 sync dist "s3://${{ secrets.WEBSITE_S3_BUCKET }}"
+
+      - name: Invalidate cloudfront
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.WEBSITE_CF_DISTRIBUTION }} --paths "/*"
