@@ -50,11 +50,6 @@ func (suite *EventCalendarCacheSuite) TestPopulate() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	ecc := eventCalendarCache{
-		userID: tester.M365UserID(suite.T()),
-		gs:     suite.gs,
-	}
-
 	tests := []struct {
 		name       string
 		folderName string
@@ -80,6 +75,11 @@ func (suite *EventCalendarCacheSuite) TestPopulate() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ecc := eventCalendarCache{
+				userID: tester.M365UserID(suite.T()),
+				gs:     suite.gs,
+			}
+
 			require.NoError(t, ecc.Populate(ctx, DefaultCalendar, test.basePath))
 			_, isFound := ecc.PathInCache(test.folderName)
 			test.canFind(t, isFound)

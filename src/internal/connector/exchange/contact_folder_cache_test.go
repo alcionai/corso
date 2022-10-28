@@ -50,11 +50,6 @@ func (suite *ContactFolderCacheIntegrationSuite) TestPopulate() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	cfc := contactFolderCache{
-		userID: tester.M365UserID(suite.T()),
-		gs:     suite.gs,
-	}
-
 	tests := []struct {
 		name       string
 		folderName string
@@ -80,7 +75,13 @@ func (suite *ContactFolderCacheIntegrationSuite) TestPopulate() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			cfc := contactFolderCache{
+				userID: tester.M365UserID(suite.T()),
+				gs:     suite.gs,
+			}
+
 			require.NoError(t, cfc.Populate(ctx, DefaultContactFolder, test.basePath))
+
 			_, isFound := cfc.PathInCache(test.folderName)
 			test.canFind(t, isFound)
 		})
