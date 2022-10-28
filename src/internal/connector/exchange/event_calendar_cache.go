@@ -15,9 +15,9 @@ import (
 var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
-	cache          map[string]graph.CachedContainer
-	gs             graph.Service
-	userID, rootID string
+	*folderCache
+	gs     graph.Service
+	userID string
 }
 
 // Populate utility function for populating eventCalendarCache.
@@ -28,8 +28,8 @@ func (ecc *eventCalendarCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if ecc.cache == nil {
-		ecc.cache = map[string]graph.CachedContainer{}
+	if ecc.folderCache == nil {
+		ecc.folderCache = newFolderCache()
 	}
 
 	options, err := optionsForCalendars([]string{"name"})
@@ -75,81 +75,29 @@ func (ecc *eventCalendarCache) Populate(
 		return err
 	}
 
-	for _, containerr := range directories {
-		if err := ecc.AddToCache(ctx, containerr); err != nil {
+	for _, container := range directories {
+		if err := checkIDAndName(container); err != nil {
 			iterateErr = support.WrapAndAppend(
-				"failure adding "+*containerr.GetDisplayName(),
+				"adding folder to cache",
+				err,
+				iterateErr,
+			)
+
+			continue
+		}
+
+		temp := cacheFolder{
+			Container: container,
+			p:         path.Builder{}.Append(*container.GetDisplayName()),
+		}
+
+		if err := ecc.addFolder(temp); err != nil {
+			iterateErr = support.WrapAndAppend(
+				"failure adding "+*container.GetDisplayName(),
 				err,
 				iterateErr)
 		}
 	}
 
 	return iterateErr
-}
-
-func (ecc *eventCalendarCache) IDToPath(
-	ctx context.Context,
-	calendarID string,
-) (*path.Builder, error) {
-	c, ok := ecc.cache[calendarID]
-	if !ok {
-		return nil, errors.Errorf("calendar %s not cached", calendarID)
-	}
-
-	p := c.Path()
-	if p == nil {
-		// Shouldn't happen
-		p := path.Builder{}.Append(*c.GetDisplayName())
-		c.SetPath(p)
-	}
-
-	return p, nil
-}
-
-// AddToCache places container into internal cache field. For EventCalendars
-// this means that the object has to be transformed prior to calling
-// this function.
-func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkIDAndName(f); err != nil {
-		return err
-	}
-
-	if _, ok := ecc.cache[*f.GetId()]; ok {
-		return nil
-	}
-
-	ecc.cache[*f.GetId()] = &cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(*f.GetDisplayName()),
-	}
-
-	return nil
-}
-
-func (ecc *eventCalendarCache) PathInCache(pathString string) (string, bool) {
-	if len(pathString) == 0 || ecc.cache == nil {
-		return "", false
-	}
-
-	for _, containerr := range ecc.cache {
-		if containerr.Path() == nil {
-			continue
-		}
-
-		if containerr.Path().String() == pathString {
-			return *containerr.GetId(), true
-		}
-	}
-
-	return "", false
-}
-
-func (ecc *eventCalendarCache) Items() []graph.CachedContainer {
-	res := make([]graph.CachedContainer, 0, len(ecc.cache))
-
-	for _, c := range ecc.cache {
-		res = append(res, c)
-	}
-
-	return res
 }
