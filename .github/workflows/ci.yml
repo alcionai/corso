@@ -545,3 +545,15 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/docker-windows'
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
+
+  Validate-Docs-Artifacts:
+    needs: [Publish-Docs, SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+    steps:
+      - name: Validate docs
+        run: |
+          curl https://docs.corsobackup.io/preview/quickstart/ | grep https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz
