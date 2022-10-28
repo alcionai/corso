@@ -88,6 +88,7 @@ func main() {
 	purgeCmd.AddCommand(oneDriveCmd)
 
 	if err := purgeCmd.ExecuteContext(ctx); err != nil {
+		logger.Flush(ctx)
 		os.Exit(1)
 	}
 }

@@ -2,8 +2,8 @@ package selectors
 
 import (
 	"context"
-	"runtime/trace"
 
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -11,8 +11,28 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// interfaces
+// types & interfaces
 // ---------------------------------------------------------------------------
+
+// leafProperty describes metadata associated with a leaf categorizer
+type leafProperty struct {
+	// pathKeys describes the categorizer keys used to map scope type to a value
+	// extracted from a path.Path.
+	// The order of the slice is important, and should match the order in which
+	// these types appear in the path.Path for each type.
+	// Ex: given: exchangeMail
+	//	categoryPath => [ExchangeUser, ExchangeMailFolder, ExchangeMail]
+	//	suggests that scopes involving exchange mail will need to match a user,
+	//	mailFolder, and mail; appearing in the path in that order.
+	pathKeys []categorizer
+
+	// pathType produces the path.CategoryType representing this leafType.
+	// This allows the scope to type to be compared using the more commonly recognized
+	// path category consts.
+	// Ex: given: exchangeMail
+	//	pathType => path.EmailCategory
+	pathType path.CategoryType
+}
 
 type (
 	// categorizer recognizes service specific item categories.
@@ -54,6 +74,10 @@ type (
 		// ids in a path with the same keys that it uses to retrieve those values from a scope,
 		// so that the two can be compared.
 		pathKeys() []categorizer
+
+		// PathType converts the category's leaf type into the matching path.CategoryType.
+		// Exported due to common use by consuming packages.
+		PathType() path.CategoryType
 	}
 	// categoryT is the generic type interface of a categorizer
 	categoryT interface {
@@ -84,7 +108,7 @@ type (
 	scope map[string]filters.Filter
 
 	// scoper describes the minimum necessary interface that a soundly built scope should
-	// comply with.
+	// comply with to be usable by selector generics.
 	scoper interface {
 		// Every scope is expected to contain a reference to its category.  This allows users
 		// to evaluate structs with a call to myscope.Category().  Category() is expected to
@@ -228,7 +252,8 @@ func reduce[T scopeT, C categoryT](
 	s Selector,
 	dataCategories map[path.CategoryType]C,
 ) *details.Details {
-	defer trace.StartRegion(ctx, "selectors:reduce").End()
+	ctx, end := D.Span(ctx, "selectors:reduce")
+	defer end()
 
 	if deets == nil {
 		return nil
