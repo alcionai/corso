@@ -77,12 +77,12 @@ func CreateStatus(
 	}
 
 	if status.ObjectCount != status.errorCount+status.Successful {
-		logger.Ctx(ctx).DPanicw(
+		logger.Ctx(ctx).Errorw(
 			"status object count does not match errors + successes",
 			"objects", cm.Objects,
 			"successes", cm.Successes,
 			"numErrors", numErr,
-			"errors", err.Error())
+			"errors", err)
 	}
 
 	return &status

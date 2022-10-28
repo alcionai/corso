@@ -18,7 +18,8 @@ builds:
           - -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL={{.Env.RUDDERSTACK_CORSO_DATA_PLANE_URL}}'
 
 archives:
-  - replacements:
+  - name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    replacements:
       darwin: Darwin
       linux: Linux
       windows: Windows
@@ -28,6 +29,8 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+    files:
+    - none*
 
 checksum:
   name_template: 'checksums.txt'

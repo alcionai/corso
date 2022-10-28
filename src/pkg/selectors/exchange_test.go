@@ -1394,3 +1394,34 @@ func (suite *ExchangeSelectorSuite) TestCategoryFromItemType() {
 		})
 	}
 }
+
+func (suite *ExchangeSelectorSuite) TestCategory_PathType() {
+	table := []struct {
+		cat      exchangeCategory
+		pathType path.CategoryType
+	}{
+		{ExchangeCategoryUnknown, path.UnknownCategory},
+		{ExchangeContact, path.ContactsCategory},
+		{ExchangeContactFolder, path.ContactsCategory},
+		{ExchangeEvent, path.EventsCategory},
+		{ExchangeEventCalendar, path.EventsCategory},
+		{ExchangeMail, path.EmailCategory},
+		{ExchangeMailFolder, path.EmailCategory},
+		{ExchangeUser, path.UnknownCategory},
+		{ExchangeFilterMailSender, path.EmailCategory},
+		{ExchangeFilterMailSubject, path.EmailCategory},
+		{ExchangeFilterMailReceivedAfter, path.EmailCategory},
+		{ExchangeFilterMailReceivedBefore, path.EmailCategory},
+		{ExchangeFilterContactName, path.ContactsCategory},
+		{ExchangeFilterEventOrganizer, path.EventsCategory},
+		{ExchangeFilterEventRecurs, path.EventsCategory},
+		{ExchangeFilterEventStartsAfter, path.EventsCategory},
+		{ExchangeFilterEventStartsBefore, path.EventsCategory},
+		{ExchangeFilterEventSubject, path.EventsCategory},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			assert.Equal(t, test.pathType, test.cat.PathType())
+		})
+	}
+}
