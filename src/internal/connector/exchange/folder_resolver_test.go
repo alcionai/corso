@@ -61,21 +61,21 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	}
 
 	tests := []struct {
-		name       string
-		folderName string
-		basePath   string
-		resolver   graph.ContainerResolver
-		canFind    assert.BoolAssertionFunc
+		name, folderName, root, basePath string
+		resolver                         graph.ContainerResolver
+		canFind                          assert.BoolAssertionFunc
 	}{
 		{
 			name:       "Default Event Cache",
 			folderName: DefaultCalendar,
+			root:       DefaultCalendar,
 			basePath:   DefaultCalendar,
 			resolver:   &ecc,
 			canFind:    assert.True,
 		},
 		{
 			name:       "Default Event Folder Hidden",
+			root:       DefaultCalendar,
 			folderName: DefaultContactFolder,
 			canFind:    assert.False,
 			resolver:   &ecc,
@@ -83,12 +83,14 @@ func (suite *CacheResolverSuite) TestPopulate() {
 		{
 			name:       "Name Not in Cache",
 			folderName: "testFooBarWhoBar",
+			root:       DefaultCalendar,
 			canFind:    assert.False,
 			resolver:   &ecc,
 		},
 		{
 			name:       "Default Contact Cache",
 			folderName: DefaultContactFolder,
+			root:       DefaultContactFolder,
 			basePath:   DefaultContactFolder,
 			canFind:    assert.True,
 			resolver:   &cfc,
@@ -96,19 +98,21 @@ func (suite *CacheResolverSuite) TestPopulate() {
 		{
 			name:       "Default Contact Hidden",
 			folderName: DefaultContactFolder,
+			root:       DefaultContactFolder,
 			canFind:    assert.False,
 			resolver:   &cfc,
 		},
 		{
 			name:       "Name Not in Cache",
 			folderName: "testFooBarWhoBar",
+			root:       DefaultContactFolder,
 			canFind:    assert.False,
 			resolver:   &cfc,
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			require.NoError(t, test.resolver.Populate(ctx, DefaultCalendar, test.basePath))
+			require.NoError(t, test.resolver.Populate(ctx, test.root, test.basePath))
 			_, isFound := test.resolver.PathInCache(test.folderName)
 			test.canFind(t, isFound)
 			assert.Greater(t, len(ecc.cache), 0)
