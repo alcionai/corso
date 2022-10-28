@@ -101,3 +101,29 @@ func (ecc *eventCalendarCache) Populate(
 
 	return iterateErr
 }
+
+// AddToCache adds container to map in field 'cache'
+// @returns error iff the required values are not accessible.
+func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
+	if err := checkIDAndName(f); err != nil {
+		return errors.Wrap(err, "adding cache folder")
+	}
+
+	temp := cacheFolder{
+		Container: f,
+		p:         path.Builder{}.Append(*f.GetDisplayName()),
+	}
+
+	if err := ecc.addFolder(temp); err != nil {
+		return errors.Wrap(err, "adding cache folder")
+	}
+
+	// Populate the path for this entry so calls to PathInCache succeed no matter
+	// when they're made.
+	_, err := ecc.IDToPath(ctx, *f.GetId())
+	if err != nil {
+		return errors.Wrap(err, "adding cache entry")
+	}
+
+	return nil
+}
