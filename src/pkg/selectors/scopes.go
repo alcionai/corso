@@ -2,8 +2,8 @@ package selectors
 
 import (
 	"context"
-	"runtime/trace"
 
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -252,7 +252,8 @@ func reduce[T scopeT, C categoryT](
 	s Selector,
 	dataCategories map[path.CategoryType]C,
 ) *details.Details {
-	defer trace.StartRegion(ctx, "selectors:reduce").End()
+	ctx, end := D.Span(ctx, "selectors:reduce")
+	defer end()
 
 	if deets == nil {
 		return nil

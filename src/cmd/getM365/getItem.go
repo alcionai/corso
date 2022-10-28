@@ -63,6 +63,7 @@ func main() {
 	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("category"))
 
 	if err := getCmd.ExecuteContext(ctx); err != nil {
+		logger.Flush(ctx)
 		os.Exit(1)
 	}
 }

@@ -2,6 +2,8 @@ package repository_test
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"runtime/pprof"
 	"sort"
 	"testing"
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -56,6 +59,40 @@ func singleUserSet(t *testing.T) []string {
 	return []string{tester.LoadTestM365UserID(t)}
 }
 
+var loadCtx context.Context
+
+func TestMain(m *testing.M) {
+	ctx, logFlush := tester.NewContext()
+	loadCtx = ctx
+	flush := func() {
+		logFlush()
+	}
+
+	if err := tester.RunOnAny(tester.CorsoLoadTests); err == nil {
+		if err := D.InitCollector(); err != nil {
+			fmt.Println("initializing load tests:", err)
+			os.Exit(1)
+		}
+
+		ctx, spanFlush := D.Start(ctx, "Load_Testing_Main")
+		loadCtx = ctx
+		flush = func() {
+			spanFlush()
+			logFlush()
+		}
+	}
+
+	exitVal := m.Run()
+
+	flush()
+
+	os.Exit(exitVal)
+}
+
+// ------------------------------------------------------------------------------------------------
+// Common
+// ------------------------------------------------------------------------------------------------
+
 func initM365Repo(t *testing.T) (
 	context.Context, repository.Repository, account.Account, storage.Storage,
 ) {
@@ -65,7 +102,7 @@ func initM365Repo(t *testing.T) (
 	)
 	require.NoError(t, err)
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(loadCtx)
 	defer flush()
 
 	st := tester.NewPrefixedS3Storage(t)
@@ -374,7 +411,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup()
@@ -424,7 +461,7 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup()
@@ -477,7 +514,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup()
@@ -524,7 +561,7 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup()
