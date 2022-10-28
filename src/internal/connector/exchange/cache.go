@@ -49,7 +49,7 @@ func (fc *folderCache) IDToPath(
 // matches the path of a container within the cache. A boolean function
 // accompanies the call to indicate whether the lookup was successful.
 func (fc *folderCache) PathInCache(pathString string) (string, bool) {
-	if len(pathString) == 0 || fc.cache == nil {
+	if len(pathString) == 0 || fc == nil {
 		return "", false
 	}
 
