@@ -2,6 +2,11 @@
 
 WEBC := docker run --rm -it --init -p 5050:3000 -p 5051:3001 \
 		-v ${PWD}:/usr/src/website corso/website:latest
+ifeq (${CI},true)
+# Cannot run in interactive/tty mode in CI
+WEBC := docker run --rm --init -p 5050:3000 -p 5051:3001 \
+		-v ${PWD}:/usr/src/website corso/website:latest
+endif
 
 buildimage:
 	docker build -t "corso/website:latest" .
