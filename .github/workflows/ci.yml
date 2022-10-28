@@ -401,7 +401,7 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ needs.SetEnv.outputs.imgtag }}-windows
 
   Validate-Linux-Artifacts:
-    needs: [Publish-Binary, Publish-Image, SetEnv]
+    needs: [Publish-Binary, Publish-Image-Manifest, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -432,7 +432,7 @@ jobs:
             ./corso --version 2>&1 | grep -E "^version: ${{ env.CORSO_VERSION }}$"
 
   Validate-Docker-Artifacts:
-    needs: [Publish-Binary, Publish-Image, SetEnv]
+    needs: [Publish-Binary, Publish-Image-Manifest, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -455,7 +455,7 @@ jobs:
           docker run --platform linux/amd64 ghcr.io/alcionai/corso:${{ env.CORSO_VERSION }} --version | grep -E "^version: ${{ env.CORSO_VERSION }}$"
 
   Validate-MacOS-Artifacts:
-    needs: [Publish-Binary, Publish-Image, SetEnv]
+    needs: [Publish-Binary, Publish-Image-Manifest, SetEnv]
     environment: Testing
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -478,7 +478,7 @@ jobs:
           # TODO: test/validate arm64 executable
 
   Validate-Windows-Artifacts:
-    needs: [Publish-Binary, Publish-Image, SetEnv]
+    needs: [Publish-Binary, Publish-Image-Manifest, SetEnv]
     environment: Testing
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
