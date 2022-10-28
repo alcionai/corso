@@ -151,6 +151,15 @@ const config = {
         },
       },
 
+      image: 'img/cloudbackup.png',
+
+      metadata : [
+        {name: 'twitter:card', content: 'summary_large_image'},
+        {name: 'twitter:site', content: '@corsobackup'},
+        {name: 'twitter:title', content: 'Corso Documentation: Free, Secure, and Open-Source Backup for Microsoft 365'},
+        {name: 'twitter:description', content: 'Documentation for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
+      ],
+
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,

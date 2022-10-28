@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
 	analytics "github.com/rudderlabs/analytics-go"
 
 	"github.com/alcionai/corso/src/pkg/control"
@@ -61,9 +62,9 @@ var (
 	RudderStackDataPlaneURL string
 )
 
-func NewBus(s storage.Storage, tenID string, opts control.Options) Bus {
+func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.Options) (Bus, error) {
 	if opts.DisableMetrics {
-		return Bus{}
+		return Bus{}, nil
 	}
 
 	hash := repoHash(s, tenID)
@@ -79,15 +80,26 @@ func NewBus(s storage.Storage, tenID string, opts control.Options) Bus {
 	}
 
 	var client analytics.Client
+
 	if len(RudderStackWriteKey) > 0 && len(RudderStackDataPlaneURL) > 0 {
-		client = analytics.New(RudderStackWriteKey, RudderStackDataPlaneURL)
+		var err error
+		client, err = analytics.NewWithConfig(
+			RudderStackWriteKey,
+			RudderStackDataPlaneURL,
+			analytics.Config{
+				Logger: logger.WrapCtx(ctx, logger.ForceDebugLogLevel()),
+			})
+
+		if err != nil {
+			return Bus{}, errors.Wrap(err, "configuring event bus")
+		}
 	}
 
 	return Bus{
 		client:  client,
 		repoID:  hash,
 		version: "vTODO", // TODO: corso versioning implementation
-	}
+	}, nil
 }
 
 func (b Bus) Close() error {

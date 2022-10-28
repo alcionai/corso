@@ -102,12 +102,17 @@ func Initialize(
 		return nil, err
 	}
 
+	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &repository{
 		ID:         uuid.New(),
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct.ID(), opts),
+		Bus:        bus,
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -146,12 +151,17 @@ func Connect(
 		return nil, err
 	}
 
+	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
+	if err != nil {
+		return nil, err
+	}
+
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
-		Bus:        events.NewBus(s, acct.ID(), opts),
+		Bus:        bus,
 		dataLayer:  w,
 		modelStore: ms,
 	}, nil

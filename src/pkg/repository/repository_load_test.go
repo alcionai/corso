@@ -2,6 +2,8 @@ package repository_test
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"runtime/pprof"
 	"sort"
 	"testing"
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -22,37 +25,73 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-var alcUsers = []string{
-	"AdeleV@8qzvrj.onmicrosoft.com",
-	"AlexW@8qzvrj.onmicrosoft.com",
-	"ashmarks@8qzvrj.onmicrosoft.com",
-	"DiegoS@8qzvrj.onmicrosoft.com",
-	"dustina@8qzvrj.onmicrosoft.com",
-	"george.martinez@8qzvrj.onmicrosoft.com",
-	"GradyA@8qzvrj.onmicrosoft.com",
-	"HenriettaM@8qzvrj.onmicrosoft.com",
-	"IsaiahL@8qzvrj.onmicrosoft.com",
-	"JohannaL@8qzvrj.onmicrosoft.com",
-	"JoniS@8qzvrj.onmicrosoft.com",
-	"LidiaH@8qzvrj.onmicrosoft.com",
-	"LynneR@8qzvrj.onmicrosoft.com",
-	"MeganB@8qzvrj.onmicrosoft.com",
-	"MiriamG@8qzvrj.onmicrosoft.com",
-	"NestorW@8qzvrj.onmicrosoft.com",
-	"PattiF@8qzvrj.onmicrosoft.com",
-	"PradeepG@8qzvrj.onmicrosoft.com",
-	"Rfinders@8qzvrj.onmicrosoft.com",
-	"vkarma@8qzvrj.onmicrosoft.com",
-	"greg.sanders@8qzvrj.onmicrosoft.com",
-
+func userSet(t *testing.T) []string {
 	// avoid adding the following users
 	// they are reserved for other purposes
-
 	// "LeeG@8qzvrj.onmicrosoft.com",
 	// "ntoja@8qzvrj.onmicrosoft.com",
+	return []string{
+		"AdeleV@8qzvrj.onmicrosoft.com",
+		"AlexW@8qzvrj.onmicrosoft.com",
+		"ashmarks@8qzvrj.onmicrosoft.com",
+		"DiegoS@8qzvrj.onmicrosoft.com",
+		"dustina@8qzvrj.onmicrosoft.com",
+		"george.martinez@8qzvrj.onmicrosoft.com",
+		"GradyA@8qzvrj.onmicrosoft.com",
+		"HenriettaM@8qzvrj.onmicrosoft.com",
+		"IsaiahL@8qzvrj.onmicrosoft.com",
+		"JohannaL@8qzvrj.onmicrosoft.com",
+		"JoniS@8qzvrj.onmicrosoft.com",
+		"LidiaH@8qzvrj.onmicrosoft.com",
+		"LynneR@8qzvrj.onmicrosoft.com",
+		"MeganB@8qzvrj.onmicrosoft.com",
+		"MiriamG@8qzvrj.onmicrosoft.com",
+		"NestorW@8qzvrj.onmicrosoft.com",
+		"PattiF@8qzvrj.onmicrosoft.com",
+		"PradeepG@8qzvrj.onmicrosoft.com",
+		"Rfinders@8qzvrj.onmicrosoft.com",
+		"vkarma@8qzvrj.onmicrosoft.com",
+		"greg.sanders@8qzvrj.onmicrosoft.com",
+	}
 }
 
-var largeDatasetUser = []string{"LeeG@8qzvrj.onmicrosoft.com"}
+func singleUserSet(t *testing.T) []string {
+	return []string{tester.LoadTestM365UserID(t)}
+}
+
+var loadCtx context.Context
+
+func TestMain(m *testing.M) {
+	ctx, logFlush := tester.NewContext()
+	loadCtx = ctx
+	flush := func() {
+		logFlush()
+	}
+
+	if err := tester.RunOnAny(tester.CorsoLoadTests); err == nil {
+		if err := D.InitCollector(); err != nil {
+			fmt.Println("initializing load tests:", err)
+			os.Exit(1)
+		}
+
+		ctx, spanFlush := D.Start(ctx, "Load_Testing_Main")
+		loadCtx = ctx
+		flush = func() {
+			spanFlush()
+			logFlush()
+		}
+	}
+
+	exitVal := m.Run()
+
+	flush()
+
+	os.Exit(exitVal)
+}
+
+// ------------------------------------------------------------------------------------------------
+// Common
+// ------------------------------------------------------------------------------------------------
 
 func initM365Repo(t *testing.T) (
 	context.Context, repository.Repository, account.Account, storage.Storage,
@@ -63,7 +102,7 @@ func initM365Repo(t *testing.T) (
 	)
 	require.NoError(t, err)
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(loadCtx)
 	defer flush()
 
 	st := tester.NewPrefixedS3Storage(t)
@@ -88,12 +127,12 @@ func runLoadTest(
 	t *testing.T,
 	ctx context.Context,
 	r repository.Repository,
-	service string,
+	prefix, service string,
 	usersUnderTest []string,
 	bupSel, restSel selectors.Selector,
 ) {
 	//revive:enable:context-as-argument
-	t.Run("load_test_main", func(t *testing.T) {
+	t.Run(prefix+"_load_test_main", func(t *testing.T) {
 		b, err := r.NewBackup(ctx, bupSel)
 		require.NoError(t, err)
 
@@ -345,10 +384,11 @@ func normalizeCategorySet(t *testing.T, cats map[string]struct{}) []string {
 
 type RepositoryLoadTestExchangeSuite struct {
 	suite.Suite
-	ctx  context.Context
-	repo repository.Repository
-	acct account.Account
-	st   storage.Storage
+	ctx            context.Context
+	repo           repository.Repository
+	acct           account.Account
+	st             storage.Storage
+	usersUnderTest []string
 }
 
 func TestRepositoryLoadTestExchangeSuite(t *testing.T) {
@@ -363,6 +403,7 @@ func (suite *RepositoryLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
+	suite.usersUnderTest = userSet(t)
 }
 
 func (suite *RepositoryLoadTestExchangeSuite) TeardownSuite() {
@@ -370,23 +411,21 @@ func (suite *RepositoryLoadTestExchangeSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	usersUnderTest := alcUsers
-
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.ContactFolders(usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.EventCalendars(usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.MailFolders(suite.usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.ContactFolders(suite.usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.EventCalendars(suite.usersUnderTest, selectors.Any()))
 	sel := bsel.Selector
 
 	runLoadTest(
 		suite.T(),
 		ctx,
 		suite.repo,
-		"exchange",
-		usersUnderTest,
+		"all_users", "exchange",
+		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
 	)
 }
@@ -395,10 +434,11 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 
 type RepositoryIndividualLoadTestExchangeSuite struct {
 	suite.Suite
-	ctx  context.Context
-	repo repository.Repository
-	acct account.Account
-	st   storage.Storage
+	ctx            context.Context
+	repo           repository.Repository
+	acct           account.Account
+	st             storage.Storage
+	usersUnderTest []string
 }
 
 func TestRepositoryIndividualLoadTestExchangeSuite(t *testing.T) {
@@ -413,6 +453,7 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
+	suite.usersUnderTest = singleUserSet(t)
 }
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) TeardownSuite() {
@@ -420,23 +461,21 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	usersUnderTest := largeDatasetUser
-
 	bsel := selectors.NewExchangeBackup()
-	bsel.Include(bsel.MailFolders(usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.ContactFolders(usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.EventCalendars(usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.MailFolders(suite.usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.ContactFolders(suite.usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.EventCalendars(suite.usersUnderTest, selectors.Any()))
 	sel := bsel.Selector
 
 	runLoadTest(
 		suite.T(),
 		ctx,
 		suite.repo,
-		"exchange",
-		usersUnderTest,
+		"single_user", "exchange",
+		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
 	)
 }
@@ -447,10 +486,11 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
 
 type RepositoryLoadTestOneDriveSuite struct {
 	suite.Suite
-	ctx  context.Context
-	repo repository.Repository
-	acct account.Account
-	st   storage.Storage
+	ctx            context.Context
+	repo           repository.Repository
+	acct           account.Account
+	st             storage.Storage
+	usersUnderTest []string
 }
 
 func TestRepositoryLoadTestOneDriveSuite(t *testing.T) {
@@ -466,6 +506,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) SetupSuite() {
 	t.Skip("temp issue-902-live")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
+	suite.usersUnderTest = userSet(t)
 }
 
 func (suite *RepositoryLoadTestOneDriveSuite) TeardownSuite() {
@@ -473,31 +514,30 @@ func (suite *RepositoryLoadTestOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	usersUnderTest := alcUsers
-
 	bsel := selectors.NewOneDriveBackup()
-	bsel.Include(bsel.Users(usersUnderTest))
+	bsel.Include(bsel.Users(suite.usersUnderTest))
 	sel := bsel.Selector
 
 	runLoadTest(
 		suite.T(),
 		ctx,
 		suite.repo,
-		"one_drive",
-		usersUnderTest,
+		"all_users", "one_drive",
+		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
 	)
 }
 
 type RepositoryIndividualLoadTestOneDriveSuite struct {
 	suite.Suite
-	ctx  context.Context
-	repo repository.Repository
-	acct account.Account
-	st   storage.Storage
+	ctx            context.Context
+	repo           repository.Repository
+	acct           account.Account
+	st             storage.Storage
+	usersUnderTest []string
 }
 
 func TestRepositoryIndividualLoadTestOneDriveSuite(t *testing.T) {
@@ -513,6 +553,7 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) SetupSuite() {
 	t.Skip("temp issue-902-live")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
+	suite.usersUnderTest = singleUserSet(t)
 }
 
 func (suite *RepositoryIndividualLoadTestOneDriveSuite) TeardownSuite() {
@@ -520,21 +561,19 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	usersUnderTest := largeDatasetUser
-
 	bsel := selectors.NewOneDriveBackup()
-	bsel.Include(bsel.Users(usersUnderTest))
+	bsel.Include(bsel.Users(suite.usersUnderTest))
 	sel := bsel.Selector
 
 	runLoadTest(
 		suite.T(),
 		ctx,
 		suite.repo,
-		"one_drive",
-		usersUnderTest,
+		"single_user", "one_drive",
+		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
 	)
 }

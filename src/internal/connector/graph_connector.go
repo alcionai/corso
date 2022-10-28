@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -127,7 +128,8 @@ func (gs *graphService) EnableFailFast() {
 // workspace. The users field is updated during this method
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
-	defer trace.StartRegion(ctx, "gc:setTenantUsers").End()
+	ctx, end := D.Span(ctx, "gc:setTenantUsers")
+	defer end()
 
 	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
 	if err != nil {
@@ -252,7 +254,8 @@ func (gc *GraphConnector) RestoreDataCollections(
 	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) (*details.Details, error) {
-	gc.region = trace.StartRegion(ctx, "connector:restore")
+	ctx, end := D.Span(ctx, "connector:restore")
+	defer end()
 
 	var (
 		status *support.ConnectorOperationStatus
@@ -298,7 +301,7 @@ func (gc *GraphConnector) createCollections(
 			Credentials: gc.credentials,
 		}
 
-		itemCategory := graph.ScopeToPathCategory(qp.Scope)
+		itemCategory := qp.Scope.Category().PathType()
 
 		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
 		defer closer()
@@ -307,7 +310,7 @@ func (gc *GraphConnector) createCollections(
 		resolver, err := exchange.PopulateExchangeContainerResolver(
 			ctx,
 			qp,
-			graph.ScopeToPathCategory(qp.Scope),
+			qp.Scope.Category().PathType(),
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting folder cache")
@@ -389,7 +392,8 @@ func IsNonRecoverableError(e error) bool {
 
 // DataCollections utility function to launch backup operations for exchange and onedrive
 func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
-	defer trace.StartRegion(ctx, "gc:dataCollections:"+sels.Service.String()).End()
+	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
+	defer end()
 
 	err := verifyBackupInputs(sels, gc.Users)
 	if err != nil {
