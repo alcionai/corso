@@ -2,6 +2,8 @@ name: auto-merge
 
 on:
   pull_request:
+    paths-ignore:
+      - "src/**" # prevent auto-merge for go dependencies
 
 jobs:
   auto-merge:
