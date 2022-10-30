@@ -8,7 +8,7 @@ updates:
     schedule:
       interval: "weekly"
     reviewers:
-      - "alcion/platform"
+      - "corso-maintainers"
     open-pull-requests-limit: 50
 
   # Maintain dependencies for npm - website
