@@ -5162,10 +5162,10 @@ shebang-regex@^3.0.0:
   resolved "https://registry.yarnpkg.com/shebang-regex/-/shebang-regex-3.0.0.tgz#ae16f1644d873ecad843b0307b143362d4c42172"
   integrity sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==
 
-shufflejs@^6.0.0:
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/shufflejs/-/shufflejs-6.0.0.tgz#32d03e56ac2343af120542e937ccda986a6a8abc"
-  integrity sha512-OV6qXYmfQUHT9u9BvO/1wItZ3YWrQVMdKI0d9gS4xaYLyhB6xGN+Oo+tNzQui+rMt+L/h1f34LNBsrCCRii9Yg==
+shufflejs@^6.1.0:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/shufflejs/-/shufflejs-6.1.0.tgz#2913ef007cb760a4606bb3e499e7023a64361160"
+  integrity sha512-LZGHFDxGPI7VwMaBqbe/mtKmZTAJFu8+/pCwLdgxo0UHCA3gsrZ9a+aaCd2zZ4GhilRXjDWy/MSQuQlDfpCUgg==
   dependencies:
     array-parallel "^0.1.3"
     tiny-emitter "^2.1.0"
