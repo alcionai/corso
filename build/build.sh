@@ -2,6 +2,15 @@
 
 set -e
 
+usage() {
+        echo "Usage: $(basename $0) binary | image [--platforms ...] [--tag ...]"
+        echo ""
+        echo "OPTIONS"
+        echo " -p | --platforms  Platforms to build for (default: $PLATFORMS)"
+        echo "                 Specify multiple platforms using ',' (eg: linux/amd64,darwin/arm)"
+        echo " -t | --tag        Tag for container image (default: $TAG)"
+}
+
 ROOT=$(dirname $(dirname $(readlink -f $0)))
 GOVER=1.18                           # go version
 CORSO_BUILD_CACHE="/tmp/.corsobuild" # shared persistent cache
@@ -43,15 +52,6 @@ while [ "$#" -gt 0 ]; do
 	esac
 	shift
 done
-
-usage() {
-	echo "Usage: $(basename $0) binary | image [--platforms ...] [--tag ...]"
-	echo ""
-	echo "OPTIONS"
-	echo " -p | --platforms  Platforms to build for (default: $PLATFORMS)"
-	echo "                 Specify multiple platforms using ',' (eg: linux/amd64,darwin/arm)"
-	echo " -t | --tag        Tag for container image (default: $TAG)"
-}
 
 if [ "$MODE" == "binary" ]; then
 	mkdir -p ${CORSO_BUILD_CACHE} # prep env
