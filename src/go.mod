@@ -9,12 +9,12 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.0
-	github.com/microsoft/kiota-abstractions-go v0.11.0
-	github.com/microsoft/kiota-authentication-azure-go v0.4.1
-	github.com/microsoft/kiota-http-go v0.7.2
-	github.com/microsoft/kiota-serialization-json-go v0.7.1
-	github.com/microsoftgraph/msgraph-sdk-go v0.40.0
-	github.com/microsoftgraph/msgraph-sdk-go-core v0.28.1
+	github.com/microsoft/kiota-abstractions-go v0.12.0
+	github.com/microsoft/kiota-authentication-azure-go v0.5.0
+	github.com/microsoft/kiota-http-go v0.9.0
+	github.com/microsoft/kiota-serialization-json-go v0.7.2
+	github.com/microsoftgraph/msgraph-sdk-go v0.44.0
+	github.com/microsoftgraph/msgraph-sdk-go-core v0.30.0
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
 	github.com/spf13/cobra v1.4.0
@@ -49,7 +49,7 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.1.3 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.1.4 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.1 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.7.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
