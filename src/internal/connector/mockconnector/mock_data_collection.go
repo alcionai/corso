@@ -97,9 +97,10 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 
 		for i := 0; i < medc.messageCount; i++ {
 			res <- &MockExchangeData{
-				ID:     medc.Names[i],
-				Reader: io.NopCloser(bytes.NewReader(medc.Data[i])),
-				size:   int64(len(medc.Data[i])),
+				ID:           medc.Names[i],
+				Reader:       io.NopCloser(bytes.NewReader(medc.Data[i])),
+				size:         int64(len(medc.Data[i])),
+				ModifiedTime: time.Now(),
 			}
 		}
 	}()

@@ -839,8 +839,6 @@ func (suite *KopiaIntegrationSuite) TearDownTest() {
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
-	t := suite.T()
-
 	collections := []data.Collection{
 		mockconnector.NewMockExchangeCollection(
 			suite.testPath1,
@@ -865,24 +863,57 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		expectedTags[tk] = tv
 	}
 
-	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
-	assert.NoError(t, err)
-	assert.Equal(t, stats.TotalFileCount, 47)
-	assert.Equal(t, stats.TotalDirectoryCount, 6)
-	assert.Equal(t, stats.IgnoredErrorCount, 0)
-	assert.Equal(t, stats.ErrorCount, 0)
-	assert.False(t, stats.Incomplete)
-	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
-	// 47 file and 6 folder entries.
-	assert.Len(t, deets.Entries, 47+6)
+	table := []struct {
+		name                  string
+		expectedUploadedFiles int
+		expectedCachedFiles   int
+	}{
+		{
+			name:                  "Uncached",
+			expectedUploadedFiles: 47,
+			expectedCachedFiles:   0,
+		},
+		{
+			name:                  "Cached",
+			expectedUploadedFiles: 0,
+			expectedCachedFiles:   47,
+		},
+	}
 
-	checkSnapshotTags(
-		t,
-		suite.ctx,
-		suite.w.c,
-		expectedTags,
-		stats.SnapshotID,
-	)
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
+			assert.NoError(t, err)
+
+			assert.Equal(
+				t,
+				test.expectedUploadedFiles+test.expectedCachedFiles,
+				stats.TotalFileCount,
+				"total files",
+			)
+			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
+			assert.Equal(t, test.expectedCachedFiles, stats.CachedFileCount, "cached files")
+			assert.Equal(t, 6, stats.TotalDirectoryCount)
+			assert.Equal(t, 0, stats.IgnoredErrorCount)
+			assert.Equal(t, 0, stats.ErrorCount)
+			assert.False(t, stats.Incomplete)
+			assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
+			// 47 file and 6 folder entries.
+			assert.Len(
+				t,
+				deets.Entries,
+				test.expectedUploadedFiles+test.expectedCachedFiles+6,
+			)
+
+			checkSnapshotTags(
+				t,
+				suite.ctx,
+				suite.w.c,
+				expectedTags,
+				stats.SnapshotID,
+			)
+		})
+	}
 }
 
 func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
