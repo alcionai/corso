@@ -128,6 +128,8 @@ type BackupStats struct {
 	TotalUploadedBytes int64
 
 	TotalFileCount      int
+	CachedFileCount     int
+	UncachedFileCount   int
 	TotalDirectoryCount int
 	IgnoredErrorCount   int
 	ErrorCount          int
@@ -148,6 +150,8 @@ func manifestToStats(
 		TotalUploadedBytes: uploadCount.NumBytes,
 
 		TotalFileCount:      int(man.Stats.TotalFileCount),
+		CachedFileCount:     int(man.Stats.CachedFiles),
+		UncachedFileCount:   int(man.Stats.NonCachedFiles),
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),
