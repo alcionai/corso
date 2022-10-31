@@ -18,7 +18,7 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	*folderCache
+	*containerResolver
 	gs     graph.Service
 	userID string
 }
@@ -138,8 +138,8 @@ func (mc *mailFolderCache) init(
 		return errors.New("m365 folder ID required for base folder")
 	}
 
-	if mc.folderCache == nil {
-		mc.folderCache = newFolderCache()
+	if mc.containerResolver == nil {
+		mc.containerResolver = newContainerResolver()
 	}
 
 	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)

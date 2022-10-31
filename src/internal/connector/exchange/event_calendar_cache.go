@@ -15,7 +15,7 @@ import (
 var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
-	*folderCache
+	*containerResolver
 	gs     graph.Service
 	userID string
 }
@@ -28,8 +28,8 @@ func (ecc *eventCalendarCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if ecc.folderCache == nil {
-		ecc.folderCache = newFolderCache()
+	if ecc.containerResolver == nil {
+		ecc.containerResolver = newContainerResolver()
 	}
 
 	options, err := optionsForCalendars([]string{"name"})

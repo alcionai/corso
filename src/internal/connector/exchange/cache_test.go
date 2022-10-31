@@ -212,7 +212,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			fc := newFolderCache()
+			fc := newContainerResolver()
 			test.check(t, fc.addFolder(test.cf))
 		})
 	}
@@ -260,7 +260,7 @@ func (m *mockCachedContainer) SetPath(newPath *path.Builder) {
 type ConfiguredFolderCacheUnitSuite struct {
 	suite.Suite
 
-	fc *folderCache
+	fc *containerResolver
 
 	allContainers []*mockCachedContainer
 }
@@ -287,7 +287,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) SetupTest() {
 		)
 	}
 
-	suite.fc = newFolderCache()
+	suite.fc = newContainerResolver()
 
 	for _, c := range suite.allContainers {
 		suite.fc.cache[c.id] = c

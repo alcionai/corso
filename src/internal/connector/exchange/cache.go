@@ -10,21 +10,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func newFolderCache() *folderCache {
-	return &folderCache{
+func newContainerResolver() *containerResolver {
+	return &containerResolver{
 		cache: map[string]graph.CachedContainer{},
 	}
 }
 
-type folderCache struct {
+type containerResolver struct {
 	cache map[string]graph.CachedContainer
 }
 
-func (fc *folderCache) IDToPath(
+func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
 ) (*path.Builder, error) {
-	c, ok := fc.cache[folderID]
+	c, ok := cr.cache[folderID]
 	if !ok {
 		return nil, errors.Errorf("folder %s not cached", folderID)
 	}
@@ -34,7 +34,7 @@ func (fc *folderCache) IDToPath(
 		return p, nil
 	}
 
-	parentPath, err := fc.IDToPath(ctx, *c.GetParentFolderId())
+	parentPath, err := cr.IDToPath(ctx, *c.GetParentFolderId())
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving parent folder")
 	}
@@ -48,12 +48,12 @@ func (fc *folderCache) IDToPath(
 // PathInCache utility function to return m365ID of folder if the pathString
 // matches the path of a container within the cache. A boolean function
 // accompanies the call to indicate whether the lookup was successful.
-func (fc *folderCache) PathInCache(pathString string) (string, bool) {
-	if len(pathString) == 0 || fc == nil {
+func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
+	if len(pathString) == 0 || cr == nil {
 		return "", false
 	}
 
-	for _, contain := range fc.cache {
+	for _, contain := range cr.cache {
 		if contain.Path() == nil {
 			continue
 		}
@@ -68,7 +68,7 @@ func (fc *folderCache) PathInCache(pathString string) (string, bool) {
 
 // addFolder adds a folder to the cache with the given ID. If the item is
 // already in the cache does nothing. The path for the item is not modified.
-func (fc *folderCache) addFolder(cf cacheFolder) error {
+func (cr *containerResolver) addFolder(cf cacheFolder) error {
 	// Only require a non-nil non-empty parent if the path isn't already
 	// populated.
 	if cf.p != nil {
@@ -81,19 +81,19 @@ func (fc *folderCache) addFolder(cf cacheFolder) error {
 		}
 	}
 
-	if _, ok := fc.cache[*cf.GetId()]; ok {
+	if _, ok := cr.cache[*cf.GetId()]; ok {
 		return nil
 	}
 
-	fc.cache[*cf.GetId()] = &cf
+	cr.cache[*cf.GetId()] = &cf
 
 	return nil
 }
 
-func (fc *folderCache) Items() []graph.CachedContainer {
-	res := make([]graph.CachedContainer, 0, len(fc.cache))
+func (cr *containerResolver) Items() []graph.CachedContainer {
+	res := make([]graph.CachedContainer, 0, len(cr.cache))
 
-	for _, c := range fc.cache {
+	for _, c := range cr.cache {
 		res = append(res, c)
 	}
 
@@ -102,18 +102,18 @@ func (fc *folderCache) Items() []graph.CachedContainer {
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (fc *folderCache) AddToCache(ctx context.Context, f graph.Container) error {
+func (cr *containerResolver) AddToCache(ctx context.Context, f graph.Container) error {
 	temp := cacheFolder{
 		Container: f,
 	}
 
-	if err := fc.addFolder(temp); err != nil {
+	if err := cr.addFolder(temp); err != nil {
 		return errors.Wrap(err, "adding cache folder")
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, err := fc.IDToPath(ctx, *f.GetId())
+	_, err := cr.IDToPath(ctx, *f.GetId())
 	if err != nil {
 		return errors.Wrap(err, "adding cache entry")
 	}
@@ -121,12 +121,12 @@ func (fc *folderCache) AddToCache(ctx context.Context, f graph.Container) error 
 	return nil
 }
 
-func (fc *folderCache) populatePaths(ctx context.Context) error {
+func (cr *containerResolver) populatePaths(ctx context.Context) error {
 	var errs *multierror.Error
 
 	// Populate all folder paths.
-	for _, f := range fc.Items() {
-		_, err := fc.IDToPath(ctx, *f.GetId())
+	for _, f := range cr.Items() {
+		_, err := cr.IDToPath(ctx, *f.GetId())
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "populating path"))
 		}

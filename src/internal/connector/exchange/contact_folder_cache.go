@@ -15,7 +15,7 @@ import (
 var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
-	*folderCache
+	*containerResolver
 	gs     graph.Service
 	userID string
 }
@@ -138,8 +138,8 @@ func (cfc *contactFolderCache) init(
 		return errors.New("m365 folderID required for base folder")
 	}
 
-	if cfc.folderCache == nil {
-		cfc.folderCache = newFolderCache()
+	if cfc.containerResolver == nil {
+		cfc.containerResolver = newContainerResolver()
 	}
 
 	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)
