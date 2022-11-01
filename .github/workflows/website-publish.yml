@@ -31,10 +31,10 @@ jobs:
           # Uses docker inside GA to build website
           make buildimage && make build
 
-      - name: Push docs
+      - name: Publish docs
+        # env:
+        #   WEBSITE_S3_BUCKET: ${{ secrets.WEBSITE_S3_BUCKET }}
+        #   WEBSITE_CF_DISTRIBUTION: ${{ secrets.WEBSITE_CF_DISTRIBUTION }}
         run: |
-          aws s3 sync dist "s3://${{ secrets.WEBSITE_S3_BUCKET }}"
-
-      - name: Invalidate cloudfront
-        run: |
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.WEBSITE_CF_DISTRIBUTION }} --paths "/*"
+          # aws credentials generated from previous step
+          make publish
