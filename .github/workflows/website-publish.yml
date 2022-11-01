@@ -26,15 +26,10 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
-      - name: Build docs
+      - name: Build docs image
         run: |
-          # Uses docker inside GA to build website
-          make buildimage && make build
+          make buildimage
 
-      - name: Publish docs
-        # env:
-        #   WEBSITE_S3_BUCKET: ${{ secrets.WEBSITE_S3_BUCKET }}
-        #   WEBSITE_CF_DISTRIBUTION: ${{ secrets.WEBSITE_CF_DISTRIBUTION }}
+      - name: Build & Publish docs
         run: |
-          # aws credentials generated from previous step
           make publish

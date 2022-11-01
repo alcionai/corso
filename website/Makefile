@@ -22,7 +22,8 @@ build:
 
 publish: build
 	docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN --rm -v ${PWD}:/usr/src/website corso/website:latest \
+		-e AWS_SESSION_TOKEN -e AWS_REGION \
+		--rm -v ${PWD}:/usr/src/website corso/website:latest \
 		make sync
 
 sync:
