@@ -65,7 +65,7 @@ var (
 // It is not used aside from printing resources.
 const All = "All"
 
-type Reducer interface {
+type reducer interface {
 	Reduce(context.Context, *details.Details) *details.Details
 }
 
@@ -175,10 +175,6 @@ func discreteScopes[T scopeT, C categoryT](
 // Returns the path.ServiceType matching the selector service.
 func (s Selector) PathService() path.ServiceType {
 	return serviceToPathType[s.Service]
-}
-
-type reducer interface {
-	Reduce(ctx context.Context, deets *details.Details) *details.Details
 }
 
 // Reduce is a quality-of-life interpreter that allows Reduce to be called
