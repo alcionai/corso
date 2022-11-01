@@ -534,8 +534,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user2Encoded: 42,
 	}
 	expectedServiceCats := map[string]struct{}{
-		serviceCatTag(suite.testPath.Service(), suite.testPath.Category()): {},
-		serviceCatTag(p2.Service(), p2.Category()):                         {},
+		serviceCatTag(suite.testPath): {},
+		serviceCatTag(p2):             {},
 	}
 	expectedResourceOwners := map[string]struct{}{
 		suite.testPath.ResourceOwner(): {},
@@ -566,11 +566,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, serviceCats, resourceOwners, err := inflateDirTree(ctx, collections, progress)
+	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(t, err)
 
-	assert.Equal(t, expectedServiceCats, serviceCats)
-	assert.Equal(t, expectedResourceOwners, resourceOwners)
+	assert.Equal(t, expectedServiceCats, oc.serviceCats)
+	assert.Equal(t, expectedResourceOwners, oc.resourceOwners)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
@@ -613,8 +613,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 	require.NoError(suite.T(), err)
 
 	expectedServiceCats := map[string]struct{}{
-		serviceCatTag(suite.testPath.Service(), suite.testPath.Category()): {},
-		serviceCatTag(p2.Service(), p2.Category()):                         {},
+		serviceCatTag(suite.testPath): {},
+		serviceCatTag(p2):             {},
 	}
 	expectedResourceOwners := map[string]struct{}{
 		suite.testPath.ResourceOwner(): {},
@@ -667,11 +667,11 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, serviceCats, resourceOwners, err := inflateDirTree(ctx, test.layout, progress)
+			dirTree, oc, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
 
-			assert.Equal(t, expectedServiceCats, serviceCats)
-			assert.Equal(t, expectedResourceOwners, resourceOwners)
+			assert.Equal(t, expectedServiceCats, oc.serviceCats)
+			assert.Equal(t, expectedResourceOwners, oc.resourceOwners)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
@@ -768,7 +768,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, _, _, err := inflateDirTree(ctx, test.layout, nil)
+			_, _, err := inflateDirTree(ctx, test.layout, nil)
 			assert.Error(t, err)
 		})
 	}
@@ -852,10 +852,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 	expectedTags := map[string]string{
-		serviceCatTag(suite.testPath1.Service(), suite.testPath1.Category()): "",
-		suite.testPath1.ResourceOwner():                                      "",
-		serviceCatTag(suite.testPath2.Service(), suite.testPath2.Category()): "",
-		suite.testPath2.ResourceOwner():                                      "",
+		serviceCatTag(suite.testPath1):  "",
+		suite.testPath1.ResourceOwner(): "",
+		serviceCatTag(suite.testPath2):  "",
+		suite.testPath2.ResourceOwner(): "",
 	}
 
 	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
