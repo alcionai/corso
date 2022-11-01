@@ -12,7 +12,7 @@ require (
 	github.com/microsoft/kiota-abstractions-go v0.11.0
 	github.com/microsoft/kiota-authentication-azure-go v0.4.1
 	github.com/microsoft/kiota-http-go v0.7.2
-	github.com/microsoft/kiota-serialization-json-go v0.7.1
+	github.com/microsoft/kiota-serialization-json-go v0.7.2
 	github.com/microsoftgraph/msgraph-sdk-go v0.40.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.28.1
 	github.com/pkg/errors v0.9.1
