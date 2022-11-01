@@ -389,26 +389,36 @@ func newTreeMap() *treeMap {
 	}
 }
 
-// inflateDirTree returns an fs.Directory tree rooted at the oldest common
-// ancestor of the streams and uses virtualfs.StaticDirectory for internal nodes
-// in the hierarchy. Leaf nodes are virtualfs.StreamingDirectory with the given
-// DataCollections.
+// inflateDirTree returns a set of tags representing all the resource owners and
+// service/categories in the snapshot and a fs.Directory tree rooted at the
+// oldest common ancestor of the streams. All nodes are
+// virtualfs.StreamingDirectory with the given DataCollections if there is one
+// for that node. Tags can be used in future backups to fetch old snapshots for
+// caching reasons.
 func inflateDirTree(
 	ctx context.Context,
 	collections []data.Collection,
 	progress *corsoProgress,
-) (fs.Directory, error) {
+) (fs.Directory, *ownersCats, error) {
 	roots := make(map[string]*treeMap)
+	ownerCats := &ownersCats{
+		resourceOwners: make(map[string]struct{}),
+		serviceCats:    make(map[string]struct{}),
+	}
 
 	for _, s := range collections {
 		if s.FullPath() == nil {
-			return nil, errors.New("no identifier for collection")
+			return nil, nil, errors.New("no identifier for collection")
 		}
+
+		serviceCat := serviceCatTag(s.FullPath())
+		ownerCats.serviceCats[serviceCat] = struct{}{}
+		ownerCats.resourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
 		itemPath := s.FullPath().Elements()
 
 		if len(itemPath) == 0 {
-			return nil, errors.New("no identifier for collection")
+			return nil, nil, errors.New("no identifier for collection")
 		}
 
 		dir, ok := roots[itemPath[0]]
@@ -455,7 +465,7 @@ func inflateDirTree(
 	}
 
 	if len(roots) > 1 {
-		return nil, errors.New("multiple root directories")
+		return nil, nil, errors.New("multiple root directories")
 	}
 
 	var res fs.Directory
@@ -463,13 +473,13 @@ func inflateDirTree(
 	for dirName, dir := range roots {
 		tmp, err := buildKopiaDirs(dirName, dir, progress)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		res = tmp
 	}
 
-	return res, nil
+	return res, ownerCats, nil
 }
 
 func (w Wrapper) BackupCollections(
@@ -497,12 +507,12 @@ func (w Wrapper) BackupCollections(
 		model.ServiceTag: service.String(),
 	}
 
-	dirTree, err := inflateDirTree(ctx, collections, progress)
+	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	s, err := w.makeSnapshotWithRoot(ctx, dirTree, progress)
+	s, err := w.makeSnapshotWithRoot(ctx, dirTree, oc, progress)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -510,9 +520,36 @@ func (w Wrapper) BackupCollections(
 	return s, progress.deets, nil
 }
 
+type ownersCats struct {
+	resourceOwners map[string]struct{}
+	serviceCats    map[string]struct{}
+}
+
+func serviceCatTag(p path.Path) string {
+	return p.Service().String() + p.Category().String()
+}
+
+// tagsFromStrings returns a map[string]string with the union of both maps
+// passed in. Currently uses empty values for each tag because there can be
+// multiple instances of resource owners and categories in a single snapshot.
+func tagsFromStrings(oc *ownersCats) map[string]string {
+	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
+
+	for k := range oc.serviceCats {
+		res[k] = ""
+	}
+
+	for k := range oc.resourceOwners {
+		res[k] = ""
+	}
+
+	return res
+}
+
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
+	oc *ownersCats,
 	progress *corsoProgress,
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
@@ -562,6 +599,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 				logger.Ctx(innerCtx).Errorw("kopia backup", err)
 				return err
 			}
+
+			man.Tags = tagsFromStrings(oc)
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = errors.Wrap(err, "saving snapshot")
