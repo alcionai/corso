@@ -54,7 +54,7 @@ type ExchangeOpts struct {
 func AddExchangeInclude(
 	sel *selectors.ExchangeRestore,
 	resource, folders, items []string,
-	incl func([]string, []string, []string) []selectors.ExchangeScope,
+	eisc selectors.ExchangeItemScopeConstructor,
 ) {
 	lf, li := len(folders), len(items)
 
@@ -68,15 +68,19 @@ func AddExchangeInclude(
 		resource = selectors.Any()
 	}
 
-	if lf == 0 {
-		folders = selectors.Any()
-	}
-
 	if li == 0 {
 		items = selectors.Any()
 	}
 
-	sel.Include(incl(resource, folders, items))
+	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(folders)
+
+	if len(containsFolders) > 0 {
+		sel.Include(eisc(resource, containsFolders, items))
+	}
+
+	if len(prefixFolders) > 0 {
+		sel.Include(eisc(resource, prefixFolders, items, selectors.PrefixMatch()))
+	}
 }
 
 // AddExchangeFilter adds the scope of the provided values to the selector's

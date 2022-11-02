@@ -277,7 +277,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					MailFolders([]string{userID}, []string{nonExistantLookup})[0]
+					MailFolders([]string{userID}, []string{nonExistantLookup}, selectors.PrefixMatch())[0]
 			},
 		},
 	}
