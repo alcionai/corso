@@ -19,6 +19,7 @@ type MockExchangeDataCollection struct {
 	messageCount int
 	Data         [][]byte
 	Names        []string
+	ModTimes     []time.Time
 }
 
 var (
@@ -36,12 +37,15 @@ func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn
 		messageCount: numMessagesToReturn,
 		Data:         [][]byte{},
 		Names:        []string{},
+		ModTimes:     []time.Time{},
 	}
+	baseTime := time.Now()
 
 	for i := 0; i < c.messageCount; i++ {
 		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
 		c.Data = append(c.Data, GetMockMessageBytes("From: NewMockExchangeCollection"))
 		c.Names = append(c.Names, uuid.NewString())
+		c.ModTimes = append(c.ModTimes, baseTime.Add(1*time.Hour))
 	}
 
 	return c
@@ -100,7 +104,7 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 				ID:           medc.Names[i],
 				Reader:       io.NopCloser(bytes.NewReader(medc.Data[i])),
 				size:         int64(len(medc.Data[i])),
-				ModifiedTime: time.Now(),
+				modifiedTime: medc.ModTimes[i],
 			}
 		}
 	}()
@@ -114,7 +118,7 @@ type MockExchangeData struct {
 	Reader       io.ReadCloser
 	ReadErr      error
 	size         int64
-	ModifiedTime time.Time
+	modifiedTime time.Time
 }
 
 func (med *MockExchangeData) UUID() string {
@@ -144,7 +148,7 @@ func (med *MockExchangeData) Size() int64 {
 }
 
 func (med *MockExchangeData) ModTime() time.Time {
-	return med.ModifiedTime
+	return med.modifiedTime
 }
 
 type errReader struct {
