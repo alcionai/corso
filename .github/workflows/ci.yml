@@ -132,8 +132,9 @@ jobs:
         env:
           CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
         run: |
-          npm ci
-          npm run build
+          cd docs &&
+            npm ci &&
+            npm run build
 
   # ----------------------------------------------------------------------------------------------------
   # --- Integration and Unit Testing -------------------------------------------------------------------
