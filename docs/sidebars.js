@@ -42,7 +42,7 @@ const sidebars = {
       type: 'category',
       label: 'Support',
       items: [
-        'support/bugs_and_features', 'support/known_issues'
+        'support/bugs_and_features', 'support/known_issues', 'support/faq'
       ],
     },
     {
