@@ -132,7 +132,7 @@ jobs:
       - uses: actions/upload-artifact@master
         # uncomment next line to disable creating docs artifacts on PR runs
         # if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
-        name: Upload cli docs as artifacts
+        name: Upload docs as artifacts
         with:
           name: docs
           path: docs/build
