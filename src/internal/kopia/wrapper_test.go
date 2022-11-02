@@ -885,12 +885,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
 			assert.NoError(t, err)
 
-			assert.Equal(
-				t,
-				test.expectedUploadedFiles+test.expectedCachedFiles,
-				stats.TotalFileCount,
-				"total files",
-			)
+			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
 			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
 			assert.Equal(t, test.expectedCachedFiles, stats.CachedFileCount, "cached files")
 			assert.Equal(t, 6, stats.TotalDirectoryCount)
