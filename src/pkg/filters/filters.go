@@ -1,7 +1,6 @@
 package filters
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/alcionai/corso/src/pkg/path"
@@ -40,8 +39,8 @@ func norm(s string) string {
 }
 
 // normPathElem ensures the string is:
-// 1. prefixed with a single os path delimiter (ex: `/`)
-// 2. suffixed with a single os path delimiter (ex: `/`)
+// 1. prefixed with a single path.pathSeparator (ex: `/`)
+// 2. suffixed with a single path.pathSeparator (ex: `/`)
 // This is done to facilitate future regex comparisons
 // without re-running the prefix-suffix addition multiple
 // times per target.
@@ -54,9 +53,7 @@ func normPathElem(s string) string {
 		s = string(path.PathSeparator) + s
 	}
 
-	if s[len(s)-1] != path.PathSeparator {
-		s += string(path.PathSeparator)
-	}
+	s = path.TrimTrailingSlash(s) + string(path.PathSeparator)
 
 	return s
 }
@@ -170,9 +167,9 @@ func NotPrefix(target string) Filter {
 // but false for "/foo/barbaz"
 //
 // Unlike single-target filters, this filter accepts a
-// slice of targets, and implicitly handles comparisons as
-// an `any-match` check (ie: Compare will return true if any
-// target matches the input).
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
 func PathPrefix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
@@ -189,9 +186,9 @@ func PathPrefix(targets []string) Filter {
 // but true for "/foo/barbaz"
 //
 // Unlike single-target filters, this filter accepts a
-// slice of targets, and implicitly handles comparisons as
-// an `any-match` check (ie: Compare will return true if any
-// target matches the input).
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
 func NotPathPrefix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
@@ -210,9 +207,9 @@ func NotPathPrefix(targets []string) Filter {
 // but false for "/baz/foobar"
 //
 // Unlike single-target filters, this filter accepts a
-// slice of targets, and implicitly handles comparisons as
-// an `any-match` check (ie: Compare will return true if any
-// target matches the input).
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
 func PathContains(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
@@ -222,7 +219,7 @@ func PathContains(targets []string) Filter {
 	return newSliceFilter(TargetPathContains, tgts, false)
 }
 
-// PathContains creates a filter where Compare(v) is true if
+// NotPathContains creates a filter where Compare(v) is true if
 // for _every_ elem e in split(v), !target.Equals(e) ||
 // for _every_ sequence of elems in split(v), !target.Equals(path.Join(e[n:m]))
 // ex: target "foo" returns false for input "/baz/foo/bar",
@@ -231,9 +228,9 @@ func PathContains(targets []string) Filter {
 // but true for "/baz/foobar"
 //
 // Unlike single-target filters, this filter accepts a
-// slice of targets, and implicitly handles comparisons as
-// an `any-match` check (ie: Compare will return true if any
-// target matches the input).
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
 func NotPathContains(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
@@ -367,7 +364,7 @@ func prefixed(target, input string) bool {
 
 // true if target is an _element complete_ prefix match
 // on the input.  Element complete means we do not
-// succeed on partial elementt matches (ex: "/foo" does
+// succeed on partial element matches (ex: "/foo" does
 // not match "/foobar").
 //
 // As a precondition, assumes the target value has been
@@ -375,17 +372,8 @@ func prefixed(target, input string) bool {
 //
 // The input is assumed to be the complete path that may
 // have the target as a prefix.
-//
-// Basic principle: For any normalized, well formed target
-// and input (ex: values like "/a/b/c/"), the target is a
-// prefix if the regex `^target` matches the input.
 func pathPrefix(target, input string) bool {
-	re, err := regexp.Compile("^" + target)
-	if err != nil {
-		return false
-	}
-
-	return re.MatchString(normPathElem(input))
+	return strings.HasPrefix(normPathElem(input), target)
 }
 
 // true if target has an _element complete_ equality
@@ -399,17 +387,8 @@ func pathPrefix(target, input string) bool {
 //
 // Input is assumed to be the complete path that may
 // contain the target as an element or sequence of elems.
-//
-// Basic principle: For any normalized, well formed target
-// and input (ex: values like "/a/b/c/"), the input contains
-// the target if the regex `target` matches the input.
 func pathContains(target, input string) bool {
-	re, err := regexp.Compile(target)
-	if err != nil {
-		return false
-	}
-
-	return re.MatchString(normPathElem(input))
+	return strings.Contains(normPathElem(input), target)
 }
 
 // ----------------------------------------------------------------------------------------------------
