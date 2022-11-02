@@ -79,7 +79,7 @@ func newManifestInfo(
 	structTags := make(map[string]struct{}, len(tags))
 
 	for _, t := range tags {
-		tk, _ := makeTagPair(t)
+		tk, _ := makeTagKV(t)
 		structTags[tk] = struct{}{}
 	}
 

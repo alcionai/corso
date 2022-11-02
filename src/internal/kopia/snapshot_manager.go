@@ -16,6 +16,7 @@ const (
 	// Kopia does not do comparisons properly for empty tags right now so add some
 	// placeholder value to them.
 	defaultTagValue = "0"
+
 	// Kopia CLI prefixes all user tags with "tag:"[1]. Maintaining this will
 	// ensure we don't accidentally take reserved tags and that tags can be
 	// displayed with kopia CLI.
@@ -41,7 +42,7 @@ func serviceCatTag(p path.Path) string {
 	return p.Service().String() + p.Category().String()
 }
 
-func makeTagPair(k string) (string, string) {
+func makeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
 }
 
@@ -52,12 +53,12 @@ func tagsFromStrings(oc *ownersCats) map[string]string {
 	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
 
 	for k := range oc.serviceCats {
-		tk, tv := makeTagPair(k)
+		tk, tv := makeTagKV(k)
 		res[tk] = tv
 	}
 
 	for k := range oc.resourceOwners {
-		tk, tv := makeTagPair(k)
+		tk, tv := makeTagKV(k)
 		res[tk] = tv
 	}
 
@@ -91,13 +92,13 @@ func getLastIdx(
 	return -1
 }
 
-// findRecentManifests searches through mans and returns the most recent
+// manifestsSinceLastComplete searches through mans and returns the most recent
 // complete manifest (if one exists) and maybe the most recent incomplete
 // manifest. If the newest incomplete manifest is more recent than the newest
 // complete manifest then adds it to the returned list. Otherwise no incomplete
 // manifest is returned. Returns nil if there are no complete or complete
 // manifests in mans.
-func findRecentManifests(
+func manifestsSinceLastComplete(
 	mans []*snapshot.Manifest,
 ) []*snapshot.Manifest {
 	var (
@@ -177,9 +178,18 @@ func fetchPrevManifests(
 		return nil, errors.Wrap(err, "fetching previous manifests")
 	}
 
-	return findRecentManifests(mans), nil
+	return manifestsSinceLastComplete(mans), nil
 }
 
+// fetchPrevSnapshotManifests returns a set of manifests for complete and maybe
+// incomplete snapshots for the given (resource owner, service, category)
+// tuples. Up to two manifests can be returned per tuple: one complete and one
+// incomplete. An incomplete manifest may be returned if it is newer than the
+// newest complete manifest for the tuple. Manifests are deduped such that if
+// multiple tuples match the same manifest it will only be returned once.
+//
+// TODO(ashmrtn): Use to get previous manifests so backup can find previously
+// uploaded versions of a file.
 func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
@@ -192,10 +202,10 @@ func fetchPrevSnapshotManifests(
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
 	for serviceCat := range oc.serviceCats {
-		serviceTagKey, serviceTagValue := makeTagPair(serviceCat)
+		serviceTagKey, serviceTagValue := makeTagKV(serviceCat)
 
 		for resourceOwner := range oc.resourceOwners {
-			resourceOwnerTagKey, resourceOwnerTagValue := makeTagPair(resourceOwner)
+			resourceOwnerTagKey, resourceOwnerTagValue := makeTagKV(resourceOwner)
 
 			tags := map[string]string{
 				serviceTagKey:       serviceTagValue,

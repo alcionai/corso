@@ -861,7 +861,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	expectedTags := map[string]string{}
 
 	for _, k := range baseTagKeys {
-		tk, tv := makeTagPair(k)
+		tk, tv := makeTagKV(k)
 		expectedTags[tk] = tv
 	}
 
