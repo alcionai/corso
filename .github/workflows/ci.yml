@@ -44,12 +44,43 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+  SetEnv:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.environment.outputs.environment }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Figure out environment
+        id: environment
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=environment::Production"
+            echo "::set-output name=environment::Production"
+          else
+            echo "set-output name=environment::Testing"
+            echo "::set-output name=environment::Testing"
+          fi
+
+      - name: Get version string
+        id: version
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+          else
+            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+          fi
+
   # ----------------------------------------------------------------------------------------------------
   # --- Docs Linting -----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
   Docs-Linting:
-    needs: [Precheck, Checkout]
+    needs: [Precheck, Checkout, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true' # docsfileschanged also includes srcfileschanged
@@ -201,37 +232,6 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
-
-  SetEnv:
-    environment: Testing
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.environment.outputs.environment }}
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Figure out environment
-        id: environment
-        run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=environment::Production"
-            echo "::set-output name=environment::Production"
-          else
-            echo "set-output name=environment::Testing"
-            echo "::set-output name=environment::Testing"
-          fi
-
-      - name: Get version string
-        id: version
-        run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
-            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
-          else
-            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
-            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
-          fi
 
   Publish-Binary:
     needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
