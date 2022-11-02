@@ -851,11 +851,18 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			42,
 		),
 	}
-	expectedTags := map[string]string{
-		serviceCatTag(suite.testPath1):  "",
-		suite.testPath1.ResourceOwner(): "",
-		serviceCatTag(suite.testPath2):  "",
-		suite.testPath2.ResourceOwner(): "",
+
+	baseTagKeys := []string{
+		serviceCatTag(suite.testPath1),
+		suite.testPath1.ResourceOwner(),
+		serviceCatTag(suite.testPath2),
+		suite.testPath2.ResourceOwner(),
+	}
+	expectedTags := map[string]string{}
+
+	for _, k := range baseTagKeys {
+		tk, tv := makeTagPair(k)
+		expectedTags[tk] = tv
 	}
 
 	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
