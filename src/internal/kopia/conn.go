@@ -383,16 +383,9 @@ func checkCompressor(compressor compression.Name) error {
 	return errors.Errorf("unknown compressor type %s", compressor)
 }
 
-func (w *conn) FindManifests(
-	ctx context.Context,
-	tags map[string]string,
-) ([]*manifest.EntryMetadata, error) {
-	return w.FindManifests(ctx, tags)
-}
-
 func (w *conn) LoadSnapshots(
 	ctx context.Context,
 	ids []manifest.ID,
 ) ([]*snapshot.Manifest, error) {
-	return snapshot.LoadSnapshots(ctx, w, ids)
+	return snapshot.LoadSnapshots(ctx, w.Repository, ids)
 }
