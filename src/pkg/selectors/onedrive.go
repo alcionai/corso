@@ -178,11 +178,14 @@ func (s *oneDrive) Users(users []string) []OneDriveScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveScope {
-	scopes := []OneDriveScope{}
+	var (
+		scopes = []OneDriveScope{}
+		os     = append([]option{pathType()}, opts...)
+	)
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveFolder, users, folders, opts...),
+		makeScope[OneDriveScope](OneDriveFolder, users, folders, os...),
 	)
 
 	return scopes
@@ -418,8 +421,13 @@ func (s OneDriveScope) Get(cat oneDriveCategory) []string {
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
-func (s OneDriveScope) set(cat oneDriveCategory, v []string) OneDriveScope {
-	return set(s, cat, v)
+func (s OneDriveScope) set(cat oneDriveCategory, v []string, opts ...option) OneDriveScope {
+	os := []option{}
+	if cat == OneDriveFolder {
+		os = append(os, pathType())
+	}
+
+	return set(s, cat, v, append(os, opts...)...)
 }
 
 // setDefaults ensures that user scopes express `AnyTgt` for their child category types.

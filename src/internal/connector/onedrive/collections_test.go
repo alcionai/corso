@@ -119,7 +119,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedContainerCount: 3,
 		},
 		{
-			testCase: "match folder selector",
+			testCase: "contains folder selector",
 			items: []models.DriveItemable{
 				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
 				driveItem("folder", testBaseDrivePath, false, true, false),
@@ -132,11 +132,44 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"folder"})[0],
 			expect: assert.NoError,
+			expectedCollectionPaths: append(
+				expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				),
+				expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder/subfolder/folder",
+				)...,
+			),
+			expectedItemCount:      4,
+			expectedFileCount:      2,
+			expectedContainerCount: 2,
+		},
+		{
+			testCase: "prefix subfolder selector",
+			items: []models.DriveItemable{
+				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
+				driveItem("folder", testBaseDrivePath, false, true, false),
+				driveItem("subfolder", testBaseDrivePath+"/folder", false, true, false),
+				driveItem("folder", testBaseDrivePath+"/folder/subfolder", false, true, false),
+				driveItem("package", testBaseDrivePath, false, false, true),
+				driveItem("fileInFolder", testBaseDrivePath+"/folder", true, false, false),
+				driveItem("fileInFolder2", testBaseDrivePath+"/folder/subfolder/folder", true, false, false),
+				driveItem("fileInPackage", testBaseDrivePath+"/package", true, false, false),
+			},
+			scope: (&selectors.OneDriveBackup{}).
+				Folders(selectors.Any(), []string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
+			expect: assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
 				user,
-				testBaseDrivePath+"/folder",
+				testBaseDrivePath+"/folder/subfolder/folder",
 			),
 			expectedItemCount:      2,
 			expectedFileCount:      1,
@@ -175,10 +208,10 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			c := NewCollections(tenant, user, tt.scope, &MockGraphService{}, nil)
 			err := c.updateCollections(ctx, "driveID", tt.items)
 			tt.expect(t, err)
-			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.collectionMap))
-			assert.Equal(t, tt.expectedItemCount, c.numItems)
-			assert.Equal(t, tt.expectedFileCount, c.numFiles)
-			assert.Equal(t, tt.expectedContainerCount, c.numContainers)
+			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.collectionMap), "collection paths")
+			assert.Equal(t, tt.expectedItemCount, c.numItems, "item count")
+			assert.Equal(t, tt.expectedFileCount, c.numFiles, "file count")
+			assert.Equal(t, tt.expectedContainerCount, c.numContainers, "container count")
 			for _, collPath := range tt.expectedCollectionPaths {
 				assert.Contains(t, c.collectionMap, collPath)
 			}
