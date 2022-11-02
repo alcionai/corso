@@ -166,7 +166,13 @@ func NotPrefix(target string) Filter {
 // PathPrefix creates a filter where Compare(v) is true if
 // target.Prefix(v) &&
 // split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
-// ex: target "/foo/bar" returns true for input "/foo/bar/baz", but false for "/foo/barbaz"
+// ex: target "/foo/bar" returns true for input "/foo/bar/baz",
+// but false for "/foo/barbaz"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, and implicitly handles comparisons as
+// an `any-match` check (ie: Compare will return true if any
+// target matches the input).
 func PathPrefix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
@@ -179,7 +185,13 @@ func PathPrefix(targets []string) Filter {
 // NotPathPrefix creates a filter where Compare(v) is true if
 // !target.Prefix(v) ||
 // !split(target)[i].Equals(split(v)[i]) for _any_ i in 0..len(target)-1
-// ex: target "/foo/bar" returns false for input "/foo/bar/baz", but true for "/foo/barbaz"
+// ex: target "/foo/bar" returns false for input "/foo/bar/baz",
+// but true for "/foo/barbaz"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, and implicitly handles comparisons as
+// an `any-match` check (ie: Compare will return true if any
+// target matches the input).
 func NotPathPrefix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
@@ -192,8 +204,15 @@ func NotPathPrefix(targets []string) Filter {
 // PathContains creates a filter where Compare(v) is true if
 // for _any_ elem e in split(v), target.Equals(e) ||
 // for _any_ sequence of elems in split(v), target.Equals(path.Join(e[n:m]))
-// ex: target "foo" returns true for input "/baz/foo/bar", but false for "/baz/foobar"
-// ex: target "baz/foo" returns true for input "/baz/foo/bar", but false for "/baz/foobar"
+// ex: target "foo" returns true for input "/baz/foo/bar",
+// but false for "/baz/foobar"
+// ex: target "baz/foo" returns true for input "/baz/foo/bar",
+// but false for "/baz/foobar"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, and implicitly handles comparisons as
+// an `any-match` check (ie: Compare will return true if any
+// target matches the input).
 func PathContains(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
@@ -206,8 +225,15 @@ func PathContains(targets []string) Filter {
 // PathContains creates a filter where Compare(v) is true if
 // for _every_ elem e in split(v), !target.Equals(e) ||
 // for _every_ sequence of elems in split(v), !target.Equals(path.Join(e[n:m]))
-// ex: target "foo" returns false for input "/baz/foo/bar", but true for "/baz/foobar"
-// ex: target "baz/foo" returns false for input "/baz/foo/bar", but true for "/baz/foobar"
+// ex: target "foo" returns false for input "/baz/foo/bar",
+// but true for "/baz/foobar"
+// ex: target "baz/foo" returns false for input "/baz/foo/bar",
+// but true for "/baz/foobar"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, and implicitly handles comparisons as
+// an `any-match` check (ie: Compare will return true if any
+// target matches the input).
 func NotPathContains(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
