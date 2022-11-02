@@ -29,7 +29,7 @@
     "sass": "^1.55.0"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "2.0.1"
+    "@docusaurus/module-type-aliases": "2.2.0"
   },
   "browserslist": {
     "production": [
