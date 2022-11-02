@@ -1,3 +1,4 @@
+# Docs makefile
 .PHONY: buildimage build dev shell check genclidocs _validatemdgen
 
 CORSO_BUILD_DIR := /tmp/.corsobuild
