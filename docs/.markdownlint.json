@@ -11,7 +11,9 @@
             "Tabs",
             "TabItem",
             "CodeBlock",
-            "DownloadBinaries"
+            "DownloadBinaries",
+            "details",
+            "summary"
         ]
     },
 }
