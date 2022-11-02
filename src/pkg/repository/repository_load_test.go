@@ -240,7 +240,6 @@ func runRestoreLoadTest(
 ) {
 	//revive:enable:context-as-argument
 	t.Run("restore_"+name, func(t *testing.T) {
-		t.Skip("temp")
 		var (
 			err    error
 			ds     *details.Details
@@ -436,7 +435,6 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TeardownSuite() {
 }
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
-	suite.T().Skip("temp")
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
