@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/pkg/errors"
@@ -26,6 +27,8 @@ func s3ConfigsFromViper(vpr *viper.Viper) (storage.S3Config, error) {
 	s3Config.Bucket = vpr.GetString(BucketNameKey)
 	s3Config.Endpoint = vpr.GetString(EndpointKey)
 	s3Config.Prefix = vpr.GetString(PrefixKey)
+	s3Config.DoNotUseTLS = vpr.GetBool(DisableTLSKey)
+	s3Config.DoNotVerifyTLS = vpr.GetBool(DisableTLSVerificationKey)
 
 	return s3Config, nil
 }
@@ -76,9 +79,11 @@ func configureStorage(
 	}
 
 	s3Cfg = storage.S3Config{
-		Bucket:   common.First(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
-		Endpoint: common.First(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
-		Prefix:   common.First(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),
+		Bucket:         common.First(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
+		Endpoint:       common.First(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
+		Prefix:         common.First(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),
+		DoNotUseTLS:    common.ParseBool(common.First(overrides[storage.DoNotUseTLS], strconv.FormatBool(s3Cfg.DoNotUseTLS), os.Getenv(storage.PrefixKey))),
+		DoNotVerifyTLS: common.ParseBool(common.First(overrides[storage.DoNotVerifyTLS], strconv.FormatBool(s3Cfg.DoNotVerifyTLS), os.Getenv(storage.PrefixKey))),
 	}
 
 	// compose the common config and credentials

@@ -18,10 +18,12 @@ import (
 
 const (
 	// S3 config
-	StorageProviderTypeKey = "provider"
-	BucketNameKey          = "bucket"
-	EndpointKey            = "endpoint"
-	PrefixKey              = "prefix"
+	StorageProviderTypeKey    = "provider"
+	BucketNameKey             = "bucket"
+	EndpointKey               = "endpoint"
+	PrefixKey                 = "prefix"
+	DisableTLSKey             = "disable_tls"
+	DisableTLSVerificationKey = "disable_tls_verification"
 
 	// M365 config
 	AccountProviderTypeKey = "account_provider"
