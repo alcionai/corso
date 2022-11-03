@@ -38,6 +38,8 @@ func s3Overrides(in map[string]string) map[string]string {
 		storage.Bucket:         in[storage.Bucket],
 		storage.Endpoint:       in[storage.Endpoint],
 		storage.Prefix:         in[storage.Prefix],
+		storage.DoNotUseTLS:    in[storage.DoNotUseTLS],
+		storage.DoNotVerifyTLS: in[storage.DoNotVerifyTLS],
 		StorageProviderTypeKey: in[StorageProviderTypeKey],
 	}
 }

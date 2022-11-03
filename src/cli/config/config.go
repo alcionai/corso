@@ -34,7 +34,6 @@ var (
 	configFilePath     string
 	configFilePathFlag string
 	configDir          string
-	defaultDir         string
 	displayDefaultFP   = filepath.Join("$HOME", ".corso.toml")
 )
 
@@ -55,8 +54,6 @@ func init() {
 	if err != nil {
 		Infof(context.Background(), "cannot stat user's $HOME directory: %v", err)
 	}
-
-	defaultDir = homeDir
 
 	if len(configDir) == 0 {
 		configDir = homeDir
