@@ -15,6 +15,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
+const (
+	// This seems to be the time format received from Exchange (without Z at end)
+	timeFormat = "2006-01-02T15:04:05.000000"
+)
+
 type EventSuite struct {
 	suite.Suite
 }
