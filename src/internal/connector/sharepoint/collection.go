@@ -26,7 +26,7 @@ var (
 
 type Collection struct {
 	data chan data.Stream
-	// folderPath indicates the hierarchy within the colleciton
+	// folderPath indicates the hierarchy within the collection
 	folderPath path.Path
 	// M365 IDs of the items of this collection
 	service       graph.Service
