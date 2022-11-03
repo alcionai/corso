@@ -15,6 +15,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		organizer, subject string
 		recurs             bool
 		start              = time.Time{}
+		end                = time.Time{}
 	)
 
 	if evt.GetOrganizer() != nil &&
@@ -37,11 +38,30 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		evt.GetStart().GetDateTime() != nil {
 		// timeString has 'Z' literal added to ensure the stored
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		timeString := *evt.GetStart().GetDateTime() + "Z"
+		startTime := *evt.GetStart().GetDateTime()
+		// TODO(meain): see if we can avoid this
+		if startTime[len(startTime)-1:] != "Z" {
+			startTime += "Z"
+		}
 
-		output, err := common.ParseTime(timeString)
+		output, err := common.ParseTime(startTime)
 		if err == nil {
 			start = output
+		}
+	}
+
+	if evt.GetEnd() != nil &&
+		evt.GetEnd().GetDateTime() != nil {
+		// timeString has 'Z' literal added to ensure the stored
+		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		endTime := *evt.GetEnd().GetDateTime()
+		if endTime[len(endTime)-1:] != "Z" {
+			endTime += "Z"
+		}
+
+		output, err := common.ParseTime(endTime)
+		if err == nil {
+			end = output
 		}
 	}
 
@@ -50,6 +70,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		Organizer:   organizer,
 		Subject:     subject,
 		EventStart:  start,
+		EventEnd:    end,
 		EventRecurs: recurs,
 	}
 }
