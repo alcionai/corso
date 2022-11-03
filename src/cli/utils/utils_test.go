@@ -77,8 +77,8 @@ func (suite *CliUtilsSuite) TestSplitFoldersIntoContainsAndPrefix() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			c, p := splitFoldersIntoContainsAndPrefix(test.input)
-			assert.Equal(t, test.expectC, c, "contains set")
-			assert.Equal(t, test.expectP, p, "prefix set")
+			assert.ElementsMatch(t, test.expectC, c, "contains set")
+			assert.ElementsMatch(t, test.expectP, p, "prefix set")
 		})
 	}
 }
