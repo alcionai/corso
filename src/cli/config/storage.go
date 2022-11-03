@@ -79,11 +79,17 @@ func configureStorage(
 	}
 
 	s3Cfg = storage.S3Config{
-		Bucket:         common.First(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
-		Endpoint:       common.First(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
-		Prefix:         common.First(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),
-		DoNotUseTLS:    common.ParseBool(common.First(overrides[storage.DoNotUseTLS], strconv.FormatBool(s3Cfg.DoNotUseTLS), os.Getenv(storage.PrefixKey))),
-		DoNotVerifyTLS: common.ParseBool(common.First(overrides[storage.DoNotVerifyTLS], strconv.FormatBool(s3Cfg.DoNotVerifyTLS), os.Getenv(storage.PrefixKey))),
+		Bucket:   common.First(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
+		Endpoint: common.First(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
+		Prefix:   common.First(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),
+		DoNotUseTLS: common.ParseBool(common.First(
+			overrides[storage.DoNotUseTLS],
+			strconv.FormatBool(s3Cfg.DoNotUseTLS),
+			os.Getenv(storage.PrefixKey))),
+		DoNotVerifyTLS: common.ParseBool(common.First(
+			overrides[storage.DoNotVerifyTLS],
+			strconv.FormatBool(s3Cfg.DoNotVerifyTLS),
+			os.Getenv(storage.PrefixKey))),
 	}
 
 	// compose the common config and credentials

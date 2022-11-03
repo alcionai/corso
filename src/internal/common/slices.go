@@ -30,5 +30,6 @@ func ParseBool(v string) bool {
 	if err != nil {
 		return false
 	}
+
 	return s
 }
