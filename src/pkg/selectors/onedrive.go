@@ -177,6 +177,7 @@ func (s *oneDrive) Users(users []string) []OneDriveScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the folder scopes.
 func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveScope {
 	var (
 		scopes = []OneDriveScope{}
@@ -195,13 +196,14 @@ func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveSc
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *oneDrive) Items(users, folders, items []string) []OneDriveScope {
+// options are only applied to the folder scopes.
+func (s *oneDrive) Items(users, folders, items []string, opts ...option) []OneDriveScope {
 	scopes := []OneDriveScope{}
 
 	scopes = append(
 		scopes,
 		makeScope[OneDriveScope](OneDriveItem, users, items).
-			set(OneDriveFolder, folders),
+			set(OneDriveFolder, folders, opts...),
 	)
 
 	return scopes

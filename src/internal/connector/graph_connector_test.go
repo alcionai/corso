@@ -137,7 +137,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 			name: suite.user + " Email",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}))
+				sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
 				return sel.Selector
 			},
@@ -146,7 +146,10 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 			name: suite.user + " Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}))
+				sel.Include(sel.ContactFolders(
+					[]string{suite.user},
+					[]string{exchange.DefaultContactFolder},
+					selectors.PrefixMatch()))
 
 				return sel.Selector
 			},
@@ -155,7 +158,7 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 			name: suite.user + " Events",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
 				return sel.Selector
 			},
@@ -233,7 +236,7 @@ func (suite *GraphConnectorIntegrationSuite) TestContactSerializationRegression(
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				scope := selectors.
 					NewExchangeBackup().
-					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder})[0]
+					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch())[0]
 				collections, err := connector.createCollections(ctx, scope)
 				require.NoError(t, err)
 
@@ -286,7 +289,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEventsSerializationRegression()
 			expected: exchange.DefaultCalendar,
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}))
+				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
@@ -345,7 +348,7 @@ func (suite *GraphConnectorIntegrationSuite) TestAccessOfInboxAllUsers() {
 	t := suite.T()
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}))
+	sel.Include(sel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 	scopes := sel.DiscreteScopes(connector.GetUsers())
 
 	for _, scope := range scopes {
@@ -376,6 +379,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 			scope: selectors.NewExchangeBackup().MailFolders(
 				[]string{userID},
 				[]string{exchange.DefaultMailFolder},
+				selectors.PrefixMatch(),
 			)[0],
 			folderNames: map[string]struct{}{
 				exchange.DefaultMailFolder: {},
