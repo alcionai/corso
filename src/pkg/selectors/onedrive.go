@@ -35,6 +35,8 @@ type (
 	}
 )
 
+var _ Reducer = &OneDriveRestore{}
+
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
 func NewOneDriveBackup() *OneDriveBackup {
 	src := OneDriveBackup{
