@@ -197,6 +197,8 @@ func writeRepoConfigWithViper(vpr *viper.Viper, s3Config storage.S3Config, m365C
 	vpr.Set(BucketNameKey, s3Config.Bucket)
 	vpr.Set(EndpointKey, s3Config.Endpoint)
 	vpr.Set(PrefixKey, s3Config.Prefix)
+	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
+	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
 
 	vpr.Set(AccountProviderTypeKey, account.ProviderM365.String())
 	vpr.Set(AzureTenantIDKey, m365Config.AzureTenantID)
