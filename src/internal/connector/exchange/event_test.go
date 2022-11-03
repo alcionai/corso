@@ -9,10 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+)
+
+const (
+	// This seems to be the time format received from Exchange (without Z at end)
+	timeFormat = "2006-01-02T15:04:05.000000"
 )
 
 type EventSuite struct {
@@ -27,7 +31,7 @@ func TestEventSuite(t *testing.T) {
 // can be properly retrieved from a models.Eventable object
 func (suite *EventSuite) TestEventInfo() {
 	initial := time.Now()
-	now := common.FormatTime(initial)
+	now := initial.Format(timeFormat)
 
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
 
@@ -47,20 +51,17 @@ func (suite *EventSuite) TestEventInfo() {
 			name: "Start time only",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
 				var (
-					event     = models.NewEvent()
-					dateTime  = models.NewDateTimeTimeZone()
-					full, err = common.ParseTime(now)
+					event    = models.NewEvent()
+					dateTime = models.NewDateTimeTimeZone()
 				)
-
-				require.NoError(suite.T(), err)
 
 				dateTime.SetDateTime(&now)
 				event.SetStart(dateTime)
 
 				return event, &details.ExchangeInfo{
 					ItemType:   details.ExchangeEvent,
-					Received:   full,
-					EventStart: initial.UTC(),
+					Received:   initial,
+					EventStart: initial,
 				}
 			},
 		},
@@ -71,23 +72,20 @@ func (suite *EventSuite) TestEventInfo() {
 					event     = models.NewEvent()
 					startTime = models.NewDateTimeTimeZone()
 					endTime   = models.NewDateTimeTimeZone()
-					full, err = common.ParseTime(now)
 				)
-
-				require.NoError(suite.T(), err)
 
 				startTime.SetDateTime(&now)
 				event.SetStart(startTime)
 
-				nowp30m := common.FormatTime(initial.Add(30 * time.Minute))
+				nowp30m := initial.Add(30 * time.Minute).Format(timeFormat)
 				endTime.SetDateTime(&nowp30m)
 				event.SetEnd(endTime)
 
 				return event, &details.ExchangeInfo{
 					ItemType:   details.ExchangeEvent,
-					Received:   full,
-					EventStart: initial.UTC(),
-					EventEnd:   initial.Add(30 * time.Minute).UTC(),
+					Received:   initial,
+					EventStart: initial,
+					EventEnd:   initial.Add(30 * time.Minute),
 				}
 			},
 		},

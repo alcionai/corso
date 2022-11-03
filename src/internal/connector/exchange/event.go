@@ -38,11 +38,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		evt.GetStart().GetDateTime() != nil {
 		// timeString has 'Z' literal added to ensure the stored
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		startTime := *evt.GetStart().GetDateTime()
-		// TODO(meain): see if we can avoid this
-		if startTime[len(startTime)-1:] != "Z" {
-			startTime += "Z"
-		}
+		startTime := *evt.GetStart().GetDateTime() + "Z"
 
 		output, err := common.ParseTime(startTime)
 		if err == nil {
@@ -54,10 +50,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		evt.GetEnd().GetDateTime() != nil {
 		// timeString has 'Z' literal added to ensure the stored
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		endTime := *evt.GetEnd().GetDateTime()
-		if endTime[len(endTime)-1:] != "Z" {
-			endTime += "Z"
-		}
+		endTime := *evt.GetEnd().GetDateTime() + "Z"
 
 		output, err := common.ParseTime(endTime)
 		if err == nil {
