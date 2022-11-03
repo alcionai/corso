@@ -1,6 +1,8 @@
 package repo
 
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -19,6 +21,8 @@ var (
 	bucket          string
 	endpoint        string
 	prefix          string
+	doNotUseTLS     bool
+	doNotVerifyTLS  bool
 	succeedIfExists bool
 )
 
@@ -45,6 +49,8 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
+	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
+	fs.BoolVar(&doNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
 
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
@@ -200,5 +206,7 @@ func s3Overrides() map[string]string {
 		storage.Bucket:                bucket,
 		storage.Endpoint:              endpoint,
 		storage.Prefix:                prefix,
+		storage.DoNotUseTLS:           strconv.FormatBool(doNotUseTLS),
+		storage.DoNotVerifyTLS:        strconv.FormatBool(doNotVerifyTLS),
 	}
 }
