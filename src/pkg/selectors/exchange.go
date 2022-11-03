@@ -36,7 +36,7 @@ type (
 	}
 )
 
-var _ reducer = &ExchangeRestore{}
+var _ Reducer = &ExchangeRestore{}
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
 func NewExchangeBackup() *ExchangeBackup {

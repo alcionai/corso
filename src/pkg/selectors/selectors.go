@@ -65,7 +65,7 @@ var (
 // It is not used aside from printing resources.
 const All = "All"
 
-type reducer interface {
+type Reducer interface {
 	Reduce(context.Context, *details.Details) *details.Details
 }
 
@@ -183,7 +183,7 @@ func (s Selector) PathService() path.ServiceType {
 // service is unsupported.
 func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.Details, error) {
 	var (
-		r   reducer
+		r   Reducer
 		err error
 	)
 
