@@ -10,6 +10,7 @@ updates:
     reviewers:
       - "corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
 
   # Maintain dependencies for npm - website
   - package-ecosystem: "npm"
@@ -19,6 +20,7 @@ updates:
     reviewers:
       - "corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
 
   # Maintain dependencies for npm - docs
   - package-ecosystem: "npm"
@@ -28,6 +30,7 @@ updates:
     reviewers:
       - "corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
 
   # Maintain dependencies for go - src
   - package-ecosystem: "gomod"
@@ -37,3 +40,4 @@ updates:
     reviewers:
       - "corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
