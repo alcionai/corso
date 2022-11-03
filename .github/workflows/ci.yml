@@ -89,20 +89,17 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Setup Golang with cache
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         uses: magnetikonline/action-golang-cache@v3
         with:
           go-version-file: src/go.mod
 
       - name: Generate CLI Docs
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         working-directory: ./src
         run: |
           go run ./cmd/mdgen/mdgen.go generate
 
       # migrate generated md files into /docs/docs/cli
       - name: Move CLI .md to Docs
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         run: |
           mkdir -p ./docs/docs/cli
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
@@ -130,8 +127,6 @@ jobs:
             npm run build
 
       - uses: actions/upload-artifact@master
-        # uncomment next line to disable creating docs artifacts on PR runs
-        # if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         name: Upload docs as artifacts
         with:
           name: docs
