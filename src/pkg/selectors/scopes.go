@@ -191,7 +191,7 @@ func makeFilterScope[T scopeT](
 // ---------------------------------------------------------------------------
 
 // matches returns true if the category is included in the scope's
-// data type, and the input string passes the the scope's filter for
+// data type, and the input string passes the scope's filter for
 // that category.
 func matches[T scopeT, C categoryT](s T, cat C, inpt string) bool {
 	if !typeAndCategoryMatches(cat, s.categorizer()) {
