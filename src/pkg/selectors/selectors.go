@@ -24,10 +24,10 @@ const (
 )
 
 var serviceToPathType = map[service]path.ServiceType{
-	ServiceUnknown:  path.UnknownService,
-	ServiceExchange: path.ExchangeService,
-	ServiceOneDrive: path.OneDriveService,
-	// ServiceSharePoint: path.SharePointService, TODO: add sharepoint to path
+	ServiceUnknown:    path.UnknownService,
+	ServiceExchange:   path.ExchangeService,
+	ServiceOneDrive:   path.OneDriveService,
+	ServiceSharePoint: path.SharePointService,
 }
 
 var (
