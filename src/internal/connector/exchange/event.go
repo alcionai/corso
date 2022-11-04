@@ -65,5 +65,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		EventStart:  start,
 		EventEnd:    end,
 		EventRecurs: recurs,
+		Created:  *evt.GetCreatedDateTime(),
+		Modified: *evt.GetLastModifiedDateTime(),
 	}
 }

@@ -32,5 +32,7 @@ func MessageInfo(msg models.Messageable) *details.ExchangeInfo {
 		Sender:   sender,
 		Subject:  subject,
 		Received: received,
+		Created:  *msg.GetCreatedDateTime(),
+		Modified: *msg.GetLastModifiedDateTime(),
 	}
 }
