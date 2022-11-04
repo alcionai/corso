@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/zeebo/assert"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
