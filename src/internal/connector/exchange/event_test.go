@@ -44,7 +44,13 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Empty event",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				return models.NewEvent(), &details.ExchangeInfo{
+				var event = models.NewEvent()
+
+				// Start and Modified will always be available in API
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
+
+				return event, &details.ExchangeInfo{
 					ItemType: details.ExchangeEvent,
 				}
 			},
@@ -57,6 +63,8 @@ func (suite *EventSuite) TestEventInfo() {
 					dateTime = models.NewDateTimeTimeZone()
 				)
 
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				dateTime.SetDateTime(&now)
 				event.SetStart(dateTime)
 
@@ -76,6 +84,8 @@ func (suite *EventSuite) TestEventInfo() {
 					endTime   = models.NewDateTimeTimeZone()
 				)
 
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				startTime.SetDateTime(&now)
 				event.SetStart(startTime)
 
@@ -99,6 +109,8 @@ func (suite *EventSuite) TestEventInfo() {
 					event   = models.NewEvent()
 				)
 
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				event.SetSubject(&subject)
 
 				return event, &details.ExchangeInfo{
