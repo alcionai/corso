@@ -49,7 +49,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo() {
 			info := sharepointListInfo(list)
 			assert.Equal(t, expected.ItemType, info.ItemType)
 			assert.Equal(t, expected.ItemName, info.ItemName)
-			assert.Equal(t, expected.WebUrl, info.WebUrl)
+			assert.Equal(t, expected.WebURL, info.WebURL)
 		})
 	}
 }
