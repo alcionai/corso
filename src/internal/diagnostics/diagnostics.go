@@ -153,7 +153,7 @@ func Span(ctx context.Context, name string, ext ...extender) (_ctx context.Conte
 	_fn = func() {
 		rgn.End()
 
-		if span != nil {
+		if span == nil {
 			return
 		}
 
