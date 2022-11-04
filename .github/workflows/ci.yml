@@ -1,8 +1,7 @@
 name: Build/Release Corso
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
+  pull_request_target:
   push:
     branches: [main]
     tags: ["v*.*.*"]
