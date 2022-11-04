@@ -176,7 +176,7 @@ func GetMockEventWithSubjectBytes(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
 	atTime := common.FormatTime(at)
-	endTime := common.FormatTime(at.Add(30*time.Minute))
+	endTime := common.FormatTime(at.Add(30 * time.Minute))
 
 	return GetMockEventWith(
 		defaultEventOrganizer, subject,

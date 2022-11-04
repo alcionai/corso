@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	// This seems to be the time format received from Exchange (without Z at end)
+	// This is the format we get time from msgraph-sdk (default in UTC)
+	// https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0
 	timeFormat = "2006-01-02T15:04:05.000000"
 )
 
