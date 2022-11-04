@@ -115,13 +115,14 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						ItemName:   "itemName",
 						ParentPath: "parentPath",
 						Size:       1000,
+						Owner:      "user@email.com",
 						Created:    now,
 						Modified:   now,
 					},
 				},
 			},
-			expectHs: []string{"ID", "ItemName", "ParentPath", "Size", "Created", "Modified"},
-			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", nowStr, nowStr},
+			expectHs: []string{"ID", "ItemName", "ParentPath", "Size", "Owner", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", "user@email.com", nowStr, nowStr},
 		},
 	}
 
