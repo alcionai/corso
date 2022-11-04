@@ -304,6 +304,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
 			ParentPath: "folder1/folder2",
 			ItemName:   "file1",
 			Size:       10,
+			Owner:      "user@email.com",
 			Created:    now,
 			Modified:   now,
 		},

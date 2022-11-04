@@ -50,6 +50,10 @@ const config = {
             'https://github.com/alcionai/corso/tree/main/docs',
         },
         blog: false,
+        sitemap: {
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        },
         gtag: {
           trackingID: 'G-YXBFPQZ05N',
         },

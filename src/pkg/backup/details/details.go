@@ -367,6 +367,7 @@ type OneDriveInfo struct {
 	ParentPath string    `json:"parentPath"`
 	ItemName   string    `json:"itemName"`
 	Size       int64     `json:"size,omitempty"`
+	Owner      string    `json:"owner,omitempty"`
 	Created    time.Time `json:"created,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 }
@@ -374,14 +375,14 @@ type OneDriveInfo struct {
 // Headers returns the human-readable names of properties in a OneDriveInfo
 // for printing out to a terminal in a columnar display.
 func (i OneDriveInfo) Headers() []string {
-	return []string{"ItemName", "ParentPath", "Size", "Created", "Modified"}
+	return []string{"ItemName", "ParentPath", "Size", "Owner", "Created", "Modified"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
 	return []string{
-		i.ItemName, i.ParentPath, humanize.Bytes(uint64(i.Size)),
+		i.ItemName, i.ParentPath, humanize.Bytes(uint64(i.Size)), i.Owner,
 		common.FormatTabularDisplayTime(i.Created), common.FormatTabularDisplayTime(i.Modified),
 	}
 }
