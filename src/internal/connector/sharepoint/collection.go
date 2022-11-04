@@ -9,11 +9,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type Target int
+type DataCategory int
 
-//go:generate stringer -type=Target
+//go:generate stringer -type=DataCategory
 const (
-	Unknown Target = iota
+	Unknown DataCategory = iota
 	List
 	Drive
 )
