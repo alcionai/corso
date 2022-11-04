@@ -3,8 +3,8 @@ on:
   schedule:
     # every day at 01:59 (01:59am) UTC
     # - cron: "59 1 * * *"
-    # temp, for testing: every 4 hours
-    - cron: "0 */5 * * *"
+    # temp, for testing: every 6 hours
+    - cron: "0 */6 * * *"
 
 permissions:
   # required to retrieve AWS credentials
