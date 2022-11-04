@@ -39,8 +39,14 @@ func TestOneDriveCollectionsSuite(t *testing.T) {
 
 func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any(), selectors.Any())[0]
-	tenant := "tenant"
-	user := "user"
+
+	const (
+		tenant    = "tenant"
+		user      = "user"
+		folder    = "/folder"
+		folderSub = "/folder/subfolder"
+		pkg       = "/package"
+	)
 
 	tests := []struct {
 		testCase                string
@@ -101,8 +107,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
 				driveItem("folder", testBaseDrivePath, false, true, false),
 				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+"/folder", true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+"/package", true, false, false),
+				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
+				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
@@ -111,8 +117,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				tenant,
 				user,
 				testBaseDrivePath,
-				testBaseDrivePath+"/folder",
-				testBaseDrivePath+"/package",
+				testBaseDrivePath+folder,
+				testBaseDrivePath+pkg,
 			),
 			expectedItemCount:      6,
 			expectedFileCount:      3,
@@ -123,12 +129,12 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			items: []models.DriveItemable{
 				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
 				driveItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", testBaseDrivePath+"/folder", false, true, false),
-				driveItem("folder", testBaseDrivePath+"/folder/subfolder", false, true, false),
+				driveItem("subfolder", testBaseDrivePath+folder, false, true, false),
+				driveItem("folder", testBaseDrivePath+folderSub, false, true, false),
 				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+"/folder", true, false, false),
-				driveItem("fileInFolder2", testBaseDrivePath+"/folder/subfolder/folder", true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+"/package", true, false, false),
+				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
+				driveItem("fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
+				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
 			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"folder"})[0],
 			expect: assert.NoError,
@@ -143,7 +149,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					suite.T(),
 					tenant,
 					user,
-					testBaseDrivePath+"/folder/subfolder/folder",
+					testBaseDrivePath+folderSub+folder,
 				)...,
 			),
 			expectedItemCount:      4,
@@ -155,12 +161,12 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			items: []models.DriveItemable{
 				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
 				driveItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", testBaseDrivePath+"/folder", false, true, false),
-				driveItem("folder", testBaseDrivePath+"/folder/subfolder", false, true, false),
+				driveItem("subfolder", testBaseDrivePath+folder, false, true, false),
+				driveItem("folder", testBaseDrivePath+folderSub, false, true, false),
 				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+"/folder", true, false, false),
-				driveItem("fileInFolder2", testBaseDrivePath+"/folder/subfolder/folder", true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+"/package", true, false, false),
+				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
+				driveItem("fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
+				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
 			scope: (&selectors.OneDriveBackup{}).
 				Folders(selectors.Any(), []string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
@@ -169,7 +175,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				suite.T(),
 				tenant,
 				user,
-				testBaseDrivePath+"/folder/subfolder/folder",
+				testBaseDrivePath+folderSub+folder,
 			),
 			expectedItemCount:      2,
 			expectedFileCount:      1,
@@ -180,11 +186,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			items: []models.DriveItemable{
 				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
 				driveItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", testBaseDrivePath+"/folder", false, true, false),
+				driveItem("subfolder", testBaseDrivePath+folder, false, true, false),
 				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+"/folder", true, false, false),
-				driveItem("fileInSubfolder", testBaseDrivePath+"/folder/subfolder", true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+"/package", true, false, false),
+				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
+				driveItem("fileInSubfolder", testBaseDrivePath+folderSub, true, false, false),
+				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
 			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"folder/subfolder"})[0],
 			expect: assert.NoError,
@@ -192,7 +198,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				suite.T(),
 				tenant,
 				user,
-				testBaseDrivePath+"/folder/subfolder",
+				testBaseDrivePath+folderSub,
 			),
 			expectedItemCount:      2,
 			expectedFileCount:      1,
