@@ -51,7 +51,7 @@ const config = {
         },
         blog: false,
         gtag: {
-          trackingID: 'G-4EXT1PY6KC',
+          trackingID: 'G-YXBFPQZ05N',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.scss'),

@@ -10,6 +10,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// Any returns the set matching any value.
+func Any() []string {
+	return []string{AnyTgt}
+}
+
+// None returns the set matching None of the values.
+// This is primarily a fallback for empty values.  Adding None()
+// to any selector will force all matches() checks on that selector
+// to fail.
+func None() []string {
+	return []string{NoneTgt}
+}
+
 // ---------------------------------------------------------------------------
 // types & interfaces
 // ---------------------------------------------------------------------------
