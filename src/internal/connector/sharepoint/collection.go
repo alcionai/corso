@@ -13,8 +13,7 @@ type Target int
 
 //go:generate stringer -type=Target
 const (
-	collectionChannelBufferSize        = 50
-	Unknown                     Target = iota
+	Unknown Target = iota
 	List
 	Drive
 )
