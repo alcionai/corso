@@ -48,13 +48,13 @@ const templateErrPathParsing = "parsing resource path from %s"
 
 const (
 	escapeCharacter = '\\'
-	pathSeparator   = '/'
+	PathSeparator   = '/'
 
 	shortRefCharacters = 12
 )
 
 var charactersToEscape = map[rune]struct{}{
-	pathSeparator:   {},
+	PathSeparator:   {},
 	escapeCharacter: {},
 }
 
@@ -442,7 +442,7 @@ func validateEscapedElement(element string) error {
 // escaped. If there were no trailing path separator character(s) or the separator(s)
 // were escaped the input is returned unchanged.
 func TrimTrailingSlash(element string) string {
-	for len(element) > 0 && element[len(element)-1] == pathSeparator {
+	for len(element) > 0 && element[len(element)-1] == PathSeparator {
 		lastIdx := len(element) - 1
 		numSlashes := 0
 
@@ -469,7 +469,7 @@ func TrimTrailingSlash(element string) string {
 func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
-	return strings.Join(elements, string(pathSeparator))
+	return strings.Join(elements, string(PathSeparator))
 }
 
 // split takes an escaped string and returns a slice of path elements. The
@@ -490,7 +490,7 @@ func split(segment string) []string {
 			continue
 		}
 
-		if c != pathSeparator {
+		if c != PathSeparator {
 			prevWasSeparator = false
 			numEscapes = 0
 
