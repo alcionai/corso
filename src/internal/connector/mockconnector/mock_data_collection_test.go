@@ -167,7 +167,8 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 				_, err := support.CreateEventFromBytes(bytes)
 				return err
 			},
-		}, {
+		},
+		{
 			name: "Event w/ Attendees Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := mockconnector.GetMockEventWithAttendeesBytes(subject)
