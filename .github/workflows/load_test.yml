@@ -26,6 +26,21 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      - name: Build the otel-daemon
+        run: make build-otel-daemon
+
+      # TODO: write logs to a file in src/test_results for archival
+      - name: Run the otel-daemon
+        run: make otel-daemon
+
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v3
         with:
@@ -36,14 +51,6 @@ jobs:
       # Install gotestfmt
       - name: Set up gotestfmt
         run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
-
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
 
       # run the tests
       - name: Integration Tests
@@ -69,16 +76,6 @@ jobs:
           -outputdir=test_results  \
           ./pkg/repository/repository_load_test.go \
           2>&1 | tee ./test_results/goloadtest.log | gotestfmt -hide successful-tests
-
-      # package all artifacts for later review
-      - name: Upload Log, Profilers, Traces
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: load-test-profiling
-          path: src/test_results/*
-          if-no-files-found: error
-          retention-days: 14
         
       # currently, we're required to generate a unique folder for each factory
       # production.  Whenever possible, this should be reverted to increasing the
@@ -124,3 +121,17 @@ jobs:
           go run ./cmd/purge/purge.go
           --user '*'
           --prefix ${{ env.DELETE_FOLDER_PREFIX }}
+
+      - name: Put Down the Daemons Arisen
+        if: always()
+        run: docker kill otel-daemon
+
+      # package all artifacts for later review
+      - name: Upload Log, Profilers, Traces
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-profiling
+          path: src/test_results/*
+          if-no-files-found: error
+          retention-days: 14

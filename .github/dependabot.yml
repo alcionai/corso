@@ -8,8 +8,9 @@ updates:
     schedule:
       interval: "weekly"
     reviewers:
-      - "corso-maintainers"
+      - "alcionai/corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
 
   # Maintain dependencies for npm - website
   - package-ecosystem: "npm"
@@ -17,8 +18,9 @@ updates:
     schedule:
       interval: "daily"
     reviewers:
-      - "corso-maintainers"
+      - "alcionai/corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
 
   # Maintain dependencies for npm - docs
   - package-ecosystem: "npm"
@@ -26,8 +28,9 @@ updates:
     schedule:
       interval: "daily"
     reviewers:
-      - "corso-maintainers"
+      - "alcionai/corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
 
   # Maintain dependencies for go - src
   - package-ecosystem: "gomod"
@@ -35,5 +38,6 @@ updates:
     schedule:
       interval: "daily"
     reviewers:
-      - "corso-maintainers"
+      - "alcionai/corso-maintainers"
     open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
