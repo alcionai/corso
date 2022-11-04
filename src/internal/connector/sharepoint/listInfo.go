@@ -33,11 +33,10 @@ func sharepointListInfo(lst models.Listable) *details.SharepointInfo {
 	}
 
 	return &details.SharepointInfo{
-		ItemType:     details.SharepointItem,
-		ItemName:     name,
-		Created:      created,
-		Modified:     modified,
-		DataCategory: List.String(),
-		WebUrl:       webURL,
+		ItemType: details.SharepointItem,
+		ItemName: name,
+		Created:  created,
+		Modified: modified,
+		WebURL:   webURL,
 	}
 }

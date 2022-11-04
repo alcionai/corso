@@ -344,12 +344,11 @@ func (i ExchangeInfo) Values() []string {
 
 // SharepointInfo describes a sharepoint item
 type SharepointInfo struct {
-	ItemType     ItemType  `json:"itemType,omitempty"`
-	ItemName     string    `json:"itemName,omitempty"`
-	DataCategory string    `json:"dataCategory,omitempty"` // Could possibly extend SharepointList and SharepointDrive instead of creating a new field
-	Created      time.Time `json:"created,omitempty"`
-	Modified     time.Time `josn:"modified,omitempty"`
-	WebUrl       string    `json:"webUrl,omitempty"`
+	ItemType ItemType  `json:"itemType,omitempty"`
+	ItemName string    `json:"itemName,omitempty"`
+	Created  time.Time `json:"created,omitempty"`
+	Modified time.Time `josn:"modified,omitempty"`
+	WebURL   string    `json:"webUrl,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharepointInfo
