@@ -256,35 +256,9 @@ func formatDetailsForRestoration(
 	sel selectors.Selector,
 	deets *details.Details,
 ) ([]path.Path, error) {
-	var fds *details.Details
-
-	switch sel.Service {
-	case selectors.ServiceExchange:
-		er, err := sel.ToExchangeRestore()
-		if err != nil {
-			return nil, err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = er.Reduce(ctx, deets)
-		if len(fds.Entries) == 0 {
-			return nil, selectors.ErrorNoMatchingItems
-		}
-
-	case selectors.ServiceOneDrive:
-		odr, err := sel.ToOneDriveRestore()
-		if err != nil {
-			return nil, err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = odr.Reduce(ctx, deets)
-		if len(fds.Entries) == 0 {
-			return nil, selectors.ErrorNoMatchingItems
-		}
-
-	default:
-		return nil, errors.Errorf("Service %s not supported", sel.Service)
+	fds, err := sel.Reduce(ctx, deets)
+	if err != nil {
+		return nil, err
 	}
 
 	var (
