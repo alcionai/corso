@@ -94,7 +94,7 @@ func s3InitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     s3ProviderCommand,
 		Short:   "Initialize a S3 repository",
-		Long:    `Bootstraps a new S3 repository and connects it to your m356 account.`,
+		Long:    `Bootstraps a new S3 repository and connects it to your m365 account.`,
 		RunE:    initS3Cmd,
 		Args:    cobra.NoArgs,
 		Example: s3ProviderCommandInitExamples,
