@@ -17,15 +17,17 @@ type service int
 
 //go:generate stringer -type=service -linecomment
 const (
-	ServiceUnknown  service = iota // Unknown Service
-	ServiceExchange                // Exchange
-	ServiceOneDrive                // OneDrive
+	ServiceUnknown    service = iota // Unknown Service
+	ServiceExchange                  // Exchange
+	ServiceOneDrive                  // OneDrive
+	ServiceSharePoint                // SharePoint
 )
 
 var serviceToPathType = map[service]path.ServiceType{
 	ServiceUnknown:  path.UnknownService,
 	ServiceExchange: path.ExchangeService,
 	ServiceOneDrive: path.OneDriveService,
+	// ServiceSharePoint: path.SharePointService, TODO: add sharepoint to path
 }
 
 var (
@@ -192,6 +194,8 @@ func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.
 		r, err = s.ToExchangeRestore()
 	case ServiceOneDrive:
 		r, err = s.ToOneDriveRestore()
+	case ServiceSharePoint:
+		r, err = s.ToSharePointRestore()
 	default:
 		return nil, errors.New("service not supported: " + s.Service.String())
 	}
@@ -227,6 +231,14 @@ func (s Selector) ToPrintable() Printable {
 
 	case ServiceOneDrive:
 		r, err := s.ToOneDriveBackup()
+		if err != nil {
+			return Printable{}
+		}
+
+		return r.Printable()
+
+	case ServiceSharePoint:
+		r, err := s.ToSharePointBackup()
 		if err != nil {
 			return Printable{}
 		}
