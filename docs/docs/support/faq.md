@@ -20,3 +20,11 @@ Telemetry reporting can be turned off by using the `--no-stats` flag. See the [C
 section for more information.
 
 </details>
+
+<details>
+    <summary>Does Corso work with Microsoft 365 Personal or Family subscriptions?</summary>
+
+Unfortunately, Corso leverages the Microsoft Graph API and that's only accessible to organizations with paid
+subscriptions to Microsoft 365 (for example, Business, Enterprise, or Education plans).
+
+</details>

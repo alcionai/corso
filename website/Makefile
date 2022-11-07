@@ -1,9 +1,9 @@
-.PHONY: buildimage dev shell build publish sync
+.PHONY: buildimage dev shell build publish sync clean
 
 WEBC := docker run --rm -it --init -p 5050:3000 -p 5051:3001 \
 		-v ${PWD}:/usr/src/website corso/website:latest
 
-buildimage:
+buildimage: clean
 	docker build -t "corso/website:latest" .
 
 dev:
@@ -23,3 +23,6 @@ publish: build
 sync:
 	aws s3 sync /usr/src/website/dist/ s3://corsobackup.io/ --exclude ".git/*" --delete
 	aws cloudfront create-invalidation --distribution-id E1W9NGI9YTVZ1A --paths "/*"
+
+clean:
+	rm -rf node_modules

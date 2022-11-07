@@ -75,7 +75,7 @@ func (gs graphService) ErrPolicy() bool {
 func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving m356 account configuration")
+		return nil, errors.Wrap(err, "retrieving m365 account configuration")
 	}
 
 	gc := GraphConnector{
