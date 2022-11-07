@@ -298,6 +298,7 @@ type ExchangeInfo struct {
 	Subject     string    `json:"subject,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
 	EventStart  time.Time `json:"eventStart,omitempty"`
+	EventEnd    time.Time `json:"eventEnd,omitempty"`
 	Organizer   string    `json:"organizer,omitempty"`
 	ContactName string    `json:"contactName,omitempty"`
 	EventRecurs bool      `json:"eventRecurs,omitempty"`
@@ -308,7 +309,7 @@ type ExchangeInfo struct {
 func (i ExchangeInfo) Headers() []string {
 	switch i.ItemType {
 	case ExchangeEvent:
-		return []string{"Organizer", "Subject", "Starts", "Recurring"}
+		return []string{"Organizer", "Subject", "Starts", "Ends", "Recurring"}
 
 	case ExchangeContact:
 		return []string{"Contact Name"}
@@ -329,6 +330,7 @@ func (i ExchangeInfo) Values() []string {
 			i.Organizer,
 			i.Subject,
 			common.FormatTabularDisplayTime(i.EventStart),
+			common.FormatTabularDisplayTime(i.EventEnd),
 			strconv.FormatBool(i.EventRecurs),
 		}
 
@@ -343,10 +345,12 @@ func (i ExchangeInfo) Values() []string {
 }
 
 // SharepointInfo describes a sharepoint item
-// TODO: Implement this. This is currently here
-// just to illustrate usage
 type SharepointInfo struct {
-	ItemType ItemType `json:"itemType,omitempty"`
+	ItemType ItemType  `json:"itemType,omitempty"`
+	ItemName string    `json:"itemName,omitempty"`
+	Created  time.Time `json:"created,omitempty"`
+	Modified time.Time `josn:"modified,omitempty"`
+	WebURL   string    `json:"webUrl,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharepointInfo
