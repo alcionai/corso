@@ -1,0 +1,119 @@
+name: Push docs # Publish prod docs independent of releases
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+  packages: write
+  pull-requests: read
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: push-docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  SetEnv:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get version string
+        id: version
+        run: |
+          echo "set-output name=version::$(git describe --tags --abbrev=0)"
+          echo "::set-output name=version::$(git describe --tags --abbrev=0)"
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Docs Linting -----------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Docs-Linting:
+    needs: [SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - name: Generate CLI Docs
+        working-directory: ./src
+        run: |
+          go run ./cmd/mdgen/mdgen.go generate
+
+      # migrate generated md files into /docs/docs/cli
+      - name: Move CLI .md to Docs
+        run: |
+          mkdir -p ./docs/docs/cli
+          mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
+          rm -R ./src/cmd/mdgen/cli_markdown/
+
+      - name: Install dependencies for docs lint
+        run: |
+          wget https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
+          mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
+          echo "$PWD/bin" >> $GITHUB_PATH
+          npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
+
+      - name: Run docs lint
+        env:
+          CORSO_USE_DOCKER: -1 # prevent using docker inside makefile
+        run: |
+          cd docs && make -o genclidocs localcheck
+
+      - name: Build docs
+        env:
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+        run: |
+          cd docs &&
+            npm ci &&
+            npm run build
+
+      - uses: actions/upload-artifact@master
+        name: Upload docs as artifacts
+        with:
+          name: docs
+          path: docs/build
+
+  Publish-Docs:
+    needs: [Docs-Linting]
+    environment: Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@master
+        name: Download docs from build step
+        with:
+          name: docs
+          path: docs/build
+
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      - name: Push docs
+        run: |
+          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}"
+
+      - name: Invalidate cloudfront
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
