@@ -29,7 +29,7 @@ func (suite *ContactSuite) TestContactInfo() {
 		{
 			name: "Empty Contact",
 			contactAndRP: func() (models.Contactable, *details.ExchangeInfo) {
-				var contact = models.NewContact()
+				contact := models.NewContact()
 				contact.SetCreatedDateTime(&initial)
 				contact.SetLastModifiedDateTime(&initial)
 
