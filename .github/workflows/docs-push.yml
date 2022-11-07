@@ -1,4 +1,4 @@
-name: Push docs # Publish prod docs independent of releases
+name: Publish docs # Publish prod docs independent of releases
 on:
   workflow_dispatch:
   pull_request:
@@ -23,6 +23,8 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Get version string
         id: version
