@@ -39,7 +39,7 @@ const (
 	// Microsecond granularity prevents collisions in parallel package or workflow runs.
 	SimpleTimeTesting TimeFormat = SimpleDateTimeOneDrive + ".000000"
 
-	// M365dateTimeTimeZoneTimeFormat is the format used by M365 for datetimetimezon resource
+	// M365dateTimeTimeZoneTimeFormat is the format used by M365 for datetimetimezone resource
 	// https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0
 	M365DateTimeTimeZone TimeFormat = "2006-01-02T15:04:05.000000"
 )

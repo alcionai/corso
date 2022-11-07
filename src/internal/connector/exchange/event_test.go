@@ -27,7 +27,7 @@ func TestEventSuite(t *testing.T) {
 // can be properly retrieved from a models.Eventable object
 func (suite *EventSuite) TestEventInfo() {
 	initial := time.Now()
-	now := common.TimeFormatWith(initial, common.M365DateTimeTimeZone)
+	now := common.FormatTimeWith(initial, common.M365DateTimeTimeZone)
 
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
 
