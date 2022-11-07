@@ -51,8 +51,8 @@ func (suite *ContactSuite) TestContactInfo() {
 				i := &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
 					ContactName: aPerson,
-					Created:  initial,
-					Modified: initial,
+					Created:     initial,
+					Modified:    initial,
 				}
 				return contact, i
 			},
