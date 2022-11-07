@@ -156,6 +156,14 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 				_, err := support.CreateEventFromBytes(bytes)
 				return err
 			},
+		}, {
+			name: "Sharepoint: List",
+			transformation: func(t *testing.T) error {
+				bytes, err := mockconnector.GetMockListBytes(subject)
+				require.NoError(suite.T(), err)
+				_, err = support.CreateListFromBytes(bytes)
+				return err
+			},
 		},
 	}
 
