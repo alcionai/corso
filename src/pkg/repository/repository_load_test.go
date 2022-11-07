@@ -25,34 +25,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-func userSet(t *testing.T) []string {
-	// avoid adding the following users
-	// they are reserved for other purposes
-	// "LeeG@8qzvrj.onmicrosoft.com",
-	// "ntoja@8qzvrj.onmicrosoft.com",
-	return []string{
-		"AdeleV@8qzvrj.onmicrosoft.com",
-		"AlexW@8qzvrj.onmicrosoft.com",
-		"ashmarks@8qzvrj.onmicrosoft.com",
-		"DiegoS@8qzvrj.onmicrosoft.com",
-		"dustina@8qzvrj.onmicrosoft.com",
-		"george.martinez@8qzvrj.onmicrosoft.com",
-		"GradyA@8qzvrj.onmicrosoft.com",
-		"HenriettaM@8qzvrj.onmicrosoft.com",
-		"IsaiahL@8qzvrj.onmicrosoft.com",
-		"JohannaL@8qzvrj.onmicrosoft.com",
-		"JoniS@8qzvrj.onmicrosoft.com",
-		"LidiaH@8qzvrj.onmicrosoft.com",
-		"LynneR@8qzvrj.onmicrosoft.com",
-		"MeganB@8qzvrj.onmicrosoft.com",
-		"MiriamG@8qzvrj.onmicrosoft.com",
-		"NestorW@8qzvrj.onmicrosoft.com",
-		"PattiF@8qzvrj.onmicrosoft.com",
-		"PradeepG@8qzvrj.onmicrosoft.com",
-		"Rfinders@8qzvrj.onmicrosoft.com",
-		"vkarma@8qzvrj.onmicrosoft.com",
-		"greg.sanders@8qzvrj.onmicrosoft.com",
-	}
+func orgUserSet(t *testing.T) []string {
+	return tester.LoadTestM365OrgUsers(t)
 }
 
 func singleUserSet(t *testing.T) []string {
@@ -403,7 +377,7 @@ func (suite *RepositoryLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
-	suite.usersUnderTest = userSet(t)
+	suite.usersUnderTest = orgUserSet(t)
 }
 
 func (suite *RepositoryLoadTestExchangeSuite) TeardownSuite() {
@@ -506,7 +480,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) SetupSuite() {
 	t.Skip("temp issue-902-live")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
-	suite.usersUnderTest = userSet(t)
+	suite.usersUnderTest = orgUserSet(t)
 }
 
 func (suite *RepositoryLoadTestOneDriveSuite) TeardownSuite() {
