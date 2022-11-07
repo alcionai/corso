@@ -38,7 +38,7 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Empty event",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				var event = models.NewEvent()
+				event := models.NewEvent()
 
 				// Start and Modified will always be available in API
 				event.SetCreatedDateTime(&initial)
