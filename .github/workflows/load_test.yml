@@ -3,8 +3,8 @@ on:
   schedule:
     # every day at 01:59 (01:59am) UTC
     # - cron: "59 1 * * *"
-    # temp, for testing: every 4 hours
-    - cron: "0 */4 * * *"
+    # temp, for testing: every 6 hours
+    - cron: "0 */6 * * *"
 
 permissions:
   # required to retrieve AWS credentials
@@ -26,6 +26,21 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      - name: Build the otel-daemon
+        run: make build-otel-daemon
+
+      # TODO: write logs to a file in src/test_results for archival
+      - name: Run the otel-daemon
+        run: make otel-daemon
+
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v3
         with:
@@ -37,14 +52,6 @@ jobs:
       - name: Set up gotestfmt
         run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
-
       # run the tests
       - name: Integration Tests
         env:
@@ -52,7 +59,8 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_M356_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M356_LOAD_TEST_USER_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          CORSO_M365_LOAD_TEST_ORG_USERS: ${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}
           CORSO_LOAD_TESTS: true 
         run: |
           set -euo pipefail
@@ -70,6 +78,33 @@ jobs:
           ./pkg/repository/repository_load_test.go \
           2>&1 | tee ./test_results/goloadtest.log | gotestfmt -hide successful-tests
 
+      # generate new entries to roll into the next load test
+      # only runs if the test was successful
+      - name: New Data Creation
+        working-directory: ./src/cmd/factory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+        run: |
+          go run . exchange emails \
+          --user ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+          go run . exchange contacts \
+          --user ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+          go run . exchange events \
+          --user ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+
+      - name: Put Down the Daemons Arisen
+        if: always()
+        run: docker kill otel-daemon
+
       # package all artifacts for later review
       - name: Upload Log, Profilers, Traces
         if: always()
@@ -79,48 +114,44 @@ jobs:
           path: src/test_results/*
           if-no-files-found: error
           retention-days: 14
-        
-      # currently, we're required to generate a unique folder for each factory
-      # production.  Whenever possible, this should be reverted to increasing the
-      # item count of a single folder instead, to prevent overproduction of folders
-      # during restore.
-      - name: Set folder destination date
+  
+  setup:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: build
+        run: |
+          u=$(echo "${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}" | sed 's/\[/["/g' | sed 's/\]/"]/g' | sed 's/|/","/g')
+          marr=$(cat <<-end
+            { "user": $u }
+          end
+          )
+          m=$(echo $marr | jq -c .)
+          echo "matrix=$m" >> $GITHUB_OUTPUT
+
+  purge-load-test-user-data:
+    needs: [setup, Load-Tests]
+    if: always()
+    environment: Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        user: ${{ fromJson(needs.setup.outputs.matrix).user }}
+        folder: [Corso_Restore_,'']
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set folder boundary datetime
         run: |
           echo "NOW=$(date -u +"%Y-%m-%d_%H-%M-%S")" >> $GITHUB_ENV
-
-      # generate new entries to roll into the next load test
-      # only runs if the test was successful
-      - name: New Data Creation
-        working-directory: ./src/cmd/factory
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_M356_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M356_LOAD_TEST_USER_ID }}
-        run: |
-          go run . exchange emails \
-          --user ${{ env.CORSO_M356_LOAD_TEST_USER_ID }} \
-          --destination lt_${{ env.NOW }} \
-          --count 10
-          go run . exchange contacts \
-          --user ${{ env.CORSO_M356_LOAD_TEST_USER_ID }} \
-          --destination lt_${{ env.NOW }} \
-          --count 10
-          go run . exchange events \
-          --user ${{ env.CORSO_M356_LOAD_TEST_USER_ID }} \
-          --destination lt_${{ env.NOW }} \
-          --count 10
-
-      # cleanup folders produced by load test
-      - name: Restored Folder Purge
-        if: always()
-        working-directory: ./src
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          DELETE_FOLDER_PREFIX: "Corso_Restore_"
-        run: >
-          go run ./cmd/purge/purge.go
-          --user '*'
-          --prefix ${{ env.DELETE_FOLDER_PREFIX }}
+      - name: Purge Load-Test-Produced Folders
+        uses: ./.github/actions/purge-m365-user-data
+        with:
+          older-than: ${{ env.NOW }}
+          folder-prefix: ${{ matrix.folder }}
+          azure-client-id: ${{ secrets.CLIENT_ID }}
+          azure-client-secret: ${{ secrets.CLIENT_SECRET }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          user: ${{ matrix.user }}

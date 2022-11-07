@@ -18,7 +18,7 @@ inputs:
   user:
     description: User whose data is to be purged.
   folder-prefix:
-    description: Name of the folder to be purged.  If false, will purge the set of static, well known folders instead.
+    description: Name of the folder to be purged.  If falsy, will purge the set of static, well known folders instead.
   older-than:
     description: Minimum-age of folders to be deleted.
   azure-client-id:

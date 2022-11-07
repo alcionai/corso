@@ -50,8 +50,12 @@ const config = {
             'https://github.com/alcionai/corso/tree/main/docs',
         },
         blog: false,
+        sitemap: {
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        },
         gtag: {
-          trackingID: 'G-4EXT1PY6KC',
+          trackingID: 'G-YXBFPQZ05N',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.scss'),
