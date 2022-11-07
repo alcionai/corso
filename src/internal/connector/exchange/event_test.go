@@ -9,15 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-)
-
-const (
-	// This is the format we get time from msgraph-sdk (default in UTC)
-	// https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0
-	timeFormat = "2006-01-02T15:04:05.000000"
 )
 
 type EventSuite struct {
@@ -32,7 +27,7 @@ func TestEventSuite(t *testing.T) {
 // can be properly retrieved from a models.Eventable object
 func (suite *EventSuite) TestEventInfo() {
 	initial := time.Now()
-	now := initial.Format(timeFormat)
+	now := common.TimeFormatWith(initial, common.M365DateTimeTimeZone)
 
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
 
@@ -78,7 +73,7 @@ func (suite *EventSuite) TestEventInfo() {
 				startTime.SetDateTime(&now)
 				event.SetStart(startTime)
 
-				nowp30m := initial.Add(30 * time.Minute).Format(timeFormat)
+				nowp30m := common.FormatTimeWith(initial.Add(30*time.Minute), common.M365DateTimeTimeZone)
 				endTime.SetDateTime(&nowp30m)
 				event.SetEnd(endTime)
 
