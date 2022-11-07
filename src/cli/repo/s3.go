@@ -1,6 +1,8 @@
 package repo
 
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -9,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -20,6 +21,8 @@ var (
 	bucket          string
 	endpoint        string
 	prefix          string
+	doNotUseTLS     bool
+	doNotVerifyTLS  bool
 	succeedIfExists bool
 )
 
@@ -46,6 +49,8 @@ func addS3Commands(parent *cobra.Command) *cobra.Command {
 	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
+	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
+	fs.BoolVar(&doNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
 
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
@@ -89,7 +94,7 @@ func s3InitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     s3ProviderCommand,
 		Short:   "Initialize a S3 repository",
-		Long:    `Bootstraps a new S3 repository and connects it to your m356 account.`,
+		Long:    `Bootstraps a new S3 repository and connects it to your m365 account.`,
 		RunE:    initS3Cmd,
 		Args:    cobra.NoArgs,
 		Example: s3ProviderCommandInitExamples,
@@ -121,7 +126,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Initialize(ctx, a, s, options.Control())
 	if err != nil {
-		if succeedIfExists && kopia.IsRepoAlreadyExistsError(err) {
+		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
 
@@ -201,5 +206,7 @@ func s3Overrides() map[string]string {
 		storage.Bucket:                bucket,
 		storage.Endpoint:              endpoint,
 		storage.Prefix:                prefix,
+		storage.DoNotUseTLS:           strconv.FormatBool(doNotUseTLS),
+		storage.DoNotVerifyTLS:        strconv.FormatBool(doNotVerifyTLS),
 	}
 }

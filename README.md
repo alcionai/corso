@@ -2,6 +2,7 @@
 
 # Corso
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/alcionai/corso/src)](https://goreportcard.com/report/github.com/alcionai/corso/src)
 [![Discord](https://img.shields.io/badge/discuss-discord-blue)](https://discord.gg/63DTTSnuhT)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
@@ -20,20 +21,17 @@ services, possibly beyond M365, will expand based on the interest and needs of t
 
 See the [Corso Documentation](https://docs.corsobackup.io) for more information.
 
-# Corso container images
-
-Corso container images are convenienty hosted on [ghrc.io](https://github.com/alcionai/corso/pkgs/container/corso).
-
-For a sepcific release, use the following command:
-
-```sh
-docker pull ghcr.io/alcionai/corso:<release tag>
-```
-
 # Building Corso
 
 To learn more about working with the project source core and building Corso, see the
 [Developer section](https://docs.corsobackup.io/developers/build) of the Corso Documentation.
+
+# Roadmap
+
+You can learn more about the Corso roadmap and how to interpret it [here](https://github.com/alcionai/corso-roadmap).
+
+If you have feature requests, please file a [GitHub issue](https://github.com/alcionai/corso/issues/)
+and attach the `enhancement` label to the issue.
 
 # Contribution Guidelines
 

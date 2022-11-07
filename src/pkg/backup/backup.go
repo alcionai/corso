@@ -50,6 +50,9 @@ func New(
 	return &Backup{
 		BaseModel: model.BaseModel{
 			ID: id,
+			Tags: map[string]string{
+				model.ServiceTag: selector.PathService().String(),
+			},
 		},
 		CreationTime:    time.Now(),
 		SnapshotID:      snapshotID,
@@ -72,6 +75,11 @@ func (b Backup) Print(ctx context.Context) {
 
 // PrintAll writes the slice of Backups to StdOut, in the format requested by the caller.
 func PrintAll(ctx context.Context, bs []Backup) {
+	if len(bs) == 0 {
+		print.Info(ctx, "No backups available")
+		return
+	}
+
 	ps := []print.Printable{}
 	for _, b := range bs {
 		ps = append(ps, print.Printable(b))

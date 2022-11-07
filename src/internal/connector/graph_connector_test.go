@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,6 +78,44 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	err = newConnector.setTenantUsers(ctx)
 	assert.NoError(suite.T(), err)
 	suite.Greater(len(newConnector.Users), 0)
+}
+
+// TestInvalidUserForDataCollections ensures verification process for users
+func (suite *GraphConnectorIntegrationSuite) TestInvalidUserForDataCollections() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	invalidUser := "foo@example.com"
+	connector := loadConnector(ctx, suite.T())
+	tests := []struct {
+		name        string
+		getSelector func(t *testing.T) selectors.Selector
+	}{
+		{
+			name: "invalid exchange backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup()
+				sel.Include(sel.MailFolders([]string{invalidUser}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "Invalid onedrive backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Include(sel.Folders([]string{invalidUser}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections, err := connector.DataCollections(ctx, test.getSelector(t))
+			assert.Error(t, err)
+			assert.Empty(t, collections)
+		})
+	}
 }
 
 // TestExchangeDataCollection verifies interface between operation and
@@ -333,14 +372,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
 		folderNames map[string]struct{}
 	}{
 		{
-			name:  "Mail Iterative Check",
-			scope: selectors.NewExchangeBackup().MailFolders([]string{userID}, selectors.Any())[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
-				"Sent Items":               {},
-			},
-		},
-		{
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup().MailFolders(
 				[]string{userID},
@@ -431,6 +462,89 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	}
 }
 
+func runRestoreBackupTest(
+	t *testing.T,
+	test restoreBackupInfo,
+	tenant string,
+	users []string,
+) {
+	var (
+		collections  []data.Collection
+		expectedData = map[string]map[string][]byte{}
+		totalItems   = 0
+		// Get a dest per test so they're independent.
+		dest = tester.DefaultTestRestoreDestination()
+	)
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	for _, user := range users {
+		numItems, userCollections, userExpectedData := collectionsForInfo(
+			t,
+			test.service,
+			tenant,
+			user,
+			dest,
+			test.collections,
+		)
+
+		collections = append(collections, userCollections...)
+		totalItems += numItems
+
+		for k, v := range userExpectedData {
+			expectedData[k] = v
+		}
+	}
+
+	t.Logf(
+		"Restoring collections to %s for user(s) %v\n",
+		dest.ContainerName,
+		users,
+	)
+
+	start := time.Now()
+
+	restoreGC := loadConnector(ctx, t)
+	restoreSel := getSelectorWith(test.service)
+	deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+	require.NoError(t, err)
+	assert.NotNil(t, deets)
+
+	status := restoreGC.AwaitStatus()
+	runTime := time.Now().Sub(start)
+
+	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
+	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+	assert.Len(
+		t,
+		deets.Entries,
+		totalItems,
+		"details entries contains same item count as total successful items restored")
+
+	t.Logf("Restore complete in %v\n", runTime)
+
+	// Run a backup and compare its output with what we put in.
+
+	backupGC := loadConnector(ctx, t)
+	backupSel := backupSelectorForExpected(t, expectedData)
+	t.Logf("Selective backup of %s\n", backupSel)
+
+	start = time.Now()
+	dcs, err := backupGC.DataCollections(ctx, backupSel)
+	require.NoError(t, err)
+
+	t.Logf("Backup enumeration complete in %v\n", time.Now().Sub(start))
+
+	// Pull the data prior to waiting for the status as otherwise it will
+	// deadlock.
+	checkCollections(t, totalItems, expectedData, dcs)
+
+	status = backupGC.AwaitStatus()
+	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
+	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+}
+
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
@@ -475,6 +589,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
+								bodyText+" 1.",
 							),
 							lookupKey: subjectText + "-1",
 						},
@@ -489,6 +604,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-2",
 								bodyText+" 2.",
+								bodyText+" 2.",
 							),
 							lookupKey: subjectText + "-2",
 						},
@@ -496,6 +612,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							name: "someencodeditemID3",
 							data: mockconnector.GetMockMessageWithBodyBytes(
 								subjectText+"-3",
+								bodyText+" 3.",
 								bodyText+" 3.",
 							),
 							lookupKey: subjectText + "-3",
@@ -648,56 +765,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			// Get a dest per test so they're independent.
-			dest := tester.DefaultTestRestoreDestination()
-
-			totalItems, collections, expectedData := collectionsForInfo(
-				t,
-				test.service,
-				suite.connector.tenant,
-				suite.user,
-				dest,
-				test.collections,
-			)
-
-			t.Logf("Restoring collections to %s\n", dest.ContainerName)
-
-			restoreGC := loadConnector(ctx, t)
-			restoreSel := getSelectorWith(test.service)
-			deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
-			require.NoError(t, err)
-			assert.NotNil(t, deets)
-
-			status := restoreGC.AwaitStatus()
-			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-			assert.Equal(t, totalItems, status.Successful, "status.Successful")
-			assert.Equal(
-				t, totalItems, len(deets.Entries),
-				"details entries contains same item count as total successful items restored")
-
-			t.Logf("Restore complete\n")
-
-			// Run a backup and compare its output with what we put in.
-
-			backupGC := loadConnector(ctx, t)
-			backupSel := backupSelectorForExpected(t, expectedData)
-			t.Logf("Selective backup of %s\n", backupSel)
-
-			dcs, err := backupGC.DataCollections(ctx, backupSel)
-			require.NoError(t, err)
-
-			t.Logf("Backup enumeration complete\n")
-
-			// Pull the data prior to waiting for the status as otherwise it will
-			// deadlock.
-			checkCollections(t, totalItems, expectedData, dcs)
-
-			status = backupGC.AwaitStatus()
-			assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-			assert.Equal(t, totalItems, status.Successful, "status.Successful")
+			runRestoreBackupTest(t, test, suite.connector.tenant, []string{suite.user})
 		})
 	}
 }
@@ -832,6 +900,116 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			status := backupGC.AwaitStatus()
 			assert.Equal(t, allItems, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, allItems, status.Successful, "status.Successful")
+		})
+	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
+	bodyText := "This email has some text. However, all the text is on the same line."
+	subjectText := "Test message for restore"
+
+	users := []string{
+		suite.user,
+		tester.SecondaryM365UserID(suite.T()),
+	}
+	table := []restoreBackupInfo{
+		{
+			name:    "Email",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-1",
+								bodyText+" 1.",
+								bodyText+" 1.",
+							),
+							lookupKey: subjectText + "-1",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Archive"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID2",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-2",
+								bodyText+" 2.",
+								bodyText+" 2.",
+							),
+							lookupKey: subjectText + "-2",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "Contacts",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.ContactsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockContactBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "Events",
+			service: path.ExchangeService,
+			collections: []colInfo{
+				{
+					pathElements: []string{"Work"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+							lookupKey: "Ghimley",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Personal"},
+					category:     path.EventsCategory,
+					items: []itemInfo{
+						{
+							name:      "someencodeditemID2",
+							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+							lookupKey: "Irgot",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			runRestoreBackupTest(t, test, suite.connector.tenant, users)
 		})
 	}
 }

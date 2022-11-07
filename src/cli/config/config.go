@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -19,10 +18,12 @@ import (
 
 const (
 	// S3 config
-	StorageProviderTypeKey = "provider"
-	BucketNameKey          = "bucket"
-	EndpointKey            = "endpoint"
-	PrefixKey              = "prefix"
+	StorageProviderTypeKey    = "provider"
+	BucketNameKey             = "bucket"
+	EndpointKey               = "endpoint"
+	PrefixKey                 = "prefix"
+	DisableTLSKey             = "disable_tls"
+	DisableTLSVerificationKey = "disable_tls_verification"
 
 	// M365 config
 	AccountProviderTypeKey = "account_provider"
@@ -33,7 +34,6 @@ var (
 	configFilePath     string
 	configFilePathFlag string
 	configDir          string
-	defaultDir         string
 	displayDefaultFP   = filepath.Join("$HOME", ".corso.toml")
 )
 
@@ -54,8 +54,6 @@ func init() {
 	if err != nil {
 		Infof(context.Background(), "cannot stat user's $HOME directory: %v", err)
 	}
-
-	defaultDir = homeDir
 
 	if len(configDir) == 0 {
 		configDir = homeDir
@@ -118,14 +116,14 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 	// We also configure the path, type and filename
 	// because `vpr.SafeWriteConfig` needs these set to
 	// work correctly (it does not use the configured file)
-	vpr.AddConfigPath(path.Dir(configFP))
+	vpr.AddConfigPath(filepath.Dir(configFP))
 
-	ext := path.Ext(configFP)
+	ext := filepath.Ext(configFP)
 	if len(ext) == 0 {
 		return errors.New("config file requires an extension e.g. `toml`")
 	}
 
-	fileName := path.Base(configFP)
+	fileName := filepath.Base(configFP)
 	fileName = strings.TrimSuffix(fileName, ext)
 	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
 	vpr.SetConfigName(fileName)
@@ -196,6 +194,8 @@ func writeRepoConfigWithViper(vpr *viper.Viper, s3Config storage.S3Config, m365C
 	vpr.Set(BucketNameKey, s3Config.Bucket)
 	vpr.Set(EndpointKey, s3Config.Endpoint)
 	vpr.Set(PrefixKey, s3Config.Prefix)
+	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
+	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
 
 	vpr.Set(AccountProviderTypeKey, account.ProviderM365.String())
 	vpr.Set(AzureTenantIDKey, m365Config.AzureTenantID)

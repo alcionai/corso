@@ -9,7 +9,11 @@
             "img",
             "div",
             "Tabs",
-            "TabItem"
+            "TabItem",
+            "CodeBlock",
+            "DownloadBinaries",
+            "details",
+            "summary"
         ]
     },
 }

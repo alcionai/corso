@@ -12,7 +12,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +22,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -119,6 +122,20 @@ func getDirEntriesForEntry(
 	require.NoError(t, err)
 
 	return entries
+}
+
+//revive:disable:context-as-argument
+func checkSnapshotTags(
+	t *testing.T,
+	ctx context.Context,
+	rep repo.Repository,
+	expectedTags map[string]string,
+	snapshotID string,
+) {
+	//revive:enable:context-as-argument
+	man, err := snapshot.LoadSnapshot(ctx, rep, manifest.ID(snapshotID))
+	require.NoError(t, err)
+	assert.Equal(t, expectedTags, man.Tags)
 }
 
 // ---------------
@@ -516,6 +533,14 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 		user1Encoded: 5,
 		user2Encoded: 42,
 	}
+	expectedServiceCats := map[string]struct{}{
+		serviceCatTag(suite.testPath): {},
+		serviceCatTag(p2):             {},
+	}
+	expectedResourceOwners := map[string]struct{}{
+		suite.testPath.ResourceOwner(): {},
+		p2.ResourceOwner():             {},
+	}
 
 	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
@@ -541,8 +566,12 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, progress)
+	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(t, err)
+
+	assert.Equal(t, expectedServiceCats, oc.serviceCats)
+	assert.Equal(t, expectedResourceOwners, oc.resourceOwners)
+
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
@@ -582,6 +611,15 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 
 	p2, err := suite.testPath.Append(subdir, false)
 	require.NoError(suite.T(), err)
+
+	expectedServiceCats := map[string]struct{}{
+		serviceCatTag(suite.testPath): {},
+		serviceCatTag(p2):             {},
+	}
+	expectedResourceOwners := map[string]struct{}{
+		suite.testPath.ResourceOwner(): {},
+		p2.ResourceOwner():             {},
+	}
 
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
@@ -629,8 +667,12 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, err := inflateDirTree(ctx, test.layout, progress)
+			dirTree, oc, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
+
+			assert.Equal(t, expectedServiceCats, oc.serviceCats)
+			assert.Equal(t, expectedResourceOwners, oc.resourceOwners)
+
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 			entries, err := fs.GetAllEntries(ctx, dirTree)
@@ -726,7 +768,7 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_Fails() {
 		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := inflateDirTree(ctx, test.layout, nil)
+			_, _, err := inflateDirTree(ctx, test.layout, nil)
 			assert.Error(t, err)
 		})
 	}
@@ -809,16 +851,31 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			42,
 		),
 	}
+	expectedTags := map[string]string{
+		serviceCatTag(suite.testPath1):  "",
+		suite.testPath1.ResourceOwner(): "",
+		serviceCatTag(suite.testPath2):  "",
+		suite.testPath2.ResourceOwner(): "",
+	}
 
-	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
+	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
 	assert.NoError(t, err)
 	assert.Equal(t, stats.TotalFileCount, 47)
 	assert.Equal(t, stats.TotalDirectoryCount, 6)
 	assert.Equal(t, stats.IgnoredErrorCount, 0)
 	assert.Equal(t, stats.ErrorCount, 0)
 	assert.False(t, stats.Incomplete)
+	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 	// 47 file and 6 folder entries.
-	assert.Len(t, rp.Entries, 47+6)
+	assert.Len(t, deets.Entries, 47+6)
+
+	checkSnapshotTags(
+		t,
+		suite.ctx,
+		suite.w.c,
+		expectedTags,
+		stats.SnapshotID,
+	)
 }
 
 func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
@@ -843,8 +900,9 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	fp2, err := suite.testPath2.Append(dc2.Names[0], true)
 	require.NoError(t, err)
 
-	stats, _, err := w.BackupCollections(ctx, []data.Collection{dc1, dc2})
+	stats, deets, err := w.BackupCollections(ctx, []data.Collection{dc1, dc2}, path.ExchangeService)
 	require.NoError(t, err)
+	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 
 	require.NoError(t, k.Compression(ctx, "gzip"))
 
@@ -908,7 +966,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
-	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
+	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, stats.ErrorCount)
@@ -916,8 +974,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
+	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 	// 5 file and 6 folder entries.
-	assert.Len(t, rp.Entries, 5+6)
+	assert.Len(t, deets.Entries, 5+6)
 }
 
 type backedupFile struct {
@@ -946,11 +1005,13 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			s, d, err := suite.w.BackupCollections(ctx, test.collections)
+			s, d, err := suite.w.BackupCollections(ctx, test.collections, path.UnknownService)
 			require.NoError(t, err)
 
 			assert.Equal(t, BackupStats{}, *s)
 			assert.Empty(t, d.Entries)
+			// unknownService resolves to an empty string here.
+			assert.Equal(t, "", d.Tags[model.ServiceTag])
 		})
 	}
 }
@@ -1090,15 +1151,16 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collections = append(collections, collection)
 	}
 
-	stats, rp, err := suite.w.BackupCollections(suite.ctx, collections)
+	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, expectedFiles)
 	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
+	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 	// 6 file and 6 folder entries.
-	assert.Len(t, rp.Entries, expectedFiles+expectedDirs)
+	assert.Len(t, deets.Entries, expectedFiles+expectedDirs)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }

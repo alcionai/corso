@@ -40,7 +40,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
 			},
-			expectHs: []string{"Reference"},
+			expectHs: []string{"ID"},
 			expectVs: []string{"deadbeef"},
 		},
 		{
@@ -52,14 +52,15 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					Exchange: &details.ExchangeInfo{
 						ItemType:    details.ExchangeEvent,
 						EventStart:  now,
+						EventEnd:    now,
 						Organizer:   "organizer",
 						EventRecurs: true,
 						Subject:     "subject",
 					},
 				},
 			},
-			expectHs: []string{"Reference", "Organizer", "Subject", "Starts", "Recurring"},
-			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, "true"},
+			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Ends", "Recurring"},
+			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, nowStr, "true"},
 		},
 		{
 			name: "exchange contact info",
@@ -73,7 +74,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Reference", "Contact Name"},
+			expectHs: []string{"ID", "Contact Name"},
 			expectVs: []string{"deadbeef", "contactName"},
 		},
 		{
@@ -90,7 +91,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"Reference", "Sender", "Subject", "Received"},
+			expectHs: []string{"ID", "Sender", "Subject", "Received"},
 			expectVs: []string{"deadbeef", "sender", "subject", nowStr},
 		},
 		{
@@ -102,7 +103,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					Sharepoint: &details.SharepointInfo{},
 				},
 			},
-			expectHs: []string{"Reference"},
+			expectHs: []string{"ID"},
 			expectVs: []string{"deadbeef"},
 		},
 		{
@@ -115,13 +116,14 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						ItemName:   "itemName",
 						ParentPath: "parentPath",
 						Size:       1000,
+						Owner:      "user@email.com",
 						Created:    now,
 						Modified:   now,
 					},
 				},
 			},
-			expectHs: []string{"Reference", "ItemName", "ParentPath", "Size", "Created", "Modified"},
-			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", nowStr, nowStr},
+			expectHs: []string{"ID", "ItemName", "ParentPath", "Size", "Owner", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", "user@email.com", nowStr, nowStr},
 		},
 	}
 

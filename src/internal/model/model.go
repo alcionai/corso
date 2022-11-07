@@ -20,6 +20,11 @@ const (
 	BackupDetailsSchema
 )
 
+// common tags for filtering
+const (
+	ServiceTag = "service"
+)
+
 // Valid returns true if the ModelType value fits within the iota range.
 func (mt Schema) Valid() bool {
 	return mt > 0 && mt < BackupDetailsSchema+1
@@ -55,4 +60,9 @@ type BaseModel struct {
 
 func (bm *BaseModel) Base() *BaseModel {
 	return bm
+}
+
+// GetID returns the baseModel.ID as a string rather than a model.StableID.
+func (bm *BaseModel) GetID() string {
+	return string(bm.ID)
 }

@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	"github.com/alcionai/corso/src/cli/print"
 )
 
 var (
@@ -29,13 +27,40 @@ const (
 	Production
 )
 
+const logLevelFN = "log-level"
+
 // adds the persistent flag --log-level to the provided command.
 // defaults to "info".
-// This is a hack for help displays.  Due to seeding the context, we
+// This is a hack for help displays.  Due to seeding the context, we also
 // need to parse the log level before we execute the command.
 func AddLogLevelFlag(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
-	fs.StringVar(&llFlag, "log-level", "info", "set the log level to debug|info|warn|error")
+	fs.StringVar(&llFlag, logLevelFN, "info", "set the log level to debug|info|warn|error")
+}
+
+// Due to races between the lazy evaluation of flags in cobra and the need to init logging
+// behavior in a ctx, log-level gets pre-processed manually here using pflags.  The canonical
+// AddLogLevelFlag() ensures the flag is displayed as part of the help/usage output.
+func PreloadLogLevel() string {
+	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
+	fs.ParseErrorsWhitelist.UnknownFlags = true
+	fs.String(logLevelFN, "info", "set the log level to debug|info|warn|error")
+	// prevents overriding the corso/cobra help processor
+	fs.BoolP("help", "h", false, "")
+
+	// parse the os args list to find the log level flag
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		return "info"
+	}
+
+	// retrieve the user's preferred log level
+	// automatically defaults to "info"
+	levelString, err := fs.GetString(logLevelFN)
+	if err != nil {
+		return "info"
+	}
+
+	return levelString
 }
 
 func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
@@ -111,6 +136,10 @@ func singleton(level logLevel) *zap.SugaredLogger {
 	return loggerton
 }
 
+// ------------------------------------------------------------------------------------------------
+// context management
+// ------------------------------------------------------------------------------------------------
+
 type loggingKey string
 
 const ctxKey loggingKey = "corsoLogger"
@@ -119,38 +148,15 @@ const ctxKey loggingKey = "corsoLogger"
 // It also parses the command line for flag values prior to executing
 // cobra.  This early parsing is necessary since logging depends on
 // a seeded context prior to cobra evaluating flags.
-func Seed(ctx context.Context) (ctxOut context.Context, zsl *zap.SugaredLogger) {
-	level := Info
-
-	// this func handles composing the return values whether or not an error occurs
-	defer func() {
-		zsl = singleton(level)
-		ctxOut = context.WithValue(ctx, ctxKey, zsl)
-	}()
-
-	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
-	fs.ParseErrorsWhitelist.UnknownFlags = true
-	fs.String("log-level", "info", "set the log level to debug|info|warn|error")
-	// prevents overriding the corso/cobra help processor
-	fs.BoolP("help", "h", false, "")
-
-	// parse the os args list to find the log level flag
-	if err := fs.Parse(os.Args[1:]); err != nil {
-		print.Err(ctx, err.Error())
-		return
+func Seed(ctx context.Context, lvl string) (context.Context, *zap.SugaredLogger) {
+	if len(lvl) == 0 {
+		lvl = "info"
 	}
 
-	// retrieve the user's preferred log level
-	// automatically defaults to "info"
-	levelString, err := fs.GetString("log-level")
-	if err != nil {
-		print.Err(ctx, err.Error())
-		return
-	}
+	zsl := singleton(levelOf(lvl))
+	ctxOut := context.WithValue(ctx, ctxKey, zsl)
 
-	level = levelOf(levelString)
-
-	return // return values handled in defer
+	return ctxOut, zsl
 }
 
 // SeedLevel embeds a logger into the context with the given log-level.
@@ -193,4 +199,65 @@ func levelOf(lvl string) logLevel {
 // Flush writes out all buffered logs.
 func Flush(ctx context.Context) {
 	_ = Ctx(ctx).Sync()
+}
+
+// ------------------------------------------------------------------------------------------------
+// log wrapper for downstream api compliance
+// ------------------------------------------------------------------------------------------------
+
+type wrapper struct {
+	zap.SugaredLogger
+
+	forceDebugLogLevel bool
+}
+
+func (w *wrapper) process(opts ...option) {
+	for _, opt := range opts {
+		opt(w)
+	}
+}
+
+type option func(*wrapper)
+
+// ForceDebugLogLevel reduces all logs emitted in the wrapper to
+// debug level, independent of their original log level.  Useful
+// for silencing noisy dependency packages without losing the info
+// altogether.
+func ForceDebugLogLevel() option {
+	return func(w *wrapper) {
+		w.forceDebugLogLevel = true
+	}
+}
+
+// Wrap returns the logger in the package with an extended api used for
+// dependency package interface compliance.
+func WrapCtx(ctx context.Context, opts ...option) *wrapper {
+	return Wrap(Ctx(ctx), opts...)
+}
+
+// Wrap returns the sugaredLogger with an extended api used for
+// dependency package interface compliance.
+func Wrap(zsl *zap.SugaredLogger, opts ...option) *wrapper {
+	w := &wrapper{SugaredLogger: *zsl}
+	w.process(opts...)
+
+	return w
+}
+
+func (w *wrapper) Logf(tmpl string, args ...any) {
+	if w.forceDebugLogLevel {
+		w.SugaredLogger.Debugf(tmpl, args...)
+		return
+	}
+
+	w.SugaredLogger.Infof(tmpl, args...)
+}
+
+func (w *wrapper) Errorf(tmpl string, args ...any) {
+	if w.forceDebugLogLevel {
+		w.SugaredLogger.Debugf(tmpl, args...)
+		return
+	}
+
+	w.SugaredLogger.Errorf(tmpl, args...)
 }

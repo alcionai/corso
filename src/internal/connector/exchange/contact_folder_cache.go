@@ -15,9 +15,9 @@ import (
 var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
-	cache          map[string]graph.CachedContainer
-	gs             graph.Service
-	userID, rootID string
+	*containerResolver
+	gs     graph.Service
+	userID string
 }
 
 func (cfc *contactFolderCache) populateContactRoot(
@@ -39,21 +39,19 @@ func (cfc *contactFolderCache) populateContactRoot(
 		ContactFoldersById(directoryID).
 		Get(ctx, opts)
 	if err != nil {
-		return errors.Wrapf(err, "fetching root contact folder")
-	}
-
-	idPtr := f.GetId()
-
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("root folder has no ID")
+		return errors.Wrapf(
+			err,
+			"fetching root contact folder: "+support.ConnectorStackErrorTrace(err))
 	}
 
 	temp := cacheFolder{
 		Container: f,
 		p:         path.Builder{}.Append(baseContainerPath...),
 	}
-	cfc.cache[*idPtr] = &temp
-	cfc.rootID = *idPtr
+
+	if err := cfc.addFolder(temp); err != nil {
+		return errors.Wrap(err, "adding cache root")
+	}
 
 	return nil
 }
@@ -82,7 +80,7 @@ func (cfc *contactFolderCache) Populate(
 	query, err := cfc.
 		gs.Client().
 		UsersById(cfc.userID).
-		ContactFoldersById(cfc.rootID).
+		ContactFoldersById(baseID).
 		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
@@ -92,14 +90,14 @@ func (cfc *contactFolderCache) Populate(
 	iter, err := msgraphgocore.NewPageIterator(query, cfc.gs.Adapter(),
 		models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return err
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	cb := IterativeCollectContactContainers(containers,
 		"",
 		errUpdater)
 	if err := iter.Iterate(ctx, cb); err != nil {
-		return err
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	if errs != nil {
@@ -107,13 +105,25 @@ func (cfc *contactFolderCache) Populate(
 	}
 
 	for _, entry := range containers {
-		err = cfc.AddToCache(ctx, entry)
+		temp := cacheFolder{
+			Container: entry,
+		}
+
+		err = cfc.addFolder(temp)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				"cache build in cfc.Populate",
 				err,
 				errs)
 		}
+	}
+
+	if err := cfc.populatePaths(ctx); err != nil {
+		errs = support.WrapAndAppend(
+			"contacts resolver",
+			err,
+			errs,
+		)
 	}
 
 	return errs
@@ -128,90 +138,9 @@ func (cfc *contactFolderCache) init(
 		return errors.New("m365 folderID required for base folder")
 	}
 
-	if cfc.cache == nil {
-		cfc.cache = map[string]graph.CachedContainer{}
+	if cfc.containerResolver == nil {
+		cfc.containerResolver = newContainerResolver()
 	}
 
 	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)
-}
-
-func (cfc *contactFolderCache) IDToPath(
-	ctx context.Context,
-	folderID string,
-) (*path.Builder, error) {
-	c, ok := cfc.cache[folderID]
-	if !ok {
-		return nil, errors.Errorf("folder %s not cached", folderID)
-	}
-
-	p := c.Path()
-	if p != nil {
-		return p, nil
-	}
-
-	parentPath, err := cfc.IDToPath(ctx, *c.GetParentFolderId())
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving parent folder")
-	}
-
-	fullPath := parentPath.Append(*c.GetDisplayName())
-	c.SetPath(fullPath)
-
-	return fullPath, nil
-}
-
-// PathInCache utility function to return m365ID of folder if the pathString
-// matches the path of a container within the cache. A boolean function
-// accompanies the call to indicate whether the lookup was successful.
-func (cfc *contactFolderCache) PathInCache(pathString string) (string, bool) {
-	if len(pathString) == 0 || cfc.cache == nil {
-		return "", false
-	}
-
-	for _, contain := range cfc.cache {
-		if contain.Path() == nil {
-			continue
-		}
-
-		if contain.Path().String() == pathString {
-			return *contain.GetId(), true
-		}
-	}
-
-	return "", false
-}
-
-// AddToCache places container into internal cache field.
-// @returns error iff input does not possess accessible values.
-func (cfc *contactFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkRequiredValues(f); err != nil {
-		return err
-	}
-
-	if _, ok := cfc.cache[*f.GetId()]; ok {
-		return nil
-	}
-
-	cfc.cache[*f.GetId()] = &cacheFolder{
-		Container: f,
-	}
-
-	// Populate the path for this entry so calls to PathInCache succeed no matter
-	// when they're made.
-	_, err := cfc.IDToPath(ctx, *f.GetId())
-	if err != nil {
-		return errors.Wrap(err, "adding cache entry")
-	}
-
-	return nil
-}
-
-func (cfc *contactFolderCache) Items() []graph.CachedContainer {
-	res := make([]graph.CachedContainer, 0, len(cfc.cache))
-
-	for _, c := range cfc.cache {
-		res = append(res, c)
-	}
-
-	return res
 }

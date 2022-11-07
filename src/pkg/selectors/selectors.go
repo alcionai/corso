@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type service int
@@ -20,6 +21,12 @@ const (
 	ServiceExchange                // Exchange
 	ServiceOneDrive                // OneDrive
 )
+
+var serviceToPathType = map[service]path.ServiceType{
+	ServiceUnknown:  path.UnknownService,
+	ServiceExchange: path.ExchangeService,
+	ServiceOneDrive: path.OneDriveService,
+}
 
 var (
 	ErrorBadSelectorCast = errors.New("wrong selector service type")
@@ -88,19 +95,6 @@ func newSelector(s service) Selector {
 		Excludes: []scope{},
 		Includes: []scope{},
 	}
-}
-
-// Any returns the set matching any value.
-func Any() []string {
-	return []string{AnyTgt}
-}
-
-// None returns the set matching None of the values.
-// This is primarily a fallback for empty values.  Adding None()
-// to any selector will force all matches() checks on that selector
-// to fail.
-func None() []string {
-	return []string{NoneTgt}
 }
 
 func (s Selector) String() string {
@@ -176,6 +170,37 @@ func discreteScopes[T scopeT, C categoryT](
 	}
 
 	return sl
+}
+
+// Returns the path.ServiceType matching the selector service.
+func (s Selector) PathService() path.ServiceType {
+	return serviceToPathType[s.Service]
+}
+
+// Reduce is a quality-of-life interpreter that allows Reduce to be called
+// from the generic selector by interpreting the selector service type rather
+// than have the caller make that interpretation.  Returns an error if the
+// service is unsupported.
+func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.Details, error) {
+	var (
+		r   Reducer
+		err error
+	)
+
+	switch s.Service {
+	case ServiceExchange:
+		r, err = s.ToExchangeRestore()
+	case ServiceOneDrive:
+		r, err = s.ToOneDriveRestore()
+	default:
+		return nil, errors.New("service not supported: " + s.Service.String())
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Reduce(ctx, deets), nil
 }
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@ package operations
 
 import (
 	"context"
-	"runtime/trace"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,9 +12,11 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -94,7 +96,8 @@ type restoreStats struct {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
-	defer trace.StartRegion(ctx, "operations:restore:run").End()
+	ctx, end := D.Span(ctx, "operations:restore:run")
+	defer end()
 
 	var (
 		opStats = restoreStats{
@@ -105,6 +108,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	)
 
 	defer func() {
+		// wait for the progress display to clean up
+		observe.Complete()
+
 		err = op.persistResults(ctx, startTime, &opStats)
 		if err != nil {
 			return
@@ -137,7 +143,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
-	logger.Ctx(ctx).Infof("Discovered %d items in backup %s to restore", len(paths), op.BackupID)
+	observe.Message(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+
+	kopiaComplete, closer := observe.MessageWithCompletion("Enumerating items in repository:")
+	defer closer()
+	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
@@ -146,9 +156,14 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+	kopiaComplete <- struct{}{}
 
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
+
+	gcComplete, closer := observe.MessageWithCompletion("Connecting to M365:")
+	defer closer()
+	defer close(gcComplete)
 
 	// restore those collections using graph
 	gc, err := connector.NewGraphConnector(ctx, op.account)
@@ -158,6 +173,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+	gcComplete <- struct{}{}
+
+	restoreComplete, closer := observe.MessageWithCompletion("Restoring data:")
+	defer closer()
+	defer close(restoreComplete)
 
 	restoreDetails, err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
 	if err != nil {
@@ -166,6 +186,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+	restoreComplete <- struct{}{}
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
@@ -235,35 +256,9 @@ func formatDetailsForRestoration(
 	sel selectors.Selector,
 	deets *details.Details,
 ) ([]path.Path, error) {
-	var fds *details.Details
-
-	switch sel.Service {
-	case selectors.ServiceExchange:
-		er, err := sel.ToExchangeRestore()
-		if err != nil {
-			return nil, err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = er.Reduce(ctx, deets)
-		if len(fds.Entries) == 0 {
-			return nil, selectors.ErrorNoMatchingItems
-		}
-
-	case selectors.ServiceOneDrive:
-		odr, err := sel.ToOneDriveRestore()
-		if err != nil {
-			return nil, err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = odr.Reduce(ctx, deets)
-		if len(fds.Entries) == 0 {
-			return nil, selectors.ErrorNoMatchingItems
-		}
-
-	default:
-		return nil, errors.Errorf("Service %s not supported", sel.Service)
+	fds, err := sel.Reduce(ctx, deets)
+	if err != nil {
+		return nil, err
 	}
 
 	var (

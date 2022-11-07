@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/trace"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -19,6 +20,8 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -72,7 +75,7 @@ func (gs graphService) ErrPolicy() bool {
 func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving m356 account configuration")
+		return nil, errors.Wrap(err, "retrieving m365 account configuration")
 	}
 
 	gc := GraphConnector{
@@ -84,14 +87,14 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 
 	aService, err := gc.createService(false)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating service connection")
 	}
 
 	gc.graphService = *aService
 
 	err = gc.setTenantUsers(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "retrieving tenant user list")
 	}
 
 	return &gc, nil
@@ -114,7 +117,7 @@ func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, err
 		failFast: shouldFailFast,
 	}
 
-	return &connector, err
+	return &connector, nil
 }
 
 func (gs *graphService) EnableFailFast() {
@@ -125,7 +128,8 @@ func (gs *graphService) EnableFailFast() {
 // workspace. The users field is updated during this method
 // iff the return value is true
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
-	defer trace.StartRegion(ctx, "gc:setTenantUsers").End()
+	ctx, end := D.Span(ctx, "gc:setTenantUsers")
+	defer end()
 
 	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
 	if err != nil {
@@ -149,7 +153,7 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	callbackFunc := func(userItem interface{}) bool {
 		user, ok := userItem.(models.Userable)
 		if !ok {
-			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("user iteration failure"), err)
+			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("received non-User on iteration"), err)
 			return true
 		}
 
@@ -216,7 +220,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 ) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "exchangeDataCollection: unable to parse selector")
+		return nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
 	}
 
 	var (
@@ -250,7 +254,8 @@ func (gc *GraphConnector) RestoreDataCollections(
 	dest control.RestoreDestination,
 	dcs []data.Collection,
 ) (*details.Details, error) {
-	gc.region = trace.StartRegion(ctx, "connector:restore")
+	ctx, end := D.Span(ctx, "connector:restore")
+	defer end()
 
 	var (
 		status *support.ConnectorOperationStatus
@@ -296,10 +301,16 @@ func (gc *GraphConnector) createCollections(
 			Credentials: gc.credentials,
 		}
 
+		itemCategory := qp.Scope.Category().PathType()
+
+		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
+		defer closer()
+		defer close(foldersComplete)
+
 		resolver, err := exchange.PopulateExchangeContainerResolver(
 			ctx,
 			qp,
-			graph.ScopeToPathCategory(qp.Scope),
+			qp.Scope.Category().PathType(),
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting folder cache")
@@ -315,6 +326,8 @@ func (gc *GraphConnector) createCollections(
 		if err != nil {
 			return nil, errors.Wrap(err, "filling collections")
 		}
+
+		foldersComplete <- struct{}{}
 
 		for _, collection := range collections {
 			gc.incrementAwaitingMessages()
@@ -377,8 +390,15 @@ func IsNonRecoverableError(e error) bool {
 	return errors.As(e, &nonRecoverable)
 }
 
+// DataCollections utility function to launch backup operations for exchange and onedrive
 func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
-	defer trace.StartRegion(ctx, "gc:dataCollections:"+sels.Service.String()).End()
+	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
+	defer end()
+
+	err := verifyBackupInputs(sels, gc.Users)
+	if err != nil {
+		return nil, err
+	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
@@ -386,7 +406,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	default:
-		return nil, errors.Errorf("Service %s not supported", sels)
+		return nil, errors.Errorf("service %s not supported", sels)
 	}
 }
 
@@ -398,7 +418,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 ) ([]data.Collection, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "collecting onedrive data")
+		return nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
 	}
 
 	collections := []data.Collection{}
@@ -432,4 +452,50 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	return collections, errs
+}
+
+func verifyBackupInputs(sel selectors.Selector, mapOfUsers map[string]string) error {
+	var personnel []string
+
+	// retrieve users from selectors
+	switch sel.Service {
+	case selectors.ServiceExchange:
+		backup, err := sel.ToExchangeBackup()
+		if err != nil {
+			return err
+		}
+
+		for _, scope := range backup.Scopes() {
+			temp := scope.Get(selectors.ExchangeUser)
+			personnel = append(personnel, temp...)
+		}
+	case selectors.ServiceOneDrive:
+		backup, err := sel.ToOneDriveBackup()
+		if err != nil {
+			return err
+		}
+
+		for _, user := range backup.Scopes() {
+			temp := user.Get(selectors.OneDriveUser)
+			personnel = append(personnel, temp...)
+		}
+
+	default:
+		return errors.New("service %s not supported")
+	}
+
+	// verify personnel
+	normUsers := map[string]struct{}{}
+
+	for k := range mapOfUsers {
+		normUsers[strings.ToLower(k)] = struct{}{}
+	}
+
+	for _, user := range personnel {
+		if _, ok := normUsers[strings.ToLower(user)]; !ok {
+			return fmt.Errorf("%s user not found within tenant", user)
+		}
+	}
+
+	return nil
 }

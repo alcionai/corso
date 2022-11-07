@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"runtime/trace"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -85,7 +85,8 @@ type backupStats struct {
 
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
-	defer trace.StartRegion(ctx, "operations:backup:run").End()
+	ctx, end := D.Span(ctx, "operations:backup:run")
+	defer end()
 
 	var (
 		opStats       backupStats
@@ -122,6 +123,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	complete, closer := observe.MessageWithCompletion("Connecting to M365:")
+	defer closer()
+	defer close(complete)
+
 	// retrieve data from the producer
 	gc, err := connector.NewGraphConnector(ctx, op.account)
 	if err != nil {
@@ -130,6 +135,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 		return err
 	}
+	complete <- struct{}{}
+
+	discoverCh, closer := observe.MessageWithCompletion("Discovering items to backup:")
+	defer closer()
+	defer close(discoverCh)
 
 	cs, err := gc.DataCollections(ctx, op.Selectors)
 	if err != nil {
@@ -139,16 +149,23 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	discoverCh <- struct{}{}
+
 	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
 
+	backupCh, closer := observe.MessageWithCompletion("Backing up data:")
+	defer closer()
+	defer close(backupCh)
+
 	// hand the results to the consumer
-	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs)
+	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs, op.Selectors.PathService())
 	if err != nil {
 		err = errors.Wrap(err, "backing up service data")
 		opStats.writeErr = err
 
 		return err
 	}
+	backupCh <- struct{}{}
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
@@ -228,7 +245,7 @@ func (op *BackupOperation) createBackupModels(
 			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.EndTime:    op.Results.CompletedAt,
 			events.Resources:  op.Results.ResourceOwners,
-			events.Service:    op.Selectors.Service.String(),
+			events.Service:    op.Selectors.PathService().String(),
 			events.StartTime:  op.Results.StartedAt,
 			events.Status:     op.Status,
 		},

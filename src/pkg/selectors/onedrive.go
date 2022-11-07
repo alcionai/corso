@@ -35,6 +35,8 @@ type (
 	}
 )
 
+var _ Reducer = &OneDriveRestore{}
+
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
 func NewOneDriveBackup() *OneDriveBackup {
 	src := OneDriveBackup{
@@ -288,12 +290,16 @@ const (
 	FileFilterModifiedBefore oneDriveCategory = "FileFilterModifiedBefore"
 )
 
-// oneDrivePathSet describes the category type keys used in OneDrive paths.
-// The order of each slice is important, and should match the order in which
-// these types appear in the canonical Path for each type.
-var oneDrivePathSet = map[categorizer][]categorizer{
-	OneDriveItem: {OneDriveUser, OneDriveFolder, OneDriveItem},
-	OneDriveUser: {OneDriveUser}, // the root category must be represented
+// oneDriveLeafProperties describes common metadata of the leaf categories
+var oneDriveLeafProperties = map[categorizer]leafProperty{
+	OneDriveItem: {
+		pathKeys: []categorizer{OneDriveUser, OneDriveFolder, OneDriveItem},
+		pathType: path.FilesCategory,
+	},
+	OneDriveUser: { // the root category must be represented, even though it isn't a leaf
+		pathKeys: []categorizer{OneDriveUser},
+		pathType: path.UnknownCategory,
+	},
 }
 
 func (c oneDriveCategory) String() string {
@@ -350,7 +356,12 @@ func (c oneDriveCategory) pathValues(p path.Path) map[categorizer]string {
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
 func (c oneDriveCategory) pathKeys() []categorizer {
-	return oneDrivePathSet[c.leafCat()]
+	return oneDriveLeafProperties[c.leafCat()].pathKeys
+}
+
+// PathType converts the category's leaf type into the matching path.CategoryType.
+func (c oneDriveCategory) PathType() path.CategoryType {
+	return oneDriveLeafProperties[c.leafCat()].pathType
 }
 
 // ---------------------------------------------------------------------------

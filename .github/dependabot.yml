@@ -1,0 +1,47 @@
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    reviewers:
+      - "alcionai/corso-maintainers"
+    open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
+
+  # Maintain dependencies for npm - website
+  - package-ecosystem: "npm"
+    directory: "website/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "alcionai/corso-maintainers"
+      - "ntolia"
+      - "gmatev"
+    open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
+
+  # Maintain dependencies for npm - docs
+  - package-ecosystem: "npm"
+    directory: "docs/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "alcionai/corso-maintainers"
+      - "ntolia"
+      - "gmatev"
+    open-pull-requests-limit: 50
+    rebase-strategy: "disabled"
+
+  # Maintain dependencies for go - src
+  - package-ecosystem: "gomod"
+    directory: "src/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "alcionai/corso-maintainers"
+    open-pull-requests-limit: 50
+    rebase-strategy: "disabled"

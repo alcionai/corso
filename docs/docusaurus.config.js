@@ -33,6 +33,10 @@ const config = {
     require.resolve('docusaurus-plugin-image-zoom')
   ],
 
+  customFields: {
+    corsoVersion: `${process.env.CORSO_VERSION}`,
+  },
+
   presets: [
     [
       'classic',
@@ -46,8 +50,12 @@ const config = {
             'https://github.com/alcionai/corso/tree/main/docs',
         },
         blog: false,
-        googleAnalytics: {
-          trackingID: 'G-4EXT1PY6KC',
+        sitemap: {
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        },
+        gtag: {
+          trackingID: 'G-YXBFPQZ05N',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.scss'),
@@ -60,19 +68,13 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: '',
+        title: 'Docs',
         logo: {
           alt: 'Corso Logo',
           src: '/img/corso_horizontal_logo.svg',
           srcDark: 'img/corso_horizontal_logo_white.svg',
         },
         items: [
-          {
-            type: 'doc',
-            docId: 'intro',
-            position: 'left',
-            label: 'Docs',
-          },
           {
             href: 'https://github.com/alcionai/corso',
             label: 'GitHub',
@@ -89,21 +91,8 @@ const config = {
         },
         links: [
           {
-            title: 'Resources',
-            items: [
-              {
-                label: 'Docs',
-                to: '/intro',
-              },
-            ],
-          },
-          {
             title: 'Community',
             items: [
-              {
-                label: 'Discussions',
-                href: 'https://github.com/alcionai/corso/discussions',
-              },
               {
                 label: 'Discord',
                 href: 'https://discord.gg/63DTTSnuhT',

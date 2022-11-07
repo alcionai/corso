@@ -20,7 +20,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Corso setup',
-      items: ['setup/concepts', 'setup/m365_access', 'setup/repos', 'setup/configuration'],
+      items: ['setup/concepts', 'setup/download', 'setup/m365_access', 'setup/configuration', 'setup/repos'],
     },
     {
       type: 'category',
@@ -33,20 +33,25 @@ const sidebars = {
       items: [
         'cli/corso_repo_init_s3', 'cli/corso_repo_connect_s3',
         'cli/corso_backup_create_exchange', 'cli/corso_backup_list_exchange', 'cli/corso_backup_details_exchange',
-        'cli/corso_restore_exchange',
         'cli/corso_backup_create_onedrive', 'cli/corso_backup_list_onedrive', 'cli/corso_backup_details_onedrive',
-        'cli/corso_restore_onedrive',
+        'cli/corso_restore_exchange', 'cli/corso_restore_onedrive',
         'cli/corso_env'
       ]
     },
     {
       type: 'category',
-      label: 'Developer guide',
+      label: 'Support',
       items: [
-        'developers/architecture', 'developers/build', 'developers/testing', 'developers/linters'
+        'support/bugs_and_features', 'support/known_issues', 'support/faq'
       ],
     },
-
+    {
+      type: 'category',
+      label: 'Developer guide',
+      items: [
+        'developers/build', 'developers/testing', 'developers/linters'
+      ],
+    },
   ],
 };
 

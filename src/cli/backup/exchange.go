@@ -16,8 +16,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -371,7 +373,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	bs, err := r.Backups(ctx)
+	bs, err := r.Backups(ctx, store.Service(path.ExchangeService))
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
@@ -521,6 +523,8 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err := r.DeleteBackup(ctx, model.StableID(backupID)); err != nil {
 		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
 	}
+
+	Info(ctx, "Deleted Exchange backup ", backupID)
 
 	return nil
 }
