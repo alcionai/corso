@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   Precheck:
-    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@website-build-test # TODO(meain): update to main
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
 
   Website-Build:
     needs: [Precheck]
