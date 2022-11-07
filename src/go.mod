@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.0
-	github.com/microsoft/kiota-abstractions-go v0.11.0
+	github.com/microsoft/kiota-abstractions-go v0.14.0
 	github.com/microsoft/kiota-authentication-azure-go v0.4.1
 	github.com/microsoft/kiota-http-go v0.7.2
 	github.com/microsoft/kiota-serialization-json-go v0.7.1
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.13.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/pretty v1.2.0
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.4
@@ -56,7 +56,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chmduquesne/rollinghash v4.0.0+incompatible // indirect
-	github.com/cjlapao/common-go v0.0.27 // indirect
+	github.com/cjlapao/common-go v0.0.29 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
@@ -103,8 +103,8 @@ require (
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/zeebo/blake3 v0.2.3 // indirect
-	go.opentelemetry.io/otel v1.10.0 // indirect
-	go.opentelemetry.io/otel/trace v1.10.0 // indirect
+	go.opentelemetry.io/otel v1.11.1 // indirect
+	go.opentelemetry.io/otel/trace v1.11.1 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be // indirect
