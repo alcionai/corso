@@ -1,7 +1,6 @@
 name: Publish docs # Publish prod docs independent of releases
 on:
   workflow_dispatch:
-  pull_request:
 
 permissions:
   # required to retrieve AWS credentials
@@ -38,7 +37,7 @@ jobs:
 
   Docs-Linting:
     needs: [SetEnv]
-    environment: Testing
+    environment: Production
     runs-on: ubuntu-latest
 
     steps:
