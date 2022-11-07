@@ -12,12 +12,10 @@ jobs:
     strategy:
       matrix:
         folder: [Corso_Restore_, TestRestore, '']
-        user: [CORSO_M356_TEST_USER_ID, CORSO_SECONDARY_M356_TEST_USER_ID]
+        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID]
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
 
       # sets the maximimum time to now-30m.
       # CI test have a 10 minute timeout.
