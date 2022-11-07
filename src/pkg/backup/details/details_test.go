@@ -2,6 +2,7 @@ package details_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,8 @@ func TestDetailsUnitSuite(t *testing.T) {
 }
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
-	nowStr := common.FormatNow(common.TabularOutput)
+	initial := time.Now()
+	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
 	require.NoError(suite.T(), err)
 
@@ -56,11 +58,13 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						Organizer:   "organizer",
 						EventRecurs: true,
 						Subject:     "subject",
+						Created:     initial,
+						Modified:    initial,
 					},
 				},
 			},
-			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Ends", "Recurring"},
-			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, nowStr, "true"},
+			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Ends", "Recurring", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, nowStr, "true", nowStr, nowStr},
 		},
 		{
 			name: "exchange contact info",
@@ -71,11 +75,13 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					Exchange: &details.ExchangeInfo{
 						ItemType:    details.ExchangeContact,
 						ContactName: "contactName",
+						Created:     initial,
+						Modified:    initial,
 					},
 				},
 			},
-			expectHs: []string{"ID", "Contact Name"},
-			expectVs: []string{"deadbeef", "contactName"},
+			expectHs: []string{"ID", "Contact Name", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "contactName", nowStr, nowStr},
 		},
 		{
 			name: "exchange mail info",
@@ -88,11 +94,13 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						Sender:   "sender",
 						Subject:  "subject",
 						Received: now,
+						Created:     initial,
+						Modified:    initial,
 					},
 				},
 			},
-			expectHs: []string{"ID", "Sender", "Subject", "Received"},
-			expectVs: []string{"deadbeef", "sender", "subject", nowStr},
+			expectHs: []string{"ID", "Sender", "Subject", "Received", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "sender", "subject", nowStr, nowStr, nowStr},
 		},
 		{
 			name: "sharepoint info",
