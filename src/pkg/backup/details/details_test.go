@@ -52,14 +52,15 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					Exchange: &details.ExchangeInfo{
 						ItemType:    details.ExchangeEvent,
 						EventStart:  now,
+						EventEnd:    now,
 						Organizer:   "organizer",
 						EventRecurs: true,
 						Subject:     "subject",
 					},
 				},
 			},
-			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Recurring"},
-			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, "true"},
+			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Ends", "Recurring"},
+			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, nowStr, "true"},
 		},
 		{
 			name: "exchange contact info",
