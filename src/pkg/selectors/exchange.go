@@ -166,6 +166,8 @@ func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
 	return discreteScopes[ExchangeScope](s.Selector, ExchangeUser, userPNs)
 }
 
+type ExchangeItemScopeConstructor func([]string, []string, []string, ...option) []ExchangeScope
+
 // -------------------
 // Scope Factories
 
@@ -173,13 +175,14 @@ func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
+// options are only applied to the folder scopes.
+func (s *exchange) Contacts(users, folders, contacts []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
 		makeScope[ExchangeScope](ExchangeContact, users, contacts).
-			set(ExchangeContactFolder, folders),
+			set(ExchangeContactFolder, folders, opts...),
 	)
 
 	return scopes
@@ -189,6 +192,7 @@ func (s *exchange) Contacts(users, folders, contacts []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the folder scopes.
 func (s *exchange) ContactFolders(users, folders []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
@@ -207,13 +211,14 @@ func (s *exchange) ContactFolders(users, folders []string, opts ...option) []Exc
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Events(users, calendars, events []string) []ExchangeScope {
+// options are only applied to the folder scopes.
+func (s *exchange) Events(users, calendars, events []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
 		makeScope[ExchangeScope](ExchangeEvent, users, events).
-			set(ExchangeEventCalendar, calendars),
+			set(ExchangeEventCalendar, calendars, opts...),
 	)
 
 	return scopes
@@ -224,6 +229,7 @@ func (s *exchange) Events(users, calendars, events []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the folder scopes.
 func (s *exchange) EventCalendars(users, events []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
@@ -242,13 +248,14 @@ func (s *exchange) EventCalendars(users, events []string, opts ...option) []Exch
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
+// options are only applied to the folder scopes.
+func (s *exchange) Mails(users, folders, mails []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
 		makeScope[ExchangeScope](ExchangeMail, users, mails).
-			set(ExchangeMailFolder, folders),
+			set(ExchangeMailFolder, folders, opts...),
 	)
 
 	return scopes
@@ -258,6 +265,7 @@ func (s *exchange) Mails(users, folders, mails []string) []ExchangeScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the folder scopes.
 func (s *exchange) MailFolders(users, folders []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
