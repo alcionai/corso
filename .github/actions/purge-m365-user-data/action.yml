@@ -58,4 +58,6 @@ runs:
         ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Audits 
         ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Purges
         ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Deletions
-        ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge "Calendar Logging"
+
+# possible future extensions
+# ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge "Calendar Logging"
