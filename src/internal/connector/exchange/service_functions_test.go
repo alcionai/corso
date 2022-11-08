@@ -74,7 +74,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, []string{DefaultCalendar})[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{userID}, []string{DefaultCalendar}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -83,7 +85,9 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			expectCount: assert.Greater,
 			expectErr:   assert.NoError,
 			getScope: func(t *testing.T) selectors.ExchangeScope {
-				return selectors.NewExchangeBackup().EventCalendars([]string{userID}, []string{"Birthdays"})[0]
+				return selectors.
+					NewExchangeBackup().
+					EventCalendars([]string{userID}, []string{"Birthdays"}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -94,7 +98,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllCalendars() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					EventCalendars([]string{invalidUser}, []string{DefaultContactFolder})[0]
+					EventCalendars([]string{invalidUser}, []string{DefaultContactFolder}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -156,7 +160,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					ContactFolders([]string{user}, []string{DefaultContactFolder})[0]
+					ContactFolders([]string{user}, []string{DefaultContactFolder}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -167,7 +171,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					ContactFolders([]string{user}, []string{"TrialFolder"})[0]
+					ContactFolders([]string{user}, []string{"TrialFolder"}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -178,7 +182,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllContactFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					ContactFolders([]string{invalidUser}, []string{DefaultContactFolder})[0]
+					ContactFolders([]string{invalidUser}, []string{DefaultContactFolder}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -240,7 +244,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					MailFolders([]string{userID}, []string{DefaultMailFolder})[0]
+					MailFolders([]string{userID}, []string{DefaultMailFolder}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -251,7 +255,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					MailFolders([]string{userID}, []string{"Drafts"})[0]
+					MailFolders([]string{userID}, []string{"Drafts"}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -262,7 +266,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestGetAllMailFolders() {
 			getScope: func(t *testing.T) selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					MailFolders([]string{invalidUser}, []string{DefaultMailFolder})[0]
+					MailFolders([]string{invalidUser}, []string{DefaultMailFolder}, selectors.PrefixMatch())[0]
 			},
 		},
 		{
@@ -326,7 +330,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 			getScope: func() selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					EventCalendars([]string{user}, []string{DefaultCalendar})[0]
+					EventCalendars([]string{user}, []string{DefaultCalendar}, selectors.PrefixMatch())[0]
 			},
 		}, {
 			name:          "Default Mail",
@@ -335,7 +339,7 @@ func (suite *ServiceFunctionsIntegrationSuite) TestCollectContainers() {
 			getScope: func() selectors.ExchangeScope {
 				return selectors.
 					NewExchangeBackup().
-					MailFolders([]string{user}, []string{DefaultMailFolder})[0]
+					MailFolders([]string{user}, []string{DefaultMailFolder}, selectors.PrefixMatch())[0]
 			},
 		},
 	}

@@ -291,13 +291,16 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder})
+			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{exchange.DefaultContactFolder})
+			scopes = sel.ContactFolders(
+				[]string{suite.m365UserID},
+				[]string{exchange.DefaultContactFolder},
+				selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar})
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)
@@ -515,7 +518,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
+	sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))
