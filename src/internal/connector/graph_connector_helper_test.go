@@ -702,8 +702,7 @@ func makeExchangeBackupSel(
 			builder = sel.ContactFolders
 		case path.EventsCategory:
 			builder = sel.EventCalendars
-		case path.EmailCategory:
-			// already set
+		case path.EmailCategory: // already set
 		}
 
 		toInclude = append(toInclude, builder(
