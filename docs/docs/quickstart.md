@@ -237,9 +237,9 @@ The output from the command above should display a list of any matching emails. 
 of the email you would like to use for testing restore.
 
 ```text
-  ID            Sender                 Subject                                  Received
-  360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
-  84dbad89b9f5  ravi@cohovineyard.com  Come join us!                            2022-10-19T06:12:08Z
+  ID            Sender                 Subject                                  Received              Created               Modified
+  360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z  2022-10-19T19:28:01Z  2022-10-19T19:28:01Z
+  84dbad89b9f5  ravi@cohovineyard.com  Come join us!                            2022-10-19T06:12:08Z  2022-10-19T19:28:01Z  2022-10-19T19:28:01Z
   ...
 ```
 
@@ -277,8 +277,8 @@ docker run --env-file $HOME/.corso/corso.env \\
 A confirmation of the recovered email will be shown and the email will appear in a new mailbox folder named `Corso_Restore_DD-MMM-YYYY_HH:MM:SS`.
 
 ```text
-  ID            Sender                 Subject                                  Received
-  360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
+  ID            Sender                 Subject                                  Received              Created               Modified
+  360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z  2022-10-19T19:28:01Z  2022-10-19T19:28:01Z
 ```
 
 ## Read more
