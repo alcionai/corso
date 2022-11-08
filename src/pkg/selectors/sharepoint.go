@@ -161,7 +161,7 @@ func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
 // -------------------
 // Scope Factories
 
-// Produces one or more SharePoint sitet scopes.
+// Produces one or more SharePoint site scopes.
 // One scope is created per site entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
@@ -179,11 +179,14 @@ func (s *sharePoint) Sites(sites []string) []SharePointScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *sharePoint) Folders(sites, folders []string, opts ...option) []SharePointScope {
-	scopes := []SharePointScope{}
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{pathType()}, opts...)
+	)
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointFolder, sites, folders, opts...),
+		makeScope[SharePointScope](SharePointFolder, sites, folders, os...),
 	)
 
 	return scopes
@@ -193,13 +196,14 @@ func (s *sharePoint) Folders(sites, folders []string, opts ...option) []SharePoi
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *sharePoint) Items(sites, folders, items []string) []SharePointScope {
+// options are only applied to the folder scopes.
+func (s *sharePoint) Items(sites, folders, items []string, opts ...option) []SharePointScope {
 	scopes := []SharePointScope{}
 
 	scopes = append(
 		scopes,
 		makeScope[SharePointScope](SharePointItem, sites, items).
-			set(SharePointFolder, folders),
+			set(SharePointFolder, folders, opts...),
 	)
 
 	return scopes
@@ -370,8 +374,13 @@ func (s SharePointScope) Get(cat sharePointCategory) []string {
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
-func (s SharePointScope) set(cat sharePointCategory, v []string) SharePointScope {
-	return set(s, cat, v)
+func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option) SharePointScope {
+	os := []option{}
+	if cat == SharePointFolder {
+		os = append(os, pathType())
+	}
+
+	return set(s, cat, v, append(os, opts...)...)
 }
 
 // setDefaults ensures that site scopes express `AnyTgt` for their child category types.
