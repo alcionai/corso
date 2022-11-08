@@ -7,11 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/https://github.com/alcionai/corso/compare/...HEAD
-
-## v0.0.1 (alpha)
-
-Release date: 2022-10-24
+## [v0.0.1] (alpha) - 2022-10-24
 
 ### New features
 
@@ -36,3 +32,7 @@ Release date: 2022-10-24
 
 * Miscelaneous
   * Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
+
+
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.0.1...HEAD
+[v0.0.1]: https://github.com/alcionai/corso/tag/v0.0.1
