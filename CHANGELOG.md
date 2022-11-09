@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added AWS X-Ray support for better observability #1111
+- Add tags to kopia backups based on service/category #1408
+- Allow disabling TLS and TLS verification #1417
+- Add filtering based on path prefix/contains #1425 #1429 #1443
+- Add info about doc owner for OneDrive files #1436
+- Add end time for Exchange events
+- Started work on enabling Sharepoint #1454 #1464
+### Changed
+- Export `RepoAlreadyExists` error for sdk users #1136
+- RudderStack logger now respects corso logger settings #1324
 
 ## [v0.0.1] (alpha) - 2022-10-24
 
