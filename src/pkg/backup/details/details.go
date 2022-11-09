@@ -357,6 +357,7 @@ type SharePointInfo struct {
 	Created  time.Time `json:"created,omitempty"`
 	Modified time.Time `josn:"modified,omitempty"`
 	WebURL   string    `json:"webUrl,omitempty"`
+	Size     int64     `json:"size,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
