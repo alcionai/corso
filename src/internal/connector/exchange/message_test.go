@@ -118,6 +118,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Received: now,
 					Created:  initial,
 					Modified: initial,
+					Size:     10,
 				}
 				return msg, i
 			},
@@ -126,7 +127,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			msg, expected := tt.msgAndRP()
-			suite.Equal(expected, MessageInfo(msg))
+			suite.Equal(expected, MessageInfo(msg, 10))
 		})
 	}
 }

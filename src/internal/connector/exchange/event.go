@@ -10,7 +10,7 @@ import (
 )
 
 // EventInfo searchable metadata for stored event objects.
-func EventInfo(evt models.Eventable) *details.ExchangeInfo {
+func EventInfo(evt models.Eventable, size int64) *details.ExchangeInfo {
 	var (
 		organizer, subject string
 		recurs             bool
@@ -77,5 +77,6 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		EventRecurs: recurs,
 		Created:     created,
 		Modified:    modified,
+		Size:        size,
 	}
 }

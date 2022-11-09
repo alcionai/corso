@@ -8,7 +8,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-func MessageInfo(msg models.Messageable) *details.ExchangeInfo {
+func MessageInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	sender := ""
 	subject := ""
 	received := time.Time{}
@@ -44,5 +44,6 @@ func MessageInfo(msg models.Messageable) *details.ExchangeInfo {
 		Received: received,
 		Created:  created,
 		Modified: modified,
+		Size:     size,
 	}
 }
