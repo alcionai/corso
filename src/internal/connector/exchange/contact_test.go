@@ -53,7 +53,7 @@ func (suite *ContactSuite) TestContactInfo() {
 					ContactName: aPerson,
 					Created:     initial,
 					Modified:    initial,
-					Size: 10,
+					Size:        10,
 				}
 				return contact, i
 			},
