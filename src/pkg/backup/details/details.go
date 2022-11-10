@@ -311,13 +311,13 @@ type ExchangeInfo struct {
 func (i ExchangeInfo) Headers() []string {
 	switch i.ItemType {
 	case ExchangeEvent:
-		return []string{"Organizer", "Subject", "Starts", "Ends", "Recurring", "Created", "Modified"}
+		return []string{"Organizer", "Subject", "Starts", "Ends", "Recurring"}
 
 	case ExchangeContact:
-		return []string{"Contact Name", "Created", "Modified"}
+		return []string{"Contact Name"}
 
 	case ExchangeMail:
-		return []string{"Sender", "Subject", "Received", "Created", "Modified"}
+		return []string{"Sender", "Subject", "Received"}
 	}
 
 	return []string{}
@@ -334,23 +334,15 @@ func (i ExchangeInfo) Values() []string {
 			common.FormatTabularDisplayTime(i.EventStart),
 			common.FormatTabularDisplayTime(i.EventEnd),
 			strconv.FormatBool(i.EventRecurs),
-			common.FormatTabularDisplayTime(i.Created),
-			common.FormatTabularDisplayTime(i.Modified),
 		}
 
 	case ExchangeContact:
-		return []string{
-			i.ContactName,
-			common.FormatTabularDisplayTime(i.Created),
-			common.FormatTabularDisplayTime(i.Modified),
-		}
+		return []string{i.ContactName}
 
 	case ExchangeMail:
 		return []string{
 			i.Sender, i.Subject,
 			common.FormatTabularDisplayTime(i.Received),
-			common.FormatTabularDisplayTime(i.Created),
-			common.FormatTabularDisplayTime(i.Modified),
 		}
 	}
 
