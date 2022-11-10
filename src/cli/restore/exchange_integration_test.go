@@ -96,13 +96,16 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder})
+			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{exchange.DefaultContactFolder})
+			scopes = sel.ContactFolders(
+				[]string{suite.m365UserID},
+				[]string{exchange.DefaultContactFolder},
+				selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar})
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)
