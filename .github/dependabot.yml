@@ -19,6 +19,8 @@ updates:
       interval: "daily"
     reviewers:
       - "alcionai/corso-maintainers"
+      - "ntolia"
+      - "gmatev"
     open-pull-requests-limit: 50
     rebase-strategy: "disabled"
 
@@ -29,6 +31,8 @@ updates:
       interval: "daily"
     reviewers:
       - "alcionai/corso-maintainers"
+      - "ntolia"
+      - "gmatev"
     open-pull-requests-limit: 50
     rebase-strategy: "disabled"
 
