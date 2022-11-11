@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Zero knowledge encrypted backups with user conrolled passphrase ([RM-6](https://github.com/alcionai/corso-roadmap/issues/6))
   - Initialize and connect to an S3-compliant backup repository ([RM-5](https://github.com/alcionai/corso-roadmap/issues/5))
 
-- Miscelaneous
+- Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
 [unreleased]: https://github.com/alcionai/corso/compare/v0.0.1...HEAD
