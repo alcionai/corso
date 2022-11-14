@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -69,50 +68,82 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	suite.Greater(len(newConnector.Users), 0)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestMailFetch() {
+// TestSetTenantUsers verifies GraphConnector's ability to query
+// the sites associated with the credentials
+func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
+	newConnector := GraphConnector{
+		tenant:      "test_tenant",
+		Sites:       make(map[string]string, 0),
+		credentials: suite.connector.credentials,
+	}
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	var (
-		t      = suite.T()
-		userID = tester.M365UserID(t)
-	)
+	service, err := newConnector.createService(false)
+	require.NoError(suite.T(), err)
 
-	tests := []struct {
-		name        string
-		scope       selectors.ExchangeScope
-		folderNames map[string]struct{}
+	newConnector.graphService = *service
+
+	suite.Equal(0, len(newConnector.Sites))
+	err = newConnector.setTenantSites(ctx)
+	assert.NoError(suite.T(), err)
+	// TODO: should be non-zero once implemented.
+	// suite.Greater(len(newConnector.Users), 0)
+	suite.Equal(0, len(newConnector.Sites))
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
+	dest := tester.DefaultTestRestoreDestination()
+	table := []struct {
+		name string
+		col  []data.Collection
+		sel  selectors.Selector
 	}{
 		{
-			name: "Folder Iterative Check Mail",
-			scope: selectors.NewExchangeBackup().MailFolders(
-				[]string{userID},
-				[]string{exchange.DefaultMailFolder},
-				selectors.PrefixMatch(),
-			)[0],
-			folderNames: map[string]struct{}{
-				exchange.DefaultMailFolder: {},
+			name: "ExchangeNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceExchange,
 			},
 		},
+		{
+			name: "ExchangeEmpty",
+			col:  []data.Collection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceExchange,
+			},
+		},
+		{
+			name: "OneDriveNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceOneDrive,
+			},
+		},
+		{
+			name: "OneDriveEmpty",
+			col:  []data.Collection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceOneDrive,
+			},
+		},
+		// TODO: SharePoint
 	}
 
-	gc := loadConnector(ctx, t)
-
-	for _, test := range tests {
+	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := gc.createCollections(ctx, test.scope)
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			deets, err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
 			require.NoError(t, err)
+			assert.NotNil(t, deets)
 
-			for _, c := range collections {
-				require.NotEmpty(t, c.FullPath().Folder())
-				folder := c.FullPath().Folder()
-
-				if _, ok := test.folderNames[folder]; ok {
-					delete(test.folderNames, folder)
-				}
-			}
-
-			assert.Empty(t, test.folderNames)
+			stats := suite.connector.AwaitStatus()
+			assert.Zero(t, stats.ObjectCount)
+			assert.Zero(t, stats.FolderCount)
+			assert.Zero(t, stats.Successful)
 		})
 	}
 }
