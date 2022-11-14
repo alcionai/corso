@@ -1,11 +1,17 @@
 name: Build/Release Corso
 on:
   workflow_dispatch:
+
   pull_request:
     branches: [main]
+
   push:
     branches: [main]
     tags: ["v*.*.*"]
+
+  repository_dispatch:
+    types: [ok-to-test-command]
+
 
 permissions:
   # required to retrieve AWS credentials
@@ -137,7 +143,7 @@ jobs:
   # --- Integration and Unit Testing -------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  Test-Suite:
+  Test-Suite-Trusted:
     needs: [Precheck, Checkout]
     environment: Testing
     runs-on: ubuntu-latest
@@ -173,7 +179,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_CI_TESTS: true 
+          CORSO_CI_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
         run: |
@@ -192,6 +198,100 @@ jobs:
           path: src/testlog/gotest.log
           if-no-files-found: error
           retention-days: 14
+
+  Test-Suite-Fork:
+    needs: [Precheck]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if:
+      github.event_name == 'repository_dispatch' &&
+      github.event.client_payload.slash_command.sha != '' &&
+      contains(github.event.client_payload.pull_request.head.sha, github.event.client_payload.slash_command.sha)
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      # Check out merge commit
+      - name: Fork based /ok-to-test checkout
+        uses: actions/checkout@v2
+        with:
+          ref: 'refs/pull/${{ github.event.client_payload.pull_request.number }}/merge'
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - run: mkdir testlog
+
+      # Install gotestfmt
+      - name: Set up gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      # run the tests
+      - name: Integration Tests
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_CI_TESTS: true
+          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          go test \
+          -json   \
+          -v      \
+          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+
+      # Upload the original go test log as an artifact for later review.
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-log
+          path: src/testlog/gotest.log
+          if-no-files-found: error
+          retention-days: 14
+
+    # Update check run called "Integration-Fork"
+    - uses: actions/github-script@v5
+      id: update-check-run
+      if: ${{ always() }}
+      env:
+        number: ${{ github.event.client_payload.pull_request.number }}
+        job: ${{ github.job }}
+        # Conveniently, job.status maps to https://developer.github.com/v3/checks/runs/#update-a-check-run
+        conclusion: ${{ job.status }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { data: pull } = await github.rest.pulls.get({
+            ...context.repo,
+            pull_number: process.env.number
+          });
+          const ref = pull.head.sha;
+          const { data: checks } = await github.rest.checks.listForRef({
+            ...context.repo,
+            ref
+          });
+          const check = checks.check_runs.filter(c => c.name === process.env.job);
+          const { data: result } = await github.rest.checks.update({
+            ...context.repo,
+            check_run_id: check[0].id,
+            status: 'completed',
+            conclusion: process.env.conclusion
+          });
+          return result;
+
 
   # ----------------------------------------------------------------------------------------------------
   # --- Source Code Linting ----------------------------------------------------------------------------
