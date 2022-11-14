@@ -240,7 +240,7 @@ var _ categorizer = SharePointCategoryUnknown
 const (
 	SharePointCategoryUnknown sharePointCategory = ""
 	// types of data identified by SharePoint
-	SharePointSite   sharePointCategory = "SharePointSitte"
+	SharePointSite   sharePointCategory = "SharePointSite"
 	SharePointFolder sharePointCategory = "SharePointFolder"
 	SharePointItem   sharePointCategory = "SharePointItem"
 
@@ -428,7 +428,8 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 		deets,
 		s.Selector,
 		map[path.CategoryType]sharePointCategory{
-			// path.FilesCategory: SharePointItem,
+			// TODO: need to figure out the path Category(s) for sharepoint.
+			path.FilesCategory: SharePointItem,
 		},
 	)
 }
