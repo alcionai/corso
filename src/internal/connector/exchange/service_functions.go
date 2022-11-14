@@ -137,10 +137,11 @@ func GetAllMailFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
 	gs graph.Service,
+	scope selectors.ExchangeScope,
 ) ([]graph.CachedContainer, error) {
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EmailCategory)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
 	if err != nil {
 		return nil, errors.Wrap(err, "building directory resolver in GetAllMailFolders")
 	}
@@ -151,7 +152,7 @@ func GetAllMailFolders(
 			continue
 		}
 
-		if qp.Scope.Matches(selectors.ExchangeMailFolder, directory) {
+		if scope.Matches(selectors.ExchangeMailFolder, directory) {
 			containers = append(containers, c)
 		}
 	}
@@ -166,10 +167,11 @@ func GetAllCalendars(
 	ctx context.Context,
 	qp graph.QueryParams,
 	gs graph.Service,
+	scope selectors.ExchangeScope,
 ) ([]graph.CachedContainer, error) {
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.EventsCategory)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
 	if err != nil {
 		return nil, errors.Wrap(err, "building calendar resolver in GetAllCalendars")
 	}
@@ -177,7 +179,7 @@ func GetAllCalendars(
 	for _, c := range resolver.Items() {
 		directory := c.Path().String()
 
-		if qp.Scope.Matches(selectors.ExchangeEventCalendar, directory) {
+		if scope.Matches(selectors.ExchangeEventCalendar, directory) {
 			containers = append(containers, c)
 		}
 	}
@@ -193,12 +195,13 @@ func GetAllContactFolders(
 	ctx context.Context,
 	qp graph.QueryParams,
 	gs graph.Service,
+	scope selectors.ExchangeScope,
 ) ([]graph.CachedContainer, error) {
 	var query string
 
 	containers := make([]graph.CachedContainer, 0)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, path.ContactsCategory)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
 	if err != nil {
 		return nil, errors.Wrap(err, "building directory resolver in GetAllContactFolders")
 	}
@@ -212,31 +215,12 @@ func GetAllContactFolders(
 			query = directory
 		}
 
-		if qp.Scope.Matches(selectors.ExchangeContactFolder, query) {
+		if scope.Matches(selectors.ExchangeContactFolder, query) {
 			containers = append(containers, c)
 		}
 	}
 
 	return containers, err
-}
-
-func GetContainers(
-	ctx context.Context,
-	qp graph.QueryParams,
-	gs graph.Service,
-) ([]graph.CachedContainer, error) {
-	category := qp.Scope.Category().PathType()
-
-	switch category {
-	case path.ContactsCategory:
-		return GetAllContactFolders(ctx, qp, gs)
-	case path.EmailCategory:
-		return GetAllMailFolders(ctx, qp, gs)
-	case path.EventsCategory:
-		return GetAllCalendars(ctx, qp, gs)
-	default:
-		return nil, fmt.Errorf("path.Category %s not supported", category)
-	}
 }
 
 // PopulateExchangeContainerResolver gets a folder resolver if one is available for
@@ -246,7 +230,6 @@ func GetContainers(
 func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
-	category path.CategoryType,
 ) (graph.ContainerResolver, error) {
 	var (
 		res          graph.ContainerResolver
@@ -258,30 +241,30 @@ func PopulateExchangeContainerResolver(
 		return nil, err
 	}
 
-	switch category {
+	switch qp.Category {
 	case path.EmailCategory:
 		res = &mailFolderCache{
-			userID: qp.User,
+			userID: qp.ResourceOwner,
 			gs:     service,
 		}
 		cacheRoot = rootFolderAlias
 
 	case path.ContactsCategory:
 		res = &contactFolderCache{
-			userID: qp.User,
+			userID: qp.ResourceOwner,
 			gs:     service,
 		}
 		cacheRoot = DefaultContactFolder
 
 	case path.EventsCategory:
 		res = &eventCalendarCache{
-			userID: qp.User,
+			userID: qp.ResourceOwner,
 			gs:     service,
 		}
 		cacheRoot = DefaultCalendar
 
 	default:
-		return nil, fmt.Errorf("ContainerResolver not present for %s type", category)
+		return nil, fmt.Errorf("ContainerResolver not present for %s type", qp.Category)
 	}
 
 	if err := res.Populate(ctx, cacheRoot); err != nil {
@@ -291,8 +274,13 @@ func PopulateExchangeContainerResolver(
 	return res, nil
 }
 
-func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
+func pathAndMatch(
+	qp graph.QueryParams,
+	c graph.CachedContainer,
+	scope selectors.ExchangeScope,
+) (path.Path, bool) {
 	var (
+		category  = scope.Category().PathType()
 		directory string
 		pb        = c.Path()
 	)
@@ -304,7 +292,7 @@ func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.Cach
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
 		qp.Credentials.AzureTenantID,
-		qp.User,
+		qp.ResourceOwner,
 		category,
 		false,
 	)
@@ -320,11 +308,11 @@ func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.Cach
 
 	switch category {
 	case path.EmailCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directory)
+		return dirPath, scope.Matches(selectors.ExchangeMailFolder, directory)
 	case path.ContactsCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directory)
+		return dirPath, scope.Matches(selectors.ExchangeContactFolder, directory)
 	case path.EventsCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, directory)
+		return dirPath, scope.Matches(selectors.ExchangeEventCalendar, directory)
 	default:
 		return nil, false
 	}

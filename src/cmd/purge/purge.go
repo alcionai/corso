@@ -240,12 +240,12 @@ func purgeMailFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		params, err := exchangeQueryParamFactory(uid, path.EmailCategory)
+		params, scope, err := exchangeQueryParamFactory(uid, path.EmailCategory)
 		if err != nil {
 			return nil, err
 		}
 
-		allFolders, err := exchange.GetAllMailFolders(ctx, *params, gs)
+		allFolders, err := exchange.GetAllMailFolders(ctx, *params, gs, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -276,12 +276,12 @@ func purgeCalendarFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		params, err := exchangeQueryParamFactory(uid, path.EventsCategory)
+		params, scope, err := exchangeQueryParamFactory(uid, path.EventsCategory)
 		if err != nil {
 			return nil, err
 		}
 
-		allCalendars, err := exchange.GetAllCalendars(ctx, *params, gs)
+		allCalendars, err := exchange.GetAllCalendars(ctx, *params, gs, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -312,12 +312,12 @@ func purgeContactFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		params, err := exchangeQueryParamFactory(uid, path.ContactsCategory)
+		params, scope, err := exchangeQueryParamFactory(uid, path.ContactsCategory)
 		if err != nil {
 			return nil, err
 		}
 
-		allContainers, err := exchange.GetAllContactFolders(ctx, *params, gs)
+		allContainers, err := exchange.GetAllContactFolders(ctx, *params, gs, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -518,7 +518,10 @@ func containerFilter(nameContains string, containers []graph.CachedContainer) []
 	return result
 }
 
-func exchangeQueryParamFactory(user string, category path.CategoryType) (*graph.QueryParams, error) {
+func exchangeQueryParamFactory(
+	user string,
+	category path.CategoryType,
+) (*graph.QueryParams, selectors.ExchangeScope, error) {
 	var scope selectors.ExchangeScope
 
 	switch category {
@@ -529,18 +532,17 @@ func exchangeQueryParamFactory(user string, category path.CategoryType) (*graph.
 	case path.EventsCategory:
 		scope = selectors.NewExchangeBackup().EventCalendars([]string{user}, selectors.Any())[0]
 	default:
-		return nil, fmt.Errorf("category %s not supported", category)
+		return nil, scope, fmt.Errorf("category %s not supported", category)
 	}
 
 	params := &graph.QueryParams{
-		User:     user,
-		Scope:    scope,
-		FailFast: false,
+		ResourceOwner: user,
+		FailFast:      false,
 		Credentials: account.M365Config{
 			M365:          credentials.GetM365(),
 			AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
 		},
 	}
 
-	return params, nil
+	return params, scope, nil
 }
