@@ -266,7 +266,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-    # Update check run called "Integration-Fork"
+    # Update check run called "Test-Suite-Fork"
     - uses: actions/github-script@v5
       id: update-check-run
       if: ${{ always() }}
