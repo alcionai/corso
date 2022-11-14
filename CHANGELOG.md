@@ -17,12 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add end time for Exchange events from [meain](https://github.com/meain)
 - Started work on enabling Sharepoint from [dadams39](https://github.com/dadams39) and [ryanfkeepers](https://github.com/ryanfkeepers)
 
-## Changed
+### Changed
 
 - Export `RepoAlreadyExists` error for sdk users from [ryanfkeepers](https://github.com/ryanfkeepers)
 - RudderStack logger now respects corso logger settings from [ryanfkeepers](https://github.com/ryanfkeepers)
 
-# [v0.0.1] (alpha) - 2022-10-24
+## [v0.0.1] (alpha) - 2022-10-24
 
 ### New features
 
@@ -52,5 +52,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[unreleased]: https://github.com/alcionai/corso/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.0.1...HEAD
 [v0.0.1]: https://github.com/alcionai/corso/tag/v0.0.1
