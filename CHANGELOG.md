@@ -9,18 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added AWS X-Ray support for better observability from [ryanfkeepers](https://github.com/ryanfkeepers)
-- Add tags to kopia backups based on service/category from [ashmrtn](https://github.com/ashmrtn)
-- Allow disabling TLS and TLS verification from [vkamra](https://github.com/vkamra)
-- Add filtering based on path prefix/contains from [ryanfkeepers](https://github.com/ryanfkeepers)
-- Add info about doc owner for OneDrive files from [meain](https://github.com/meain)
-- Add end time for Exchange events from [meain](https://github.com/meain)
-- Started work on enabling Sharepoint from [dadams39](https://github.com/dadams39) and [ryanfkeepers](https://github.com/ryanfkeepers)
+- Added AWS X-Ray support for better observability (#1111) from [ryanfkeepers](https://github.com/ryanfkeepers)
+- Allow disabling TLS and TLS verification (#1415) from [vkamra](https://github.com/vkamra)
+- Add filtering based on path prefix/contains (#1224) from [ryanfkeepers](https://github.com/ryanfkeepers)
+- Add info about doc owner for OneDrive files (#1366) from [meain](https://github.com/meain)
+- Add end time for Exchange events from (#1366) [meain](https://github.com/meain)
 
 ### Changed
 
-- Export `RepoAlreadyExists` error for sdk users from [ryanfkeepers](https://github.com/ryanfkeepers)
-- RudderStack logger now respects corso logger settings from [ryanfkeepers](https://github.com/ryanfkeepers)
+- Export `RepoAlreadyExists` error for sdk users (#1136)from [ryanfkeepers](https://github.com/ryanfkeepers)
+- RudderStack logger now respects corso logger settings (#1324) from [ryanfkeepers](https://github.com/ryanfkeepers)
 
 ## [v0.0.1] (alpha) - 2022-10-24
 
