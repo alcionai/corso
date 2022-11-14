@@ -36,6 +36,7 @@ type GraphConnector struct {
 	graphService
 	tenant      string
 	Users       map[string]string // key<email> value<id>
+	Sites       map[string]string // key<???> value<???>
 	credentials account.M365Config
 
 	// wg is used to track completion of GC tasks
@@ -97,6 +98,12 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 		return nil, errors.Wrap(err, "retrieving tenant user list")
 	}
 
+	// TODO: users or sites, one or the other, not both.
+	err = gc.setTenantSites(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "retrieveing tenant site list")
+	}
+
 	return &gc, nil
 }
 
@@ -126,7 +133,7 @@ func (gs *graphService) EnableFailFast() {
 
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
-// iff the return value is true
+// iff the return value is nil
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
@@ -189,6 +196,79 @@ func (gc *GraphConnector) GetUsers() []string {
 // GetUsersIds returns the M365 id for the user
 func (gc *GraphConnector) GetUsersIds() []string {
 	return buildFromMap(false, gc.Users)
+}
+
+// setTenantSites queries the M365 to identify the sites in the
+// workspace. The sitets field is updated during this method
+// iff the return value is nil
+func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
+	// TODO
+	gc.Sites = map[string]string{}
+
+	// ctx, end := D.Span(ctx, "gc:setTenantSites")
+	// defer end()
+
+	// response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
+	// if err != nil {
+	// 	return errors.Wrapf(
+	// 		err,
+	// 		"tenant %s M365 query: %s",
+	// 		gc.tenant,
+	// 		support.ConnectorStackErrorTrace(err),
+	// 	)
+	// }
+
+	// userIterator, err := msgraphgocore.NewPageIterator(
+	// 	response,
+	// 	&gc.graphService.adapter,
+	// 	models.CreateUserCollectionResponseFromDiscriminatorValue,
+	// )
+	// if err != nil {
+	// 	return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	// }
+
+	// callbackFunc := func(userItem interface{}) bool {
+	// 	user, ok := userItem.(models.Userable)
+	// 	if !ok {
+	// 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(),
+	//  errors.New("received non-User on iteration"), err)
+	// 		return true
+	// 	}
+
+	// 	if user.GetUserPrincipalName() == nil {
+	// 		err = support.WrapAndAppend(
+	// 			gc.graphService.adapter.GetBaseUrl(),
+	// 			fmt.Errorf("no email address for User: %s", *user.GetId()),
+	// 			err,
+	// 		)
+
+	// 		return true
+	// 	}
+
+	// 	// *user.GetId() is populated for every M365 entityable object by M365 backstore
+	// 	gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
+
+	// 	return true
+	// }
+
+	// iterateError := userIterator.Iterate(ctx, callbackFunc)
+	// if iterateError != nil {
+	// 	err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
+	// }
+
+	// return err
+
+	return nil
+}
+
+// GetSites returns the siteIDs of sharepoint sites within tenant.
+func (gc *GraphConnector) GetSites() []string {
+	return buildFromMap(true, gc.Sites)
+}
+
+// GetSiteIds returns the M365 id for the user
+func (gc *GraphConnector) GetSiteIds() []string {
+	return buildFromMap(false, gc.Sites)
 }
 
 // buildFromMap helper function for returning []string from map.

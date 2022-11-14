@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -23,6 +22,7 @@ type ConnectorDataCollectionIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
 	user      string
+	site      string
 }
 
 func TestConnectorDataCollectionIntegrationSuite(t *testing.T) {
@@ -44,6 +44,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 	require.NoError(suite.T(), err)
 	suite.connector = loadConnector(ctx, suite.T())
 	suite.user = tester.M365UserID(suite.T())
+	suite.site = tester.M365SiteID(suite.T())
 	tester.LogTimeOfTest(suite.T())
 }
 
@@ -154,82 +155,76 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 	}
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
-	dest := tester.DefaultTestRestoreDestination()
-	table := []struct {
-		name string
-		col  []data.Collection
-		sel  selectors.Selector
+// TestSharePointDataCollection verifies interface between operation and
+// GraphConnector remains stable to receive a non-zero amount of Collections
+// for the SharePoint Package.
+func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollection() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	connector := loadConnector(ctx, suite.T())
+	tests := []struct {
+		name        string
+		getSelector func(t *testing.T) selectors.Selector
 	}{
 		{
-			name: "ExchangeNil",
-			col:  nil,
-			sel: selectors.Selector{
-				Service: selectors.ServiceExchange,
-			},
-		},
-		{
-			name: "ExchangeEmpty",
-			col:  []data.Collection{},
-			sel: selectors.Selector{
-				Service: selectors.ServiceExchange,
-			},
-		},
-		{
-			name: "OneDriveNil",
-			col:  nil,
-			sel: selectors.Selector{
-				Service: selectors.ServiceOneDrive,
-			},
-		},
-		{
-			name: "OneDriveEmpty",
-			col:  []data.Collection{},
-			sel: selectors.Selector{
-				Service: selectors.ServiceOneDrive,
+			name: "Items - TODO: actual sharepoint categories",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Include(sel.Folders([]string{suite.site}, selectors.Any()))
+
+				return sel.Selector
 			},
 		},
 	}
 
-	for _, test := range table {
+	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			deets, err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
+			_, err := connector.SharePointDataCollections(ctx, test.getSelector(t))
 			require.NoError(t, err)
-			assert.NotNil(t, deets)
 
-			stats := suite.connector.AwaitStatus()
-			assert.Zero(t, stats.ObjectCount)
-			assert.Zero(t, stats.FolderCount)
-			assert.Zero(t, stats.Successful)
+			// TODO: Implementation
+			// assert.Equal(t, len(collection), 1)
+
+			// channel := collection[0].Items()
+
+			// for object := range channel {
+			// 	buf := &bytes.Buffer{}
+			// 	_, err := buf.ReadFrom(object.ToReader())
+			// 	assert.NoError(t, err, "received a buf.Read error")
+			// }
+
+			// status := connector.AwaitStatus()
+			// assert.NotZero(t, status.Successful)
+
+			// t.Log(status.String())
 		})
 	}
 }
 
 // ---------------------------------------------------------------------------
-// CreateCollection tests
+// CreateExchangeCollection tests
 // ---------------------------------------------------------------------------
 
-type ConnectorCreateCollectionIntegrationSuite struct {
+type ConnectorCreateExchangeCollectionIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
 	user      string
+	site      string
 }
 
-func TestConnectorCreateCollectionIntegrationSuite(t *testing.T) {
+func TestConnectorCreateExchangeCollectionIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
-		tester.CorsoConnectorCreateCollectionTests,
+		tester.CorsoConnectorCreateExchangeCollectionTests,
 	); err != nil {
 		t.Skip(err)
 	}
 
-	suite.Run(t, new(ConnectorCreateCollectionIntegrationSuite))
+	suite.Run(t, new(ConnectorCreateExchangeCollectionIntegrationSuite))
 }
 
-func (suite *ConnectorCreateCollectionIntegrationSuite) SetupSuite() {
+func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -237,13 +232,62 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) SetupSuite() {
 	require.NoError(suite.T(), err)
 	suite.connector = loadConnector(ctx, suite.T())
 	suite.user = tester.M365UserID(suite.T())
+	suite.site = tester.M365SiteID(suite.T())
 	tester.LogTimeOfTest(suite.T())
+}
+
+func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t      = suite.T()
+		userID = tester.M365UserID(t)
+	)
+
+	tests := []struct {
+		name        string
+		scope       selectors.ExchangeScope
+		folderNames map[string]struct{}
+	}{
+		{
+			name: "Folder Iterative Check Mail",
+			scope: selectors.NewExchangeBackup().MailFolders(
+				[]string{userID},
+				[]string{exchange.DefaultMailFolder},
+				selectors.PrefixMatch(),
+			)[0],
+			folderNames: map[string]struct{}{
+				exchange.DefaultMailFolder: {},
+			},
+		},
+	}
+
+	gc := loadConnector(ctx, t)
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections, err := gc.createExchangeCollections(ctx, test.scope)
+			require.NoError(t, err)
+
+			for _, c := range collections {
+				require.NotEmpty(t, c.FullPath().Folder())
+				folder := c.FullPath().Folder()
+
+				if _, ok := test.folderNames[folder]; ok {
+					delete(test.folderNames, folder)
+				}
+			}
+
+			assert.Empty(t, test.folderNames)
+		})
+	}
 }
 
 // TestMailSerializationRegression verifies that all mail data stored in the
 // test account can be successfully downloaded into bytes and restored into
 // M365 mail objects
-func (suite *ConnectorCreateCollectionIntegrationSuite) TestMailSerializationRegression() {
+func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailSerializationRegression() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -251,7 +295,7 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestMailSerializationReg
 	connector := loadConnector(ctx, t)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-	collection, err := connector.createCollections(ctx, sel.Scopes()[0])
+	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
 	require.NoError(t, err)
 
 	for _, edc := range collection {
@@ -278,7 +322,7 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestMailSerializationReg
 // TestContactSerializationRegression verifies ability to query contact items
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
-func (suite *ConnectorCreateCollectionIntegrationSuite) TestContactSerializationRegression() {
+func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSerializationRegression() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -294,7 +338,7 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestContactSerialization
 				scope := selectors.
 					NewExchangeBackup().
 					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch())[0]
-				collections, err := connector.createCollections(ctx, scope)
+				collections, err := connector.createExchangeCollections(ctx, scope)
 				require.NoError(t, err)
 
 				return collections
@@ -331,7 +375,7 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestContactSerialization
 
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
-func (suite *ConnectorCreateCollectionIntegrationSuite) TestEventsSerializationRegression() {
+func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerializationRegression() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -347,7 +391,7 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestEventsSerializationR
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
-				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
+				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -359,7 +403,7 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestEventsSerializationR
 			getCollection: func(t *testing.T) []*exchange.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}, selectors.PrefixMatch()))
-				collections, err := connector.createCollections(ctx, sel.Scopes()[0])
+				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
 				require.NoError(t, err)
 
 				return collections
@@ -398,7 +442,7 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestEventsSerializationR
 // messages in their inbox will have a collection returned.
 // The final test insures that more than a 75% of the user collections are
 // returned. If an error was experienced, the test will fail overall
-func (suite *ConnectorCreateCollectionIntegrationSuite) TestAccessOfInboxAllUsers() {
+func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestAccessOfInboxAllUsers() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -411,8 +455,60 @@ func (suite *ConnectorCreateCollectionIntegrationSuite) TestAccessOfInboxAllUser
 	for _, scope := range scopes {
 		users := scope.Get(selectors.ExchangeUser)
 		standard := (len(users) / 4) * 3
-		collections, err := connector.createCollections(ctx, scope)
+		collections, err := connector.createExchangeCollections(ctx, scope)
 		require.NoError(t, err)
 		suite.Greater(len(collections), standard)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// CreateSharePointCollection tests
+// ---------------------------------------------------------------------------
+
+type ConnectorCreateSharePointCollectionIntegrationSuite struct {
+	suite.Suite
+	connector *GraphConnector
+	user      string
+}
+
+func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoConnectorCreateSharePointCollectionTests,
+	); err != nil {
+		t.Skip(err)
+	}
+
+	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
+}
+
+func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
+	require.NoError(suite.T(), err)
+	suite.connector = loadConnector(ctx, suite.T())
+	suite.user = tester.M365UserID(suite.T())
+	tester.LogTimeOfTest(suite.T())
+}
+
+func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t      = suite.T()
+		userID = tester.M365UserID(t)
+	)
+
+	gc := loadConnector(ctx, t)
+	scope := selectors.NewSharePointBackup().Folders(
+		[]string{userID},
+		[]string{"foo"},
+		selectors.PrefixMatch(),
+	)[0]
+
+	_, err := gc.createSharePointCollections(ctx, scope)
+	require.NoError(t, err)
 }
