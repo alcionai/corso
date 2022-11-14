@@ -345,10 +345,12 @@ func (i ExchangeInfo) Values() []string {
 }
 
 // SharepointInfo describes a sharepoint item
-// TODO: Implement this. This is currently here
-// just to illustrate usage
 type SharepointInfo struct {
-	ItemType ItemType `json:"itemType,omitempty"`
+	ItemType ItemType  `json:"itemType,omitempty"`
+	ItemName string    `json:"itemName,omitempty"`
+	Created  time.Time `json:"created,omitempty"`
+	Modified time.Time `josn:"modified,omitempty"`
+	WebURL   string    `json:"webUrl,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharepointInfo
