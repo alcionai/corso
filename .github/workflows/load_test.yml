@@ -3,8 +3,8 @@ on:
   schedule:
     # every day at 01:59 (01:59am) UTC
     # - cron: "59 1 * * *"
-    # temp, for testing: every 6 hours
-    - cron: "0 */6 * * *"
+    # temp, for testing: every 4 hours
+    - cron: "0 */4 * * *"
 
 permissions:
   # required to retrieve AWS credentials
@@ -145,7 +145,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Set folder boundary datetime
         run: |
-          echo "NOW=$(date -u +"%Y-%m-%d_%H-%M-%S")" >> $GITHUB_ENV
+          echo "NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
       - name: Purge Load-Test-Produced Folders
         uses: ./.github/actions/purge-m365-user-data
         with:
