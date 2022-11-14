@@ -353,7 +353,7 @@ type SharePointInfo struct {
 	WebURL   string    `json:"webUrl,omitempty"`
 }
 
-// Headers returns the human-readable names of properties in a SharepointInfo
+// Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i SharePointInfo) Headers() []string {
 	return []string{}
