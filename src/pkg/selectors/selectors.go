@@ -24,10 +24,10 @@ const (
 )
 
 var serviceToPathType = map[service]path.ServiceType{
-	ServiceUnknown:  path.UnknownService,
-	ServiceExchange: path.ExchangeService,
-	ServiceOneDrive: path.OneDriveService,
-	// ServiceSharePoint: path.SharePointService, TODO: add sharepoint to path
+	ServiceUnknown:    path.UnknownService,
+	ServiceExchange:   path.ExchangeService,
+	ServiceOneDrive:   path.OneDriveService,
+	ServiceSharePoint: path.SharePointService,
 }
 
 var (
@@ -78,7 +78,7 @@ type Reducer interface {
 // The core selector.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific selector instances.
 type Selector struct {
-	// The service scope of the data.  Exchange, Teams, Sharepoint, etc.
+	// The service scope of the data.  Exchange, Teams, SharePoint, etc.
 	Service service `json:"service,omitempty"`
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.

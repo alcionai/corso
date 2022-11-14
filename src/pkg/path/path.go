@@ -305,6 +305,27 @@ func (pb Builder) ToDataLayerOneDrivePath(
 	}, nil
 }
 
+func (pb Builder) ToDataLayerSharePointPath(
+	tenant, site string,
+	isItem bool,
+) (Path, error) {
+	if err := pb.verifyPrefix(tenant, site); err != nil {
+		return nil, err
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			SharePointService.String(),
+			site,
+			FilesCategory.String(),
+		),
+		service:  SharePointService,
+		category: FilesCategory,
+		hasItem:  isItem,
+	}, nil
+}
+
 // FromDataLayerPath parses the escaped path p, validates the elements in p
 // match a resource-specific path format, and returns a Path struct for that
 // resource-specific type. If p does not match any resource-specific paths or
