@@ -114,23 +114,17 @@ func (gc *GraphConnector) createExchangeCollections(
 		collections := make(map[string]*exchange.Collection)
 
 		qp := graph.QueryParams{
-			User:        user,
-			Scope:       scope,
-			FailFast:    gc.failFast,
-			Credentials: gc.credentials,
+			Category:      scope.Category().PathType(),
+			ResourceOwner: user,
+			FailFast:      gc.failFast,
+			Credentials:   gc.credentials,
 		}
 
-		itemCategory := qp.Scope.Category().PathType()
-
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
+		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
 		defer closer()
 		defer close(foldersComplete)
 
-		resolver, err := exchange.PopulateExchangeContainerResolver(
-			ctx,
-			qp,
-			qp.Scope.Category().PathType(),
-		)
+		resolver, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting folder cache")
 		}
@@ -140,7 +134,8 @@ func (gc *GraphConnector) createExchangeCollections(
 			qp,
 			collections,
 			gc.UpdateStatus,
-			resolver)
+			resolver,
+			scope)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "filling collections")
@@ -264,18 +259,13 @@ func (gc *GraphConnector) createSharePointCollections(
 		collections := make(map[string]*sharepoint.Collection)
 
 		qp := graph.QueryParams{
-			// TODO: Resource owner, not user/site.
-			User: site,
-			// TODO: generic scope handling in query params.
-			// - or, break scope out of QP.
-			// Scope:       scope,
-			FailFast:    gc.failFast,
-			Credentials: gc.credentials,
+			Category:      scope.Category().PathType(),
+			ResourceOwner: site,
+			FailFast:      gc.failFast,
+			Credentials:   gc.credentials,
 		}
 
-		itemCategory := qp.Scope.Category().PathType()
-
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), site))
+		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, site))
 		defer closer()
 		defer close(foldersComplete)
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // FilterContainersAndFillCollections is a utility function
@@ -17,6 +18,7 @@ func FilterContainersAndFillCollections(
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
+	scope selectors.SharePointScope,
 ) error {
 	return nil
 }
