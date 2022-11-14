@@ -89,6 +89,39 @@ func err(w io.Writer, s ...any) {
 	fmt.Fprint(w, msg...)
 }
 
+// Print prints the params to cobra's output writer (stdOut by default)
+// if s is nil, prints nothing.
+func Print(ctx context.Context, s ...any) {
+	print(getRootCmd(ctx).OutOrStdout(), s...)
+}
+
+// print is the testable core of Print()
+//revive:disable:redefines-builtin-id
+func print(w io.Writer, s ...any) {
+	if len(s) == 0 {
+		return
+	}
+
+	fmt.Fprint(w, s...)
+	fmt.Fprintf(w, "\n")
+}
+
+// Print prints the formatted strings to cobra's output writer (stdOut by default)
+// if t is empty, prints nothing.
+func Printf(ctx context.Context, t string, s ...any) {
+	printf(getRootCmd(ctx).OutOrStdout(), t, s...)
+}
+
+// printf is the testable core of Printf()
+func printf(w io.Writer, t string, s ...any) {
+	if len(t) == 0 {
+		return
+	}
+
+	fmt.Fprintf(w, t, s...)
+	fmt.Fprintf(w, "\n")
+}
+
 // Info prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
 func Info(ctx context.Context, s ...any) {
@@ -138,14 +171,12 @@ type Printable interface {
 
 // Item prints the printable, according to the caller's requested format.
 func Item(ctx context.Context, p Printable) {
-	print(getRootCmd(ctx).OutOrStdout(), p)
+	printItem(getRootCmd(ctx).OutOrStdout(), p)
 }
 
 // print prints the printable items,
 // according to the caller's requested format.
-//
-//revive:disable:redefines-builtin-id
-func print(w io.Writer, p Printable) {
+func printItem(w io.Writer, p Printable) {
 	if outputAsJSON || outputAsJSONDebug {
 		outputJSON(w, p, outputAsJSONDebug)
 		return
