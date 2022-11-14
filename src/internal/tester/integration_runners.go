@@ -16,6 +16,7 @@ const (
 	CorsoCLIRepoTests                             = "CORSO_COMMAND_LINE_REPO_TESTS"
 	CorsoCLIRestoreTests                          = "CORSO_COMMAND_LINE_RESTORE_TESTS"
 	CorsoCLITests                                 = "CORSO_COMMAND_LINE_TESTS"
+	CorsoConnectorCreateCollectionTests           = "CORSO_CONNECTOR_CREATE_COLLECTION_TESTS"
 	CorsoConnectorCreateExchangeCollectionTests   = "CORSO_CONNECTOR_CREATE_EXCHANGE_COLLECTION_TESTS"
 	CorsoConnectorCreateSharePointCollectionTests = "CORSO_CONNECTOR_CREATE_SHAREPOINT_COLLECTION_TESTS"
 	CorsoConnectorDataCollectionTests             = "CORSO_CONNECTOR_DATA_COLLECTION_TESTS"
