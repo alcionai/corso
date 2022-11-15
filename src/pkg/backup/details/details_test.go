@@ -2,6 +2,7 @@ package details_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,8 @@ func TestDetailsUnitSuite(t *testing.T) {
 }
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
-	nowStr := common.FormatNow(common.TabularOutput)
+	initial := time.Now()
+	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
 	require.NoError(suite.T(), err)
 
@@ -100,7 +102,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
-					Sharepoint: &details.SharepointInfo{},
+					SharePoint: &details.SharePointInfo{},
 				},
 			},
 			expectHs: []string{"ID"},

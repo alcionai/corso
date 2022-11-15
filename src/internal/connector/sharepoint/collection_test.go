@@ -71,7 +71,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	col.data <- &Item{
 		id:   testName,
 		data: io.NopCloser(bytes.NewReader(byteArray)),
-		info: sharepointListInfo(listing),
+		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
 	col.finishPopulation(ctx, 0, 0, nil)
 
@@ -85,6 +85,6 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	shareInfo, ok := item.(data.StreamInfo)
 	require.True(t, ok)
 	require.NotNil(t, shareInfo.Info())
-	require.NotNil(t, shareInfo.Info().Sharepoint)
-	assert.Equal(t, testName, shareInfo.Info().Sharepoint.ItemName)
+	require.NotNil(t, shareInfo.Info().SharePoint)
+	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
