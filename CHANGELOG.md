@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [v0.0.2] (alpha) - 2022-11-14
+
 ### Added
 
 - Added AWS X-Ray support for better observability (#1111) from [ryanfkeepers](https://github.com/ryanfkeepers)
@@ -50,5 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.0.2...HEAD
+[v0.0.2]: https://github.com/alcionai/corso/compare/v0.0.1...v0.0.2
 [v0.0.1]: https://github.com/alcionai/corso/tag/v0.0.1
