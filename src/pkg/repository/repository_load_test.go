@@ -168,7 +168,7 @@ func runBackupListLoadTest(
 	t.Run("backup_list_"+name, func(t *testing.T) {
 		var (
 			err    error
-			bs     []backup.Backup
+			bs     []*backup.Backup
 			labels = pprof.Labels("list_load_test", name)
 		)
 
