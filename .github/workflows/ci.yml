@@ -176,7 +176,7 @@ jobs:
           go test -run=nope \
           -json   \
           -v      \
-          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+          ./...
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
