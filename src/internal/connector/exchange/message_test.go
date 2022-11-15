@@ -36,6 +36,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 					ItemType: details.ExchangeMail,
 					Created:  initial,
 					Modified: initial,
+					Size:     10,
 				}
 				return msg, i
 			},
@@ -57,6 +58,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Sender:   sender,
 					Created:  initial,
 					Modified: initial,
+					Size:     10,
 				}
 				return msg, i
 			},
@@ -74,6 +76,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Subject:  subject,
 					Created:  initial,
 					Modified: initial,
+					Size:     10,
 				}
 				return msg, i
 			},
@@ -91,6 +94,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Received: now,
 					Created:  initial,
 					Modified: initial,
+					Size:     10,
 				}
 				return msg, i
 			},

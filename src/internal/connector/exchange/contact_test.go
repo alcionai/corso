@@ -37,6 +37,7 @@ func (suite *ContactSuite) TestContactInfo() {
 					ItemType: details.ExchangeContact,
 					Created:  initial,
 					Modified: initial,
+					Size:     10,
 				}
 				return contact, i
 			},
