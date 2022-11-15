@@ -202,12 +202,12 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to run OneDrive backup"))
 	}
 
-	bu, err := r.Backup(ctx, bo.Results.BackupID)
+	bups, err := r.BackupsByID(ctx, bo.BackupIDs)
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve backup results from storage")
 	}
 
-	bu.Print(ctx)
+	backup.PrintAll(ctx, bups)
 
 	return nil
 }
