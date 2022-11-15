@@ -212,6 +212,12 @@ jobs:
       run:
         working-directory: src
     steps:
+      # add comment to PR with link to workflow run
+      - uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
       # Check out merge commit
       - name: Fork based /ok-to-test checkout
         uses: actions/checkout@v2
