@@ -48,6 +48,7 @@ func (ecc *eventCalendarCache) Populate(
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
+
 		for _, cal := range resp.GetValue() {
 			temp := CreateCalendarDisplayable(cal)
 			if err := checkIDAndName(temp); err != nil {
