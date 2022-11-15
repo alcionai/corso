@@ -10,7 +10,7 @@ import (
 
 // sharePointListInfo translates models.Listable metadata into searchable content
 // List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
-func sharepointListInfo(lst models.Listable, size int64) *details.SharePointInfo {
+func sharePointListInfo(lst models.Listable, size int64) *details.SharePointInfo {
 	var (
 		name, webURL      string
 		created, modified time.Time
