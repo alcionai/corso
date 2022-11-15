@@ -147,6 +147,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Setup Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: src/go.mod
+
       - run: mkdir testlog
 
       # Install gotestfmt
@@ -176,7 +181,7 @@ jobs:
           go test -run=nope \
           -json   \
           -v      \
-          ./...
+          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
