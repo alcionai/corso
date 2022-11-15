@@ -69,7 +69,7 @@ func (sc *Collection) Items() <-chan data.Stream {
 type Item struct {
 	id   string
 	data io.ReadCloser
-	info *details.SharepointInfo
+	info *details.SharePointInfo
 }
 
 func (sd *Item) UUID() string {
@@ -81,7 +81,7 @@ func (sd *Item) ToReader() io.ReadCloser {
 }
 
 func (sd *Item) Info() details.ItemInfo {
-	return details.ItemInfo{Sharepoint: sd.info}
+	return details.ItemInfo{SharePoint: sd.info}
 }
 
 func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
