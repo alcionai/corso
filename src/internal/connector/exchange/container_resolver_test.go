@@ -2,7 +2,6 @@ package exchange
 
 import (
 	stdpath "path"
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -256,6 +255,34 @@ func (m *mockCachedContainer) SetPath(newPath *path.Builder) {
 	m.p = newPath
 }
 
+func resolverWithContainers(numContainers int) (*containerResolver, []*mockCachedContainer) {
+	containers := make([]*mockCachedContainer, 0, numContainers)
+
+	for i := 0; i < numContainers; i++ {
+		containers = append(containers, newMockCachedContainer("a"))
+	}
+
+	// Base case for the recursive lookup.
+	containers[0].p = path.Builder{}.Append(containers[0].displayName)
+	containers[0].expectedPath = containers[0].displayName
+
+	for i := 1; i < len(containers); i++ {
+		containers[i].parentID = containers[i-1].id
+		containers[i].expectedPath = stdpath.Join(
+			containers[i-1].expectedPath,
+			containers[i].displayName,
+		)
+	}
+
+	resolver := newContainerResolver()
+
+	for _, c := range containers {
+		resolver.cache[c.id] = c
+	}
+
+	return resolver, containers
+}
+
 // TestConfiguredFolderCacheUnitSuite cannot run its tests in parallel.
 type ConfiguredFolderCacheUnitSuite struct {
 	suite.Suite
@@ -266,36 +293,41 @@ type ConfiguredFolderCacheUnitSuite struct {
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) SetupTest() {
-	suite.allContainers = []*mockCachedContainer{}
-
-	for i := 0; i < 4; i++ {
-		suite.allContainers = append(
-			suite.allContainers,
-			newMockCachedContainer(strings.Repeat("sub", i)+"folder"),
-		)
-	}
-
-	// Base case for the recursive lookup.
-	suite.allContainers[0].p = path.Builder{}.Append(suite.allContainers[0].displayName)
-	suite.allContainers[0].expectedPath = suite.allContainers[0].displayName
-
-	for i := 1; i < len(suite.allContainers); i++ {
-		suite.allContainers[i].parentID = suite.allContainers[i-1].id
-		suite.allContainers[i].expectedPath = stdpath.Join(
-			suite.allContainers[i-1].expectedPath,
-			suite.allContainers[i].displayName,
-		)
-	}
-
-	suite.fc = newContainerResolver()
-
-	for _, c := range suite.allContainers {
-		suite.fc.cache[c.id] = c
-	}
+	suite.fc, suite.allContainers = resolverWithContainers(4)
 }
 
 func TestConfiguredFolderCacheUnitSuite(t *testing.T) {
 	suite.Run(t, new(ConfiguredFolderCacheUnitSuite))
+}
+
+func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	table := []struct {
+		name          string
+		numContainers int
+		check         assert.ErrorAssertionFunc
+	}{
+		{
+			name:          "AtLimit",
+			numContainers: maxIterations,
+			check:         assert.NoError,
+		},
+		{
+			name:          "OverLimit",
+			numContainers: maxIterations + 1,
+			check:         assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			resolver, containers := resolverWithContainers(test.numContainers)
+			_, err := resolver.IDToPath(ctx, containers[len(containers)-1].id)
+			test.check(t, err)
+		})
+	}
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestPopulatePaths() {
