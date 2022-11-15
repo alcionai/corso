@@ -302,6 +302,8 @@ type ExchangeInfo struct {
 	Organizer   string    `json:"organizer,omitempty"`
 	ContactName string    `json:"contactName,omitempty"`
 	EventRecurs bool      `json:"eventRecurs,omitempty"`
+	Created     time.Time `json:"created,omitempty"`
+	Modified    time.Time `json:"modified,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in an ExchangeInfo
@@ -338,7 +340,10 @@ func (i ExchangeInfo) Values() []string {
 		return []string{i.ContactName}
 
 	case ExchangeMail:
-		return []string{i.Sender, i.Subject, common.FormatTabularDisplayTime(i.Received)}
+		return []string{
+			i.Sender, i.Subject,
+			common.FormatTabularDisplayTime(i.Received),
+		}
 	}
 
 	return []string{}

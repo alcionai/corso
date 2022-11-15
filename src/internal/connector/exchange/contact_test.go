@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"testing"
+	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,8 @@ func TestContactSuite(t *testing.T) {
 }
 
 func (suite *ContactSuite) TestContactInfo() {
+	initial := time.Now()
+
 	tests := []struct {
 		name         string
 		contactAndRP func() (models.Contactable, *details.ExchangeInfo)
@@ -26,18 +29,30 @@ func (suite *ContactSuite) TestContactInfo() {
 		{
 			name: "Empty Contact",
 			contactAndRP: func() (models.Contactable, *details.ExchangeInfo) {
-				i := &details.ExchangeInfo{ItemType: details.ExchangeContact}
-				return models.NewContact(), i
+				contact := models.NewContact()
+				contact.SetCreatedDateTime(&initial)
+				contact.SetLastModifiedDateTime(&initial)
+
+				i := &details.ExchangeInfo{
+					ItemType: details.ExchangeContact,
+					Created:  initial,
+					Modified: initial,
+				}
+				return contact, i
 			},
 		}, {
 			name: "Only Name",
 			contactAndRP: func() (models.Contactable, *details.ExchangeInfo) {
 				aPerson := "Whole Person"
 				contact := models.NewContact()
+				contact.SetCreatedDateTime(&initial)
+				contact.SetLastModifiedDateTime(&initial)
 				contact.SetDisplayName(&aPerson)
 				i := &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
 					ContactName: aPerson,
+					Created:     initial,
+					Modified:    initial,
 				}
 				return contact, i
 			},
