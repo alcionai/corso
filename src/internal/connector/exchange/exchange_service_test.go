@@ -494,7 +494,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 		t               = suite.T()
 		user            = tester.M365UserID(t)
 		connector       = loadService(t)
-		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
+		directoryCaches = make(map[path.CategoryType]graph.ContainerPopulater)
 		folderName      = tester.DefaultTestRestoreDestination().ContainerName
 		tests           = []struct {
 			name      string

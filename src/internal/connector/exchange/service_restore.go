@@ -292,7 +292,7 @@ func RestoreExchangeDataCollections(
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		// map of caches... but not yet...
-		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerResolver)
+		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerPopulater)
 		metrics         support.CollectionMetrics
 		errs            error
 		// TODO policy to be updated from external source after completion of refactoring
@@ -308,7 +308,7 @@ func RestoreExchangeDataCollections(
 
 		userCaches := directoryCaches[userID]
 		if userCaches == nil {
-			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerResolver)
+			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerPopulater)
 			userCaches = directoryCaches[userID]
 		}
 
@@ -432,7 +432,7 @@ func GetContainerIDFromCache(
 	gs graph.Service,
 	directory path.Path,
 	destination string,
-	caches map[path.CategoryType]graph.ContainerResolver,
+	caches map[path.CategoryType]graph.ContainerPopulater,
 ) (string, error) {
 	var (
 		newCache       = false
@@ -512,7 +512,7 @@ func GetContainerIDFromCache(
 func establishMailRestoreLocation(
 	ctx context.Context,
 	folders []string,
-	mfc graph.ContainerResolver,
+	mfc graph.ContainerPopulater,
 	user string,
 	service graph.Service,
 	isNewCache bool,
@@ -569,7 +569,7 @@ func establishMailRestoreLocation(
 func establishContactsRestoreLocation(
 	ctx context.Context,
 	folders []string,
-	cfc graph.ContainerResolver,
+	cfc graph.ContainerPopulater,
 	user string,
 	gs graph.Service,
 	isNewCache bool,
@@ -602,7 +602,7 @@ func establishContactsRestoreLocation(
 func establishEventsRestoreLocation(
 	ctx context.Context,
 	folders []string,
-	ecc graph.ContainerResolver, // eventCalendarCache
+	ecc graph.ContainerPopulater, // eventCalendarCache
 	user string,
 	gs graph.Service,
 	isNewCache bool,

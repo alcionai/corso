@@ -12,13 +12,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.ContainerResolver = &mailFolderCache{}
+var _ graph.ContainerPopulater = &mailFolderCache{}
 
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	*containerResolver
+	*graph.ContainerCache
 	gs     graph.Service
 	userID string
 }
@@ -51,12 +51,11 @@ func (mc *mailFolderCache) populateMailRoot(
 		return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 	}
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(baseContainerPath...),
-	}
+	temp := graph.NewCacheFolder(
+		f,
+		path.Builder{}.Append(baseContainerPath...))
 
-	if err := mc.addFolder(temp); err != nil {
+	if err := mc.ContainerCache.AddFolder(temp); err != nil {
 		return errors.Wrap(err, "initializing mail resolver")
 	}
 
@@ -95,14 +94,14 @@ func (mc *mailFolderCache) Populate(
 		}
 
 		for _, f := range resp.GetValue() {
-			temp := cacheFolder{
+			temp := graph.CacheFolder{
 				Container: f,
 			}
 
 			// Use addFolder instead of AddToCache to be conservative about path
 			// population. The fetch order of the folders could cause failures while
 			// trying to resolve paths, so put it off until we've gotten all folders.
-			if err := mc.addFolder(temp); err != nil {
+			if err := mc.ContainerCache.AddFolder(temp); err != nil {
 				errs = multierror.Append(errs, errors.Wrap(err, "delta fetch"))
 				continue
 			}
@@ -119,7 +118,7 @@ func (mc *mailFolderCache) Populate(
 		query = msfolderdelta.NewDeltaRequestBuilder(link, mc.gs.Adapter())
 	}
 
-	if err := mc.populatePaths(ctx); err != nil {
+	if err := mc.ContainerCache.PopulatePaths(ctx); err != nil {
 		errs = multierror.Append(errs, errors.Wrap(err, "mail resolver"))
 	}
 
@@ -138,8 +137,8 @@ func (mc *mailFolderCache) init(
 		return errors.New("m365 folder ID required for base folder")
 	}
 
-	if mc.containerResolver == nil {
-		mc.containerResolver = newContainerResolver()
+	if mc.ContainerCache == nil {
+		mc.ContainerCache = graph.NewContainerCache()
 	}
 
 	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)

@@ -12,10 +12,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.ContainerResolver = &contactFolderCache{}
+var _ graph.ContainerPopulater = &contactFolderCache{}
 
 type contactFolderCache struct {
-	*containerResolver
+	*graph.ContainerCache
 	gs     graph.Service
 	userID string
 }
@@ -44,12 +44,11 @@ func (cfc *contactFolderCache) populateContactRoot(
 			"fetching root contact folder: "+support.ConnectorStackErrorTrace(err))
 	}
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(baseContainerPath...),
-	}
+	temp := graph.NewCacheFolder(
+		f,
+		path.Builder{}.Append(baseContainerPath...))
 
-	if err := cfc.addFolder(temp); err != nil {
+	if err := cfc.ContainerCache.AddFolder(temp); err != nil {
 		return errors.Wrap(err, "adding cache root")
 	}
 
@@ -105,11 +104,11 @@ func (cfc *contactFolderCache) Populate(
 	}
 
 	for _, entry := range containers {
-		temp := cacheFolder{
+		temp := graph.CacheFolder{
 			Container: entry,
 		}
 
-		err = cfc.addFolder(temp)
+		err = cfc.ContainerCache.AddFolder(temp)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				"cache build in cfc.Populate",
@@ -118,7 +117,7 @@ func (cfc *contactFolderCache) Populate(
 		}
 	}
 
-	if err := cfc.populatePaths(ctx); err != nil {
+	if err := cfc.ContainerCache.PopulatePaths(ctx); err != nil {
 		errs = support.WrapAndAppend(
 			"contacts resolver",
 			err,
@@ -138,8 +137,8 @@ func (cfc *contactFolderCache) init(
 		return errors.New("m365 folderID required for base folder")
 	}
 
-	if cfc.containerResolver == nil {
-		cfc.containerResolver = newContainerResolver()
+	if cfc.ContainerCache == nil {
+		cfc.ContainerCache = graph.NewContainerCache()
 	}
 
 	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)

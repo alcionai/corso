@@ -50,14 +50,14 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	eventFunc := func(t *testing.T) graph.ContainerResolver {
+	eventFunc := func(t *testing.T) graph.ContainerPopulater {
 		return &eventCalendarCache{
 			userID: tester.M365UserID(t),
 			gs:     suite.gs,
 		}
 	}
 
-	contactFunc := func(t *testing.T) graph.ContainerResolver {
+	contactFunc := func(t *testing.T) graph.ContainerPopulater {
 		return &contactFolderCache{
 			userID: tester.M365UserID(t),
 			gs:     suite.gs,
@@ -66,7 +66,7 @@ func (suite *CacheResolverSuite) TestPopulate() {
 
 	tests := []struct {
 		name, folderName, root, basePath string
-		resolverFunc                     func(t *testing.T) graph.ContainerResolver
+		resolverFunc                     func(t *testing.T) graph.ContainerPopulater
 		canFind                          assert.BoolAssertionFunc
 	}{
 		{

@@ -12,10 +12,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.ContainerResolver = &eventCalendarCache{}
+var _ graph.ContainerPopulater = &eventCalendarCache{}
 
 type eventCalendarCache struct {
-	*containerResolver
+	*graph.ContainerCache
 	gs     graph.Service
 	userID string
 }
@@ -28,8 +28,8 @@ func (ecc *eventCalendarCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if ecc.containerResolver == nil {
-		ecc.containerResolver = newContainerResolver()
+	if ecc.ContainerCache == nil {
+		ecc.ContainerCache = graph.NewContainerCache()
 	}
 
 	options, err := optionsForCalendars([]string{"name"})
@@ -76,7 +76,7 @@ func (ecc *eventCalendarCache) Populate(
 	}
 
 	for _, container := range directories {
-		if err := checkIDAndName(container); err != nil {
+		if err := graph.CheckIDAndName(container); err != nil {
 			iterateErr = support.WrapAndAppend(
 				"adding folder to cache",
 				err,
@@ -86,12 +86,11 @@ func (ecc *eventCalendarCache) Populate(
 			continue
 		}
 
-		temp := cacheFolder{
-			Container: container,
-			p:         path.Builder{}.Append(*container.GetDisplayName()),
-		}
+		temp := graph.NewCacheFolder(
+			container,
+			path.Builder{}.Append(*container.GetDisplayName()))
 
-		if err := ecc.addFolder(temp); err != nil {
+		if err := ecc.ContainerCache.AddFolder(temp); err != nil {
 			iterateErr = support.WrapAndAppend(
 				"failure adding "+*container.GetDisplayName(),
 				err,
@@ -104,23 +103,22 @@ func (ecc *eventCalendarCache) Populate(
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkIDAndName(f); err != nil {
+func (ecc *eventCalendarCache) AddToCache(ctx context.Context, c graph.Container) error {
+	if err := graph.CheckIDAndName(c); err != nil {
 		return errors.Wrap(err, "adding cache folder")
 	}
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(*f.GetDisplayName()),
-	}
+	temp := graph.NewCacheFolder(
+		c,
+		path.Builder{}.Append(*c.GetDisplayName()))
 
-	if err := ecc.addFolder(temp); err != nil {
+	if err := ecc.ContainerCache.AddFolder(temp); err != nil {
 		return errors.Wrap(err, "adding cache folder")
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, err := ecc.IDToPath(ctx, *f.GetId())
+	_, err := ecc.ContainerCache.IDToPath(ctx, *c.GetId())
 	if err != nil {
 		return errors.Wrap(err, "adding cache entry")
 	}

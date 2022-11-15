@@ -60,11 +60,6 @@ type ContainerResolver interface {
 	// to that container. The path has a similar format to paths on the local
 	// file system.
 	IDToPath(ctx context.Context, m365ID string) (*path.Builder, error)
-	// Populate performs initialization steps for the resolver
-	// @param ctx is necessary param for Graph API tracing
-	// @param baseFolderID represents the M365ID base that the resolver will
-	// conclude its search. Default input is "".
-	Populate(ctx context.Context, baseFolderID string, baseContainerPather ...string) error
 
 	// PathInCache performs a look up of a path reprensentation
 	// and returns the m365ID of directory iff the pathString
@@ -76,4 +71,17 @@ type ContainerResolver interface {
 
 	// Items returns the containers in the cache.
 	Items() []CachedContainer
+}
+
+// ContainerPopulater houses functions for populating and retrieving info
+// about containers from remote APIs (i.e. resolve folder paths with Graph
+// API). Populaters may cache information about containers.
+type ContainerPopulater interface {
+	ContainerResolver
+
+	// Populate performs initialization steps for the populater
+	// @param ctx is necessary param for Graph API tracing
+	// @param baseFolderID represents the M365ID base that the
+	// populater will conclude its search. Default input is "".
+	Populate(ctx context.Context, baseFolderID string, baseContainerPather ...string) error
 }

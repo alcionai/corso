@@ -26,6 +26,7 @@ type exchangeService struct {
 ///------------------------------------------------------------
 // Functions to comply with graph.Service Interface
 //-------------------------------------------------------
+
 func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
 	return &es.client
 }
@@ -232,7 +233,7 @@ func PopulateExchangeContainerResolver(
 	qp graph.QueryParams,
 ) (graph.ContainerResolver, error) {
 	var (
-		res          graph.ContainerResolver
+		res          graph.ContainerPopulater
 		cacheRoot    string
 		service, err = createService(qp.Credentials, qp.FailFast)
 	)
