@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -305,19 +304,4 @@ func userOrUsers(u string, us map[string]string) map[string]string {
 	}
 
 	return map[string]string{u: u}
-}
-
-// containerFilter filters container list based on prefix
-// @returns cachedContainers that meet the requirements for purging.
-func containerFilter(nameContains string, containers []graph.CachedContainer) []graph.CachedContainer {
-	f := filters.In(nameContains)
-	result := make([]graph.CachedContainer, 0)
-
-	for _, folder := range containers {
-		if f.Compare(*folder.GetDisplayName()) {
-			result = append(result, folder)
-		}
-	}
-
-	return result
 }
