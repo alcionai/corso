@@ -6,6 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type SharePointSelectorSuite struct {
@@ -175,162 +179,159 @@ func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 	assert.NotZero(t, or.Scopes())
 }
 
-// TODO: enable when sharepoint has path and detail representation
-// func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
-// 	var (
-// 		item  = stubRepoRef(path.SharePointService, path.SharePointItemsCategory, "uid", "/folderA/folderB", "item")
-// 		item2 = stubRepoRef(path.SharePointService, path.SharePointItemsCategory, "uid", "/folderA/folderC", "item2")
-// 		item3 = stubRepoRef(path.SharePointService, path.SharePointItemsCategory, "uid", "/folderD/folderE", "item3")
-// 	)
+func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
+	var (
+		item  = stubRepoRef(path.SharePointService, path.FilesCategory, "uid", "/folderA/folderB", "item")
+		item2 = stubRepoRef(path.SharePointService, path.FilesCategory, "uid", "/folderA/folderC", "item2")
+		item3 = stubRepoRef(path.SharePointService, path.FilesCategory, "uid", "/folderD/folderE", "item3")
+	)
 
-// 	deets := &details.Details{
-// 		DetailsModel: details.DetailsModel{
-// 			Entries: []details.DetailsEntry{
-// 				{
-// 					RepoRef: item,
-// 					ItemInfo: details.ItemInfo{
-// 						SharePoint: &details.SharePointInfo{
-// 							ItemType: details.SharePointItem,
-// 						},
-// 					},
-// 				},
-// 				{
-// 					RepoRef: item2,
-// 					ItemInfo: details.ItemInfo{
-// 						SharePoint: &details.SharePointInfo{
-// 							ItemType: details.SharePointItem,
-// 						},
-// 					},
-// 				},
-// 				{
-// 					RepoRef: item3,
-// 					ItemInfo: details.ItemInfo{
-// 						SharePoint: &details.SharePointInfo{
-// 							ItemType: details.SharePointItem,
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
+	deets := &details.Details{
+		DetailsModel: details.DetailsModel{
+			Entries: []details.DetailsEntry{
+				{
+					RepoRef: item,
+					ItemInfo: details.ItemInfo{
+						SharePoint: &details.SharePointInfo{
+							ItemType: details.SharePointItem,
+						},
+					},
+				},
+				{
+					RepoRef: item2,
+					ItemInfo: details.ItemInfo{
+						SharePoint: &details.SharePointInfo{
+							ItemType: details.SharePointItem,
+						},
+					},
+				},
+				{
+					RepoRef: item3,
+					ItemInfo: details.ItemInfo{
+						SharePoint: &details.SharePointInfo{
+							ItemType: details.SharePointItem,
+						},
+					},
+				},
+			},
+		},
+	}
 
-// 	arr := func(s ...string) []string {
-// 		return s
-// 	}
+	arr := func(s ...string) []string {
+		return s
+	}
 
-// 	table := []struct {
-// 		name         string
-// 		deets        *details.Details
-// 		makeSelector func() *SharePointRestore
-// 		expect       []string
-// 	}{
-// 		{
-// 			"all",
-// 			deets,
-// 			func() *SharePointRestore {
-// 				odr := NewSharePointRestore()
-// 				odr.Include(odr.Sites(Any()))
-// 				return odr
-// 			},
-// 			arr(item, item2, item3),
-// 		},
-// 		{
-// 			"only match item",
-// 			deets,
-// 			func() *SharePointRestore {
-// 				odr := NewSharePointRestore()
-// 				odr.Include(odr.Items(Any(), Any(), []string{"item2"}))
-// 				return odr
-// 			},
-// 			arr(item2),
-// 		},
-// 		{
-// 			"only match folder",
-// 			deets,
-// 			func() *SharePointRestore {
-// 				odr := NewSharePointRestore()
-// 				odr.Include(odr.Folders([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
-// 				return odr
-// 			},
-// 			arr(item, item2),
-// 		},
-// 	}
-// 	for _, test := range table {
-// 		suite.T().Run(test.name, func(t *testing.T) {
-// 			ctx, flush := tester.NewContext()
-// 			defer flush()
+	table := []struct {
+		name         string
+		deets        *details.Details
+		makeSelector func() *SharePointRestore
+		expect       []string
+	}{
+		{
+			"all",
+			deets,
+			func() *SharePointRestore {
+				odr := NewSharePointRestore()
+				odr.Include(odr.Sites(Any()))
+				return odr
+			},
+			arr(item, item2, item3),
+		},
+		{
+			"only match item",
+			deets,
+			func() *SharePointRestore {
+				odr := NewSharePointRestore()
+				odr.Include(odr.Items(Any(), Any(), []string{"item2"}))
+				return odr
+			},
+			arr(item2),
+		},
+		{
+			"only match folder",
+			deets,
+			func() *SharePointRestore {
+				odr := NewSharePointRestore()
+				odr.Include(odr.Folders([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
+				return odr
+			},
+			arr(item, item2),
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
 
-// 			sel := test.makeSelector()
-// 			results := sel.Reduce(ctx, test.deets)
-// 			paths := results.Paths()
-// 			assert.Equal(t, test.expect, paths)
-// 		})
-// 	}
-// }
+			sel := test.makeSelector()
+			results := sel.Reduce(ctx, test.deets)
+			paths := results.Paths()
+			assert.Equal(t, test.expect, paths)
+		})
+	}
+}
 
-// func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
-// 	t := suite.T()
+func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
+	t := suite.T()
 
-// 	pathBuilder := path.Builder{}.Append("dir1", "dir2", "item")
-// 	itemPath, err := pathBuilder.ToDataLayerSharePointPath("tenant", "site", true)
-// 	require.NoError(t, err)
+	pathBuilder := path.Builder{}.Append("dir1", "dir2", "item")
+	itemPath, err := pathBuilder.ToDataLayerSharePointPath("tenant", "site", true)
+	require.NoError(t, err)
 
-// 	expected := map[categorizer]string{
-// 		SharePointSite:   "site",
-// 		SharePointFolder: "dir1/dir2",
-// 		SharePointItem:   "item",
-// 	}
+	expected := map[categorizer]string{
+		SharePointSite:   "site",
+		SharePointFolder: "dir1/dir2",
+		SharePointItem:   "item",
+	}
 
-// 	assert.Equal(t, expected, SharePointItem.pathValues(itemPath))
-// }
+	assert.Equal(t, expected, SharePointItem.pathValues(itemPath))
+}
 
-// func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
-// 	ods := NewSharePointRestore()
+func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
+	ods := NewSharePointRestore()
 
-// 	var (
-// 		url = "www.website.com"
-// 	)
+	// var url = "www.website.com"
 
-// 	itemInfo := details.ItemInfo{
-// 		SharePoint: &details.SharepointInfo{
-// 			ItemType: details.SharePointItem,
-// 			WebURL:   "www.website.com",
-// 		},
-// 	}
+	itemInfo := details.ItemInfo{
+		SharePoint: &details.SharePointInfo{
+			ItemType: details.SharePointItem,
+			// WebURL:   "www.website.com",
+		},
+	}
 
-// 	table := []struct {
-// 		name   string
-// 		scope  []SharePointScope
-// 		expect assert.BoolAssertionFunc
-// 	}{
-// 		{"item webURL match", ods.WebURL(url), assert.True},
-// 		{"item webURL substring", ods.WebURL("website"), assert.True},
-// 		{"item webURL mismatch", ods.WebURL("google"), assert.False},
-// 	}
-// 	for _, test := range table {
-// 		suite.T().Run(test.name, func(t *testing.T) {
-// 			scopes := setScopesToDefault(test.scope)
-// 			for _, scope := range scopes {
-// 				test.expect(t, scope.matchesInfo(itemInfo))
-// 			}
-// 		})
-// 	}
-// }
+	table := []struct {
+		name   string
+		scope  []SharePointScope
+		expect assert.BoolAssertionFunc
+	}{
+		// {"item webURL match", ods.WebURL(url), assert.True},
+		// {"item webURL substring", ods.WebURL("website"), assert.True},
+		{"item webURL mismatch", ods.WebURL("google"), assert.False},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			scopes := setScopesToDefault(test.scope)
+			for _, scope := range scopes {
+				test.expect(t, scope.matchesInfo(itemInfo))
+			}
+		})
+	}
+}
 
-// func (suite *SharePointSelectorSuite) TestCategory_PathType() {
-// 	table := []struct {
-// 		cat      sharePointCategory
-// 		pathType path.CategoryType
-// 	}{
-// 		{SharePointCategoryUnknown, path.UnknownCategory},
-// 		{SharePointSite, path.UnknownCategory},
-// 		{SharePointFolder, path.SharePointItemCategory},
-// 		{SharePointItem, path.SharePointItemCategory},
-// 		{SharePointFilterWebURL, path.SharePointItemCategory},
-// 	}
-// 	for _, test := range table {
-// 		suite.T().Run(test.cat.String(), func(t *testing.T) {
-// 			assert.Equal(t, test.pathType, test.cat.PathType())
-// 		})
-// 	}
-// }
+func (suite *SharePointSelectorSuite) TestCategory_PathType() {
+	table := []struct {
+		cat      sharePointCategory
+		pathType path.CategoryType
+	}{
+		{SharePointCategoryUnknown, path.UnknownCategory},
+		{SharePointSite, path.UnknownCategory},
+		{SharePointFolder, path.FilesCategory},
+		{SharePointItem, path.FilesCategory},
+		{SharePointFilterWebURL, path.FilesCategory},
+	}
+	for _, test := range table {
+		suite.T().Run(test.cat.String(), func(t *testing.T) {
+			assert.Equal(t, test.pathType, test.cat.PathType())
+		})
+	}
+}

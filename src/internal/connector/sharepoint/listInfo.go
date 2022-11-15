@@ -8,9 +8,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-// sharepointListInfo translates models.Listable metadata into searchable content
+// sharePointListInfo translates models.Listable metadata into searchable content
 // List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
-func sharepointListInfo(lst models.Listable) *details.SharepointInfo {
+func sharePointListInfo(lst models.Listable, size int64) *details.SharePointInfo {
 	var (
 		name, webURL      string
 		created, modified time.Time
@@ -32,11 +32,12 @@ func sharepointListInfo(lst models.Listable) *details.SharepointInfo {
 		modified = *lst.GetLastModifiedDateTime()
 	}
 
-	return &details.SharepointInfo{
-		ItemType: details.SharepointItem,
+	return &details.SharePointInfo{
+		ItemType: details.SharePointItem,
 		ItemName: name,
 		Created:  created,
 		Modified: modified,
 		WebURL:   webURL,
+		Size:     size,
 	}
 }
