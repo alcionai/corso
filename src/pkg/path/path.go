@@ -48,13 +48,13 @@ const templateErrPathParsing = "parsing resource path from %s"
 
 const (
 	escapeCharacter = '\\'
-	pathSeparator   = '/'
+	PathSeparator   = '/'
 
 	shortRefCharacters = 12
 )
 
 var charactersToEscape = map[rune]struct{}{
-	pathSeparator:   {},
+	PathSeparator:   {},
 	escapeCharacter: {},
 }
 
@@ -305,6 +305,27 @@ func (pb Builder) ToDataLayerOneDrivePath(
 	}, nil
 }
 
+func (pb Builder) ToDataLayerSharePointPath(
+	tenant, site string,
+	isItem bool,
+) (Path, error) {
+	if err := pb.verifyPrefix(tenant, site); err != nil {
+		return nil, err
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			SharePointService.String(),
+			site,
+			FilesCategory.String(),
+		),
+		service:  SharePointService,
+		category: FilesCategory,
+		hasItem:  isItem,
+	}, nil
+}
+
 // FromDataLayerPath parses the escaped path p, validates the elements in p
 // match a resource-specific path format, and returns a Path struct for that
 // resource-specific type. If p does not match any resource-specific paths or
@@ -442,7 +463,7 @@ func validateEscapedElement(element string) error {
 // escaped. If there were no trailing path separator character(s) or the separator(s)
 // were escaped the input is returned unchanged.
 func TrimTrailingSlash(element string) string {
-	for len(element) > 0 && element[len(element)-1] == pathSeparator {
+	for len(element) > 0 && element[len(element)-1] == PathSeparator {
 		lastIdx := len(element) - 1
 		numSlashes := 0
 
@@ -469,7 +490,7 @@ func TrimTrailingSlash(element string) string {
 func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
-	return strings.Join(elements, string(pathSeparator))
+	return strings.Join(elements, string(PathSeparator))
 }
 
 // split takes an escaped string and returns a slice of path elements. The
@@ -490,7 +511,7 @@ func split(segment string) []string {
 			continue
 		}
 
-		if c != pathSeparator {
+		if c != PathSeparator {
 			prevWasSeparator = false
 			numEscapes = 0
 

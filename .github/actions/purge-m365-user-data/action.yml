@@ -1,0 +1,63 @@
+name: Purge M365 User Data
+
+# Hard deletion of an m365 user's data.  Our CI processes create a lot
+# of data churn (creation and immediate deletion) of files, the likes
+# of which wouldn't otherwise be seen by users of the system.  Standard
+# APIs don't have the tooling to gut out all the cruft which we accrue
+# in microsoft's hidden nooks and secret crannies. A manual, SOAPy
+# exorcism is the only way.
+#
+# The script focuses on the cleaning up the following:
+# * All folders, descending from the exchange root, of a given prefix.
+# * All folders in PersonMetadata 
+# * All already soft-deleted items
+# * All recoverable items in Audits
+# * All recoverable items in Purges
+
+inputs:
+  user:
+    description: User whose data is to be purged.
+  folder-prefix:
+    description: Name of the folder to be purged.  If falsy, will purge the set of static, well known folders instead.
+  older-than:
+    description: Minimum-age of folders to be deleted.
+  azure-client-id:
+    description: Secret value of for AZURE_CLIENT_ID
+  azure-client-secret:
+    description: Secret value of for AZURE_CLIENT_SECRET
+  azure-tenant-id:
+    description: Secret value of for AZURE_TENANT_ID
+    
+runs:
+  using: composite
+  steps:
+
+    - name: Run the folder-matrix purge script set
+      if: ${{ inputs.folder-prefix != '' }}
+      shell: pwsh
+      working-directory: ./src/cmd/purge/scripts
+      env: 
+        AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
+        AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
+        AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
+      run: |
+        ./foldersAndItems.ps1 -WellKnownRoot root -User ${{ inputs.user }} -FolderPrefixPurge ${{ inputs.folder-prefix }} -FolderBeforePurge ${{ inputs.older-than }}
+
+    - name: Run the static purge script set
+      if: ${{ inputs.folder-prefix == '' }}
+      shell: pwsh
+      working-directory: ./src/cmd/purge/scripts
+      env:
+        AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
+        AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
+        AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
+      # powershell doesn't like multiline commands, each of these must be on a single line
+      run: |
+        ./foldersAndItems.ps1 -WellKnownRoot root -User ${{ inputs.user }} -FolderNamePurge PersonMetadata 
+        ./foldersAndItems.ps1 -WellKnownRoot deleteditems -User ${{ inputs.user }} 
+        ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Audits 
+        ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Purges
+        ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Deletions
+
+# possible future extensions
+# ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge "Calendar Logging"

@@ -35,10 +35,24 @@ otel-daemon:
 	results_dir=$$PWD/test_results; \
 	cd ./testfiles/otel_daemon; \
 	docker run \
+		-d \
+		-e AWS_REGION \
+		-v ~/.aws/:/root/.aws/:ro \
+		--name otel-daemon \
+		-p 2000:2000/udp \
+		--rm \
+	xray-daemon \
+		--local-mode \
+		--log-level debug 
+
+local-daemon:
+	results_dir=$$PWD/test_results; \
+	cd ./testfiles/otel_daemon; \
+	docker run \
 		--attach STDOUT \
 		-e AWS_REGION \
 		-v ~/.aws/:/root/.aws/:ro \
-		--name xray-daemon \
+		--name otel-daemon \
 		-p 2000:2000/udp \
 		--rm \
 	xray-daemon \

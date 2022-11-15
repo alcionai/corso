@@ -50,8 +50,12 @@ const config = {
             'https://github.com/alcionai/corso/tree/main/docs',
         },
         blog: false,
-        googleAnalytics: {
-          trackingID: 'G-4EXT1PY6KC',
+        sitemap: {
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        },
+        gtag: {
+          trackingID: 'G-YXBFPQZ05N',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.scss'),
@@ -64,19 +68,13 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: '',
+        title: 'Docs',
         logo: {
           alt: 'Corso Logo',
           src: '/img/corso_horizontal_logo.svg',
           srcDark: 'img/corso_horizontal_logo_white.svg',
         },
         items: [
-          {
-            type: 'doc',
-            docId: 'intro',
-            position: 'left',
-            label: 'Docs',
-          },
           {
             href: 'https://github.com/alcionai/corso',
             label: 'GitHub',
@@ -92,15 +90,6 @@ const config = {
           height: 60,
         },
         links: [
-          {
-            title: 'Resources',
-            items: [
-              {
-                label: 'Docs',
-                to: '/intro',
-              },
-            ],
-          },
           {
             title: 'Community',
             items: [
@@ -150,15 +139,6 @@ const config = {
           scrollOffset: 0,
         },
       },
-
-      image: 'img/cloudbackup.png',
-
-      metadata : [
-        {name: 'twitter:card', content: 'summary_large_image'},
-        {name: 'twitter:site', content: '@corsobackup'},
-        {name: 'twitter:title', content: 'Corso Documentation: Free, Secure, and Open-Source Backup for Microsoft 365'},
-        {name: 'twitter:description', content: 'Documentation for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
-      ],
 
       prism: {
         theme: lightCodeTheme,

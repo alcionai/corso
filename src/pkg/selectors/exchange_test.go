@@ -773,12 +773,13 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	const (
 		usr  = "userID"
-		fld  = "mailFolder"
+		fld1 = "mailFolder"
+		fld2 = "subFolder"
 		mail = "mailID"
 	)
 
 	var (
-		pth   = stubPath(suite.T(), usr, []string{fld, mail}, path.EmailCategory)
+		pth   = stubPath(suite.T(), usr, []string{fld1, fld2, mail}, path.EmailCategory)
 		short = "thisisahashofsomekind"
 		es    = NewExchangeRestore()
 	)
@@ -796,13 +797,14 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		{"one of multiple users", es.Users([]string{"smarf", usr}), "", assert.True},
 		{"all folders", es.MailFolders(Any(), Any()), "", assert.True},
 		{"no folders", es.MailFolders(Any(), None()), "", assert.False},
-		{"matching folder", es.MailFolders(Any(), []string{fld}), "", assert.True},
+		{"matching folder", es.MailFolders(Any(), []string{fld1}), "", assert.True},
+		{"incomplete matching folder", es.MailFolders(Any(), []string{"mail"}), "", assert.False},
 		{"non-matching folder", es.MailFolders(Any(), []string{"smarf"}), "", assert.False},
-		// This test validates that folders that match a substring of the scope are not included (bugfix 1)
-		{"non-matching folder substring", es.MailFolders(Any(), []string{fld + "_suffix"}), "", assert.False},
-		{"matching folder prefix", es.MailFolders(Any(), []string{"mailF"}), "", assert.True},
+		{"non-matching folder substring", es.MailFolders(Any(), []string{fld1 + "_suffix"}), "", assert.False},
+		{"matching folder prefix", es.MailFolders(Any(), []string{fld1}, PrefixMatch()), "", assert.True},
+		{"incomplete folder prefix", es.MailFolders(Any(), []string{"mail"}, PrefixMatch()), "", assert.False},
 		{"matching folder substring", es.MailFolders(Any(), []string{"Folder"}), "", assert.False},
-		{"one of multiple folders", es.MailFolders(Any(), []string{"smarf", fld}), "", assert.True},
+		{"one of multiple folders", es.MailFolders(Any(), []string{"smarf", fld2}), "", assert.True},
 		{"all mail", es.Mails(Any(), Any(), Any()), "", assert.True},
 		{"no mail", es.Mails(Any(), Any(), None()), "", assert.False},
 		{"matching mail", es.Mails(Any(), Any(), []string{mail}), "", assert.True},
@@ -982,6 +984,26 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			func() *ExchangeRestore {
 				er := NewExchangeRestore()
 				er.Include(er.ContactFolders([]string{"uid"}, []string{"cfld1/cfld2"}))
+				return er
+			},
+			arr(contactInSubFolder),
+		},
+		{
+			"only match contactInSubFolder by prefix",
+			makeDeets(contactInSubFolder, contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore()
+				er.Include(er.ContactFolders([]string{"uid"}, []string{"cfld1/cfld2"}, PrefixMatch()))
+				return er
+			},
+			arr(contactInSubFolder),
+		},
+		{
+			"only match contactInSubFolder by leaf folder",
+			makeDeets(contactInSubFolder, contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore()
+				er.Include(er.ContactFolders([]string{"uid"}, []string{"cfld2"}))
 				return er
 			},
 			arr(contactInSubFolder),

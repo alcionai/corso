@@ -27,7 +27,7 @@ func TestEventSuite(t *testing.T) {
 // can be properly retrieved from a models.Eventable object
 func (suite *EventSuite) TestEventInfo() {
 	initial := time.Now()
-	now := common.FormatTime(initial)
+	now := common.FormatTimeWith(initial, common.M365DateTimeTimeZone)
 
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
 
@@ -38,7 +38,13 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Empty event",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				return models.NewEvent(), &details.ExchangeInfo{
+				event := models.NewEvent()
+
+				// Start and Modified will always be available in API
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
+
+				return event, &details.ExchangeInfo{
 					ItemType: details.ExchangeEvent,
 				}
 			},
@@ -47,19 +53,45 @@ func (suite *EventSuite) TestEventInfo() {
 			name: "Start time only",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
 				var (
-					event     = models.NewEvent()
-					dateTime  = models.NewDateTimeTimeZone()
-					full, err = common.ParseTime(now)
+					event    = models.NewEvent()
+					dateTime = models.NewDateTimeTimeZone()
 				)
 
-				require.NoError(suite.T(), err)
-
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				dateTime.SetDateTime(&now)
 				event.SetStart(dateTime)
 
 				return event, &details.ExchangeInfo{
-					ItemType: details.ExchangeEvent,
-					Received: full,
+					ItemType:   details.ExchangeEvent,
+					Received:   initial,
+					EventStart: initial,
+				}
+			},
+		},
+		{
+			name: "Start and end time only",
+			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
+				var (
+					event     = models.NewEvent()
+					startTime = models.NewDateTimeTimeZone()
+					endTime   = models.NewDateTimeTimeZone()
+				)
+
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
+				startTime.SetDateTime(&now)
+				event.SetStart(startTime)
+
+				nowp30m := common.FormatTimeWith(initial.Add(30*time.Minute), common.M365DateTimeTimeZone)
+				endTime.SetDateTime(&nowp30m)
+				event.SetEnd(endTime)
+
+				return event, &details.ExchangeInfo{
+					ItemType:   details.ExchangeEvent,
+					Received:   initial,
+					EventStart: initial,
+					EventEnd:   initial.Add(30 * time.Minute),
 				}
 			},
 		},
@@ -71,6 +103,8 @@ func (suite *EventSuite) TestEventInfo() {
 					event   = models.NewEvent()
 				)
 
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				event.SetSubject(&subject)
 
 				return event, &details.ExchangeInfo{
@@ -83,12 +117,13 @@ func (suite *EventSuite) TestEventInfo() {
 			name: "Using mockable",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
 				var (
-					organizer  = "foobar3@8qzvrj.onmicrosoft.com"
-					subject    = " Test Mock Review + Lunch"
-					bytes      = mockconnector.GetDefaultMockEventBytes("Test Mock")
-					future     = time.Now().UTC().AddDate(0, 0, 1)
-					eventTime  = time.Date(future.Year(), future.Month(), future.Day(), future.Hour(), 0, 0, 0, time.UTC)
-					event, err = support.CreateEventFromBytes(bytes)
+					organizer    = "foobar3@8qzvrj.onmicrosoft.com"
+					subject      = " Test Mock Review + Lunch"
+					bytes        = mockconnector.GetDefaultMockEventBytes("Test Mock")
+					future       = time.Now().UTC().AddDate(0, 0, 1)
+					eventTime    = time.Date(future.Year(), future.Month(), future.Day(), future.Hour(), 0, 0, 0, time.UTC)
+					eventEndTime = eventTime.Add(30 * time.Minute)
+					event, err   = support.CreateEventFromBytes(bytes)
 				)
 
 				require.NoError(suite.T(), err)
@@ -98,6 +133,8 @@ func (suite *EventSuite) TestEventInfo() {
 					Subject:    subject,
 					Organizer:  organizer,
 					EventStart: eventTime,
+					EventEnd:   eventEndTime,
+					Size:       10,
 				}
 			},
 		},
@@ -105,21 +142,32 @@ func (suite *EventSuite) TestEventInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			event, expected := test.evtAndRP()
-			result := EventInfo(event)
+			result := EventInfo(event, 10)
 
 			assert.Equal(t, expected.Subject, result.Subject, "subject")
 			assert.Equal(t, expected.Sender, result.Sender, "sender")
 
-			expYear, expMonth, _ := expected.EventStart.Date() // Day not used at certain times of the day
-			expHr, expMin, expSec := expected.EventStart.Clock()
-			recvYear, recvMonth, _ := result.EventStart.Date()
-			recvHr, recvMin, recvSec := result.EventStart.Clock()
+			expStartYear, expStartMonth, _ := expected.EventStart.Date() // Day not used at certain times of the day
+			expStartHr, expStartMin, expStartSec := expected.EventStart.Clock()
+			recvStartYear, recvStartMonth, _ := result.EventStart.Date()
+			recvStartHr, recvStartMin, recvStartSec := result.EventStart.Clock()
 
-			assert.Equal(t, expYear, recvYear, "year")
-			assert.Equal(t, expMonth, recvMonth, "month")
-			assert.Equal(t, expHr, recvHr, "hour")
-			assert.Equal(t, expMin, recvMin, "minute")
-			assert.Equal(t, expSec, recvSec, "second")
+			assert.Equal(t, expStartYear, recvStartYear, "year")
+			assert.Equal(t, expStartMonth, recvStartMonth, "month")
+			assert.Equal(t, expStartHr, recvStartHr, "hour")
+			assert.Equal(t, expStartMin, recvStartMin, "minute")
+			assert.Equal(t, expStartSec, recvStartSec, "second")
+
+			expEndYear, expEndMonth, _ := expected.EventEnd.Date() // Day not used at certain times of the day
+			expEndHr, expEndMin, expEndSec := expected.EventEnd.Clock()
+			recvEndYear, recvEndMonth, _ := result.EventEnd.Date()
+			recvEndHr, recvEndMin, recvEndSec := result.EventEnd.Clock()
+
+			assert.Equal(t, expEndYear, recvEndYear, "year")
+			assert.Equal(t, expEndMonth, recvEndMonth, "month")
+			assert.Equal(t, expEndHr, recvEndHr, "hour")
+			assert.Equal(t, expEndMin, recvEndMin, "minute")
+			assert.Equal(t, expEndSec, recvEndSec, "second")
 		})
 	}
 }

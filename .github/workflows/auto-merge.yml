@@ -1,0 +1,15 @@
+name: auto-merge
+
+on:
+  pull_request:
+    paths-ignore:
+      - "src/**" # prevent auto-merge for go dependencies
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ahmadnassri/action-dependabot-auto-merge@v2 # https://github.com/marketplace/actions/dependabot-auto-merge
+        with:
+          github-token: ${{ secrets.DEPENDABOT_TOKEN }}
