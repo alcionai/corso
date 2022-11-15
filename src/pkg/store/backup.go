@@ -54,7 +54,7 @@ func (w Wrapper) GetBackup(ctx context.Context, backupID model.StableID) (*backu
 func (w Wrapper) GetBackups(
 	ctx context.Context,
 	filters ...FilterOption,
-) ([]backup.Backup, error) {
+) ([]*backup.Backup, error) {
 	q := &queryFilters{}
 	q.populate(filters...)
 
@@ -63,12 +63,12 @@ func (w Wrapper) GetBackups(
 		return nil, err
 	}
 
-	bs := make([]backup.Backup, len(bms))
+	bs := make([]*backup.Backup, len(bms))
 
 	for i, bm := range bms {
-		b := backup.Backup{}
+		b := &backup.Backup{}
 
-		err := w.GetWithModelStoreID(ctx, model.BackupSchema, bm.ModelStoreID, &b)
+		err := w.GetWithModelStoreID(ctx, model.BackupSchema, bm.ModelStoreID, b)
 		if err != nil {
 			return nil, err
 		}
