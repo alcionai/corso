@@ -37,6 +37,7 @@ func (suite *ContactSuite) TestContactInfo() {
 					ItemType: details.ExchangeContact,
 					Created:  initial,
 					Modified: initial,
+					Size:     10,
 				}
 				return contact, i
 			},
@@ -53,6 +54,7 @@ func (suite *ContactSuite) TestContactInfo() {
 					ContactName: aPerson,
 					Created:     initial,
 					Modified:    initial,
+					Size:        10,
 				}
 				return contact, i
 			},
@@ -61,7 +63,7 @@ func (suite *ContactSuite) TestContactInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			contact, expected := test.contactAndRP()
-			assert.Equal(t, expected, ContactInfo(contact))
+			assert.Equal(t, expected, ContactInfo(contact, 10))
 		})
 	}
 }

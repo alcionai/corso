@@ -134,6 +134,7 @@ func (suite *EventSuite) TestEventInfo() {
 					Organizer:  organizer,
 					EventStart: eventTime,
 					EventEnd:   eventEndTime,
+					Size:       10,
 				}
 			},
 		},
@@ -141,7 +142,7 @@ func (suite *EventSuite) TestEventInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			event, expected := test.evtAndRP()
-			result := EventInfo(event)
+			result := EventInfo(event, 10)
 
 			assert.Equal(t, expected.Subject, result.Subject, "subject")
 			assert.Equal(t, expected.Sender, result.Sender, "sender")

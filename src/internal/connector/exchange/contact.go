@@ -9,7 +9,7 @@ import (
 )
 
 // ContactInfo translate models.Contactable metadata into searchable content
-func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
+func ContactInfo(contact models.Contactable, size int64) *details.ExchangeInfo {
 	name := ""
 	created := time.Time{}
 	modified := time.Time{}
@@ -31,5 +31,6 @@ func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 		ContactName: name,
 		Created:     created,
 		Modified:    modified,
+		Size:        size,
 	}
 }
