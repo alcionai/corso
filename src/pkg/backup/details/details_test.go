@@ -102,7 +102,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
-					Sharepoint: &details.SharepointInfo{},
+					SharePoint: &details.SharePointInfo{},
 				},
 			},
 			expectHs: []string{"ID"},
