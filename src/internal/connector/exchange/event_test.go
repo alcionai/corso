@@ -38,7 +38,13 @@ func (suite *EventSuite) TestEventInfo() {
 		{
 			name: "Empty event",
 			evtAndRP: func() (models.Eventable, *details.ExchangeInfo) {
-				return models.NewEvent(), &details.ExchangeInfo{
+				event := models.NewEvent()
+
+				// Start and Modified will always be available in API
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
+
+				return event, &details.ExchangeInfo{
 					ItemType: details.ExchangeEvent,
 				}
 			},
@@ -51,6 +57,8 @@ func (suite *EventSuite) TestEventInfo() {
 					dateTime = models.NewDateTimeTimeZone()
 				)
 
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				dateTime.SetDateTime(&now)
 				event.SetStart(dateTime)
 
@@ -70,6 +78,8 @@ func (suite *EventSuite) TestEventInfo() {
 					endTime   = models.NewDateTimeTimeZone()
 				)
 
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				startTime.SetDateTime(&now)
 				event.SetStart(startTime)
 
@@ -93,6 +103,8 @@ func (suite *EventSuite) TestEventInfo() {
 					event   = models.NewEvent()
 				)
 
+				event.SetCreatedDateTime(&initial)
+				event.SetLastModifiedDateTime(&initial)
 				event.SetSubject(&subject)
 
 				return event, &details.ExchangeInfo{
@@ -122,6 +134,7 @@ func (suite *EventSuite) TestEventInfo() {
 					Organizer:  organizer,
 					EventStart: eventTime,
 					EventEnd:   eventEndTime,
+					Size:       10,
 				}
 			},
 		},
@@ -129,7 +142,7 @@ func (suite *EventSuite) TestEventInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			event, expected := test.evtAndRP()
-			result := EventInfo(event)
+			result := EventInfo(event, 10)
 
 			assert.Equal(t, expected.Subject, result.Subject, "subject")
 			assert.Equal(t, expected.Sender, result.Sender, "sender")
