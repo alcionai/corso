@@ -10,6 +10,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// Exchange has a limit of 300 for folder depth. OneDrive has a limit on path
+// length of 400 characters (including separators) which would be roughly 200
+// folders if each folder is only a single character.
+const maxIterations = 300
+
 func newContainerResolver() *containerResolver {
 	return &containerResolver{
 		cache: map[string]graph.CachedContainer{},
@@ -24,6 +29,18 @@ func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
 ) (*path.Builder, error) {
+	return cr.idToPath(ctx, folderID, 0)
+}
+
+func (cr *containerResolver) idToPath(
+	ctx context.Context,
+	folderID string,
+	depth int,
+) (*path.Builder, error) {
+	if depth >= maxIterations {
+		return nil, errors.New("path contains cycle or is too tall")
+	}
+
 	c, ok := cr.cache[folderID]
 	if !ok {
 		return nil, errors.Errorf("folder %s not cached", folderID)
@@ -34,7 +51,7 @@ func (cr *containerResolver) IDToPath(
 		return p, nil
 	}
 
-	parentPath, err := cr.IDToPath(ctx, *c.GetParentFolderId())
+	parentPath, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving parent folder")
 	}
