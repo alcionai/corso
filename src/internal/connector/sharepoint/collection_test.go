@@ -71,7 +71,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	col.data <- &Item{
 		id:   testName,
 		data: io.NopCloser(bytes.NewReader(byteArray)),
-		info: sharePointListInfo(listing),
+		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
 	col.finishPopulation(ctx, 0, 0, nil)
 
