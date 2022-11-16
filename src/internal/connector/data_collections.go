@@ -17,6 +17,7 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -193,6 +194,18 @@ func (gc *GraphConnector) ExchangeDataCollection(
 // OneDrive
 // ---------------------------------------------------------------------------
 
+type odFolderMatcher struct {
+	scope selectors.OneDriveScope
+}
+
+func (fm odFolderMatcher) IsAny() bool {
+	return fm.scope.IsAny(selectors.OneDriveFolder)
+}
+
+func (fm odFolderMatcher) Matches(path string) bool {
+	return fm.scope.Matches(selectors.OneDriveFolder, path)
+}
+
 // OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
 // for the specified user
 func (gc *GraphConnector) OneDriveDataCollections(
@@ -218,7 +231,8 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			odcs, err := onedrive.NewCollections(
 				gc.credentials.AzureTenantID,
 				user,
-				scope,
+				onedrive.OneDriveSource,
+				odFolderMatcher{scope},
 				&gc.graphService,
 				gc.UpdateStatus,
 			).Get(ctx)
@@ -247,58 +261,46 @@ func (gc *GraphConnector) OneDriveDataCollections(
 func (gc *GraphConnector) createSharePointCollections(
 	ctx context.Context,
 	scope selectors.SharePointScope,
-) ([]*sharepoint.Collection, error) {
+) ([]data.Collection, error) {
 	var (
-		errs  *multierror.Error
-		sites = scope.Get(selectors.SharePointSite)
-		colls = make([]*sharepoint.Collection, 0)
+		errs        *multierror.Error
+		sites       = scope.Get(selectors.SharePointSite)
+		category    = scope.Category().PathType()
+		collections = make([]data.Collection, 0)
 	)
 
 	// Create collection of ExchangeDataCollection
 	for _, site := range sites {
-		collections := make(map[string]*sharepoint.Collection)
 
-		qp := graph.QueryParams{
-			Category:      scope.Category().PathType(),
-			ResourceOwner: site,
-			FailFast:      gc.failFast,
-			Credentials:   gc.credentials,
-		}
-
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, site))
+		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", category, site))
 		defer closer()
 		defer close(foldersComplete)
 
-		// resolver, err := exchange.PopulateExchangeContainerResolver(
-		// 	ctx,
-		// 	qp,
-		// 	qp.Scope.Category().PathType(),
-		// )
-		// if err != nil {
-		// 	return nil, errors.Wrap(err, "getting folder cache")
-		// }
+		switch category {
+		case path.FilesCategory: // TODO: better category for drives
+			spcs, err := sharepoint.CollectLibraries(
+				ctx,
+				gc.Service(),
+				gc.credentials.AzureTenantID,
+				gc.GetSiteIds(),
+				scope,
+				gc.UpdateStatus,
+				gc.incrementAwaitingMessages,
+			)
+			if err != nil {
+				return nil, support.WrapAndAppend(site, err, errs)
+			}
 
-		// err = sharepoint.FilterContainersAndFillCollections(
-		// 	ctx,
-		// 	qp,
-		// 	collections,
-		// 	gc.UpdateStatus,
-		// 	resolver)
+			collections = append(collections, spcs...)
 
-		// if err != nil {
-		// 	return nil, errors.Wrap(err, "filling collections")
-		// }
+			// case path.UnknownCategory: // TODO: ListsCategory
+			// 	// get lists
+		}
 
 		foldersComplete <- struct{}{}
-
-		for _, collection := range collections {
-			gc.incrementAwaitingMessages()
-
-			colls = append(colls, collection)
-		}
 	}
 
-	return colls, errs.ErrorOrNil()
+	return collections, errs.ErrorOrNil()
 }
 
 // SharePointDataCollections returns a set of DataCollection which represents the SharePoint data
@@ -320,7 +322,7 @@ func (gc *GraphConnector) SharePointDataCollections(
 
 	// for each scope that includes oneDrive items, get all
 	for _, scope := range scopes {
-		// Creates a map of collections based on scope
+		// Creates a slice of collections based on scope
 		dcs, err := gc.createSharePointCollections(ctx, scope)
 		if err != nil {
 			return nil, support.WrapAndAppend(scope.Get(selectors.SharePointSite)[0], err, errs)
