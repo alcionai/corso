@@ -151,7 +151,6 @@ jobs:
         uses: magnetikonline/action-golang-cache@v3
         with:
           go-version-file: src/go.mod
-          cache-key-suffix: -testsuite
 
       - run: mkdir testlog
 
@@ -214,7 +213,6 @@ jobs:
         uses: magnetikonline/action-golang-cache@v3
         with:
           go-version-file: src/go.mod
-          cache-key-suffix: -lint
 
       - name: Go Lint
         uses: golangci/golangci-lint-action@v3
