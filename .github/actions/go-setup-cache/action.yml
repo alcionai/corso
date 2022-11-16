@@ -56,6 +56,6 @@ runs:
       # cover all the bases, just to be make sure we loaded everything we'll use
       run: |
         go mod download -x
-        go build -o compile
-        go test -v -c -o compile_test
+        go build ./...
+        go test -run=nope ./...
       shell: bash
