@@ -49,7 +49,9 @@ const config = {
           editUrl:
             'https://github.com/alcionai/corso/tree/main/docs',
         },
-        blog: false,
+        blog: {
+          showReadingTime: true,
+        },
         sitemap: {
           ignorePatterns: ['/tags/**'],
           filename: 'sitemap.xml',
@@ -81,6 +83,7 @@ const config = {
             position: 'left',
             label: 'Docs',
           },
+          {to: '/blog', label: 'Blog', position: 'left'},
           {
             href: 'https://github.com/alcionai/corso',
             label: 'GitHub',
@@ -121,6 +124,10 @@ const config = {
           {
             title: 'More',
             items: [
+              {
+                label: 'Blog',
+                to: '/blog',
+              },
               {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
