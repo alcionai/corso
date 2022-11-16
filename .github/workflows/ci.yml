@@ -178,7 +178,7 @@ jobs:
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
         run: |
           set -euo pipefail
-          go test   \
+          go test \
           -json     \
           -v        \
           -failfast \
