@@ -139,7 +139,7 @@ jobs:
   Test-Suite:
     needs: [Precheck, Checkout]
     environment: Testing
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
     defaults:
       run:
@@ -147,10 +147,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Golang
-        uses: actions/setup-go@v3
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
         with:
           go-version-file: src/go.mod
+          cache-key-suffix: -testsuite
 
       - run: mkdir testlog
 
