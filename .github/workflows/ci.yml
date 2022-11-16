@@ -139,7 +139,7 @@ jobs:
   Test-Suite:
     needs: [Precheck, Checkout]
     environment: Testing
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
     defaults:
       run:
