@@ -3,8 +3,7 @@ package exchange
 import (
 	"context"
 
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	mscal "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -38,68 +37,55 @@ func (ecc *eventCalendarCache) Populate(
 	}
 
 	var (
-		asyncError  error
-		directories = make(map[string]graph.Container)
-		errUpdater  = func(s string, e error) {
-			asyncError = support.WrapAndAppend(s, e, err)
+		errs        error
+		directories = make([]graph.Container, 0)
+	)
+
+	builder := ecc.gs.Client().UsersById(ecc.userID).Calendars()
+
+	for {
+		resp, err := builder.Get(ctx, options)
+		if err != nil {
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
-	)
 
-	query, err := ecc.gs.Client().UsersById(ecc.userID).Calendars().Get(ctx, options)
-	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
+		for _, cal := range resp.GetValue() {
+			temp := CreateCalendarDisplayable(cal)
+			if err := checkIDAndName(temp); err != nil {
+				errs = support.WrapAndAppend(
+					"adding folder to cache",
+					err,
+					errs,
+				)
 
-	iter, err := msgraphgocore.NewPageIterator(
-		query,
-		ecc.gs.Adapter(),
-		models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return err
-	}
+				continue
+			}
 
-	cb := IterativeCollectCalendarContainers(
-		directories,
-		"",
-		errUpdater,
-	)
+			directories = append(directories, temp)
+		}
 
-	iterateErr := iter.Iterate(ctx, cb)
-	if iterateErr != nil {
-		return errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(iterateErr))
-	}
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
 
-	// check for errors created during iteration
-	if asyncError != nil {
-		return err
+		builder = mscal.NewCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
 	}
 
 	for _, container := range directories {
-		if err := checkIDAndName(container); err != nil {
-			iterateErr = support.WrapAndAppend(
-				"adding folder to cache",
-				err,
-				iterateErr,
-			)
-
-			continue
-		}
-
 		temp := cacheFolder{
 			Container: container,
 			p:         path.Builder{}.Append(*container.GetDisplayName()),
 		}
 
 		if err := ecc.addFolder(temp); err != nil {
-			iterateErr = support.WrapAndAppend(
+			errs = support.WrapAndAppend(
 				"failure adding "+*container.GetDisplayName(),
 				err,
-				iterateErr)
+				errs)
 		}
 	}
 
-	return iterateErr
+	return errs
 }
 
 // AddToCache adds container to map in field 'cache'
