@@ -158,7 +158,8 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 		// 	name: suite.user + " Events",
 		// 	getSelector: func(t *testing.T) selectors.Selector {
 		// 		sel := selectors.NewExchangeBackup()
-		// 		sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+		// 		sel.Include(sel.EventCalendars([]string{suite.user},
+		//		[]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
 		// 		return sel.Selector
 		// 	},
