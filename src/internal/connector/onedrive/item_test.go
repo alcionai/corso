@@ -67,7 +67,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	suite.user = tester.SecondaryM365UserID(suite.T())
 
-	drives, err := drives(ctx, suite, suite.user)
+	drives, err := drives(ctx, suite, suite.user, OneDriveSource)
 	require.NoError(suite.T(), err)
 	// Test Requirement 1: Need a drive
 	require.Greaterf(suite.T(), len(drives), 0, "user %s does not have a drive", suite.user)

@@ -20,7 +20,7 @@ func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []st
 	res := make([]string, 0, len(rest))
 
 	for _, r := range rest {
-		p, err := getCanonicalPath(r, tenant, user)
+		p, err := getCanonicalPath(r, tenant, user, OneDriveSource)
 		require.NoError(t, err)
 
 		res = append(res, p.String())
@@ -211,7 +211,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			c := NewCollections(tenant, user, tt.scope, &MockGraphService{}, nil)
+			c := NewCollections(tenant, user, OneDriveSource, testFolderMatcher{tt.scope}, &MockGraphService{}, nil)
 			err := c.updateCollections(ctx, "driveID", tt.items)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.collectionMap), "collection paths")

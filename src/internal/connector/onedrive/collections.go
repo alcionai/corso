@@ -14,20 +14,34 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-// Collections is used to retrieve OneDrive data for a
-// specified user
+type driveSource int
+
+const (
+	unknownDriveSource = iota
+	OneDriveSource
+	SharePointSource
+)
+
+type isAnyMatcher interface {
+	IsAny() bool
+	Matches(path string) bool
+}
+
+// Collections is used to retrieve drive data for a
+// resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
-	tenant string
-	user   string
-	scope  selectors.OneDriveScope
+	tenant        string
+	resourceOwner string
+	source        driveSource
+	matcher       isAnyMatcher
+	service       graph.Service
+	statusUpdater support.StatusUpdater
+
 	// collectionMap allows lookup of the data.Collection
 	// for a OneDrive folder
 	collectionMap map[string]data.Collection
-	service       graph.Service
-	statusUpdater support.StatusUpdater
 
 	// Track stats from drive enumeration. Represents the items backed up.
 	numItems      int
@@ -37,25 +51,27 @@ type Collections struct {
 
 func NewCollections(
 	tenant string,
-	user string,
-	scope selectors.OneDriveScope,
+	resourceOwner string,
+	source driveSource,
+	matcher isAnyMatcher,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{
 		tenant:        tenant,
-		user:          user,
-		scope:         scope,
+		resourceOwner: resourceOwner,
+		source:        source,
+		matcher:       matcher,
 		collectionMap: map[string]data.Collection{},
 		service:       service,
 		statusUpdater: statusUpdater,
 	}
 }
 
-// Retrieves OneDrive data as set of `data.Collections`
+// Retrieves drive data as set of `data.Collections`
 func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
-	// Enumerate drives for the specified user
-	drives, err := drives(ctx, c.service, c.user)
+	// Enumerate drives for the specified resourceOwner
+	drives, err := drives(ctx, c.service, c.resourceOwner, c.source)
 	if err != nil {
 		return nil, err
 	}
@@ -78,29 +94,8 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	return collections, nil
 }
 
-func getCanonicalPath(p, tenant, user string) (path.Path, error) {
-	pathBuilder := path.Builder{}.Append(strings.Split(p, "/")...)
-
-	res, err := pathBuilder.ToDataLayerOneDrivePath(tenant, user, false)
-	if err != nil {
-		return nil, errors.Wrap(err, "converting to canonical path")
-	}
-
-	return res, nil
-}
-
-// Returns the path to the folder within the drive (i.e. under `root:`)
-func getDriveFolderPath(p path.Path) (string, error) {
-	drivePath, err := toOneDrivePath(p)
-	if err != nil {
-		return "", err
-	}
-
-	return path.Builder{}.Append(drivePath.folders...).String(), nil
-}
-
-// updateCollections initializes and adds the provided OneDrive items to Collections
-// A new collection is created for every OneDrive folder (or package)
+// updateCollections initializes and adds the provided drive items to Collections
+// A new collection is created for every drive folder (or package)
 func (c *Collections) updateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -116,14 +111,15 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		collectionPath, err := getCanonicalPath(
 			*item.GetParentReference().GetPath(),
 			c.tenant,
-			c.user,
+			c.resourceOwner,
+			c.source,
 		)
 		if err != nil {
 			return err
 		}
 
 		// Skip items that don't match the folder selectors we were given.
-		if !includePath(ctx, c.scope, collectionPath) {
+		if !includePath(ctx, c.matcher, collectionPath) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
 			continue
 		}
@@ -162,7 +158,40 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 	return nil
 }
 
-func includePath(ctx context.Context, scope selectors.OneDriveScope, folderPath path.Path) bool {
+func getCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path.Path, error) {
+	var (
+		pathBuilder = path.Builder{}.Append(strings.Split(p, "/")...)
+		result      path.Path
+		err         error
+	)
+
+	switch source {
+	case OneDriveSource:
+		result, err = pathBuilder.ToDataLayerOneDrivePath(tenant, resourceOwner, false)
+	case SharePointSource:
+		result, err = pathBuilder.ToDataLayerSharePointPath(tenant, resourceOwner, false)
+	default:
+		return nil, errors.Errorf("unrecognized drive data source")
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "converting to canonical path")
+	}
+
+	return result, nil
+}
+
+// Returns the path to the folder within the drive (i.e. under `root:`)
+func getDriveFolderPath(p path.Path) (string, error) {
+	drivePath, err := toOneDrivePath(p)
+	if err != nil {
+		return "", err
+	}
+
+	return path.Builder{}.Append(drivePath.folders...).String(), nil
+}
+
+func includePath(ctx context.Context, m isAnyMatcher, folderPath path.Path) bool {
 	// Check if the folder is allowed by the scope.
 	folderPathString, err := getDriveFolderPath(folderPath)
 	if err != nil {
@@ -172,9 +201,9 @@ func includePath(ctx context.Context, scope selectors.OneDriveScope, folderPath 
 
 	// Hack for the edge case where we're looking at the root folder and can
 	// select any folder. Right now the root folder has an empty folder path.
-	if len(folderPathString) == 0 && scope.IsAny(selectors.OneDriveFolder) {
+	if len(folderPathString) == 0 && m.IsAny() {
 		return true
 	}
 
-	return scope.Matches(selectors.OneDriveFolder, folderPathString)
+	return m.Matches(folderPathString)
 }
