@@ -42,7 +42,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
-	suite.connector = loadConnector(ctx, suite.T())
+	suite.connector = loadConnector(ctx, suite.T(), AllResources)
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 	tester.LogTimeOfTest(suite.T())
@@ -58,7 +58,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	connector := loadConnector(ctx, suite.T())
+	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -123,7 +123,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 	defer flush()
 
 	invalidUser := "foo@example.com"
-	connector := loadConnector(ctx, suite.T())
+	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -162,7 +162,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	connector := loadConnector(ctx, suite.T())
+	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -230,7 +230,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) SetupSuite() {
 
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
-	suite.connector = loadConnector(ctx, suite.T())
+	suite.connector = loadConnector(ctx, suite.T(), Users)
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 	tester.LogTimeOfTest(suite.T())
@@ -263,7 +263,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() 
 		},
 	}
 
-	gc := loadConnector(ctx, t)
+	gc := loadConnector(ctx, t, Users)
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -292,7 +292,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailSerializ
 	defer flush()
 
 	t := suite.T()
-	connector := loadConnector(ctx, t)
+	connector := loadConnector(ctx, t, Users)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
@@ -326,7 +326,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	connector := loadConnector(ctx, suite.T())
+	connector := loadConnector(ctx, suite.T(), Users)
 
 	tests := []struct {
 		name          string
@@ -379,7 +379,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	connector := loadConnector(ctx, suite.T())
+	connector := loadConnector(ctx, suite.T(), Users)
 
 	tests := []struct {
 		name, expected string
@@ -447,7 +447,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestAccessOfInbo
 	defer flush()
 
 	t := suite.T()
-	connector := loadConnector(ctx, t)
+	connector := loadConnector(ctx, t, Users)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 	scopes := sel.DiscreteScopes(connector.GetUsers())
@@ -488,7 +488,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
-	suite.connector = loadConnector(ctx, suite.T())
+	suite.connector = loadConnector(ctx, suite.T(), Sites)
 	suite.user = tester.M365UserID(suite.T())
 	tester.LogTimeOfTest(suite.T())
 }
@@ -502,7 +502,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		userID = tester.M365UserID(t)
 	)
 
-	gc := loadConnector(ctx, t)
+	gc := loadConnector(ctx, t, Sites)
 	scope := selectors.NewSharePointBackup().Folders(
 		[]string{userID},
 		[]string{"foo"},

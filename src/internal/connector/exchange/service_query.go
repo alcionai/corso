@@ -74,9 +74,8 @@ func GetAllContactFolderNamesForUser(ctx context.Context, gs graph.Service, user
 	return gs.Client().UsersById(user).ContactFolders().Get(ctx, options)
 }
 
-// GetAllUsersForTenant is a GraphQuery for retrieving all the UserCollectionResponse with
-// that contains the UserID and email for each user. All other information is omitted
-func GetAllUsersForTenant(ctx context.Context, gs graph.Service, user string) (absser.Parsable, error) {
+// GetAllUsersForTenant makes a GraphQuery request retrieving all the users in the tenant.
+func GetAllUsersForTenant(ctx context.Context, gs graph.Service) (absser.Parsable, error) {
 	selecting := []string{"userPrincipalName"}
 
 	options, err := optionsForUsers(selecting)

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -73,7 +74,16 @@ func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
-func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnector, error) {
+type resource int
+
+const (
+	UnknownResource resource = iota
+	AllResources
+	Users
+	Sites
+)
+
+func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m365 account configuration")
@@ -93,15 +103,16 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 
 	gc.graphService = *aService
 
-	err = gc.setTenantUsers(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving tenant user list")
+	if r == AllResources || r == Users {
+		if err = gc.setTenantUsers(ctx); err != nil {
+			return nil, errors.Wrap(err, "retrieving tenant user list")
+		}
 	}
 
-	// TODO: users or sites, one or the other, not both.
-	err = gc.setTenantSites(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieveing tenant site list")
+	if r == AllResources || r == Sites {
+		if err = gc.setTenantSites(ctx); err != nil {
+			return nil, errors.Wrap(err, "retrieveing tenant site list")
+		}
 	}
 
 	return &gc, nil
@@ -133,12 +144,12 @@ func (gs *graphService) EnableFailFast() {
 
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
-// iff the return value is nil
+// iff the returned error is nil
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
+	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService)
 	if err != nil {
 		return errors.Wrapf(
 			err,
@@ -199,66 +210,66 @@ func (gc *GraphConnector) GetUsersIds() []string {
 }
 
 // setTenantSites queries the M365 to identify the sites in the
-// workspace. The sitets field is updated during this method
-// iff the return value is nil
+// workspace. The sites field is updated during this method
+// iff the returned error is nil.
 func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
-	// TODO
 	gc.Sites = map[string]string{}
 
-	// ctx, end := D.Span(ctx, "gc:setTenantSites")
-	// defer end()
+	ctx, end := D.Span(ctx, "gc:setTenantSites")
+	defer end()
 
-	// response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
-	// if err != nil {
-	// 	return errors.Wrapf(
-	// 		err,
-	// 		"tenant %s M365 query: %s",
-	// 		gc.tenant,
-	// 		support.ConnectorStackErrorTrace(err),
-	// 	)
-	// }
+	response, err := sharepoint.GetAllSitesForTenant(ctx, gc.graphService)
+	if err != nil {
+		return errors.Wrapf(
+			err,
+			"retrieving sites for tenant %s: %s",
+			gc.tenant,
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
 
-	// userIterator, err := msgraphgocore.NewPageIterator(
-	// 	response,
-	// 	&gc.graphService.adapter,
-	// 	models.CreateUserCollectionResponseFromDiscriminatorValue,
-	// )
-	// if err != nil {
-	// 	return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	// }
+	iter, err := msgraphgocore.NewPageIterator(
+		response,
+		&gc.graphService.adapter,
+		models.CreateSiteCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
 
-	// callbackFunc := func(userItem interface{}) bool {
-	// 	user, ok := userItem.(models.Userable)
-	// 	if !ok {
-	// 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(),
-	//  errors.New("received non-User on iteration"), err)
-	// 		return true
-	// 	}
+	var iterErrs error
 
-	// 	if user.GetUserPrincipalName() == nil {
-	// 		err = support.WrapAndAppend(
-	// 			gc.graphService.adapter.GetBaseUrl(),
-	// 			fmt.Errorf("no email address for User: %s", *user.GetId()),
-	// 			err,
-	// 		)
+	callbackFunc := func(item interface{}) bool {
+		site, ok := item.(models.Siteable)
+		if !ok {
+			iterErrs = support.WrapAndAppend(
+				gc.graphService.adapter.GetBaseUrl(),
+				errors.New("iteration retrieved non-Site item"),
+				iterErrs)
 
-	// 		return true
-	// 	}
+			return true
+		}
 
-	// 	// *user.GetId() is populated for every M365 entityable object by M365 backstore
-	// 	gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
+		if site.GetName() == nil {
+			iterErrs = support.WrapAndAppend(
+				gc.graphService.adapter.GetBaseUrl(),
+				fmt.Errorf("no name for Site: %s", *site.GetId()),
+				iterErrs,
+			)
 
-	// 	return true
-	// }
+			return true
+		}
 
-	// iterateError := userIterator.Iterate(ctx, callbackFunc)
-	// if iterateError != nil {
-	// 	err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
-	// }
+		gc.Sites[*site.GetName()] = *site.GetId()
 
-	// return err
+		return true
+	}
 
-	return nil
+	if err := iter.Iterate(ctx, callbackFunc); err != nil {
+		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	return iterErrs
 }
 
 // GetSites returns the siteIDs of sharepoint sites within tenant.
