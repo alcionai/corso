@@ -425,6 +425,7 @@ func TestRepositoryIndividualLoadTestExchangeSuite(t *testing.T) {
 
 func (suite *RepositoryIndividualLoadTestExchangeSuite) SetupSuite() {
 	t := suite.T()
+	t.Skip("individual user exchange suite tests are on hold until token expiry gets resolved")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 	suite.usersUnderTest = singleUserSet(t)
@@ -477,7 +478,7 @@ func TestRepositoryLoadTestOneDriveSuite(t *testing.T) {
 
 func (suite *RepositoryLoadTestOneDriveSuite) SetupSuite() {
 	t := suite.T()
-	t.Skip("temp issue-902-live")
+	t.Skip("not running onedrive load tests atm")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 	suite.usersUnderTest = orgUserSet(t)
@@ -524,7 +525,7 @@ func TestRepositoryIndividualLoadTestOneDriveSuite(t *testing.T) {
 
 func (suite *RepositoryIndividualLoadTestOneDriveSuite) SetupSuite() {
 	t := suite.T()
-	t.Skip("temp issue-902-live")
+	t.Skip("not running onedrive load tests atm")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 	suite.usersUnderTest = singleUserSet(t)

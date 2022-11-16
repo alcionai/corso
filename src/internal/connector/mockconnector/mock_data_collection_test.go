@@ -177,7 +177,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			},
 		},
 		{
-			name: "Sharepoint: List",
+			name: "SharePoint: List",
 			transformation: func(t *testing.T) error {
 				bytes, err := mockconnector.GetMockListBytes(subject)
 				require.NoError(suite.T(), err)

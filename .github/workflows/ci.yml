@@ -2,7 +2,6 @@ name: Build/Release Corso
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
     tags: ["v*.*.*"]
@@ -180,8 +179,9 @@ jobs:
         run: |
           set -euo pipefail
           go test \
-          -json   \
-          -v      \
+          -json     \
+          -v        \
+          -failfast \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.

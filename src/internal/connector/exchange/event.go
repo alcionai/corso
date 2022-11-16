@@ -10,12 +10,14 @@ import (
 )
 
 // EventInfo searchable metadata for stored event objects.
-func EventInfo(evt models.Eventable) *details.ExchangeInfo {
+func EventInfo(evt models.Eventable, size int64) *details.ExchangeInfo {
 	var (
 		organizer, subject string
 		recurs             bool
 		start              = time.Time{}
 		end                = time.Time{}
+		created            = time.Time{}
+		modified           = time.Time{}
 	)
 
 	if evt.GetOrganizer() != nil &&
@@ -58,6 +60,14 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		}
 	}
 
+	if evt.GetCreatedDateTime() != nil {
+		created = *evt.GetCreatedDateTime()
+	}
+
+	if evt.GetLastModifiedDateTime() != nil {
+		modified = *evt.GetLastModifiedDateTime()
+	}
+
 	return &details.ExchangeInfo{
 		ItemType:    details.ExchangeEvent,
 		Organizer:   organizer,
@@ -65,5 +75,8 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		EventStart:  start,
 		EventEnd:    end,
 		EventRecurs: recurs,
+		Created:     created,
+		Modified:    modified,
+		Size:        size,
 	}
 }
