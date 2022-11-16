@@ -3,8 +3,8 @@ on:
   schedule:
     # every day at 01:59 (01:59am) UTC
     # - cron: "59 1 * * *"
-    # temp, for testing: every 6 hours
-    - cron: "0 */6 * * *"
+    # temp, for testing: every 4 hours
+    - cron: "0 */4 * * *"
 
 permissions:
   # required to retrieve AWS credentials
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   Load-Tests:
-    environment: Testing
+    environment: Load Testing
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -55,10 +55,10 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           CORSO_M365_LOAD_TEST_ORG_USERS: ${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}
           CORSO_LOAD_TESTS: true 
@@ -83,9 +83,9 @@ jobs:
       - name: New Data Creation
         working-directory: ./src/cmd/factory
         env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
         run: |
           go run . exchange emails \
@@ -116,7 +116,7 @@ jobs:
           retention-days: 14
   
   setup:
-    environment: Testing
+    environment: Load Testing
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
@@ -135,7 +135,7 @@ jobs:
   purge-load-test-user-data:
     needs: [setup, Load-Tests]
     if: always()
-    environment: Testing
+    environment: Load Testing
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -145,13 +145,13 @@ jobs:
       - uses: actions/checkout@v3
       - name: Set folder boundary datetime
         run: |
-          echo "NOW=$(date -u +"%Y-%m-%d_%H-%M-%S")" >> $GITHUB_ENV
+          echo "NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
       - name: Purge Load-Test-Produced Folders
         uses: ./.github/actions/purge-m365-user-data
         with:
           older-than: ${{ env.NOW }}
           folder-prefix: ${{ matrix.folder }}
-          azure-client-id: ${{ secrets.CLIENT_ID }}
-          azure-client-secret: ${{ secrets.CLIENT_SECRET }}
-          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           user: ${{ matrix.user }}
