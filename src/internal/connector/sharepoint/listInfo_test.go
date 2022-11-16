@@ -21,23 +21,24 @@ func TestSharePointInfoSuite(t *testing.T) {
 func (suite *SharePointInfoSuite) TestSharePointInfo() {
 	tests := []struct {
 		name      string
-		listAndRP func() (models.Listable, *details.SharepointInfo)
+		listAndRP func() (models.Listable, *details.SharePointInfo)
 	}{
 		{
 			name: "Empty List",
-			listAndRP: func() (models.Listable, *details.SharepointInfo) {
-				i := &details.SharepointInfo{ItemType: details.SharepointItem}
+			listAndRP: func() (models.Listable, *details.SharePointInfo) {
+				i := &details.SharePointInfo{ItemType: details.SharePointItem}
 				return models.NewList(), i
 			},
 		}, {
 			name: "Only Name",
-			listAndRP: func() (models.Listable, *details.SharepointInfo) {
+			listAndRP: func() (models.Listable, *details.SharePointInfo) {
 				aTitle := "Whole List"
 				listing := models.NewList()
 				listing.SetDisplayName(&aTitle)
-				i := &details.SharepointInfo{
-					ItemType: details.SharepointItem,
+				i := &details.SharePointInfo{
+					ItemType: details.SharePointItem,
 					ItemName: aTitle,
+					Size:     10,
 				}
 				return listing, i
 			},
@@ -46,7 +47,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			list, expected := test.listAndRP()
-			info := sharepointListInfo(list)
+			info := sharePointListInfo(list, 10)
 			assert.Equal(t, expected.ItemType, info.ItemType)
 			assert.Equal(t, expected.ItemName, info.ItemName)
 			assert.Equal(t, expected.WebURL, info.WebURL)
