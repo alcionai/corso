@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -215,9 +214,22 @@ func runRestoreBackupTest(
 	t.Logf("Restore complete in %v\n", runTime)
 
 	// Run a backup and compare its output with what we put in.
+	cats := make(map[path.CategoryType]struct{}, len(test.collections))
+	for _, c := range test.collections {
+		cats[c.category] = struct{}{}
+	}
+
+	expectedDests := make([]destAndCats, 0, len(users))
+	for _, u := range users {
+		expectedDests = append(expectedDests, destAndCats{
+			resourceOwner: u,
+			dest:          dest.ContainerName,
+			cats:          cats,
+		})
+	}
 
 	backupGC := loadConnector(ctx, t)
-	backupSel := backupSelectorForExpected(t, expectedData)
+	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
@@ -526,14 +538,20 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			defer flush()
 
 			restoreSel := getSelectorWith(test.service)
-			dests := make([]control.RestoreDestination, 0, len(test.collections))
+			expectedDests := make([]destAndCats, 0, len(test.collections))
 			allItems := 0
 			allExpectedData := map[string]map[string][]byte{}
 
 			for i, collection := range test.collections {
 				// Get a dest per collection so they're independent.
 				dest := tester.DefaultTestRestoreDestination()
-				dests = append(dests, dest)
+				expectedDests = append(expectedDests, destAndCats{
+					resourceOwner: suite.user,
+					dest:          dest.ContainerName,
+					cats: map[path.CategoryType]struct{}{
+						collection.category: {},
+					},
+				})
 
 				totalItems, collections, expectedData := collectionsForInfo(
 					t,
@@ -575,7 +593,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			// Run a backup and compare its output with what we put in.
 
 			backupGC := loadConnector(ctx, t)
-			backupSel := backupSelectorForExpected(t, allExpectedData)
+			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
 			dcs, err := backupGC.DataCollections(ctx, backupSel)
