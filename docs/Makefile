@@ -7,7 +7,7 @@ CORSO_BUILD_BIN := ${CORSO_BUILD_DIR}/bin
 CORSO_REPO := /go/src/github.com/alcionai/corso
 CORSO_LOCAL_PATH := $(shell git rev-parse --show-toplevel)
 GIT_SHA := $(shell git rev-parse --short HEAD)
-DOCSC := docker run --rm -it -p 3000:3000 -v ${PWD}:/usr/src/docs --env CORSO_VERSION=unreleased-${GIT_SHA} corso/docs
+DOCSC := docker run --rm -it -p 3000:3000 -v ${PWD}:/usr/src/docs --env BLOG --env CORSO_VERSION=unreleased-${GIT_SHA} corso/docs
 CBASE :=  docker run --rm -it \
 		-v ${CORSO_LOCAL_PATH}:${CORSO_REPO} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
 		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
@@ -24,6 +24,9 @@ buildimage:
 dev: genclidocs
 	$(DOCSC) npm start -- --host 0.0.0.0
 
+blogdev:
+	BLOG=1 $(DOCSC) npm start -- --host 0.0.0.0
+
 VALE_TARGET ?= docs README.md
 
 check: genclidocs
@@ -39,6 +42,9 @@ dockershell:
 
 build: genclidocs
 	$(DOCSC) npm run build
+
+blogbuild:
+	BLOG=1 $(DOCSC) npm run build
 
 genclidocs: _validatemdgen ${MDGEN_BINARY}
 	@echo 'Auto-generating Corso CLI docs...'

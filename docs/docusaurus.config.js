@@ -6,9 +6,9 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Corso Documentation',
+  title: (process.env.BLOG) ? 'Corso Blog' : 'Corso Documentation',
   tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
-  url: 'https://corsobackup.io',
+  url: (process.env.BLOG) ? 'https://blog.corsobackup.io' : 'https://docs.corsobackup.io',
   baseUrl: process.env.CORSO_DOCS_BASEURL || '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
@@ -42,15 +42,18 @@ const config = {
       'classic',
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
-        docs: {
+        docs: (process.env.BLOG) ? false : {
           sidebarPath: require.resolve('./sidebars.js'),
+          routeBasePath: '/',
           remarkPlugins: [require('mdx-mermaid')],
           editUrl:
             'https://github.com/alcionai/corso/tree/main/docs',
         },
-        blog: {
+        blog: (process.env.BLOG) ? {
           showReadingTime: true,
-        },
+          routeBasePath: '/',
+          remarkPlugins: [require('mdx-mermaid')],
+        } : false,
         sitemap: {
           ignorePatterns: ['/tags/**'],
           filename: 'sitemap.xml',
@@ -77,13 +80,6 @@ const config = {
         },
         items: [
           {
-            type: 'doc',
-            docId: 'intro',
-            position: 'left',
-            label: 'Docs',
-          },
-          {to: '/blog', label: 'Blog', position: 'left'},
-          {
             href: 'https://github.com/alcionai/corso',
             label: 'GitHub',
             position: 'right',
@@ -98,15 +94,6 @@ const config = {
           height: 60,
         },
         links: [
-          {
-            title: 'Resources',
-            items: [
-              {
-                label: 'Docs',
-                to: '/docs/intro',
-              },
-            ],
-          },
           {
             title: 'Community',
             items: [
@@ -124,8 +111,8 @@ const config = {
             title: 'More',
             items: [
               {
-                label: 'Blog',
-                to: '/blog',
+                label: (process.env.BLOG) ? 'Docs' : 'Blog',
+                href: (process.env.BLOG) ? 'https://docs.corsobackup.io/' : 'https://blog.corsobackup.io/',
               },
               {
                 label: 'GitHub',
@@ -163,7 +150,10 @@ const config = {
 
       image: 'img/cloudbackup.png',
 
-      metadata : [
+      metadata : (process.env.BLOG) ? [
+        {name: 'twitter:card', content: 'summary_large_image'},
+        {name: 'twitter:site', content: '@corsobackup'},
+      ] : [
         {name: 'twitter:card', content: 'summary_large_image'},
         {name: 'twitter:site', content: '@corsobackup'},
         {name: 'twitter:title', content: 'Corso Documentation: Free, Secure, and Open-Source Backup for Microsoft 365'},

@@ -16,13 +16,41 @@ Developing documentation for Corso requires the following tools on your machine:
 make buildimage
 ```
 
-## Live documentation development
+## Live development
+
+### Live documentation development
 
 ```bash
 make dev
 ```
 
 This command starts a local development server within the Docker container and will expose docs at [http://localhost:3000](http://localhost:3000).
+
+### Live blog development
+
+```bash
+make blogdev
+```
+
+This command starts a local development server within the Docker container and will expose the blog at [http://localhost:3000](http://localhost:3000).
+
+## Building static sites
+
+### Building static documentation
+
+```bash
+make build
+```
+
+This command generates static content into the `build` directory for integration with any static contents hosting service.
+
+### Building static blogs
+
+```bash
+make blogbuild
+```
+
+This command generates static content into the `build` directory for integration with any static contents hosting service.
 
 ## Generating Corso CLI docs
 
@@ -32,14 +60,6 @@ make genclidocs
 
 Corso's CLI documents are auto generated. This command explicitly triggers generating these docs. This step will happen
 automatically for the other commands where this is relevant.
-
-## Building static documentation
-
-```bash
-make build
-```
-
-This command generates static content into the `build` directory for integration with any static contents hosting service.
 
 ## Style and linting
 
