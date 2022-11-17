@@ -331,7 +331,6 @@ func (gc *GraphConnector) SharePointDataCollections(
 	// for each scope that includes oneDrive items, get all
 	for _, scope := range scopes {
 		// Creates a map of collections based on scope
-		fmt.Printf("\n-----\nHERE %v\n-----\n", scope)
 		dcs, err := gc.createSharePointCollections(ctx, scope)
 		if err != nil {
 			return nil, support.WrapAndAppend(scope.Get(selectors.SharePointSite)[0], err, errs)
