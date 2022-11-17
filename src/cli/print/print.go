@@ -89,15 +89,14 @@ func err(w io.Writer, s ...any) {
 	fmt.Fprint(w, msg...)
 }
 
-// Print prints the params to cobra's output writer (stdOut by default)
+// Out prints the params to cobra's output writer (stdOut by default)
 // if s is nil, prints nothing.
-func Print(ctx context.Context, s ...any) {
-	print(getRootCmd(ctx).OutOrStdout(), s...)
+func Out(ctx context.Context, s ...any) {
+	out(getRootCmd(ctx).OutOrStdout(), s...)
 }
 
-// print is the testable core of Print()
-//revive:disable:redefines-builtin-id
-func print(w io.Writer, s ...any) {
+// out is the testable core of Out()
+func out(w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
 	}
@@ -106,14 +105,14 @@ func print(w io.Writer, s ...any) {
 	fmt.Fprintf(w, "\n")
 }
 
-// Print prints the formatted strings to cobra's output writer (stdOut by default)
+// Out prints the formatted strings to cobra's output writer (stdOut by default)
 // if t is empty, prints nothing.
-func Printf(ctx context.Context, t string, s ...any) {
-	printf(getRootCmd(ctx).OutOrStdout(), t, s...)
+func Outf(ctx context.Context, t string, s ...any) {
+	outf(getRootCmd(ctx).OutOrStdout(), t, s...)
 }
 
-// printf is the testable core of Printf()
-func printf(w io.Writer, t string, s ...any) {
+// outf is the testable core of Outf()
+func outf(w io.Writer, t string, s ...any) {
 	if len(t) == 0 {
 		return
 	}
