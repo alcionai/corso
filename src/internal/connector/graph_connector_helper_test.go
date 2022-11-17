@@ -677,39 +677,37 @@ func checkCollections(
 	assert.Equal(t, expectedItems, gotItems, "expected items")
 }
 
-func mustParsePath(t *testing.T, p string, isItem bool) path.Path {
-	res, err := path.FromDataLayerPath(p, isItem)
-	require.NoError(t, err)
-
-	return res
+type destAndCats struct {
+	resourceOwner string
+	dest          string
+	cats          map[path.CategoryType]struct{}
 }
 
 func makeExchangeBackupSel(
 	t *testing.T,
-	expected map[string]map[string][]byte,
+	dests []destAndCats,
 ) selectors.Selector {
 	sel := selectors.NewExchangeBackup()
 	toInclude := [][]selectors.ExchangeScope{}
 
-	for p := range expected {
-		pth := mustParsePath(t, p, false)
-		require.Equal(t, path.ExchangeService.String(), pth.Service().String())
+	for _, d := range dests {
+		for c := range d.cats {
+			builder := sel.MailFolders
 
-		builder := sel.MailFolders
+			switch c {
+			case path.ContactsCategory:
+				builder = sel.ContactFolders
+			case path.EventsCategory:
+				builder = sel.EventCalendars
+			case path.EmailCategory: // already set
+			}
 
-		switch pth.Category() {
-		case path.ContactsCategory:
-			builder = sel.ContactFolders
-		case path.EventsCategory:
-			builder = sel.EventCalendars
-		case path.EmailCategory: // already set
+			toInclude = append(toInclude, builder(
+				[]string{d.resourceOwner},
+				[]string{d.dest},
+				selectors.PrefixMatch(),
+			))
 		}
-
-		toInclude = append(toInclude, builder(
-			[]string{pth.ResourceOwner()},
-			[]string{backupInputFromPath(pth).String()},
-			selectors.PrefixMatch(),
-		))
 	}
 
 	sel.Include(toInclude...)
@@ -719,18 +717,16 @@ func makeExchangeBackupSel(
 
 func makeOneDriveBackupSel(
 	t *testing.T,
-	expected map[string]map[string][]byte,
+	dests []destAndCats,
 ) selectors.Selector {
 	sel := selectors.NewOneDriveBackup()
 	toInclude := [][]selectors.OneDriveScope{}
 
-	for p := range expected {
-		pth := mustParsePath(t, p, false)
-		require.Equal(t, path.OneDriveService.String(), pth.Service().String())
-
+	for _, d := range dests {
 		toInclude = append(toInclude, sel.Folders(
-			[]string{pth.ResourceOwner()},
-			[]string{backupInputFromPath(pth).String()},
+			[]string{d.resourceOwner},
+			[]string{d.dest},
+			selectors.PrefixMatch(),
 		))
 	}
 
@@ -744,43 +740,24 @@ func makeOneDriveBackupSel(
 // multiple services are in expected.
 func backupSelectorForExpected(
 	t *testing.T,
-	expected map[string]map[string][]byte,
+	service path.ServiceType,
+	dests []destAndCats,
 ) selectors.Selector {
-	require.NotEmpty(t, expected)
+	require.NotEmpty(t, dests)
 
-	// Sadly need to get the first item to figure out what sort of selector we
-	// need.
-	for p := range expected {
-		pth := mustParsePath(t, p, false)
+	switch service {
+	case path.ExchangeService:
+		return makeExchangeBackupSel(t, dests)
 
-		switch pth.Service() {
-		case path.ExchangeService:
-			return makeExchangeBackupSel(t, expected)
-		case path.OneDriveService:
-			return makeOneDriveBackupSel(t, expected)
-		default:
-			assert.FailNowf(t, "bad serivce type %s", pth.Service().String())
-		}
+	case path.OneDriveService:
+		return makeOneDriveBackupSel(t, dests)
+
+	default:
+		assert.FailNow(t, "unknown service type %s", service.String())
 	}
 
 	// Fix compile error about no return. Should not reach here.
 	return selectors.Selector{}
-}
-
-// backupInputFromPath returns a path.Builder with the path that a call to Backup
-// can use to backup the given items.
-func backupInputFromPath(
-	inputPath path.Path,
-) *path.Builder {
-	startIdx := 0
-
-	if inputPath.Service() == path.OneDriveService {
-		// OneDrive has folders that are trimmed off in the app that are present in
-		// Corso.
-		startIdx = 3
-	}
-
-	return path.Builder{}.Append(inputPath.Folders()[startIdx:]...)
 }
 
 // backupOutputPathFromRestore returns a path.Path denoting the location in
