@@ -229,7 +229,6 @@ func identifySite(item any) (string, string, error) {
 	}
 
 	if m.GetName() == nil {
-
 		// the built-in site at "htps://{tenant-domain}/search" never has a name.
 		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
 			return "", "", errKnownSkippableCase
@@ -380,6 +379,7 @@ func getResources(
 			}
 
 			iterErrs = support.WrapAndAppend(gs.Adapter().GetBaseUrl(), err, iterErrs)
+
 			return true
 		}
 
