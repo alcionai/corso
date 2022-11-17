@@ -22,7 +22,6 @@ func TestOneDriveDriveSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoOneDriveTests,
-		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
