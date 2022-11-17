@@ -53,6 +53,8 @@ const config = {
           showReadingTime: true,
           routeBasePath: '/',
           remarkPlugins: [require('mdx-mermaid')],
+          blogTitle: 'Corso Blog',
+          blogDescription: 'Blog about Microsoft 365 protection, backup, and security',          
         } : false,
         sitemap: {
           ignorePatterns: ['/tags/**'],
