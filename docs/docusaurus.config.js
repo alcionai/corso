@@ -43,7 +43,6 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
-          routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           remarkPlugins: [require('mdx-mermaid')],
           editUrl:
@@ -104,7 +103,7 @@ const config = {
             items: [
               {
                 label: 'Docs',
-                to: '/intro',
+                to: '/docs/intro',
               },
             ],
           },
