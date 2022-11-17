@@ -1,8 +1,4 @@
----
-slug: /
----
-
-# Corso introduction
+# Introduction
 
 ## Overview
 
