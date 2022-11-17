@@ -651,11 +651,12 @@ func checkCollections(
 	expected map[string]map[string][]byte,
 	got []data.Collection,
 ) {
-	checkHasCollections(t, expected, got)
+	collectionsWithItems := []data.Collection{}
 
 	gotItems := 0
 
 	for _, returned := range got {
+		startingItems := gotItems
 		service := returned.FullPath().Service()
 		category := returned.FullPath().Category()
 		expectedColData := expected[returned.FullPath().String()]
@@ -672,9 +673,14 @@ func checkCollections(
 
 			compareItem(t, expectedColData, service, category, item)
 		}
+
+		if gotItems != startingItems {
+			collectionsWithItems = append(collectionsWithItems, returned)
+		}
 	}
 
 	assert.Equal(t, expectedItems, gotItems, "expected items")
+	checkHasCollections(t, expected, collectionsWithItems)
 }
 
 type destAndCats struct {
