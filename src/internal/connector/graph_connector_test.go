@@ -154,15 +154,16 @@ func (suite *GraphConnectorIntegrationSuite) TestExchangeDataCollection() {
 				return sel.Selector
 			},
 		},
-		{
-			name: suite.user + " Events",
-			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+		// {
+		// 	name: suite.user + " Events",
+		// 	getSelector: func(t *testing.T) selectors.Selector {
+		// 		sel := selectors.NewExchangeBackup()
+		// 		sel.Include(sel.EventCalendars([]string{suite.user},
+		//		[]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
-				return sel.Selector
-			},
-		},
+		// 		return sel.Selector
+		// 	},
+		// },
 	}
 
 	for _, test := range tests {
@@ -695,76 +696,76 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 				},
 			},
 		},
-		{
-			name:    "MultipleEventsSingleCalendar",
-			service: path.ExchangeService,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Work"},
-					category:     path.EventsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
-							lookupKey: "Ghimley",
-						},
-						{
-							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
-							lookupKey: "Irgot",
-						},
-						{
-							name:      "someencodeditemID3",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Jannes"),
-							lookupKey: "Jannes",
-						},
-					},
-				},
-			},
-		},
-		{
-			name:    "MultipleEventsMultipleCalendars",
-			service: path.ExchangeService,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Work"},
-					category:     path.EventsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
-							lookupKey: "Ghimley",
-						},
-						{
-							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
-							lookupKey: "Irgot",
-						},
-						{
-							name:      "someencodeditemID3",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Jannes"),
-							lookupKey: "Jannes",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Personal"},
-					category:     path.EventsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID4",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Argon"),
-							lookupKey: "Argon",
-						},
-						{
-							name:      "someencodeditemID5",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Bernard"),
-							lookupKey: "Bernard",
-						},
-					},
-				},
-			},
-		},
+		// {
+		// 	name:    "MultipleEventsSingleCalendar",
+		// 	service: path.ExchangeService,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Work"},
+		// 			category:     path.EventsCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name:      "someencodeditemID",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+		// 					lookupKey: "Ghimley",
+		// 				},
+		// 				{
+		// 					name:      "someencodeditemID2",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+		// 					lookupKey: "Irgot",
+		// 				},
+		// 				{
+		// 					name:      "someencodeditemID3",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Jannes"),
+		// 					lookupKey: "Jannes",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	name:    "MultipleEventsMultipleCalendars",
+		// 	service: path.ExchangeService,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Work"},
+		// 			category:     path.EventsCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name:      "someencodeditemID",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+		// 					lookupKey: "Ghimley",
+		// 				},
+		// 				{
+		// 					name:      "someencodeditemID2",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+		// 					lookupKey: "Irgot",
+		// 				},
+		// 				{
+		// 					name:      "someencodeditemID3",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Jannes"),
+		// 					lookupKey: "Jannes",
+		// 				},
+		// 			},
+		// 		},
+		// 		{
+		// 			pathElements: []string{"Personal"},
+		// 			category:     path.EventsCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name:      "someencodeditemID4",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Argon"),
+		// 					lookupKey: "Argon",
+		// 				},
+		// 				{
+		// 					name:      "someencodeditemID5",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Bernard"),
+		// 					lookupKey: "Bernard",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
 	}
 
 	for _, test := range table {
@@ -804,34 +805,34 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				},
 			},
 		},
-		{
-			name:    "Events",
-			service: path.ExchangeService,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Work"},
-					category:     path.EventsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
-							lookupKey: "Ghimley",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Personal"},
-					category:     path.EventsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
-							lookupKey: "Irgot",
-						},
-					},
-				},
-			},
-		},
+		// {
+		// 	name:    "Events",
+		// 	service: path.ExchangeService,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Work"},
+		// 			category:     path.EventsCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name:      "someencodeditemID",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+		// 					lookupKey: "Ghimley",
+		// 				},
+		// 			},
+		// 		},
+		// 		{
+		// 			pathElements: []string{"Personal"},
+		// 			category:     path.EventsCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name:      "someencodeditemID2",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+		// 					lookupKey: "Irgot",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
 	}
 
 	for _, test := range table {
@@ -981,34 +982,34 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
 				},
 			},
 		},
-		{
-			name:    "Events",
-			service: path.ExchangeService,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Work"},
-					category:     path.EventsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
-							lookupKey: "Ghimley",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Personal"},
-					category:     path.EventsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
-							lookupKey: "Irgot",
-						},
-					},
-				},
-			},
-		},
+		// {
+		// 	name:    "Events",
+		// 	service: path.ExchangeService,
+		// 	collections: []colInfo{
+		// 		{
+		// 			pathElements: []string{"Work"},
+		// 			category:     path.EventsCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name:      "someencodeditemID",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+		// 					lookupKey: "Ghimley",
+		// 				},
+		// 			},
+		// 		},
+		// 		{
+		// 			pathElements: []string{"Personal"},
+		// 			category:     path.EventsCategory,
+		// 			items: []itemInfo{
+		// 				{
+		// 					name:      "someencodeditemID2",
+		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+		// 					lookupKey: "Irgot",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
 	}
 
 	for _, test := range table {

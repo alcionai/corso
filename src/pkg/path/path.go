@@ -338,7 +338,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 	}
 
 	// Turn into a Builder to reuse code that ignores empty elements.
-	pb, err := Builder{}.UnescapeAndAppend(split(p)...)
+	pb, err := Builder{}.UnescapeAndAppend(Split(p)...)
 	if err != nil {
 		return nil, errors.Wrapf(err, templateErrPathParsing, p)
 	}
@@ -496,7 +496,7 @@ func join(elements []string) string {
 // split takes an escaped string and returns a slice of path elements. The
 // string is split on the path separator according to the escaping rules. The
 // provided string must not contain an unescaped trailing path separator.
-func split(segment string) []string {
+func Split(segment string) []string {
 	res := make([]string, 0)
 	numEscapes := 0
 	startIdx := 0

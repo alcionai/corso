@@ -8,7 +8,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const config = {
   title: 'Corso Documentation',
   tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
-  url: 'https://corsobackup.io',
+  url: 'https://docs.corsobackup.io',
   baseUrl: process.env.CORSO_DOCS_BASEURL || '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
@@ -43,13 +43,16 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
-          routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           remarkPlugins: [require('mdx-mermaid')],
           editUrl:
             'https://github.com/alcionai/corso/tree/main/docs',
         },
-        blog: false,
+        blog: {
+          showReadingTime: true,
+          blogTitle: 'Corso Blog',
+          blogDescription: 'Blog about Microsoft 365 protection, backup, and security',
+        },
         sitemap: {
           ignorePatterns: ['/tags/**'],
           filename: 'sitemap.xml',
@@ -68,13 +71,20 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: 'Docs',
+        title: '',
         logo: {
           alt: 'Corso Logo',
           src: '/img/corso_horizontal_logo.svg',
           srcDark: 'img/corso_horizontal_logo_white.svg',
         },
         items: [
+          {
+            type: 'doc',
+            docId: 'intro',
+            position: 'left',
+            label: 'Docs',
+          },
+          {to: '/blog', label: 'Blog', position: 'left'},
           {
             href: 'https://github.com/alcionai/corso',
             label: 'GitHub',
@@ -91,6 +101,15 @@ const config = {
         },
         links: [
           {
+            title: 'Resources',
+            items: [
+              {
+                label: 'Docs',
+                to: '/docs/intro',
+              },
+            ],
+          },
+          {
             title: 'Community',
             items: [
               {
@@ -106,6 +125,10 @@ const config = {
           {
             title: 'More',
             items: [
+              {
+                label: 'Blog',
+                to: '/blog',
+              },
               {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
@@ -139,6 +162,15 @@ const config = {
           scrollOffset: 0,
         },
       },
+
+      image: 'img/cloudbackup.png',
+
+      metadata : [
+        {name: 'twitter:card', content: 'summary_large_image'},
+        {name: 'twitter:site', content: '@corsobackup'},
+        {name: 'twitter:title', content: 'Corso Documentation: Free, Secure, and Open-Source Backup for Microsoft 365'},
+        {name: 'twitter:description', content: 'Documentation for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
+      ],
 
       prism: {
         theme: lightCodeTheme,
