@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"context"
 	"io"
 	"reflect"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -877,4 +879,12 @@ func getSelectorWith(service path.ServiceType) selectors.Selector {
 	return selectors.Selector{
 		Service: s,
 	}
+}
+
+func loadConnector(ctx context.Context, t *testing.T) *GraphConnector {
+	a := tester.NewM365Account(t)
+	connector, err := NewGraphConnector(ctx, a)
+	require.NoError(t, err)
+
+	return connector
 }
