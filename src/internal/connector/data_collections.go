@@ -202,8 +202,8 @@ func (fm odFolderMatcher) IsAny() bool {
 	return fm.scope.IsAny(selectors.OneDriveFolder)
 }
 
-func (fm odFolderMatcher) Matches(path string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, path)
+func (fm odFolderMatcher) Matches(dir string) bool {
+	return fm.scope.Matches(selectors.OneDriveFolder, dir)
 }
 
 // OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
@@ -271,7 +271,6 @@ func (gc *GraphConnector) createSharePointCollections(
 
 	// Create collection of ExchangeDataCollection
 	for _, site := range sites {
-
 		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", category, site))
 		defer closer()
 		defer close(foldersComplete)
@@ -292,9 +291,6 @@ func (gc *GraphConnector) createSharePointCollections(
 			}
 
 			collections = append(collections, spcs...)
-
-			// case path.UnknownCategory: // TODO: ListsCategory
-			// 	// get lists
 		}
 
 		foldersComplete <- struct{}{}

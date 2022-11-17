@@ -19,6 +19,7 @@ import (
 // 6. subject
 // 7. hasAttachments
 // 8. attachments
+//
 //nolint:lll
 const (
 	eventTmpl = `{
