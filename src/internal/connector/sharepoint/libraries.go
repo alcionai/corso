@@ -26,7 +26,7 @@ func CollectLibraries(
 	)
 
 	for _, site := range scope.Get(selectors.SharePointSite) {
-		logger.Ctx(ctx).With("site", site).Debug("Creating SharePoint Libary collections")
+		logger.Ctx(ctx).With("site", site).Debug("Creating SharePoint Library collections")
 
 		colls := onedrive.NewCollections(
 			tenantID,

@@ -26,27 +26,27 @@ const (
 
 type isAnyMatcher interface {
 	IsAny() bool
-	Matches(path string) bool
+	Matches(string) bool
 }
 
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
-	tenant        string
-	resourceOwner string
-	source        driveSource
+	Tenant        string
+	ResourceOwner string
+	Source        driveSource
 	matcher       isAnyMatcher
 	service       graph.Service
 	statusUpdater support.StatusUpdater
 
 	// collectionMap allows lookup of the data.Collection
 	// for a OneDrive folder
-	collectionMap map[string]data.Collection
+	CollectionMap map[string]data.Collection
 
 	// Track stats from drive enumeration. Represents the items backed up.
-	numItems      int
-	numFiles      int
-	numContainers int
+	NumItems      int
+	NumFiles      int
+	NumContainers int
 }
 
 func NewCollections(
@@ -58,11 +58,11 @@ func NewCollections(
 	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{
-		tenant:        tenant,
-		resourceOwner: resourceOwner,
-		source:        source,
+		Tenant:        tenant,
+		ResourceOwner: resourceOwner,
+		Source:        source,
 		matcher:       matcher,
-		collectionMap: map[string]data.Collection{},
+		CollectionMap: map[string]data.Collection{},
 		service:       service,
 		statusUpdater: statusUpdater,
 	}
@@ -71,32 +71,32 @@ func NewCollections(
 // Retrieves drive data as set of `data.Collections`
 func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	// Enumerate drives for the specified resourceOwner
-	drives, err := drives(ctx, c.service, c.resourceOwner, c.source)
+	drives, err := drives(ctx, c.service, c.ResourceOwner, c.Source)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update the collection map with items from each drive
 	for _, d := range drives {
-		err = collectItems(ctx, c.service, *d.GetId(), c.updateCollections)
+		err = collectItems(ctx, c.service, *d.GetId(), c.UpdateCollections)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	observe.Message(fmt.Sprintf("Discovered %d items to backup", c.numItems))
+	observe.Message(fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
-	collections := make([]data.Collection, 0, len(c.collectionMap))
-	for _, coll := range c.collectionMap {
+	collections := make([]data.Collection, 0, len(c.CollectionMap))
+	for _, coll := range c.CollectionMap {
 		collections = append(collections, coll)
 	}
 
 	return collections, nil
 }
 
-// updateCollections initializes and adds the provided drive items to Collections
+// UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package)
-func (c *Collections) updateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
+func (c *Collections) UpdateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
 			// Skip the root item
@@ -108,11 +108,11 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 		}
 
 		// Create a collection for the parent of this item
-		collectionPath, err := getCanonicalPath(
+		collectionPath, err := GetCanonicalPath(
 			*item.GetParentReference().GetPath(),
-			c.tenant,
-			c.resourceOwner,
-			c.source,
+			c.Tenant,
+			c.ResourceOwner,
+			c.Source,
 		)
 		if err != nil {
 			return err
@@ -131,7 +131,7 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 			// e.g. a ".folderMetadataFile"
 
 		case item.GetFile() != nil:
-			col, found := c.collectionMap[collectionPath.String()]
+			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
 				col = NewCollection(
 					collectionPath,
@@ -140,15 +140,15 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 					c.statusUpdater,
 				)
 
-				c.collectionMap[collectionPath.String()] = col
-				c.numContainers++
-				c.numItems++
+				c.CollectionMap[collectionPath.String()] = col
+				c.NumContainers++
+				c.NumItems++
 			}
 
 			collection := col.(*Collection)
 			collection.Add(*item.GetId())
-			c.numFiles++
-			c.numItems++
+			c.NumFiles++
+			c.NumItems++
 
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
@@ -158,7 +158,8 @@ func (c *Collections) updateCollections(ctx context.Context, driveID string, ite
 	return nil
 }
 
-func getCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path.Path, error) {
+// GetCanonicalPath constructs the standard path for the given source.
+func GetCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path.Path, error) {
 	var (
 		pathBuilder = path.Builder{}.Append(strings.Split(p, "/")...)
 		result      path.Path

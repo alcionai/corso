@@ -1,48 +1,90 @@
-package onedrive
+package sharepoint_test
 
 import (
+	"context"
 	"testing"
 
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+// ---------------------------------------------------------------------------
+// consts, mocks
+// ---------------------------------------------------------------------------
 
 const (
 	testBaseDrivePath = "drive/driveID1/root:"
 )
 
-func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
-	res := make([]string, 0, len(rest))
+type testFolderMatcher struct {
+	scope selectors.SharePointScope
+}
 
-	for _, r := range rest {
-		p, err := GetCanonicalPath(r, tenant, user, OneDriveSource)
-		require.NoError(t, err)
+func (fm testFolderMatcher) IsAny() bool {
+	return fm.scope.IsAny(selectors.SharePointFolder)
+}
 
-		res = append(res, p.String())
+func (fm testFolderMatcher) Matches(path string) bool {
+	return fm.scope.Matches(selectors.SharePointFolder, path)
+}
+
+type MockGraphService struct{}
+
+func (ms *MockGraphService) Client() *msgraphsdk.GraphServiceClient {
+	return nil
+}
+
+func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
+	return nil
+}
+
+func (ms *MockGraphService) ErrPolicy() bool {
+	return false
+}
+
+// ---------------------------------------------------------------------------
+// tests
+// ---------------------------------------------------------------------------
+
+type SharePointLibrariesIntegrationSuite struct {
+	suite.Suite
+	ctx context.Context
+}
+
+func TestSharePointLibrariesIntegrationSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorSharePointTests,
+	); err != nil {
+		t.Skip(err)
 	}
 
-	return res
+	suite.Run(t, new(SharePointLibrariesIntegrationSuite))
 }
 
-type OneDriveCollectionsSuite struct {
-	suite.Suite
+func (suite *SharePointLibrariesIntegrationSuite) SetupSuite() {
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs,
+	)
+
+	require.NoError(suite.T(), err)
 }
 
-func TestOneDriveCollectionsSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveCollectionsSuite))
-}
-
-func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
-	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any(), selectors.Any())[0]
+func (suite *SharePointLibrariesIntegrationSuite) TestCollectLibraries() {
+	anyFolder := (&selectors.SharePointBackup{}).Folders(selectors.Any(), selectors.Any())[0]
 
 	const (
 		tenant    = "tenant"
-		user      = "user"
+		site      = "site"
 		folder    = "/folder"
 		folderSub = "/folder/subfolder"
 		pkg       = "/package"
@@ -51,7 +93,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	tests := []struct {
 		testCase                string
 		items                   []models.DriveItemable
-		scope                   selectors.OneDriveScope
+		scope                   selectors.SharePointScope
 		expect                  assert.ErrorAssertionFunc
 		expectedCollectionPaths []string
 		expectedItemCount       int
@@ -76,7 +118,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
-				user,
+				site,
 				testBaseDrivePath,
 			),
 			expectedItemCount:      2,
@@ -115,7 +157,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
-				user,
+				site,
 				testBaseDrivePath,
 				testBaseDrivePath+folder,
 				testBaseDrivePath+pkg,
@@ -136,19 +178,19 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
 				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"folder"})[0],
+			scope:  (&selectors.SharePointBackup{}).Folders(selectors.Any(), []string{"folder"})[0],
 			expect: assert.NoError,
 			expectedCollectionPaths: append(
 				expectedPathAsSlice(
 					suite.T(),
 					tenant,
-					user,
+					site,
 					testBaseDrivePath+"/folder",
 				),
 				expectedPathAsSlice(
 					suite.T(),
 					tenant,
-					user,
+					site,
 					testBaseDrivePath+folderSub+folder,
 				)...,
 			),
@@ -168,13 +210,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
 				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope: (&selectors.OneDriveBackup{}).
+			scope: (&selectors.SharePointBackup{}).
 				Folders(selectors.Any(), []string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
 			expect: assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
-				user,
+				site,
 				testBaseDrivePath+folderSub+folder,
 			),
 			expectedItemCount:      2,
@@ -192,12 +234,12 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInSubfolder", testBaseDrivePath+folderSub, true, false, false),
 				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"folder/subfolder"})[0],
+			scope:  (&selectors.SharePointBackup{}).Folders(selectors.Any(), []string{"folder/subfolder"})[0],
 			expect: assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
-				user,
+				site,
 				testBaseDrivePath+folderSub,
 			),
 			expectedItemCount:      2,
@@ -206,21 +248,28 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 		},
 	}
 
-	for _, tt := range tests {
-		suite.T().Run(tt.testCase, func(t *testing.T) {
+	for _, test := range tests {
+		suite.T().Run(test.testCase, func(t *testing.T) {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			c := NewCollections(tenant, user, OneDriveSource, testFolderMatcher{tt.scope}, &MockGraphService{}, nil)
-			err := c.UpdateCollections(ctx, "driveID", tt.items)
-			tt.expect(t, err)
-			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
-			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
-			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
-			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
-			for _, collPath := range tt.expectedCollectionPaths {
+			c := onedrive.NewCollections(
+				tenant,
+				site,
+				onedrive.SharePointSource,
+				testFolderMatcher{test.scope},
+				&MockGraphService{},
+				nil)
+			err := c.UpdateCollections(ctx, "driveID", test.items)
+			test.expect(t, err)
+			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
+			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
+			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
+			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
+			for _, collPath := range test.expectedCollectionPaths {
 				assert.Contains(t, c.CollectionMap, collPath)
 			}
+			t.Fail()
 		})
 	}
 }
@@ -244,4 +293,21 @@ func driveItem(name string, path string, isFile, isFolder, isPackage bool) model
 	}
 
 	return item
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
+	res := make([]string, 0, len(rest))
+
+	for _, r := range rest {
+		p, err := onedrive.GetCanonicalPath(r, tenant, user, onedrive.SharePointSource)
+		require.NoError(t, err)
+
+		res = append(res, p.String())
+	}
+
+	return res
 }
