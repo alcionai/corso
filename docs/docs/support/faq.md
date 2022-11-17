@@ -16,7 +16,7 @@ metadata for basic information about installed versions and usage in a privacy-p
 generic description of most-commonly used backup operations and statistics on the duration and size of backups. No user
 data is stored or transmitted during this process.
 
-Telemetry reporting can be turned off by using the `--no-stats` flag. See the [Command Line Reference](cli/corso)
+Telemetry reporting can be turned off by using the `--no-stats` flag. See the [Command Line Reference](../cli/corso)
 section for more information.
 
 </details>
