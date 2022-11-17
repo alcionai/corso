@@ -279,25 +279,25 @@ func (gc *GraphConnector) createSharePointCollections(
 		defer closer()
 		defer close(foldersComplete)
 
-		resolver, err := exchange.PopulateExchangeContainerResolver(
-			ctx,
-			qp,
-			qp.Scope.Category().PathType(),
-		)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting folder cache")
-		}
+		// resolver, err := exchange.PopulateExchangeContainerResolver(
+		// 	ctx,
+		// 	qp,
+		// 	qp.Scope.Category().PathType(),
+		// )
+		// if err != nil {
+		// 	return nil, errors.Wrap(err, "getting folder cache")
+		// }
 
-		err = sharepoint.FilterContainersAndFillCollections(
-			ctx,
-			qp,
-			collections,
-			gc.UpdateStatus,
-			resolver)
+		// err = sharepoint.FilterContainersAndFillCollections(
+		// 	ctx,
+		// 	qp,
+		// 	collections,
+		// 	gc.UpdateStatus,
+		// 	resolver)
 
-		if err != nil {
-			return nil, errors.Wrap(err, "filling collections")
-		}
+		// if err != nil {
+		// 	return nil, errors.Wrap(err, "filling collections")
+		// }
 
 		foldersComplete <- struct{}{}
 
@@ -331,6 +331,7 @@ func (gc *GraphConnector) SharePointDataCollections(
 	// for each scope that includes oneDrive items, get all
 	for _, scope := range scopes {
 		// Creates a map of collections based on scope
+		fmt.Printf("\n-----\nHERE %v\n-----\n", scope)
 		dcs, err := gc.createSharePointCollections(ctx, scope)
 		if err != nil {
 			return nil, support.WrapAndAppend(scope.Get(selectors.SharePointSite)[0], err, errs)
