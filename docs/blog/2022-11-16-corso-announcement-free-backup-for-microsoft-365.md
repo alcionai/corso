@@ -14,6 +14,8 @@ If you did some work today, there’s a very good chance you opened a Microsoft 
 companies worldwide, and nearly 880,000 companies in the U.S. use the software suite. But with that widespread usage
 comes risk, business-critical data is at risk of loss or corruption, if not securely backed up and protected.
 
+<!-- truncate -->
+
 ## The problem with built-in backups
 
 A couple of years back I took the time to get the AWS ‘baby cert,’ their first certification. The focus of the

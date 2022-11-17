@@ -8,7 +8,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const config = {
   title: 'Corso Documentation',
   tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
-  url: 'https://corsobackup.io',
+  url: 'https://docs.corsobackup.io',
   baseUrl: process.env.CORSO_DOCS_BASEURL || '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
@@ -50,6 +50,8 @@ const config = {
         },
         blog: {
           showReadingTime: true,
+          blogTitle: 'Corso Blog',
+          blogDescription: 'Blog about Microsoft 365 protection, backup, and security',
         },
         sitemap: {
           ignorePatterns: ['/tags/**'],
