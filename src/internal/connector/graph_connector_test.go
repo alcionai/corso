@@ -87,7 +87,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	suite.Equal(0, len(newConnector.Sites))
 	err = newConnector.setTenantSites(ctx)
 	suite.NoError(err)
-	suite.Less(0, len(newConnector.Users))
+	suite.Less(0, len(newConnector.Sites))
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
