@@ -34,9 +34,11 @@ func mustAppendPath(p path.Path, newElement string, isItem bool) path.Path {
 }
 
 const (
-	ItemName1 = "item1"
-	ItemName2 = "item2"
-	ItemName3 = "item3"
+	ItemName1  = "item1"
+	ItemName2  = "item2"
+	ItemName3  = "item3"
+	UserEmail1 = "user1@email.com"
+	UserEmail2 = "user2@email.com"
 )
 
 var (
@@ -187,6 +189,7 @@ var (
 					ParentPath: OneDriveFolderFolder,
 					ItemName:   OneDriveItemPath1.Item() + "name",
 					Size:       int64(23),
+					Owner:      UserEmail1,
 					Created:    Time2,
 					Modified:   Time4,
 				},
@@ -202,6 +205,7 @@ var (
 					ParentPath: OneDriveParentFolder1,
 					ItemName:   OneDriveItemPath2.Item() + "name",
 					Size:       int64(42),
+					Owner:      UserEmail1,
 					Created:    Time1,
 					Modified:   Time3,
 				},
@@ -217,6 +221,7 @@ var (
 					ParentPath: OneDriveParentFolder2,
 					ItemName:   OneDriveItemPath3.Item() + "name",
 					Size:       int64(19),
+					Owner:      UserEmail2,
 					Created:    Time2,
 					Modified:   Time4,
 				},

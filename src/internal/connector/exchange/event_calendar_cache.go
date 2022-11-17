@@ -3,8 +3,7 @@ package exchange
 import (
 	"context"
 
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	mscal "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -15,9 +14,9 @@ import (
 var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
-	cache          map[string]graph.CachedContainer
-	gs             graph.Service
-	userID, rootID string
+	*containerResolver
+	gs     graph.Service
+	userID string
 }
 
 // Populate utility function for populating eventCalendarCache.
@@ -28,8 +27,8 @@ func (ecc *eventCalendarCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if ecc.cache == nil {
-		ecc.cache = map[string]graph.CachedContainer{}
+	if ecc.containerResolver == nil {
+		ecc.containerResolver = newContainerResolver()
 	}
 
 	options, err := optionsForCalendars([]string{"name"})
@@ -38,118 +37,79 @@ func (ecc *eventCalendarCache) Populate(
 	}
 
 	var (
-		asyncError  error
-		directories = make(map[string]graph.Container)
-		errUpdater  = func(s string, e error) {
-			asyncError = support.WrapAndAppend(s, e, err)
+		errs        error
+		directories = make([]graph.Container, 0)
+	)
+
+	builder := ecc.gs.Client().UsersById(ecc.userID).Calendars()
+
+	for {
+		resp, err := builder.Get(ctx, options)
+		if err != nil {
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
-	)
 
-	query, err := ecc.gs.Client().UsersById(ecc.userID).Calendars().Get(ctx, options)
-	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		for _, cal := range resp.GetValue() {
+			temp := CreateCalendarDisplayable(cal)
+			if err := checkIDAndName(temp); err != nil {
+				errs = support.WrapAndAppend(
+					"adding folder to cache",
+					err,
+					errs,
+				)
+
+				continue
+			}
+
+			directories = append(directories, temp)
+		}
+
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
+
+		builder = mscal.NewCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(
-		query,
-		ecc.gs.Adapter(),
-		models.CreateCalendarCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return err
-	}
+	for _, container := range directories {
+		temp := cacheFolder{
+			Container: container,
+			p:         path.Builder{}.Append(*container.GetDisplayName()),
+		}
 
-	cb := IterativeCollectCalendarContainers(
-		directories,
-		"",
-		errUpdater,
-	)
-
-	iterateErr := iter.Iterate(ctx, cb)
-	if iterateErr != nil {
-		return errors.Wrap(iterateErr, support.ConnectorStackErrorTrace(iterateErr))
-	}
-
-	// check for errors created during iteration
-	if asyncError != nil {
-		return err
-	}
-
-	for _, containerr := range directories {
-		if err := ecc.AddToCache(ctx, containerr); err != nil {
-			iterateErr = support.WrapAndAppend(
-				"failure adding "+*containerr.GetDisplayName(),
+		if err := ecc.addFolder(temp); err != nil {
+			errs = support.WrapAndAppend(
+				"failure adding "+*container.GetDisplayName(),
 				err,
-				iterateErr)
+				errs)
 		}
 	}
 
-	return iterateErr
+	return errs
 }
 
-func (ecc *eventCalendarCache) IDToPath(
-	ctx context.Context,
-	calendarID string,
-) (*path.Builder, error) {
-	c, ok := ecc.cache[calendarID]
-	if !ok {
-		return nil, errors.Errorf("calendar %s not cached", calendarID)
-	}
-
-	p := c.Path()
-	if p == nil {
-		// Shouldn't happen
-		p := path.Builder{}.Append(*c.GetDisplayName())
-		c.SetPath(p)
-	}
-
-	return p, nil
-}
-
-// AddToCache places container into internal cache field. For EventCalendars
-// this means that the object has to be transformed prior to calling
-// this function.
+// AddToCache adds container to map in field 'cache'
+// @returns error iff the required values are not accessible.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkIDAndName(f); err != nil {
-		return err
+		return errors.Wrap(err, "adding cache folder")
 	}
 
-	if _, ok := ecc.cache[*f.GetId()]; ok {
-		return nil
-	}
-
-	ecc.cache[*f.GetId()] = &cacheFolder{
+	temp := cacheFolder{
 		Container: f,
 		p:         path.Builder{}.Append(*f.GetDisplayName()),
 	}
 
+	if err := ecc.addFolder(temp); err != nil {
+		return errors.Wrap(err, "adding cache folder")
+	}
+
+	// Populate the path for this entry so calls to PathInCache succeed no matter
+	// when they're made.
+	_, err := ecc.IDToPath(ctx, *f.GetId())
+	if err != nil {
+		return errors.Wrap(err, "adding cache entry")
+	}
+
 	return nil
-}
-
-func (ecc *eventCalendarCache) PathInCache(pathString string) (string, bool) {
-	if len(pathString) == 0 || ecc.cache == nil {
-		return "", false
-	}
-
-	for _, containerr := range ecc.cache {
-		if containerr.Path() == nil {
-			continue
-		}
-
-		if containerr.Path().String() == pathString {
-			return *containerr.GetId(), true
-		}
-	}
-
-	return "", false
-}
-
-func (ecc *eventCalendarCache) Items() []graph.CachedContainer {
-	res := make([]graph.CachedContainer, 0, len(ecc.cache))
-
-	for _, c := range ecc.cache {
-		res = append(res, c)
-	}
-
-	return res
 }

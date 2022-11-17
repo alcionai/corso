@@ -25,9 +25,11 @@ func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error)
 	}
 
 	opts := s3.Options{
-		BucketName: cfg.Bucket,
-		Endpoint:   endpoint,
-		Prefix:     cfg.Prefix,
+		BucketName:     cfg.Bucket,
+		Endpoint:       endpoint,
+		Prefix:         cfg.Prefix,
+		DoNotUseTLS:    cfg.DoNotUseTLS,
+		DoNotVerifyTLS: cfg.DoNotVerifyTLS,
 	}
 
 	return s3.New(ctx, &opts)

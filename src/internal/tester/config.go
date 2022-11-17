@@ -20,16 +20,20 @@ const (
 	TestCfgStorageProvider = "provider"
 
 	// M365 config
-	TestCfgAzureTenantID   = "azure_tenantid"
-	TestCfgUserID          = "m365userid"
-	TestCfgSecondaryUserID = "secondarym365userid"
-	TestCfgAccountProvider = "account_provider"
+	TestCfgAzureTenantID    = "azure_tenantid"
+	TestCfgUserID           = "m365userid"
+	TestCfgSecondaryUserID  = "secondarym365userid"
+	TestCfgLoadTestUserID   = "loadtestm365userid"
+	TestCfgLoadTestOrgUsers = "loadtestm365orgusers"
+	TestCfgAccountProvider  = "account_provider"
 )
 
 // test specific env vars
 const (
-	EnvCorsoM365TestUserID          = "CORSO_M356_TEST_USER_ID"
-	EnvCorsoSecondaryM365TestUserID = "CORSO_SECONDARY_M356_TEST_USER_ID"
+	EnvCorsoM365TestUserID          = "CORSO_M365_TEST_USER_ID"
+	EnvCorsoSecondaryM365TestUserID = "CORSO_SECONDARY_M365_TEST_USER_ID"
+	EnvCorsoM365LoadTestUserID      = "CORSO_M365_LOAD_TEST_USER_ID"
+	EnvCorsoM365LoadTestOrgUsers    = "CORSO_M365_LOAD_TEST_ORG_USERS"
 	EnvCorsoTestConfigFilePath      = "CORSO_TEST_CONFIG_FILE"
 )
 
@@ -118,6 +122,20 @@ func readTestConfig() (map[string]string, error) {
 		vpr.GetString(TestCfgSecondaryUserID),
 		"lidiah@8qzvrj.onmicrosoft.com",
 		//"lynner@8qzvrj.onmicrosoft.com",
+	)
+	fallbackTo(
+		testEnv,
+		TestCfgLoadTestUserID,
+		os.Getenv(EnvCorsoM365LoadTestUserID),
+		vpr.GetString(TestCfgLoadTestUserID),
+		"leeg@8qzvrj.onmicrosoft.com",
+	)
+	fallbackTo(
+		testEnv,
+		TestCfgLoadTestOrgUsers,
+		os.Getenv(EnvCorsoM365LoadTestOrgUsers),
+		vpr.GetString(TestCfgLoadTestOrgUsers),
+		"lidiah@8qzvrj.onmicrosoft.com,lynner@8qzvrj.onmicrosoft.com",
 	)
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)

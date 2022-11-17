@@ -35,6 +35,96 @@ var (
 var backupDataSets = []path.CategoryType{email, contacts, events}
 
 // ---------------------------------------------------------------------------
+// tests with no backups
+// ---------------------------------------------------------------------------
+
+type NoBackupExchangeIntegrationSuite struct {
+	suite.Suite
+	acct       account.Account
+	st         storage.Storage
+	vpr        *viper.Viper
+	cfgFP      string
+	repo       repository.Repository
+	m365UserID string
+	recorder   strings.Builder
+}
+
+func TestNoBackupExchangeIntegrationSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoCLITests,
+		tester.CorsoCLIBackupTests,
+	); err != nil {
+		t.Skip(err)
+	}
+
+	suite.Run(t, new(NoBackupExchangeIntegrationSuite))
+}
+
+func (suite *NoBackupExchangeIntegrationSuite) SetupSuite() {
+	t := suite.T()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
+
+	_, err := tester.GetRequiredEnvSls(
+		tester.AWSStorageCredEnvs,
+		tester.M365AcctCredEnvs)
+	require.NoError(t, err)
+
+	// prepare common details
+	suite.acct = tester.NewM365Account(t)
+	suite.st = tester.NewPrefixedS3Storage(t)
+	suite.recorder = strings.Builder{}
+
+	cfg, err := suite.st.S3Config()
+	require.NoError(t, err)
+
+	force := map[string]string{
+		tester.TestCfgAccountProvider: "M365",
+		tester.TestCfgStorageProvider: "S3",
+		tester.TestCfgPrefix:          cfg.Prefix,
+	}
+
+	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
+	require.NoError(t, err)
+
+	ctx = config.SetViper(ctx, suite.vpr)
+	suite.m365UserID = tester.M365UserID(t)
+
+	// init the repo first
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
+	require.NoError(t, err)
+}
+
+func (suite *NoBackupExchangeIntegrationSuite) TestExchangeBackupListCmd_empty() {
+	t := suite.T()
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
+
+	suite.recorder.Reset()
+
+	cmd := tester.StubRootCmd(
+		"backup", "list", "exchange",
+		"--config-file", suite.cfgFP)
+	cli.BuildCommandTree(cmd)
+
+	cmd.SetErr(&suite.recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	require.NoError(t, cmd.ExecuteContext(ctx))
+
+	result := suite.recorder.String()
+
+	// as an offhand check: the result should contain the m365 user id
+	assert.Equal(t, "No backups available\n", result)
+}
+
+// ---------------------------------------------------------------------------
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
@@ -201,13 +291,16 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder})
+			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{suite.m365UserID}, []string{exchange.DefaultContactFolder})
+			scopes = sel.ContactFolders(
+				[]string{suite.m365UserID},
+				[]string{exchange.DefaultContactFolder},
+				selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar})
+			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)
@@ -425,7 +518,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
+	sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

@@ -2,6 +2,7 @@ package details_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,8 @@ func TestDetailsUnitSuite(t *testing.T) {
 }
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
-	nowStr := common.FormatNow(common.TabularOutput)
+	initial := time.Now()
+	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
 	require.NoError(suite.T(), err)
 
@@ -52,14 +54,15 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					Exchange: &details.ExchangeInfo{
 						ItemType:    details.ExchangeEvent,
 						EventStart:  now,
+						EventEnd:    now,
 						Organizer:   "organizer",
 						EventRecurs: true,
 						Subject:     "subject",
 					},
 				},
 			},
-			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Recurring"},
-			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, "true"},
+			expectHs: []string{"ID", "Organizer", "Subject", "Starts", "Ends", "Recurring"},
+			expectVs: []string{"deadbeef", "organizer", "subject", nowStr, nowStr, "true"},
 		},
 		{
 			name: "exchange contact info",
@@ -99,7 +102,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
-					Sharepoint: &details.SharepointInfo{},
+					SharePoint: &details.SharePointInfo{},
 				},
 			},
 			expectHs: []string{"ID"},
@@ -115,13 +118,14 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						ItemName:   "itemName",
 						ParentPath: "parentPath",
 						Size:       1000,
+						Owner:      "user@email.com",
 						Created:    now,
 						Modified:   now,
 					},
 				},
 			},
-			expectHs: []string{"ID", "ItemName", "ParentPath", "Size", "Created", "Modified"},
-			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", nowStr, nowStr},
+			expectHs: []string{"ID", "ItemName", "ParentPath", "Size", "Owner", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", "user@email.com", nowStr, nowStr},
 		},
 	}
 

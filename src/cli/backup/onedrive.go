@@ -412,5 +412,7 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
 	}
 
+	Info(ctx, "Deleted OneDrive backup ", backupID)
+
 	return nil
 }

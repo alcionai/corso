@@ -1,36 +1,46 @@
 package storage
 
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
 
 type S3Config struct {
-	Bucket   string // required
-	Endpoint string
-	Prefix   string
+	Bucket         string // required
+	Endpoint       string
+	Prefix         string
+	DoNotUseTLS    bool
+	DoNotVerifyTLS bool
 }
 
 // config key consts
 const (
-	keyS3Bucket   = "s3_bucket"
-	keyS3Endpoint = "s3_endpoint"
-	keyS3Prefix   = "s3_prefix"
+	keyS3Bucket         = "s3_bucket"
+	keyS3Endpoint       = "s3_endpoint"
+	keyS3Prefix         = "s3_prefix"
+	keyS3DoNotUseTLS    = "s3_donotusetls"
+	keyS3DoNotVerifyTLS = "s3_donotverifytls"
 )
 
 // config exported name consts
 const (
-	Bucket   = "bucket"
-	Endpoint = "endpoint"
-	Prefix   = "prefix"
+	Bucket         = "bucket"
+	Endpoint       = "endpoint"
+	Prefix         = "prefix"
+	DoNotUseTLS    = "donotusetls"
+	DoNotVerifyTLS = "donotverifytls"
 )
 
 func (c S3Config) Normalize() S3Config {
 	return S3Config{
-		Bucket:   common.NormalizeBucket(c.Bucket),
-		Endpoint: c.Endpoint,
-		Prefix:   common.NormalizePrefix(c.Prefix),
+		Bucket:         common.NormalizeBucket(c.Bucket),
+		Endpoint:       c.Endpoint,
+		Prefix:         common.NormalizePrefix(c.Prefix),
+		DoNotUseTLS:    c.DoNotUseTLS,
+		DoNotVerifyTLS: c.DoNotVerifyTLS,
 	}
 }
 
@@ -40,9 +50,11 @@ func (c S3Config) Normalize() S3Config {
 func (c S3Config) StringConfig() (map[string]string, error) {
 	cn := c.Normalize()
 	cfg := map[string]string{
-		keyS3Bucket:   cn.Bucket,
-		keyS3Endpoint: cn.Endpoint,
-		keyS3Prefix:   cn.Prefix,
+		keyS3Bucket:         cn.Bucket,
+		keyS3Endpoint:       cn.Endpoint,
+		keyS3Prefix:         cn.Prefix,
+		keyS3DoNotUseTLS:    strconv.FormatBool(cn.DoNotUseTLS),
+		keyS3DoNotVerifyTLS: strconv.FormatBool(cn.DoNotVerifyTLS),
 	}
 
 	return cfg, c.validate()
@@ -56,6 +68,8 @@ func (s Storage) S3Config() (S3Config, error) {
 		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
 		c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
 		c.Prefix = orEmptyString(s.Config[keyS3Prefix])
+		c.DoNotUseTLS = common.ParseBool(s.Config[keyS3DoNotUseTLS])
+		c.DoNotVerifyTLS = common.ParseBool(s.Config[keyS3DoNotVerifyTLS])
 	}
 
 	return c, c.validate()

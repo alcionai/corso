@@ -189,7 +189,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			name: "Integration Exchange.Mail",
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}))
+				sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 				return &sel.Selector
 			},
 		},
@@ -197,7 +197,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			name: "Integration Exchange.Contacts",
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.ContactFolders([]string{m365UserID}, []string{exchange.DefaultContactFolder}))
+				sel.Include(sel.ContactFolders(
+					[]string{m365UserID},
+					[]string{exchange.DefaultContactFolder},
+					selectors.PrefixMatch()))
 				return &sel.Selector
 			},
 		},
@@ -205,7 +208,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 			name: "Integration Exchange.Events",
 			selectFunc: func() *selectors.Selector {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}))
+				sel.Include(sel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return &sel.Selector
 			},
 		},

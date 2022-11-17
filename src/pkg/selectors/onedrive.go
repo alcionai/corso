@@ -35,6 +35,8 @@ type (
 	}
 )
 
+var _ Reducer = &OneDriveRestore{}
+
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
 func NewOneDriveBackup() *OneDriveBackup {
 	src := OneDriveBackup{
@@ -177,12 +179,16 @@ func (s *oneDrive) Users(users []string) []OneDriveScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the folder scopes.
 func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveScope {
-	scopes := []OneDriveScope{}
+	var (
+		scopes = []OneDriveScope{}
+		os     = append([]option{pathType()}, opts...)
+	)
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveFolder, users, folders, opts...),
+		makeScope[OneDriveScope](OneDriveFolder, users, folders, os...),
 	)
 
 	return scopes
@@ -192,13 +198,14 @@ func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveSc
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *oneDrive) Items(users, folders, items []string) []OneDriveScope {
+// options are only applied to the folder scopes.
+func (s *oneDrive) Items(users, folders, items []string, opts ...option) []OneDriveScope {
 	scopes := []OneDriveScope{}
 
 	scopes = append(
 		scopes,
 		makeScope[OneDriveScope](OneDriveItem, users, items).
-			set(OneDriveFolder, folders),
+			set(OneDriveFolder, folders, opts...),
 	)
 
 	return scopes
@@ -288,12 +295,16 @@ const (
 	FileFilterModifiedBefore oneDriveCategory = "FileFilterModifiedBefore"
 )
 
-// oneDrivePathSet describes the category type keys used in OneDrive paths.
-// The order of each slice is important, and should match the order in which
-// these types appear in the canonical Path for each type.
-var oneDrivePathSet = map[categorizer][]categorizer{
-	OneDriveItem: {OneDriveUser, OneDriveFolder, OneDriveItem},
-	OneDriveUser: {OneDriveUser}, // the root category must be represented
+// oneDriveLeafProperties describes common metadata of the leaf categories
+var oneDriveLeafProperties = map[categorizer]leafProperty{
+	OneDriveItem: {
+		pathKeys: []categorizer{OneDriveUser, OneDriveFolder, OneDriveItem},
+		pathType: path.FilesCategory,
+	},
+	OneDriveUser: { // the root category must be represented, even though it isn't a leaf
+		pathKeys: []categorizer{OneDriveUser},
+		pathType: path.UnknownCategory,
+	},
 }
 
 func (c oneDriveCategory) String() string {
@@ -350,7 +361,12 @@ func (c oneDriveCategory) pathValues(p path.Path) map[categorizer]string {
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
 func (c oneDriveCategory) pathKeys() []categorizer {
-	return oneDrivePathSet[c.leafCat()]
+	return oneDriveLeafProperties[c.leafCat()].pathKeys
+}
+
+// PathType converts the category's leaf type into the matching path.CategoryType.
+func (c oneDriveCategory) PathType() path.CategoryType {
+	return oneDriveLeafProperties[c.leafCat()].pathType
 }
 
 // ---------------------------------------------------------------------------
@@ -409,8 +425,13 @@ func (s OneDriveScope) Get(cat oneDriveCategory) []string {
 }
 
 // sets a value by category to the scope.  Only intended for internal use.
-func (s OneDriveScope) set(cat oneDriveCategory, v []string) OneDriveScope {
-	return set(s, cat, v)
+func (s OneDriveScope) set(cat oneDriveCategory, v []string, opts ...option) OneDriveScope {
+	os := []option{}
+	if cat == OneDriveFolder {
+		os = append(os, pathType())
+	}
+
+	return set(s, cat, v, append(os, opts...)...)
 }
 
 // setDefaults ensures that user scopes express `AnyTgt` for their child category types.

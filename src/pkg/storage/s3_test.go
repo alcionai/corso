@@ -1,4 +1,4 @@
-package storage_test
+package storage
 
 import (
 	"testing"
@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 type S3CfgSuite struct {
@@ -19,16 +17,20 @@ func TestS3CfgSuite(t *testing.T) {
 }
 
 var (
-	goodS3Config = storage.S3Config{
-		Bucket:   "bkt",
-		Endpoint: "end",
-		Prefix:   "pre/",
+	goodS3Config = S3Config{
+		Bucket:         "bkt",
+		Endpoint:       "end",
+		Prefix:         "pre/",
+		DoNotUseTLS:    false,
+		DoNotVerifyTLS: false,
 	}
 
 	goodS3Map = map[string]string{
-		"s3_bucket":   "bkt",
-		"s3_endpoint": "end",
-		"s3_prefix":   "pre/",
+		keyS3Bucket:         "bkt",
+		keyS3Endpoint:       "end",
+		keyS3Prefix:         "pre/",
+		keyS3DoNotUseTLS:    "false",
+		keyS3DoNotVerifyTLS: "false",
 	}
 )
 
@@ -54,7 +56,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	t := suite.T()
 
 	in := goodS3Config
-	s, err := storage.NewStorage(storage.ProviderS3, in)
+	s, err := NewStorage(ProviderS3, in)
 	assert.NoError(t, err)
 	out, err := s.S3Config()
 	assert.NoError(t, err)
@@ -64,8 +66,8 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	assert.Equal(t, in.Prefix, out.Prefix)
 }
 
-func makeTestS3Cfg(bkt, end, pre string) storage.S3Config {
-	return storage.S3Config{
+func makeTestS3Cfg(bkt, end, pre string) S3Config {
+	return S3Config{
 		Bucket:   bkt,
 		Endpoint: end,
 		Prefix:   pre,
@@ -76,13 +78,13 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 	// missing required properties
 	table := []struct {
 		name string
-		cfg  storage.S3Config
+		cfg  S3Config
 	}{
 		{"missing bucket", makeTestS3Cfg("", "end", "pre/")},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := storage.NewStorage(storage.ProviderUnknown, test.cfg)
+			_, err := NewStorage(ProviderUnknown, test.cfg)
 			assert.Error(t, err)
 		})
 	}
@@ -90,18 +92,18 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 	// required property not populated in storage
 	table2 := []struct {
 		name  string
-		amend func(storage.Storage)
+		amend func(Storage)
 	}{
 		{
 			"missing bucket",
-			func(s storage.Storage) {
+			func(s Storage) {
 				s.Config["s3_bucket"] = ""
 			},
 		},
 	}
 	for _, test := range table2 {
 		suite.T().Run(test.name, func(t *testing.T) {
-			st, err := storage.NewStorage(storage.ProviderUnknown, goodS3Config)
+			st, err := NewStorage(ProviderUnknown, goodS3Config)
 			assert.NoError(t, err)
 			test.amend(st)
 			_, err = st.S3Config()
@@ -113,7 +115,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 	table := []struct {
 		name   string
-		input  storage.S3Config
+		input  S3Config
 		expect map[string]string
 	}{
 		{
@@ -125,6 +127,23 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 			name:   "normalized bucket name",
 			input:  makeTestS3Cfg("s3://"+goodS3Config.Bucket, goodS3Config.Endpoint, goodS3Config.Prefix),
 			expect: goodS3Map,
+		},
+		{
+			name: "disabletls",
+			input: S3Config{
+				Bucket:         "bkt",
+				Endpoint:       "end",
+				Prefix:         "pre/",
+				DoNotUseTLS:    true,
+				DoNotVerifyTLS: true,
+			},
+			expect: map[string]string{
+				keyS3Bucket:         "bkt",
+				keyS3Endpoint:       "end",
+				keyS3Prefix:         "pre/",
+				keyS3DoNotUseTLS:    "true",
+				keyS3DoNotVerifyTLS: "true",
+			},
 		},
 	}
 	for _, test := range table {
@@ -142,7 +161,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_Normalize() {
 		normalBkt   = "bkt"
 	)
 
-	st := storage.S3Config{
+	st := S3Config{
 		Bucket: prefixedBkt,
 	}
 

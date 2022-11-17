@@ -5,6 +5,7 @@ import (
 	nethttp "net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 const (
@@ -69,19 +69,19 @@ func (handler *LoggingMiddleware) Intercept(
 	return pipeline.Next(req, middlewareIndex)
 }
 
-// ScopeToPathCategory helper function that maps selectors.ExchangeScope to path.CategoryType
-func ScopeToPathCategory(scope selectors.ExchangeScope) path.CategoryType {
-	if scope.IncludesCategory(selectors.ExchangeMail) {
+func StringToPathCategory(input string) path.CategoryType {
+	param := strings.ToLower(input)
+
+	switch param {
+	case "email":
 		return path.EmailCategory
-	}
-
-	if scope.IncludesCategory(selectors.ExchangeContact) {
+	case "contacts":
 		return path.ContactsCategory
-	}
-
-	if scope.IncludesCategory(selectors.ExchangeEvent) {
+	case "events":
 		return path.EventsCategory
+	case "files":
+		return path.FilesCategory
+	default:
+		return path.UnknownCategory
 	}
-
-	return path.UnknownCategory
 }

@@ -8,6 +8,19 @@
         </a>
 
         <!-- End Logo container-->
+        <div class="menu-extras">
+            <div class="menu-item">
+                <!-- Mobile menu toggle-->
+                <a class="navbar-toggle" id="isToggle" onclick="toggleMenu()">
+                    <div class="lines">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </a>
+                <!-- End mobile menu toggle-->
+            </div>
+        </div>
 
         <!--Login button Start-->
         <ul class="buy-button list-none mb-0">
@@ -24,6 +37,24 @@
             </li>
         </ul>
         <!--Login button End-->
+
+        <div id="navigation">
+            <!-- Navigation Menu-->
+            <ul class="navigation-menu">
+                <li><a href="index.html" class="sub-menu-item">Home</a></li>
+
+                <li><a href="https://docs.corsobackup.io/blog" class="sub-menu-item">Blog</a></li>
+
+                <li class="has-submenu parent-menu-item">
+                    <a href="javascript:void(0)">Docs</a><span class="menu-arrow"></span>
+                    <ul class="submenu">
+                        <li><a href="https://docs.corsobackup.io" target="_blank" class="sub-menu-item">Documentation</a></li>
+                        <li><a href="https://github.com/alcionai/corso/blob/main/CHANGELOG.md" target="_blank" class="sub-menu-item">Changelog</a></li>
+                    </ul>
+                </li>
+
+            </ul><!--end navigation menu-->
+        </div><!--end navigation-->
     </div><!--end container-->
 </nav><!--end header-->
 <!-- End Navbar -->

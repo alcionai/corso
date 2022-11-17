@@ -30,7 +30,7 @@
 
 - Set M365 Credentials environment variables
 
-    > You can find more information on how to get these values in our [M365 docs](/setup/m365_access).
+    > You can find more information on how to get these values in our [M365 docs](../setup/m365_access).
 
     ```bash
     export AZURE_CLIENT_ID=<id>
@@ -51,8 +51,8 @@ The complete list of environment constants is available at
 
 ## Advanced options
 
-- To override the M365 user for tests, use `CORSO_M356_TEST_USER_ID`
+- To override the M365 user for tests, use `CORSO_M365_TEST_USER_ID`
 
     ```bash
-    export CORSO_M356_TEST_USER_ID="..."
+    export CORSO_M365_TEST_USER_ID="..."
     ```

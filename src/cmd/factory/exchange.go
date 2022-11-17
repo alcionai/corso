@@ -103,7 +103,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		func(id, now, subject, body string) []byte {
 			return mockconnector.GetMockEventWith(
 				user, subject, body, body,
-				now, now)
+				now, now, false)
 		},
 	)
 	if err != nil {

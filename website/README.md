@@ -19,7 +19,7 @@ make buildimage
 make dev
 ```
 
-This command starts a local development server within the Docker container and will expose a live website preview at [http://localhost:3000](http://localhost:3000).
+This command starts a local development server within the Docker container and will expose a live website preview at [http://localhost:5050](http://localhost:5050).
 
 ## Building a static website
 

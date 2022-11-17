@@ -2,10 +2,9 @@ name: Build/Release Corso
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ main ]
   push:
-    branches: [ main ]
-    tags: [ 'v*.*.*' ]
+    branches: [main]
+    tags: ["v*.*.*"]
 
 permissions:
   # required to retrieve AWS credentials
@@ -20,7 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   # ----------------------------------------------------------------------------------------------------
   # --- Prechecks and Checkouts ------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
@@ -45,12 +43,43 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+  SetEnv:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.environment.outputs.environment }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Figure out environment
+        id: environment
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=environment::Production"
+            echo "::set-output name=environment::Production"
+          else
+            echo "set-output name=environment::Testing"
+            echo "::set-output name=environment::Testing"
+          fi
+
+      - name: Get version string
+        id: version
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+          else
+            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+          fi
+
   # ----------------------------------------------------------------------------------------------------
   # --- Docs Linting -----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
   Docs-Linting:
-    needs: [Precheck, Checkout]
+    needs: [Precheck, Checkout, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true' # docsfileschanged also includes srcfileschanged
@@ -59,31 +88,21 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Setup Golang with cache
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         uses: magnetikonline/action-golang-cache@v3
         with:
           go-version-file: src/go.mod
 
       - name: Generate CLI Docs
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         working-directory: ./src
         run: |
           go run ./cmd/mdgen/mdgen.go generate
 
       # migrate generated md files into /docs/docs/cli
       - name: Move CLI .md to Docs
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
         run: |
           mkdir -p ./docs/docs/cli
           mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
-
-      - uses: actions/upload-artifact@master
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
-        name: Upload cli docs as artifacts
-        with:
-          name: cli-docs
-          path: docs/docs/cli
 
       - name: Install dependencies for docs lint
         run: |
@@ -97,6 +116,21 @@ jobs:
           CORSO_USE_DOCKER: -1 # prevent using docker inside makefile
         run: |
           cd docs && make -o genclidocs localcheck
+
+      - name: Build docs
+        env:
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+        run: |
+          cd docs &&
+            npm ci &&
+            npm run build
+
+      - uses: actions/upload-artifact@master
+        name: Upload docs as artifacts
+        with:
+          name: docs
+          path: docs/build
+
 
   # ----------------------------------------------------------------------------------------------------
   # --- Integration and Unit Testing -------------------------------------------------------------------
@@ -139,7 +173,8 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true 
-          CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_M356_TEST_USER_ID }}
+          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
         run: |
           set -euo pipefail
@@ -147,7 +182,7 @@ jobs:
           -tags testing \
           -json         \
           -v            \
-          -tags testing \
+          -failfast     \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.
@@ -198,39 +233,6 @@ jobs:
   # --- Publish steps ----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  SetEnv:
-    environment: Testing
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.environment.outputs.environment }}
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Figure out environment
-        id: environment
-        run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=environment::Production"
-            echo "::set-output name=environment::Production"
-          else
-            echo "set-output name=environment::Testing"
-            echo "::set-output name=environment::Testing"
-          fi
-
-      - name: Get version string
-        id: version
-        run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
-            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
-          else
-            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
-            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
-          fi
-
-
-
   Publish-Binary:
     needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
@@ -243,7 +245,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # needed to pull changelog
+          fetch-depth: 0 # needed to pull changelog
 
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v3
@@ -272,7 +274,7 @@ jobs:
     needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true' # docsfileschanged also includes srcfileschanged
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
     defaults:
       run:
         working-directory: docs
@@ -281,34 +283,28 @@ jobs:
       - uses: actions/checkout@v3
 
       - uses: actions/download-artifact@master
-        name: Download cli docs from build step
+        name: Download docs from build step
         with:
-          name: cli-docs
-          path: docs/docs/cli
+          name: docs
+          path: docs/build
 
       - name: Configure AWS credentials from Test account
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
           aws-region: us-east-1
 
-      - name: Build docs
-        env:
-          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+      - name: Add rotbots.txt
+        if: github.ref == 'refs/heads/main'
         run: |
-          npm ci
-          CORSO_DOCS_BASEURL="/preview/" npm run build # TODO: update base url once finalized
+          printf 'User-agent: *\nDisallow: /' > build/robots.txt
 
       - name: Push docs
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         run: |
-          echo "$DOCS_BUCKET" | base64
-          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}/preview"
+          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}"
 
       - name: Invalidate cloudfront
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
 
@@ -361,7 +357,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            CORSO_BUILD_LDFLAGS=-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' -X 'github.com/alcionai/corso/src/cli.version=$(git describe --exact-match --tags $(git rev-parse HEAD) 2>/dev/null || echo unreleased)-$(git rev-parse --short HEAD)'
+            CORSO_BUILD_LDFLAGS=-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' -X 'github.com/alcionai/corso/src/cli.version=${{ needs.SetEnv.outputs.version }}'
           # use the github cache
           cache-from: type=gha
           cache-to: type=gha,mode=max

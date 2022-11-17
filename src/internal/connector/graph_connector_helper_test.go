@@ -720,23 +720,21 @@ func makeExchangeBackupSel(
 		pth := mustParsePath(t, p, false)
 		require.Equal(t, path.ExchangeService.String(), pth.Service().String())
 
+		builder := sel.MailFolders
+
 		switch pth.Category() {
-		case path.EmailCategory:
-			toInclude = append(toInclude, sel.MailFolders(
-				[]string{pth.ResourceOwner()},
-				[]string{backupInputFromPath(pth).String()},
-			))
 		case path.ContactsCategory:
-			toInclude = append(toInclude, sel.ContactFolders(
-				[]string{pth.ResourceOwner()},
-				[]string{backupInputFromPath(pth).String()},
-			))
+			builder = sel.ContactFolders
 		case path.EventsCategory:
-			toInclude = append(toInclude, sel.EventCalendars(
-				[]string{pth.ResourceOwner()},
-				[]string{backupInputFromPath(pth).String()},
-			))
+			builder = sel.EventCalendars
+		case path.EmailCategory: // already set
 		}
+
+		toInclude = append(toInclude, builder(
+			[]string{pth.ResourceOwner()},
+			[]string{backupInputFromPath(pth).String()},
+			selectors.PrefixMatch(),
+		))
 	}
 
 	sel.Include(toInclude...)

@@ -18,9 +18,9 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
-	cache          map[string]graph.CachedContainer
-	gs             graph.Service
-	userID, rootID string
+	*containerResolver
+	gs     graph.Service
+	userID string
 }
 
 // populateMailRoot fetches and populates the "base" directory from user's inbox.
@@ -51,19 +51,14 @@ func (mc *mailFolderCache) populateMailRoot(
 		return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 	}
 
-	// Root only needs the ID because we hide it's name for Mail.
-	idPtr := f.GetId()
-
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("root folder has no ID")
-	}
-
 	temp := cacheFolder{
 		Container: f,
 		p:         path.Builder{}.Append(baseContainerPath...),
 	}
-	mc.cache[*idPtr] = &temp
-	mc.rootID = *idPtr
+
+	if err := mc.addFolder(temp); err != nil {
+		return errors.Wrap(err, "initializing mail resolver")
+	}
 
 	return nil
 }
@@ -86,7 +81,7 @@ func (mc *mailFolderCache) Populate(
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(mc.rootID).ChildFolders().
+		MailFoldersById(baseID).ChildFolders().
 		Delta()
 
 	var errs *multierror.Error
@@ -100,7 +95,14 @@ func (mc *mailFolderCache) Populate(
 		}
 
 		for _, f := range resp.GetValue() {
-			if err := mc.AddToCache(ctx, f); err != nil {
+			temp := cacheFolder{
+				Container: f,
+			}
+
+			// Use addFolder instead of AddToCache to be conservative about path
+			// population. The fetch order of the folders could cause failures while
+			// trying to resolve paths, so put it off until we've gotten all folders.
+			if err := mc.addFolder(temp); err != nil {
 				errs = multierror.Append(errs, errors.Wrap(err, "delta fetch"))
 				continue
 			}
@@ -117,37 +119,16 @@ func (mc *mailFolderCache) Populate(
 		query = msfolderdelta.NewDeltaRequestBuilder(link, mc.gs.Adapter())
 	}
 
+	if err := mc.populatePaths(ctx); err != nil {
+		errs = multierror.Append(errs, errors.Wrap(err, "mail resolver"))
+	}
+
 	return errs.ErrorOrNil()
-}
-
-func (mc *mailFolderCache) IDToPath(
-	ctx context.Context,
-	folderID string,
-) (*path.Builder, error) {
-	c, ok := mc.cache[folderID]
-	if !ok {
-		return nil, errors.Errorf("folder %s not cached", folderID)
-	}
-
-	p := c.Path()
-	if p != nil {
-		return p, nil
-	}
-
-	parentPath, err := mc.IDToPath(ctx, *c.GetParentFolderId())
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving parent folder")
-	}
-
-	fullPath := parentPath.Append(*c.GetDisplayName())
-	c.SetPath(fullPath)
-
-	return fullPath, nil
 }
 
 // init ensures that the structure's fields are initialized.
 // Fields Initialized when cache == nil:
-// [mc.cache, mc.rootID]
+// [mc.cache]
 func (mc *mailFolderCache) init(
 	ctx context.Context,
 	baseNode string,
@@ -157,64 +138,9 @@ func (mc *mailFolderCache) init(
 		return errors.New("m365 folder ID required for base folder")
 	}
 
-	if mc.cache == nil {
-		mc.cache = map[string]graph.CachedContainer{}
+	if mc.containerResolver == nil {
+		mc.containerResolver = newContainerResolver()
 	}
 
 	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)
-}
-
-// AddToCache adds container to map in field 'cache'
-// @returns error iff the required values are not accessible.
-func (mc *mailFolderCache) AddToCache(ctx context.Context, f graph.Container) error {
-	if err := checkRequiredValues(f); err != nil {
-		return errors.Wrap(err, "object not added to cache")
-	}
-
-	if _, ok := mc.cache[*f.GetId()]; ok {
-		return nil
-	}
-
-	mc.cache[*f.GetId()] = &cacheFolder{
-		Container: f,
-	}
-
-	// Populate the path for this entry so calls to PathInCache succeed no matter
-	// when they're made.
-	_, err := mc.IDToPath(ctx, *f.GetId())
-	if err != nil {
-		return errors.Wrap(err, "adding cache entry")
-	}
-
-	return nil
-}
-
-// PathInCache utility function to return m365ID of folder if the pathString
-// matches the path of a container within the cache.
-func (mc *mailFolderCache) PathInCache(pathString string) (string, bool) {
-	if len(pathString) == 0 || mc.cache == nil {
-		return "", false
-	}
-
-	for _, folder := range mc.cache {
-		if folder.Path() == nil {
-			continue
-		}
-
-		if folder.Path().String() == pathString {
-			return *folder.GetId(), true
-		}
-	}
-
-	return "", false
-}
-
-func (mc *mailFolderCache) Items() []graph.CachedContainer {
-	res := make([]graph.CachedContainer, 0, len(mc.cache))
-
-	for _, c := range mc.cache {
-		res = append(res, c)
-	}
-
-	return res
 }

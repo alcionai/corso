@@ -23,9 +23,11 @@ var (
 // envvar consts
 // TODO: Remove these and leverage Viper AutomaticEnv() instead
 const (
-	BucketKey   = "BUCKET"
-	EndpointKey = "ENDPOINT"
-	PrefixKey   = "PREFIX"
+	BucketKey                 = "BUCKET"
+	EndpointKey               = "ENDPOINT"
+	PrefixKey                 = "PREFIX"
+	DisableTLSKey             = "DISABLE_TLS"
+	DisableTLSVerificationKey = "DISABLE_TLS_VERIFICATION"
 )
 
 // Storage defines a storage provider, along with any configuration

@@ -3,7 +3,7 @@ FROM golang:1.18-alpine as builder
 WORKDIR /go/src/app
 COPY src .
 
-ARG CORSO_BUILD_LDFLAGS="" # ldflags
+ARG CORSO_BUILD_LDFLAGS=""
 RUN go build -o corso -ldflags "$CORSO_BUILD_LDFLAGS"
 
 FROM alpine:3.16

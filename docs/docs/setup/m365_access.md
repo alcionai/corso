@@ -82,8 +82,8 @@ Copy the client and tenant IDs and export them into the following environment va
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  $Env:AZURE_CLIENT_ID = "<Directory (tenant) ID for configured app>"
-  $Env:AZURE_TENANT_ID = "<Application (client) ID for configured app>"
+  $Env:AZURE_CLIENT_ID = "<Application (client) ID for configured app>"
+  $Env:AZURE_TENANT_ID = "<Directory (tenant) ID for configured app>"
   ```
 
 </TabItem>

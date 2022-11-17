@@ -62,6 +62,15 @@ func (mc mockCategorizer) pathKeys() []categorizer {
 	return []categorizer{rootCatStub, leafCatStub}
 }
 
+func (mc mockCategorizer) PathType() path.CategoryType {
+	switch mc {
+	case leafCatStub:
+		return path.EventsCategory
+	default:
+		return path.UnknownCategory
+	}
+}
+
 func stubPathValues() map[categorizer]string {
 	return map[categorizer]string{
 		rootCatStub: rootCatStub.String(),
@@ -162,11 +171,11 @@ func setScopesToDefault[T scopeT](ts []T) []T {
 	return ts
 }
 
-// calls assert.Equal(t, getCatValue(sc, k)[0], v) on each k:v pair in the map
+// calls assert.Equal(t, v, getCatValue(sc, k)[0]) on each k:v pair in the map
 func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 	for k, v := range m {
 		t.Run(k.String(), func(t *testing.T) {
-			assert.Equal(t, getCatValue(sc, k), split(v), "Key: %s", k)
+			assert.Equal(t, split(v), getCatValue(sc, k), "Key: %s", k)
 		})
 	}
 }

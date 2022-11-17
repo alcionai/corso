@@ -18,6 +18,10 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
 
+[data-theme='light'] {
+  --ifm-link-color: #087EA4;
+}
+
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
   --ifm-color-primary: #cdd4f9;
@@ -32,6 +36,7 @@
 
 html[data-theme='dark'] {
   --ifm-background-color: #111629;
+  --ifm-link-color: #087EA4;
 }
 
 .navbar {

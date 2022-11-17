@@ -8,16 +8,14 @@ jobs:
   Test-User-Data-Cleanup:
     environment: Testing
     runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        folder: [Corso_Restore_, TestRestore, '']
+        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID]
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v3
-        with:
-          go-version-file: src/go.mod
 
       # sets the maximimum time to now-30m.
       # CI test have a 10 minute timeout.
@@ -27,31 +25,12 @@ jobs:
         run: |
           echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
-      # run the folder purge
-      - name: Purge primary user folders
-        working-directory: ./src
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_M356_TEST_USER_ID }}
-          DELETE_FOLDER_PREFIX: "Corso_Restore_"
-        run: >
-          go run ./cmd/purge/purge.go
-          --user ${{ secrets.CORSO_M356_TEST_USER_ID }}
-          --prefix ${{ env.DELETE_FOLDER_PREFIX }}
-          --before ${{ env.HALF_HOUR_AGO }}
-
-      - name: Purge secondary user folders
-        working-directory: ./src
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_M356_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M356_TEST_USER_ID }}
-          DELETE_FOLDER_PREFIX: "Corso_Restore_"
-        run: >
-          go run ./cmd/purge/purge.go
-          --user ${{ secrets.CORSO_SECONDARY_M356_TEST_USER_ID }}
-          --prefix ${{ env.DELETE_FOLDER_PREFIX }}
-          --before ${{ env.HALF_HOUR_AGO }}
+      - name: Purge CI-Produced Folders
+        uses: ./.github/actions/purge-m365-user-data
+        with:
+          user: ${{ secrets[matrix.user] }}
+          folder-prefix: ${{ matrix.folder }}
+          older-than: ${{ env.HALF_HOUR_AGO }}
+          azure-client-id: ${{ secrets.CLIENT_ID }}
+          azure-client-secret: ${{ secrets.CLIENT_SECRET }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}

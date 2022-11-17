@@ -194,8 +194,8 @@ func (de DetailsEntry) Headers() []string {
 		hs = append(hs, de.ItemInfo.Exchange.Headers()...)
 	}
 
-	if de.ItemInfo.Sharepoint != nil {
-		hs = append(hs, de.ItemInfo.Sharepoint.Headers()...)
+	if de.ItemInfo.SharePoint != nil {
+		hs = append(hs, de.ItemInfo.SharePoint.Headers()...)
 	}
 
 	if de.ItemInfo.OneDrive != nil {
@@ -217,8 +217,8 @@ func (de DetailsEntry) Values() []string {
 		vs = append(vs, de.ItemInfo.Exchange.Values()...)
 	}
 
-	if de.ItemInfo.Sharepoint != nil {
-		vs = append(vs, de.ItemInfo.Sharepoint.Values()...)
+	if de.ItemInfo.SharePoint != nil {
+		vs = append(vs, de.ItemInfo.SharePoint.Values()...)
 	}
 
 	if de.ItemInfo.OneDrive != nil {
@@ -238,7 +238,7 @@ const (
 	ExchangeEvent
 	ExchangeMail
 
-	SharepointItem ItemType = iota + 100
+	SharePointItem ItemType = iota + 100
 
 	OneDriveItem ItemType = iota + 200
 
@@ -250,7 +250,7 @@ const (
 type ItemInfo struct {
 	Folder     *FolderInfo     `json:"folder,omitempty"`
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
-	Sharepoint *SharepointInfo `json:"sharepoint,omitempty"`
+	SharePoint *SharePointInfo `json:"sharePoint,omitempty"`
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
 }
 
@@ -268,8 +268,8 @@ func (i ItemInfo) infoType() ItemType {
 	case i.Exchange != nil:
 		return i.Exchange.ItemType
 
-	case i.Sharepoint != nil:
-		return i.Sharepoint.ItemType
+	case i.SharePoint != nil:
+		return i.SharePoint.ItemType
 
 	case i.OneDrive != nil:
 		return i.OneDrive.ItemType
@@ -298,9 +298,13 @@ type ExchangeInfo struct {
 	Subject     string    `json:"subject,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
 	EventStart  time.Time `json:"eventStart,omitempty"`
+	EventEnd    time.Time `json:"eventEnd,omitempty"`
 	Organizer   string    `json:"organizer,omitempty"`
 	ContactName string    `json:"contactName,omitempty"`
 	EventRecurs bool      `json:"eventRecurs,omitempty"`
+	Created     time.Time `json:"created,omitempty"`
+	Modified    time.Time `json:"modified,omitempty"`
+	Size        int64     `json:"size,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in an ExchangeInfo
@@ -308,7 +312,7 @@ type ExchangeInfo struct {
 func (i ExchangeInfo) Headers() []string {
 	switch i.ItemType {
 	case ExchangeEvent:
-		return []string{"Organizer", "Subject", "Starts", "Recurring"}
+		return []string{"Organizer", "Subject", "Starts", "Ends", "Recurring"}
 
 	case ExchangeContact:
 		return []string{"Contact Name"}
@@ -329,6 +333,7 @@ func (i ExchangeInfo) Values() []string {
 			i.Organizer,
 			i.Subject,
 			common.FormatTabularDisplayTime(i.EventStart),
+			common.FormatTabularDisplayTime(i.EventEnd),
 			strconv.FormatBool(i.EventRecurs),
 		}
 
@@ -336,28 +341,34 @@ func (i ExchangeInfo) Values() []string {
 		return []string{i.ContactName}
 
 	case ExchangeMail:
-		return []string{i.Sender, i.Subject, common.FormatTabularDisplayTime(i.Received)}
+		return []string{
+			i.Sender, i.Subject,
+			common.FormatTabularDisplayTime(i.Received),
+		}
 	}
 
 	return []string{}
 }
 
-// SharepointInfo describes a sharepoint item
-// TODO: Implement this. This is currently here
-// just to illustrate usage
-type SharepointInfo struct {
-	ItemType ItemType `json:"itemType,omitempty"`
+// SharePointInfo describes a sharepoint item
+type SharePointInfo struct {
+	ItemType ItemType  `json:"itemType,omitempty"`
+	ItemName string    `json:"itemName,omitempty"`
+	Created  time.Time `json:"created,omitempty"`
+	Modified time.Time `josn:"modified,omitempty"`
+	WebURL   string    `json:"webUrl,omitempty"`
+	Size     int64     `json:"size,omitempty"`
 }
 
-// Headers returns the human-readable names of properties in a SharepointInfo
+// Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
-func (i SharepointInfo) Headers() []string {
+func (i SharePointInfo) Headers() []string {
 	return []string{}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (i SharepointInfo) Values() []string {
+func (i SharePointInfo) Values() []string {
 	return []string{}
 }
 
@@ -367,6 +378,7 @@ type OneDriveInfo struct {
 	ParentPath string    `json:"parentPath"`
 	ItemName   string    `json:"itemName"`
 	Size       int64     `json:"size,omitempty"`
+	Owner      string    `json:"owner,omitempty"`
 	Created    time.Time `json:"created,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 }
@@ -374,14 +386,14 @@ type OneDriveInfo struct {
 // Headers returns the human-readable names of properties in a OneDriveInfo
 // for printing out to a terminal in a columnar display.
 func (i OneDriveInfo) Headers() []string {
-	return []string{"ItemName", "ParentPath", "Size", "Created", "Modified"}
+	return []string{"ItemName", "ParentPath", "Size", "Owner", "Created", "Modified"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
 	return []string{
-		i.ItemName, i.ParentPath, humanize.Bytes(uint64(i.Size)),
+		i.ItemName, i.ParentPath, humanize.Bytes(uint64(i.Size)), i.Owner,
 		common.FormatTabularDisplayTime(i.Created), common.FormatTabularDisplayTime(i.Modified),
 	}
 }

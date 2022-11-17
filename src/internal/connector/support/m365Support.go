@@ -59,3 +59,15 @@ func CreateEventFromBytes(bytes []byte) (models.Eventable, error) {
 
 	return event, nil
 }
+
+// CreateListFromBytes transforms given bytes into models.Listable object
+func CreateListFromBytes(bytes []byte) (models.Listable, error) {
+	parsable, err := CreateFromBytes(bytes, models.CreateListFromDiscriminatorValue)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating m365 sharepoint.List object from provided bytes")
+	}
+
+	list := parsable.(models.Listable)
+
+	return list, nil
+}

@@ -6,11 +6,8 @@ import (
 	"io"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item/attachments/createuploadsession"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -41,77 +38,47 @@ func attachmentType(attachment models.Attachmentable) models.AttachmentType {
 }
 
 // uploadAttachment will upload the specified message attachment to M365
-func uploadAttachment(ctx context.Context, service graph.Service, userID, folderID, messageID string,
+func uploadAttachment(
+	ctx context.Context,
+	uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
 	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
 
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
 	if attachmentType(attachment) != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
-		_, err := service.Client().
-			UsersById(userID).
-			MailFoldersById(folderID).
-			MessagesById(messageID).
-			Attachments().
-			Post(ctx, attachment, nil)
+		err := uploader.uploadSmallAttachment(ctx, attachment)
 
 		return err
 	}
 
-	return uploadLargeAttachment(ctx, service, userID, folderID, messageID, attachment)
+	return uploadLargeAttachment(ctx, uploader, attachment)
 }
 
 // uploadLargeAttachment will upload the specified attachment by creating an upload session and
 // doing a chunked upload
-func uploadLargeAttachment(ctx context.Context, service graph.Service, userID, folderID, messageID string,
+func uploadLargeAttachment(ctx context.Context, uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
 	ab := attachmentBytes(attachment)
+	size := int64(len(ab))
 
-	aw, err := attachmentWriter(ctx, service, userID, folderID, messageID, attachment, int64(len(ab)))
+	session, err := uploader.uploadSession(ctx, *attachment.GetName(), size)
 	if err != nil {
 		return err
 	}
+
+	url := *session.GetUploadUrl()
+	aw := uploadsession.NewWriter(uploader.getItemID(), url, size)
+	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", uploader.getItemID(), url)
 
 	// Upload the stream data
 	copyBuffer := make([]byte, attachmentChunkSize)
 
 	_, err = io.CopyBuffer(aw, bytes.NewReader(ab), copyBuffer)
 	if err != nil {
-		return errors.Wrapf(err, "failed to upload attachment: item %s", messageID)
+		return errors.Wrapf(err, "failed to upload attachment: item %s", uploader.getItemID())
 	}
 
 	return nil
-}
-
-// attachmentWriter is used to initialize and return an io.Writer to upload data for the specified attachment
-// It does so by creating an upload session and using that URL to initialize an `itemWriter`
-func attachmentWriter(ctx context.Context, service graph.Service, userID, folderID, messageID string,
-	attachment models.Attachmentable, size int64,
-) (io.Writer, error) {
-	session := createuploadsession.NewCreateUploadSessionPostRequestBody()
-
-	attItem := models.NewAttachmentItem()
-	attType := models.FILE_ATTACHMENTTYPE
-	attItem.SetAttachmentType(&attType)
-	attItem.SetName(attachment.GetName())
-	attItem.SetSize(&size)
-	session.SetAttachmentItem(attItem)
-
-	r, err := service.Client().UsersById(userID).MailFoldersById(folderID).
-		MessagesById(messageID).Attachments().CreateUploadSession().Post(ctx, session, nil)
-	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to create attachment upload session for item %s. details: %s",
-			messageID,
-			support.ConnectorStackErrorTrace(err),
-		)
-	}
-
-	url := *r.GetUploadUrl()
-
-	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", messageID, url)
-
-	return uploadsession.NewWriter(messageID, url, size), nil
 }

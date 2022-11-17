@@ -26,6 +26,8 @@ const (
 ` + StorageProviderTypeKey + ` = 'S3'
 ` + AccountProviderTypeKey + ` = 'M365'
 ` + AzureTenantIDKey + ` = '%s'
+` + DisableTLSKey + ` = 'false'
+` + DisableTLSVerificationKey + ` = 'false'
 `
 )
 
@@ -84,7 +86,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
-	s3Cfg := storage.S3Config{Bucket: bkt}
+	s3Cfg := storage.S3Config{Bucket: bkt, DoNotUseTLS: true, DoNotVerifyTLS: true}
 	m365 := account.M365Config{AzureTenantID: tid}
 
 	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365), "writing repo config")
@@ -93,6 +95,8 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	readS3Cfg, err := s3ConfigsFromViper(vpr)
 	require.NoError(t, err)
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
+	assert.Equal(t, readS3Cfg.DoNotUseTLS, s3Cfg.DoNotUseTLS)
+	assert.Equal(t, readS3Cfg.DoNotVerifyTLS, s3Cfg.DoNotVerifyTLS)
 
 	readM365, err := m365ConfigsFromViper(vpr)
 	require.NoError(t, err)
@@ -217,9 +221,11 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
 
 	s3Cfg := storage.S3Config{
-		Bucket:   bkt,
-		Endpoint: end,
-		Prefix:   pfx,
+		Bucket:         bkt,
+		Endpoint:       end,
+		Prefix:         pfx,
+		DoNotVerifyTLS: true,
+		DoNotUseTLS:    true,
 	}
 	m365 := account.M365Config{AzureTenantID: tid}
 
@@ -234,6 +240,8 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
 	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
+	assert.Equal(t, readS3Cfg.DoNotUseTLS, s3Cfg.DoNotUseTLS)
+	assert.Equal(t, readS3Cfg.DoNotVerifyTLS, s3Cfg.DoNotVerifyTLS)
 
 	common, err := st.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")
@@ -257,12 +265,6 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		tid = "88f8522b-18e4-4d0f-b514-2d7b34d4c5a1"
 	)
 
-	// Configure viper to read test config file
-	s3Cfg := storage.S3Config{
-		Bucket:   bkt,
-		Endpoint: end,
-		Prefix:   pfx,
-	}
 	m365 := account.M365Config{AzureTenantID: tid}
 
 	overrides := map[string]string{
@@ -271,6 +273,8 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		storage.Bucket:         bkt,
 		storage.Endpoint:       end,
 		storage.Prefix:         pfx,
+		storage.DoNotUseTLS:    "true",
+		storage.DoNotVerifyTLS: "true",
 		StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
@@ -279,9 +283,11 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 
 	readS3Cfg, err := st.S3Config()
 	require.NoError(t, err, "reading s3 config from storage")
-	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
-	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
-	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
+	assert.Equal(t, readS3Cfg.Bucket, bkt)
+	assert.Equal(t, readS3Cfg.Endpoint, end)
+	assert.Equal(t, readS3Cfg.Prefix, pfx)
+	assert.True(t, readS3Cfg.DoNotUseTLS)
+	assert.True(t, readS3Cfg.DoNotVerifyTLS)
 
 	common, err := st.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")

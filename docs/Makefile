@@ -55,5 +55,5 @@ ${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shel
 		$(GOC) go build -o ${MDGEN_BINARY} ${MDGEN_SRC}
 
 clean:
-	$(DOCSC) rm -rf docs/cli
+	$(DOCSC) rm -rf docs/cli build node_modules
 	$(GOC) rm -rf ${CORSO_BUILD_DIR}/*

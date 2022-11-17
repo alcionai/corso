@@ -72,7 +72,7 @@ func (suite *GCStatusTestSuite) TestCreateStatus_InvalidStatus() {
 	t := suite.T()
 	params := statusParams{Backup, 9, 3, 13, errors.New("invalidcl")}
 
-	require.Panics(t, func() {
+	require.NotPanics(t, func() {
 		ctx, flush := tester.NewContext()
 		defer flush()
 

@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"fmt"
-	"runtime/trace"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -96,7 +96,8 @@ type restoreStats struct {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
-	defer trace.StartRegion(ctx, "operations:restore:run").End()
+	ctx, end := D.Span(ctx, "operations:restore:run")
+	defer end()
 
 	var (
 		opStats = restoreStats{
@@ -255,35 +256,9 @@ func formatDetailsForRestoration(
 	sel selectors.Selector,
 	deets *details.Details,
 ) ([]path.Path, error) {
-	var fds *details.Details
-
-	switch sel.Service {
-	case selectors.ServiceExchange:
-		er, err := sel.ToExchangeRestore()
-		if err != nil {
-			return nil, err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = er.Reduce(ctx, deets)
-		if len(fds.Entries) == 0 {
-			return nil, selectors.ErrorNoMatchingItems
-		}
-
-	case selectors.ServiceOneDrive:
-		odr, err := sel.ToOneDriveRestore()
-		if err != nil {
-			return nil, err
-		}
-
-		// format the details and retrieve the items from kopia
-		fds = odr.Reduce(ctx, deets)
-		if len(fds.Entries) == 0 {
-			return nil, selectors.ErrorNoMatchingItems
-		}
-
-	default:
-		return nil, errors.Errorf("Service %s not supported", sel.Service)
+	fds, err := sel.Reduce(ctx, deets)
+	if err != nil {
+		return nil, err
 	}
 
 	var (

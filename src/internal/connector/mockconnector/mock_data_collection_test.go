@@ -135,25 +135,53 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 				_, err := support.CreateMessageFromBytes(bytes)
 				return err
 			},
-		}, {
+		},
+		{
+			name: "Event Message Response: Regression",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockEventMessageResponse(subject)
+				_, err := support.CreateMessageFromBytes(bytes)
+				return err
+			},
+		},
+		{
+			name: "Event Message Request: Regression",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockEventMessageRequest(subject)
+				_, err := support.CreateMessageFromBytes(bytes)
+				return err
+			},
+		},
+		{
 			name: "Contact Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := mockconnector.GetMockContactBytes(subject)
 				_, err := support.CreateContactFromBytes(bytes)
 				return err
 			},
-		}, {
+		},
+		{
 			name: "Event No Attendees Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := mockconnector.GetDefaultMockEventBytes(subject)
 				_, err := support.CreateEventFromBytes(bytes)
 				return err
 			},
-		}, {
+		},
+		{
 			name: "Event w/ Attendees Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := mockconnector.GetMockEventWithAttendeesBytes(subject)
 				_, err := support.CreateEventFromBytes(bytes)
+				return err
+			},
+		},
+		{
+			name: "SharePoint: List",
+			transformation: func(t *testing.T) error {
+				bytes, err := mockconnector.GetMockListBytes(subject)
+				require.NoError(suite.T(), err)
+				_, err = support.CreateListFromBytes(bytes)
 				return err
 			},
 		},

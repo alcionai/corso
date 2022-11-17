@@ -524,5 +524,7 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
 	}
 
+	Info(ctx, "Deleted Exchange backup ", backupID)
+
 	return nil
 }

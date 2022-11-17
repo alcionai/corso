@@ -30,6 +30,8 @@ linters-settings:
       # Don't allow use of path as it hardcodes separator to `/`.
       # Use filepath instead.
       - '\bpath\.(Ext|Base|Dir|Join)'
+      # Don't allow the typo m356 to be used in place of m365.
+      - '[Mm]356'
   lll:
     line-length: 120
   revive:

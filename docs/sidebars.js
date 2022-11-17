@@ -40,12 +40,18 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Support',
+      items: [
+        'support/bugs_and_features', 'support/known_issues', 'support/faq'
+      ],
+    },
+    {
+      type: 'category',
       label: 'Developer guide',
       items: [
         'developers/build', 'developers/testing', 'developers/linters'
       ],
     },
-    'known_issues',
   ],
 };
 

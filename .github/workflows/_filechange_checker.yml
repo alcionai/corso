@@ -9,6 +9,9 @@ on:
       docfileschanged:
         description: "'true' if docs/** or src/** or .github/workflows/** files have changed in the branch"
         value: ${{ jobs.file-change-check.outputs.docfileschanged }}
+      websitefileschanged:
+        description: "'true' if websites/** or .github/workflows/** files have changed in the branch"
+        value: ${{ jobs.file-change-check.outputs.websitefileschanged }}
 
 jobs:
   file-change-check:
@@ -19,6 +22,7 @@ jobs:
     outputs:
       srcfileschanged: ${{ steps.srcchecker.outputs.srcfileschanged }}
       docfileschanged: ${{ steps.docchecker.outputs.docfileschanged }}
+      websitefileschanged: ${{ steps.websitechecker.outputs.websitefileschanged }}
     steps:
       - uses: actions/checkout@v3
 
@@ -33,6 +37,8 @@ jobs:
               - 'src/**'
             docs:
               - 'docs/**'
+            website:
+              - 'website/**'
             actions:
               - '.github/workflows/**'
               - '.github/actions/**'
@@ -50,3 +56,10 @@ jobs:
         run: |
           echo "docs, src or workflow file changes occurred"
           echo ::set-output name=docfileschanged::true
+
+      - name: Check dorny for changes in website related filepaths
+        id: websitechecker
+        if: steps.dornycheck.outputs.website == 'true' || steps.dornycheck.outputs.actions == 'true'
+        run: |
+          echo "website or workflow file changes occurred"
+          echo ::set-output name=websitefileschanged::true
