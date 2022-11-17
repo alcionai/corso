@@ -22,6 +22,7 @@ func TestOneDriveDriveSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoOneDriveTests,
+		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
@@ -38,9 +39,6 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	defer flush()
 
 	t := suite.T()
-	folderIDs := []string{}
-	folderName1 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
-	folderElements := []string{folderName1}
 	gs := loadTestService(t)
 
 	drives, err := drives(ctx, gs, suite.userID)
@@ -49,22 +47,22 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	driveID := *drives[0].GetId()
 
-	folderID, err := createRestoreFolders(ctx, gs, driveID, folderElements)
-	require.NoError(t, err)
+	names := []string{}
+	ids := []string{}
 
-	folderIDs = append(folderIDs, folderID)
+	for i := 0; i < 2; i++ {
+		name := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
+		folderElements := []string{name}
+		id, err := createRestoreFolders(ctx, gs, driveID, folderElements)
+		require.NoError(t, err)
 
-	defer func() {
-		assert.NoError(t, DeleteItem(ctx, gs, driveID, folderIDs[0]))
-	}()
+		ids = append(ids, id)
+		names = append(names, name)
 
-	folderName2 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
-	folderElements = append(folderElements, folderName2)
-
-	folderID, err = createRestoreFolders(ctx, gs, driveID, folderElements)
-	require.NoError(t, err)
-
-	folderIDs = append(folderIDs, folderID)
+		defer func(fid string) {
+			assert.NoError(t, DeleteItem(ctx, gs, driveID, fid))
+		}(id)
+	}
 
 	table := []struct {
 		name   string
@@ -88,14 +86,16 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 			foundFolderIDs := []string{}
 
 			for _, f := range allFolders {
-				if *f.GetName() == folderName1 || *f.GetName() == folderName2 {
-					foundFolderIDs = append(foundFolderIDs, *f.GetId())
-				}
+				for _, name := range names {
+					if *f.GetName() == name {
+						foundFolderIDs = append(foundFolderIDs, *f.GetId())
+					}
 
-				assert.True(t, strings.HasPrefix(*f.GetName(), test.prefix), "folder prefix")
+					assert.True(t, strings.HasPrefix(*f.GetName(), test.prefix), "folder prefix")
+				}
 			}
 
-			assert.ElementsMatch(t, folderIDs, foundFolderIDs)
+			assert.ElementsMatch(t, ids, foundFolderIDs)
 		})
 	}
 }
