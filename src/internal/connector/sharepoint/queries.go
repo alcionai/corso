@@ -13,7 +13,7 @@ import (
 func GetAllSitesForTenant(ctx context.Context, gs graph.Service) (absser.Parsable, error) {
 	options := &mssite.SitesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &mssite.SitesRequestBuilderGetQueryParameters{
-			Select: []string{"id", "name"},
+			Select: []string{"id", "name", "weburl"},
 		},
 	}
 

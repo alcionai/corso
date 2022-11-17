@@ -5,6 +5,7 @@ package connector
 import (
 	"context"
 	"runtime/trace"
+	"strings"
 	"sync"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -217,6 +218,8 @@ func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
 	return nil
 }
 
+var errKnownSkippableCase = errors.New("case is known and skippable")
+
 // Transforms an interface{} into a key,value pair representing
 // siteName:siteID.
 func identifySite(item any) (string, string, error) {
@@ -226,6 +229,12 @@ func identifySite(item any) (string, string, error) {
 	}
 
 	if m.GetName() == nil {
+
+		// the built-in site at "htps://{tenant-domain}/search" never has a name.
+		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
+			return "", "", errKnownSkippableCase
+		}
+
 		return "", "", errors.Errorf("no name for Site: %s", *m.GetId())
 	}
 
@@ -366,6 +375,10 @@ func getResources(
 	callbackFunc := func(item any) bool {
 		k, v, err := identify(item)
 		if err != nil {
+			if errors.Is(err, errKnownSkippableCase) {
+				return true
+			}
+
 			iterErrs = support.WrapAndAppend(gs.Adapter().GetBaseUrl(), err, iterErrs)
 			return true
 		}
