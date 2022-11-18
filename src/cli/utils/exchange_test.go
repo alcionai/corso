@@ -19,7 +19,7 @@ func TestExchangeUtilsSuite(t *testing.T) {
 	suite.Run(t, new(ExchangeUtilsSuite))
 }
 
-func (suite *ExchangeUtilsSuite) TestValidateBackupDetailFlags() {
+func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 	table := []struct {
 		name     string
 		backupID string
@@ -56,7 +56,7 @@ func (suite *ExchangeUtilsSuite) TestValidateBackupDetailFlags() {
 	}
 }
 
-func (suite *ExchangeUtilsSuite) TestIncludeExchangeBackupDetailDataSelectors() {
+func (suite *ExchangeUtilsSuite) TestIncludeExchangeRestoreDataSelectors() {
 	stub := []string{"id-stub"}
 	many := []string{"fnord", "smarf"}
 	a := []string{utils.Wildcard}
@@ -308,7 +308,76 @@ func (suite *ExchangeUtilsSuite) TestIncludeExchangeBackupDetailDataSelectors() 
 	}
 }
 
-func (suite *ExchangeUtilsSuite) TestFilterExchangeBackupDetailInfoSelectors() {
+func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
+	var (
+		empty             = []string{}
+		single            = []string{"single"}
+		multi             = []string{"more", "than", "one"}
+		containsOnly      = []string{"contains"}
+		prefixOnly        = []string{"/prefix"}
+		containsAndPrefix = []string{"contains", "/prefix"}
+		eisc              = selectors.NewExchangeRestore().Contacts // type independent, just need the func
+	)
+
+	table := []struct {
+		name                      string
+		resources, folders, items []string
+		expectIncludeLen          int
+	}{
+		{
+			name:             "no inputs",
+			resources:        empty,
+			folders:          empty,
+			items:            empty,
+			expectIncludeLen: 0,
+		},
+		{
+			name:             "single inputs",
+			resources:        single,
+			folders:          single,
+			items:            single,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "multi inputs",
+			resources:        multi,
+			folders:          multi,
+			items:            multi,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "folder contains",
+			resources:        empty,
+			folders:          containsOnly,
+			items:            empty,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "folder prefixes",
+			resources:        empty,
+			folders:          prefixOnly,
+			items:            empty,
+			expectIncludeLen: 1,
+		},
+		{
+			name:             "folder prefixes and contains",
+			resources:        empty,
+			folders:          containsAndPrefix,
+			items:            empty,
+			expectIncludeLen: 2,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := selectors.NewExchangeRestore()
+			// no return, mutates sel as a side effect
+			utils.AddExchangeInclude(sel, test.resources, test.folders, test.items, eisc)
+			assert.Len(t, sel.Includes, test.expectIncludeLen)
+		})
+	}
+}
+
+func (suite *ExchangeUtilsSuite) TestFilterExchangeRestoreInfoSelectors() {
 	stub := "id-stub"
 
 	table := []struct {

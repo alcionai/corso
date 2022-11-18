@@ -62,10 +62,11 @@ func normPathElem(s string) string {
 // compare values against.  Filter.Matches(v) returns
 // true if Filter.Comparer(filter.target, v) is true.
 type Filter struct {
-	Comparator comparator `json:"comparator"`
-	Target     string     `json:"target"`  // the value to compare against
-	Targets    []string   `json:"targets"` // the set of values to compare against, always with "any-match" behavior
-	Negate     bool       `json:"negate"`  // when true, negate the comparator result
+	Comparator        comparator `json:"comparator"`
+	Target            string     `json:"target"`            // the value to compare against
+	Targets           []string   `json:"targets"`           // the set of values to compare
+	NormalizedTargets []string   `json:"normalizedTargets"` // the set of comparable values post normalization
+	Negate            bool       `json:"negate"`            // when true, negate the comparator result
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -176,7 +177,7 @@ func PathPrefix(targets []string) Filter {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathPrefix, tgts, false)
+	return newSliceFilter(TargetPathPrefix, targets, tgts, false)
 }
 
 // NotPathPrefix creates a filter where Compare(v) is true if
@@ -195,7 +196,7 @@ func NotPathPrefix(targets []string) Filter {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathPrefix, tgts, true)
+	return newSliceFilter(TargetPathPrefix, targets, tgts, true)
 }
 
 // PathContains creates a filter where Compare(v) is true if
@@ -216,7 +217,7 @@ func PathContains(targets []string) Filter {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathContains, tgts, false)
+	return newSliceFilter(TargetPathContains, targets, tgts, false)
 }
 
 // NotPathContains creates a filter where Compare(v) is true if
@@ -237,7 +238,7 @@ func NotPathContains(targets []string) Filter {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathContains, tgts, true)
+	return newSliceFilter(TargetPathContains, targets, tgts, true)
 }
 
 // newFilter is the standard filter constructor.
@@ -250,11 +251,12 @@ func newFilter(c comparator, target string, negate bool) Filter {
 }
 
 // newSliceFilter constructs filters that contain multiple targets
-func newSliceFilter(c comparator, targets []string, negate bool) Filter {
+func newSliceFilter(c comparator, targets, normTargets []string, negate bool) Filter {
 	return Filter{
-		Comparator: c,
-		Targets:    targets,
-		Negate:     negate,
+		Comparator:        c,
+		Targets:           targets,
+		NormalizedTargets: normTargets,
+		Negate:            negate,
 	}
 }
 
@@ -314,7 +316,7 @@ func (f Filter) Compare(input string) bool {
 
 	targets := []string{f.Target}
 	if hasSlice {
-		targets = f.Targets
+		targets = f.NormalizedTargets
 	}
 
 	for _, tgt := range targets {
@@ -413,6 +415,10 @@ func (f Filter) String() string {
 		return "pass"
 	case Fails:
 		return "fail"
+	}
+
+	if len(f.Targets) > 0 {
+		return prefixString[f.Comparator] + strings.Join(f.Targets, ",")
 	}
 
 	return prefixString[f.Comparator] + f.Target

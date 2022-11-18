@@ -2,7 +2,6 @@ name: Build/Release Corso
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
     tags: ["v*.*.*"]
@@ -175,12 +174,14 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true 
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
         run: |
           set -euo pipefail
           go test \
-          -json   \
-          -v      \
+          -json     \
+          -v        \
+          -failfast \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.

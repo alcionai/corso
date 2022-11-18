@@ -17,15 +17,17 @@ type service int
 
 //go:generate stringer -type=service -linecomment
 const (
-	ServiceUnknown  service = iota // Unknown Service
-	ServiceExchange                // Exchange
-	ServiceOneDrive                // OneDrive
+	ServiceUnknown    service = iota // Unknown Service
+	ServiceExchange                  // Exchange
+	ServiceOneDrive                  // OneDrive
+	ServiceSharePoint                // SharePoint
 )
 
 var serviceToPathType = map[service]path.ServiceType{
-	ServiceUnknown:  path.UnknownService,
-	ServiceExchange: path.ExchangeService,
-	ServiceOneDrive: path.OneDriveService,
+	ServiceUnknown:    path.UnknownService,
+	ServiceExchange:   path.ExchangeService,
+	ServiceOneDrive:   path.OneDriveService,
+	ServiceSharePoint: path.SharePointService,
 }
 
 var (
@@ -76,7 +78,7 @@ type Reducer interface {
 // The core selector.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific selector instances.
 type Selector struct {
-	// The service scope of the data.  Exchange, Teams, Sharepoint, etc.
+	// The service scope of the data.  Exchange, Teams, SharePoint, etc.
 	Service service `json:"service,omitempty"`
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.
@@ -192,6 +194,8 @@ func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.
 		r, err = s.ToExchangeRestore()
 	case ServiceOneDrive:
 		r, err = s.ToOneDriveRestore()
+	case ServiceSharePoint:
+		r, err = s.ToSharePointRestore()
 	default:
 		return nil, errors.New("service not supported: " + s.Service.String())
 	}
@@ -227,6 +231,14 @@ func (s Selector) ToPrintable() Printable {
 
 	case ServiceOneDrive:
 		r, err := s.ToOneDriveBackup()
+		if err != nil {
+			return Printable{}
+		}
+
+		return r.Printable()
+
+	case ServiceSharePoint:
+		r, err := s.ToSharePointBackup()
 		if err != nil {
 			return Printable{}
 		}
@@ -338,10 +350,17 @@ func addToSet(set []string, v []string) []string {
 // ---------------------------------------------------------------------------
 
 type scopeConfig struct {
+	usePathFilter   bool
 	usePrefixFilter bool
 }
 
 type option func(*scopeConfig)
+
+func (sc *scopeConfig) populate(opts ...option) {
+	for _, opt := range opts {
+		opt(sc)
+	}
+}
 
 // PrefixMatch ensures the selector uses a Prefix comparator, instead
 // of contains or equals.  Will not override a default Any() or None()
@@ -349,6 +368,15 @@ type option func(*scopeConfig)
 func PrefixMatch() option {
 	return func(sc *scopeConfig) {
 		sc.usePrefixFilter = true
+	}
+}
+
+// pathType is an internal-facing option.  It is assumed that scope
+// constructors will provide the pathType option whenever a folder-
+// level scope (ie, a scope that compares path hierarchies) is created.
+func pathType() option {
+	return func(sc *scopeConfig) {
+		sc.usePathFilter = true
 	}
 }
 
@@ -406,6 +434,14 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 
 	if s[0] == AnyTgt {
 		return passAny
+	}
+
+	if sc.usePathFilter {
+		if sc.usePrefixFilter {
+			return filters.PathPrefix(s)
+		}
+
+		return filters.PathContains(s)
 	}
 
 	if sc.usePrefixFilter {

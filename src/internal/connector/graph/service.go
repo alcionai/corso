@@ -7,14 +7,13 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type QueryParams struct {
-	User        string
-	Scope       selectors.ExchangeScope
-	Credentials account.M365Config
-	FailFast    bool
+	Category      path.CategoryType
+	ResourceOwner string
+	Credentials   account.M365Config
+	FailFast      bool
 }
 
 type Service interface {

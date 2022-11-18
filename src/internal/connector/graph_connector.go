@@ -4,12 +4,11 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"runtime/trace"
 	"strings"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -18,16 +17,19 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+// ---------------------------------------------------------------------------
+// Graph Connector
+// ---------------------------------------------------------------------------
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
@@ -36,6 +38,7 @@ type GraphConnector struct {
 	graphService
 	tenant      string
 	Users       map[string]string // key<email> value<id>
+	Sites       map[string]string // key<???> value<???>
 	credentials account.M365Config
 
 	// wg is used to track completion of GC tasks
@@ -72,7 +75,16 @@ func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
-func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnector, error) {
+type resource int
+
+const (
+	UnknownResource resource = iota
+	AllResources
+	Users
+	Sites
+)
+
+func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m365 account configuration")
@@ -92,9 +104,16 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 
 	gc.graphService = *aService
 
-	err = gc.setTenantUsers(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving tenant user list")
+	if r == AllResources || r == Users {
+		if err = gc.setTenantUsers(ctx); err != nil {
+			return nil, errors.Wrap(err, "retrieving tenant user list")
+		}
+	}
+
+	if r == AllResources || r == Sites {
+		if err = gc.setTenantSites(ctx); err != nil {
+			return nil, errors.Wrap(err, "retrieveing tenant site list")
+		}
 	}
 
 	return &gc, nil
@@ -126,59 +145,41 @@ func (gs *graphService) EnableFailFast() {
 
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
-// iff the return value is true
+// iff the returned error is nil
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
-	if err != nil {
-		return errors.Wrapf(
-			err,
-			"tenant %s M365 query: %s",
-			gc.tenant,
-			support.ConnectorStackErrorTrace(err),
-		)
-	}
-
-	userIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		&gc.graphService.adapter,
+	users, err := getResources(
+		ctx,
+		gc.graphService,
+		gc.tenant,
+		exchange.GetAllUsersForTenant,
 		models.CreateUserCollectionResponseFromDiscriminatorValue,
+		identifyUser,
 	)
 	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return err
 	}
 
-	callbackFunc := func(userItem interface{}) bool {
-		user, ok := userItem.(models.Userable)
-		if !ok {
-			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("received non-User on iteration"), err)
-			return true
-		}
+	gc.Users = users
 
-		if user.GetUserPrincipalName() == nil {
-			err = support.WrapAndAppend(
-				gc.graphService.adapter.GetBaseUrl(),
-				fmt.Errorf("no email address for User: %s", *user.GetId()),
-				err,
-			)
+	return nil
+}
 
-			return true
-		}
-
-		// *user.GetId() is populated for every M365 entityable object by M365 backstore
-		gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
-
-		return true
+// Transforms an interface{} into a key,value pair representing
+// userPrincipalName:userID.
+func identifyUser(item any) (string, string, error) {
+	m, ok := item.(models.Userable)
+	if !ok {
+		return "", "", errors.New("iteration retrieved non-User item")
 	}
 
-	iterateError := userIterator.Iterate(ctx, callbackFunc)
-	if iterateError != nil {
-		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
+	if m.GetUserPrincipalName() == nil {
+		return "", "", errors.Errorf("no principal name for User: %s", *m.GetId())
 	}
 
-	return err
+	return *m.GetUserPrincipalName(), *m.GetId(), nil
 }
 
 // GetUsers returns the email address of users within tenant.
@@ -189,6 +190,64 @@ func (gc *GraphConnector) GetUsers() []string {
 // GetUsersIds returns the M365 id for the user
 func (gc *GraphConnector) GetUsersIds() []string {
 	return buildFromMap(false, gc.Users)
+}
+
+// setTenantSites queries the M365 to identify the sites in the
+// workspace. The sites field is updated during this method
+// iff the returned error is nil.
+func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
+	gc.Sites = map[string]string{}
+
+	ctx, end := D.Span(ctx, "gc:setTenantSites")
+	defer end()
+
+	sites, err := getResources(
+		ctx,
+		gc.graphService,
+		gc.tenant,
+		sharepoint.GetAllSitesForTenant,
+		models.CreateSiteCollectionResponseFromDiscriminatorValue,
+		identifySite,
+	)
+	if err != nil {
+		return err
+	}
+
+	gc.Sites = sites
+
+	return nil
+}
+
+var errKnownSkippableCase = errors.New("case is known and skippable")
+
+// Transforms an interface{} into a key,value pair representing
+// siteName:siteID.
+func identifySite(item any) (string, string, error) {
+	m, ok := item.(models.Siteable)
+	if !ok {
+		return "", "", errors.New("iteration retrieved non-Site item")
+	}
+
+	if m.GetName() == nil {
+		// the built-in site at "htps://{tenant-domain}/search" never has a name.
+		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
+			return "", "", errKnownSkippableCase
+		}
+
+		return "", "", errors.Errorf("no name for Site: %s", *m.GetId())
+	}
+
+	return *m.GetName(), *m.GetId(), nil
+}
+
+// GetSites returns the siteIDs of sharepoint sites within tenant.
+func (gc *GraphConnector) GetSites() []string {
+	return buildFromMap(true, gc.Sites)
+}
+
+// GetSiteIds returns the M365 id for the user
+func (gc *GraphConnector) GetSiteIds() []string {
+	return buildFromMap(false, gc.Sites)
 }
 
 // buildFromMap helper function for returning []string from map.
@@ -207,42 +266,6 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 	}
 
 	return returnString
-}
-
-// ExchangeDataStream returns a DataCollection which the caller can
-// use to read mailbox data out for the specified user
-// Assumption: User exists
-//
-//	Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(
-	ctx context.Context,
-	selector selectors.Selector,
-) ([]data.Collection, error) {
-	eb, err := selector.ToExchangeBackup()
-	if err != nil {
-		return nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
-	}
-
-	var (
-		scopes      = eb.DiscreteScopes(gc.GetUsers())
-		collections = []data.Collection{}
-		errs        error
-	)
-
-	for _, scope := range scopes {
-		// Creates a map of collections based on scope
-		dcs, err := gc.createCollections(ctx, scope)
-		if err != nil {
-			user := scope.Get(selectors.ExchangeUser)
-			return nil, support.WrapAndAppend(user[0], err, errs)
-		}
-
-		for _, collection := range dcs {
-			collections = append(collections, collection)
-		}
-	}
-
-	return collections, errs
 }
 
 // RestoreDataCollections restores data from the specified collections
@@ -276,67 +299,6 @@ func (gc *GraphConnector) RestoreDataCollections(
 	gc.UpdateStatus(status)
 
 	return deets, err
-}
-
-// createCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.ExchangeScope
-// determines the type of collections that are stored.
-// to the GraphConnector struct.
-func (gc *GraphConnector) createCollections(
-	ctx context.Context,
-	scope selectors.ExchangeScope,
-) ([]*exchange.Collection, error) {
-	var errs *multierror.Error
-
-	users := scope.Get(selectors.ExchangeUser)
-	allCollections := make([]*exchange.Collection, 0)
-	// Create collection of ExchangeDataCollection
-	for _, user := range users {
-		collections := make(map[string]*exchange.Collection)
-
-		qp := graph.QueryParams{
-			User:        user,
-			Scope:       scope,
-			FailFast:    gc.failFast,
-			Credentials: gc.credentials,
-		}
-
-		itemCategory := qp.Scope.Category().PathType()
-
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", itemCategory.String(), user))
-		defer closer()
-		defer close(foldersComplete)
-
-		resolver, err := exchange.PopulateExchangeContainerResolver(
-			ctx,
-			qp,
-			qp.Scope.Category().PathType(),
-		)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting folder cache")
-		}
-
-		err = exchange.FilterContainersAndFillCollections(
-			ctx,
-			qp,
-			collections,
-			gc.UpdateStatus,
-			resolver)
-
-		if err != nil {
-			return nil, errors.Wrap(err, "filling collections")
-		}
-
-		foldersComplete <- struct{}{}
-
-		for _, collection := range collections {
-			gc.incrementAwaitingMessages()
-
-			allCollections = append(allCollections, collection)
-		}
-	}
-
-	return allCollections, errs.ErrorOrNil()
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
@@ -378,6 +340,61 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 	gc.wg.Add(1)
 }
 
+// ---------------------------------------------------------------------------
+// Helper Funcs
+// ---------------------------------------------------------------------------
+
+func getResources(
+	ctx context.Context,
+	gs graph.Service,
+	tenantID string,
+	query func(context.Context, graph.Service) (serialization.Parsable, error),
+	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
+	identify func(any) (string, string, error),
+) (map[string]string, error) {
+	resources := map[string]string{}
+
+	response, err := query(ctx, gs)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"retrieving resources for tenant %s: %s",
+			tenantID,
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
+	if err != nil {
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	var iterErrs error
+
+	callbackFunc := func(item any) bool {
+		k, v, err := identify(item)
+		if err != nil {
+			if errors.Is(err, errKnownSkippableCase) {
+				return true
+			}
+
+			iterErrs = support.WrapAndAppend(gs.Adapter().GetBaseUrl(), err, iterErrs)
+
+			return true
+		}
+
+		resources[k] = v
+
+		return true
+	}
+
+	if err := iter.Iterate(ctx, callbackFunc); err != nil {
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	return resources, iterErrs
+}
+
 // IsRecoverableError returns true iff error is a RecoverableGCEerror
 func IsRecoverableError(e error) bool {
 	var recoverable support.RecoverableGCError
@@ -388,114 +405,4 @@ func IsRecoverableError(e error) bool {
 func IsNonRecoverableError(e error) bool {
 	var nonRecoverable support.NonRecoverableGCError
 	return errors.As(e, &nonRecoverable)
-}
-
-// DataCollections utility function to launch backup operations for exchange and onedrive
-func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
-	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
-	defer end()
-
-	err := verifyBackupInputs(sels, gc.Users)
-	if err != nil {
-		return nil, err
-	}
-
-	switch sels.Service {
-	case selectors.ServiceExchange:
-		return gc.ExchangeDataCollection(ctx, sels)
-	case selectors.ServiceOneDrive:
-		return gc.OneDriveDataCollections(ctx, sels)
-	default:
-		return nil, errors.Errorf("service %s not supported", sels)
-	}
-}
-
-// OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
-// for the specified user
-func (gc *GraphConnector) OneDriveDataCollections(
-	ctx context.Context,
-	selector selectors.Selector,
-) ([]data.Collection, error) {
-	odb, err := selector.ToOneDriveBackup()
-	if err != nil {
-		return nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
-	}
-
-	collections := []data.Collection{}
-
-	scopes := odb.DiscreteScopes(gc.GetUsers())
-
-	var errs error
-
-	// for each scope that includes oneDrive items, get all
-	for _, scope := range scopes {
-		for _, user := range scope.Get(selectors.OneDriveUser) {
-			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
-
-			odcs, err := onedrive.NewCollections(
-				gc.credentials.AzureTenantID,
-				user,
-				scope,
-				&gc.graphService,
-				gc.UpdateStatus,
-			).Get(ctx)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, errs)
-			}
-
-			collections = append(collections, odcs...)
-		}
-	}
-
-	for range collections {
-		gc.incrementAwaitingMessages()
-	}
-
-	return collections, errs
-}
-
-func verifyBackupInputs(sel selectors.Selector, mapOfUsers map[string]string) error {
-	var personnel []string
-
-	// retrieve users from selectors
-	switch sel.Service {
-	case selectors.ServiceExchange:
-		backup, err := sel.ToExchangeBackup()
-		if err != nil {
-			return err
-		}
-
-		for _, scope := range backup.Scopes() {
-			temp := scope.Get(selectors.ExchangeUser)
-			personnel = append(personnel, temp...)
-		}
-	case selectors.ServiceOneDrive:
-		backup, err := sel.ToOneDriveBackup()
-		if err != nil {
-			return err
-		}
-
-		for _, user := range backup.Scopes() {
-			temp := user.Get(selectors.OneDriveUser)
-			personnel = append(personnel, temp...)
-		}
-
-	default:
-		return errors.New("service %s not supported")
-	}
-
-	// verify personnel
-	normUsers := map[string]struct{}{}
-
-	for k := range mapOfUsers {
-		normUsers[strings.ToLower(k)] = struct{}{}
-	}
-
-	for _, user := range personnel {
-		if _, ok := normUsers[strings.ToLower(user)]; !ok {
-			return fmt.Errorf("%s user not found within tenant", user)
-		}
-	}
-
-	return nil
 }

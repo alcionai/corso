@@ -255,6 +255,33 @@ func (suite *FiltersSuite) TestPathPrefix() {
 	}
 }
 
+func (suite *FiltersSuite) TestPathPrefix_NormalizedTargets() {
+	table := []struct {
+		name    string
+		targets []string
+		expect  []string
+	}{
+		{"Single - no slash", []string{"fA"}, []string{"/fA/"}},
+		{"Single - pre slash", []string{"/fA"}, []string{"/fA/"}},
+		{"Single - suff slash", []string{"fA/"}, []string{"/fA/"}},
+		{"Single - both slashes", []string{"/fA/"}, []string{"/fA/"}},
+		{"Multipath - no slash", []string{"fA/fB"}, []string{"/fA/fB/"}},
+		{"Multipath - pre slash", []string{"/fA/fB"}, []string{"/fA/fB/"}},
+		{"Multipath - suff slash", []string{"fA/fB/"}, []string{"/fA/fB/"}},
+		{"Multipath - both slashes", []string{"/fA/fB/"}, []string{"/fA/fB/"}},
+		{"Multi input - no slash", []string{"fA", "fB"}, []string{"/fA/", "/fB/"}},
+		{"Multi input - pre slash", []string{"/fA", "/fB"}, []string{"/fA/", "/fB/"}},
+		{"Multi input - suff slash", []string{"fA/", "fB/"}, []string{"/fA/", "/fB/"}},
+		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			f := filters.PathPrefix(test.targets)
+			assert.Equal(t, test.expect, f.NormalizedTargets)
+		})
+	}
+}
+
 func (suite *FiltersSuite) TestPathContains() {
 	table := []struct {
 		name     string
@@ -303,6 +330,33 @@ func (suite *FiltersSuite) TestPathContains() {
 
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
+		})
+	}
+}
+
+func (suite *FiltersSuite) TestPathContains_NormalizedTargets() {
+	table := []struct {
+		name    string
+		targets []string
+		expect  []string
+	}{
+		{"Single - no slash", []string{"fA"}, []string{"/fA/"}},
+		{"Single - pre slash", []string{"/fA"}, []string{"/fA/"}},
+		{"Single - suff slash", []string{"fA/"}, []string{"/fA/"}},
+		{"Single - both slashes", []string{"/fA/"}, []string{"/fA/"}},
+		{"Multipath - no slash", []string{"fA/fB"}, []string{"/fA/fB/"}},
+		{"Multipath - pre slash", []string{"/fA/fB"}, []string{"/fA/fB/"}},
+		{"Multipath - suff slash", []string{"fA/fB/"}, []string{"/fA/fB/"}},
+		{"Multipath - both slashes", []string{"/fA/fB/"}, []string{"/fA/fB/"}},
+		{"Multi input - no slash", []string{"fA", "fB"}, []string{"/fA/", "/fB/"}},
+		{"Multi input - pre slash", []string{"/fA", "/fB"}, []string{"/fA/", "/fB/"}},
+		{"Multi input - suff slash", []string{"fA/", "fB/"}, []string{"/fA/", "/fB/"}},
+		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			f := filters.PathContains(test.targets)
+			assert.Equal(t, test.expect, f.NormalizedTargets)
 		})
 	}
 }

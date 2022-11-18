@@ -44,7 +44,8 @@ var (
 // Supports:
 // - exchange (contacts, email, and events)
 // Input: go run ./getItem.go     --user <user>
-//   --m365ID <m365ID> --category <oneof: contacts, email, events>
+//
+//	--m365ID <m365ID> --category <oneof: contacts, email, events>
 func main() {
 	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
 	ctx = SetRootCmd(ctx, getCmd)
@@ -170,7 +171,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 		return nil, Only(ctx, errors.Wrap(err, "finding m365 account details"))
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, acct)
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph API"))
 	}

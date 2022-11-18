@@ -84,7 +84,7 @@ func RestoreExchangeContact(
 		return nil, errors.New("msgraph contact post fail: REST response not received")
 	}
 
-	return ContactInfo(contact), nil
+	return ContactInfo(contact, int64(len(bits))), nil
 }
 
 // RestoreExchangeEvent restores a contact to the @bits byte
@@ -153,7 +153,7 @@ func RestoreExchangeEvent(
 		}
 	}
 
-	return EventInfo(event), errs
+	return EventInfo(event, int64(len(bits))), errs
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -215,7 +215,7 @@ func RestoreMailMessage(
 		}
 	}
 
-	return MessageInfo(clone), nil
+	return MessageInfo(clone, int64(len(bits))), nil
 }
 
 // attachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable

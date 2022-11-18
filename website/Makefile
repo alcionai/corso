@@ -2,6 +2,11 @@
 
 WEBC := docker run --rm -it --init -p 5050:3000 -p 5051:3001 \
 		-v ${PWD}:/usr/src/website corso/website:latest
+ifeq (${CI},true)
+# Cannot run in interactive/tty mode in CI
+WEBC := docker run --rm --init -p 5050:3000 -p 5051:3001 \
+		-v ${PWD}:/usr/src/website corso/website:latest
+endif
 
 buildimage: clean
 	docker build -t "corso/website:latest" .
@@ -17,7 +22,8 @@ build:
 
 publish: build
 	docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN --rm -v ${PWD}:/usr/src/website corso/website:latest \
+		-e AWS_SESSION_TOKEN -e AWS_REGION \
+		--rm -v ${PWD}:/usr/src/website corso/website:latest \
 		make sync
 
 sync:

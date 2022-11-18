@@ -158,16 +158,13 @@ func makeScope[T scopeT](
 	resources, vs []string,
 	opts ...option,
 ) T {
-	sc := scopeConfig{}
-
-	for _, opt := range opts {
-		opt(&sc)
-	}
+	sc := &scopeConfig{}
+	sc.populate(opts...)
 
 	s := T{
 		scopeKeyCategory:       filters.Identity(cat.String()),
 		scopeKeyDataType:       filters.Identity(cat.leafCat().String()),
-		cat.String():           filterize(sc, vs...),
+		cat.String():           filterize(*sc, vs...),
 		cat.rootCat().String(): filterize(scopeConfig{}, resources...),
 	}
 
@@ -194,17 +191,18 @@ func makeFilterScope[T scopeT](
 // ---------------------------------------------------------------------------
 
 // matches returns true if the category is included in the scope's
-// data type, and the target string is included in the scope.
-func matches[T scopeT, C categoryT](s T, cat C, target string) bool {
+// data type, and the input string passes the scope's filter for
+// that category.
+func matches[T scopeT, C categoryT](s T, cat C, inpt string) bool {
 	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}
 
-	if len(target) == 0 {
+	if len(inpt) == 0 {
 		return false
 	}
 
-	return s[cat.String()].Compare(target)
+	return s[cat.String()].Compare(inpt)
 }
 
 // getCategory returns the scope's category value.
@@ -222,18 +220,26 @@ func getFilterCategory[T scopeT](s T) string {
 // delimiter, and returns the slice.  If s[cat] is nil, returns
 // None().
 func getCatValue[T scopeT](s T, cat categorizer) []string {
-	v, ok := s[cat.String()]
+	filt, ok := s[cat.String()]
 	if !ok {
 		return None()
 	}
 
-	return split(v.Target)
+	if len(filt.Targets) > 0 {
+		return filt.Targets
+	}
+
+	return split(filt.Target)
 }
 
 // set sets a value by category to the scope.  Only intended for internal
 // use, not for exporting to callers.
-func set[T scopeT](s T, cat categorizer, v []string) T {
-	s[cat.String()] = filterize(scopeConfig{}, v...)
+func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
+	sc := &scopeConfig{}
+	sc.populate(opts...)
+
+	s[cat.String()] = filterize(*sc, v...)
+
 	return s
 }
 
@@ -244,7 +250,7 @@ func isNoneTarget[T scopeT, C categoryT](s T, cat C) bool {
 		return false
 	}
 
-	return s[cat.String()].Target == NoneTgt
+	return s[cat.String()].Comparator == filters.Fails
 }
 
 // returns true if the category is included in the scope's category type,
@@ -254,7 +260,7 @@ func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
 		return false
 	}
 
-	return s[cat.String()].Target == AnyTgt
+	return s[cat.String()].Comparator == filters.Passes
 }
 
 // reduce filters the entries in the details to only those that match the
@@ -436,7 +442,6 @@ func matchesPathValues[T scopeT, C categoryT](
 		var (
 			match  bool
 			isLeaf = c.isLeaf()
-			isRoot = c == c.rootCat()
 		)
 
 		switch {
@@ -445,19 +450,7 @@ func matchesPathValues[T scopeT, C categoryT](
 		case isLeaf && len(shortRef) > 0:
 			match = matches(sc, cc, pathVal) || matches(sc, cc, shortRef)
 
-		// Folder category - checks if any target folder is a prefix of the path folders.
-		// Assumes (correctly) that we need to split the targets and re-compose them into
-		// individual prefix matchers.
-		// TODO: assumes all folders require prefix matchers.  Users can now specify whether
-		// the folder filter is a prefix match or not.  We should respect that configuration.
-		case !isLeaf && !isRoot:
-			for _, tgt := range getCatValue(sc, c) {
-				if filters.Prefix(tgt).Compare(pathVal) {
-					match = true
-					break
-				}
-			}
-
+		// all other categories (root, folder, etc) just need to pass the filter
 		default:
 			match = matches(sc, cc, pathVal)
 		}

@@ -166,7 +166,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	defer close(gcComplete)
 
 	// restore those collections using graph
-	gc, err := connector.NewGraphConnector(ctx, op.account)
+	resource := connector.Users
+	if op.Selectors.Service == selectors.ServiceSharePoint {
+		resource = connector.Sites
+	}
+
+	gc, err := connector.NewGraphConnector(ctx, op.account, resource)
 	if err != nil {
 		err = errors.Wrap(err, "connecting to microsoft servers")
 		opStats.writeErr = err

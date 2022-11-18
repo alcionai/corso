@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -27,7 +28,7 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, fs ...store.FilterOption) ([]backup.Backup, error)
+	Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
@@ -133,6 +134,10 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
+	complete, closer := observe.MessageWithCompletion("Connecting to repository:")
+	defer closer()
+	defer close(complete)
+
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
@@ -155,6 +160,8 @@ func Connect(
 	if err != nil {
 		return nil, err
 	}
+
+	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
@@ -232,7 +239,7 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 }
 
 // backups lists backups in a repository
-func (r repository) Backups(ctx context.Context, fs ...store.FilterOption) ([]backup.Backup, error) {
+func (r repository) Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackups(ctx, fs...)
 }
