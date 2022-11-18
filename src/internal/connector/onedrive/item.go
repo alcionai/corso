@@ -56,7 +56,7 @@ func driveItemReader(
 	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
 
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = time.Second * 90
+	httpClient.Timeout = 0 // need infinite timeout for pulling large files
 
 	resp, err := httpClient.Get(*downloadURL)
 	if err != nil {
