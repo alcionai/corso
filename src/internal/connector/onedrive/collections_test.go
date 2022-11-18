@@ -42,30 +42,41 @@ func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
 	tenant, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
-		name   string
-		source driveSource
-		dir    []string
-		expect string
+		name      string
+		source    driveSource
+		dir       []string
+		expect    string
+		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:   "onedrive",
-			source: OneDriveSource,
-			dir:    []string{"onedrive"},
-			expect: "tenant/onedrive/resourceOwner/files/onedrive",
+			name:      "onedrive",
+			source:    OneDriveSource,
+			dir:       []string{"onedrive"},
+			expect:    "tenant/onedrive/resourceOwner/files/onedrive",
+			expectErr: assert.NoError,
 		},
 		{
-			name:   "sharepoint",
-			source: SharePointSource,
-			dir:    []string{"sharepoint"},
-			expect: "tenant/sharepoint/resourceOwner/files/sharepoint",
+			name:      "sharepoint",
+			source:    SharePointSource,
+			dir:       []string{"sharepoint"},
+			expect:    "tenant/sharepoint/resourceOwner/files/sharepoint",
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "unknown",
+			source:    unknownDriveSource,
+			dir:       []string{"unknown"},
+			expectErr: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			p := strings.Join(test.dir, "/")
 			result, err := GetCanonicalPath(p, tenant, resourceOwner, test.source)
-			assert.NoError(t, err)
-			assert.Equal(t, test.expect, result.String())
+			test.expectErr(t, err)
+			if result != nil {
+				assert.Equal(t, test.expect, result.String())
+			}
 		})
 	}
 }

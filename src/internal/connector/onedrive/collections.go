@@ -19,7 +19,6 @@ import (
 type driveSource int
 
 const (
-	//nolint:deadcode
 	unknownDriveSource driveSource = iota
 	OneDriveSource
 	SharePointSource
