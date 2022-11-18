@@ -46,7 +46,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 		}
 
 		for range colls {
-			gc.IncrementAwaitingMessages()
+			gc.incrementAwaitingMessages()
 		}
 
 		return colls, nil
@@ -153,7 +153,7 @@ func (gc *GraphConnector) createExchangeCollections(
 		foldersComplete <- struct{}{}
 
 		for _, collection := range collections {
-			gc.IncrementAwaitingMessages()
+			gc.incrementAwaitingMessages()
 
 			allCollections = append(allCollections, collection)
 		}
@@ -253,7 +253,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	for range collections {
-		gc.IncrementAwaitingMessages()
+		gc.incrementAwaitingMessages()
 	}
 
 	return collections, errs

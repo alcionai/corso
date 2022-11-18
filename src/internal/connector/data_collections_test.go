@@ -163,7 +163,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	connector := loadConnector(ctx, suite.T(), Users)
+	connector := loadConnector(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -188,7 +188,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector.credentials.AzureTenantID,
 				connector)
 			require.NoError(t, err)
-			assert.Equal(t, 1, len(collection))
+			assert.Equal(t, len(connector.GetSiteIds()), len(collection))
 
 			channel := collection[0].Items()
 

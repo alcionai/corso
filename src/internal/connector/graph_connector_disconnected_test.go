@@ -114,8 +114,8 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	gc := GraphConnector{wg: &sync.WaitGroup{}}
 
 	// Two tasks
-	gc.IncrementAwaitingMessages()
-	gc.IncrementAwaitingMessages()
+	gc.incrementAwaitingMessages()
+	gc.incrementAwaitingMessages()
 
 	// Each helper task processes 4 objects, 1 success, 3 errors, 1 folders
 	go statusTestTask(&gc, 4, 1, 1)
