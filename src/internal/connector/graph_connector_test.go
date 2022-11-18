@@ -66,7 +66,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 
 	newConnector.graphService = *service
 
-	suite.Equal(len(newConnector.Users), 0)
+	suite.Equal(0, len(newConnector.Users))
 	err = newConnector.setTenantUsers(ctx)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Users))
@@ -93,6 +93,10 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	err = newConnector.setTenantSites(ctx)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Sites))
+
+	for _, site := range newConnector.Sites {
+		suite.NotContains("sharepoint.com/personal/", site)
+	}
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
