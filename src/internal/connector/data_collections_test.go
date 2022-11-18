@@ -470,37 +470,37 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestAccessOfInbo
 // CreateSharePointCollection tests
 // ---------------------------------------------------------------------------
 
-type ConnectorCreateSharePointCollectionIntegrationSuite struct {
-	suite.Suite
-	connector *GraphConnector
-	user      string
-}
+// type ConnectorCreateSharePointCollectionIntegrationSuite struct {
+// 	suite.Suite
+// 	connector *GraphConnector
+// 	user      string
+// }
 
-func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoConnectorCreateSharePointCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+// func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
+// 	if err := tester.RunOnAny(
+// 		tester.CorsoCITests,
+// 		tester.CorsoConnectorCreateSharePointCollectionTests,
+// 	); err != nil {
+// 		t.Skip(err)
+// 	}
 
-	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
-}
+// 	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
+// }
 
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+// func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
+// 	ctx, flush := tester.NewContext()
+// 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
-	suite.connector = loadConnector(ctx, suite.T(), Sites)
-	suite.user = tester.M365UserID(suite.T())
-	tester.LogTimeOfTest(suite.T())
-}
+// 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
+// 	require.NoError(suite.T(), err)
+// 	suite.connector = loadConnector(ctx, suite.T(), Sites)
+// 	suite.user = tester.M365UserID(suite.T())
+// 	tester.LogTimeOfTest(suite.T())
+// }
 
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+// func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
+// 	ctx, flush := tester.NewContext()
+// 	defer flush()
 
 	var (
 		t      = suite.T()
