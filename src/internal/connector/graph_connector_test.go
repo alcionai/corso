@@ -44,7 +44,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
 	require.NoError(suite.T(), err)
-	suite.connector = loadConnector(ctx, suite.T())
+	suite.connector = loadConnector(ctx, suite.T(), Users)
 	suite.user = tester.M365UserID(suite.T())
 	tester.LogTimeOfTest(suite.T())
 }
@@ -68,8 +68,8 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 
 	suite.Equal(len(newConnector.Users), 0)
 	err = newConnector.setTenantUsers(ctx)
-	assert.NoError(suite.T(), err)
-	suite.Greater(len(newConnector.Users), 0)
+	suite.NoError(err)
+	suite.Less(0, len(newConnector.Users))
 }
 
 // TestSetTenantUsers verifies GraphConnector's ability to query
@@ -91,10 +91,8 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 
 	suite.Equal(0, len(newConnector.Sites))
 	err = newConnector.setTenantSites(ctx)
-	assert.NoError(suite.T(), err)
-	// TODO: should be non-zero once implemented.
-	// suite.Greater(len(newConnector.Users), 0)
-	suite.Equal(0, len(newConnector.Sites))
+	suite.NoError(err)
+	suite.Less(0, len(newConnector.Sites))
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
@@ -224,7 +222,7 @@ func runRestoreBackupTest(
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t)
+	restoreGC := loadConnector(ctx, t, test.resource)
 	restoreSel := getSelectorWith(test.service)
 	deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
 	require.NoError(t, err)
@@ -258,7 +256,7 @@ func runRestoreBackupTest(
 		})
 	}
 
-	backupGC := loadConnector(ctx, t)
+	backupGC := loadConnector(ctx, t, test.resource)
 	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
@@ -294,8 +292,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 	table := []restoreBackupInfo{
 		{
-			name:    "EmailsWithAttachments",
-			service: path.ExchangeService,
+			name:     "EmailsWithAttachments",
+			service:  path.ExchangeService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -320,8 +319,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:    "MultipleEmailsMultipleFolders",
-			service: path.ExchangeService,
+			name:     "MultipleEmailsMultipleFolders",
+			service:  path.ExchangeService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -365,8 +365,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:    "MultipleContactsSingleFolder",
-			service: path.ExchangeService,
+			name:     "MultipleContactsSingleFolder",
+			service:  path.ExchangeService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Contacts"},
@@ -392,8 +393,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:    "MultipleContactsMutlipleFolders",
-			service: path.ExchangeService,
+			name:     "MultipleContactsMutlipleFolders",
+			service:  path.ExchangeService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -604,8 +606,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
 		{
-			name:    "Contacts",
-			service: path.ExchangeService,
+			name:     "Contacts",
+			service:  path.ExchangeService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},
@@ -703,7 +706,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest.ContainerName,
 				)
 
-				restoreGC := loadConnector(ctx, t)
+				restoreGC := loadConnector(ctx, t, test.resource)
 				deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
 				require.NoError(t, err)
 				require.NotNil(t, deets)
@@ -721,7 +724,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Run a backup and compare its output with what we put in.
 
-			backupGC := loadConnector(ctx, t)
+			backupGC := loadConnector(ctx, t, test.resource)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -751,8 +754,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
 	}
 	table := []restoreBackupInfo{
 		{
-			name:    "Email",
-			service: path.ExchangeService,
+			name:     "Email",
+			service:  path.ExchangeService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Inbox"},
@@ -787,8 +791,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
 			},
 		},
 		{
-			name:    "Contacts",
-			service: path.ExchangeService,
+			name:     "Contacts",
+			service:  path.ExchangeService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{"Work"},

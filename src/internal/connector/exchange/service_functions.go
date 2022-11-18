@@ -23,9 +23,10 @@ type exchangeService struct {
 	credentials account.M365Config
 }
 
-// /------------------------------------------------------------
+// ------------------------------------------------------------
 // Functions to comply with graph.Service Interface
-// -------------------------------------------------------
+// ------------------------------------------------------------
+
 func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
 	return &es.client
 }

@@ -128,7 +128,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer close(complete)
 
 	// retrieve data from the producer
-	gc, err := connector.NewGraphConnector(ctx, op.account)
+	resource := connector.Users
+	if op.Selectors.Service == selectors.ServiceSharePoint {
+		resource = connector.Sites
+	}
+
+	gc, err := connector.NewGraphConnector(ctx, op.account, resource)
 	if err != nil {
 		err = errors.Wrap(err, "connecting to graph api")
 		opStats.readErr = err
