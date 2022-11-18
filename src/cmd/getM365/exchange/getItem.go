@@ -2,7 +2,7 @@
 // existing M365 account. Data displayed is representative of the current
 // serialization abstraction versioning used by Microsoft Graph and stored by Corso.
 
-package main
+package exchange
 
 import (
 	"bytes"
@@ -24,52 +24,36 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var getCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Get a M365ID item JSON",
-	RunE:  handleGetCommand,
-}
-
 // Required inputs from user for command execution
 var (
-	tenant, user, m365ID, category string
+	user, tenant, m365ID, category string
 )
 
-// main function will produce the JSON String for a given m365 object of a
-// user. Displayed Objects can be used as inputs for Mockable data
-// Supports:
-// - exchange (contacts, email, and events)
-// Input: go run ./getItem.go     --user <user>
-//
-//	--m365ID <m365ID> --category <oneof: contacts, email, events>
-func main() {
-	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
-	ctx = SetRootCmd(ctx, getCmd)
+func AddCommands(parent *cobra.Command, userFlag, tenantFlag string) {
+	user = userFlag
+	tenant = tenantFlag
 
-	defer logger.Flush(ctx)
+	exCmd := &cobra.Command{
+		Use:   "exchange",
+		Short: "Get a M365ID item JSON",
+		RunE:  handleExchangeCmd,
+	}
 
-	fs := getCmd.PersistentFlags()
-	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
-	fs.StringVar(&tenant, "tenant", "",
-		"m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
+	fs := exCmd.PersistentFlags()
 	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object to be created")
 	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events or files)") // files not supported
 
-	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("user"))
-	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("m365ID"))
-	cobra.CheckErr(getCmd.MarkPersistentFlagRequired("category"))
+	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("user"))
+	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("m365ID"))
+	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("category"))
 
-	if err := getCmd.ExecuteContext(ctx); err != nil {
-		logger.Flush(ctx)
-		os.Exit(1)
-	}
+	parent.AddCommand(exCmd)
 }
 
-func handleGetCommand(cmd *cobra.Command, args []string) error {
+func handleExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {

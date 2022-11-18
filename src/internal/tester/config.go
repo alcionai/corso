@@ -122,7 +122,7 @@ func readTestConfig() (map[string]string, error) {
 		TestCfgSecondaryUserID,
 		os.Getenv(EnvCorsoSecondaryM365TestUserID),
 		vpr.GetString(TestCfgSecondaryUserID),
-		"lidiah@8qzvrj.onmicrosoft.com",
+		"adelev@8qzvrj.onmicrosoft.com",
 		//"lynner@8qzvrj.onmicrosoft.com",
 	)
 	fallbackTo(
