@@ -151,7 +151,7 @@ func (gc *GraphConnector) createExchangeCollections(
 		foldersComplete <- struct{}{}
 
 		for _, collection := range collections {
-			gc.IncrementAwaitingMessages()
+			gc.incrementAwaitingMessages()
 
 			allCollections = append(allCollections, collection)
 		}

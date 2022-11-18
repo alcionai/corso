@@ -58,9 +58,9 @@ func NewCollections(
 	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{
-		Tenant:        tenant,
-		ResourceOwner: resourceOwner,
-		Source:        source,
+		tenant:        tenant,
+		resourceOwner: resourceOwner,
+		source:        source,
 		matcher:       matcher,
 		CollectionMap: map[string]data.Collection{},
 		service:       service,
@@ -71,7 +71,7 @@ func NewCollections(
 // Retrieves drive data as set of `data.Collections`
 func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	// Enumerate drives for the specified resourceOwner
-	drives, err := drives(ctx, c.service, c.ResourceOwner, c.Source)
+	drives, err := drives(ctx, c.service, c.resourceOwner, c.source)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +110,9 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 		// Create a collection for the parent of this item
 		collectionPath, err := GetCanonicalPath(
 			*item.GetParentReference().GetPath(),
-			c.Tenant,
-			c.ResourceOwner,
-			c.Source,
+			c.tenant,
+			c.resourceOwner,
+			c.source,
 		)
 		if err != nil {
 			return err
