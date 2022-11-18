@@ -295,7 +295,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
 
-	gc.IncrementAwaitingMessages()
+	gc.incrementAwaitingMessages()
 	gc.UpdateStatus(status)
 
 	return deets, err
@@ -336,7 +336,7 @@ func (gc *GraphConnector) PrintableStatus() string {
 	return gc.status.String()
 }
 
-func (gc *GraphConnector) IncrementAwaitingMessages() {
+func (gc *GraphConnector) incrementAwaitingMessages() {
 	gc.wg.Add(1)
 }
 
