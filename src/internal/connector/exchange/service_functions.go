@@ -23,9 +23,10 @@ type exchangeService struct {
 	credentials account.M365Config
 }
 
-///------------------------------------------------------------
+// ------------------------------------------------------------
 // Functions to comply with graph.Service Interface
-//-------------------------------------------------------
+// ------------------------------------------------------------
+
 func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
 	return &es.client
 }
@@ -137,7 +138,6 @@ func DeleteContactFolder(ctx context.Context, gs graph.Service, user, folderID s
 func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
-	category path.CategoryType,
 ) (graph.ContainerResolver, error) {
 	var (
 		res          graph.ContainerResolver
@@ -149,30 +149,30 @@ func PopulateExchangeContainerResolver(
 		return nil, err
 	}
 
-	switch category {
+	switch qp.Category {
 	case path.EmailCategory:
 		res = &mailFolderCache{
-			userID: qp.User,
+			userID: qp.ResourceOwner,
 			gs:     service,
 		}
 		cacheRoot = rootFolderAlias
 
 	case path.ContactsCategory:
 		res = &contactFolderCache{
-			userID: qp.User,
+			userID: qp.ResourceOwner,
 			gs:     service,
 		}
 		cacheRoot = DefaultContactFolder
 
 	case path.EventsCategory:
 		res = &eventCalendarCache{
-			userID: qp.User,
+			userID: qp.ResourceOwner,
 			gs:     service,
 		}
 		cacheRoot = DefaultCalendar
 
 	default:
-		return nil, fmt.Errorf("ContainerResolver not present for %s type", category)
+		return nil, fmt.Errorf("ContainerResolver not present for %s type", qp.Category)
 	}
 
 	if err := res.Populate(ctx, cacheRoot); err != nil {
@@ -182,8 +182,13 @@ func PopulateExchangeContainerResolver(
 	return res, nil
 }
 
-func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.CachedContainer) (path.Path, bool) {
+func pathAndMatch(
+	qp graph.QueryParams,
+	c graph.CachedContainer,
+	scope selectors.ExchangeScope,
+) (path.Path, bool) {
 	var (
+		category  = scope.Category().PathType()
 		directory string
 		pb        = c.Path()
 	)
@@ -195,7 +200,7 @@ func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.Cach
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
 		qp.Credentials.AzureTenantID,
-		qp.User,
+		qp.ResourceOwner,
 		category,
 		false,
 	)
@@ -211,11 +216,11 @@ func pathAndMatch(qp graph.QueryParams, category path.CategoryType, c graph.Cach
 
 	switch category {
 	case path.EmailCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeMailFolder, directory)
+		return dirPath, scope.Matches(selectors.ExchangeMailFolder, directory)
 	case path.ContactsCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeContactFolder, directory)
+		return dirPath, scope.Matches(selectors.ExchangeContactFolder, directory)
 	case path.EventsCategory:
-		return dirPath, qp.Scope.Matches(selectors.ExchangeEventCalendar, directory)
+		return dirPath, scope.Matches(selectors.ExchangeEventCalendar, directory)
 	default:
 		return nil, false
 	}
