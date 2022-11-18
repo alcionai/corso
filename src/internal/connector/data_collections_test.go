@@ -188,7 +188,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector.credentials.AzureTenantID,
 				connector)
 			require.NoError(t, err)
-			assert.Equal(t, 1, len(collection))
+			assert.Equal(t, len(connector.GetSiteIds()), len(collection))
 
 			// the test only reads the firstt collection
 			connector.incrementAwaitingMessages()
