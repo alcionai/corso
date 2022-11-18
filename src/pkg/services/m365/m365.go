@@ -12,7 +12,7 @@ import (
 // Users returns a list of users in the specified M365 tenant
 // TODO: Implement paging support
 func Users(ctx context.Context, m365Account account.Account) ([]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, m365Account)
+	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Users)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
 	}
@@ -23,7 +23,7 @@ func Users(ctx context.Context, m365Account account.Account) ([]string, error) {
 // UserIDs returns a list of user IDs for the specified M365 tenant
 // TODO: Implement paging support
 func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, m365Account)
+	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Users)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
 	}
@@ -32,7 +32,7 @@ func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error)
 }
 
 func GetEmailAndUserID(ctx context.Context, m365Account account.Account) (map[string]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, m365Account)
+	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Users)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
 	}

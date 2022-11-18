@@ -21,11 +21,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // Constant Section
 // Defines the allowable strings that can be passed into
 // selectors for M365 objects
-//------------------------------------------------------------
+// -----------------------------------------------------------------------
 var (
 	fieldsForCalendars = map[string]int{
 		"changeKey":         1,
@@ -118,12 +118,12 @@ func CategoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 	}
 }
 
-//---------------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // exchange.Query Option Section
 // These functions can be used to filter a response on M365
 // Graph queries and reduce / filter the amount of data returned
 // which reduces the overall latency of complex calls
-//----------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 func optionsForFolderMessages(moreOps []string) (*msmfmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, messages)

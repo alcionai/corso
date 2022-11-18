@@ -162,6 +162,7 @@ type restoreBackupInfo struct {
 	name        string
 	service     path.ServiceType
 	collections []colInfo
+	resource    resource
 }
 
 func attachmentEqual(
@@ -858,15 +859,16 @@ func getSelectorWith(service path.ServiceType) selectors.Selector {
 	case path.OneDriveService:
 		s = selectors.ServiceOneDrive
 	}
+	// TODO: ^ sharepoint
 
 	return selectors.Selector{
 		Service: s,
 	}
 }
 
-func loadConnector(ctx context.Context, t *testing.T) *GraphConnector {
+func loadConnector(ctx context.Context, t *testing.T, r resource) *GraphConnector {
 	a := tester.NewM365Account(t)
-	connector, err := NewGraphConnector(ctx, a)
+	connector, err := NewGraphConnector(ctx, a, r)
 	require.NoError(t, err)
 
 	return connector

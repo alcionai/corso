@@ -4,10 +4,11 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"runtime/trace"
+	"strings"
 	"sync"
 
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -16,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -73,7 +75,16 @@ func (gs graphService) ErrPolicy() bool {
 	return gs.failFast
 }
 
-func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnector, error) {
+type resource int
+
+const (
+	UnknownResource resource = iota
+	AllResources
+	Users
+	Sites
+)
+
+func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m365 account configuration")
@@ -93,15 +104,16 @@ func NewGraphConnector(ctx context.Context, acct account.Account) (*GraphConnect
 
 	gc.graphService = *aService
 
-	err = gc.setTenantUsers(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving tenant user list")
+	if r == AllResources || r == Users {
+		if err = gc.setTenantUsers(ctx); err != nil {
+			return nil, errors.Wrap(err, "retrieving tenant user list")
+		}
 	}
 
-	// TODO: users or sites, one or the other, not both.
-	err = gc.setTenantSites(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieveing tenant site list")
+	if r == AllResources || r == Sites {
+		if err = gc.setTenantSites(ctx); err != nil {
+			return nil, errors.Wrap(err, "retrieveing tenant site list")
+		}
 	}
 
 	return &gc, nil
@@ -133,59 +145,41 @@ func (gs *graphService) EnableFailFast() {
 
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
-// iff the return value is nil
+// iff the returned error is nil
 func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
-	if err != nil {
-		return errors.Wrapf(
-			err,
-			"tenant %s M365 query: %s",
-			gc.tenant,
-			support.ConnectorStackErrorTrace(err),
-		)
-	}
-
-	userIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		&gc.graphService.adapter,
+	users, err := getResources(
+		ctx,
+		gc.graphService,
+		gc.tenant,
+		exchange.GetAllUsersForTenant,
 		models.CreateUserCollectionResponseFromDiscriminatorValue,
+		identifyUser,
 	)
 	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return err
 	}
 
-	callbackFunc := func(userItem interface{}) bool {
-		user, ok := userItem.(models.Userable)
-		if !ok {
-			err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), errors.New("received non-User on iteration"), err)
-			return true
-		}
+	gc.Users = users
 
-		if user.GetUserPrincipalName() == nil {
-			err = support.WrapAndAppend(
-				gc.graphService.adapter.GetBaseUrl(),
-				fmt.Errorf("no email address for User: %s", *user.GetId()),
-				err,
-			)
+	return nil
+}
 
-			return true
-		}
-
-		// *user.GetId() is populated for every M365 entityable object by M365 backstore
-		gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
-
-		return true
+// Transforms an interface{} into a key,value pair representing
+// userPrincipalName:userID.
+func identifyUser(item any) (string, string, error) {
+	m, ok := item.(models.Userable)
+	if !ok {
+		return "", "", errors.New("iteration retrieved non-User item")
 	}
 
-	iterateError := userIterator.Iterate(ctx, callbackFunc)
-	if iterateError != nil {
-		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
+	if m.GetUserPrincipalName() == nil {
+		return "", "", errors.Errorf("no principal name for User: %s", *m.GetId())
 	}
 
-	return err
+	return *m.GetUserPrincipalName(), *m.GetId(), nil
 }
 
 // GetUsers returns the email address of users within tenant.
@@ -199,66 +193,51 @@ func (gc *GraphConnector) GetUsersIds() []string {
 }
 
 // setTenantSites queries the M365 to identify the sites in the
-// workspace. The sitets field is updated during this method
-// iff the return value is nil
+// workspace. The sites field is updated during this method
+// iff the returned error is nil.
 func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
-	// TODO
 	gc.Sites = map[string]string{}
 
-	// ctx, end := D.Span(ctx, "gc:setTenantSites")
-	// defer end()
+	ctx, end := D.Span(ctx, "gc:setTenantSites")
+	defer end()
 
-	// response, err := exchange.GetAllUsersForTenant(ctx, gc.graphService, "")
-	// if err != nil {
-	// 	return errors.Wrapf(
-	// 		err,
-	// 		"tenant %s M365 query: %s",
-	// 		gc.tenant,
-	// 		support.ConnectorStackErrorTrace(err),
-	// 	)
-	// }
+	sites, err := getResources(
+		ctx,
+		gc.graphService,
+		gc.tenant,
+		sharepoint.GetAllSitesForTenant,
+		models.CreateSiteCollectionResponseFromDiscriminatorValue,
+		identifySite,
+	)
+	if err != nil {
+		return err
+	}
 
-	// userIterator, err := msgraphgocore.NewPageIterator(
-	// 	response,
-	// 	&gc.graphService.adapter,
-	// 	models.CreateUserCollectionResponseFromDiscriminatorValue,
-	// )
-	// if err != nil {
-	// 	return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	// }
-
-	// callbackFunc := func(userItem interface{}) bool {
-	// 	user, ok := userItem.(models.Userable)
-	// 	if !ok {
-	// 		err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(),
-	//  errors.New("received non-User on iteration"), err)
-	// 		return true
-	// 	}
-
-	// 	if user.GetUserPrincipalName() == nil {
-	// 		err = support.WrapAndAppend(
-	// 			gc.graphService.adapter.GetBaseUrl(),
-	// 			fmt.Errorf("no email address for User: %s", *user.GetId()),
-	// 			err,
-	// 		)
-
-	// 		return true
-	// 	}
-
-	// 	// *user.GetId() is populated for every M365 entityable object by M365 backstore
-	// 	gc.Users[*user.GetUserPrincipalName()] = *user.GetId()
-
-	// 	return true
-	// }
-
-	// iterateError := userIterator.Iterate(ctx, callbackFunc)
-	// if iterateError != nil {
-	// 	err = support.WrapAndAppend(gc.graphService.adapter.GetBaseUrl(), iterateError, err)
-	// }
-
-	// return err
+	gc.Sites = sites
 
 	return nil
+}
+
+var errKnownSkippableCase = errors.New("case is known and skippable")
+
+// Transforms an interface{} into a key,value pair representing
+// siteName:siteID.
+func identifySite(item any) (string, string, error) {
+	m, ok := item.(models.Siteable)
+	if !ok {
+		return "", "", errors.New("iteration retrieved non-Site item")
+	}
+
+	if m.GetName() == nil {
+		// the built-in site at "htps://{tenant-domain}/search" never has a name.
+		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
+			return "", "", errKnownSkippableCase
+		}
+
+		return "", "", errors.Errorf("no name for Site: %s", *m.GetId())
+	}
+
+	return *m.GetName(), *m.GetId(), nil
 }
 
 // GetSites returns the siteIDs of sharepoint sites within tenant.
@@ -364,6 +343,57 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 // ---------------------------------------------------------------------------
 // Helper Funcs
 // ---------------------------------------------------------------------------
+
+func getResources(
+	ctx context.Context,
+	gs graph.Service,
+	tenantID string,
+	query func(context.Context, graph.Service) (serialization.Parsable, error),
+	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
+	identify func(any) (string, string, error),
+) (map[string]string, error) {
+	resources := map[string]string{}
+
+	response, err := query(ctx, gs)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"retrieving resources for tenant %s: %s",
+			tenantID,
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
+	if err != nil {
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	var iterErrs error
+
+	callbackFunc := func(item any) bool {
+		k, v, err := identify(item)
+		if err != nil {
+			if errors.Is(err, errKnownSkippableCase) {
+				return true
+			}
+
+			iterErrs = support.WrapAndAppend(gs.Adapter().GetBaseUrl(), err, iterErrs)
+
+			return true
+		}
+
+		resources[k] = v
+
+		return true
+	}
+
+	if err := iter.Iterate(ctx, callbackFunc); err != nil {
+		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	return resources, iterErrs
+}
 
 // IsRecoverableError returns true iff error is a RecoverableGCEerror
 func IsRecoverableError(e error) bool {
