@@ -53,41 +53,21 @@ func (ms *MockGraphService) ErrPolicy() bool {
 // tests
 // ---------------------------------------------------------------------------
 
-type SharePointLibrariesIntegrationSuite struct {
+type SharePointLibrariesSuite struct {
 	suite.Suite
 	ctx context.Context
 }
 
-func TestSharePointLibrariesIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorSharePointTests,
-	); err != nil {
-		t.Skip(err)
-	}
-
-	suite.Run(t, new(SharePointLibrariesIntegrationSuite))
+func TestSharePointLibrariesSuite(t *testing.T) {
+	suite.Run(t, new(SharePointLibrariesSuite))
 }
 
-func (suite *SharePointLibrariesIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs,
-	)
-
-	require.NoError(suite.T(), err)
-}
-
-func (suite *SharePointLibrariesIntegrationSuite) TestUpdateCollections() {
+func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.SharePointBackup{}).Folders(selectors.Any(), selectors.Any())[0]
 
 	const (
-		tenant    = "tenant"
-		site      = "site"
-		folder    = "/folder"
-		folderSub = "/folder/subfolder"
-		pkg       = "/package"
+		tenant = "tenant"
+		site   = "site"
 	)
 
 	tests := []struct {
@@ -101,17 +81,9 @@ func (suite *SharePointLibrariesIntegrationSuite) TestUpdateCollections() {
 		expectedFileCount       int
 	}{
 		{
-			testCase: "Invalid item",
-			items: []models.DriveItemable{
-				driveItem("item", testBaseDrivePath, false, false, false),
-			},
-			scope:  anyFolder,
-			expect: assert.Error,
-		},
-		{
 			testCase: "Single File",
 			items: []models.DriveItemable{
-				driveItem("file", testBaseDrivePath, true, false, false),
+				driveItem("file", testBaseDrivePath, true),
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
@@ -120,127 +92,6 @@ func (suite *SharePointLibrariesIntegrationSuite) TestUpdateCollections() {
 				tenant,
 				site,
 				testBaseDrivePath,
-			),
-			expectedItemCount:      2,
-			expectedFileCount:      1,
-			expectedContainerCount: 1,
-		},
-		{
-			testCase: "Single Folder",
-			items: []models.DriveItemable{
-				driveItem("folder", testBaseDrivePath, false, true, false),
-			},
-			scope:                   anyFolder,
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
-		},
-		{
-			testCase: "Single Package",
-			items: []models.DriveItemable{
-				driveItem("package", testBaseDrivePath, false, false, true),
-			},
-			scope:                   anyFolder,
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
-		},
-		{
-			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
-			items: []models.DriveItemable{
-				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
-			},
-			scope:  anyFolder,
-			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
-				suite.T(),
-				tenant,
-				site,
-				testBaseDrivePath,
-				testBaseDrivePath+folder,
-				testBaseDrivePath+pkg,
-			),
-			expectedItemCount:      6,
-			expectedFileCount:      3,
-			expectedContainerCount: 3,
-		},
-		{
-			testCase: "contains folder selector",
-			items: []models.DriveItemable{
-				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("folder", testBaseDrivePath+folderSub, false, true, false),
-				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
-			},
-			scope:  (&selectors.SharePointBackup{}).Folders(selectors.Any(), []string{"folder"})[0],
-			expect: assert.NoError,
-			expectedCollectionPaths: append(
-				expectedPathAsSlice(
-					suite.T(),
-					tenant,
-					site,
-					testBaseDrivePath+"/folder",
-				),
-				expectedPathAsSlice(
-					suite.T(),
-					tenant,
-					site,
-					testBaseDrivePath+folderSub+folder,
-				)...,
-			),
-			expectedItemCount:      4,
-			expectedFileCount:      2,
-			expectedContainerCount: 2,
-		},
-		{
-			testCase: "prefix subfolder selector",
-			items: []models.DriveItemable{
-				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("folder", testBaseDrivePath+folderSub, false, true, false),
-				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
-			},
-			scope: (&selectors.SharePointBackup{}).
-				Folders(selectors.Any(), []string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
-			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
-				suite.T(),
-				tenant,
-				site,
-				testBaseDrivePath+folderSub+folder,
-			),
-			expectedItemCount:      2,
-			expectedFileCount:      1,
-			expectedContainerCount: 1,
-		},
-		{
-			testCase: "match subfolder selector",
-			items: []models.DriveItemable{
-				driveItem("fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInSubfolder", testBaseDrivePath+folderSub, true, false, false),
-				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
-			},
-			scope:  (&selectors.SharePointBackup{}).Folders(selectors.Any(), []string{"folder/subfolder"})[0],
-			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
-				suite.T(),
-				tenant,
-				site,
-				testBaseDrivePath+folderSub,
 			),
 			expectedItemCount:      2,
 			expectedFileCount:      1,
@@ -269,12 +120,11 @@ func (suite *SharePointLibrariesIntegrationSuite) TestUpdateCollections() {
 			for _, collPath := range test.expectedCollectionPaths {
 				assert.Contains(t, c.CollectionMap, collPath)
 			}
-			t.Fail()
 		})
 	}
 }
 
-func driveItem(name string, path string, isFile, isFolder, isPackage bool) models.DriveItemable {
+func driveItem(name string, path string, isFile bool) models.DriveItemable {
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&name)
@@ -283,13 +133,8 @@ func driveItem(name string, path string, isFile, isFolder, isPackage bool) model
 	parentReference.SetPath(&path)
 	item.SetParentReference(parentReference)
 
-	switch {
-	case isFile:
+	if isFile {
 		item.SetFile(models.NewFile())
-	case isFolder:
-		item.SetFolder(models.NewFolder())
-	case isPackage:
-		item.SetPackage(models.NewPackage_escaped())
 	}
 
 	return item

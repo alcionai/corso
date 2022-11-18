@@ -469,50 +469,51 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestAccessOfInbo
 // CreateSharePointCollection tests
 // ---------------------------------------------------------------------------
 
-// type ConnectorCreateSharePointCollectionIntegrationSuite struct {
-// 	suite.Suite
-// 	connector *GraphConnector
-// 	user      string
-// }
+type ConnectorCreateSharePointCollectionIntegrationSuite struct {
+	suite.Suite
+	connector *GraphConnector
+	user      string
+}
 
-// func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
-// 	if err := tester.RunOnAny(
-// 		tester.CorsoCITests,
-// 		tester.CorsoConnectorCreateSharePointCollectionTests,
-// 	); err != nil {
-// 		t.Skip(err)
-// 	}
+func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoConnectorCreateSharePointCollectionTests,
+	); err != nil {
+		t.Skip(err)
+	}
 
-// 	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
-// }
+	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
+}
 
-// func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
-// 	ctx, flush := tester.NewContext()
-// 	defer flush()
+func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
+	ctx, flush := tester.NewContext()
+	defer flush()
 
-// 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-// 	require.NoError(suite.T(), err)
-// 	suite.connector = loadConnector(ctx, suite.T(), Sites)
-// 	suite.user = tester.M365UserID(suite.T())
-// 	tester.LogTimeOfTest(suite.T())
-// }
+	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
+	require.NoError(suite.T(), err)
+	suite.connector = loadConnector(ctx, suite.T(), Sites)
+	suite.user = tester.M365UserID(suite.T())
+	tester.LogTimeOfTest(suite.T())
+}
 
-// func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
-// 	ctx, flush := tester.NewContext()
-// 	defer flush()
+func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
+	ctx, flush := tester.NewContext()
+	defer flush()
 
-// 	var (
-// 		t      = suite.T()
-// 		userID = tester.M365UserID(t)
-// 	)
+	var (
+		t      = suite.T()
+		userID = tester.M365UserID(t)
+		gc     = loadConnector(ctx, t, Sites)
+		sel    = selectors.NewSharePointBackup()
+	)
 
-// 	gc := loadConnector(ctx, t, Sites)
-// 	scope := selectors.NewSharePointBackup().Folders(
-// 		[]string{userID},
-// 		[]string{"foo"},
-// 		selectors.PrefixMatch(),
-// 	)[0]
+	sel.Include(sel.Folders(
+		[]string{userID},
+		[]string{"foo"},
+		selectors.PrefixMatch(),
+	))
 
-// 	_, err := gc.createSharePointCollections(ctx, scope)
-// 	require.NoError(t, err)
-// }
+	_, err := gc.DataCollections(ctx, sel.Selector)
+	require.NoError(t, err)
+}
