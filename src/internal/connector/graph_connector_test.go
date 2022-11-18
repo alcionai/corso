@@ -509,6 +509,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		{
 			name:    "OneDriveMultipleFoldersAndFiles",
 			service: path.OneDriveService,
+			resource: Users,
 			collections: []colInfo{
 				{
 					pathElements: []string{
