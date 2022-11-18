@@ -79,7 +79,7 @@ func (suite *SharePointLibrariesIntegrationSuite) SetupSuite() {
 	require.NoError(suite.T(), err)
 }
 
-func (suite *SharePointLibrariesIntegrationSuite) TestCollectLibraries() {
+func (suite *SharePointLibrariesIntegrationSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.SharePointBackup{}).Folders(selectors.Any(), selectors.Any())[0]
 
 	const (

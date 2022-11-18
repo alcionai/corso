@@ -17,7 +17,6 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -41,7 +40,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	case selectors.ServiceSharePoint:
-		return gc.SharePointDataCollections(ctx, sels)
+		return sharepoint.DataCollections(ctx, sels, gc.GetSiteIds(), gc.credentials.AzureTenantID, gc)
 	default:
 		return nil, errors.Errorf("service %s not supported", sels)
 	}
@@ -145,7 +144,7 @@ func (gc *GraphConnector) createExchangeCollections(
 		foldersComplete <- struct{}{}
 
 		for _, collection := range collections {
-			gc.incrementAwaitingMessages()
+			gc.IncrementAwaitingMessages()
 
 			allCollections = append(allCollections, collection)
 		}
@@ -245,92 +244,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	for range collections {
-		gc.incrementAwaitingMessages()
-	}
-
-	return collections, errs
-}
-
-// ---------------------------------------------------------------------------
-// SharePoint
-// ---------------------------------------------------------------------------
-
-// createSharePointCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.SharePointScope
-// determines the type of collections that are retrieved.
-func (gc *GraphConnector) createSharePointCollections(
-	ctx context.Context,
-	scope selectors.SharePointScope,
-) ([]data.Collection, error) {
-	var (
-		errs        *multierror.Error
-		sites       = scope.Get(selectors.SharePointSite)
-		category    = scope.Category().PathType()
-		collections = make([]data.Collection, 0)
-	)
-
-	// Create collection of ExchangeDataCollection
-	for _, site := range sites {
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", category, site))
-		defer closer()
-		defer close(foldersComplete)
-
-		switch category {
-		case path.FilesCategory: // TODO: better category for drives
-			spcs, err := sharepoint.CollectLibraries(
-				ctx,
-				gc.Service(),
-				gc.credentials.AzureTenantID,
-				gc.GetSiteIds(),
-				scope,
-				gc.UpdateStatus,
-				gc.incrementAwaitingMessages,
-			)
-			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
-			}
-
-			collections = append(collections, spcs...)
-		}
-
-		foldersComplete <- struct{}{}
-	}
-
-	return collections, errs.ErrorOrNil()
-}
-
-// SharePointDataCollections returns a set of DataCollection which represents the SharePoint data
-// for the specified user
-func (gc *GraphConnector) SharePointDataCollections(
-	ctx context.Context,
-	selector selectors.Selector,
-) ([]data.Collection, error) {
-	b, err := selector.ToSharePointBackup()
-	if err != nil {
-		return nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
-	}
-
-	var (
-		scopes      = b.DiscreteScopes(gc.GetSites())
-		collections = []data.Collection{}
-		errs        error
-	)
-
-	// for each scope that includes oneDrive items, get all
-	for _, scope := range scopes {
-		// Creates a slice of collections based on scope
-		dcs, err := gc.createSharePointCollections(ctx, scope)
-		if err != nil {
-			return nil, support.WrapAndAppend(scope.Get(selectors.SharePointSite)[0], err, errs)
-		}
-
-		for _, collection := range dcs {
-			collections = append(collections, collection)
-		}
-	}
-
-	for range collections {
-		gc.incrementAwaitingMessages()
+		gc.IncrementAwaitingMessages()
 	}
 
 	return collections, errs

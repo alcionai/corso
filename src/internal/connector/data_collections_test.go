@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -180,24 +181,27 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := connector.SharePointDataCollections(ctx, test.getSelector(t))
+			collection, err := sharepoint.DataCollections(
+				ctx,
+				test.getSelector(t),
+				connector.GetSiteIds(),
+				connector.credentials.AzureTenantID,
+				connector)
 			require.NoError(t, err)
+			assert.Equal(t, 1, len(collection))
 
-			// TODO: Implementation
-			// assert.Equal(t, len(collection), 1)
+			channel := collection[0].Items()
 
-			// channel := collection[0].Items()
+			for object := range channel {
+				buf := &bytes.Buffer{}
+				_, err := buf.ReadFrom(object.ToReader())
+				assert.NoError(t, err, "received a buf.Read error")
+			}
 
-			// for object := range channel {
-			// 	buf := &bytes.Buffer{}
-			// 	_, err := buf.ReadFrom(object.ToReader())
-			// 	assert.NoError(t, err, "received a buf.Read error")
-			// }
+			status := connector.AwaitStatus()
+			assert.NotZero(t, status.Successful)
 
-			// status := connector.AwaitStatus()
-			// assert.NotZero(t, status.Successful)
-
-			// t.Log(status.String())
+			t.Log(status.String())
 		})
 	}
 }
@@ -465,50 +469,50 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestAccessOfInbo
 // CreateSharePointCollection tests
 // ---------------------------------------------------------------------------
 
-type ConnectorCreateSharePointCollectionIntegrationSuite struct {
-	suite.Suite
-	connector *GraphConnector
-	user      string
-}
+// type ConnectorCreateSharePointCollectionIntegrationSuite struct {
+// 	suite.Suite
+// 	connector *GraphConnector
+// 	user      string
+// }
 
-func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoConnectorCreateSharePointCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+// func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
+// 	if err := tester.RunOnAny(
+// 		tester.CorsoCITests,
+// 		tester.CorsoConnectorCreateSharePointCollectionTests,
+// 	); err != nil {
+// 		t.Skip(err)
+// 	}
 
-	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
-}
+// 	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
+// }
 
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+// func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
+// 	ctx, flush := tester.NewContext()
+// 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
-	suite.connector = loadConnector(ctx, suite.T(), Sites)
-	suite.user = tester.M365UserID(suite.T())
-	tester.LogTimeOfTest(suite.T())
-}
+// 	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
+// 	require.NoError(suite.T(), err)
+// 	suite.connector = loadConnector(ctx, suite.T(), Sites)
+// 	suite.user = tester.M365UserID(suite.T())
+// 	tester.LogTimeOfTest(suite.T())
+// }
 
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+// func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
+// 	ctx, flush := tester.NewContext()
+// 	defer flush()
 
-	var (
-		t      = suite.T()
-		userID = tester.M365UserID(t)
-	)
+// 	var (
+// 		t      = suite.T()
+// 		userID = tester.M365UserID(t)
+// 	)
 
-	gc := loadConnector(ctx, t, Sites)
-	scope := selectors.NewSharePointBackup().Folders(
-		[]string{userID},
-		[]string{"foo"},
-		selectors.PrefixMatch(),
-	)[0]
+// 	gc := loadConnector(ctx, t, Sites)
+// 	scope := selectors.NewSharePointBackup().Folders(
+// 		[]string{userID},
+// 		[]string{"foo"},
+// 		selectors.PrefixMatch(),
+// 	)[0]
 
-	_, err := gc.createSharePointCollections(ctx, scope)
-	require.NoError(t, err)
-}
+// 	_, err := gc.createSharePointCollections(ctx, scope)
+// 	require.NoError(t, err)
+// }
