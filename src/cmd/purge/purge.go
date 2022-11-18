@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
@@ -14,39 +13,17 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var purgeCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Purge all types of m365 folders",
 	RunE:  handleAllFolderPurge,
-}
-
-var mailCmd = &cobra.Command{
-	Use:   "mail",
-	Short: "Purges mail folders",
-	RunE:  handleMailFolderPurge,
-}
-
-var eventsCmd = &cobra.Command{
-	Use:   "events",
-	Short: "Purges calendar event folders",
-	RunE:  handleCalendarFolderPurge,
-}
-
-var contactsCmd = &cobra.Command{
-	Use:   "contacts",
-	Short: "Purges contacts folders",
-	RunE:  handleContactsFolderPurge,
 }
 
 var oneDriveCmd = &cobra.Command{
@@ -82,9 +59,6 @@ func main() {
 	fs.StringVar(&prefix, "prefix", "", "filters mail folders by displayName prefix")
 	cobra.CheckErr(purgeCmd.MarkPersistentFlagRequired("prefix"))
 
-	purgeCmd.AddCommand(mailCmd)
-	purgeCmd.AddCommand(eventsCmd)
-	purgeCmd.AddCommand(contactsCmd)
 	purgeCmd.AddCommand(oneDriveCmd)
 
 	if err := purgeCmd.ExecuteContext(ctx); err != nil {
@@ -107,73 +81,10 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 
 	err = runPurgeForEachUser(
 		ctx, gc, t,
-		purgeMailFolders,
-		purgeCalendarFolders,
-		purgeContactFolders,
 		purgeOneDriveFolders,
 	)
 	if err != nil {
 		return Only(ctx, ErrPurging)
-	}
-
-	return nil
-}
-
-func handleMailFolderPurge(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	gc, t, err := getGCAndBoundaryTime(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := runPurgeForEachUser(ctx, gc, t, purgeMailFolders); err != nil {
-		logger.Ctx(ctx).Error(err)
-		return Only(ctx, errors.Wrap(ErrPurging, "mail folders"))
-	}
-
-	return nil
-}
-
-func handleCalendarFolderPurge(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	gc, t, err := getGCAndBoundaryTime(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := runPurgeForEachUser(ctx, gc, t, purgeCalendarFolders); err != nil {
-		logger.Ctx(ctx).Error(err)
-		return Only(ctx, errors.Wrap(ErrPurging, "event calendars"))
-	}
-
-	return nil
-}
-
-func handleContactsFolderPurge(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	gc, t, err := getGCAndBoundaryTime(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := runPurgeForEachUser(ctx, gc, t, purgeContactFolders); err != nil {
-		logger.Ctx(ctx).Error(err)
-		return Only(ctx, errors.Wrap(ErrPurging, "contact folders"))
 	}
 
 	return nil
@@ -229,114 +140,6 @@ func runPurgeForEachUser(
 	}
 
 	return errs
-}
-
-// ----- mail
-
-func purgeMailFolders(
-	ctx context.Context,
-	gc *connector.GraphConnector,
-	boundary time.Time,
-	uid string,
-) error {
-	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		params, err := exchangeQueryParamFactory(uid, path.EmailCategory)
-		if err != nil {
-			return nil, err
-		}
-
-		allFolders, err := exchange.GetAllMailFolders(ctx, *params, gs)
-		if err != nil {
-			return nil, err
-		}
-
-		mfs := containerFilter(prefix, allFolders)
-		purgables := make([]purgable, len(mfs))
-
-		for i, v := range mfs {
-			purgables[i] = v
-		}
-
-		return purgables, nil
-	}
-
-	deleter := func(gs graph.Service, uid string, f purgable) error {
-		return exchange.DeleteMailFolder(ctx, gs, uid, *f.GetId())
-	}
-
-	return purgeFolders(ctx, gc, boundary, "Mail Folders", uid, getter, deleter)
-}
-
-// ----- calendars
-
-func purgeCalendarFolders(
-	ctx context.Context,
-	gc *connector.GraphConnector,
-	boundary time.Time,
-	uid string,
-) error {
-	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		params, err := exchangeQueryParamFactory(uid, path.EventsCategory)
-		if err != nil {
-			return nil, err
-		}
-
-		allCalendars, err := exchange.GetAllCalendars(ctx, *params, gs)
-		if err != nil {
-			return nil, err
-		}
-
-		cfs := containerFilter(prefix, allCalendars)
-		purgables := make([]purgable, len(cfs))
-
-		for i, v := range cfs {
-			purgables[i] = v
-		}
-
-		return purgables, nil
-	}
-
-	deleter := func(gs graph.Service, uid string, f purgable) error {
-		return exchange.DeleteCalendar(ctx, gs, uid, *f.GetId())
-	}
-
-	return purgeFolders(ctx, gc, boundary, "Event Calendars", uid, getter, deleter)
-}
-
-// ----- contacts
-
-func purgeContactFolders(
-	ctx context.Context,
-	gc *connector.GraphConnector,
-	boundary time.Time,
-	uid string,
-) error {
-	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		params, err := exchangeQueryParamFactory(uid, path.ContactsCategory)
-		if err != nil {
-			return nil, err
-		}
-
-		allContainers, err := exchange.GetAllContactFolders(ctx, *params, gs)
-		if err != nil {
-			return nil, err
-		}
-
-		cfs := containerFilter(prefix, allContainers)
-		purgables := make([]purgable, len(cfs))
-
-		for i, v := range cfs {
-			purgables[i] = v
-		}
-
-		return purgables, nil
-	}
-
-	deleter := func(gs graph.Service, uid string, f purgable) error {
-		return exchange.DeleteContactFolder(ctx, gs, uid, *f.GetId())
-	}
-
-	return purgeFolders(ctx, gc, boundary, "Contact Folders", uid, getter, deleter)
 }
 
 // ----- OneDrive
@@ -452,7 +255,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, acct)
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}
@@ -501,46 +304,4 @@ func userOrUsers(u string, us map[string]string) map[string]string {
 	}
 
 	return map[string]string{u: u}
-}
-
-// containerFilter filters container list based on prefix
-// @returns cachedContainers that meet the requirements for purging.
-func containerFilter(nameContains string, containers []graph.CachedContainer) []graph.CachedContainer {
-	f := filters.In(nameContains)
-	result := make([]graph.CachedContainer, 0)
-
-	for _, folder := range containers {
-		if f.Compare(*folder.GetDisplayName()) {
-			result = append(result, folder)
-		}
-	}
-
-	return result
-}
-
-func exchangeQueryParamFactory(user string, category path.CategoryType) (*graph.QueryParams, error) {
-	var scope selectors.ExchangeScope
-
-	switch category {
-	case path.ContactsCategory:
-		scope = selectors.NewExchangeBackup().ContactFolders([]string{user}, selectors.Any())[0]
-	case path.EmailCategory:
-		scope = selectors.NewExchangeBackup().MailFolders([]string{user}, selectors.Any())[0]
-	case path.EventsCategory:
-		scope = selectors.NewExchangeBackup().EventCalendars([]string{user}, selectors.Any())[0]
-	default:
-		return nil, fmt.Errorf("category %s not supported", category)
-	}
-
-	params := &graph.QueryParams{
-		User:     user,
-		Scope:    scope,
-		FailFast: false,
-		Credentials: account.M365Config{
-			M365:          credentials.GetM365(),
-			AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
-		},
-	}
-
-	return params, nil
 }

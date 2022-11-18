@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // FilterContainersAndFillCollections is a utility function
@@ -26,21 +27,21 @@ func FilterContainersAndFillCollections(
 	collections map[string]*Collection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
+	scope selectors.ExchangeScope,
 ) error {
 	var (
-		category       = qp.Scope.Category().PathType()
-		collectionType = CategoryToOptionIdentifier(category)
+		collectionType = CategoryToOptionIdentifier(scope.Category().PathType())
 		errs           error
 	)
 
 	for _, c := range resolver.Items() {
-		dirPath, ok := pathAndMatch(qp, category, c)
+		dirPath, ok := pathAndMatch(qp, c, scope)
 		if ok {
 			// Create only those that match
 			service, err := createService(qp.Credentials, qp.FailFast)
 			if err != nil {
 				errs = support.WrapAndAppend(
-					qp.User+" FilterContainerAndFillCollection",
+					qp.ResourceOwner+" FilterContainerAndFillCollection",
 					err,
 					errs)
 
@@ -50,7 +51,7 @@ func FilterContainersAndFillCollections(
 			}
 
 			edc := NewCollection(
-				qp.User,
+				qp.ResourceOwner,
 				dirPath,
 				collectionType,
 				service,
@@ -61,10 +62,10 @@ func FilterContainersAndFillCollections(
 	}
 
 	for directoryID, col := range collections {
-		fetchFunc, err := getFetchIDFunc(category)
+		fetchFunc, err := getFetchIDFunc(scope.Category().PathType())
 		if err != nil {
 			errs = support.WrapAndAppend(
-				qp.User,
+				qp.ResourceOwner,
 				err,
 				errs)
 
@@ -75,10 +76,10 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, err := fetchFunc(ctx, col.service, qp.User, directoryID)
+		jobs, err := fetchFunc(ctx, col.service, qp.ResourceOwner, directoryID)
 		if err != nil {
 			errs = support.WrapAndAppend(
-				qp.User,
+				qp.ResourceOwner,
 				err,
 				errs,
 			)

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -252,8 +253,10 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 			function: GetAllFolderNamesForUser,
 		},
 		{
-			name:     "GraphQuery: Get All Users",
-			function: GetAllUsersForTenant,
+			name: "GraphQuery: Get All Users",
+			function: func(ctx context.Context, gs graph.Service, toss string) (absser.Parsable, error) {
+				return GetAllUsersForTenant(ctx, gs)
+			},
 		},
 		{
 			name:     "GraphQuery: Get All ContactFolders",

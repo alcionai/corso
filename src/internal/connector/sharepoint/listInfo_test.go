@@ -38,6 +38,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo() {
 				i := &details.SharePointInfo{
 					ItemType: details.SharePointItem,
 					ItemName: aTitle,
+					Size:     10,
 				}
 				return listing, i
 			},
@@ -46,7 +47,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			list, expected := test.listAndRP()
-			info := sharePointListInfo(list)
+			info := sharePointListInfo(list, 10)
 			assert.Equal(t, expected.ItemType, info.ItemType)
 			assert.Equal(t, expected.ItemName, info.ItemName)
 			assert.Equal(t, expected.WebURL, info.WebURL)

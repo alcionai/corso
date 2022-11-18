@@ -304,6 +304,7 @@ type ExchangeInfo struct {
 	EventRecurs bool      `json:"eventRecurs,omitempty"`
 	Created     time.Time `json:"created,omitempty"`
 	Modified    time.Time `json:"modified,omitempty"`
+	Size        int64     `json:"size,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in an ExchangeInfo
@@ -356,6 +357,7 @@ type SharePointInfo struct {
 	Created  time.Time `json:"created,omitempty"`
 	Modified time.Time `josn:"modified,omitempty"`
 	WebURL   string    `json:"webUrl,omitempty"`
+	Size     int64     `json:"size,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
