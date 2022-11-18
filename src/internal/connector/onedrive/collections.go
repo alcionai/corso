@@ -25,7 +25,7 @@ const (
 	SharePointSource
 )
 
-type isAnyMatcher interface {
+type folderMatcher interface {
 	IsAny() bool
 	Matches(string) bool
 }
@@ -36,7 +36,7 @@ type Collections struct {
 	Tenant        string
 	ResourceOwner string
 	Source        driveSource
-	matcher       isAnyMatcher
+	matcher       folderMatcher
 	service       graph.Service
 	statusUpdater support.StatusUpdater
 
@@ -54,7 +54,7 @@ func NewCollections(
 	tenant string,
 	resourceOwner string,
 	source driveSource,
-	matcher isAnyMatcher,
+	matcher folderMatcher,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
 ) *Collections {
@@ -193,7 +193,7 @@ func getDriveFolderPath(p path.Path) (string, error) {
 	return path.Builder{}.Append(drivePath.folders...).String(), nil
 }
 
-func includePath(ctx context.Context, m isAnyMatcher, folderPath path.Path) bool {
+func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) bool {
 	// Check if the folder is allowed by the scope.
 	folderPathString, err := getDriveFolderPath(folderPath)
 	if err != nil {

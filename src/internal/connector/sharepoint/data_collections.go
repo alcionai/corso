@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -25,7 +24,6 @@ type connector interface {
 	statusUpdater
 
 	Service() graph.Service
-	IncrementAwaitingMessages()
 }
 
 // DataCollections returns a set of DataCollection which represents the SharePoint data
@@ -49,76 +47,44 @@ func DataCollections(
 		errs        error
 	)
 
-	// for each scope that includes oneDrive items, get all
 	for _, scope := range scopes {
-		// Creates a slice of collections based on scope
-		dcs, err := createSharePointCollections(ctx, serv, scope, tenantID, con)
-		if err != nil {
-			return nil, support.WrapAndAppend(scope.Get(selectors.SharePointSite)[0], err, errs)
-		}
+		// due to DiscreteScopes(siteIDs), each range should only contain one site.
+		for _, site := range scope.Get(selectors.SharePointSite) {
+			foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf(
+				"∙ %s - %s:",
+				scope.Category().PathType(), site))
+			defer closer()
+			defer close(foldersComplete)
 
-		for _, collection := range dcs {
-			collections = append(collections, collection)
-		}
-	}
+			switch scope.Category().PathType() {
+			case path.FilesCategory: // TODO: better category for sp drives, eg: LibrariesCategory
+				spcs, err := collectLibraries(
+					ctx,
+					serv,
+					tenantID,
+					site,
+					scope,
+					con)
+				if err != nil {
+					return nil, support.WrapAndAppend(site, err, errs)
+				}
 
-	for range collections {
-		con.IncrementAwaitingMessages()
+				collections = append(collections, spcs...)
+			}
+
+			foldersComplete <- struct{}{}
+		}
 	}
 
 	return collections, errs
 }
 
-// createSharePointCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.SharePointScope
-// determines the type of collections that are retrieved.
-func createSharePointCollections(
-	ctx context.Context,
-	serv graph.Service,
-	scope selectors.SharePointScope,
-	tenantID string,
-	updater statusUpdater,
-) ([]data.Collection, error) {
-	var (
-		errs        *multierror.Error
-		sites       = scope.Get(selectors.SharePointSite)
-		category    = scope.Category().PathType()
-		collections = make([]data.Collection, 0)
-	)
-
-	// Create collection of sharePoint data
-	for _, site := range sites {
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", category, site))
-		defer closer()
-		defer close(foldersComplete)
-
-		switch category {
-		case path.FilesCategory: // TODO: better category for drives
-			spcs, err := collectLibraries(
-				ctx,
-				serv,
-				tenantID,
-				site,
-				scope,
-				updater)
-			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
-			}
-
-			collections = append(collections, spcs...)
-		}
-
-		foldersComplete <- struct{}{}
-	}
-
-	return collections, errs.ErrorOrNil()
-}
-
+// collectLibraries constructs a onedrive Collections struct and Get()s
+// all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
 	serv graph.Service,
-	tenantID string,
-	siteID string,
+	tenantID, siteID string,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 ) ([]data.Collection, error) {

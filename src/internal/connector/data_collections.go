@@ -40,7 +40,16 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	case selectors.ServiceSharePoint:
-		return sharepoint.DataCollections(ctx, sels, gc.GetSiteIds(), gc.credentials.AzureTenantID, gc)
+		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIds(), gc.credentials.AzureTenantID, gc)
+		if err != nil {
+			return nil, err
+		}
+
+		for range colls {
+			gc.IncrementAwaitingMessages()
+		}
+
+		return colls, nil
 	default:
 		return nil, errors.Errorf("service %s not supported", sels)
 	}
