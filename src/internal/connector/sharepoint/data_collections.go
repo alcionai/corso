@@ -57,7 +57,7 @@ func DataCollections(
 			defer close(foldersComplete)
 
 			switch scope.Category().PathType() {
-			case path.FilesCategory: // TODO: better category for sp drives, eg: LibrariesCategory
+			case path.LibrariesCategory:
 				spcs, err := collectLibraries(
 					ctx,
 					serv,
@@ -116,9 +116,9 @@ type folderMatcher struct {
 }
 
 func (fm folderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.SharePointFolder)
+	return fm.scope.IsAny(selectors.SharePointLibrary)
 }
 
 func (fm folderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.SharePointFolder, dir)
+	return fm.scope.Matches(selectors.SharePointLibrary, dir)
 }

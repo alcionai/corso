@@ -183,16 +183,16 @@ func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
 func (s *sharePoint) Sites(sites []string) []SharePointScope {
 	scopes := []SharePointScope{}
 
-	scopes = append(scopes, makeScope[SharePointScope](SharePointFolder, sites, Any()))
+	scopes = append(scopes, makeScope[SharePointScope](SharePointLibrary, sites, Any()))
 
 	return scopes
 }
 
-// Folders produces one or more SharePoint folder scopes.
+// Libraries produces one or more SharePoint library scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *sharePoint) Folders(sites, folders []string, opts ...option) []SharePointScope {
+func (s *sharePoint) Libraries(sites, libraries []string, opts ...option) []SharePointScope {
 	var (
 		scopes = []SharePointScope{}
 		os     = append([]option{pathType()}, opts...)
@@ -200,24 +200,24 @@ func (s *sharePoint) Folders(sites, folders []string, opts ...option) []SharePoi
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointFolder, sites, folders, os...),
+		makeScope[SharePointScope](SharePointLibrary, sites, libraries, os...),
 	)
 
 	return scopes
 }
 
-// Items produces one or more SharePoint item scopes.
+// LibraryItems produces one or more SharePoint library item scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-// options are only applied to the folder scopes.
-func (s *sharePoint) Items(sites, folders, items []string, opts ...option) []SharePointScope {
+// options are only applied to the library scopes.
+func (s *sharePoint) LibraryItems(sites, libraries, items []string, opts ...option) []SharePointScope {
 	scopes := []SharePointScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointItem, sites, items).
-			set(SharePointFolder, folders, opts...),
+		makeScope[SharePointScope](SharePointLibraryItem, sites, items).
+			set(SharePointLibrary, libraries, opts...),
 	)
 
 	return scopes
@@ -233,7 +233,7 @@ func (s *sharePoint) Items(sites, folders, items []string, opts ...option) []Sha
 func (s *sharePoint) WebURL(substring string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
-			SharePointItem,
+			SharePointLibraryItem,
 			SharePointFilterWebURL,
 			[]string{substring},
 			wrapFilter(filters.Less)),
@@ -254,9 +254,9 @@ var _ categorizer = SharePointCategoryUnknown
 const (
 	SharePointCategoryUnknown sharePointCategory = ""
 	// types of data identified by SharePoint
-	SharePointSite   sharePointCategory = "SharePointSite"
-	SharePointFolder sharePointCategory = "SharePointFolder"
-	SharePointItem   sharePointCategory = "SharePointItem"
+	SharePointSite        sharePointCategory = "SharePointSite"
+	SharePointLibrary     sharePointCategory = "SharePointLibrary"
+	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
 
 	// filterable topics identified by SharePoint
 	SharePointFilterWebURL sharePointCategory = "SharePointFilterWebURL"
@@ -264,9 +264,9 @@ const (
 
 // sharePointLeafProperties describes common metadata of the leaf categories
 var sharePointLeafProperties = map[categorizer]leafProperty{
-	SharePointItem: {
-		pathKeys: []categorizer{SharePointSite, SharePointFolder, SharePointItem},
-		pathType: path.FilesCategory,
+	SharePointLibraryItem: {
+		pathKeys: []categorizer{SharePointSite, SharePointLibrary, SharePointLibraryItem},
+		pathType: path.LibrariesCategory,
 	},
 	SharePointSite: { // the root category must be represented, even though it isn't a leaf
 		pathKeys: []categorizer{SharePointSite},
@@ -285,9 +285,9 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointFolder, SharePointItem,
+	case SharePointLibrary, SharePointLibraryItem,
 		SharePointFilterWebURL:
-		return SharePointItem
+		return SharePointLibraryItem
 	}
 
 	return c
@@ -305,8 +305,7 @@ func (c sharePointCategory) unknownCat() categorizer {
 
 // isLeaf is true if the category is a SharePointItem category.
 func (c sharePointCategory) isLeaf() bool {
-	// return c == c.leafCat()??
-	return c == SharePointItem
+	return c == c.leafCat()
 }
 
 // pathValues transforms a path to a map of identified properties.
@@ -316,9 +315,9 @@ func (c sharePointCategory) isLeaf() bool {
 // => {spSite: siteID, spFolder: folder, spItemID: itemID}
 func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
 	return map[categorizer]string{
-		SharePointSite:   p.ResourceOwner(),
-		SharePointFolder: p.Folder(),
-		SharePointItem:   p.Item(),
+		SharePointSite:        p.ResourceOwner(),
+		SharePointLibrary:     p.Folder(),
+		SharePointLibraryItem: p.Item(),
 	}
 }
 
@@ -390,7 +389,7 @@ func (s SharePointScope) Get(cat sharePointCategory) []string {
 // sets a value by category to the scope.  Only intended for internal use.
 func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option) SharePointScope {
 	os := []option{}
-	if cat == SharePointFolder {
+	if cat == SharePointLibrary {
 		os = append(os, pathType())
 	}
 
@@ -401,10 +400,10 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 func (s SharePointScope) setDefaults() {
 	switch s.Category() {
 	case SharePointSite:
-		s[SharePointFolder.String()] = passAny
-		s[SharePointItem.String()] = passAny
-	case SharePointFolder:
-		s[SharePointItem.String()] = passAny
+		s[SharePointLibrary.String()] = passAny
+		s[SharePointLibraryItem.String()] = passAny
+	case SharePointLibrary:
+		s[SharePointLibraryItem.String()] = passAny
 	}
 }
 
@@ -442,8 +441,8 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 		deets,
 		s.Selector,
 		map[path.CategoryType]sharePointCategory{
-			// TODO: need to figure out the path Category(s) for sharepoint.
-			path.FilesCategory: SharePointItem,
+			path.LibrariesCategory: SharePointLibraryItem,
+			// TODO: list category type
 		},
 	)
 }
