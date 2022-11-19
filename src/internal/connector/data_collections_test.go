@@ -184,15 +184,16 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			collection, err := sharepoint.DataCollections(
 				ctx,
 				test.getSelector(t),
-				connector.GetSiteIds(),
+				[]string{suite.site},
 				connector.credentials.AzureTenantID,
 				connector)
 			require.NoError(t, err)
-			assert.Equal(t, len(connector.GetSiteIds()), len(collection))
+			assert.Equal(t, 1, len(collection))
 
-			channel := collection[0].Items()
+			// the test only reads the firstt collection
+			connector.incrementAwaitingMessages()
 
-			for object := range channel {
+			for object := range collection[0].Items() {
 				buf := &bytes.Buffer{}
 				_, err := buf.ReadFrom(object.ToReader())
 				assert.NoError(t, err, "received a buf.Read error")

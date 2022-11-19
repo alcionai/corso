@@ -54,13 +54,13 @@ const (
 	// None() to any selector will force all matches() checks on that
 	// selector to fail.
 	// Ex: {user: u1, events: NoneTgt} => matches nothing.
-	NoneTgt   = ""
-	delimiter = ","
+	NoneTgt = ""
 )
 
 var (
-	passAny = filters.Pass()
-	failAny = filters.Fail()
+	delimiter = fmt.Sprint(0x1F)
+	passAny   = filters.Pass()
+	failAny   = filters.Fail()
 )
 
 // All is the resource name that gets output when the resource is AnyTgt.
