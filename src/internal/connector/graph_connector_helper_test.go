@@ -603,6 +603,27 @@ func compareExchangeEvent(
 	checkEvent(t, expectedEvent, itemEvent)
 }
 
+func compareOneDriveItem(
+	t *testing.T,
+	expected map[string][]byte,
+	item data.Stream,
+) {
+	expectedData := expected[item.UUID()]
+	if !assert.NotNil(t, expectedData, "unexpected file with name %s", item.UUID) {
+		return
+	}
+
+	// OneDrive items are just byte buffers of the data. Nothing special to
+	// interpret. May need to do chunked comparisons in the future if we test
+	// large item equality.
+	buf, err := io.ReadAll(item.ToReader())
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, expectedData, buf)
+}
+
 func compareItem(
 	t *testing.T,
 	expected map[string][]byte,
@@ -622,6 +643,10 @@ func compareItem(
 		default:
 			assert.FailNowf(t, "unexpected Exchange category: %s", category.String())
 		}
+
+	case path.OneDriveService:
+		compareOneDriveItem(t, expected, item)
+
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
 	}
