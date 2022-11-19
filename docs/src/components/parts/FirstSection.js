@@ -51,7 +51,7 @@ export default function FirstSection() {
             }}
           >
             <img
-              src="assets/images/cloudbackup.svg"
+              src="img/cloudbackup.svg"
               className="w-[80%] inline-block"
               alt="Cloud backup and storage"
             />
