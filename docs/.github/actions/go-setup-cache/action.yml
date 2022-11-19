@@ -1,0 +1,61 @@
+name: Setup and Cache Golang
+
+# clone of: https://github.com/magnetikonline/action-golang-cache/blob/main/action.yaml
+#
+# action-golang-cache runs an optimistic restore key prefix `${{runner.os}}-golang`.
+# This causes the cache@v3 to restore from any preexisting module cache in the main
+# branch, whether or not that the go.sum in that cache differs from the current branch's
+# go.sum.  IE: once a cache exists for the main branch, we will always re-use it.
+#
+# Problem is, the cache identifies that as a 'cache hit', and as a result it refuses to
+# store any differences we downloaded or removed using the current go.sum.  IE: once
+# established, it always re-uses the old cache, and never updates it.
+# 
+# This version will only match on exact caches, and will run `go mod download` on any
+# cache miss.  In a workflow with chained jobs, this action should be run prior to any
+# jobs that build binaries (testing, linting, etc).  Downstream jobs should still use
+# the magnetikonline action, since some cache restoration is better than none.
+
+inputs:
+  go-version:
+    description: Desired Golang version to use.
+  go-version-file:
+    description: Path to go.mod file, determines Golang version to use. Used in place of `go-version` input.
+  cache-key-suffix:
+    description: Optional cache key suffix.
+    default:
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Golang
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ inputs.go-version }}
+        go-version-file: ${{ inputs.go-version-file }}
+
+    - name: Determine Golang cache paths
+      id: golang-path
+      run: |
+        echo "::set-output name=build::$(go env GOCACHE)"
+        echo "::set-output name=module::$(go env GOMODCACHE)"
+      shell: bash
+
+    - name: Setup Golang cache
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ steps.golang-path.outputs.build }}
+          ${{ steps.golang-path.outputs.module }}
+        key: ${{ runner.os }}-golang${{ inputs.cache-key-suffix }}-${{ hashFiles('src/go.sum') }}
+    
+    - name: Module Download and Test Compilation, for future caching
+      working-directory: src
+      if: steps.cache.outputs.cache-hit != 'true'
+      # cover all the bases, just to be make sure we loaded everything we'll use
+      run: |
+        go mod download -x
+        go build ./...
+        go test -run=nope ./...
+      shell: bash

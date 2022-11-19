@@ -1,0 +1,26 @@
+name: Weekly S3 Test Bucket Cleanup
+on:
+  schedule:
+    # every saturday at 23:59 (11:59pm)
+    - cron: "59 23 * * 6"
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+
+jobs:
+  S3-Test-Cleanup:
+    runs-on: ubuntu-latest
+    environment: Testing
+
+    steps:
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      - name: Delete all files in the test bucket
+        run: |
+          aws s3 rm s3://${{ secrets.CI_TESTS_S3_BUCKET }} --recursive
