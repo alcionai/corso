@@ -133,11 +133,6 @@ const config = {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
               },
-              {
-                label: 'Corso Website',
-                href: 'https://corsobackup.io/',
-              },
-
             ],
           },
         ],

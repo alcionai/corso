@@ -5,6 +5,8 @@ authors: nica
 tags: [corso, microsoft 365]
 ---
 
+![Office desk](/img/blog/office_desk.jpg)
+
 Have you had it with Google sheets? So have I. Excel is my home. It’s where I write all my best formulae. And what
 about PowerPoint? The way it just finds stock photos for you? The automatic ‘alternative designs for this slide’
 button? It’s too good. I can’t give up Microsoft 365.
@@ -60,7 +62,7 @@ support is coming soon).
 
 Corso’s secure backup protects against accidental data loss, service provider downtime and malicious threats, including
 ransomware attacks. Plus, a robust user community provides a venue for admins to share and learn about data protection
-and find best practices for how to security configure their M365 environments. As a member of the community, you’ll
+and find best practices for how to securely configure their M365 environments. As a member of the community, you’ll
 have access to blogs, forums, and discussion, as well as updates on public and feedback-driven development.
 [Join the Corso community on Discord](https://discord.gg/63DTTSnuhT).
 
@@ -73,7 +75,7 @@ costs, as well.
 
 ## Interested in Trying Corso?
 
-Corso is currently a tool in alpha to give you a CLI for backups of your M365 data.
+Corso, currently in alpha, provides a CLI-based tool for backups of your M365 data.
 [Follow the quickstart guide](https://docs.corsobackup.io/) to start protecting your business-critical M365 data in
 just a few minutes. Because Corso is currently in alpha, it should NOT be used in production.
 
