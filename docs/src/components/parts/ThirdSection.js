@@ -193,7 +193,7 @@ export default function ThirdSection() {
             data-wow-delay=".3s"
           >
             <img
-              src="assets/images/why/chat.svg"
+              src="/img/why/chat.svg"
               className="rounded-lg"
               alt="Group discussion"
             />
@@ -258,7 +258,7 @@ export default function ThirdSection() {
             data-wow-delay=".5s"
           >
             <img
-              src="assets/images/why/security.svg"
+              src="/img/why/security.svg"
               className="rounded-lg"
               alt="Approval of fingerprint security"
             />
@@ -311,7 +311,7 @@ export default function ThirdSection() {
             data-wow-delay=".5s"
           >
             <img
-              src="assets/images/why/data.svg"
+              src="/img/why/data.svg"
               className="rounded-lg"
               alt="Data extraction dashboard"
             />
@@ -376,7 +376,7 @@ export default function ThirdSection() {
             data-wow-delay=".5s"
           >
             <img
-              src="assets/images/why/savings.svg"
+              src="/img/why/savings.svg"
               className="rounded-lg"
               alt="Adding money to a savings jar"
             />
