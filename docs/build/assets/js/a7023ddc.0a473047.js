@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[713],{3457:o=>{o.exports=JSON.parse('[{"label":"corso","permalink":"/blog/tags/corso","count":1},{"label":"microsoft 365","permalink":"/blog/tags/microsoft-365","count":1}]')}}]);

@@ -1,0 +1,36 @@
+name: CI Test Cleanup
+on:
+  schedule:
+    # every half hour
+    - cron: "*/30 * * * *"
+
+jobs:
+  Test-User-Data-Cleanup:
+    environment: Testing
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        folder: [Corso_Restore_, TestRestore, '']
+        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # sets the maximimum time to now-30m.
+      # CI test have a 10 minute timeout.
+      # At 20 minutes ago, we should be safe from conflicts.
+      # The additional 10 minutes is just to be good citizens.
+      - name: Set purge boundary
+        run: |
+          echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+
+      - name: Purge CI-Produced Folders
+        uses: ./.github/actions/purge-m365-user-data
+        with:
+          user: ${{ secrets[matrix.user] }}
+          folder-prefix: ${{ matrix.folder }}
+          older-than: ${{ env.HALF_HOUR_AGO }}
+          azure-client-id: ${{ secrets.CLIENT_ID }}
+          azure-client-secret: ${{ secrets.CLIENT_SECRET }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}

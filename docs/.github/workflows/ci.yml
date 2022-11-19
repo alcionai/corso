@@ -1,0 +1,362 @@
+name: Build/Release Corso
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+  packages: write
+  pull-requests: read
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------------------------------------
+  # --- Prechecks and Checkouts ------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+  Precheck:
+    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
+
+  Checkout:
+    needs: [Precheck]
+    environment: Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      # single setup and sum cache handling here.
+      # the results will cascade onto both testing and linting.
+      - name: Setup Golang with cache
+        uses: ./.github/actions/go-setup-cache
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true'
+        with:
+          go-version-file: src/go.mod
+
+  SetEnv:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.environment.outputs.environment }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Figure out environment
+        id: environment
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=environment::Production"
+            echo "::set-output name=environment::Production"
+          else
+            echo "set-output name=environment::Testing"
+            echo "::set-output name=environment::Testing"
+          fi
+
+      - name: Get version string
+        id: version
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+          else
+            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+          fi
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Docs Linting -----------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Docs-Linting:
+    needs: [Precheck, Checkout, SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true' # docsfileschanged also includes srcfileschanged
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - name: Generate CLI Docs
+        working-directory: ./src
+        run: |
+          go run ./cmd/mdgen/mdgen.go generate
+
+      # migrate generated md files into /docs/docs/cli
+      - name: Move CLI .md to Docs
+        run: |
+          mkdir -p ./docs/docs/cli
+          mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
+          rm -R ./src/cmd/mdgen/cli_markdown/
+
+      - name: Install dependencies for docs lint
+        run: |
+          wget https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
+          mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
+          echo "$PWD/bin" >> $GITHUB_PATH
+          npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
+
+      - name: Run docs lint
+        env:
+          CORSO_USE_DOCKER: -1 # prevent using docker inside makefile
+        run: |
+          cd docs && make -o genclidocs localcheck
+
+      - name: Build docs
+        env:
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+        run: |
+          cd docs &&
+            npm ci &&
+            npm run build
+
+      - uses: actions/upload-artifact@master
+        name: Upload docs as artifacts
+        with:
+          name: docs
+          path: docs/build
+
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Integration and Unit Testing -------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Test-Suite:
+    needs: [Precheck, Checkout]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - run: mkdir testlog
+
+      # Install gotestfmt
+      - name: Set up gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      # run the tests
+      - name: Integration Tests
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_CI_TESTS: true 
+          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          go test \
+          -json     \
+          -v        \
+          -failfast \
+          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+
+      # Upload the original go test log as an artifact for later review.
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-log
+          path: src/testlog/gotest.log
+          if-no-files-found: error
+          retention-days: 14
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Source Code Linting ----------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Linting:
+    needs: [Precheck, Checkout]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - name: Go Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.45.2
+          working-directory: src
+          skip-cache: true
+
+      # check licenses
+      - name: Get go-licenses
+        run: go install github.com/google/go-licenses@latest
+
+      - name: Run go-licenses
+        run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Publish steps ----------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Publish-Binary:
+    needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
+    environment: ${{ needs.SetEnv.outputs.environment }}
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: src
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # needed to pull changelog
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          version: latest
+          args: release --rm-dist --timeout 500m
+          workdir: src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUDDERSTACK_CORSO_WRITE_KEY: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
+          RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+
+      - name: Upload assets
+        uses: actions/upload-artifact@v3
+        with:
+          name: corso
+          path: src/dist/*
+
+  Publish-Docs:
+    needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
+    environment: ${{ needs.SetEnv.outputs.environment }}
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: docs
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@master
+        name: Download docs from build step
+        with:
+          name: docs
+          path: docs/build
+
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      - name: Add rotbots.txt
+        if: github.ref == 'refs/heads/main'
+        run: |
+          printf 'User-agent: *\nDisallow: /' > build/robots.txt
+
+      - name: Push docs
+        run: |
+          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}"
+
+      - name: Invalidate cloudfront
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
+
+  Publish-Image:
+    needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
+    environment: ${{ needs.SetEnv.outputs.environment }}
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: build
+    env:
+      imageName: ghcr.io/alcionai/corso
+      PLATFORMS: linux/amd64,linux/arm64
+    steps:
+      - uses: actions/checkout@v3
+
+      # Setup buildx
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # retrieve credentials for ghcr.io
+      - name: Login to Github Packages
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.imageName }}
+          tags: |
+            type=ref,event=tag
+            type=sha,format=short,prefix=
+            type=raw,value=nightly
+
+      # deploy the image
+      - name: Build image and push to GitHub Container Registry
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./build/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CORSO_BUILD_LDFLAGS=-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' -X 'github.com/alcionai/corso/src/cli.version=${{ needs.SetEnv.outputs.version }}'
+          # use the github cache
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

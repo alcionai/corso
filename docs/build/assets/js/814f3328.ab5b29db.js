@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[535],{5641:e=>{e.exports=JSON.parse('{"title":"Recent posts","items":[{"title":"A Home to Call Your Own: The Need for Your Own Backups in IT","permalink":"/blog/corso-announcement-free-backup-for-microsoft-365"}]}')}}]);

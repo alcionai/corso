@@ -1,0 +1,65 @@
+name: Filechange Checker
+
+on:
+  workflow_call:
+    outputs:
+      srcfileschanged:
+        description: "'true' if src/** or .github/workflows/** files have changed in the branch"
+        value: ${{ jobs.file-change-check.outputs.srcfileschanged }}
+      docfileschanged:
+        description: "'true' if docs/** or src/** or .github/workflows/** files have changed in the branch"
+        value: ${{ jobs.file-change-check.outputs.docfileschanged }}
+      websitefileschanged:
+        description: "'true' if websites/** or .github/workflows/** files have changed in the branch"
+        value: ${{ jobs.file-change-check.outputs.websitefileschanged }}
+
+jobs:
+  file-change-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      srcfileschanged: ${{ steps.srcchecker.outputs.srcfileschanged }}
+      docfileschanged: ${{ steps.docchecker.outputs.docfileschanged }}
+      websitefileschanged: ${{ steps.websitechecker.outputs.websitefileschanged }}
+    steps:
+      - uses: actions/checkout@v3
+
+      # only run CI tests if the src folder or workflow actions have changed
+      - name: Check for file changes in src/ or .github/workflows/
+        uses: dorny/paths-filter@v2
+        id: dornycheck
+        with:
+          list-files: json
+          filters: |
+            src:
+              - 'src/**'
+            docs:
+              - 'docs/**'
+            website:
+              - 'website/**'
+            actions:
+              - '.github/workflows/**'
+              - '.github/actions/**'
+
+      - name: Check dorny for changes in src filepaths
+        id: srcchecker
+        if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.actions == 'true'
+        run: |
+          echo "src or workflow file changes occurred"
+          echo ::set-output name=srcfileschanged::true
+
+      - name: Check dorny for changes in docs related filepaths
+        id: docchecker
+        if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.docs == 'true' || steps.dornycheck.outputs.actions == 'true'
+        run: |
+          echo "docs, src or workflow file changes occurred"
+          echo ::set-output name=docfileschanged::true
+
+      - name: Check dorny for changes in website related filepaths
+        id: websitechecker
+        if: steps.dornycheck.outputs.website == 'true' || steps.dornycheck.outputs.actions == 'true'
+        run: |
+          echo "website or workflow file changes occurred"
+          echo ::set-output name=websitefileschanged::true

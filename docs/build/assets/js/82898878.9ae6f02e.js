@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[709],{4805:s=>{s.exports=JSON.parse('{"label":"microsoft 365","permalink":"/blog/tags/microsoft-365","allTagsPath":"/blog/tags","count":1}')}}]);

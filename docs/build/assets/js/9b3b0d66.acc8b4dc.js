@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[307],{2138:o=>{o.exports=JSON.parse('{"permalink":"/blog/tags/microsoft-365","page":1,"postsPerPage":10,"totalPages":1,"totalCount":1,"blogDescription":"Blog about Microsoft 365 protection, backup, and security","blogTitle":"Corso Blog"}')}}]);

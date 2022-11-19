@@ -1,10 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito&display=swap');
+
+*{
+    font-family: 'Nunito', sans-serif !important;
+}
+
+html{
+  scroll-behavior: smooth !important;
+}
 /**
  * Any CSS included here will be global. The classic template
  * bundles Infima by default. Infima is a CSS framework designed to
  * work well for content-centric websites.
  */
 
+ .link-underline {
+  border-bottom-width: 0;
+  background-image: linear-gradient(transparent, transparent), linear-gradient(#4f46E5, #4f46E5);
+  background-size: 0 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size .5s ease-in-out;
+}
+
+.link-underline-black {
+  background-image: linear-gradient(transparent, transparent), linear-gradient(#4f46E5, #4f46E5);
+}
+
+.link-underline:hover {
+  background-size: 100% 2px;
+  background-position: 0 100%
+}
+
 /* You can override the default Infima variables here. */
+
+@tailwind utilities;
+@tailwind components;
+
+.custom-bg_{
+  background: url("../../static/assets/images/cta.jpg")
+}
+
+
 :root {
   --ifm-color-primary: #1e204e;
   --ifm-color-primary-dark: #1b1d46;

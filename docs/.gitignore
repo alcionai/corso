@@ -1,22 +1,28 @@
-# Dependencies
-/node_modules
-
-# Production
-/build
-
-# Generated files
-docs/cli
-.docusaurus
-.cache-loader
-.vscode
-
-# Misc
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# IDE
+.vscode
+*.swp
+
+# Standard configuration file names
+.corso_test.toml
+.corso.toml
+
+# Build directories
+/bin
+/docker/bin
+/website/dist
+
+*/test_results/**
