@@ -35,8 +35,7 @@ export default function FirstSection() {
 
           <div className="mt-12 !z-10 mb-6">
             <a
-              href="https://docs.corsobackup.io/setup/download"
-              target="_blank"
+              href="../docs/setup/download"
               className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
             >
               Download Now
