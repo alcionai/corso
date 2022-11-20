@@ -144,3 +144,9 @@ need to use the following flag with the initial Corso `repo init` command:
 ```bash
   --endpoint <domain.example.com>
 ```
+
+### Testing with insecure TLS configurations
+
+Corso also supports the use of object storage systems with no TLS certificate or with self-signed
+TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
+[These flags]((../cli/corso_repo_init_s3)) are **not** recommended for production.
