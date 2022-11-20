@@ -16,13 +16,13 @@ export default function ThirdSection() {
   });
 
   return (
-    <section className="relative md:py-24 py-16 overflow-hidden">
+    <section className="relative md:py-24 !tracking-wide py-16 overflow-hidden">
       <div className="container">
         <div
           className="grid grid-cols-1 pb-8 text-center wow animate__animated animate__fadeInUp"
           data-wow-delay=".1s"
         >
-          <h3 className="mb-6 mt-8 md:text-4xl text-3xl md:leading-normal leading-normal font-bold">
+          <h3 className="mb-6 mt-8 md:text-4xl text-white text-3xl md:leading-normal leading-normal font-bold">
             Key Features
           </h3>
 
@@ -37,7 +37,7 @@ export default function ThirdSection() {
             className="col-start-1 wow animate__animated animate__fadeInUp"
             data-wow-delay=".1s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i data-feather="share-2" className="h-5 w-5 rotate-45"></i>
               </div>
@@ -53,7 +53,7 @@ export default function ThirdSection() {
             className="col-start-1 wow animate__animated animate__fadeInUp"
             data-wow-delay=".1s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i data-feather="zap" className="h-5 w-5 rotate-45"></i>
               </div>
@@ -67,7 +67,7 @@ export default function ThirdSection() {
             className="col-start-1 wow animate__animated animate__fadeInUp"
             data-wow-delay=".1s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i data-feather="activity" className="h-5 w-5 rotate-45"></i>
               </div>
@@ -81,7 +81,7 @@ export default function ThirdSection() {
             className="lg:col-start-2 md:col-start-1  wow animate__animated animate__fadeInUp"
             data-wow-delay=".3s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i data-feather="lock" className="h-5 w-5 rotate-45"></i>
               </div>
@@ -94,10 +94,10 @@ export default function ThirdSection() {
           </div>
 
           <div
-            className="lg:col-start-2 md:col-start-1 wow animate__animated animate__fadeInUp"
+            className="lg:col-start-2 md:col-start-2 md:order-last wow animate__animated animate__fadeInUp"
             data-wow-delay=".3s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i data-feather="copy" className="h-5 w-5 rotate-45"></i>
               </div>
@@ -111,7 +111,7 @@ export default function ThirdSection() {
             className="lg:col-start-2 md:col-start-2 md:order-last wow animate__animated animate__fadeInUp"
             data-wow-delay=".3s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i data-feather="minimize-2" className="h-5 w-5 rotate-45"></i>
               </div>
@@ -125,7 +125,7 @@ export default function ThirdSection() {
             className="lg:col-start-3 md:col-start-2 wow animate__animated animate__fadeInUp"
             data-wow-delay=".5s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i data-feather="code" className="h-5 w-5 rotate-45"></i>
               </div>
@@ -139,7 +139,7 @@ export default function ThirdSection() {
             className="lg:col-start-3 md:col-start-2 wow animate__animated animate__fadeInUp"
             data-wow-delay=".5s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i
                   data-feather="upload-cloud"
@@ -158,7 +158,7 @@ export default function ThirdSection() {
             className="lg:col-start-3 md:col-start-2 wow animate__animated animate__fadeInUp"
             data-wow-delay=".5s"
           >
-            <div className="flex transition-all duration-500 hover:scale-105 shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
+            <div className="flex transition-all duration-500 scale-hover shadow dark:shadow-gray-800 hover:shadow-md dark:hover:shadow-gray-700 ease-in-out items-center p-3 rounded-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-center h-[45px] min-w-[45px] -rotate-45 bg-gradient-to-r from-transparent to-indigo-600/10 text-indigo-600 text-center rounded-full mr-3">
                 <i
                   data-feather="check-circle"
@@ -439,7 +439,7 @@ export default function ThirdSection() {
 
       <div className="container md:mb-8 mb-4 md:mt-24 mt-16 wow animate__animated animate__fadeInUp">
         <div className="grid grid-cols-1 pb-8 text-center">
-          <h3 className="mb-6 mt-8 md:text-4xl text-3xl md:leading-normal leading-normal font-bold">
+          <h3 className="mb-6 mt-8 text-white md:text-4xl text-3xl md:leading-normal leading-normal font-bold">
             Frequently Asked Questions
           </h3>
         </div>
@@ -458,13 +458,13 @@ export default function ThirdSection() {
 
           <div className="md:col-span-6">
             <div className="accordion space-y-3" id="accordionExample">
-              <div className="accordion-item relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+              <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
-                  className="accordion-header !cursor-pointer font-semibold"
+                  className="accordion-header mb-0 !cursor-pointer font-semibold"
                   id="headingOne"
                 >
                   <button
-                    className="transition accordion-button border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapseOne"
@@ -488,13 +488,13 @@ export default function ThirdSection() {
                   </div>
                 </div>
               </div>
-              <div className="accordion-item relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+              <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
-                  className="accordion-header !cursor-pointer font-semibold"
+                  className="accordion-header mb-0 !cursor-pointer font-semibold"
                   id="heading2"
                 >
                   <button
-                    className="transition accordion-button border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse2"
@@ -521,13 +521,13 @@ export default function ThirdSection() {
                   </div>
                 </div>
               </div>
-              <div className="accordion-item relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+              <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
-                  className="accordion-header !cursor-pointer font-semibold"
+                  className="accordion-header mb-0 !cursor-pointer font-semibold"
                   id="heading3"
                 >
                   <button
-                    className="transition accordion-button border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse3"
@@ -553,13 +553,13 @@ export default function ThirdSection() {
                   </div>
                 </div>
               </div>
-              <div className="accordion-item relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+              <div className="accordion-item !text-white relative shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
-                  className="accordion-header !cursor-pointer font-semibold"
+                  className="accordion-header mb-0 font-semibold"
                   id="heading4"
                 >
                   <button
-                    className="transition accordion-button border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse4"
@@ -599,13 +599,13 @@ export default function ThirdSection() {
                   </div>
                 </div>
               </div>
-              <div className="accordion-item relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+              <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
-                  className="accordion-header !cursor-pointer font-semibold"
+                  className="accordion-header mb-0 !cursor-pointer font-semibold"
                   id="heading5"
                 >
                   <button
-                    className="transition accordion-button border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse5"
@@ -629,13 +629,13 @@ export default function ThirdSection() {
                   </div>
                 </div>
               </div>
-              <div className="accordion-item relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+              <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
-                  className="accordion-header !cursor-pointer font-semibold"
+                  className="accordion-header mb-0 !cursor-pointer font-semibold"
                   id="heading6"
                 >
                   <button
-                    className="transition accordion-button border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse6"
