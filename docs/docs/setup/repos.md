@@ -149,4 +149,4 @@ need to use the following flag with the initial Corso `repo init` command:
 
 Corso also supports the use of object storage systems with no TLS certificate or with self-signed
 TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
-[These flags]((../cli/corso_repo_init_s3)) are **not** recommended for production.
+[These flags]((../cli/corso_repo_init_s3)) should only be used for testing.
