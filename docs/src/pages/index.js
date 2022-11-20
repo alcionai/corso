@@ -5,8 +5,8 @@ import { MainComp } from "../components/parts/MainComp";
 export default function Home() {
   return (
     <Layout
-      title="Home Page"
-      description="Documentation for Corso, a free, secure, and open-source backup tool for Microsoft 365"
+      title="Free, Secure, and Open-Source Backup for Microsoft 365"
+      description="Intro, docs, and blog for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage."
     >
       <MainComp />
     </Layout>
