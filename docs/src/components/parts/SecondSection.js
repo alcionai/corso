@@ -3,21 +3,21 @@ import "animate.css";
 
 export default function SecondSection() {
   return (
-    <section className="relative items-center overflow-hidden">
-      <div className="container relative">
-        <div className="grid content-center relative w-full md:mt-24 mt-16 text-center">
-          <div className="wow animate__animated relative !w-full animate__fadeIn">
-            <div className="flex items-center bg-gray-200 rounded-t-lg h-6">
-              <div className="align-middle">
+    <section className="relative flex !tracking-wide  flex-col items-center overflow-hidden">
+      <div className="!container relative">
+        <div className="flex flex-col content-center items-center justify-start relative md:mt-24 mt-16 text-center">
+          <div className="wow w-[95%] sm:w-[80%] animate__animated relative  animate__fadeIn">
+            <div className="flex flex-row items-center bg-gray-200 rounded-t-lg h-6">
+              <div className="align-middle flex flex-col items-center justify-center">
                 <img className="h-4 px-2" src="assets/images/powershell.svg" />
               </div>
             </div>
             <div
               className="!p-2 relative rounded-b-lg overflow-clip"
               style={{
-                borderLeft: "1px solid #e5e7eb",
-                borderRight: "1px solid #e5e7eb",
-                borderBottom: "1px solid #e5e7eb",
+                borderLeft: "2px solid #e5e7eb",
+                borderRight: "2px solid #e5e7eb",
+                borderBottom: "2px solid #e5e7eb",
               }}
             >
               <video className="w-full" muted loop autoPlay playsInline>

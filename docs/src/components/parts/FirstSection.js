@@ -3,7 +3,7 @@ import "animate.css";
 
 export default function FirstSection() {
   return (
-    <section className="relative home-wrapper items-center overflow-hidden">
+    <section className="relative !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
       <div
         className="bg-[#151C3D] absolute"
         style={{
@@ -11,7 +11,7 @@ export default function FirstSection() {
           right: 0,
           zIndex: 1,
           top: "-30%",
-          height: "65rem",
+          height: "62rem",
           width: "140rem",
           transform: "rotate(-12deg)",
         }}
@@ -20,11 +20,11 @@ export default function FirstSection() {
         style={{
           zIndex: "1 !important",
         }}
-        className="container !z-10"
+        className="!container relative !z-10"
       >
-        <div className="grid !z-10 grid-cols-1 md:mt-44 mt-32 text-center">
+        <div className="grid !z-10 grid-cols-1 mt-28 text-center">
           <div className="wow !z-10 animate__animated animate__fadeIn">
-            <h4 className="font-bold !z-10 !leading-relaxed text-4xl lg:text-5xl mb-5">
+            <h4 className="font-bold !text-white !z-10 !leading-normal text-4xl lg:text-5xl mb-5">
               Free, Secure, and Open-Source
               <br /> Backup for Microsoft 365
             </h4>
@@ -51,18 +51,18 @@ export default function FirstSection() {
             }}
           >
             <img
-              src="img/cloudbackup.svg"
-              className="w-[80%] inline-block"
+              src="assets/images/cloudbackup.svg"
+              className="w-[70%] inline-block object-contain"
               alt="Cloud backup and storage"
             />
           </div>
         </div>
 
-        <div className="bg-indigo-600 w-8 h-16 !z-10 absolute left-2 lg:bottom-28 md:bottom-36 sm:bottom-40 bottom-16"></div>
-        <div className="bg-indigo-600/20 w-8 h-16 !z-10 absolute left-12 lg:bottom-32 md:bottom-40 sm:bottom-44 bottom-20"></div>
+        <div className="bg-indigo-600 w-8 h-16 !z-10 absolute left-8 lg:bottom-28 md:bottom-36 sm:bottom-40 bottom-16"></div>
+        <div className="bg-indigo-600/20 w-8 h-16 !z-10 absolute left-20 lg:bottom-32 md:bottom-40 sm:bottom-44 bottom-20"></div>
 
-        <div className="bg-indigo-600/20 !z-10 w-8 h-16 absolute right-12 xl:bottom-[420px] lg:bottom-[315px] md:bottom-[285px] sm:bottom-80 bottom-32"></div>
-        <div className="bg-indigo-600 w-8 h-16 !z-10 absolute right-2 xl:bottom-[440px] lg:bottom-[335px] md:bottom-[305px] sm:bottom-[340px] bottom-36"></div>
+        <div className="bg-indigo-600/20 !z-10 w-8 h-16 absolute right-20 xl:bottom-[420px] lg:bottom-[315px] md:bottom-[285px] sm:bottom-80 bottom-32"></div>
+        <div className="bg-indigo-600 w-8 h-16 !z-10 absolute right-8 xl:bottom-[440px] lg:bottom-[335px] md:bottom-[305px] sm:bottom-[340px] bottom-36"></div>
       </div>
     </section>
   );
