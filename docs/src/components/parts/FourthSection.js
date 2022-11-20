@@ -46,7 +46,7 @@ export default function FourthSection() {
                           minutes.
                         </p>
                         <a
-                          href="https://docs.corsobackup.io/quickstart"
+                          href="docs/quickstart"
                           className="!text-white !no-underline flex flex-row items-center !hover:text-white"
                         >
                           Get Started{" "}
