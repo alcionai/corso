@@ -34,6 +34,12 @@ html{
 @tailwind utilities;
 @tailwind components;
 
+@layer utilities {
+  .scale-hover:hover {
+    transform: scale(1.05);
+  }
+}
+
 .custom-bg_{
   background: url("../../static/assets/images/cta.jpg")
 }
