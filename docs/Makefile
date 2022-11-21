@@ -1,4 +1,4 @@
-.PHONY: buildimage build serve dev shell check genclidocs _validatemdgen publish sync 
+.PHONY: buildimage build serve dev shell check genclidocs _validatemdgen publish sync
 
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
