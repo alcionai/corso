@@ -1,4 +1,4 @@
-.PHONY: buildimage build dev shell check genclidocs _validatemdgen publish sync
+.PHONY: buildimage build serve dev shell check genclidocs _validatemdgen publish sync 
 
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
@@ -39,6 +39,9 @@ dockershell:
 
 build: genclidocs
 	$(DOCSC) npm run build
+
+serve:
+	$(DOCSC) npm run serve
 
 genclidocs: _validatemdgen ${MDGEN_BINARY}
 	@echo 'Auto-generating Corso CLI docs...'
