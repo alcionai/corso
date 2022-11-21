@@ -59,7 +59,7 @@ func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
 			name:      "sharepoint",
 			source:    SharePointSource,
 			dir:       []string{"sharepoint"},
-			expect:    "tenant/sharepoint/resourceOwner/files/sharepoint",
+			expect:    "tenant/sharepoint/resourceOwner/libraries/sharepoint",
 			expectErr: assert.NoError,
 		},
 		{
