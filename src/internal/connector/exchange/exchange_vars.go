@@ -6,7 +6,8 @@ package exchange
 // Legacy Value Tags and constants are used to override certain values within
 // M365 objects.
 // Master Property Value Document:
-//  https://interoperability.blob.core.windows.net/files/MS-OXPROPS/%5bMS-OXPROPS%5d.pdf
+//
+//	https://interoperability.blob.core.windows.net/files/MS-OXPROPS/%5bMS-OXPROPS%5d.pdf
 const (
 	// MailRestorePropertyTag inhibits exchange.Mail.Message from being "resent" through the server.
 	// DEFINED: Section 2.791 PidTagMessageFlags
@@ -27,9 +28,9 @@ const (
 	// Section: 2.789 PidTagMessageDeliveryTime
 	MailReceiveDateTimeOverriveProperty = "SystemTime 0x0E06"
 
-	//----------------------------------
+	// ----------------------------------
 	// Default Folder Names
-	//------------------------
+	// ----------------------------------
 	// Mail Definitions: https://docs.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
 
 	// inbox and root
@@ -38,9 +39,9 @@ const (
 	DefaultContactFolder = "Contacts"
 	DefaultCalendar      = "Calendar"
 
-	//---------------------
+	// ----------------------------------
 	// Paging
-	//-----------------
+	// ----------------------------------
 	// nextDataLink definition https://docs.microsoft.com/en-us/graph/paging
 	nextDataLink = "@odata.nextLink"
 )

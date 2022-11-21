@@ -6,7 +6,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Corso Documentation',
+  title: 'Corso',
   tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
   url: 'https://corsobackup.io',
   baseUrl: process.env.CORSO_DOCS_BASEURL || '/',
@@ -50,6 +50,8 @@ const config = {
         },
         blog: {
           showReadingTime: true,
+          blogTitle: 'Corso Blog',
+          blogDescription: 'Blog about Microsoft 365 protection, backup, and security',
         },
         sitemap: {
           ignorePatterns: ['/tags/**'],
@@ -131,11 +133,6 @@ const config = {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
               },
-              {
-                label: 'Corso Website',
-                href: 'https://corsobackup.io/',
-              },
-
             ],
           },
         ],
@@ -143,8 +140,8 @@ const config = {
       },
       colorMode: {
         defaultMode: 'dark',
-        disableSwitch: false,
-        respectPrefersColorScheme: true,
+        disableSwitch: true,
+        respectPrefersColorScheme: false,
       },
 
       zoom: {
@@ -166,8 +163,8 @@ const config = {
       metadata : [
         {name: 'twitter:card', content: 'summary_large_image'},
         {name: 'twitter:site', content: '@corsobackup'},
-        {name: 'twitter:title', content: 'Corso Documentation: Free, Secure, and Open-Source Backup for Microsoft 365'},
-        {name: 'twitter:description', content: 'Documentation for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
+        {name: 'twitter:title', content: 'Corso: Free, Secure, and Open-Source Backup for Microsoft 365'},
+        {name: 'twitter:description', content: 'Intro, Docs, and Blog for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
       ],
 
       prism: {
