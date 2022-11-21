@@ -23,10 +23,10 @@ import (
 // ------------------------------------------------------------------------------------------------
 
 const (
-	sharePointServiceCommand                 = "sharepoint"
-	sharePointServiceCommandCreateUseSuffix  = "--site <siteId> | '" + utils.Wildcard + "'"
-	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
-	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
+	sharePointServiceCommand                = "sharepoint"
+	sharePointServiceCommandCreateUseSuffix = "--site <siteId> | '" + utils.Wildcard + "'"
+	sharePointServiceCommandDeleteUseSuffix = "--backup <backupId>"
+	// sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
@@ -44,13 +44,9 @@ corso backup create sharepoint --site '*'`
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd 
-corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>`
-)
-
-var (
-	libraryPaths     []string
-	libraryItemNames []string
+//	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
+//
+// corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>`
 )
 
 // called by backup.go to map parent subcommands to provider-specific handling.
