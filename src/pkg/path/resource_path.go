@@ -10,9 +10,10 @@ type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
 const (
-	UnknownService  ServiceType = iota
-	ExchangeService             // exchange
-	OneDriveService             // onedrive
+	UnknownService    ServiceType = iota
+	ExchangeService               // exchange
+	OneDriveService               // onedrive
+	SharePointService             // sharepoint
 )
 
 func toServiceType(service string) ServiceType {
@@ -21,6 +22,8 @@ func toServiceType(service string) ServiceType {
 		return ExchangeService
 	case OneDriveService.String():
 		return OneDriveService
+	case SharePointService.String():
+		return SharePointService
 	default:
 		return UnknownService
 	}
@@ -62,6 +65,10 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		EventsCategory:   {},
 	},
 	OneDriveService: {
+		FilesCategory: {},
+	},
+	SharePointService: {
+		// TODO: need to figure out the service Category(s) for sharepoint.
 		FilesCategory: {},
 	},
 }

@@ -256,7 +256,7 @@ func eventToDataCollection(
 	}
 
 	if len(byteArray) > 0 {
-		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: EventInfo(event)}
+		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: EventInfo(event, int64(len(byteArray)))}
 	}
 
 	return len(byteArray), nil
@@ -289,7 +289,7 @@ func contactToDataCollection(
 	}
 
 	if len(byteArray) > 0 {
-		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: ContactInfo(contact)}
+		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: ContactInfo(contact, int64(len(byteArray)))}
 	}
 
 	return len(byteArray), nil
@@ -356,7 +356,7 @@ func messageToDataCollection(
 		return 0, support.SetNonRecoverableError(err)
 	}
 
-	dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage)}
+	dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage, int64(len(byteArray)))}
 
 	return len(byteArray), nil
 }

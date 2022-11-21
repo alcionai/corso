@@ -105,6 +105,14 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			expectedCategory: FilesCategory,
 			check:            assert.NoError,
 		},
+		{
+			name:             "SharePointFiles",
+			service:          SharePointService.String(),
+			category:         FilesCategory.String(),
+			expectedService:  SharePointService,
+			expectedCategory: FilesCategory,
+			check:            assert.NoError,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

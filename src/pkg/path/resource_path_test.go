@@ -102,6 +102,13 @@ var (
 				return pb.ToDataLayerOneDrivePath(tenant, user, isItem)
 			},
 		},
+		{
+			service:  path.SharePointService,
+			category: path.FilesCategory,
+			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerSharePointPath(tenant, user, isItem)
+			},
+		},
 	}
 )
 
