@@ -29,7 +29,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetUsersIds(), gc.GetSiteIds())
+	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIds())
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	}
 }
 
-func verifyBackupInputs(sels selectors.Selector, userIDs, siteIDs []string) error {
+func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
 	var ids []string
 
 	resourceOwners, err := sels.ResourceOwners()
@@ -65,7 +65,7 @@ func verifyBackupInputs(sels selectors.Selector, userIDs, siteIDs []string) erro
 
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
-		ids = userIDs
+		ids = userPNs
 
 	case selectors.ServiceSharePoint:
 		ids = siteIDs
