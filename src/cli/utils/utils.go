@@ -17,6 +17,7 @@ import (
 const (
 	BackupFN = "backup"
 	DataFN   = "data"
+	SiteFN   = "site"
 	UserFN   = "user"
 )
 

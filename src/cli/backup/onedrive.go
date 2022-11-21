@@ -388,7 +388,7 @@ func oneDriveDeleteCmd() *cobra.Command {
 	}
 }
 
-// deletes an exchange service backup.
+// deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 

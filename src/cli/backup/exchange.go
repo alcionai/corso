@@ -30,6 +30,7 @@ import (
 var (
 	backupID     string
 	exchangeData []string
+	site         []string
 	user         []string
 
 	contact       []string
