@@ -6,7 +6,7 @@ import { Icon } from "@iconify/react";
 import "animate.css";
 import "tw-elements";
 
-export default function ThirdSection() {
+export default function KeyLoveFAQ() {
   useEffect(() => {
     new WOW().init();
     feather.replace();

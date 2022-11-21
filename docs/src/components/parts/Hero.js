@@ -1,7 +1,7 @@
 import React from "react";
 import "animate.css";
 
-export default function FirstSection() {
+export default function Hero() {
   return (
     <section className="relative !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
       <div
