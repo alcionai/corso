@@ -13,7 +13,7 @@ require (
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
 	github.com/microsoft/kiota-http-go v0.9.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
-	github.com/microsoftgraph/msgraph-sdk-go v0.45.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.46.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.30.1
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
@@ -56,7 +56,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chmduquesne/rollinghash v4.0.0+incompatible // indirect
-	github.com/cjlapao/common-go v0.0.29 // indirect
+	github.com/cjlapao/common-go v0.0.35 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/edsrzf/mmap-go v1.1.0 // indirect

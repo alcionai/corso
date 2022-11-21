@@ -80,6 +80,8 @@ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5P
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
 github.com/cjlapao/common-go v0.0.29 h1:SOiTEEmA/YWOaP37U8beyqbxjvTtWcUAuvQAchGOQLE=
 github.com/cjlapao/common-go v0.0.29/go.mod h1:OyTAY388jfEj8uaRzx0uYneFghKDLL5KP+ewSydlQ5g=
+github.com/cjlapao/common-go v0.0.35 h1:GElDHYC9qAAMDozfDOArl1ayn+W+X90mogcS38Y8d3k=
+github.com/cjlapao/common-go v0.0.35/go.mod h1:WkUjw+hVbUDfzcnRymlU5VT/HBzv5xPs9tIJJ1XrQCU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cncf/udpa/go v0.0.0-20200629203442-efcf912fb354/go.mod h1:WmhPx2Nbnhtbo57+VJT5O0JRkEi1Wbu0z5j0R8u5Hbk=
@@ -273,6 +275,8 @@ github.com/microsoftgraph/msgraph-sdk-go v0.41.0 h1:aByLUNAjAsobpmpRfPsw/FNy6ake
 github.com/microsoftgraph/msgraph-sdk-go v0.41.0/go.mod h1:bjxJhL0qLSKws0SZLOWRJ3er2dvbvsRz9I1w0S7U80w=
 github.com/microsoftgraph/msgraph-sdk-go v0.45.0 h1:kgyIBffq5PRf35accW/62nTUIq9I5IbMgRbVysnpl7Y=
 github.com/microsoftgraph/msgraph-sdk-go v0.45.0/go.mod h1:k7YVioAmXKXtXcLgcRWpIANJlvl6cGp84UdLIUtuqfk=
+github.com/microsoftgraph/msgraph-sdk-go v0.46.0 h1:czhbXS6Wwh8X2HsP+6WnfJQ8jWqYBIOtFl4pgI+wW/U=
+github.com/microsoftgraph/msgraph-sdk-go v0.46.0/go.mod h1:I2iR+gJmKiZZ8ebE8mKQEiKXpePAahAIazx3F1kL6og=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.28.1 h1:gN3pVVvx50KzhQdYwQKVnRSOSOIRaFpXj7pgPfqnNXw=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.28.1/go.mod h1:BnumnwWU8xUgX7ncgo68novbS1wMlO66Iny9iVhvHuM=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.30.1 h1:jBuYexMqKnjsnQpyICfdu0RhZr7RFkEcKWRm3hf/jMM=
