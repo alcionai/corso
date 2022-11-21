@@ -39,9 +39,9 @@ func checkRequiredValues(c graph.Container) error {
 	return nil
 }
 
-//======================================
+// =========================================
 // cachedContainer Implementations
-//======================
+// =========================================
 
 var _ graph.CachedContainer = &cacheFolder{}
 
@@ -50,9 +50,9 @@ type cacheFolder struct {
 	p *path.Builder
 }
 
-//=========================================
+// =========================================
 // Required Functions to satisfy interfaces
-//=====================================
+// =========================================
 
 func (cf cacheFolder) Path() *path.Builder {
 	return cf.p
@@ -79,6 +79,7 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 // GetParentFolderId returns the default calendar name address
 // EventCalendars have a flat hierarchy and Calendars are rooted
 // at the default
+//
 //nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
 	return nil

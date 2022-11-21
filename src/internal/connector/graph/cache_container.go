@@ -37,9 +37,9 @@ func CheckRequiredValues(c Container) error {
 	return nil
 }
 
-//======================================
+// ======================================
 // cachedContainer Implementations
-//======================================
+// ======================================
 
 var _ CachedContainer = &CacheFolder{}
 
@@ -58,9 +58,9 @@ func NewCacheFolder(c Container, pb *path.Builder) CacheFolder {
 	return cf
 }
 
-//=========================================
+// =========================================
 // Required Functions to satisfy interfaces
-//=========================================
+// =========================================
 
 func (cf CacheFolder) Path() *path.Builder {
 	return cf.p
@@ -86,6 +86,7 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 // GetParentFolderId returns the default calendar name address
 // EventCalendars have a flat hierarchy and Calendars are rooted
 // at the default
+//
 //nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
 	return &c.parentID

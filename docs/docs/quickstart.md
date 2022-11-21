@@ -57,7 +57,7 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 
 To create a secure backup location for Corso, you will first need to [download Corso](setup/download).
 Use the container or native executable to initialize the Corso repository using an
-[encryption passphrase](/setup/configuration#environment-variables) and a pre-created S3 bucket (Corso doesn't create
+[encryption passphrase](setup/configuration#environment-variables) and a pre-created S3 bucket (Corso doesn't create
 the bucket if it doesn't exist). The steps below use `corso-test` as the bucket name but, if you are using AWS, you
 will need a different unique name for the bucket.
 
@@ -118,7 +118,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ## Create your first backup
 
 Corso can do much more, but you can start by creating a backup of your Exchange mailbox. If it has been a while since
-you initialized the Corso repository, you might need to [connect to it again](/setup/repos#connect-to-a-repository).
+you initialized the Corso repository, you might need to [connect to it again](setup/repos#connect-to-a-repository).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">

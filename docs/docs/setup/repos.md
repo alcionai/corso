@@ -67,7 +67,7 @@ The two most commonly-used options are:
 ### Initialize repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init s3`. See the command details
-[here](/cli/corso_repo_init_s3).
+[here](../cli/corso_repo_init_s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -104,7 +104,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ### Connect to a repository
 
 If a repository already exists, you can connect to it with `corso repo connect s3`. See the command details
-[here](/cli/corso_repo_connect_s3).
+[here](../cli/corso_repo_connect_s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
