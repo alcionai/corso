@@ -18,7 +18,7 @@ import (
 
 // ---------------------------------------------------------------
 // Disconnected Test Section
-// -------------------------
+// ---------------------------------------------------------------
 type DisconnectedGraphConnectorSuite struct {
 	suite.Suite
 }
@@ -206,12 +206,18 @@ func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
-	users := make(map[string]string)
-	users["elliotReid@someHospital.org"] = ""
-	users["chrisTurk@someHospital.org"] = ""
-	users["carlaEspinosa@someHospital.org"] = ""
-	users["bobKelso@someHospital.org"] = ""
-	users["johnDorian@someHospital.org"] = ""
+	users := []string{
+		"elliotReid@someHospital.org",
+		"chrisTurk@someHospital.org",
+		"carlaEspinosa@someHospital.org",
+		"bobKelso@someHospital.org",
+		"johnDorian@someHospital.org",
+	}
+
+	sites := []string{
+		"abc.site.foo",
+		"bar.site.baz",
+	}
 
 	tests := []struct {
 		name        string
@@ -256,11 +262,29 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 				return sel.Selector
 			},
 		},
+		{
+			name:       "valid sites",
+			checkError: assert.NoError,
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Include(sel.Sites([]string{"abc.site.foo", "bar.site.baz"}))
+				return sel.Selector
+			},
+		},
+		{
+			name:       "invalid sites",
+			checkError: assert.Error,
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Include(sel.Sites([]string{"fnords.smarfs.brawnhilda"}))
+				return sel.Selector
+			},
+		},
 	}
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			err := verifyBackupInputs(test.getSelector(t), users)
+			err := verifyBackupInputs(test.getSelector(t), users, sites)
 			test.checkError(t, err)
 		})
 	}

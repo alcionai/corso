@@ -29,7 +29,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.Users)
+	err := verifyBackupInputs(sels, gc.GetUsersIds(), gc.GetSiteIds())
 	if err != nil {
 		return nil, err
 	}
@@ -51,50 +51,48 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 
 		return colls, nil
 	default:
-		return nil, errors.Errorf("service %s not supported", sels)
+		return nil, errors.Errorf("service %s not supported", sels.Service.String())
 	}
 }
 
-func verifyBackupInputs(sel selectors.Selector, mapOfUsers map[string]string) error {
-	var personnel []string
+func verifyBackupInputs(sels selectors.Selector, userIDs, siteIDs []string) error {
+	var ids []string
 
-	// retrieve users from selectors
-	switch sel.Service {
-	case selectors.ServiceExchange:
-		backup, err := sel.ToExchangeBackup()
-		if err != nil {
-			return err
-		}
-
-		for _, scope := range backup.Scopes() {
-			temp := scope.Get(selectors.ExchangeUser)
-			personnel = append(personnel, temp...)
-		}
-	case selectors.ServiceOneDrive:
-		backup, err := sel.ToOneDriveBackup()
-		if err != nil {
-			return err
-		}
-
-		for _, user := range backup.Scopes() {
-			temp := user.Get(selectors.OneDriveUser)
-			personnel = append(personnel, temp...)
-		}
-
-	default:
-		return errors.New("service %s not supported")
+	resourceOwners, err := sels.ResourceOwners()
+	if err != nil {
+		return errors.Wrap(err, "invalid backup inputs")
 	}
 
-	// verify personnel
-	normUsers := map[string]struct{}{}
+	switch sels.Service {
+	case selectors.ServiceExchange, selectors.ServiceOneDrive:
+		ids = userIDs
 
-	for k := range mapOfUsers {
-		normUsers[strings.ToLower(k)] = struct{}{}
+	case selectors.ServiceSharePoint:
+		ids = siteIDs
 	}
 
-	for _, user := range personnel {
-		if _, ok := normUsers[strings.ToLower(user)]; !ok {
-			return fmt.Errorf("%s user not found within tenant", user)
+	// verify resourceOwners
+	normROs := map[string]struct{}{}
+
+	for _, id := range ids {
+		normROs[strings.ToLower(id)] = struct{}{}
+	}
+
+	for _, ro := range resourceOwners.Includes {
+		if _, ok := normROs[strings.ToLower(ro)]; !ok {
+			return fmt.Errorf("included resource owner %s not found within tenant", ro)
+		}
+	}
+
+	for _, ro := range resourceOwners.Excludes {
+		if _, ok := normROs[strings.ToLower(ro)]; !ok {
+			return fmt.Errorf("excluded resource owner %s not found within tenant", ro)
+		}
+	}
+
+	for _, ro := range resourceOwners.Filters {
+		if _, ok := normROs[strings.ToLower(ro)]; !ok {
+			return fmt.Errorf("filtered resource owner %s not found within tenant", ro)
 		}
 	}
 

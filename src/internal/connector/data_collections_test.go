@@ -504,13 +504,13 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	var (
 		t      = suite.T()
-		userID = tester.M365UserID(t)
+		siteID = tester.M365SiteID(t)
 		gc     = loadConnector(ctx, t, Sites)
 		sel    = selectors.NewSharePointBackup()
 	)
 
 	sel.Include(sel.Folders(
-		[]string{userID},
+		[]string{siteID},
 		[]string{"foo"},
 		selectors.PrefixMatch(),
 	))
