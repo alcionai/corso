@@ -14,15 +14,16 @@ import (
 )
 
 const (
-	noProgressBarsFN = "no-progress-bars"
-	progressBarWidth = 32
+	noProgressBarsFN   = "no-progress-bars"
+	saveProgressBarsFN = "save-progress-bars"
+	progressBarWidth   = 32
 )
 
 var (
 	wg sync.WaitGroup
 	// TODO: Revisit this being a global nd make it a parameter to the progress methods
 	// so that each bar can be initialized with different contexts if needed.
-	con      context.Context
+	contxt   context.Context
 	writer   io.Writer
 	progress *mpb.Progress
 	cfg      *config
@@ -40,31 +41,43 @@ func init() {
 func AddProgressBarFlags(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
 	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
+	fs.Bool(saveProgressBarsFN, false, "preserve progress bars after completion")
 }
 
 // Due to races between the lazy evaluation of flags in cobra and the need to init observer
 // behavior in a ctx, these options get pre-processed manually here using pflags.  The canonical
 // AddProgressBarFlag() ensures the flags are displayed as part of the help/usage output.
-func PreloadFlags() bool {
+func PreloadFlags() *config {
 	fs := pflag.NewFlagSet("seed-observer", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
+	fs.Bool(saveProgressBarsFN, false, "preserve progress bars after completion")
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
-	// parse the os args list to find the log level flag
+	// parse the os args list to find the observer display flags
 	if err := fs.Parse(os.Args[1:]); err != nil {
-		return false
+		return nil
 	}
 
 	// retrieve the user's preferred display
 	// automatically defaults to "info"
 	shouldHide, err := fs.GetBool(noProgressBarsFN)
 	if err != nil {
-		return false
+		return nil
 	}
 
-	return shouldHide
+	// retrieve the user's preferred display
+	// automatically defaults to "info"
+	shouldAlwaysShow, err := fs.GetBool(saveProgressBarsFN)
+	if err != nil {
+		return nil
+	}
+
+	return &config{
+		doNotDisplay:          shouldHide,
+		keepBarsAfterComplete: shouldAlwaysShow,
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -73,25 +86,26 @@ func PreloadFlags() bool {
 
 // config handles observer configuration
 type config struct {
-	doNotDisplay bool
+	doNotDisplay          bool
+	keepBarsAfterComplete bool
 }
 
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
-func SeedWriter(ctx context.Context, w io.Writer, hide bool) {
+func SeedWriter(ctx context.Context, w io.Writer, c *config) {
 	writer = w
-	con = ctx
+	contxt = ctx
 
-	if con == nil {
-		con = context.Background()
+	if contxt == nil {
+		contxt = context.Background()
 	}
 
-	cfg = &config{
-		doNotDisplay: hide,
+	if c != nil {
+		cfg = c
 	}
 
 	progress = mpb.NewWithContext(
-		con,
+		contxt,
 		mpb.WithWidth(progressBarWidth),
 		mpb.WithWaitGroup(&wg),
 		mpb.WithOutput(writer),
@@ -105,7 +119,7 @@ func Complete() {
 		progress.Wait()
 	}
 
-	SeedWriter(con, writer, cfg.doNotDisplay)
+	SeedWriter(contxt, writer, cfg)
 }
 
 const (
@@ -164,7 +178,7 @@ func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 	go func(ci <-chan struct{}) {
 		for {
 			select {
-			case <-con.Done():
+			case <-contxt.Done():
 				bar.SetTotal(-1, true)
 			case <-ci:
 				// We don't care whether the channel was signalled or closed
@@ -191,17 +205,20 @@ func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.
 
 	wg.Add(1)
 
-	bar := progress.New(
-		totalBytes,
-		mpb.NopStyle(),
-		mpb.BarRemoveOnComplete(),
+	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
 			decor.Name(iname, decor.WCSyncSpaceR),
 			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
 			decor.NewPercentage("%d ", decor.WC{W: 4}),
 		),
-	)
+	}
+
+	if !cfg.keepBarsAfterComplete {
+		barOpts = append(barOpts, mpb.BarRemoveOnComplete())
+	}
+
+	bar := progress.New(totalBytes, mpb.NopStyle(), barOpts...)
 
 	return bar.ProxyReader(rc), waitAndCloseBar(bar)
 }
@@ -228,23 +245,25 @@ func ProgressWithCount(header, message string, count int64) (chan<- struct{}, fu
 
 	wg.Add(1)
 
-	bar := progress.New(
-		count,
-		mpb.NopStyle(),
-		mpb.BarRemoveOnComplete(),
+	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
 			decor.Counters(0, " %d/%d "),
 			decor.Name(message),
 		),
-	)
+	}
+
+	if !cfg.keepBarsAfterComplete {
+		barOpts = append(barOpts, mpb.BarRemoveOnComplete())
+	}
+
+	bar := progress.New(count, mpb.NopStyle(), barOpts...)
 
 	ch := make(chan struct{})
-
 	go func(ci <-chan struct{}) {
 		for {
 			select {
-			case <-con.Done():
+			case <-contxt.Done():
 				bar.Abort(true)
 				return
 
@@ -315,25 +334,29 @@ func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()
 
 	wg.Add(1)
 
-	bar := progress.New(
-		-1, // -1 to indicate an unbounded count
-		mpb.SpinnerStyle(spinFrames...),
-		mpb.BarRemoveOnComplete(),
-		mpb.PrependDecorators(
-			decor.Name(category),
-		),
+	barOpts := []mpb.BarOption{
+		mpb.PrependDecorators(decor.Name(category)),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
 			decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
 		),
+	}
+
+	if !cfg.keepBarsAfterComplete {
+		barOpts = append(barOpts, mpb.BarRemoveOnComplete())
+	}
+
+	bar := progress.New(
+		-1, // -1 to indicate an unbounded count
+		mpb.SpinnerStyle(spinFrames...),
+		barOpts...,
 	)
 
 	ch := make(chan struct{})
-
 	go func(ci <-chan struct{}) {
 		for {
 			select {
-			case <-con.Done():
+			case <-contxt.Done():
 				bar.SetTotal(-1, true)
 				return
 
