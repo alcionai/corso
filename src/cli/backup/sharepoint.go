@@ -68,7 +68,7 @@ func addSharePointCommands(parent *cobra.Command) *cobra.Command {
 
 	switch parent.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(parent, sharePointCreateCmd())
+		c, fs = utils.AddCommand(parent, sharePointCreateCmd(), utils.HideCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
@@ -84,7 +84,7 @@ func addSharePointCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(parent, sharePointListCmd())
+		c, fs = utils.AddCommand(parent, sharePointListCmd(), utils.HideCommand())
 
 		fs.StringVar(&backupID,
 			"backup", "",
@@ -94,7 +94,7 @@ func addSharePointCommands(parent *cobra.Command) *cobra.Command {
 	// 	c, fs = utils.AddCommand(parent, sharePointDetailsCmd())
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(parent, sharePointDeleteCmd())
+		c, fs = utils.AddCommand(parent, sharePointDeleteCmd(), utils.HideCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
