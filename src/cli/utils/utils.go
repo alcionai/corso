@@ -17,6 +17,7 @@ import (
 const (
 	BackupFN = "backup"
 	DataFN   = "data"
+	SiteFN   = "site"
 	UserFN   = "user"
 )
 
@@ -57,10 +58,32 @@ func HasNoFlagsAndShownHelp(cmd *cobra.Command) bool {
 	return false
 }
 
+type cmdCfg struct {
+	hidden bool
+}
+
+type cmdOpt func(*cmdCfg)
+
+func (cc *cmdCfg) populate(opts ...cmdOpt) {
+	for _, opt := range opts {
+		opt(cc)
+	}
+}
+
+func HideCommand() cmdOpt {
+	return func(cc *cmdCfg) {
+		cc.hidden = true
+	}
+}
+
 // AddCommand adds a clone of the subCommand to the parent,
 // and returns both the clone and its pflags.
-func AddCommand(parent, c *cobra.Command) (*cobra.Command, *pflag.FlagSet) {
+func AddCommand(parent, c *cobra.Command, opts ...cmdOpt) (*cobra.Command, *pflag.FlagSet) {
+	cc := &cmdCfg{}
+	cc.populate(opts...)
+
 	parent.AddCommand(c)
+	c.Hidden = cc.hidden
 
 	c.Flags().SortFlags = false
 
