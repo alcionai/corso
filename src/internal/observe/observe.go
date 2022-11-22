@@ -90,6 +90,10 @@ type config struct {
 	keepBarsAfterComplete bool
 }
 
+func (c config) hidden() bool {
+	return c.doNotDisplay || writer == nil
+}
+
 // SeedWriter adds default writer to the observe package.
 // Uses a noop writer until seeded.
 func SeedWriter(ctx context.Context, w io.Writer, c *config) {
@@ -132,7 +136,7 @@ const (
 
 // Message is used to display a progress message
 func Message(message string) {
-	if writer == nil {
+	if cfg.hidden() {
 		return
 	}
 
@@ -157,7 +161,7 @@ func Message(message string) {
 func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 	completionCh := make(chan struct{}, 1)
 
-	if writer == nil {
+	if cfg.hidden() {
 		return completionCh, func() {}
 	}
 
@@ -199,7 +203,7 @@ func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
 func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.ReadCloser, func()) {
-	if cfg.doNotDisplay || writer == nil || rc == nil || totalBytes == 0 {
+	if cfg.hidden() || rc == nil || totalBytes == 0 {
 		return rc, func() {}
 	}
 
@@ -230,7 +234,7 @@ func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.
 func ProgressWithCount(header, message string, count int64) (chan<- struct{}, func()) {
 	progressCh := make(chan struct{})
 
-	if cfg.doNotDisplay || writer == nil {
+	if cfg.hidden() {
 		go func(ci <-chan struct{}) {
 			for {
 				_, ok := <-ci
@@ -317,7 +321,7 @@ func makeSpinFrames(barWidth int) {
 // incrementing the count of items handled.  Each write to the provided channel
 // counts as a single increment.  The caller is expected to close the channel.
 func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()) {
-	if cfg.doNotDisplay || writer == nil || len(user) == 0 || len(dirName) == 0 {
+	if cfg.hidden() || len(user) == 0 || len(dirName) == 0 {
 		ch := make(chan struct{})
 
 		go func(ci <-chan struct{}) {

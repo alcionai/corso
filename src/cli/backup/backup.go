@@ -14,6 +14,7 @@ var subCommandFuncs = []func() *cobra.Command{
 var serviceCommands = []func(parent *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
+	addSharePointCommands,
 }
 
 // AddCommands attaches all `corso backup * *` commands to the parent.
