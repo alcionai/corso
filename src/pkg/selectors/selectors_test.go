@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 type SelectorSuite struct {
@@ -107,6 +109,21 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			},
 		},
 		{
+			name: "multiple resources",
+			input: []scope{
+				scope(stubScope("")),
+				{
+					rootCatStub.String(): filterize(scopeConfig{}, join("smarf", "fnords")),
+					scopeKeyDataType:     filterize(scopeConfig{}, unknownCatStub.String()),
+				},
+			},
+			expect: map[string][]string{
+				"All":    {rootCatStub.String()},
+				"smarf":  {unknownCatStub.String()},
+				"fnords": {unknownCatStub.String()},
+			},
+		},
+		{
 			name: "disjoint types",
 			input: []scope{
 				scope(stubScope("")),
@@ -124,6 +141,69 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			rtm := toResourceTypeMap[mockScope](test.input)
 			assert.Equal(t, test.expect, rtm)
+		})
+	}
+}
+
+func (suite *SelectorSuite) TestResourceOwnersIn() {
+	rootCat := rootCatStub.String()
+
+	table := []struct {
+		name   string
+		input  []scope
+		expect []string
+	}{
+		{
+			name:   "nil",
+			input:  nil,
+			expect: []string{},
+		},
+		{
+			name:   "empty",
+			input:  []scope{},
+			expect: []string{},
+		},
+		{
+			name:   "single",
+			input:  []scope{{rootCat: filters.Identity("foo")}},
+			expect: []string{"foo"},
+		},
+		{
+			name:   "multiple values",
+			input:  []scope{{rootCat: filters.Identity(join("foo", "bar"))}},
+			expect: []string{"foo", "bar"},
+		},
+		{
+			name:   "with any",
+			input:  []scope{{rootCat: filters.Identity(join("foo", "bar", AnyTgt))}},
+			expect: []string{"foo", "bar"},
+		},
+		{
+			name:   "with none",
+			input:  []scope{{rootCat: filters.Identity(join("foo", "bar", NoneTgt))}},
+			expect: []string{"foo", "bar"},
+		},
+		{
+			name: "multiple scopes",
+			input: []scope{
+				{rootCat: filters.Identity(join("foo", "bar"))},
+				{rootCat: filters.Identity(join("baz"))},
+			},
+			expect: []string{"foo", "bar", "baz"},
+		},
+		{
+			name: "multiple scopes with duplicates",
+			input: []scope{
+				{rootCat: filters.Identity(join("foo", "bar"))},
+				{rootCat: filters.Identity(join("baz", "foo"))},
+			},
+			expect: []string{"foo", "bar", "baz"},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := resourceOwnersIn(test.input, rootCat)
+			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
 }
