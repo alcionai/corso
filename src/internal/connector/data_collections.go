@@ -29,7 +29,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.Users)
+	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIds())
 	if err != nil {
 		return nil, err
 	}
@@ -40,52 +40,59 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	case selectors.ServiceSharePoint:
-		return gc.SharePointDataCollections(ctx, sels)
+		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIds(), gc.credentials.AzureTenantID, gc)
+		if err != nil {
+			return nil, err
+		}
+
+		for range colls {
+			gc.incrementAwaitingMessages()
+		}
+
+		return colls, nil
 	default:
-		return nil, errors.Errorf("service %s not supported", sels)
+		return nil, errors.Errorf("service %s not supported", sels.Service.String())
 	}
 }
 
-func verifyBackupInputs(sel selectors.Selector, mapOfUsers map[string]string) error {
-	var personnel []string
+func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
+	var ids []string
 
-	// retrieve users from selectors
-	switch sel.Service {
-	case selectors.ServiceExchange:
-		backup, err := sel.ToExchangeBackup()
-		if err != nil {
-			return err
-		}
-
-		for _, scope := range backup.Scopes() {
-			temp := scope.Get(selectors.ExchangeUser)
-			personnel = append(personnel, temp...)
-		}
-	case selectors.ServiceOneDrive:
-		backup, err := sel.ToOneDriveBackup()
-		if err != nil {
-			return err
-		}
-
-		for _, user := range backup.Scopes() {
-			temp := user.Get(selectors.OneDriveUser)
-			personnel = append(personnel, temp...)
-		}
-
-	default:
-		return errors.New("service %s not supported")
+	resourceOwners, err := sels.ResourceOwners()
+	if err != nil {
+		return errors.Wrap(err, "invalid backup inputs")
 	}
 
-	// verify personnel
-	normUsers := map[string]struct{}{}
+	switch sels.Service {
+	case selectors.ServiceExchange, selectors.ServiceOneDrive:
+		ids = userPNs
 
-	for k := range mapOfUsers {
-		normUsers[strings.ToLower(k)] = struct{}{}
+	case selectors.ServiceSharePoint:
+		ids = siteIDs
 	}
 
-	for _, user := range personnel {
-		if _, ok := normUsers[strings.ToLower(user)]; !ok {
-			return fmt.Errorf("%s user not found within tenant", user)
+	// verify resourceOwners
+	normROs := map[string]struct{}{}
+
+	for _, id := range ids {
+		normROs[strings.ToLower(id)] = struct{}{}
+	}
+
+	for _, ro := range resourceOwners.Includes {
+		if _, ok := normROs[strings.ToLower(ro)]; !ok {
+			return fmt.Errorf("included resource owner %s not found within tenant", ro)
+		}
+	}
+
+	for _, ro := range resourceOwners.Excludes {
+		if _, ok := normROs[strings.ToLower(ro)]; !ok {
+			return fmt.Errorf("excluded resource owner %s not found within tenant", ro)
+		}
+	}
+
+	for _, ro := range resourceOwners.Filters {
+		if _, ok := normROs[strings.ToLower(ro)]; !ok {
+			return fmt.Errorf("filtered resource owner %s not found within tenant", ro)
 		}
 	}
 
@@ -193,6 +200,18 @@ func (gc *GraphConnector) ExchangeDataCollection(
 // OneDrive
 // ---------------------------------------------------------------------------
 
+type odFolderMatcher struct {
+	scope selectors.OneDriveScope
+}
+
+func (fm odFolderMatcher) IsAny() bool {
+	return fm.scope.IsAny(selectors.OneDriveFolder)
+}
+
+func (fm odFolderMatcher) Matches(dir string) bool {
+	return fm.scope.Matches(selectors.OneDriveFolder, dir)
+}
+
 // OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
 // for the specified user
 func (gc *GraphConnector) OneDriveDataCollections(
@@ -218,7 +237,8 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			odcs, err := onedrive.NewCollections(
 				gc.credentials.AzureTenantID,
 				user,
-				scope,
+				onedrive.OneDriveSource,
+				odFolderMatcher{scope},
 				&gc.graphService,
 				gc.UpdateStatus,
 			).Get(ctx)
@@ -227,107 +247,6 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			}
 
 			collections = append(collections, odcs...)
-		}
-	}
-
-	for range collections {
-		gc.incrementAwaitingMessages()
-	}
-
-	return collections, errs
-}
-
-// ---------------------------------------------------------------------------
-// SharePoint
-// ---------------------------------------------------------------------------
-
-// createSharePointCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.SharePointScope
-// determines the type of collections that are retrieved.
-func (gc *GraphConnector) createSharePointCollections(
-	ctx context.Context,
-	scope selectors.SharePointScope,
-) ([]*sharepoint.Collection, error) {
-	var (
-		errs  *multierror.Error
-		sites = scope.Get(selectors.SharePointSite)
-		colls = make([]*sharepoint.Collection, 0)
-	)
-
-	// Create collection of ExchangeDataCollection
-	for _, site := range sites {
-		collections := make(map[string]*sharepoint.Collection)
-
-		qp := graph.QueryParams{
-			Category:      scope.Category().PathType(),
-			ResourceOwner: site,
-			FailFast:      gc.failFast,
-			Credentials:   gc.credentials,
-		}
-
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, site))
-		defer closer()
-		defer close(foldersComplete)
-
-		// resolver, err := exchange.PopulateExchangeContainerResolver(
-		// 	ctx,
-		// 	qp,
-		// 	qp.Scope.Category().PathType(),
-		// )
-		// if err != nil {
-		// 	return nil, errors.Wrap(err, "getting folder cache")
-		// }
-
-		// err = sharepoint.FilterContainersAndFillCollections(
-		// 	ctx,
-		// 	qp,
-		// 	collections,
-		// 	gc.UpdateStatus,
-		// 	resolver)
-
-		// if err != nil {
-		// 	return nil, errors.Wrap(err, "filling collections")
-		// }
-
-		foldersComplete <- struct{}{}
-
-		for _, collection := range collections {
-			gc.incrementAwaitingMessages()
-
-			colls = append(colls, collection)
-		}
-	}
-
-	return colls, errs.ErrorOrNil()
-}
-
-// SharePointDataCollections returns a set of DataCollection which represents the SharePoint data
-// for the specified user
-func (gc *GraphConnector) SharePointDataCollections(
-	ctx context.Context,
-	selector selectors.Selector,
-) ([]data.Collection, error) {
-	b, err := selector.ToSharePointBackup()
-	if err != nil {
-		return nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
-	}
-
-	var (
-		scopes      = b.DiscreteScopes(gc.GetSites())
-		collections = []data.Collection{}
-		errs        error
-	)
-
-	// for each scope that includes oneDrive items, get all
-	for _, scope := range scopes {
-		// Creates a map of collections based on scope
-		dcs, err := gc.createSharePointCollections(ctx, scope)
-		if err != nil {
-			return nil, support.WrapAndAppend(scope.Get(selectors.SharePointSite)[0], err, errs)
-		}
-
-		for _, collection := range dcs {
-			collections = append(collections, collection)
 		}
 	}
 

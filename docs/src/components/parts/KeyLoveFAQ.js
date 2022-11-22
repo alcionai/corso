@@ -42,7 +42,7 @@ export default function KeyLoveFAQ() {
                 <i data-feather="share-2" className="h-5 w-5 rotate-45"></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">
+                <h4 className="mb-0 text-lg font-bold">
                   Comprehensive Workflows
                 </h4>
               </div>
@@ -58,7 +58,7 @@ export default function KeyLoveFAQ() {
                 <i data-feather="zap" className="h-5 w-5 rotate-45"></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">High Throughput</h4>
+                <h4 className="mb-0 text-lg font-bold">High Throughput</h4>
               </div>
             </div>
           </div>
@@ -72,7 +72,7 @@ export default function KeyLoveFAQ() {
                 <i data-feather="activity" className="h-5 w-5 rotate-45"></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">Fault Tolerance</h4>
+                <h4 className="mb-0 text-lg font-bold">Fault Tolerance</h4>
               </div>
             </div>
           </div>
@@ -86,7 +86,7 @@ export default function KeyLoveFAQ() {
                 <i data-feather="lock" className="h-5 w-5 rotate-45"></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">
+                <h4 className="mb-0 text-lg font-bold">
                   End-to-End Encryption
                 </h4>
               </div>
@@ -102,7 +102,7 @@ export default function KeyLoveFAQ() {
                 <i data-feather="copy" className="h-5 w-5 rotate-45"></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">Deduplication</h4>
+                <h4 className="mb-0 text-lg font-bold">Deduplication</h4>
               </div>
             </div>
           </div>
@@ -116,7 +116,7 @@ export default function KeyLoveFAQ() {
                 <i data-feather="minimize-2" className="h-5 w-5 rotate-45"></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">Compression</h4>
+                <h4 className="mb-0 text-lg font-bold">Compression</h4>
               </div>
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function KeyLoveFAQ() {
                 <i data-feather="code" className="h-5 w-5 rotate-45"></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">Open Source</h4>
+                <h4 className="mb-0 text-lg font-bold">Open Source</h4>
               </div>
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function KeyLoveFAQ() {
                 ></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">
+                <h4 className="mb-0 text-lg font-bold">
                   Choice of Object Storage
                 </h4>
               </div>
@@ -166,7 +166,7 @@ export default function KeyLoveFAQ() {
                 ></i>
               </div>
               <div className="flex-1">
-                <h4 className="mb-0 text-lg font-medium">Retention Policies</h4>
+                <h4 className="mb-0 text-lg font-bold">Retention Policies</h4>
               </div>
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function KeyLoveFAQ() {
             className="lg:ml-8 wow animate__animated animate__fadeInRight"
             data-wow-delay=".3s"
           >
-            <h3 className="mb-4 text-3xl leading-normal font-medium">
+            <h3 className="mb-4 text-3xl leading-normal font-bold">
               Community
             </h3>
             <p className="text-slate-400">
@@ -269,7 +269,7 @@ export default function KeyLoveFAQ() {
             className="lg:mr-8 order-2 md:order-1 wow animate__animated animate__fadeInLeft"
             data-wow-delay=".5s"
           >
-            <h3 className="mb-4 text-3xl leading-normal font-medium">
+            <h3 className="mb-4 text-3xl leading-normal font-bold">
               Data Security
             </h3>
             <p className="text-slate-400">
@@ -322,7 +322,7 @@ export default function KeyLoveFAQ() {
             className="lg:ml-8 wow animate__animated animate__fadeInRight"
             data-wow-delay=".5s"
           >
-            <h3 className="mb-4 text-3xl leading-normal font-medium">
+            <h3 className="mb-4 text-3xl leading-normal font-bold">
               Robust Backups
             </h3>
             <p className="text-slate-400">
@@ -386,7 +386,7 @@ export default function KeyLoveFAQ() {
             className="lg:mr-8 order-2 md:order-1 wow animate__animated animate__fadeInLeft"
             data-wow-delay=".5s"
           >
-            <h3 className="mb-4 text-3xl leading-normal font-medium">
+            <h3 className="mb-4 text-3xl leading-normal font-bold">
               Cost Savings
             </h3>
             <p className="text-slate-400">
@@ -462,7 +462,7 @@ export default function KeyLoveFAQ() {
                   id="headingOne"
                 >
                   <button
-                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapseOne"
@@ -492,7 +492,7 @@ export default function KeyLoveFAQ() {
                   id="heading2"
                 >
                   <button
-                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse2"
@@ -525,7 +525,7 @@ export default function KeyLoveFAQ() {
                   id="heading3"
                 >
                   <button
-                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse3"
@@ -557,7 +557,7 @@ export default function KeyLoveFAQ() {
                   id="heading4"
                 >
                   <button
-                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse4"
@@ -603,7 +603,7 @@ export default function KeyLoveFAQ() {
                   id="heading5"
                 >
                   <button
-                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse5"
@@ -633,7 +633,7 @@ export default function KeyLoveFAQ() {
                   id="heading6"
                 >
                   <button
-                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-medium text-left"
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapse6"
