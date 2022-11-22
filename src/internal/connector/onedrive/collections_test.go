@@ -1,6 +1,7 @@
 package onedrive
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -20,7 +21,7 @@ func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []st
 	res := make([]string, 0, len(rest))
 
 	for _, r := range rest {
-		p, err := getCanonicalPath(r, tenant, user)
+		p, err := GetCanonicalPath(r, tenant, user, OneDriveSource)
 		require.NoError(t, err)
 
 		res = append(res, p.String())
@@ -35,6 +36,49 @@ type OneDriveCollectionsSuite struct {
 
 func TestOneDriveCollectionsSuite(t *testing.T) {
 	suite.Run(t, new(OneDriveCollectionsSuite))
+}
+
+func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
+	tenant, resourceOwner := "tenant", "resourceOwner"
+
+	table := []struct {
+		name      string
+		source    driveSource
+		dir       []string
+		expect    string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "onedrive",
+			source:    OneDriveSource,
+			dir:       []string{"onedrive"},
+			expect:    "tenant/onedrive/resourceOwner/files/onedrive",
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "sharepoint",
+			source:    SharePointSource,
+			dir:       []string{"sharepoint"},
+			expect:    "tenant/sharepoint/resourceOwner/files/sharepoint",
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "unknown",
+			source:    unknownDriveSource,
+			dir:       []string{"unknown"},
+			expectErr: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p := strings.Join(test.dir, "/")
+			result, err := GetCanonicalPath(p, tenant, resourceOwner, test.source)
+			test.expectErr(t, err)
+			if result != nil {
+				assert.Equal(t, test.expect, result.String())
+			}
+		})
+	}
 }
 
 func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
@@ -211,15 +255,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			c := NewCollections(tenant, user, tt.scope, &MockGraphService{}, nil)
-			err := c.updateCollections(ctx, "driveID", tt.items)
+			c := NewCollections(tenant, user, OneDriveSource, testFolderMatcher{tt.scope}, &MockGraphService{}, nil)
+			err := c.UpdateCollections(ctx, "driveID", tt.items)
 			tt.expect(t, err)
-			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.collectionMap), "collection paths")
-			assert.Equal(t, tt.expectedItemCount, c.numItems, "item count")
-			assert.Equal(t, tt.expectedFileCount, c.numFiles, "file count")
-			assert.Equal(t, tt.expectedContainerCount, c.numContainers, "container count")
+			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
+			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
+			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
+			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
 			for _, collPath := range tt.expectedCollectionPaths {
-				assert.Contains(t, c.collectionMap, collPath)
+				assert.Contains(t, c.CollectionMap, collPath)
 			}
 		})
 	}

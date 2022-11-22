@@ -241,7 +241,7 @@ func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
 	}
 
 	if len(resourceOwner) == 0 {
-		return errors.Wrap(errMissingSegment, "user")
+		return errors.Wrap(errMissingSegment, "resourceOwner")
 	}
 
 	if len(pb.elements) == 0 {
