@@ -66,7 +66,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 
 	newConnector.graphService = *service
 
-	suite.Equal(0, len(newConnector.Users))
+	suite.Empty(len(newConnector.Users))
 	err = newConnector.setTenantUsers(ctx)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Users))
