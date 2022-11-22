@@ -22,6 +22,16 @@ import (
 // setup and globals
 // ------------------------------------------------------------------------------------------------
 
+var (
+	site []string
+
+	sharepointData []string
+)
+
+const (
+	dataLibraries = "libraries"
+)
+
 const (
 	sharePointServiceCommand                = "sharepoint"
 	sharePointServiceCommandCreateUseSuffix = "--site <siteId> | '" + utils.Wildcard + "'"
@@ -66,6 +76,11 @@ func addSharePointCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringArrayVar(&site,
 			utils.SiteFN, nil,
 			"Backup SharePoint data by site ID; accepts '"+utils.Wildcard+"' to select all sites. (required)")
+		// TODO: implement
+		fs.StringSliceVar(
+			&sharepointData,
+			utils.DataFN, nil,
+			"Select one or more types of data to backup: "+dataLibraries)
 		options.AddOperationFlags(c)
 
 	case listCommand:
