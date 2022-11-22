@@ -23,7 +23,7 @@ import (
 func mustToDataLayerPath(
 	t *testing.T,
 	service path.ServiceType,
-	tenant, user string,
+	tenant, resourceOwner string,
 	category path.CategoryType,
 	elements []string,
 	isItem bool,
@@ -37,11 +37,13 @@ func mustToDataLayerPath(
 
 	switch service {
 	case path.ExchangeService:
-		res, err = pb.ToDataLayerExchangePathForCategory(tenant, user, category, isItem)
+		res, err = pb.ToDataLayerExchangePathForCategory(tenant, resourceOwner, category, isItem)
 	case path.OneDriveService:
 		require.Equal(t, path.FilesCategory, category)
 
-		res, err = pb.ToDataLayerOneDrivePath(tenant, user, isItem)
+		res, err = pb.ToDataLayerOneDrivePath(tenant, resourceOwner, isItem)
+	case path.SharePointService:
+		res, err = pb.ToDataLayerSharePointPath(tenant, resourceOwner, category, isItem)
 
 	default:
 		err = errors.Errorf("bad service type %s", service.String())
