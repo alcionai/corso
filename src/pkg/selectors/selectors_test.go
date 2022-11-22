@@ -109,6 +109,21 @@ func (suite *SelectorSuite) TestToResourceTypeMap() {
 			},
 		},
 		{
+			name: "multiple resources",
+			input: []scope{
+				scope(stubScope("")),
+				{
+					rootCatStub.String(): filterize(scopeConfig{}, join("smarf", "fnords")),
+					scopeKeyDataType:     filterize(scopeConfig{}, unknownCatStub.String()),
+				},
+			},
+			expect: map[string][]string{
+				"All":    {rootCatStub.String()},
+				"smarf":  {unknownCatStub.String()},
+				"fnords": {unknownCatStub.String()},
+			},
+		},
+		{
 			name: "disjoint types",
 			input: []scope{
 				scope(stubScope("")),

@@ -311,8 +311,8 @@ func resourcesShortFormat(m map[string][]string) string {
 }
 
 // Transforms the slice to a single map.
-// Keys are each map's scopeKeyResource value.
-// Values are the set of all scopeKeyDataTypes for a given resource.
+// Keys are each service's rootCat value.
+// Values are the set of all scopeKeyDataTypes for the resource.
 func toResourceTypeMap[T scopeT](s []scope) map[string][]string {
 	if len(s) == 0 {
 		return nil
@@ -329,7 +329,9 @@ func toResourceTypeMap[T scopeT](s []scope) map[string][]string {
 			k = All
 		}
 
-		r[k] = addToSet(r[k], split(sc[scopeKeyDataType].Target))
+		for _, sk := range split(k) {
+			r[sk] = addToSet(r[sk], split(sc[scopeKeyDataType].Target))
+		}
 	}
 
 	return r

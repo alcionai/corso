@@ -41,6 +41,14 @@ make build
 
 This command generates static content into the `build` directory for integration with any static contents hosting service.
 
+## Serving static documentation
+
+```bash
+make serve
+```
+
+This command will serve the static content generated with `make build` at [http://localhost:3000](http://localhost:3000).
+
 ## Style and linting
 
 ```bash
