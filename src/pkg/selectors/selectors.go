@@ -71,6 +71,19 @@ type Reducer interface {
 	Reduce(context.Context, *details.Details) *details.Details
 }
 
+// selectorResourceOwners aggregates all discrete resource owner ids described
+// in the selector.  Any and None values are ignored.  ResourceOwner sets are
+// grouped by their scope type (includes, excludes, filters).
+type selectorResourceOwners struct {
+	Includes []string
+	Excludes []string
+	Filters  []string
+}
+
+type resourceOwnerer interface {
+	ResourceOwners() selectorResourceOwners
+}
+
 // ---------------------------------------------------------------------------
 // Selector
 // ---------------------------------------------------------------------------
@@ -184,27 +197,46 @@ func (s Selector) PathService() path.ServiceType {
 // than have the caller make that interpretation.  Returns an error if the
 // service is unsupported.
 func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.Details, error) {
-	var (
-		r   Reducer
-		err error
-	)
-
-	switch s.Service {
-	case ServiceExchange:
-		r, err = s.ToExchangeRestore()
-	case ServiceOneDrive:
-		r, err = s.ToOneDriveRestore()
-	case ServiceSharePoint:
-		r, err = s.ToSharePointRestore()
-	default:
-		return nil, errors.New("service not supported: " + s.Service.String())
-	}
-
+	r, err := selectorAsIface[Reducer](s)
 	if err != nil {
 		return nil, err
 	}
 
 	return r.Reduce(ctx, deets), nil
+}
+
+func (s Selector) ResourceOwners() (selectorResourceOwners, error) {
+	ro, err := selectorAsIface[resourceOwnerer](s)
+	if err != nil {
+		return selectorResourceOwners{}, err
+	}
+
+	return ro.ResourceOwners(), nil
+}
+
+// transformer for arbitrary selector interfaces
+func selectorAsIface[T any](s Selector) (T, error) {
+	var (
+		a   any
+		t   T
+		err error
+	)
+
+	switch s.Service {
+	case ServiceExchange:
+		a, err = func() (any, error) { return s.ToExchangeRestore() }()
+		t = a.(T)
+	case ServiceOneDrive:
+		a, err = func() (any, error) { return s.ToOneDriveRestore() }()
+		t = a.(T)
+	case ServiceSharePoint:
+		a, err = func() (any, error) { return s.ToSharePointRestore() }()
+		t = a.(T)
+	default:
+		err = errors.New("service not supported: " + s.Service.String())
+	}
+
+	return t, err
 }
 
 // ---------------------------------------------------------------------------
@@ -218,35 +250,18 @@ type Printable struct {
 	Includes map[string][]string `json:"includes,omitempty"`
 }
 
+type printabler interface {
+	Printable() Printable
+}
+
 // ToPrintable creates the minimized display of a selector, formatted for human readability.
 func (s Selector) ToPrintable() Printable {
-	switch s.Service {
-	case ServiceExchange:
-		r, err := s.ToExchangeRestore()
-		if err != nil {
-			return Printable{}
-		}
-
-		return r.Printable()
-
-	case ServiceOneDrive:
-		r, err := s.ToOneDriveBackup()
-		if err != nil {
-			return Printable{}
-		}
-
-		return r.Printable()
-
-	case ServiceSharePoint:
-		r, err := s.ToSharePointBackup()
-		if err != nil {
-			return Printable{}
-		}
-
-		return r.Printable()
+	p, err := selectorAsIface[printabler](s)
+	if err != nil {
+		return Printable{}
 	}
 
-	return Printable{}
+	return p.Printable()
 }
 
 // toPrintable creates the minimized display of a selector, formatted for human readability.
@@ -349,6 +364,32 @@ func addToSet(set []string, v []string) []string {
 // helpers
 // ---------------------------------------------------------------------------
 
+// produces the discrete set of resource owners in the slice of scopes.
+// Any and None values are discarded.
+func resourceOwnersIn(s []scope, rootCat string) []string {
+	rm := map[string]struct{}{}
+
+	for _, sc := range s {
+		for _, v := range split(sc[rootCat].Target) {
+			rm[v] = struct{}{}
+		}
+	}
+
+	rs := []string{}
+
+	for k := range rm {
+		if k != AnyTgt && k != NoneTgt {
+			rs = append(rs, k)
+		}
+	}
+
+	return rs
+}
+
+// ---------------------------------------------------------------------------
+// scope helpers
+// ---------------------------------------------------------------------------
+
 type scopeConfig struct {
 	usePathFilter   bool
 	usePrefixFilter bool
@@ -379,10 +420,6 @@ func pathType() option {
 		sc.usePathFilter = true
 	}
 }
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
 
 func badCastErr(cast, is service) error {
 	return errors.Wrapf(ErrorBadSelectorCast, "%s service is not %s", cast, is)

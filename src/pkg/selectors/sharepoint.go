@@ -34,7 +34,11 @@ type (
 	}
 )
 
-var _ Reducer = &SharePointRestore{}
+var (
+	_ Reducer         = &SharePointRestore{}
+	_ printabler      = &SharePointRestore{}
+	_ resourceOwnerer = &SharePointRestore{}
+)
 
 // NewSharePointBackup produces a new Selector with the service set to ServiceSharePoint.
 func NewSharePointBackup() *SharePointBackup {
@@ -85,6 +89,16 @@ func (s Selector) ToSharePointRestore() (*SharePointRestore, error) {
 // Printable creates the minimized display of a selector, formatted for human readability.
 func (s sharePoint) Printable() Printable {
 	return toPrintable[SharePointScope](s.Selector)
+}
+
+// ResourceOwners produces the aggregation of discrete sitets described by each type of scope.
+// Any and None values are omitted.
+func (s sharePoint) ResourceOwners() selectorResourceOwners {
+	return selectorResourceOwners{
+		Excludes: resourceOwnersIn(s.Excludes, SharePointSite.String()),
+		Filters:  resourceOwnersIn(s.Filters, SharePointSite.String()),
+		Includes: resourceOwnersIn(s.Includes, SharePointSite.String()),
+	}
 }
 
 // -------------------

@@ -35,7 +35,11 @@ type (
 	}
 )
 
-var _ Reducer = &OneDriveRestore{}
+var (
+	_ Reducer         = &OneDriveRestore{}
+	_ printabler      = &OneDriveRestore{}
+	_ resourceOwnerer = &OneDriveRestore{}
+)
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
 func NewOneDriveBackup() *OneDriveBackup {
@@ -86,6 +90,16 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 // Printable creates the minimized display of a selector, formatted for human readability.
 func (s oneDrive) Printable() Printable {
 	return toPrintable[OneDriveScope](s.Selector)
+}
+
+// ResourceOwners produces the aggregation of discrete users described by each type of scope.
+// Any and None values are omitted.
+func (s oneDrive) ResourceOwners() selectorResourceOwners {
+	return selectorResourceOwners{
+		Excludes: resourceOwnersIn(s.Excludes, OneDriveUser.String()),
+		Filters:  resourceOwnersIn(s.Filters, OneDriveUser.String()),
+		Includes: resourceOwnersIn(s.Includes, OneDriveUser.String()),
+	}
 }
 
 // -------------------
