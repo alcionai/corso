@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	noProgressBarsFN   = "no-progress-bars"
-	saveProgressBarsFN = "save-progress-bars"
-	progressBarWidth   = 32
+	hideProgressBarsFN   = "hide-progress"
+	retainProgressBarsFN = "retain-progress"
+	progressBarWidth     = 32
 )
 
 var (
@@ -35,13 +35,13 @@ func init() {
 	makeSpinFrames(progressBarWidth)
 }
 
-// adds the persistent boolean flag --no-progress-bars to the provided command.
+// adds the persistent boolean flag --hide-progress to the provided command.
 // This is a hack for help displays.  Due to seeding the context, we also
 // need to parse the configuration before we execute the command.
 func AddProgressBarFlags(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
-	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
-	fs.Bool(saveProgressBarsFN, false, "preserve progress bars after completion")
+	fs.Bool(hideProgressBarsFN, false, "turn off the progress bar displays")
+	fs.Bool(retainProgressBarsFN, false, "retain the progress bar displays after completion")
 }
 
 // Due to races between the lazy evaluation of flags in cobra and the need to init observer
@@ -50,8 +50,8 @@ func AddProgressBarFlags(parent *cobra.Command) {
 func PreloadFlags() *config {
 	fs := pflag.NewFlagSet("seed-observer", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
-	fs.Bool(noProgressBarsFN, false, "turn off the progress bar displays")
-	fs.Bool(saveProgressBarsFN, false, "preserve progress bars after completion")
+	fs.Bool(hideProgressBarsFN, false, "turn off the progress bar displays")
+	fs.Bool(retainProgressBarsFN, false, "retain the progress bar displays after completion")
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
@@ -62,14 +62,14 @@ func PreloadFlags() *config {
 
 	// retrieve the user's preferred display
 	// automatically defaults to "info"
-	shouldHide, err := fs.GetBool(noProgressBarsFN)
+	shouldHide, err := fs.GetBool(hideProgressBarsFN)
 	if err != nil {
 		return nil
 	}
 
 	// retrieve the user's preferred display
 	// automatically defaults to "info"
-	shouldAlwaysShow, err := fs.GetBool(saveProgressBarsFN)
+	shouldAlwaysShow, err := fs.GetBool(retainProgressBarsFN)
 	if err != nil {
 		return nil
 	}
