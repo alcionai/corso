@@ -10,29 +10,44 @@
 //
 // Examples of paths splitting by elements and canonicalization with escaping:
 // 1.
-//   input path: `this/is/a/path`
-//   elements of path: `this`, `is`, `a`, `path`
+//
+//	input path: `this/is/a/path`
+//	elements of path: `this`, `is`, `a`, `path`
+//
 // 2.
-//   input path: `this/is\/a/path`
-//   elements of path: `this`, `is/a`, `path`
+//
+//	input path: `this/is\/a/path`
+//	elements of path: `this`, `is/a`, `path`
+//
 // 3.
-//   input path: `this/is\\/a/path`
-//   elements of path: `this`, `is\`, `a`, `path`
+//
+//	input path: `this/is\\/a/path`
+//	elements of path: `this`, `is\`, `a`, `path`
+//
 // 4.
-//   input path: `this/is\\\/a/path`
-//   elements of path: `this`, `is\/a`, `path`
+//
+//	input path: `this/is\\\/a/path`
+//	elements of path: `this`, `is\/a`, `path`
+//
 // 5.
-//   input path: `this/is//a/path`
-//   elements of path: `this`, `is`, `a`, `path`
+//
+//	input path: `this/is//a/path`
+//	elements of path: `this`, `is`, `a`, `path`
+//
 // 6.
-//   input path: `this/is\//a/path`
-//   elements of path: `this`, `is/`, `a`, `path`
+//
+//	input path: `this/is\//a/path`
+//	elements of path: `this`, `is/`, `a`, `path`
+//
 // 7.
-//   input path: `this/is/a/path/`
-//   elements of path: `this`, `is`, `a`, `path`
+//
+//	input path: `this/is/a/path/`
+//	elements of path: `this`, `is`, `a`, `path`
+//
 // 8.
-//   input path: `this/is/a/path\/`
-//   elements of path: `this`, `is`, `a`, `path/`
+//
+//	input path: `this/is/a/path\/`
+//	elements of path: `this`, `is`, `a`, `path/`
 package path
 
 import (
@@ -307,6 +322,7 @@ func (pb Builder) ToDataLayerOneDrivePath(
 
 func (pb Builder) ToDataLayerSharePointPath(
 	tenant, site string,
+	category CategoryType,
 	isItem bool,
 ) (Path, error) {
 	if err := pb.verifyPrefix(tenant, site); err != nil {
@@ -318,10 +334,10 @@ func (pb Builder) ToDataLayerSharePointPath(
 			tenant,
 			SharePointService.String(),
 			site,
-			FilesCategory.String(),
+			category.String(),
 		),
 		service:  SharePointService,
-		category: FilesCategory,
+		category: category,
 		hasItem:  isItem,
 	}, nil
 }

@@ -170,7 +170,7 @@ func GetCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path
 	case OneDriveSource:
 		result, err = pathBuilder.ToDataLayerOneDrivePath(tenant, resourceOwner, false)
 	case SharePointSource:
-		result, err = pathBuilder.ToDataLayerSharePointPath(tenant, resourceOwner, false)
+		result, err = pathBuilder.ToDataLayerSharePointPath(tenant, resourceOwner, path.LibrariesCategory, false)
 	default:
 		return nil, errors.Errorf("unrecognized drive data source")
 	}

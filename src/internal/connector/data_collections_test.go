@@ -172,7 +172,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			name: "Items - TODO: actual sharepoint categories",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
-				sel.Include(sel.Folders([]string{suite.site}, selectors.Any()))
+				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
 
 				return sel.Selector
 			},
@@ -509,7 +509,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		sel    = selectors.NewSharePointBackup()
 	)
 
-	sel.Include(sel.Folders(
+	sel.Include(sel.Libraries(
 		[]string{siteID},
 		[]string{"foo"},
 		selectors.PrefixMatch(),

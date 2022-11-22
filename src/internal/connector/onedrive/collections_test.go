@@ -59,7 +59,7 @@ func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
 			name:      "sharepoint",
 			source:    SharePointSource,
 			dir:       []string{"sharepoint"},
-			expect:    "tenant/sharepoint/resourceOwner/files/sharepoint",
+			expect:    "tenant/sharepoint/resourceOwner/libraries/sharepoint",
 			expectErr: assert.NoError,
 		},
 		{
@@ -256,6 +256,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			defer flush()
 
 			c := NewCollections(tenant, user, OneDriveSource, testFolderMatcher{tt.scope}, &MockGraphService{}, nil)
+
 			err := c.UpdateCollections(ctx, "driveID", tt.items)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
