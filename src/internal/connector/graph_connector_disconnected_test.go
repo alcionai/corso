@@ -214,23 +214,16 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 		"johnDorian@someHospital.org",
 	}
 
-	sites := []string{
-		"abc.site.foo",
-		"bar.site.baz",
-	}
-
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
 		checkError  assert.ErrorAssertionFunc
 	}{
 		{
-			name:       "Invalid User",
-			checkError: assert.Error,
+			name:       "No scopes",
+			checkError: assert.NoError,
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup()
-				sel.Include(sel.Folders([]string{"foo@SomeCompany.org"}, selectors.Any()))
-				return sel.Selector
+				return selectors.NewExchangeBackup().Selector
 			},
 		},
 		{
@@ -262,10 +255,79 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 				return sel.Selector
 			},
 		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			err := verifyBackupInputs(test.getSelector(t), users, nil)
+			test.checkError(t, err)
+		})
+	}
+}
+
+func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices() {
+	users := []string{"elliotReid@someHospital.org"}
+	sites := []string{"abc.site.foo", "bar.site.baz"}
+
+	tests := []struct {
+		name       string
+		excludes   func(t *testing.T) selectors.Selector
+		filters    func(t *testing.T) selectors.Selector
+		includes   func(t *testing.T) selectors.Selector
+		checkError assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Valid User",
+			checkError: assert.NoError,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Exclude(sel.Folders([]string{"elliotReid@someHospital.org"}, selectors.Any()))
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Filter(sel.Folders([]string{"elliotReid@someHospital.org"}, selectors.Any()))
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Include(sel.Folders([]string{"elliotReid@someHospital.org"}, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name:       "Invalid User",
+			checkError: assert.Error,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Exclude(sel.Folders([]string{"foo@SomeCompany.org"}, selectors.Any()))
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Filter(sel.Folders([]string{"foo@SomeCompany.org"}, selectors.Any()))
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup()
+				sel.Include(sel.Folders([]string{"foo@SomeCompany.org"}, selectors.Any()))
+				return sel.Selector
+			},
+		},
 		{
 			name:       "valid sites",
 			checkError: assert.NoError,
-			getSelector: func(t *testing.T) selectors.Selector {
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Exclude(sel.Sites([]string{"abc.site.foo", "bar.site.baz"}))
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Filter(sel.Sites([]string{"abc.site.foo", "bar.site.baz"}))
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Sites([]string{"abc.site.foo", "bar.site.baz"}))
 				return sel.Selector
@@ -274,7 +336,17 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 		{
 			name:       "invalid sites",
 			checkError: assert.Error,
-			getSelector: func(t *testing.T) selectors.Selector {
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Exclude(sel.Sites([]string{"fnords.smarfs.brawnhilda"}))
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Filter(sel.Sites([]string{"fnords.smarfs.brawnhilda"}))
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Sites([]string{"fnords.smarfs.brawnhilda"}))
 				return sel.Selector
@@ -284,7 +356,11 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			err := verifyBackupInputs(test.getSelector(t), users, sites)
+			err := verifyBackupInputs(test.excludes(t), users, sites)
+			test.checkError(t, err)
+			err = verifyBackupInputs(test.filters(t), users, sites)
+			test.checkError(t, err)
+			err = verifyBackupInputs(test.includes(t), users, sites)
 			test.checkError(t, err)
 		})
 	}
