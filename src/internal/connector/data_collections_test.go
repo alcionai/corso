@@ -169,7 +169,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		getSelector func(t *testing.T) selectors.Selector
 	}{
 		{
-			name: "Items - TODO: actual sharepoint categories",
+			name: "Libraries",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
@@ -188,7 +188,10 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector.credentials.AzureTenantID,
 				connector)
 			require.NoError(t, err)
-			assert.Equal(t, 1, len(collection))
+
+			// we don't know an exact count of drives this will produce,
+			// but it should be more than one.
+			assert.Less(t, 1, len(collection))
 
 			// the test only reads the firstt collection
 			connector.incrementAwaitingMessages()
