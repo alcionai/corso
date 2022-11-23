@@ -58,7 +58,7 @@ const (
 )
 
 var (
-	delimiter = fmt.Sprint(0x1F)
+	delimiter = string('\x1F')
 	passAny   = filters.Pass()
 	failAny   = filters.Fail()
 )
