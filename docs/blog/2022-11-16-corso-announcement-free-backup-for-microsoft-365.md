@@ -5,7 +5,7 @@ authors: nica
 tags: [corso, microsoft 365]
 ---
 
-![Office desk](/img/blog/office_desk.jpg)
+![Office desk](../static/img/blog/office_desk.jpg)
 
 Have you had it with Google sheets? So have I. Excel is my home. It’s where I write all my best formulae. And what
 about PowerPoint? The way it just finds stock photos for you? The automatic ‘alternative designs for this slide’
