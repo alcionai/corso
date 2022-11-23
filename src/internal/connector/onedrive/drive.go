@@ -11,6 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+	mssitedrives "github.com/microsoftgraph/msgraph-sdk-go/sites/item/drives"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -84,7 +85,13 @@ func drives(
 }
 
 func siteDrives(ctx context.Context, service graph.Service, site string) ([]models.Driveable, error) {
-	r, err := service.Client().SitesById(site).Drives().Get(ctx, nil)
+	options := &mssitedrives.DrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &mssitedrives.DrivesRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name", "weburl", "system"},
+		},
+	}
+
+	r, err := service.Client().SitesById(site).Drives().Get(ctx, options)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve site drives. site: %s, details: %s",
 			site, support.ConnectorStackErrorTrace(err))
