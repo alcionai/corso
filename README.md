@@ -19,12 +19,12 @@ services, possibly beyond M365, will expand based on the interest and needs of t
 
 # Getting Started
 
-See the [Corso Documentation](https://docs.corsobackup.io) for more information.
+See the [Corso Documentation](https://corsobackup.io/docs/intro) for more information.
 
 # Building Corso
 
 To learn more about working with the project source core and building Corso, see the
-[Developer section](https://docs.corsobackup.io/developers/build) of the Corso Documentation.
+[Developer section](https://corsobackup.io/docs/developers/build) of the Corso Documentation.
 
 # Roadmap
 
