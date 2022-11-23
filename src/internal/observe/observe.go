@@ -174,7 +174,7 @@ func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
 			decor.Name(message),
-			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 4}),
+			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8}),
 		),
 		mpb.BarFillerOnComplete("done"),
 	)

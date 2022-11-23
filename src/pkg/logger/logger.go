@@ -25,6 +25,7 @@ const (
 	Info
 	Warn
 	Production
+	Disabled
 )
 
 const logLevelFN = "log-level"
@@ -80,6 +81,8 @@ func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
 			return lvl >= zapcore.WarnLevel
 		case Production:
 			return lvl >= zapcore.ErrorLevel
+		case Disabled:
+			return false
 		default:
 			return true
 		}
@@ -104,6 +107,8 @@ func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 		case Warn:
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.WarnLevel)
+		case Disabled:
+			cfg.Level = zap.NewAtomicLevelAt(zapcore.FatalLevel)
 		}
 
 		lgr, err = cfg.Build()
@@ -191,6 +196,8 @@ func levelOf(lvl string) logLevel {
 		return Warn
 	case "error":
 		return Production
+	case "disabled":
+		return Disabled
 	}
 
 	return Info
