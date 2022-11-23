@@ -76,7 +76,7 @@ costs, as well.
 ## Interested in Trying Corso?
 
 Corso, currently in alpha, provides a CLI-based tool for backups of your M365 data.
-[Follow the quickstart guide](../../docs/quickstart/) to start protecting your business-critical M365 data in
+[Follow the quickstart guide](../../docs/quickstart) to start protecting your business-critical M365 data in
 just a few minutes. Because Corso is currently in alpha, it should NOT be used in production.
 
 Corso supports Microsoft 365 Exchange and OneDrive, with SharePoint and Teams support in active development. Coverage
