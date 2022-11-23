@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -114,6 +115,69 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 // integration
 // ---------------------------------------------------------------------------
 
+//revive:disable:context-as-argument
+func prepNewBackupOp(
+	t *testing.T,
+	ctx context.Context,
+	bus events.Eventer,
+	sel selectors.Selector,
+) (BackupOperation, func()) {
+	//revive:enable:context-as-argument
+	acct := tester.NewM365Account(t)
+
+	// need to initialize the repository before we can test connecting to it.
+	st := tester.NewPrefixedS3Storage(t)
+
+	k := kopia.NewConn(st)
+	require.NoError(t, k.Initialize(ctx))
+
+	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
+	// to close here.
+	closer := func() { k.Close(ctx) }
+
+	kw, err := kopia.NewWrapper(k)
+	if assert.NoError(t, err) {
+		closer()
+		t.FailNow()
+	}
+
+	closer = func() {
+		k.Close(ctx)
+		kw.Close(ctx)
+	}
+
+	ms, err := kopia.NewModelStore(k)
+	if assert.NoError(t, err) {
+		closer()
+		t.FailNow()
+	}
+
+	closer = func() {
+		k.Close(ctx)
+		kw.Close(ctx)
+		ms.Close(ctx)
+	}
+
+	sw := store.NewKopiaStore(ms)
+
+	mb := evmock.NewBus()
+
+	bo, err := NewBackupOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		sel,
+		mb)
+	if assert.NoError(t, err) {
+		closer()
+		t.FailNow()
+	}
+
+	return bo, closer
+}
+
 type BackupOpIntegrationSuite struct {
 	suite.Suite
 }
@@ -174,12 +238,11 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
-func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	m365UserID := tester.M365UserID(suite.T())
-	acct := tester.NewM365Account(suite.T())
 
 	tests := []struct {
 		name       string
@@ -215,36 +278,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			// need to initialize the repository before we can test connecting to it.
-			st := tester.NewPrefixedS3Storage(t)
-			k := kopia.NewConn(st)
-			require.NoError(t, k.Initialize(ctx))
-
-			// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
-			// to close here.
-			defer k.Close(ctx)
-
-			kw, err := kopia.NewWrapper(k)
-			require.NoError(t, err)
-			defer kw.Close(ctx)
-
-			ms, err := kopia.NewModelStore(k)
-			require.NoError(t, err)
-			defer ms.Close(ctx)
-
 			mb := evmock.NewBus()
-
-			sw := store.NewKopiaStore(ms)
-			selected := test.selectFunc()
-			bo, err := NewBackupOperation(
-				ctx,
-				control.Options{},
-				kw,
-				sw,
-				acct,
-				*selected,
-				mb)
-			require.NoError(t, err)
+			bo, closer := prepNewBackupOp(t, ctx, mb, *test.selectFunc())
+			defer closer()
 
 			require.NoError(t, bo.Run(ctx))
 			require.NotEmpty(t, bo.Results)
@@ -266,51 +302,54 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run() {
 	}
 }
 
-func (suite *BackupOpIntegrationSuite) TestBackupOneDrive_Run() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
+	var (
+		t          = suite.T()
+		mb         = evmock.NewBus()
+		m365UserID = tester.SecondaryM365UserID(t)
+		sel        = selectors.NewOneDriveBackup()
+	)
 
-	m365UserID := tester.SecondaryM365UserID(t)
-	acct := tester.NewM365Account(t)
-
-	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
-
-	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
-
-	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
-	// to close here.
-	defer k.Close(ctx)
-
-	kw, err := kopia.NewWrapper(k)
-	require.NoError(t, err)
-
-	defer kw.Close(ctx)
-
-	ms, err := kopia.NewModelStore(k)
-	require.NoError(t, err)
-
-	defer ms.Close(ctx)
-
-	sw := store.NewKopiaStore(ms)
-
-	mb := evmock.NewBus()
-
-	sel := selectors.NewOneDriveBackup()
 	sel.Include(sel.Users([]string{m365UserID}))
 
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Options{},
-		kw,
-		sw,
-		acct,
-		sel.Selector,
-		mb)
-	require.NoError(t, err)
+	bo, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
+	defer closer()
+
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results)
+	require.NotEmpty(t, bo.Results.BackupID)
+	assert.Equalf(t, Completed, bo.Status, "backup status %s is not Completed", bo.Status)
+	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
+	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
+	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
+	assert.Equal(t, 1, bo.Results.ResourceOwners)
+	assert.NoError(t, bo.Results.ReadErrors)
+	assert.NoError(t, bo.Results.WriteErrors)
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
+	assert.Equal(t,
+		mb.CalledWith[events.BackupStart][0][events.BackupID],
+		bo.Results.BackupID, "backupID pre-declaration")
+}
+
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t      = suite.T()
+		mb     = evmock.NewBus()
+		siteID = tester.M365SiteID(t)
+		sel    = selectors.NewSharePointBackup()
+	)
+
+	sel.Include(sel.Sites([]string{siteID}))
+
+	bo, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
+	defer closer()
 
 	require.NoError(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results)
