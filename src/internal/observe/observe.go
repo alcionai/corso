@@ -252,8 +252,8 @@ func ProgressWithCount(header, message string, count int64) (chan<- struct{}, fu
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Counters(0, " %d/%d "),
 			decor.Name(message),
+			decor.Counters(0, " %d/%d "),
 		),
 	}
 
