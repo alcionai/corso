@@ -7,8 +7,8 @@ description: "Connect to a Microsft 365 tenant"
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-To perform backup and restore operations, Corso requires access to your [M365 tenant](concepts#m365-concepts)
-by creating an [Azure AD application](concepts#m365-concepts) with appropriate permissions.
+To perform backup and restore operations, Corso requires access to your [M365 tenant](../concepts#m365-concepts)
+by creating an [Azure AD application](../concepts#m365-concepts) with appropriate permissions.
 
 The following steps outline a simplified procedure for creating an Azure Ad application suitable for use with Corso.
 For more details, please refer to the
