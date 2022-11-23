@@ -25,7 +25,7 @@ AD application.
 From the list of [Azure services](https://portal.azure.com/#allservices), select
 **Azure Active Directory &#8594; App Registrations &#8594; New Registration**
 
-![Registering a new application](/img/m365app_create_new.png)
+![Registering a new application](../../static/img/m365app_create_new.png)
 
 ### Configure basic settings
 
@@ -36,14 +36,14 @@ Next, configure the following:
 * Skip the **Redirect URI** option
 * Click **Register** at the bottom of the screen
 
-![Configuring the application](/img/m365app_configure.png)
+![Configuring the application](../../static/img/m365app_configure.png)
 
 ### Configure required permissions
 
 Within the new application (`CorsoApp` in the below diagram), select **API Permissions &#8594; Add a permission** from
 the management panel.
 
-![Adding application permissions](/img/m365app_permissions.png)
+![Adding application permissions](../../static/img/m365app_permissions.png)
 
 Select the following permissions from **Microsoft API &#8594; Microsoft Graph &#8594; Application Permissions** and
 then click **Add permissions**.
@@ -63,7 +63,7 @@ then click **Add permissions**.
 Finally, grant admin consent to this application. This step is required even if the user that created the application
 is an Microsoft 365 admin.
 
-![Granting administrator consent](/img/m365app_consent.png)
+![Granting administrator consent](../../static/img/m365app_consent.png)
 
 ## Export application credentials
 
@@ -74,7 +74,7 @@ as environment variables.
 
 To view the tenant and client ID, select Overview from the app management panel.
 
-![Obtaining Tenant and Client IDs](/img/m365app_ids.png)
+![Obtaining Tenant and Client IDs](../../static/img/m365app_ids.png)
 
 Copy the client and tenant IDs and export them into the following environment variables.
 
@@ -112,7 +112,7 @@ management panel.
 
 Click **New Client Secret** under **Client secrets** and follow the instructions to create a secret.
 
-![Obtaining the Azure client secrete](/img/m365app_secret.png)
+![Obtaining the Azure client secrete](../../static/img/m365app_secret.png)
 
 After creating the secret, immediately copy the secret **Value** because it won't be available later. Export it as an
 environment variable.
