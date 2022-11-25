@@ -4,7 +4,6 @@ package onedrive
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,7 +19,15 @@ import (
 
 const (
 	// TODO: This number needs to be tuned
+	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
 	collectionChannelBufferSize = 50
+
+	// TODO: Tune this later along with collectionChannelBufferSize
+	urlPrefetchChannelBufferSize = 50
+
+	// Max number of retries to get doc from M365
+	// Seems to timeout at times because of multiple requests
+	maxRetries = 5
 )
 
 var (
@@ -133,24 +140,26 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	defer colCloser()
 	defer close(folderProgress)
 
-	// keep in max open file limit `ulimit -n`, usually 1024
-	// https://superuser.com/questions/1356320/what-is-the-number-of-open-files-limits
-	// M365 seems to throttle with 100
-	const maxConcurrency = 10
-	const maxRetries = 3
-	limitCh := make(chan struct{}, maxConcurrency)
+	limitCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(limitCh)
 	var wg sync.WaitGroup
 	wg.Add(len(oc.driveItemIDs))
 
-	ffail := false // handling fast-fail
+	type uerr struct {
+		itemID string
+		err    error
+	}
+	errCh := make(chan uerr)
+	defer close(errCh)
+
+	ffail := int64(0) // handling fast-fail
 	for _, itemID := range oc.driveItemIDs {
-		if ffail {
+		if ffail > 0 {
 			break
 		}
 		limitCh <- struct{}{}
 
-		go func() {
+		go func(itemID string) {
 			defer func() { <-limitCh }()
 			defer wg.Done()
 
@@ -160,23 +169,23 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemData io.ReadCloser
 				err      error
 			)
+
+			// Retrying as we were hitting timeouts when we have multiple requests
 			// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
-			// TODO(meain): should we be retrying here or inside the driveItemReader
 			for i := 0; i < maxRetries; i++ {
 				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
 				if err == nil {
 					break
 				}
-				time.Sleep(time.Duration(5*(i+1)) * time.Second)
+				// TODO: Tweak sleep times
+				time.Sleep(time.Duration(3*(i+1)) * time.Second)
 			}
-			if err != nil {
-				errs = support.WrapAndAppendf(itemID, err, errs)
-				// TODO(meain): errs needs to be returned
 
-				ioutil.WriteFile("/tmp/corso-err"+itemID, []byte(err.Error()), 0644)
+			if err != nil {
+				errCh <- uerr{itemID, err}
 
 				if oc.service.ErrPolicy() {
-					ffail = true
+					atomic.AddInt64(&ffail, 1)
 					return
 				}
 
@@ -190,7 +199,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			itemInfo.ParentPath = parentPathString
 			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
-
 			go closer()
 
 			oc.data <- &Item{
@@ -199,9 +207,17 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				info: itemInfo,
 			}
 			folderProgress <- struct{}{}
-		}()
+		}(itemID)
 	}
 	wg.Wait()
+
+	for i := 0; i < len(errCh); i++ {
+		e, ok := <-errCh
+		if !ok {
+			break
+		}
+		errs = support.WrapAndAppendf(e.itemID, e.err, errs)
+	}
 
 	oc.reportAsCompleted(ctx, int(itemsRead), byteCount, errs)
 }
