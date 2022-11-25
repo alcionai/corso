@@ -3,12 +3,14 @@ package onedrive
 import (
 	"context"
 	"io"
+	"io/ioutil"
 	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	msup "github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item/createuploadsession"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msgraphsdkgomodels "github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -35,8 +37,22 @@ func driveItemReader(
 ) (*details.OneDriveInfo, io.ReadCloser, error) {
 	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
 
-	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+	var (
+		item msgraphsdkgomodels.DriveItemable
+		err  error
+	)
+
+	// TODO(meain): URL has a 1h expire time
+	for i := 0; i < 3; i++ { // TODO(meain): move 3 to a constant
+		item, err = service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Duration(5*(i+1)) * time.Second)
+	}
+
 	if err != nil {
+		ioutil.WriteFile("/tmp/corso-err-driveitemreader"+itemID, []byte(err.Error()), 0644)
 		return nil, nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
 
@@ -58,6 +74,7 @@ func driveItemReader(
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = 0 // need infinite timeout for pulling large files
 
+	// TODO(meain): How much time can we keep a connection open?
 	resp, err := httpClient.Get(*downloadURL)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)

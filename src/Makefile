@@ -9,8 +9,7 @@ BAD_LINT_MSG := "Missing golangci-lint version $(WANTED_LINT_VERSION). Visit $(I
 .PHONY: check-lint check-lint-version lint load-test
 
 build:
-	go build -o corso -ldflags \
-	"-X 'github.com/alcionai/corso/src/cli/version.Version=$(shell git describe --exact-match --tags $(git rev-parse HEAD) 2>/dev/null || echo unreleased)-$(shell git rev-parse --short HEAD)'"
+	go build -o corso
 
 lint: check-lint-version
 	golangci-lint run

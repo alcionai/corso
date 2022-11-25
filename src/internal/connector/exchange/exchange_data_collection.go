@@ -110,6 +110,7 @@ func (col *Collection) FullPath() path.Path {
 
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the jobs field. data channel is closed by this function
+// XXX(meain): populate func for exchange
 func (col *Collection) populateByOptionIdentifier(
 	ctx context.Context,
 ) {

@@ -4,6 +4,10 @@ package onedrive
 import (
 	"context"
 	"io"
+	"io/ioutil"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -110,7 +114,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	var (
 		errs      error
 		byteCount int64
-		itemsRead = 0
+		itemsRead int64 = 0
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -129,37 +133,77 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	defer colCloser()
 	defer close(folderProgress)
 
-	for _, itemID := range oc.driveItemIDs {
-		// Read the item
-		itemInfo, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
-		if err != nil {
-			errs = support.WrapAndAppendf(itemID, err, errs)
+	// keep in max open file limit `ulimit -n`, usually 1024
+	// https://superuser.com/questions/1356320/what-is-the-number-of-open-files-limits
+	// M365 seems to throttle with 100
+	const maxConcurrency = 10
+	const maxRetries = 3
+	limitCh := make(chan struct{}, maxConcurrency)
+	defer close(limitCh)
+	var wg sync.WaitGroup
+	wg.Add(len(oc.driveItemIDs))
 
-			if oc.service.ErrPolicy() {
-				break
+	ffail := false // handling fast-fail
+	for _, itemID := range oc.driveItemIDs {
+		if ffail {
+			break
+		}
+		limitCh <- struct{}{}
+
+		go func() {
+			defer func() { <-limitCh }()
+			defer wg.Done()
+
+			// Read the item
+			var (
+				itemInfo *details.OneDriveInfo
+				itemData io.ReadCloser
+				err      error
+			)
+			// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
+			// TODO(meain): should we be retrying here or inside the driveItemReader
+			for i := 0; i < maxRetries; i++ {
+				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+				if err == nil {
+					break
+				}
+				time.Sleep(time.Duration(5*(i+1)) * time.Second)
+			}
+			if err != nil {
+				errs = support.WrapAndAppendf(itemID, err, errs)
+				// TODO(meain): errs needs to be returned
+
+				ioutil.WriteFile("/tmp/corso-err"+itemID, []byte(err.Error()), 0644)
+
+				if oc.service.ErrPolicy() {
+					ffail = true
+					return
+				}
+
+				return
 			}
 
-			continue
-		}
-		// Item read successfully, add to collection
-		itemsRead++
-		// byteCount iteration
-		byteCount += itemInfo.Size
+			// Item read successfully, add to collection
+			atomic.AddInt64(&itemsRead, 1)
+			// byteCount iteration
+			atomic.AddInt64(&byteCount, itemInfo.Size)
 
-		itemInfo.ParentPath = parentPathString
-		progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
+			itemInfo.ParentPath = parentPathString
+			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
 
-		go closer()
+			go closer()
 
-		oc.data <- &Item{
-			id:   itemInfo.ItemName,
-			data: progReader,
-			info: itemInfo,
-		}
-		folderProgress <- struct{}{}
+			oc.data <- &Item{
+				id:   itemInfo.ItemName,
+				data: progReader,
+				info: itemInfo,
+			}
+			folderProgress <- struct{}{}
+		}()
 	}
+	wg.Wait()
 
-	oc.reportAsCompleted(ctx, itemsRead, byteCount, errs)
+	oc.reportAsCompleted(ctx, int(itemsRead), byteCount, errs)
 }
 
 func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byteCount int64, errs error) {
