@@ -1,10 +1,15 @@
 name: Build/Release Corso
 on:
   workflow_dispatch:
+
   pull_request:
+
   push:
     branches: [main]
     tags: ["v*.*.*"]
+
+  repository_dispatch:
+    types: [ok-to-test-command]
 
 permissions:
   # required to retrieve AWS credentials
@@ -131,16 +136,18 @@ jobs:
           name: docs
           path: docs/build
 
-
   # ----------------------------------------------------------------------------------------------------
   # --- Integration and Unit Testing -------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  Test-Suite:
+  Test-Suite-Trusted:
     needs: [Precheck, Checkout]
     environment: Testing
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.srcfileschanged == 'true'
+    if: (startsWith(github.ref, 'refs/tags/') ||
+      github.ref == 'refs/heads/main' ||
+      needs.precheck.outputs.srcfileschanged == 'true') &&
+      github.event.pull_request.head.repo.full_name == github.repository
     defaults:
       run:
         working-directory: src
@@ -172,7 +179,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_CI_TESTS: true 
+          CORSO_CI_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
@@ -194,6 +201,109 @@ jobs:
           path: src/testlog/gotest.log
           if-no-files-found: error
           retention-days: 14
+
+  Test-Suite-Fork:
+    needs: [Precheck]
+    environment: Testing
+    if: (needs.precheck.outputs.srcfileschanged == 'true' &&
+      github.event.pull_request.head.repo.full_name != github.repository) # only run when repo is forked
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - name: Fail check
+        if: github.event_name != 'repository_dispatch'
+        run: |
+          echo "Workflow requires approval from a maintainer to run. It will be automatically rerun on approval."
+          exit 1
+
+      # add comment to PR with link to workflow run
+      - uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+      # Check out merge commit
+      - name: Fork based /ok-to-test checkout
+        uses: actions/checkout@v2
+        with:
+          ref: "refs/pull/${{ github.event.client_payload.pull_request.number }}/merge"
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - run: mkdir testlog
+
+      # Install gotestfmt
+      - name: Set up gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      # run the tests
+      - name: Integration Tests
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_CI_TESTS: true
+          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          go test \
+          -json   \
+          -v      \
+          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+
+      # Upload the original go test log as an artifact for later review.
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-log
+          path: src/testlog/gotest.log
+          if-no-files-found: error
+          retention-days: 14
+
+      # Update check run called "Test-Suite-Fork"
+      - uses: actions/github-script@v5
+        id: update-check-run
+        if: ${{ always() }}
+        env:
+          number: ${{ github.event.client_payload.pull_request.number }}
+          job: ${{ github.job }}
+          # Conveniently, job.status maps to https://developer.github.com/v3/checks/runs/#update-a-check-run
+          conclusion: ${{ job.status }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: process.env.number
+            });
+            const ref = pull.head.sha;
+            const { data: checks } = await github.rest.checks.listForRef({
+              ...context.repo,
+              ref
+            });
+            const check = checks.check_runs.filter(c => c.name === process.env.job);
+            const { data: result } = await github.rest.checks.update({
+              ...context.repo,
+              check_run_id: check[0].id,
+              status: 'completed',
+              conclusion: process.env.conclusion
+            });
+            return result;
 
   # ----------------------------------------------------------------------------------------------------
   # --- Source Code Linting ----------------------------------------------------------------------------
@@ -234,7 +344,7 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Publish-Binary:
-    needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Docs-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
@@ -271,7 +381,7 @@ jobs:
           path: src/dist/*
 
   Publish-Docs:
-    needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Docs-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
@@ -309,7 +419,7 @@ jobs:
           aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
 
   Publish-Image:
-    needs: [Test-Suite, Linting, Docs-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Docs-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
