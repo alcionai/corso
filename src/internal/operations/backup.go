@@ -173,7 +173,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}
 	backupCh <- struct{}{}
 
-	logger.Ctx(ctx).Debugf("Backed up %d directories and %d files", opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount)
+	logger.Ctx(ctx).Debugf(
+		"Backed up %d directories and %d files",
+		opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount,
+	)
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()

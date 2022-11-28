@@ -121,7 +121,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	var (
 		errs      error
 		byteCount int64
-		itemsRead int64 = 0
+		itemsRead int64
+
+		wg sync.WaitGroup
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -142,12 +144,12 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	limitCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(limitCh)
-	var wg sync.WaitGroup
 
 	type uerr struct {
 		itemID string
 		err    error
 	}
+
 	errCh := make(chan uerr)
 	defer close(errCh)
 
@@ -159,6 +161,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		limitCh <- struct{}{}
 
 		wg.Add(1)
+
 		go func(itemID string) {
 			defer func() { <-limitCh }()
 			defer wg.Done()
@@ -199,6 +202,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			itemInfo.ParentPath = parentPathString
 			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
+
 			go closer()
 
 			oc.data <- &Item{
@@ -209,6 +213,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			folderProgress <- struct{}{}
 		}(itemID)
 	}
+
 	wg.Wait()
 
 	for i := 0; i < len(errCh); i++ {
@@ -216,6 +221,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		if !ok {
 			break
 		}
+
 		errs = support.WrapAndAppendf(e.itemID, e.err, errs)
 	}
 
