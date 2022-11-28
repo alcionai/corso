@@ -44,9 +44,18 @@ func uploadAttachment(
 	attachment models.Attachmentable,
 ) error {
 	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
+	attachmentType := attachmentType(attachment)
+
+	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
+	if attachmentType == models.REFERENCE_ATTACHMENTTYPE &&
+		attachment.GetIsInline() != nil && *attachment.GetIsInline() {
+		logger.Ctx(ctx).Debugf("skip uploading inline reference attachment: ", *attachment.GetName())
+		return nil
+	}
 
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
-	if attachmentType(attachment) != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
+	if attachmentType != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
+
 		err := uploader.uploadSmallAttachment(ctx, attachment)
 
 		return err
