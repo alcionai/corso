@@ -181,9 +181,9 @@ func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 
 func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 	var (
-		item  = stubRepoRef(path.SharePointService, path.FilesCategory, "uid", "/folderA/folderB", "item")
-		item2 = stubRepoRef(path.SharePointService, path.FilesCategory, "uid", "/folderA/folderC", "item2")
-		item3 = stubRepoRef(path.SharePointService, path.FilesCategory, "uid", "/folderD/folderE", "item3")
+		item  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "uid", "/folderA/folderB", "item")
+		item2 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "uid", "/folderA/folderC", "item2")
+		item3 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "uid", "/folderD/folderE", "item3")
 	)
 
 	deets := &details.Details{
@@ -242,7 +242,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets,
 			func() *SharePointRestore {
 				odr := NewSharePointRestore()
-				odr.Include(odr.Items(Any(), Any(), []string{"item2"}))
+				odr.Include(odr.LibraryItems(Any(), Any(), []string{"item2"}))
 				return odr
 			},
 			arr(item2),
@@ -252,7 +252,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets,
 			func() *SharePointRestore {
 				odr := NewSharePointRestore()
-				odr.Include(odr.Folders([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
+				odr.Include(odr.Libraries([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
 				return odr
 			},
 			arr(item, item2),
@@ -275,16 +275,16 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	t := suite.T()
 
 	pathBuilder := path.Builder{}.Append("dir1", "dir2", "item")
-	itemPath, err := pathBuilder.ToDataLayerSharePointPath("tenant", "site", true)
+	itemPath, err := pathBuilder.ToDataLayerSharePointPath("tenant", "site", path.LibrariesCategory, true)
 	require.NoError(t, err)
 
 	expected := map[categorizer]string{
-		SharePointSite:   "site",
-		SharePointFolder: "dir1/dir2",
-		SharePointItem:   "item",
+		SharePointSite:        "site",
+		SharePointLibrary:     "dir1/dir2",
+		SharePointLibraryItem: "item",
 	}
 
-	assert.Equal(t, expected, SharePointItem.pathValues(itemPath))
+	assert.Equal(t, expected, SharePointLibraryItem.pathValues(itemPath))
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
@@ -325,9 +325,9 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 	}{
 		{SharePointCategoryUnknown, path.UnknownCategory},
 		{SharePointSite, path.UnknownCategory},
-		{SharePointFolder, path.FilesCategory},
-		{SharePointItem, path.FilesCategory},
-		{SharePointFilterWebURL, path.FilesCategory},
+		{SharePointLibrary, path.LibrariesCategory},
+		{SharePointLibraryItem, path.LibrariesCategory},
+		{SharePointFilterWebURL, path.LibrariesCategory},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {

@@ -81,6 +81,8 @@ func StringToPathCategory(input string) path.CategoryType {
 		return path.EventsCategory
 	case "files":
 		return path.FilesCategory
+	case "libraries":
+		return path.LibrariesCategory
 	default:
 		return path.UnknownCategory
 	}

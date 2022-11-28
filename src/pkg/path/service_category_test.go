@@ -106,11 +106,11 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			check:            assert.NoError,
 		},
 		{
-			name:             "SharePointFiles",
+			name:             "SharePointLibraries",
 			service:          SharePointService.String(),
-			category:         FilesCategory.String(),
+			category:         LibrariesCategory.String(),
 			expectedService:  SharePointService,
-			expectedCategory: FilesCategory,
+			expectedCategory: LibrariesCategory,
 			check:            assert.NoError,
 		},
 	}

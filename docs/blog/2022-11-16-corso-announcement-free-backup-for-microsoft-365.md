@@ -5,7 +5,7 @@ authors: nica
 tags: [corso, microsoft 365]
 ---
 
-![Office desk](/img/blog/office_desk.jpg)
+![Office desk](../static/img/blog/office_desk.jpg)
 
 Have you had it with Google sheets? So have I. Excel is my home. It’s where I write all my best formulae. And what
 about PowerPoint? The way it just finds stock photos for you? The automatic ‘alternative designs for this slide’
@@ -76,7 +76,7 @@ costs, as well.
 ## Interested in Trying Corso?
 
 Corso, currently in alpha, provides a CLI-based tool for backups of your M365 data.
-[Follow the quickstart guide](../docs/quickstart) to start protecting your business-critical M365 data in
+[Follow the quickstart guide](../../docs/quickstart) to start protecting your business-critical M365 data in
 just a few minutes. Because Corso is currently in alpha, it should NOT be used in production.
 
 Corso supports Microsoft 365 Exchange and OneDrive, with SharePoint and Teams support in active development. Coverage

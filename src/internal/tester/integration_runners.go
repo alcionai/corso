@@ -23,6 +23,7 @@ const (
 	CorsoGraphConnectorTests                      = "CORSO_GRAPH_CONNECTOR_TESTS"
 	CorsoGraphConnectorExchangeTests              = "CORSO_GRAPH_CONNECTOR_EXCHANGE_TESTS"
 	CorsoGraphConnectorOneDriveTests              = "CORSO_GRAPH_CONNECTOR_ONE_DRIVE_TESTS"
+	CorsoGraphConnectorSharePointTests            = "CORSO_GRAPH_CONNECTOR_SHAREPOINT_TESTS"
 	CorsoKopiaWrapperTests                        = "CORSO_KOPIA_WRAPPER_TESTS"
 	CorsoModelStoreTests                          = "CORSO_MODEL_STORE_TESTS"
 	CorsoOneDriveTests                            = "CORSO_ONE_DRIVE_TESTS"

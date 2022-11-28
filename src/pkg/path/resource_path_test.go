@@ -104,9 +104,9 @@ var (
 		},
 		{
 			service:  path.SharePointService,
-			category: path.FilesCategory,
-			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerSharePointPath(tenant, user, isItem)
+			category: path.LibrariesCategory,
+			pathFunc: func(pb *path.Builder, tenant, site string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerSharePointPath(tenant, site, path.LibrariesCategory, isItem)
 			},
 		},
 	}

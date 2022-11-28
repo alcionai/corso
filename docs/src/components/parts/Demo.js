@@ -1,7 +1,7 @@
 import React from "react";
 import "animate.css";
 
-export default function SecondSection() {
+export default function Demo() {
   return (
     <section className="relative flex !tracking-wide  flex-col items-center overflow-hidden">
       <div className="!container relative">

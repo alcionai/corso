@@ -1,6 +1,6 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import { MainComp } from "../components/parts/MainComp";
+import { MainComp } from "@site/src/components/parts/MainComp";
 
 export default function Home() {
   return (

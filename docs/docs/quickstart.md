@@ -21,13 +21,13 @@ pull the image.
 ## Connect to Microsoft 365
 
 Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time operation. Follow the instructions
-[here](setup/m365_access) to obtain the necessary credentials and then make them available to Corso.
+[here](../setup/m365_access) to obtain the necessary credentials and then make them available to Corso.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  $Env:AZURE_CLIENT_ID = "<Application (client) ID for configured app>"
+  $Env:AZURE_CLIENT_ID = "<Application (../client) ID for configured app>"
   $Env:AZURE_TENANT_ID = "<Directory (tenant) ID for configured app>"
   $Env:AZURE_CLIENT_SECRET = "<Client secret value>"
   ```
@@ -36,7 +36,7 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="unix" label="Linux/macOS">
 
    ```bash
-   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (../client) ID for configured app>
    export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
@@ -45,7 +45,7 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="docker" label="Docker">
 
    ```bash
-   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (../client) ID for configured app>
    export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
@@ -55,9 +55,9 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 
 ## Create a Corso repository
 
-To create a secure backup location for Corso, you will first need to [download Corso](setup/download).
+To create a secure backup location for Corso, you will first need to [download Corso](../setup/download).
 Use the container or native executable to initialize the Corso repository using an
-[encryption passphrase](setup/configuration#environment-variables) and a pre-created S3 bucket (Corso doesn't create
+[encryption passphrase](../setup/configuration#environment-variables) and a pre-created S3 bucket (Corso doesn't create
 the bucket if it doesn't exist). The steps below use `corso-test` as the bucket name but, if you are using AWS, you
 will need a different unique name for the bucket.
 
@@ -118,7 +118,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ## Create your first backup
 
 Corso can do much more, but you can start by creating a backup of your Exchange mailbox. If it has been a while since
-you initialized the Corso repository, you might need to [connect to it again](setup/repos#connect-to-a-repository).
+you initialized the Corso repository, you might need to [connect to it again](../setup/repos#connect-to-a-repository).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -202,7 +202,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ```
 
 Next, select one of the available backups and list all backed up emails. See
-[here](cli/corso_backup_details_exchange) for more advanced filtering options.
+[here](../cli/corso_backup_details_exchange) for more advanced filtering options.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -285,5 +285,5 @@ A confirmation of the recovered email will be shown and the email will appear in
 
 The above tutorial only scratches the surface for Corso's capabilities. We encourage you to dig deeper by:
 
-* Learning about [Corso concepts and setup](setup/concepts)
-* Explore Corso backup and restore options for Exchange and Onedrive in the [Command Line Reference](cli/corso)
+* Learning about [Corso concepts and setup](../setup/concepts)
+* Explore Corso backup and restore options for Exchange and Onedrive in the [Command Line Reference](../cli/corso)

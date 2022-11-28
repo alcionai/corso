@@ -60,7 +60,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	wg := sync.WaitGroup{}
 	collStatus := support.ConnectorOperationStatus{}
 
-	folderPath, err := getCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "a-tenant", "a-user")
+	folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "a-tenant", "a-user", OneDriveSource)
 	require.NoError(t, err)
 	driveFolderPath, err := getDriveFolderPath(folderPath)
 	require.NoError(t, err)
@@ -117,7 +117,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	folderPath, err := getCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user")
+	folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", OneDriveSource)
 	require.NoError(t, err)
 
 	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
