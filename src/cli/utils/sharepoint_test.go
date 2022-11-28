@@ -37,7 +37,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			name: "no inputs",
 			opts: utils.SharePointOpts{
 				Sites:        empty,
-				Libraries:    empty,
+				LibraryPaths: empty,
 				LibraryItems: empty,
 			},
 			expectIncludeLen: 0,
@@ -46,7 +46,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			name: "single inputs",
 			opts: utils.SharePointOpts{
 				Sites:        single,
-				Libraries:    single,
+				LibraryPaths: single,
 				LibraryItems: single,
 			},
 			expectIncludeLen: 1,
@@ -55,7 +55,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			name: "multi inputs",
 			opts: utils.SharePointOpts{
 				Sites:        multi,
-				Libraries:    multi,
+				LibraryPaths: multi,
 				LibraryItems: multi,
 			},
 			expectIncludeLen: 1,
@@ -64,7 +64,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			name: "library contains",
 			opts: utils.SharePointOpts{
 				Sites:        empty,
-				Libraries:    containsOnly,
+				LibraryPaths: containsOnly,
 				LibraryItems: empty,
 			},
 			expectIncludeLen: 1,
@@ -73,7 +73,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			name: "library prefixes",
 			opts: utils.SharePointOpts{
 				Sites:        empty,
-				Libraries:    prefixOnly,
+				LibraryPaths: prefixOnly,
 				LibraryItems: empty,
 			},
 			expectIncludeLen: 1,
@@ -82,7 +82,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			name: "library prefixes and contains",
 			opts: utils.SharePointOpts{
 				Sites:        empty,
-				Libraries:    containsAndPrefix,
+				LibraryPaths: containsAndPrefix,
 				LibraryItems: empty,
 			},
 			expectIncludeLen: 2,

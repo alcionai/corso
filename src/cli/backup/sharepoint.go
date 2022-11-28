@@ -352,7 +352,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.SharePointOpts{
 		Sites:        site,
-		Libraries:    libraryPaths,
+		LibraryPaths: libraryPaths,
 		LibraryItems: libraryItems,
 
 		Populated: utils.GetPopulatedFlags(cmd),

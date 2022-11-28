@@ -14,7 +14,7 @@ const (
 type SharePointOpts struct {
 	Sites        []string
 	LibraryItems []string
-	Libraries    []string
+	LibraryPaths []string
 
 	Populated PopulatedFlags
 }
@@ -52,7 +52,7 @@ func IncludeSharePointRestoreDataSelectors(
 	sel *selectors.SharePointRestore,
 	opts SharePointOpts,
 ) {
-	lp, ln := len(opts.Libraries), len(opts.LibraryItems)
+	lp, ln := len(opts.LibraryPaths), len(opts.LibraryItems)
 
 	// only use the inclusion if either a path or item name
 	// is specified
@@ -71,13 +71,13 @@ func IncludeSharePointRestoreDataSelectors(
 		return
 	}
 
-	opts.Libraries = trimFolderSlash(opts.Libraries)
+	opts.LibraryPaths = trimFolderSlash(opts.LibraryPaths)
 
 	if ln == 0 {
 		opts.LibraryItems = selectors.Any()
 	}
 
-	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.Libraries)
+	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
 
 	if len(containsFolders) > 0 {
 		sel.Include(sel.LibraryItems(opts.Sites, containsFolders, opts.LibraryItems))
