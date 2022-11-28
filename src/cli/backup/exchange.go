@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -270,27 +272,67 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(user, exchangeData)
 
-	bo, err := r.NewBackup(ctx, sel)
+	// TODO(ashmrtn): Only call in the future if "*" or some other wildcard was
+	// given for resource owners.
+	users, err := m365.UserIDs(ctx, acct)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
-	err = bo.Run(ctx)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to run Exchange backup"))
+	var (
+		errs *multierror.Error
+		bIDs []model.StableID
+	)
+
+	// TODO(ashmrtn): Update to range over the cartesian product of resource
+	// owners and whatever options may have been in the scope containing the
+	// resource owners.
+	for _, scope := range sel.DiscreteScopes(users) {
+		for _, user := range scope.Get(selectors.ExchangeUser) {
+			opSel := selectors.NewExchangeBackup()
+			opSel.Include([]selectors.ExchangeScope{scope})
+
+			bo, err := r.NewBackup(ctx, opSel.Selector)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to initialize Exchange backup for user %s",
+					scope.Get(selectors.ExchangeUser),
+				))
+
+				continue
+			}
+
+			err = bo.Run(ctx)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to run Exchange backup for user %s",
+					scope.Get(selectors.ExchangeUser),
+				))
+
+				continue
+			}
+
+			bIDs = append(bIDs, bo.Results.BackupID)
+		}
 	}
 
-	bu, err := r.Backup(ctx, bo.Results.BackupID)
+	bups, err := r.BackupsByID(ctx, bIDs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}
 
-	bu.Print(ctx)
+	backup.PrintAll(ctx, bups)
+
+	if e := errs.ErrorOrNil(); e != nil {
+		return Only(ctx, e)
+	}
 
 	return nil
 }
 
-func exchangeBackupCreateSelectors(userIDs, data []string) selectors.Selector {
+func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBackup {
 	sel := selectors.NewExchangeBackup()
 
 	if len(data) == 0 {
@@ -310,7 +352,7 @@ func exchangeBackupCreateSelectors(userIDs, data []string) selectors.Selector {
 		}
 	}
 
-	return sel.Selector
+	return sel
 }
 
 func validateExchangeBackupCreateFlags(userIDs, data []string) error {
