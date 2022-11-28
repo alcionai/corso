@@ -8,6 +8,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
@@ -31,8 +34,9 @@ var (
 )
 
 const (
-	collectionChannelBufferSize = 1000
-	numberOfRetries             = 4
+	collectionChannelBufferSize  = 1000
+	numberOfRetries              = 4
+	urlPrefetchChannelBufferSize = 50
 )
 
 // Collection implements the interface from data.Collection
@@ -115,11 +119,10 @@ func (col *Collection) populateByOptionIdentifier(
 ) {
 	var (
 		errs       error
-		success    int
+		success    int64
 		totalBytes int64
 
-		user         = col.user
-		objectWriter = kw.NewJsonSerializationWriter()
+		user = col.user
 	)
 
 	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
@@ -127,7 +130,7 @@ func (col *Collection) populateByOptionIdentifier(
 
 	defer func() {
 		close(colProgress)
-		col.finishPopulation(ctx, success, totalBytes, errs)
+		col.finishPopulation(ctx, int(success), totalBytes, errs)
 	}()
 
 	// get QueryBasedonIdentifier
@@ -139,33 +142,78 @@ func (col *Collection) populateByOptionIdentifier(
 		return
 	}
 
+	limitCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	defer close(limitCh)
+	var wg sync.WaitGroup
+
+	type uerr struct {
+		user string
+		err  error
+	}
+	errCh := make(chan uerr)
+	defer close(errCh)
+
+	ffail := int64(0)
 	for _, identifier := range col.jobs {
-		response, err := query(ctx, col.service, user, identifier)
-		if err != nil {
-			errs = support.WrapAndAppendf(user, err, errs)
+		if ffail > 0 {
+			break
+		}
+		limitCh <- struct{}{}
 
-			if col.service.ErrPolicy() {
-				break
+		wg.Add(1)
+		go func(identifier string) {
+			defer func() { <-limitCh }()
+			defer wg.Done()
+
+			var (
+				response absser.Parsable
+				err      error
+			)
+			for i := 0; i < numberOfRetries; i++ {
+				response, err = query(ctx, col.service, user, identifier)
+				if err == nil {
+					break
+				}
+				// TODO: Tweak sleep times
+				time.Sleep(time.Duration(3*(i+1)) * time.Second)
+			}
+			if err != nil {
+				errCh <- uerr{user, err}
+				// errs = support.WrapAndAppendf(user, err, errs)
+
+				if col.service.ErrPolicy() {
+					atomic.AddInt64(&ffail, 1)
+				}
+
+				return
 			}
 
-			continue
-		}
+			byteCount, err := serializeFunc(ctx, col.service.Client(), kw.NewJsonSerializationWriter(), col.data, response, user)
+			if err != nil {
+				errs = support.WrapAndAppendf(user, err, errs)
 
-		byteCount, err := serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
-		if err != nil {
-			errs = support.WrapAndAppendf(user, err, errs)
+				if col.service.ErrPolicy() {
+					atomic.AddInt64(&ffail, 1)
+				}
 
-			if col.service.ErrPolicy() {
-				break
+				return
 			}
 
-			continue
+			atomic.AddInt64(&success, 1)
+			atomic.AddInt64(&totalBytes, int64(byteCount))
+
+			colProgress <- struct{}{}
+		}(identifier)
+	}
+
+	wg.Wait()
+
+	for i := 0; i < len(errCh); i++ {
+		e, ok := <-errCh
+		if !ok {
+			break
 		}
-
-		success++
-
-		totalBytes += int64(byteCount)
-		colProgress <- struct{}{}
+		errs = support.WrapAndAppendf(e.user, e.err, errs)
 	}
 }
 
