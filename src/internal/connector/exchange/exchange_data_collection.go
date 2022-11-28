@@ -152,7 +152,7 @@ func (col *Collection) populateByOptionIdentifier(
 		err  error
 	}
 
-	errCh := make(chan uerr)
+	errCh := make(chan uerr, len(col.jobs))
 	defer close(errCh)
 
 	ffail := int64(0)
@@ -179,7 +179,9 @@ func (col *Collection) populateByOptionIdentifier(
 					break
 				}
 				// TODO: Tweak sleep times
-				time.Sleep(time.Duration(3*(i+1)) * time.Second)
+				if i != numberOfRetries-1 {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+				}
 			}
 
 			if err != nil {
