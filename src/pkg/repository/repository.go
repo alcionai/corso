@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -28,6 +29,7 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
+	BackupsByID(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error)
 	Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
@@ -236,6 +238,27 @@ func (r repository) NewRestore(
 func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackup(ctx, id)
+}
+
+// BackupsByID lists backups by ID. Returns as many backups as possible with
+// errors for the backups it was unable to retrieve.
+func (r repository) BackupsByID(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error) {
+	var (
+		errs *multierror.Error
+		bups []*backup.Backup
+		sw   = store.NewKopiaStore(r.modelStore)
+	)
+
+	for _, id := range ids {
+		b, err := sw.GetBackup(ctx, id)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+
+		bups = append(bups, b)
+	}
+
+	return bups, errs.ErrorOrNil()
 }
 
 // backups lists backups in a repository
