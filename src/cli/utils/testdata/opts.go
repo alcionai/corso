@@ -408,6 +408,10 @@ func (MockBackupGetter) Backup(
 	return nil, errors.New("unexpected call to mock")
 }
 
+func (MockBackupGetter) BackupsByID(context.Context, []model.StableID) ([]*backup.Backup, error) {
+	return nil, errors.New("unexpected call to mock")
+}
+
 func (MockBackupGetter) Backups(context.Context, ...store.FilterOption) ([]*backup.Backup, error) {
 	return nil, errors.New("unexpected call to mock")
 }
