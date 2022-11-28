@@ -23,11 +23,11 @@ const (
 	collectionChannelBufferSize = 50
 
 	// TODO: Tune this later along with collectionChannelBufferSize
-	urlPrefetchChannelBufferSize = 50
+	urlPrefetchChannelBufferSize = 25
 
 	// Max number of retries to get doc from M365
 	// Seems to timeout at times because of multiple requests
-	maxRetries = 5
+	maxRetries = 4 // 1 + 3 retries
 )
 
 var (
