@@ -1,7 +1,7 @@
 import React from "react";
 import "animate.css";
 
-export default function FirstSection() {
+export default function Hero() {
   return (
     <section className="relative !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
       <div
@@ -33,12 +33,18 @@ export default function FirstSection() {
             </p>
           </div>
 
-          <div className="mt-12 !z-10 mb-6">
+          <div className="mt-12 !z-10 mb-6 space-x-4">
+            <a
+              href="../docs/quickstart"
+              className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
+            >
+              Quickstart
+            </a>
             <a
               href="../docs/setup/download"
               className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
             >
-              Download Now
+              Download
             </a>
           </div>
 

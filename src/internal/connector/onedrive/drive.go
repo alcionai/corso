@@ -11,6 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+	mssitedrives "github.com/microsoftgraph/msgraph-sdk-go/sites/item/drives"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -67,7 +68,39 @@ const (
 )
 
 // Enumerates the drives for the specified user
-func drives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
+func drives(
+	ctx context.Context,
+	service graph.Service,
+	resourceOwner string,
+	source driveSource,
+) ([]models.Driveable, error) {
+	switch source {
+	case OneDriveSource:
+		return userDrives(ctx, service, resourceOwner)
+	case SharePointSource:
+		return siteDrives(ctx, service, resourceOwner)
+	default:
+		return nil, errors.Errorf("unrecognized drive data source")
+	}
+}
+
+func siteDrives(ctx context.Context, service graph.Service, site string) ([]models.Driveable, error) {
+	options := &mssitedrives.DrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &mssitedrives.DrivesRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name", "weburl", "system"},
+		},
+	}
+
+	r, err := service.Client().SitesById(site).Drives().Get(ctx, options)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve site drives. site: %s, details: %s",
+			site, support.ConnectorStackErrorTrace(err))
+	}
+
+	return r.GetValue(), nil
+}
+
+func userDrives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
 	var hasDrive bool
 
 	hasDrive, err := hasDriveLicense(ctx, service, user)
@@ -237,7 +270,7 @@ func GetAllFolders(
 	userID string,
 	prefix string,
 ) ([]*Displayable, error) {
-	drives, err := drives(ctx, gs, userID)
+	drives, err := drives(ctx, gs, userID, OneDriveSource)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}
@@ -321,7 +354,7 @@ func hasDriveLicense(
 	cb := func(pageItem any) bool {
 		entry, ok := pageItem.(models.LicenseDetailsable)
 		if !ok {
-			err = errors.New("casting item to models.MailFolderable")
+			err = errors.New("casting item to models.LicenseDetailsable")
 			return false
 		}
 

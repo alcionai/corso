@@ -40,7 +40,7 @@ var corsoCmd = &cobra.Command{
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	v, _ := cmd.Flags().GetBool("version")
 	if v {
-		print.Infof(cmd.Context(), "Corso\nversion: "+version)
+		print.Outf(cmd.Context(), "Corso\nversion: "+version)
 		return nil
 	}
 

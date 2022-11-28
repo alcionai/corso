@@ -281,6 +281,8 @@ func getStreamItemFunc(
 		ctx, end := D.Span(ctx, "kopia:getStreamItemFunc")
 		defer end()
 
+		log := logger.Ctx(ctx)
+
 		// Collect all errors and return them at the end so that iteration for this
 		// directory doesn't end early.
 		var errs *multierror.Error
@@ -314,11 +316,12 @@ func getStreamItemFunc(
 					err = errors.Wrap(err, "getting full item path")
 					errs = multierror.Append(errs, err)
 
-					logger.Ctx(ctx).Error(err)
+					log.Error(err)
 
 					continue
 				}
 
+				log.Debugw("reading item", "path", itemPath.String())
 				trace.Log(ctx, "kopia:getStreamItemFunc:item", itemPath.String())
 
 				ei, ok := e.(data.StreamInfo)
@@ -326,8 +329,7 @@ func getStreamItemFunc(
 					errs = multierror.Append(
 						errs, errors.Errorf("item %q does not implement DataStreamInfo", itemPath))
 
-					logger.Ctx(ctx).Errorw(
-						"item does not implement DataStreamInfo; skipping", "path", itemPath)
+					log.Errorw("item does not implement DataStreamInfo; skipping", "path", itemPath)
 
 					continue
 				}

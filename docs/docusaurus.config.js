@@ -13,6 +13,7 @@ const config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
   favicon: 'img/corso_logo.svg',
+  trailingSlash: true,
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -84,7 +85,11 @@ const config = {
             position: 'left',
             label: 'Docs',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
+          {
+            to: '/blog',
+            label: 'Blog',
+            position: 'left'
+          },
           {
             href: 'https://github.com/alcionai/corso',
             label: 'GitHub',
@@ -164,7 +169,7 @@ const config = {
         {name: 'twitter:card', content: 'summary_large_image'},
         {name: 'twitter:site', content: '@corsobackup'},
         {name: 'twitter:title', content: 'Corso: Free, Secure, and Open-Source Backup for Microsoft 365'},
-        {name: 'twitter:description', content: 'Intro, Docs, and Blog for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
+        {name: 'twitter:description', content: 'Corso is an open-source tool that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
       ],
 
       prism: {
