@@ -143,7 +143,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	limitCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(limitCh)
 	var wg sync.WaitGroup
-	wg.Add(len(oc.driveItemIDs))
 
 	type uerr struct {
 		itemID string
@@ -159,6 +158,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		}
 		limitCh <- struct{}{}
 
+		wg.Add(1)
 		go func(itemID string) {
 			defer func() { <-limitCh }()
 			defer wg.Done()
