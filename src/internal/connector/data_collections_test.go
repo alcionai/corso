@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -162,16 +163,16 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	connector := loadConnector(ctx, suite.T(), Users)
+	connector := loadConnector(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
 	}{
 		{
-			name: "Items - TODO: actual sharepoint categories",
+			name: "Libraries",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
-				sel.Include(sel.Folders([]string{suite.site}, selectors.Any()))
+				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
 
 				return sel.Selector
 			},
@@ -180,24 +181,31 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := connector.SharePointDataCollections(ctx, test.getSelector(t))
+			collection, err := sharepoint.DataCollections(
+				ctx,
+				test.getSelector(t),
+				[]string{suite.site},
+				connector.credentials.AzureTenantID,
+				connector)
 			require.NoError(t, err)
 
-			// TODO: Implementation
-			// assert.Equal(t, len(collection), 1)
+			// we don't know an exact count of drives this will produce,
+			// but it should be more than one.
+			assert.Less(t, 1, len(collection))
 
-			// channel := collection[0].Items()
+			// the test only reads the firstt collection
+			connector.incrementAwaitingMessages()
 
-			// for object := range channel {
-			// 	buf := &bytes.Buffer{}
-			// 	_, err := buf.ReadFrom(object.ToReader())
-			// 	assert.NoError(t, err, "received a buf.Read error")
-			// }
+			for object := range collection[0].Items() {
+				buf := &bytes.Buffer{}
+				_, err := buf.ReadFrom(object.ToReader())
+				assert.NoError(t, err, "received a buf.Read error")
+			}
 
-			// status := connector.AwaitStatus()
-			// assert.NotZero(t, status.Successful)
+			status := connector.AwaitStatus()
+			assert.NotZero(t, status.Successful)
 
-			// t.Log(status.String())
+			t.Log(status.String())
 		})
 	}
 }
@@ -499,16 +507,17 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	var (
 		t      = suite.T()
-		userID = tester.M365UserID(t)
+		siteID = tester.M365SiteID(t)
+		gc     = loadConnector(ctx, t, Sites)
+		sel    = selectors.NewSharePointBackup()
 	)
 
-	gc := loadConnector(ctx, t, Sites)
-	scope := selectors.NewSharePointBackup().Folders(
-		[]string{userID},
+	sel.Include(sel.Libraries(
+		[]string{siteID},
 		[]string{"foo"},
 		selectors.PrefixMatch(),
-	)[0]
+	))
 
-	_, err := gc.createSharePointCollections(ctx, scope)
+	_, err := gc.DataCollections(ctx, sel.Selector)
 	require.NoError(t, err)
 }

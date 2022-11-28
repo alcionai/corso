@@ -1,14 +1,19 @@
 package connector
 
 import (
+	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -61,7 +66,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 
 	newConnector.graphService = *service
 
-	suite.Equal(len(newConnector.Users), 0)
+	suite.Empty(len(newConnector.Users))
 	err = newConnector.setTenantUsers(ctx)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Users))
@@ -88,6 +93,10 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	err = newConnector.setTenantSites(ctx)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Sites))
+
+	for _, site := range newConnector.Sites {
+		suite.NotContains("sharepoint.com/personal/", site)
+	}
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
@@ -148,6 +157,31 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 //-------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------------
+
+//revive:disable:context-as-argument
+func mustGetDefaultDriveID(
+	t *testing.T,
+	ctx context.Context,
+	service graph.Service,
+	userID string,
+) string {
+	//revive:enable:context-as-argument
+	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
+	if err != nil {
+		err = errors.Wrapf(
+			err,
+			"failed to retrieve default user drive. user: %s, details: %s",
+			userID,
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	require.NoError(t, err)
+	require.NotNil(t, d.GetId())
+	require.NotEmpty(t, *d.GetId())
+
+	return *d.GetId()
+}
 
 func runRestoreBackupTest(
 	t *testing.T,
@@ -248,6 +282,17 @@ func runRestoreBackupTest(
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service(),
+		suite.user,
+	)
 
 	table := []restoreBackupInfo{
 		{
@@ -465,6 +510,95 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 		},
 		// 	},
 		// },
+		{
+			name:     "OneDriveMultipleFoldersAndFiles",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("b", 65)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("c", 129)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("d", 257)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt",
+							data:      []byte(strings.Repeat("e", 257)),
+							lookupKey: "test-file.txt",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range table {

@@ -1,4 +1,4 @@
-.PHONY: buildimage build dev shell check genclidocs _validatemdgen
+.PHONY: buildimage build serve dev shell check genclidocs _validatemdgen publish sync
 
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
@@ -40,6 +40,9 @@ dockershell:
 build: genclidocs
 	$(DOCSC) npm run build
 
+serve:
+	$(DOCSC) npm run serve
+
 genclidocs: _validatemdgen ${MDGEN_BINARY}
 	@echo 'Auto-generating Corso CLI docs...'
 	$(DOCSC) rm -rf docs/cli
@@ -57,3 +60,13 @@ ${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shel
 clean:
 	$(DOCSC) rm -rf docs/cli build node_modules
 	$(GOC) rm -rf ${CORSO_BUILD_DIR}/*
+
+publish: clean build
+	docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+		-e AWS_SESSION_TOKEN -e AWS_REGION \
+		--rm -v ${PWD}:/usr/src/docs corso/docs:latest \
+	make sync
+
+sync:
+	aws s3 sync /usr/src/docs/build/ s3://corsobackup.io/ --exclude ".git/*" --delete
+	aws cloudfront create-invalidation --distribution-id E1W9NGI9YTVZ1A --paths "/*"

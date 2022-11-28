@@ -6,13 +6,14 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Corso Documentation',
+  title: 'Corso',
   tagline: 'Free, Secure, and Open-Source Backup for Microsoft 365',
-  url: 'https://docs.corsobackup.io',
+  url: 'https://corsobackup.io',
   baseUrl: process.env.CORSO_DOCS_BASEURL || '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
   favicon: 'img/corso_logo.svg',
+  trailingSlash: true,
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -84,7 +85,11 @@ const config = {
             position: 'left',
             label: 'Docs',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
+          {
+            to: '/blog',
+            label: 'Blog',
+            position: 'left'
+          },
           {
             href: 'https://github.com/alcionai/corso',
             label: 'GitHub',
@@ -133,11 +138,6 @@ const config = {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
               },
-              {
-                label: 'Corso Website',
-                href: 'https://corsobackup.io/',
-              },
-
             ],
           },
         ],
@@ -145,8 +145,8 @@ const config = {
       },
       colorMode: {
         defaultMode: 'dark',
-        disableSwitch: false,
-        respectPrefersColorScheme: true,
+        disableSwitch: true,
+        respectPrefersColorScheme: false,
       },
 
       zoom: {
@@ -168,8 +168,8 @@ const config = {
       metadata : [
         {name: 'twitter:card', content: 'summary_large_image'},
         {name: 'twitter:site', content: '@corsobackup'},
-        {name: 'twitter:title', content: 'Corso Documentation: Free, Secure, and Open-Source Backup for Microsoft 365'},
-        {name: 'twitter:description', content: 'Documentation for Corso, an open-source tool, that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
+        {name: 'twitter:title', content: 'Corso: Free, Secure, and Open-Source Backup for Microsoft 365'},
+        {name: 'twitter:description', content: 'Corso is an open-source tool that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
       ],
 
       prism: {

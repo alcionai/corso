@@ -43,7 +43,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderElements := []string{folderName1}
 	gs := loadTestService(t)
 
-	drives, err := drives(ctx, gs, suite.userID)
+	drives, err := drives(ctx, gs, suite.userID, OneDriveSource)
 	require.NoError(t, err)
 	require.NotEmpty(t, drives)
 
@@ -100,6 +100,18 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	}
 }
 
+type testFolderMatcher struct {
+	scope selectors.OneDriveScope
+}
+
+func (fm testFolderMatcher) IsAny() bool {
+	return fm.scope.IsAny(selectors.OneDriveFolder)
+}
+
+func (fm testFolderMatcher) Matches(path string) bool {
+	return fm.scope.Matches(selectors.OneDriveFolder, path)
+}
+
 func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -129,7 +141,8 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			odcs, err := NewCollections(
 				creds.AzureTenantID,
 				test.user,
-				scope,
+				OneDriveSource,
+				testFolderMatcher{scope},
 				service,
 				service.updateStatus,
 			).Get(ctx)
