@@ -150,7 +150,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		err    error
 	}
 
-	errCh := make(chan uerr)
+	errCh := make(chan uerr, len(oc.driveItemIDs))
 	defer close(errCh)
 
 	ffail := int64(0) // handling fast-fail
@@ -181,7 +181,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					break
 				}
 				// TODO: Tweak sleep times
-				time.Sleep(time.Duration(3*(i+1)) * time.Second)
+				if i != maxRetries-1 { // last run
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+				}
 			}
 
 			if err != nil {
