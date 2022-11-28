@@ -90,7 +90,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, oneDriveListCmd())
 
 		fs.StringVar(&backupID,
-			"backup", "",
+			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
