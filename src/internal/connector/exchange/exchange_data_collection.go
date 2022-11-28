@@ -122,6 +122,8 @@ func (col *Collection) populateByOptionIdentifier(
 		success    int64
 		totalBytes int64
 
+		wg sync.WaitGroup
+
 		user = col.user
 	)
 
@@ -144,12 +146,12 @@ func (col *Collection) populateByOptionIdentifier(
 
 	limitCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(limitCh)
-	var wg sync.WaitGroup
 
 	type uerr struct {
 		user string
 		err  error
 	}
+
 	errCh := make(chan uerr)
 	defer close(errCh)
 
@@ -161,6 +163,7 @@ func (col *Collection) populateByOptionIdentifier(
 		limitCh <- struct{}{}
 
 		wg.Add(1)
+
 		go func(identifier string) {
 			defer func() { <-limitCh }()
 			defer wg.Done()
@@ -169,6 +172,7 @@ func (col *Collection) populateByOptionIdentifier(
 				response absser.Parsable
 				err      error
 			)
+
 			for i := 0; i < numberOfRetries; i++ {
 				response, err = query(ctx, col.service, user, identifier)
 				if err == nil {
@@ -177,9 +181,9 @@ func (col *Collection) populateByOptionIdentifier(
 				// TODO: Tweak sleep times
 				time.Sleep(time.Duration(3*(i+1)) * time.Second)
 			}
+
 			if err != nil {
 				errCh <- uerr{user, err}
-				// errs = support.WrapAndAppendf(user, err, errs)
 
 				if col.service.ErrPolicy() {
 					atomic.AddInt64(&ffail, 1)
@@ -190,7 +194,7 @@ func (col *Collection) populateByOptionIdentifier(
 
 			byteCount, err := serializeFunc(ctx, col.service.Client(), kw.NewJsonSerializationWriter(), col.data, response, user)
 			if err != nil {
-				errs = support.WrapAndAppendf(user, err, errs)
+				errCh <- uerr{user, err}
 
 				if col.service.ErrPolicy() {
 					atomic.AddInt64(&ffail, 1)
@@ -213,6 +217,7 @@ func (col *Collection) populateByOptionIdentifier(
 		if !ok {
 			break
 		}
+
 		errs = support.WrapAndAppendf(e.user, e.err, errs)
 	}
 }
