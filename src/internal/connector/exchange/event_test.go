@@ -26,7 +26,9 @@ func TestEventSuite(t *testing.T) {
 // TestEventInfo verifies that searchable event metadata
 // can be properly retrieved from a models.Eventable object
 func (suite *EventSuite) TestEventInfo() {
-	initial := time.Now()
+	// Exchange stores start/end times in UTC and the below compares hours
+	// directly so we need to "normalize" the timezone here.
+	initial := time.Now().UTC()
 	now := common.FormatTimeWith(initial, common.M365DateTimeTimeZone)
 
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
