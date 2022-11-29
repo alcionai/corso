@@ -136,7 +136,7 @@ func prepNewBackupOp(
 	closer := func() { k.Close(ctx) }
 
 	kw, err := kopia.NewWrapper(k)
-	if assert.NoError(t, err) {
+	if !assert.NoError(t, err) {
 		closer()
 		t.FailNow()
 	}
@@ -147,7 +147,7 @@ func prepNewBackupOp(
 	}
 
 	ms, err := kopia.NewModelStore(k)
-	if assert.NoError(t, err) {
+	if !assert.NoError(t, err) {
 		closer()
 		t.FailNow()
 	}
@@ -160,8 +160,6 @@ func prepNewBackupOp(
 
 	sw := store.NewKopiaStore(ms)
 
-	mb := evmock.NewBus()
-
 	bo, err := NewBackupOperation(
 		ctx,
 		control.Options{},
@@ -169,8 +167,8 @@ func prepNewBackupOp(
 		sw,
 		acct,
 		sel,
-		mb)
-	if assert.NoError(t, err) {
+		bus)
+	if !assert.NoError(t, err) {
 		closer()
 		t.FailNow()
 	}
@@ -186,6 +184,7 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoOperationTests,
+		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
