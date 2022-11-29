@@ -40,6 +40,7 @@ const (
 	ContactsCategory               // contacts
 	EventsCategory                 // events
 	FilesCategory                  // files
+	ListsCategory                  // lists
 	LibrariesCategory              // libraries
 )
 
@@ -55,6 +56,8 @@ func ToCategoryType(category string) CategoryType {
 		return FilesCategory
 	case LibrariesCategory.String():
 		return LibrariesCategory
+	case ListsCategory.String():
+		return ListsCategory
 	default:
 		return UnknownCategory
 	}
@@ -72,7 +75,7 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	},
 	SharePointService: {
 		LibrariesCategory: {},
-		// TODO: Lists
+		ListsCategory:     {},
 	},
 }
 
