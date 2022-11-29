@@ -326,6 +326,8 @@ jobs:
           go-version-file: src/go.mod
 
       - name: Go Lint
+        env:
+          GOROOT: /usr/local/go
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.45.2
