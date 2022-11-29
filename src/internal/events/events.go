@@ -96,7 +96,7 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 
 	return Bus{
 		client:  client,
-		repoID:  repoHash(s),
+		repoID:  repoHash(s, tenID),
 		tenant:  tenantHash(tenID),
 		version: "vTODO", // TODO: corso versioning implementation
 	}, nil
@@ -164,8 +164,8 @@ func storageID(s storage.Storage) string {
 	return id
 }
 
-func repoHash(s storage.Storage) string {
-	return md5HashOf(storageID(s))
+func repoHash(s storage.Storage, tenID string) string {
+	return md5HashOf(storageID(s) + tenID)
 }
 
 func tenantHash(tenID string) string {
