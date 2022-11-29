@@ -42,6 +42,7 @@ func TestSharePointSuite(t *testing.T) {
 // Functions tested:
 // - fetchListItems()
 // - fetchColumns()
+// - fetchContentBaseTypes
 // - fetchContentColumns()
 // - fetchContentTypes()
 // - fetchColumnLinks
