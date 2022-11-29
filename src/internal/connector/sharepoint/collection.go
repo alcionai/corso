@@ -135,41 +135,9 @@ func (sc *Collection) populate(ctx context.Context) {
 			if arrayLength > 0 {
 				success++
 				totalBytes += arrayLength
-				sc.data <- &Stream{id: *lst.GetId(), message: byteArray, info: sharePointListInfo(lst, arrayLength)}
+				sc.data <- &Item{id: *lst.GetId(), data: io.NopCloser(bytes.NewReader(byteArray)), info: sharePointListInfo(lst, arrayLength)}
 			}
 		}
 
 	}
-}
-
-// Stream represents an individual SharePoint object retrieved from exchange
-type Stream struct {
-	id      string
-	message []byte
-	info    *details.SharePointInfo
-}
-
-func NewStream(streamID string, dataBytes []byte, detail details.SharePointInfo) Stream {
-	return Stream{
-		id:      streamID,
-		message: dataBytes,
-		info:    &detail,
-	}
-
-}
-
-//==============================
-// Interface Functions
-//==============================
-
-func (od *Stream) UUID() string {
-	return od.id
-}
-
-func (od *Stream) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(od.message))
-}
-
-func (od *Stream) Info() details.ItemInfo {
-	return details.ItemInfo{SharePoint: od.info}
 }
