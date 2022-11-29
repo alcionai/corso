@@ -1,6 +1,7 @@
 package sharepoint
 
 import (
+	"bytes"
 	"context"
 	"io"
 
@@ -99,4 +100,36 @@ func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBy
 		errs,
 		sc.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
+}
+
+// Stream represents an individual SharePoint object retrieved from exchange
+type Stream struct {
+	id      string
+	message []byte
+	info    *details.SharePointInfo
+}
+
+func NewStream(streamID string, dataBytes []byte, detail details.SharePointInfo) Stream {
+	return Stream{
+		id:      streamID,
+		message: dataBytes,
+		info:    &detail,
+	}
+
+}
+
+//==============================
+// Interface Functions
+//==============================
+
+func (od *Stream) UUID() string {
+	return od.id
+}
+
+func (od *Stream) ToReader() io.ReadCloser {
+	return io.NopCloser(bytes.NewReader(od.message))
+}
+
+func (od *Stream) Info() details.ItemInfo {
+	return details.ItemInfo{SharePoint: od.info}
 }
