@@ -160,7 +160,6 @@ func (sc *Collection) populate(ctx context.Context) {
 				}
 
 				colProgress <- struct{}{}
-
 			}
 		}
 	}
