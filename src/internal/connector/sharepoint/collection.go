@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -66,6 +67,7 @@ func (sc *Collection) FullPath() path.Path {
 }
 
 func (sc *Collection) Items() <-chan data.Stream {
+	go sc.populate(context.TODO())
 	return sc.data
 }
 
@@ -104,6 +106,7 @@ func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBy
 	logger.Ctx(ctx).Debug(status.String())
 }
 
+// populate utility function to retrieve data from back store for a given collection
 func (sc *Collection) populate(ctx context.Context) {
 	var (
 		success                 int
@@ -112,11 +115,23 @@ func (sc *Collection) populate(ctx context.Context) {
 		writer                  = kw.NewJsonSerializationWriter()
 	)
 
+	// TODO: Insert correct ID for CollectionProgress
+	colProgress, closer := observe.CollectionProgress("name", sc.fullPath.Category().String(), sc.fullPath.Folder())
+	go closer()
+
+	defer func() {
+		close(colProgress)
+		sc.finishPopulation(ctx, success, totalBytes, errs)
+	}()
+
 	// sc.jobs contains query = all of the site IDs.
 	for _, identifier := range sc.jobs {
 		// Retrieve list data from M365
 		lists, err := loadLists(ctx, sc.service, identifier)
-		// Transfer list data to
+		if err != nil {
+			errs = support.WrapAndAppend(identifier, err, errs)
+		}
+		// Write Data and Send
 		for _, lst := range lists {
 			err = writer.WriteObjectValue("", lst)
 			if err != nil {
@@ -130,14 +145,23 @@ func (sc *Collection) populate(ctx context.Context) {
 				continue
 			}
 
+			writer.Close()
+
 			arrayLength = int64(len(byteArray))
 
 			if arrayLength > 0 {
-				success++
 				totalBytes += arrayLength
-				sc.data <- &Item{id: *lst.GetId(), data: io.NopCloser(bytes.NewReader(byteArray)), info: sharePointListInfo(lst, arrayLength)}
+
+				success++
+				sc.data <- &Item{
+					id:   *lst.GetId(),
+					data: io.NopCloser(bytes.NewReader(byteArray)),
+					info: sharePointListInfo(lst, arrayLength),
+				}
+
+				colProgress <- struct{}{}
+
 			}
 		}
-
 	}
 }
