@@ -284,13 +284,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	// TODO(ashmrtn): Update to range over the cartesian product of resource
-	// owners and whatever options may have been in the scope containing the
-	// resource owners.
 	for _, scope := range sel.DiscreteScopes(users) {
-		for _, user := range scope.Get(selectors.ExchangeUser) {
+		for _, selUser := range scope.Get(selectors.ExchangeUser) {
 			opSel := selectors.NewExchangeBackup()
-			opSel.Include([]selectors.ExchangeScope{scope})
+			opSel.Include([]selectors.ExchangeScope{scope.DiscreteCopy(selUser)})
 
 			bo, err := r.NewBackup(ctx, opSel.Selector)
 			if err != nil {

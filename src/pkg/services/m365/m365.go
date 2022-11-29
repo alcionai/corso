@@ -20,6 +20,17 @@ func Users(ctx context.Context, m365Account account.Account) ([]string, error) {
 	return gc.GetUsers(), nil
 }
 
+// Sites returns a list of SharePoint sites in the specified M365 tenant
+// TODO: Implement paging support
+func Sites(ctx context.Context, m365Account account.Account) ([]string, error) {
+	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Sites)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+	}
+
+	return gc.GetSites(), nil
+}
+
 // UserIDs returns a list of user IDs for the specified M365 tenant
 // TODO: Implement paging support
 func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error) {
