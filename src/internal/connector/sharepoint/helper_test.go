@@ -1,9 +1,6 @@
 package sharepoint
 
 import (
-	"bytes"
-	"io"
-
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/pkg/errors"
 
@@ -51,8 +48,4 @@ func createTestService(credentials account.M365Config) (*testService, error) {
 
 		return &service, nil
 	}
-}
-
-func readerWrapper(byteArray []byte) io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(byteArray))
 }
