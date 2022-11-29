@@ -10,6 +10,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	kw "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 )
 
 type DataCategory int
@@ -99,4 +102,87 @@ func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBy
 		errs,
 		sc.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
+}
+
+func (sc *Collection) populate(ctx context.Context) {
+	var (
+		success     int
+		totalyBytes int64
+		errs        error
+		writer      = kw.NewJsonSerializationWriter()
+	)
+
+	// sc.jobs contains query = all of the site IDs.
+	for _, identifier := range sc.jobs {
+		query, err := sc.service.Client().SitesById(identifier).Lists().Get(ctx, nil)
+		if err != nil {
+			errs = support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+		}
+		lists, err := loadLists(ctx, sc.service, identifier, query)
+		for _, completeList := range lists {
+			err = writer.WriteObjectValue("", completeList)
+			if err != nil {
+				errs = support.WrapAndAppend(*completeList.GetId(), err, errs)
+				continue
+			}
+
+			byteArray, err := writer.GetSerializedContent()
+			if err != nil {
+				errs = support.WrapAndAppend(*completeList.GetId(), err, errs)
+				continue
+			}
+
+			if len(byteArray) > 0 {
+				success++
+				sc.data <- &Stream{id: completeList.GetId()}
+			}
+		}
+
+		// serialize the data
+		// place in data stream
+	}
+}
+
+func loadLists(
+	ctx context.Context,
+	gs graph.Service,
+	identifier string,
+	resp models.ListCollectionResponseable,
+) ([]models.Listable, error) {
+	listing := make([]models.Listable, 0)
+	prefix := gs.Client().SitesById(identifier)
+
+	for _, entry := range resp.GetValue() {
+		id := *entry.GetId()
+		// get columns
+		q1, _ := prefix.ListsById(id).Columns().Get(ctx, nil)
+		cols, _ := loadColumns(ctx, gs, identifier, q1)
+		entry.SetColumns(cols)
+		// get contentTypes
+
+		q2, _ := prefix.ListsById(id).ContentTypes().Get(ctx, nil)
+		if q2 != nil {
+			cTypes, err := loadContentTypes(ctx, gs, identifier, q2)
+			if err != nil {
+				return nil, err
+			}
+
+			entry.SetContentTypes(cTypes)
+		}
+
+		q3, err := prefix.ListsById(id).Items().Get(ctx, nil)
+
+		if err != nil {
+			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		}
+
+		if q3 != nil {
+			items, _ := loadListItems(ctx, gs, identifier, id, q3)
+			entry.SetItems(items)
+		}
+
+		listing = append(listing, entry)
+	}
+
+	return listing, nil
 }
