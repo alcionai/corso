@@ -436,28 +436,28 @@ var (
 			Name:     "AllLibraryItems",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				Libraries: selectors.Any(),
+				LibraryPaths: selectors.Any(),
 			},
 		},
 		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				Libraries: []string{testdata.SharePointLibraryFolder},
+				LibraryPaths: []string{testdata.SharePointLibraryFolder},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				Libraries: []string{testdata.SharePointLibraryFolder + "/"},
+				LibraryPaths: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				Libraries: []string{testdata.SharePointLibraryFolder + "/"},
+				LibraryPaths: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
