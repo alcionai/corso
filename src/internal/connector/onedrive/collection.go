@@ -170,13 +170,13 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			// Retrying as we were hitting timeouts when we have multiple requests
 			// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
-			for i := 0; i < maxRetries; i++ {
+			for i := 1; i <= maxRetries; i++ {
 				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
 				if err == nil {
 					break
 				}
 				// TODO: Tweak sleep times
-				if i != maxRetries-1 { // last run
+				if i < maxRetries {
 					time.Sleep(time.Duration(3*(i+1)) * time.Second)
 				}
 			}
