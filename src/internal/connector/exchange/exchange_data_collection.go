@@ -34,9 +34,12 @@ var (
 )
 
 const (
-	collectionChannelBufferSize  = 1000
-	numberOfRetries              = 4
-	urlPrefetchChannelBufferSize = 50
+	collectionChannelBufferSize = 1000
+	numberOfRetries             = 4
+
+	// Outlooks expects max 4 concurrent requests
+	// https://learn.microsoft.com/en-us/graph/throttling-limits#outlook-service-limits
+	urlPrefetchChannelBufferSize = 4
 )
 
 // Collection implements the interface from data.Collection
