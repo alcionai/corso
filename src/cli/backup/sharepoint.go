@@ -1,6 +1,8 @@
 package backup
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -12,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -23,7 +26,9 @@ import (
 // ------------------------------------------------------------------------------------------------
 
 var (
-	site []string
+	site         []string
+	libraryPaths []string
+	libraryItems []string
 
 	sharepointData []string
 )
@@ -33,10 +38,10 @@ const (
 )
 
 const (
-	sharePointServiceCommand                = "sharepoint"
-	sharePointServiceCommandCreateUseSuffix = "--site <siteId> | '" + utils.Wildcard + "'"
-	sharePointServiceCommandDeleteUseSuffix = "--backup <backupId>"
-	// sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
+	sharePointServiceCommand                 = "sharepoint"
+	sharePointServiceCommandCreateUseSuffix  = "--site <siteId> | '" + utils.Wildcard + "'"
+	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
@@ -54,9 +59,9 @@ corso backup create sharepoint --site '*'`
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-//	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
-//
-// corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>`
+	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
+
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>`
 )
 
 // called by backup.go to map parent subcommands to provider-specific handling.
@@ -80,18 +85,45 @@ func addSharePointCommands(parent *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&sharepointData,
 			utils.DataFN, nil,
-			"Select one or more types of data to backup: "+dataLibraries)
+			"Select one or more types of data to backup: "+dataLibraries+".")
 		options.AddOperationFlags(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(parent, sharePointListCmd(), utils.HideCommand())
 
 		fs.StringVar(&backupID,
-			"backup", "",
+			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
-	// case detailsCommand:
-	// 	c, fs = utils.AddCommand(parent, sharePointDetailsCmd())
+	case detailsCommand:
+		c, fs = utils.AddCommand(parent, sharePointDetailsCmd())
+
+		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
+		c.Example = sharePointServiceCommandDetailsExamples
+
+		fs.StringVar(&backupID,
+			utils.BackupFN, "",
+			"ID of the backup to retrieve.")
+		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
+
+		// sharepoint hierarchy flags
+
+		fs.StringSliceVar(
+			&libraryPaths,
+			utils.LibraryFN, nil,
+			"Select backup details by Library name.")
+
+		fs.StringSliceVar(
+			&libraryItems,
+			utils.LibraryItemFN, nil,
+			"Select backup details by library item name or ID.")
+
+		// info flags
+
+		// fs.StringVar(
+		// 	&fileCreatedAfter,
+		// 	utils.FileCreatedAfterFN, "",
+		// 	"Select backup details for items created after this datetime.")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(parent, sharePointDeleteCmd(), utils.HideCommand())
@@ -281,4 +313,94 @@ func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
 	Info(ctx, "Deleted SharePoint backup ", backupID)
 
 	return nil
+}
+
+// ------------------------------------------------------------------------------------------------
+// backup details
+// ------------------------------------------------------------------------------------------------
+
+// `corso backup details onedrive [<flag>...]`
+func sharePointDetailsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     sharePointServiceCommand,
+		Short:   "Shows the details of a M365 SharePoint service backup",
+		RunE:    detailsSharePointCmd,
+		Args:    cobra.NoArgs,
+		Example: sharePointServiceCommandDetailsExamples,
+	}
+}
+
+// lists the history of backup operations
+func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, err := repository.Connect(ctx, acct, s, options.Control())
+	if err != nil {
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	opts := utils.SharePointOpts{
+		Sites:        site,
+		LibraryPaths: libraryPaths,
+		LibraryItems: libraryItems,
+
+		Populated: utils.GetPopulatedFlags(cmd),
+	}
+
+	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	if len(ds.Entries) == 0 {
+		Info(ctx, selectors.ErrorNoMatchingItems)
+		return nil
+	}
+
+	ds.PrintEntries(ctx)
+
+	return nil
+}
+
+// runDetailsSharePointCmd actually performs the lookup in backup details.
+func runDetailsSharePointCmd(
+	ctx context.Context,
+	r repository.BackupGetter,
+	backupID string,
+	opts utils.SharePointOpts,
+) (*details.Details, error) {
+	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
+		return nil, err
+	}
+
+	d, _, err := r.BackupDetails(ctx, backupID)
+	if err != nil {
+		if errors.Is(err, kopia.ErrNotFound) {
+			return nil, errors.Errorf("no backup exists with the id %s", backupID)
+		}
+
+		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
+	}
+
+	sel := selectors.NewSharePointRestore()
+	utils.IncludeSharePointRestoreDataSelectors(sel, opts)
+	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+
+	// if no selector flags were specified, get all data in the service.
+	if len(sel.Scopes()) == 0 {
+		sel.Include(sel.Sites(selectors.Any()))
+	}
+
+	return sel.Reduce(ctx, d), nil
 }
