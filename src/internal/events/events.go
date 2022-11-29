@@ -96,7 +96,7 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 
 	return Bus{
 		client:  client,
-		repoID:  repoHash(s, tenID),
+		repoID:  repoHash(s),
 		tenant:  tenantHash(tenID),
 		version: "vTODO", // TODO: corso versioning implementation
 	}, nil
@@ -130,7 +130,8 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 		err := b.client.Enqueue(analytics.Identify{
 			UserId: b.repoID,
 			Traits: analytics.NewTraits().
-				SetName(b.repoID),
+				SetName(b.tenant).
+				Set(tenantID, b.tenant),
 		})
 		if err != nil {
 			logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
@@ -164,8 +165,8 @@ func storageID(s storage.Storage) string {
 	return id
 }
 
-func repoHash(s storage.Storage, tenID string) string {
-	return md5HashOf(storageID(s) + tenID)
+func repoHash(s storage.Storage) string {
+	return md5HashOf(storageID(s))
 }
 
 func tenantHash(tenID string) string {
