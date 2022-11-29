@@ -174,7 +174,7 @@ func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
 			decor.Name(message),
-			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 4}),
+			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8}),
 		),
 		mpb.BarFillerOnComplete("done"),
 	)
@@ -252,8 +252,8 @@ func ProgressWithCount(header, message string, count int64) (chan<- struct{}, fu
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Counters(0, " %d/%d "),
 			decor.Name(message),
+			decor.Counters(0, " %d/%d "),
 		),
 	}
 

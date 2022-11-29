@@ -109,6 +109,13 @@ var (
 				return pb.ToDataLayerSharePointPath(tenant, site, path.LibrariesCategory, isItem)
 			},
 		},
+		{
+			service:  path.SharePointService,
+			category: path.ListsCategory,
+			pathFunc: func(pb *path.Builder, tenant, site string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerSharePointPath(tenant, site, path.ListsCategory, isItem)
+			},
+		},
 	}
 )
 

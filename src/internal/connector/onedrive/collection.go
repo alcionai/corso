@@ -123,7 +123,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	folderProgress, colCloser := observe.ProgressWithCount(
 		observe.ItemQueueMsg,
-		"Folder: /"+parentPathString,
+		"/"+parentPathString,
 		int64(len(oc.driveItemIDs)),
 	)
 	defer colCloser()

@@ -17,30 +17,29 @@ import (
 
 // keys for ease of use
 const (
-	corsoVersion = "corso-version"
-	repoID       = "repo-id"
-	payload      = "payload"
+	corsoVersion = "corso_version"
+	repoID       = "repo_id"
 
 	// Event Keys
-	RepoInit     = "repo-init"
-	BackupStart  = "backup-start"
-	BackupEnd    = "backup-end"
-	RestoreStart = "restore-start"
-	RestoreEnd   = "restore-end"
+	RepoInit     = "repo_init"
+	BackupStart  = "backup_start"
+	BackupEnd    = "backup_end"
+	RestoreStart = "restore_start"
+	RestoreEnd   = "restore_end"
 
 	// Event Data Keys
-	BackupCreateTime = "backup-creation-time"
-	BackupID         = "backup-id"
-	DataRetrieved    = "data-retrieved"
-	DataStored       = "data-stored"
+	BackupCreateTime = "backup_creation_time"
+	BackupID         = "backup_id"
+	DataRetrieved    = "data_retrieved"
+	DataStored       = "data_stored"
 	Duration         = "duration"
-	EndTime          = "end-time"
-	ItemsRead        = "items-read"
-	ItemsWritten     = "items-written"
+	EndTime          = "end_time"
+	ItemsRead        = "items_read"
+	ItemsWritten     = "items_written"
 	Resources        = "resources"
-	RestoreID        = "restore-id"
+	RestoreID        = "restore_id"
 	Service          = "service"
-	StartTime        = "start-time"
+	StartTime        = "start_time"
 	Status           = "status"
 )
 
@@ -120,8 +119,20 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 		Set(repoID, b.repoID).
 		Set(corsoVersion, b.version)
 
-	if len(data) > 0 {
-		props.Set(payload, data)
+	for k, v := range data {
+		props.Set(k, v)
+	}
+
+	// need to setup identity when initializing a new repo
+	if key == RepoInit {
+		err := b.client.Enqueue(analytics.Identify{
+			UserId: b.repoID,
+			Traits: analytics.NewTraits().
+				SetName(b.repoID),
+		})
+		if err != nil {
+			logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
+		}
 	}
 
 	err := b.client.Enqueue(analytics.Track{

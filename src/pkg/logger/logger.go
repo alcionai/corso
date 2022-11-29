@@ -25,6 +25,7 @@ const (
 	Info
 	Warn
 	Production
+	Disabled
 )
 
 const logLevelFN = "log-level"
@@ -80,6 +81,8 @@ func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
 			return lvl >= zapcore.WarnLevel
 		case Production:
 			return lvl >= zapcore.ErrorLevel
+		case Disabled:
+			return false
 		default:
 			return true
 		}
@@ -104,6 +107,8 @@ func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 		case Warn:
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.WarnLevel)
+		case Disabled:
+			cfg.Level = zap.NewAtomicLevelAt(zapcore.FatalLevel)
 		}
 
 		lgr, err = cfg.Build()
@@ -144,7 +149,7 @@ type loggingKey string
 
 const ctxKey loggingKey = "corsoLogger"
 
-// Seed embeds a logger into the context for later retrieval.
+// Seed generates a logger within the context for later retrieval.
 // It also parses the command line for flag values prior to executing
 // cobra.  This early parsing is necessary since logging depends on
 // a seeded context prior to cobra evaluating flags.
@@ -154,22 +159,28 @@ func Seed(ctx context.Context, lvl string) (context.Context, *zap.SugaredLogger)
 	}
 
 	zsl := singleton(levelOf(lvl))
-	ctxOut := context.WithValue(ctx, ctxKey, zsl)
 
-	return ctxOut, zsl
+	return Set(ctx, zsl), zsl
 }
 
-// SeedLevel embeds a logger into the context with the given log-level.
+// SeedLevel generates a logger within the context with the given log-level.
 func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.SugaredLogger) {
 	l := ctx.Value(ctxKey)
 	if l == nil {
 		zsl := singleton(level)
-		ctxWV := context.WithValue(ctx, ctxKey, zsl)
-
-		return ctxWV, zsl
+		return Set(ctx, zsl), zsl
 	}
 
 	return ctx, l.(*zap.SugaredLogger)
+}
+
+// Set allows users to embed their own zap.SugaredLogger within the context.
+func Set(ctx context.Context, logger *zap.SugaredLogger) context.Context {
+	if logger == nil {
+		return ctx
+	}
+
+	return context.WithValue(ctx, ctxKey, logger)
 }
 
 // Ctx retrieves the logger embedded in the context.
@@ -191,6 +202,8 @@ func levelOf(lvl string) logLevel {
 		return Warn
 	case "error":
 		return Production
+	case "disabled":
+		return Disabled
 	}
 
 	return Info

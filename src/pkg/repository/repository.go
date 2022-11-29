@@ -69,13 +69,13 @@ type repository struct {
 }
 
 // Initialize will:
-//  * validate the m365 account & secrets
-//  * connect to the m365 account to ensure communication capability
-//  * validate the provider config & secrets
-//  * initialize the kopia repo with the provider
-//  * store the configuration details
-//  * connect to the provider
-//  * return the connected repository
+//   - validate the m365 account & secrets
+//   - connect to the m365 account to ensure communication capability
+//   - validate the provider config & secrets
+//   - initialize the kopia repo with the provider
+//   - store the configuration details
+//   - connect to the provider
+//   - return the connected repository
 func Initialize(
 	ctx context.Context,
 	acct account.Account,
@@ -126,10 +126,10 @@ func Initialize(
 }
 
 // Connect will:
-//  * validate the m365 account details
-//  * connect to the m365 account to ensure communication capability
-//  * connect to the provider storage
-//  * return the connected repository
+//   - validate the m365 account details
+//   - connect to the m365 account to ensure communication capability
+//   - connect to the provider storage
+//   - return the connected repository
 func Connect(
 	ctx context.Context,
 	acct account.Account,

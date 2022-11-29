@@ -243,6 +243,21 @@ func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
 	return s
 }
 
+// discreteCopy makes a shallow clone of the scocpe, and sets the resource
+// owner filter target in the clone to the provided string.
+func discreteCopy[T scopeT](s T, resourceOwner string) T {
+	clone := T{}
+
+	for k, v := range s {
+		clone[k] = v
+	}
+
+	return set(
+		clone,
+		clone.categorizer().rootCat(),
+		[]string{resourceOwner})
+}
+
 // returns true if the category is included in the scope's category type,
 // and the value is set to None().
 func isNoneTarget[T scopeT, C categoryT](s T, cat C) bool {

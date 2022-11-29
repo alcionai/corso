@@ -30,7 +30,7 @@
 
 - Set M365 Credentials environment variables
 
-    > You can find more information on how to get these values in our [M365 docs](../setup/m365_access).
+    > You can find more information on how to get these values in our [M365 docs](../../setup/m365_access/).
 
     ```bash
     export AZURE_CLIENT_ID=<id>
