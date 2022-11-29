@@ -181,7 +181,7 @@ func runBackupListLoadTest(
 		)
 
 		pprof.Do(ctx, labels, func(ctx context.Context) {
-			bs, err = r.Backups(ctx)
+			bs, err = r.BackupsByTag(ctx)
 		})
 
 		require.NoError(t, err, "retrieving backups")

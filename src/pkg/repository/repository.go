@@ -29,8 +29,8 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	BackupsByID(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error)
-	Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
+	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error)
+	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
@@ -242,7 +242,7 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 
 // BackupsByID lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
-func (r repository) BackupsByID(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error) {
+func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error) {
 	var (
 		errs *multierror.Error
 		bups []*backup.Backup
@@ -262,7 +262,7 @@ func (r repository) BackupsByID(ctx context.Context, ids []model.StableID) ([]*b
 }
 
 // backups lists backups in a repository
-func (r repository) Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
+func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackups(ctx, fs...)
 }
