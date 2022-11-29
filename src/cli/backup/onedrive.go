@@ -344,8 +344,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runDetailsOneDriveCmd actually performs the lookup in backup details. Assumes
-// len(backupID) > 0.
+// runDetailsOneDriveCmd actually performs the lookup in backup details.
 func runDetailsOneDriveCmd(
 	ctx context.Context,
 	r repository.BackupGetter,

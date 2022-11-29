@@ -373,8 +373,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runDetailsSharePointCmd actually performs the lookup in backup details. Assumes
-// len(backupID) > 0.
+// runDetailsSharePointCmd actually performs the lookup in backup details.
 func runDetailsSharePointCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
