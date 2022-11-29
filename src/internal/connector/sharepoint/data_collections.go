@@ -61,12 +61,7 @@ func DataCollections(
 			// collect Lists
 			// done?
 			case path.ListsCategory:
-				listCols, err := collectLists(
-					ctx,
-					serv,
-					tenantID,
-					site,
-				)
+				return nil, fmt.Errorf("sharePoint list collections not supported")
 
 			case path.LibrariesCategory:
 				spcs, err := collectLibraries(
