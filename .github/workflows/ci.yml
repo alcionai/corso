@@ -324,9 +324,9 @@ jobs:
       - name: Go Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.45.2
           working-directory: src
-          skip-cache: true
+          skip-pkg-cache: true
+          skip-build-cache: true
 
       # check licenses
       - name: Get go-licenses
