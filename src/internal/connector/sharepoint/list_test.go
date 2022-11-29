@@ -38,38 +38,22 @@ func TestSharePointSuite(t *testing.T) {
 	suite.Run(t, new(SharePointSuite))
 }
 
-func (suite *SharePointSuite) TestGetSite() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	service, err := createTestService(suite.creds)
-	require.NoError(suite.T(), err)
-
-	err = GetSite(ctx, service, suite.userID)
-	assert.NoError(suite.T(), err)
-
-}
-
+// Test LoadList --> Retrieves all data from backStore
+// Functions tested:
+// - fetchListItems()
+// - fetchColumns()
+// - fetchContentColumns()
+// - fetchContentTypes()
+// - fetchColumnLinks
+// - fetchColumnPositions
 func (suite *SharePointSuite) TestLoadList() {
 	ctx, flush := tester.NewContext()
 	defer flush()
+
 	service, err := createTestService(suite.creds)
 	require.NoError(suite.T(), err)
 
-	id := "8qzvrj.sharepoint.com,1c9ef309-f47c-4e69-832b-a83edd69fa7f,c57f6e0e-3e4b-472c-b528-b56a2ccd0507"
-	//resp := service.Client().SitesById(id).Lists()
-	require.NoError(suite.T(), err)
-	_, err = loadLists(ctx, service, id)
+	lists, err := loadLists(ctx, service, "root")
+	assert.Greater(suite.T(), len(lists), 0)
 	assert.NoError(suite.T(), err)
 }
-
-// requestBody := models.NewListItem()
-// fells := models.NewFieldValueSet()
-// additionalData := map[string]interface{}{
-// 	"title":  "Widget",
-// 	"color":  "Lavendar",
-// 	"weight": int32(32),
-// } Post did not work
-// fells.SetAdditionalData(additionalData)
-// requestBody.SetFields(fells)
-// Creating a list item without knowing what list it is for did not work or produce an error
