@@ -122,8 +122,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		errs      error
 		byteCount int64
 		itemsRead int64
-
-		wg sync.WaitGroup
+		wg        sync.WaitGroup
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -142,29 +141,25 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	defer colCloser()
 	defer close(folderProgress)
 
-	limitCh := make(chan struct{}, urlPrefetchChannelBufferSize)
-	defer close(limitCh)
+	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	defer close(semaphoreCh)
 
-	type uerr struct {
-		itemID string
-		err    error
+	errUpdater := func(id string, err error) {
+		errs = support.WrapAndAppend(id, err, errs)
 	}
 
-	errCh := make(chan uerr, len(oc.driveItemIDs))
-	defer close(errCh)
-
-	ffail := int64(0) // handling fast-fail
 	for _, itemID := range oc.driveItemIDs {
-		if ffail > 0 {
+		if oc.service.ErrPolicy() && errs != nil {
 			break
 		}
-		limitCh <- struct{}{}
+
+		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
 
 		go func(itemID string) {
-			defer func() { <-limitCh }()
 			defer wg.Done()
+			defer func() { <-semaphoreCh }()
 
 			// Read the item
 			var (
@@ -187,11 +182,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			if err != nil {
-				errCh <- uerr{itemID, err}
-
-				if oc.service.ErrPolicy() {
-					atomic.AddInt64(&ffail, 1)
-					return
+				if err != nil {
+					errUpdater(itemID, err)
 				}
 
 				return
@@ -217,15 +209,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	}
 
 	wg.Wait()
-
-	for i := 0; i < len(errCh); i++ {
-		e, ok := <-errCh
-		if !ok {
-			break
-		}
-
-		errs = support.WrapAndAppendf(e.itemID, e.err, errs)
-	}
 
 	oc.reportAsCompleted(ctx, int(itemsRead), byteCount, errs)
 }
