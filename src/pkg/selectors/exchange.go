@@ -686,6 +686,12 @@ func (s ExchangeScope) setDefaults() {
 	}
 }
 
+// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
+// user comparison with only the provided user.
+func (s ExchangeScope) DiscreteCopy(user string) ExchangeScope {
+	return discreteCopy(s, user)
+}
+
 // ---------------------------------------------------------------------------
 // Backup Details Filtering
 // ---------------------------------------------------------------------------
