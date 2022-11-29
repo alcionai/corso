@@ -57,6 +57,17 @@ func DataCollections(
 			defer close(foldersComplete)
 
 			switch scope.Category().PathType() {
+			// TODO path.ListCategory: PR
+			// collect Lists
+			// done?
+			case path.ListsCategory:
+				listCols, err := collectLists(
+					ctx,
+					serv,
+					tenantID,
+					site,
+				)
+
 			case path.LibrariesCategory:
 				spcs, err := collectLibraries(
 					ctx,
