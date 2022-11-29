@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 	"testing"
+	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/assert"
@@ -59,6 +60,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	t := suite.T()
 	wg := sync.WaitGroup{}
 	collStatus := support.ConnectorOperationStatus{}
+	t1 := time.Now()
 
 	folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "a-tenant", "a-user", OneDriveSource)
 	require.NoError(t, err)
@@ -77,7 +79,10 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	coll.Add(testItemID)
 
 	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
-		return &details.OneDriveInfo{ItemName: testItemName}, io.NopCloser(bytes.NewReader(testItemData)), nil
+		return &details.OneDriveInfo{
+			ItemName: testItemName,
+			Modified: t1,
+		}, io.NopCloser(bytes.NewReader(testItemData)), nil
 	}
 
 	// Read items from the collection
@@ -101,6 +106,11 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	readItemInfo := readItem.(data.StreamInfo)
 
 	assert.Equal(t, testItemName, readItem.UUID())
+
+	require.Implements(t, (*data.StreamModTime)(nil), readItem)
+	mt := readItem.(data.StreamModTime)
+	assert.Equal(t, t1, mt.ModTime())
+
 	readData, err := io.ReadAll(readItem.ToReader())
 	require.NoError(t, err)
 
