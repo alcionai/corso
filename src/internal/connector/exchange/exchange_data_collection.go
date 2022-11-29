@@ -121,8 +121,7 @@ func (col *Collection) populateByOptionIdentifier(
 		errs       error
 		success    int64
 		totalBytes int64
-
-		wg sync.WaitGroup
+		wg         sync.WaitGroup
 
 		user = col.user
 	)
@@ -144,64 +143,50 @@ func (col *Collection) populateByOptionIdentifier(
 		return
 	}
 
-	limitCh := make(chan struct{}, urlPrefetchChannelBufferSize)
-	defer close(limitCh)
+	// Limit the max number of active requests to GC
+	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	defer close(semaphoreCh)
 
-	type uerr struct {
-		user string
-		err  error
+	errUpdater := func(user string, err error) {
+		errs = support.WrapAndAppend(user, err, errs)
 	}
 
-	errCh := make(chan uerr, len(col.jobs))
-	defer close(errCh)
-
-	ffail := int64(0)
 	for _, identifier := range col.jobs {
-		if ffail > 0 {
+		if col.service.ErrPolicy() && errs != nil {
 			break
 		}
-		limitCh <- struct{}{}
+		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
 
 		go func(identifier string) {
-			defer func() { <-limitCh }()
 			defer wg.Done()
+			defer func() { <-semaphoreCh }()
 
 			var (
 				response absser.Parsable
 				err      error
 			)
 
-			for i := 0; i < numberOfRetries; i++ {
+			for i := 1; i <= numberOfRetries; i++ {
 				response, err = query(ctx, col.service, user, identifier)
 				if err == nil {
 					break
 				}
 				// TODO: Tweak sleep times
-				if i != numberOfRetries-1 {
+				if i < numberOfRetries {
 					time.Sleep(time.Duration(3*(i+1)) * time.Second)
 				}
 			}
 
 			if err != nil {
-				errCh <- uerr{user, err}
-
-				if col.service.ErrPolicy() {
-					atomic.AddInt64(&ffail, 1)
-				}
-
+				errUpdater(user, err)
 				return
 			}
 
 			byteCount, err := serializeFunc(ctx, col.service.Client(), kw.NewJsonSerializationWriter(), col.data, response, user)
 			if err != nil {
-				errCh <- uerr{user, err}
-
-				if col.service.ErrPolicy() {
-					atomic.AddInt64(&ffail, 1)
-				}
-
+				errUpdater(user, err)
 				return
 			}
 
@@ -213,15 +198,6 @@ func (col *Collection) populateByOptionIdentifier(
 	}
 
 	wg.Wait()
-
-	for i := 0; i < len(errCh); i++ {
-		e, ok := <-errCh
-		if !ok {
-			break
-		}
-
-		errs = support.WrapAndAppendf(e.user, e.err, errs)
-	}
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
