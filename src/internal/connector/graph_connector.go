@@ -104,6 +104,10 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 
 	gc.graphService = *aService
 
+	// TODO(ashmrtn): When selectors only encapsulate a single resource owner that
+	// is not a wildcard don't populate users or sites when making the connector.
+	// For now this keeps things functioning if callers do pass in a selector like
+	// "*" instead of.
 	if r == AllResources || r == Users {
 		if err = gc.setTenantUsers(ctx); err != nil {
 			return nil, errors.Wrap(err, "retrieving tenant user list")
