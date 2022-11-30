@@ -39,19 +39,23 @@ func TestSharePointSuite(t *testing.T) {
 // Functions tested:
 // - fetchListItems()
 // - fetchColumns()
-// - fetchContentBaseTypes
 // - fetchContentColumns()
 // - fetchContentTypes()
 // - fetchColumnLinks
+// TODO: upgrade passed github.com/microsoftgraph/msgraph-sdk-go v0.40.0
+// to verify if these 2 calls are valid
+// - fetchContentBaseTypes
 // - fetchColumnPositions
 func (suite *SharePointSuite) TestLoadList() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	t := suite.T()
 	service, err := createTestService(suite.creds)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
 	lists, err := loadLists(ctx, service, "root")
-	assert.NoError(suite.T(), err)
-	assert.Greater(suite.T(), len(lists), 0)
+	assert.NoError(t, err)
+	assert.Greater(t, len(lists), 0)
+	t.Logf("Length: %d\n", len(lists))
 }
