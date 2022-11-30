@@ -27,7 +27,7 @@ import (
 // Note additional calls are required for the relationships that exist outside of the object properties.
 
 // loadLists is a utility function to populate the List object.
-// @param identifier the M365 ID that represents the SharePoint Site
+// @param siteID the M365 ID that represents the SharePoint Site
 // Makes additional calls to retrieve the following relationships:
 // - Columns
 // - ContentTypes
@@ -35,12 +35,12 @@ import (
 func loadLists(
 	ctx context.Context,
 	gs graph.Service,
-	identifier string,
+	siteID string,
 ) ([]models.Listable, error) {
 	var (
-		prefix  = gs.Client().SitesById(identifier)
+		prefix  = gs.Client().SitesById(siteID)
 		builder = prefix.Lists()
-		listing = make([]models.Listable, 0)
+		results = make([]models.Listable, 0)
 		errs    error
 	)
 
@@ -52,34 +52,32 @@ func loadLists(
 
 		for _, entry := range resp.GetValue() {
 			id := *entry.GetId()
-			// Retrieve List column data
-			columnBuilder := prefix.ListsById(id).Columns()
 
-			cols, err := fetchColumns(ctx, gs, identifier, columnBuilder)
+			cols, err := fetchColumns(ctx, gs, siteID, id)
 			if err != nil {
-				errs = support.WrapAndAppend(identifier, err, errs)
+				errs = support.WrapAndAppend(siteID, err, errs)
 				continue
 			}
 
 			entry.SetColumns(cols)
 
-			cTypes, err := fetchContentTypes(ctx, gs, identifier, id)
+			cTypes, err := fetchContentTypes(ctx, gs, siteID, id)
 			if err != nil {
-				errs = support.WrapAndAppend(identifier, err, errs)
+				errs = support.WrapAndAppend(siteID, err, errs)
 				continue
 			}
 
 			entry.SetContentTypes(cTypes)
 
-			lItems, err := fetchListItems(ctx, gs, identifier, id)
+			lItems, err := fetchListItems(ctx, gs, siteID, id)
 			if err != nil {
-				errs = support.WrapAndAppend(identifier, err, errs)
+				errs = support.WrapAndAppend(siteID, err, errs)
 				continue
 			}
 
 			entry.SetItems(lItems)
 
-			listing = append(listing, entry)
+			results = append(results, entry)
 		}
 
 		if resp.GetOdataNextLink() == nil {
@@ -93,7 +91,7 @@ func loadLists(
 		return nil, errs
 	}
 
-	return listing, nil
+	return results, nil
 }
 
 // fetchListItems utility for retrieving ListItem data and the associated relationship
@@ -151,41 +149,20 @@ func fetchListItems(
 func fetchColumns(
 	ctx context.Context,
 	gs graph.Service,
-	identifier string,
-	cb *columns.ColumnsRequestBuilder,
+	siteID, listID string,
 ) ([]models.ColumnDefinitionable, error) {
 	var (
-		builder = cb
-		errs    error
+		builder = gs.Client().SitesById(siteID).ListsById(listID).Columns()
 		cs      = make([]models.ColumnDefinitionable, 0)
 	)
 
 	for {
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
-			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, nil)
 		}
 
-		for _, entry := range resp.GetValue() {
-			source, err := gs.Client().
-				SitesById(identifier).
-				ColumnsById(*entry.GetId()).
-				SourceColumn().
-				Get(ctx, nil)
-			if err != nil {
-				errs = support.WrapAndAppend(
-					"loadColumn unable to retrieve source: "+support.ConnectorStackErrorTrace(err),
-					err,
-					errs,
-				)
-
-				continue
-			}
-
-			entry.SetSourceColumn(source)
-
-			cs = append(cs, entry)
-		}
+		cs = append(cs, resp.GetValue()...)
 
 		if resp.GetOdataNextLink() == nil {
 			break
@@ -195,6 +172,10 @@ func fetchColumns(
 	}
 
 	return cs, nil
+}
+
+func appendColumns(response models.ColumnDefinitionCollectionResponseable) []models.ColumnDefinitionable {
+	return nil
 }
 
 // fetchContentColumns
