@@ -282,9 +282,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() 
 				require.NotEmpty(t, c.FullPath().Folder())
 				folder := c.FullPath().Folder()
 
-				if _, ok := test.folderNames[folder]; ok {
-					delete(test.folderNames, folder)
-				}
+				delete(test.folderNames, folder)
 			}
 
 			assert.Empty(t, test.folderNames)
@@ -369,7 +367,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 				assert.NotZero(t, read)
 				contact, err := support.CreateContactFromBytes(buf.Bytes())
 				assert.NotNil(t, contact)
-				assert.NoError(t, err, "error on converting contact bytes: "+string(buf.Bytes()))
+				assert.NoError(t, err, "error on converting contact bytes: "+buf.String())
 				count++
 			}
 			assert.NotZero(t, count)
@@ -434,7 +432,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 				assert.NotZero(t, read)
 				event, err := support.CreateEventFromBytes(buf.Bytes())
 				assert.NotNil(t, event)
-				assert.NoError(t, err, "experienced error parsing event bytes: "+string(buf.Bytes()))
+				assert.NoError(t, err, "experienced error parsing event bytes: "+buf.String())
 			}
 
 			status := connector.AwaitStatus()
