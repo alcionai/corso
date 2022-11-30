@@ -183,7 +183,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel := sharePointBackupCreateSelectors(site)
 
-	sites, err := m365.UserIDs(ctx, acct)
+	sites, err := m365.Sites(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -202,7 +202,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				errs = multierror.Append(errs, errors.Wrapf(
 					err,
-					"Failed to initialize Exchange backup for user %s",
+					"Failed to initialize SharePoint backup for user %s",
 					scope.Get(selectors.SharePointSite),
 				))
 
@@ -213,7 +213,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				errs = multierror.Append(errs, errors.Wrapf(
 					err,
-					"Failed to run Exchange backup for user %s",
+					"Failed to run SharePoint backup for user %s",
 					scope.Get(selectors.SharePointSite),
 				))
 

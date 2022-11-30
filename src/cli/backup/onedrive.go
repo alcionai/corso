@@ -213,7 +213,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				errs = multierror.Append(errs, errors.Wrapf(
 					err,
-					"Failed to initialize Exchange backup for user %s",
+					"Failed to initialize OneDrive backup for user %s",
 					scope.Get(selectors.OneDriveUser),
 				))
 
@@ -224,7 +224,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				errs = multierror.Append(errs, errors.Wrapf(
 					err,
-					"Failed to run Exchange backup for user %s",
+					"Failed to run OneDrive backup for user %s",
 					scope.Get(selectors.OneDriveUser),
 				))
 
