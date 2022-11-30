@@ -52,7 +52,7 @@ func sendMessagesDeltaGet(
 ) (msmaildelta.DeltaResponseable, error) {
 	requestInfo, err := createGetRequestInformationWithRequestConfiguration(
 		func() (*abs.RequestInformation, error) {
-			return m.CreateGetRequestInformationWithRequestConfiguration(nil)
+			return m.CreateGetRequestInformation(ctx, nil)
 		},
 		requestConfiguration,
 		mailURLTemplate,
@@ -92,7 +92,7 @@ func sendContactsDeltaGet(
 ) (mscontactdelta.DeltaResponseable, error) {
 	requestInfo, err := createGetRequestInformationWithRequestConfiguration(
 		func() (*abs.RequestInformation, error) {
-			return m.CreateGetRequestInformationWithRequestConfiguration(nil)
+			return m.CreateGetRequestInformation(ctx, nil)
 		},
 		requestConfiguration,
 		contactsURLTemplate,
