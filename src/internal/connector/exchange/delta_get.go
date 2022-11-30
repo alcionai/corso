@@ -9,17 +9,26 @@ import (
 	msmaildelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
 )
 
+//nolint:lll
+const (
+	mailURLTemplate     = "{+baseurl}/users/{user%2Did}/mailFolders/{mailFolder%2Did}/messages/microsoft.graph.delta(){?%24top,%24skip,%24search,%24filter,%24count,%24select,%24orderby}"
+	contactsURLTemplate = "{+baseurl}/users/{user%2Did}/contactFolders/{contactFolder%2Did}/contacts/microsoft.graph.delta(){?%24top,%24skip,%24search,%24filter,%24count,%24select,%24orderby}"
+)
+
 // The following functions are based off the code in v0.41.0 of msgraph-sdk-go
 // for sending delta requests with query parameters.
 
 func createGetRequestInformationWithRequestConfiguration(
 	baseRequestInfoFunc func() (*abs.RequestInformation, error),
 	requestConfig *DeltaRequestBuilderGetRequestConfiguration,
+	template string,
 ) (*abs.RequestInformation, error) {
 	requestInfo, err := baseRequestInfoFunc()
 	if err != nil {
 		return nil, err
 	}
+
+	requestInfo.UrlTemplate = template
 
 	if requestConfig != nil {
 		if requestConfig.QueryParameters != nil {
@@ -45,6 +54,7 @@ func sendMessagesDeltaGet(
 			return m.CreateGetRequestInformationWithRequestConfiguration(nil)
 		},
 		requestConfiguration,
+		mailURLTemplate,
 	)
 	if err != nil {
 		return nil, err
@@ -84,6 +94,7 @@ func sendContactsDeltaGet(
 			return m.CreateGetRequestInformationWithRequestConfiguration(nil)
 		},
 		requestConfiguration,
+		contactsURLTemplate,
 	)
 	if err != nil {
 		return nil, err
