@@ -1,7 +1,6 @@
 package sharepoint_test
 
 import (
-	"context"
 	"testing"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -55,7 +54,6 @@ func (ms *MockGraphService) ErrPolicy() bool {
 
 type SharePointLibrariesSuite struct {
 	suite.Suite
-	ctx context.Context
 }
 
 func TestSharePointLibrariesSuite(t *testing.T) {
