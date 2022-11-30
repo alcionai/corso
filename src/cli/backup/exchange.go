@@ -453,8 +453,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runDetailsExchangeCmd actually performs the lookup in backup details. Assumes
-// len(backupID) > 0.
+// runDetailsExchangeCmd actually performs the lookup in backup details.
 func runDetailsExchangeCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
