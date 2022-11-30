@@ -183,8 +183,6 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel := sharePointBackupCreateSelectors(site)
 
-	// TODO(ashmrtn): Only call in the future if "*" or some other wildcard was
-	// given for resource owners.
 	sites, err := m365.UserIDs(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
@@ -226,7 +224,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	bups, err := r.BackupsByID(ctx, bIDs)
+	bups, err := r.Backups(ctx, bIDs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}

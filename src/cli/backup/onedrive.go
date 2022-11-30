@@ -194,8 +194,6 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	sel := oneDriveBackupCreateSelectors(user)
 
-	// TODO(ashmrtn): Only call in the future if "*" or some other wildcard was
-	// given for resource owners.
 	users, err := m365.UserIDs(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
@@ -237,7 +235,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	bups, err := r.BackupsByID(ctx, bIDs)
+	bups, err := r.Backups(ctx, bIDs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}
