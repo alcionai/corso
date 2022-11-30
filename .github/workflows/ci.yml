@@ -144,10 +144,7 @@ jobs:
     needs: [Precheck, Checkout]
     environment: Testing
     runs-on: ubuntu-latest
-    if: (startsWith(github.ref, 'refs/tags/') ||
-      github.ref == 'refs/heads/main' ||
-      needs.precheck.outputs.srcfileschanged == 'true') &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
     defaults:
       run:
         working-directory: src
@@ -205,8 +202,7 @@ jobs:
   Test-Suite-Fork:
     needs: [Precheck]
     environment: Testing
-    if: (needs.precheck.outputs.srcfileschanged == 'true' &&
-      github.event.pull_request.head.repo.full_name != github.repository) # only run when repo is forked
+    if: (!startsWith(github.ref , 'refs/tags/') && github.ref != 'refs/heads/main') && (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name != github.repository)
     runs-on: ubuntu-latest
     defaults:
       run:
