@@ -10,6 +10,8 @@ import (
 )
 
 // GetAllSitesForTenant makes a GraphQuery request retrieving all sites in the tenant.
+// Due to restrictions in filter capabilities for site queries, the returned iterable
+// will contain all personal sites for all users in the org.
 func GetAllSitesForTenant(ctx context.Context, gs graph.Service) (absser.Parsable, error) {
 	options := &mssite.SitesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &mssite.SitesRequestBuilderGetQueryParameters{

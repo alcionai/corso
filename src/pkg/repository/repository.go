@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -27,7 +29,8 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
+	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error)
+	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
@@ -66,13 +69,13 @@ type repository struct {
 }
 
 // Initialize will:
-//  * validate the m365 account & secrets
-//  * connect to the m365 account to ensure communication capability
-//  * validate the provider config & secrets
-//  * initialize the kopia repo with the provider
-//  * store the configuration details
-//  * connect to the provider
-//  * return the connected repository
+//   - validate the m365 account & secrets
+//   - connect to the m365 account to ensure communication capability
+//   - validate the provider config & secrets
+//   - initialize the kopia repo with the provider
+//   - store the configuration details
+//   - connect to the provider
+//   - return the connected repository
 func Initialize(
 	ctx context.Context,
 	acct account.Account,
@@ -123,16 +126,20 @@ func Initialize(
 }
 
 // Connect will:
-//  * validate the m365 account details
-//  * connect to the m365 account to ensure communication capability
-//  * connect to the provider storage
-//  * return the connected repository
+//   - validate the m365 account details
+//   - connect to the m365 account to ensure communication capability
+//   - connect to the provider storage
+//   - return the connected repository
 func Connect(
 	ctx context.Context,
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
+	complete, closer := observe.MessageWithCompletion("Connecting to repository:")
+	defer closer()
+	defer close(complete)
+
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
 		return nil, err
@@ -155,6 +162,8 @@ func Connect(
 	if err != nil {
 		return nil, err
 	}
+
+	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
@@ -231,8 +240,29 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 	return sw.GetBackup(ctx, id)
 }
 
+// BackupsByID lists backups by ID. Returns as many backups as possible with
+// errors for the backups it was unable to retrieve.
+func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error) {
+	var (
+		errs *multierror.Error
+		bups []*backup.Backup
+		sw   = store.NewKopiaStore(r.modelStore)
+	)
+
+	for _, id := range ids {
+		b, err := sw.GetBackup(ctx, id)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+
+		bups = append(bups, b)
+	}
+
+	return bups, errs.ErrorOrNil()
+}
+
 // backups lists backups in a repository
-func (r repository) Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
+func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackups(ctx, fs...)
 }

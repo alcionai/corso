@@ -35,11 +35,13 @@ type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
 const (
-	UnknownCategory  CategoryType = iota
-	EmailCategory                 // email
-	ContactsCategory              // contacts
-	EventsCategory                // events
-	FilesCategory                 // files
+	UnknownCategory   CategoryType = iota
+	EmailCategory                  // email
+	ContactsCategory               // contacts
+	EventsCategory                 // events
+	FilesCategory                  // files
+	ListsCategory                  // lists
+	LibrariesCategory              // libraries
 )
 
 func ToCategoryType(category string) CategoryType {
@@ -52,6 +54,10 @@ func ToCategoryType(category string) CategoryType {
 		return EventsCategory
 	case FilesCategory.String():
 		return FilesCategory
+	case LibrariesCategory.String():
+		return LibrariesCategory
+	case ListsCategory.String():
+		return ListsCategory
 	default:
 		return UnknownCategory
 	}
@@ -68,8 +74,8 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		FilesCategory: {},
 	},
 	SharePointService: {
-		// TODO: need to figure out the service Category(s) for sharepoint.
-		FilesCategory: {},
+		LibrariesCategory: {},
+		ListsCategory:     {},
 	},
 }
 

@@ -1,5 +1,5 @@
 run:
-  timeout: 15m
+  timeout: 20m
 
 linters:
   enable:
@@ -12,6 +12,11 @@ linters:
     - misspell
     - revive
     - wsl
+
+  disable:
+    # Consumes a large amount of memory when running with Graph SDK in the
+    # project causing OOM failures in Github actions.
+    - staticcheck
 
 linters-settings:
   gci:

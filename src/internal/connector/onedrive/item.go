@@ -3,9 +3,10 @@ package onedrive
 import (
 	"context"
 	"io"
-	"net/http"
 	"time"
 
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	msup "github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item/createuploadsession"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -51,9 +52,13 @@ func driveItemReader(
 
 	downloadURL := item.GetAdditionalData()[downloadURLKey].(*string)
 
-	// TODO: We should use the `msgraphgocore` http client which has the right
-	// middleware/options configured
-	resp, err := http.Get(*downloadURL)
+	clientOptions := msgraphsdk.GetDefaultClientOptions()
+	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
+
+	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
+	httpClient.Timeout = 0 // need infinite timeout for pulling large files
+
+	resp, err := httpClient.Get(*downloadURL)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
 	}

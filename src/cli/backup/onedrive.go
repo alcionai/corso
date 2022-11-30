@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -90,7 +92,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(parent, oneDriveListCmd())
 
 		fs.StringVar(&backupID,
-			"backup", "",
+			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
@@ -192,22 +194,57 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	sel := oneDriveBackupCreateSelectors(user)
 
-	bo, err := r.NewBackup(ctx, sel)
+	users, err := m365.UserIDs(ctx, acct)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to initialize OneDrive backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
-	err = bo.Run(ctx)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to run OneDrive backup"))
+	var (
+		errs *multierror.Error
+		bIDs []model.StableID
+	)
+
+	for _, scope := range sel.DiscreteScopes(users) {
+		for _, selUser := range scope.Get(selectors.OneDriveUser) {
+			opSel := selectors.NewOneDriveBackup()
+			opSel.Include([]selectors.OneDriveScope{scope.DiscreteCopy(selUser)})
+
+			bo, err := r.NewBackup(ctx, opSel.Selector)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to initialize OneDrive backup for user %s",
+					scope.Get(selectors.OneDriveUser),
+				))
+
+				continue
+			}
+
+			err = bo.Run(ctx)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to run OneDrive backup for user %s",
+					scope.Get(selectors.OneDriveUser),
+				))
+
+				continue
+			}
+
+			bIDs = append(bIDs, bo.Results.BackupID)
+		}
 	}
 
-	bu, err := r.Backup(ctx, bo.Results.BackupID)
+	bups, err := r.Backups(ctx, bIDs)
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve backup results from storage")
+		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}
 
-	bu.Print(ctx)
+	backup.PrintAll(ctx, bups)
+
+	if e := errs.ErrorOrNil(); e != nil {
+		return Only(ctx, e)
+	}
 
 	return nil
 }
@@ -220,11 +257,11 @@ func validateOneDriveBackupCreateFlags(users []string) error {
 	return nil
 }
 
-func oneDriveBackupCreateSelectors(users []string) selectors.Selector {
+func oneDriveBackupCreateSelectors(users []string) *selectors.OneDriveBackup {
 	sel := selectors.NewOneDriveBackup()
 	sel.Include(sel.Users(users))
 
-	return sel.Selector
+	return sel
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -272,7 +309,7 @@ func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	bs, err := r.Backups(ctx, store.Service(path.OneDriveService))
+	bs, err := r.BackupsByTag(ctx, store.Service(path.OneDriveService))
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
@@ -344,8 +381,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runDetailsOneDriveCmd actually performs the lookup in backup details. Assumes
-// len(backupID) > 0.
+// runDetailsOneDriveCmd actually performs the lookup in backup details.
 func runDetailsOneDriveCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
@@ -388,7 +424,7 @@ func oneDriveDeleteCmd() *cobra.Command {
 	}
 }
 
-// deletes an exchange service backup.
+// deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 

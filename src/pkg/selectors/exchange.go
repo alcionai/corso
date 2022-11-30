@@ -36,7 +36,11 @@ type (
 	}
 )
 
-var _ Reducer = &ExchangeRestore{}
+var (
+	_ Reducer         = &ExchangeRestore{}
+	_ printabler      = &ExchangeRestore{}
+	_ resourceOwnerer = &ExchangeRestore{}
+)
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
 func NewExchangeBackup() *ExchangeBackup {
@@ -87,6 +91,16 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // Printable creates the minimized display of a selector, formatted for human readability.
 func (s exchange) Printable() Printable {
 	return toPrintable[ExchangeScope](s.Selector)
+}
+
+// ResourceOwners produces the aggregation of discrete users described by each type of scope.
+// Any and None values are omitted.
+func (s exchange) ResourceOwners() selectorResourceOwners {
+	return selectorResourceOwners{
+		Excludes: resourceOwnersIn(s.Excludes, ExchangeUser.String()),
+		Filters:  resourceOwnersIn(s.Filters, ExchangeUser.String()),
+		Includes: resourceOwnersIn(s.Includes, ExchangeUser.String()),
+	}
 }
 
 // -------------------
@@ -670,6 +684,12 @@ func (s ExchangeScope) setDefaults() {
 		s[ExchangeMailFolder.String()] = passAny
 		s[ExchangeMail.String()] = passAny
 	}
+}
+
+// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
+// user comparison with only the provided user.
+func (s ExchangeScope) DiscreteCopy(user string) ExchangeScope {
+	return discreteCopy(s, user)
 }
 
 // ---------------------------------------------------------------------------
