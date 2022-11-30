@@ -2,15 +2,16 @@ package sharepoint
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/contenttypes/item/basetypes"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/contenttypes/item/columnpositions"
-	tc "github.com/microsoftgraph/msgraph-sdk-go/sites/item/contenttypes/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/basetypes"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnlinks"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnpositions"
+	tc "github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/items"
 	"github.com/pkg/errors"
 
@@ -73,6 +74,7 @@ func loadLists(
 			lItems, err := fetchListItems(ctx, gs, identifier, id)
 			if err != nil {
 				errs = support.WrapAndAppend(identifier, err, errs)
+				continue
 			}
 
 			entry.SetItems(lItems)
@@ -95,10 +97,8 @@ func loadLists(
 }
 
 // fetchListItems utility for retrieving ListItem data and the associated relationship
-// data. All additional calls(3) append data to the tracked items, and do not create additional collections.
-// Additional Calls:
-// * Analytics
-// * DriveItem --> Item content
+// data. Additional call append data to the tracked items, and do not create additional collections.
+// Additional Call:
 // * Fields
 func fetchListItems(
 	ctx context.Context,
@@ -121,20 +121,6 @@ func fetchListItems(
 		for _, itm := range resp.GetValue() {
 			newPrefix := prefix.ItemsById(*itm.GetId())
 
-			ana, err := newPrefix.Analytics().Get(ctx, nil)
-			if err != nil {
-				errs = errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-			}
-
-			itm.SetAnalytics(ana)
-
-			dItem, err := newPrefix.DriveItem().Get(ctx, nil)
-			if err != nil {
-				errs = errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-			}
-
-			itm.SetDriveItem(dItem)
-
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
 				errs = errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -153,7 +139,7 @@ func fetchListItems(
 	}
 
 	if errs != nil {
-		return nil, errs
+		return nil, errors.Wrap(errs, "fetchListItem unsuccessful")
 	}
 
 	return itms, nil
@@ -266,9 +252,14 @@ func fetchContentColumns(
 // fetchContentTypes retrieves all data for content type. Additional queries required
 // for the following:
 // - ColumnLinks
+// - Columns
+// The following two are not included:
 // - ColumnPositions
 // - BaseTypes
-// - Columns
+// These relationships are not included as they following error from the API:
+// itemNotFound Item not found: error status code received from the API
+// Current as of github.com/microsoftgraph/msgraph-sdk-go v0.40.0
+// TODO: Verify functionality after version upgrade or remove (dadams39)
 func fetchContentTypes(
 	ctx context.Context,
 	gs graph.Service,
@@ -297,31 +288,31 @@ func fetchContentTypes(
 
 			cont.SetColumnLinks(links)
 
-			positions, err := fetchColumnPositions(ctx, gs, siteID, id)
-			if err != nil {
-				errs = support.WrapAndAppend("unable to add column definitionable to list", err, errs)
-				break
-			}
+			// positions, err := fetchColumnPositions(ctx, gs, siteID, listID, id)
+			// if err != nil {
+			// 	errs = support.WrapAndAppend("unable to add column definitionable to list", err, errs)
+			// 	break
+			// }
 
-			cont.SetColumnPositions(positions)
+			// cont.SetColumnPositions(positions)
 
 			cs, err := fetchContentColumns(ctx,
 				gs,
 				siteID,
-				gs.Client().SitesById(siteID).ContentTypesById(*cont.GetId()).Columns())
+				gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(*cont.GetId()).Columns())
 			if err != nil {
 				errs = support.WrapAndAppend("unable to populate columns for contentType", err, errs)
 			}
 
 			cont.SetColumns(cs)
 
-			bTypes, err := fetchContentBaseTypes(ctx, gs, siteID, listID, id)
-			if err != nil {
-				errs = support.WrapAndAppend("unable to add baseTypes to List", err, errs)
-				break
-			}
+			// bTypes, err := fetchContentBaseTypes(ctx, gs, siteID, listID, id)
+			// if err != nil {
+			// 	errs = support.WrapAndAppend("unable to add baseTypes to List", err, errs)
+			// 	break
+			// }
 
-			cont.SetBaseTypes(bTypes)
+			// cont.SetBaseTypes(bTypes)
 
 			cTypes = append(cTypes, cont)
 		}
@@ -348,7 +339,7 @@ func fetchContentBaseTypes(
 	var (
 		errs    error
 		cTypes  = make([]models.ContentTypeable, 0)
-		builder = gs.Client().SitesById(siteID).ContentTypesById(cTypeID).BaseTypes()
+		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).BaseTypes()
 	)
 
 	for {
@@ -357,8 +348,10 @@ func fetchContentBaseTypes(
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
+		fmt.Println("Pass initial query?")
+
 		for _, obj := range resp.GetValue() {
-			cBuilder := gs.Client().SitesById(siteID).ContentTypesById(*obj.GetId()).Columns()
+			cBuilder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(*obj.GetId()).Columns()
 
 			cs, err := fetchContentColumns(ctx, gs, siteID, cBuilder)
 			if err != nil {
@@ -374,7 +367,7 @@ func fetchContentBaseTypes(
 
 			obj.SetColumnLinks(lnk)
 
-			pos, err := fetchColumnPositions(ctx, gs, siteID, *obj.GetId())
+			pos, err := fetchColumnPositions(ctx, gs, siteID, listID, *obj.GetId())
 			if err != nil {
 				errs = support.WrapAndAppend("column position not added on fetch baseType", err, errs)
 			}
@@ -429,10 +422,10 @@ func fetchColumnLinks(
 func fetchColumnPositions(
 	ctx context.Context,
 	gs graph.Service,
-	siteID, cTypeID string,
+	siteID, listID, cTypeID string,
 ) ([]models.ColumnDefinitionable, error) {
 	var (
-		builder   = gs.Client().SitesById(siteID).ContentTypesById(cTypeID).ColumnPositions()
+		builder   = gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).ColumnPositions()
 		positions = make([]models.ColumnDefinitionable, 0)
 	)
 
