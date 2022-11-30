@@ -8,7 +8,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnlinks"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnpositions"
 	tc "github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/items"
 	"github.com/pkg/errors"
@@ -201,7 +200,7 @@ func fetchColumns(
 // These relationships are not included as they following error from the API:
 // itemNotFound Item not found: error status code received from the API
 // Current as of github.com/microsoftgraph/msgraph-sdk-go v0.40.0
-// TODO: Verify functionality after version upgrade or remove (dadams39)
+// TODO: Verify functionality after version upgrade or remove (dadams39) Check Stubs
 func fetchContentTypes(
 	ctx context.Context,
 	gs graph.Service,
@@ -229,14 +228,7 @@ func fetchContentTypes(
 			}
 
 			cont.SetColumnLinks(links)
-
-			// positions, err := fetchColumnPositions(ctx, gs, siteID, listID, id)
-			// if err != nil {
-			// 	errs = support.WrapAndAppend("unable to add column definitionable to list", err, errs)
-			// 	break
-			// }
-
-			// cont.SetColumnPositions(positions)
+			// TODO: stub for columPositions
 
 			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
@@ -244,14 +236,7 @@ func fetchContentTypes(
 			}
 
 			cont.SetColumns(cs)
-
-			// bTypes, err := fetchContentBaseTypes(ctx, gs, siteID, listID, id)
-			// if err != nil {
-			// 	errs = support.WrapAndAppend("unable to add baseTypes to List", err, errs)
-			// 	break
-			// }
-
-			// cont.SetBaseTypes(bTypes)
+			// TODO: stub for BaseTypes
 
 			cTypes = append(cTypes, cont)
 		}
@@ -296,32 +281,4 @@ func fetchColumnLinks(
 	}
 
 	return links, nil
-}
-
-func fetchColumnPositions(
-	ctx context.Context,
-	gs graph.Service,
-	siteID, listID, cTypeID string,
-) ([]models.ColumnDefinitionable, error) {
-	var (
-		builder   = gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).ColumnPositions()
-		positions = make([]models.ColumnDefinitionable, 0)
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		positions = append(positions, resp.GetValue()...)
-
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = columnpositions.NewColumnPositionsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
-	}
-
-	return positions, nil
 }
