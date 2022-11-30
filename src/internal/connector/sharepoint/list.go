@@ -2,13 +2,11 @@ package sharepoint
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/basetypes"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnlinks"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnpositions"
 	tc "github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columns"
@@ -53,7 +51,7 @@ func loadLists(
 		for _, entry := range resp.GetValue() {
 			id := *entry.GetId()
 
-			cols, err := fetchColumns(ctx, gs, siteID, id)
+			cols, err := fetchColumns(ctx, gs, siteID, id, "")
 			if err != nil {
 				errs = support.WrapAndAppend(siteID, err, errs)
 				continue
@@ -146,85 +144,49 @@ func fetchListItems(
 // fetchColumns utility function to return columns from a site.
 // An additional call required to check for details concerning the SourceColumn.
 // For additional details:  https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0
+
 func fetchColumns(
 	ctx context.Context,
 	gs graph.Service,
-	siteID, listID string,
+	siteID, listID, cTypeID string,
 ) ([]models.ColumnDefinitionable, error) {
-	var (
-		builder = gs.Client().SitesById(siteID).ListsById(listID).Columns()
-		cs      = make([]models.ColumnDefinitionable, 0)
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		if err != nil {
-			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, nil)
-		}
-
-		cs = append(cs, resp.GetValue()...)
-
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = columns.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
-	}
-
-	return cs, nil
-}
-
-func appendColumns(response models.ColumnDefinitionCollectionResponseable) []models.ColumnDefinitionable {
-	return nil
-}
-
-// fetchContentColumns
-// Same as fetchColumns. However, the Get() function calls are from different libraries.
-func fetchContentColumns(
-	ctx context.Context,
-	gs graph.Service,
-	identifier string,
-	cb *tc.ColumnsRequestBuilder,
-) ([]models.ColumnDefinitionable, error) {
-	var (
-		builder = cb
-		errs    error
-	)
-
 	cs := make([]models.ColumnDefinitionable, 0)
 
-	for {
-		resp, err := builder.Get(ctx, nil)
-		if err != nil {
-			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
-		}
+	if len(cTypeID) == 0 {
+		builder := gs.Client().SitesById(siteID).ListsById(listID).Columns()
 
-		for _, entry := range resp.GetValue() {
-			source, err := gs.Client().
-				SitesById(identifier).
-				ColumnsById(*entry.GetId()).
-				SourceColumn().
-				Get(ctx, nil)
+		for {
+			resp, err := builder.Get(ctx, nil)
 			if err != nil {
-				errs = support.WrapAndAppend(
-					"load Content Column unable to retrieve source: "+support.ConnectorStackErrorTrace(err),
-					err,
-					errs,
-				)
-
-				continue
+				return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, nil)
 			}
 
-			entry.SetSourceColumn(source)
+			cs = append(cs, resp.GetValue()...)
 
-			cs = append(cs, entry)
+			if resp.GetOdataNextLink() == nil {
+				break
+			}
+
+			builder = columns.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			//t
 		}
+	} else {
+		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
 
-		if resp.GetOdataNextLink() == nil {
-			break
+		for {
+			resp, err := builder.Get(ctx, nil)
+			if err != nil {
+				return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			}
+
+			cs = append(cs, resp.GetValue()...)
+
+			if resp.GetOdataNextLink() == nil {
+				break
+			}
+
+			builder = tc.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
-
-		builder = tc.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	return cs, nil
@@ -277,10 +239,7 @@ func fetchContentTypes(
 
 			// cont.SetColumnPositions(positions)
 
-			cs, err := fetchContentColumns(ctx,
-				gs,
-				siteID,
-				gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(*cont.GetId()).Columns())
+			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
 				errs = support.WrapAndAppend("unable to populate columns for contentType", err, errs)
 			}
@@ -303,66 +262,6 @@ func fetchContentTypes(
 		}
 
 		builder = contenttypes.NewContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
-	}
-
-	if errs != nil {
-		return nil, errs
-	}
-
-	return cTypes, nil
-}
-
-func fetchContentBaseTypes(
-	ctx context.Context,
-	gs graph.Service,
-	siteID, listID, cTypeID string,
-) ([]models.ContentTypeable, error) {
-	var (
-		errs    error
-		cTypes  = make([]models.ContentTypeable, 0)
-		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).BaseTypes()
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		fmt.Println("Pass initial query?")
-
-		for _, obj := range resp.GetValue() {
-			cBuilder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(*obj.GetId()).Columns()
-
-			cs, err := fetchContentColumns(ctx, gs, siteID, cBuilder)
-			if err != nil {
-				errs = support.WrapAndAppend("columns not added on fetch baseType", err, errs)
-			}
-
-			obj.SetColumns(cs)
-
-			lnk, err := fetchColumnLinks(ctx, gs, siteID, listID, *obj.GetId())
-			if err != nil {
-				errs = support.WrapAndAppend("columnLink failure on fetch baseType", err, errs)
-			}
-
-			obj.SetColumnLinks(lnk)
-
-			pos, err := fetchColumnPositions(ctx, gs, siteID, listID, *obj.GetId())
-			if err != nil {
-				errs = support.WrapAndAppend("column position not added on fetch baseType", err, errs)
-			}
-
-			obj.SetColumnPositions(pos)
-
-			cTypes = append(cTypes, obj)
-		}
-
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = basetypes.NewBaseTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
