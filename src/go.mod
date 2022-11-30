@@ -13,7 +13,7 @@ require (
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
 	github.com/microsoft/kiota-http-go v0.9.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
-	github.com/microsoftgraph/msgraph-sdk-go v0.46.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.47.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.30.1
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible

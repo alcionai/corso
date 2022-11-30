@@ -78,8 +78,6 @@ github.com/chmduquesne/rollinghash v4.0.0+incompatible/go.mod h1:Uc2I36RRfTAf7Dg
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
-github.com/cjlapao/common-go v0.0.29 h1:SOiTEEmA/YWOaP37U8beyqbxjvTtWcUAuvQAchGOQLE=
-github.com/cjlapao/common-go v0.0.29/go.mod h1:OyTAY388jfEj8uaRzx0uYneFghKDLL5KP+ewSydlQ5g=
 github.com/cjlapao/common-go v0.0.35 h1:GElDHYC9qAAMDozfDOArl1ayn+W+X90mogcS38Y8d3k=
 github.com/cjlapao/common-go v0.0.35/go.mod h1:WkUjw+hVbUDfzcnRymlU5VT/HBzv5xPs9tIJJ1XrQCU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
@@ -269,16 +267,8 @@ github.com/microsoft/kiota-serialization-json-go v0.7.2 h1:DSb4fNDi5O+DqJwrHo+vR
 github.com/microsoft/kiota-serialization-json-go v0.7.2/go.mod h1:Ojum5prlijopyCOZ2XctRcVlE2pU8h+43r3tMdiWoDU=
 github.com/microsoft/kiota-serialization-text-go v0.6.0 h1:3N2vftYZlwKdog69AN7ha+FZT0QxPG7xp/hLv0/W2OQ=
 github.com/microsoft/kiota-serialization-text-go v0.6.0/go.mod h1:OUA4dNH+f6afiJUs+rQAatJos7QVF5PJkyrqoD89lx4=
-github.com/microsoftgraph/msgraph-sdk-go v0.40.0 h1:9AxA3FS+S3c7Him5C+7Lt0I8zaNXoSqXsLDink1Fg40=
-github.com/microsoftgraph/msgraph-sdk-go v0.40.0/go.mod h1:B8HORKdf1K05Z93FbkpiqJ25dnytjPEyAby6gHhOLiM=
-github.com/microsoftgraph/msgraph-sdk-go v0.41.0 h1:aByLUNAjAsobpmpRfPsw/FNy6ake2sKxFcVtoL+uLXU=
-github.com/microsoftgraph/msgraph-sdk-go v0.41.0/go.mod h1:bjxJhL0qLSKws0SZLOWRJ3er2dvbvsRz9I1w0S7U80w=
-github.com/microsoftgraph/msgraph-sdk-go v0.45.0 h1:kgyIBffq5PRf35accW/62nTUIq9I5IbMgRbVysnpl7Y=
-github.com/microsoftgraph/msgraph-sdk-go v0.45.0/go.mod h1:k7YVioAmXKXtXcLgcRWpIANJlvl6cGp84UdLIUtuqfk=
-github.com/microsoftgraph/msgraph-sdk-go v0.46.0 h1:czhbXS6Wwh8X2HsP+6WnfJQ8jWqYBIOtFl4pgI+wW/U=
-github.com/microsoftgraph/msgraph-sdk-go v0.46.0/go.mod h1:I2iR+gJmKiZZ8ebE8mKQEiKXpePAahAIazx3F1kL6og=
-github.com/microsoftgraph/msgraph-sdk-go-core v0.28.1 h1:gN3pVVvx50KzhQdYwQKVnRSOSOIRaFpXj7pgPfqnNXw=
-github.com/microsoftgraph/msgraph-sdk-go-core v0.28.1/go.mod h1:BnumnwWU8xUgX7ncgo68novbS1wMlO66Iny9iVhvHuM=
+github.com/microsoftgraph/msgraph-sdk-go v0.47.0 h1:gfh2KT8l+04XRa2lkAh6ug+oTa37RL7kATQTdx1ihtc=
+github.com/microsoftgraph/msgraph-sdk-go v0.47.0/go.mod h1:I2iR+gJmKiZZ8ebE8mKQEiKXpePAahAIazx3F1kL6og=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.30.1 h1:jBuYexMqKnjsnQpyICfdu0RhZr7RFkEcKWRm3hf/jMM=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.30.1/go.mod h1:RyqsMRKmZADSA/feLQMcynQJRENMzKM/Wg4dgQ/lW+s=
 github.com/minio/md5-simd v1.1.2 h1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=
