@@ -5,12 +5,12 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/contenttypes/item/basetypes"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/contenttypes/item/columnlinks"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/contenttypes/item/columnpositions"
 	tc "github.com/microsoftgraph/msgraph-sdk-go/sites/item/contenttypes/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/columns"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnlinks"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/items"
 	"github.com/pkg/errors"
 
@@ -62,7 +62,7 @@ func loadLists(
 
 			entry.SetColumns(cols)
 
-			cTypes, err := fetchContentTypes(ctx, gs, identifier, prefix.ListsById(id).ContentTypes())
+			cTypes, err := fetchContentTypes(ctx, gs, identifier, id)
 			if err != nil {
 				errs = support.WrapAndAppend(identifier, err, errs)
 				continue
@@ -85,6 +85,10 @@ func loadLists(
 		}
 
 		builder = lists.NewListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+	}
+
+	if errs != nil {
+		return nil, errs
 	}
 
 	return listing, nil
@@ -268,12 +272,11 @@ func fetchContentColumns(
 func fetchContentTypes(
 	ctx context.Context,
 	gs graph.Service,
-	identifier string,
-	ctrb *contenttypes.ContentTypesRequestBuilder,
+	siteID, listID string,
 ) ([]models.ContentTypeable, error) {
 	var (
 		cTypes  = make([]models.ContentTypeable, 0)
-		builder = ctrb
+		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypes()
 		errs    error
 	)
 
@@ -286,7 +289,7 @@ func fetchContentTypes(
 		for _, cont := range resp.GetValue() {
 			id := *cont.GetId()
 
-			links, err := fetchColumnLinks(ctx, gs, identifier, id)
+			links, err := fetchColumnLinks(ctx, gs, siteID, listID, id)
 			if err != nil {
 				errs = support.WrapAndAppend("unable to add column links to list", err, errs)
 				break
@@ -294,7 +297,7 @@ func fetchContentTypes(
 
 			cont.SetColumnLinks(links)
 
-			positions, err := fetchColumnPositions(ctx, gs, identifier, id)
+			positions, err := fetchColumnPositions(ctx, gs, siteID, id)
 			if err != nil {
 				errs = support.WrapAndAppend("unable to add column definitionable to list", err, errs)
 				break
@@ -304,15 +307,15 @@ func fetchContentTypes(
 
 			cs, err := fetchContentColumns(ctx,
 				gs,
-				identifier,
-				gs.Client().SitesById(identifier).ContentTypesById(*cont.GetId()).Columns())
+				siteID,
+				gs.Client().SitesById(siteID).ContentTypesById(*cont.GetId()).Columns())
 			if err != nil {
 				errs = support.WrapAndAppend("unable to populate columns for contentType", err, errs)
 			}
 
 			cont.SetColumns(cs)
 
-			bTypes, err := fetchContentBaseTypes(ctx, gs, identifier, id)
+			bTypes, err := fetchContentBaseTypes(ctx, gs, siteID, listID, id)
 			if err != nil {
 				errs = support.WrapAndAppend("unable to add baseTypes to List", err, errs)
 				break
@@ -340,7 +343,7 @@ func fetchContentTypes(
 func fetchContentBaseTypes(
 	ctx context.Context,
 	gs graph.Service,
-	siteID, cTypeID string,
+	siteID, listID, cTypeID string,
 ) ([]models.ContentTypeable, error) {
 	var (
 		errs    error
@@ -364,7 +367,7 @@ func fetchContentBaseTypes(
 
 			obj.SetColumns(cs)
 
-			lnk, err := fetchColumnLinks(ctx, gs, siteID, *obj.GetId())
+			lnk, err := fetchColumnLinks(ctx, gs, siteID, listID, *obj.GetId())
 			if err != nil {
 				errs = support.WrapAndAppend("columnLink failure on fetch baseType", err, errs)
 			}
@@ -395,9 +398,13 @@ func fetchContentBaseTypes(
 	return cTypes, nil
 }
 
-func fetchColumnLinks(ctx context.Context, gs graph.Service, siteID, cTypeID string) ([]models.ColumnLinkable, error) {
+func fetchColumnLinks(
+	ctx context.Context,
+	gs graph.Service,
+	siteID, listID, cTypeID string,
+) ([]models.ColumnLinkable, error) {
 	var (
-		builder = gs.Client().SitesById(siteID).ContentTypesById(cTypeID).ColumnLinks()
+		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).ColumnLinks()
 		links   = make([]models.ColumnLinkable, 0)
 	)
 
@@ -407,9 +414,7 @@ func fetchColumnLinks(ctx context.Context, gs graph.Service, siteID, cTypeID str
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
-		for _, link := range resp.GetValue() {
-			links = append(links, link)
-		}
+		links = append(links, resp.GetValue()...)
 
 		if resp.GetOdataNextLink() == nil {
 			break
@@ -437,9 +442,7 @@ func fetchColumnPositions(
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
-		for _, pos := range resp.GetValue() {
-			positions = append(positions, pos)
-		}
+		positions = append(positions, resp.GetValue()...)
 
 		if resp.GetOdataNextLink() == nil {
 			break
