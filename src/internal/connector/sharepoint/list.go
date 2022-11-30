@@ -168,7 +168,6 @@ func fetchColumns(
 			}
 
 			builder = columns.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
-			//t
 		}
 	} else {
 		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
