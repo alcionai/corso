@@ -143,22 +143,21 @@ type DeltaRequestBuilderGetRequestConfiguration struct {
 	QueryParameters *DeltaRequestBuilderGetQueryParameters
 }
 
-// TODO(ashmrtn): Update to return delta query options once the graph SDK dependency has been updated.
-//func optionsForFolderMessages(moreOps []string) (*msmfmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
-//	selecting, err := buildOptions(moreOps, messages)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	requestParameters := &msmfmessage.MessagesRequestBuilderGetQueryParameters{
-//		Select: selecting,
-//	}
-//	options := &msmfmessage.MessagesRequestBuilderGetRequestConfiguration{
-//		QueryParameters: requestParameters,
-//	}
-//
-//	return options, nil
-//}
+func optionsForFolderMessages(moreOps []string) (*DeltaRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, messages)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &DeltaRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &DeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
 
 // optionsForMessages - used to select allowable options for exchange.Mail types
 // @param moreOps is []string of options(e.g. "parentFolderId, subject")

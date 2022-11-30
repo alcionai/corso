@@ -289,10 +289,10 @@ func FetchMessageIDsFromDirectory(
 		ids  []string
 	)
 
-	//options, err := optionsForFolderMessages([]string{"id"})
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "getting query options")
-	//}
+	options, err := optionsForFolderMessages([]string{"id"})
+	if err != nil {
+		return nil, errors.Wrap(err, "getting query options")
+	}
 
 	query := gs.Client().
 		UsersById(user).
@@ -302,7 +302,7 @@ func FetchMessageIDsFromDirectory(
 
 	for {
 		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := query.Get(ctx, nil)
+		resp, err := sendMessagesDeltaGet(ctx, query, options, gs.Adapter())
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
