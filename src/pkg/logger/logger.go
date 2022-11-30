@@ -126,7 +126,7 @@ func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
 		opts := []zap.Option{}
 
 		if readableOutput {
-			opts = append(opts, zap.WithCaller(false))
+			opts = append(opts, zap.WithCaller(false), zap.AddStacktrace(zapcore.DPanicLevel))
 			cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.00")
 			cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		}
