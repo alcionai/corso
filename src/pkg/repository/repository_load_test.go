@@ -25,8 +25,16 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
+func orgSiteSet(t *testing.T) []string {
+	return tester.LoadTestM365OrgSites(t)
+}
+
 func orgUserSet(t *testing.T) []string {
 	return tester.LoadTestM365OrgUsers(t)
+}
+
+func singleSiteSet(t *testing.T) []string {
+	return []string{tester.LoadTestM365SiteID(t)}
 }
 
 func singleUserSet(t *testing.T) []string {
@@ -173,7 +181,7 @@ func runBackupListLoadTest(
 		)
 
 		pprof.Do(ctx, labels, func(ctx context.Context) {
-			bs, err = r.Backups(ctx)
+			bs, err = r.BackupsByTag(ctx)
 		})
 
 		require.NoError(t, err, "retrieving backups")
@@ -549,6 +557,104 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
 		suite.repo,
 		"single_user", "one_drive",
 		suite.usersUnderTest,
+		sel, sel, // same selection for backup and restore
+	)
+}
+
+// ------------------------------------------------------------------------------------------------
+// SharePoint
+// ------------------------------------------------------------------------------------------------
+
+type RepositoryLoadTestSharePointSuite struct {
+	suite.Suite
+	ctx            context.Context
+	repo           repository.Repository
+	acct           account.Account
+	st             storage.Storage
+	sitesUnderTest []string
+}
+
+func TestRepositoryLoadTestSharePointSuite(t *testing.T) {
+	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
+		t.Skip(err)
+	}
+
+	suite.Run(t, new(RepositoryLoadTestSharePointSuite))
+}
+
+func (suite *RepositoryLoadTestSharePointSuite) SetupSuite() {
+	t := suite.T()
+	t.Skip("not running sharepoint load tests atm")
+	t.Parallel()
+	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
+	suite.sitesUnderTest = orgSiteSet(t)
+}
+
+func (suite *RepositoryLoadTestSharePointSuite) TeardownSuite() {
+	suite.repo.Close(suite.ctx)
+}
+
+func (suite *RepositoryLoadTestSharePointSuite) TestSharePoint() {
+	ctx, flush := tester.WithContext(suite.ctx)
+	defer flush()
+
+	bsel := selectors.NewSharePointBackup()
+	bsel.Include(bsel.Sites(suite.sitesUnderTest))
+	sel := bsel.Selector
+
+	runLoadTest(
+		suite.T(),
+		ctx,
+		suite.repo,
+		"all_sites", "share_point",
+		suite.sitesUnderTest,
+		sel, sel, // same selection for backup and restore
+	)
+}
+
+type RepositoryIndividualLoadTestSharePointSuite struct {
+	suite.Suite
+	ctx            context.Context
+	repo           repository.Repository
+	acct           account.Account
+	st             storage.Storage
+	sitesUnderTest []string
+}
+
+func TestRepositoryIndividualLoadTestSharePointSuite(t *testing.T) {
+	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
+		t.Skip(err)
+	}
+
+	suite.Run(t, new(RepositoryIndividualLoadTestOneDriveSuite))
+}
+
+func (suite *RepositoryIndividualLoadTestSharePointSuite) SetupSuite() {
+	t := suite.T()
+	t.Skip("not running sharepoint load tests atm")
+	t.Parallel()
+	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
+	suite.sitesUnderTest = singleSiteSet(t)
+}
+
+func (suite *RepositoryIndividualLoadTestSharePointSuite) TeardownSuite() {
+	suite.repo.Close(suite.ctx)
+}
+
+func (suite *RepositoryIndividualLoadTestSharePointSuite) TestSharePoint() {
+	ctx, flush := tester.WithContext(suite.ctx)
+	defer flush()
+
+	bsel := selectors.NewSharePointBackup()
+	bsel.Include(bsel.Sites(suite.sitesUnderTest))
+	sel := bsel.Selector
+
+	runLoadTest(
+		suite.T(),
+		ctx,
+		suite.repo,
+		"single_site", "share_point",
+		suite.sitesUnderTest,
 		sel, sel, // same selection for backup and restore
 	)
 }
