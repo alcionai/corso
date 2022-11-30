@@ -13,14 +13,11 @@ import (
 
 type SharePointSuite struct {
 	suite.Suite
-	userID string
-	creds  account.M365Config
+	creds account.M365Config
 }
 
 func (suite *SharePointSuite) SetupSuite() {
 	t := suite.T()
-	suite.userID = tester.SecondaryM365UserID(suite.T())
-
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err)
@@ -55,6 +52,6 @@ func (suite *SharePointSuite) TestLoadList() {
 	require.NoError(suite.T(), err)
 
 	lists, err := loadLists(ctx, service, "root")
-	assert.Greater(suite.T(), len(lists), 0)
 	assert.NoError(suite.T(), err)
+	assert.Greater(suite.T(), len(lists), 0)
 }
