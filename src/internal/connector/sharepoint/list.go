@@ -91,7 +91,7 @@ func loadLists(
 }
 
 // fetchListItems utility for retrieving ListItem data and the associated relationship
-// data. All additional calls(3) return a specific object and not a collection.
+// data. All additional calls(3) append data to the tracked items, and do not create additional collections.
 // Additional Calls:
 // * Analytics
 // * DriveItem --> Item content
