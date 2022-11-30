@@ -261,7 +261,7 @@ func listSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	bs, err := r.Backups(ctx, store.Service(path.SharePointService))
+	bs, err := r.BackupsByTag(ctx, store.Service(path.SharePointService))
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
