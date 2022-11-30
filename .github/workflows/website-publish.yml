@@ -111,8 +111,8 @@ jobs:
 
       - name: Push website
         run: |
-          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}" --delete
+          aws s3 sync build "s3://corsobackup.io" --delete
 
       - name: Invalidate cloudfront
         run: |
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id E1W9NGI9YTVZ1A --paths "/*"

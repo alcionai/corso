@@ -54,6 +54,8 @@ jobs:
     outputs:
       environment: ${{ steps.environment.outputs.environment }}
       version: ${{ steps.version.outputs.version }}
+      website-bucket: ${{ steps.website-bucket.output.website-bucket }}
+      website-cfid: ${{ steps.website-cfid.output.website-cfid }}
     steps:
       - uses: actions/checkout@v3
 
@@ -77,6 +79,28 @@ jobs:
           else
             echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
             echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+          fi
+
+      - name: Get bucket name for website
+        id: website-bucket
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=website-bucket::corsobackup.io"
+            echo "::set-output name=website-bucket::corsobackup.io"
+          else
+            echo "set-output name=website-bucket::test-corso-docs"
+            echo "::set-output name=website-bucket::test-corso-docs"
+          fi
+
+      - name: Get cfid for website
+        id: website-cfid
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=website-cfid::E1W9NGI9YTVZ1A"
+            echo "::set-output name=website-cfid::E1W9NGI9YTVZ1A"
+          else
+            echo "set-output name=website-cfid::ESFTEIYTIP7Y3"
+            echo "::set-output name=website-cfid::ESFTEIYTIP7Y3"
           fi
 
   # ----------------------------------------------------------------------------------------------------
@@ -406,11 +430,11 @@ jobs:
 
       - name: Push website
         run: |
-          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}" --delete
+          aws s3 sync build "s3://${{ needs.SetEnv.outputs.website-bucket }}" --delete
 
       - name: Invalidate cloudfront
         run: |
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id ${{ needs.SetEnv.outputs.website-cfid }} --paths "/*"
 
   Publish-Image:
     needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
