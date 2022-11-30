@@ -123,6 +123,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		byteCount int64
 		itemsRead int64
 		wg        sync.WaitGroup
+		m         sync.Mutex
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -145,7 +146,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	defer close(semaphoreCh)
 
 	errUpdater := func(id string, err error) {
+		m.Lock()
 		errs = support.WrapAndAppend(id, err, errs)
+		m.Unlock()
 	}
 
 	for _, itemID := range oc.driveItemIDs {
