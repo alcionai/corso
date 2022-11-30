@@ -86,8 +86,9 @@ func RestoreCollections(
 }
 
 // RestoreCollection handles restoration of an individual collection.
-// returns the metrics gathered during restoration.
-// returns true if the context was cancelled.
+// returns:
+// - the collection's item and byte count metrics
+// - the context cancellation state (true if the context is cancelled)
 func RestoreCollection(
 	ctx context.Context,
 	service graph.Service,
