@@ -143,7 +143,7 @@ func fetchListItems(
 // fetchColumns utility function to return columns from a site.
 // An additional call required to check for details concerning the SourceColumn.
 // For additional details:  https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0
-
+// TODO: Refactor on if/else (dadams39)
 func fetchColumns(
 	ctx context.Context,
 	gs graph.Service,
