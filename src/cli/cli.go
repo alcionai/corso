@@ -2,8 +2,11 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"regexp"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -95,6 +98,16 @@ func Handle() {
 	ctx, log := logger.Seed(ctx, logger.PreloadLogLevel())
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
+		f, err := os.Create("mem.prof")
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		runtime.GC()    // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+		PrintMemUsage()
 	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
@@ -112,4 +125,18 @@ func indentExamplesTemplate(template string) string {
 	e := regexp.MustCompile(`{{\.Example}}`)
 
 	return e.ReplaceAllString(template, "{{.Example | indent 2}}")
+}
+
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }

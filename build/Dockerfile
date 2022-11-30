@@ -19,6 +19,8 @@ COPY --from=builder /go/src/app/corso /corso
 #  Pull tls certs directly from latest upstream image
 COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
+RUN apk add --no-cache --update binutils util-linux logrotate
+
 ENV CORSO_HOME=/app/corso
 ENV CORSO_CONFIG_DIR=$CORSO_HOME \
 	KOPIA_CONFIG_PATH=$CORSO_HOME/kopia/config/repository.config \
@@ -28,4 +30,4 @@ ENV CORSO_CONFIG_DIR=$CORSO_HOME \
 	KOPIA_PERSIST_CREDENTIALS_ON_CONNECT=false \
 	KOPIA_CHECK_FOR_UPDATES=false
 
-ENTRYPOINT ["/corso"]
+ENTRYPOINT ["tail", "-f", "/dev/null"]
