@@ -182,10 +182,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			if err != nil {
-				if err != nil {
-					errUpdater(itemID, err)
-				}
-
+				errUpdater(itemID, err)
 				return
 			}
 
