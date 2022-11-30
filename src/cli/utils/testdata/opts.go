@@ -395,6 +395,94 @@ var (
 	}
 )
 
+type SharePointOptionsTest struct {
+	Name         string
+	Opts         utils.SharePointOpts
+	BackupGetter *MockBackupGetter
+	Expected     []details.DetailsEntry
+}
+
+var (
+	// BadSharePointOptionsFormats contains SharePointOpts with flags that should
+	// cause errors about the format of the input flag. Mocks are configured to
+	// allow the system to run if it doesn't throw an error on formatting.
+	BadSharePointOptionsFormats = []SharePointOptionsTest{
+		// {
+		// 	Name: "BadFileCreatedBefore",
+		// 	Opts: utils.OneDriveOpts{
+		// 		FileCreatedBefore: "foo",
+		// 		Populated: utils.PopulatedFlags{
+		// 			utils.FileCreatedBeforeFN: struct{}{},
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	Name: "EmptyFileCreatedBefore",
+		// 	Opts: utils.OneDriveOpts{
+		// 		FileCreatedBefore: "",
+		// 		Populated: utils.PopulatedFlags{
+		// 			utils.FileCreatedBeforeFN: struct{}{},
+		// 		},
+		// 	},
+		// },
+	}
+
+	// SharePointOptionDetailLookups contains flag inputs and expected results for
+	// some choice input patterns. This set is not exhaustive. All inputs and
+	// outputs are according to the data laid out in selectors/testdata. Mocks are
+	// configured to return the full dataset listed in selectors/testdata.
+	SharePointOptionDetailLookups = []SharePointOptionsTest{
+		{
+			Name:     "AllLibraryItems",
+			Expected: testdata.SharePointLibraryItems,
+			Opts: utils.SharePointOpts{
+				LibraryPaths: selectors.Any(),
+			},
+		},
+		{
+			Name:     "FolderPrefixMatch",
+			Expected: testdata.SharePointLibraryItems,
+			Opts: utils.SharePointOpts{
+				LibraryPaths: []string{testdata.SharePointLibraryFolder},
+			},
+		},
+		{
+			Name:     "FolderPrefixMatchTrailingSlash",
+			Expected: testdata.SharePointLibraryItems,
+			Opts: utils.SharePointOpts{
+				LibraryPaths: []string{testdata.SharePointLibraryFolder + "/"},
+			},
+		},
+		{
+			Name:     "FolderPrefixMatchTrailingSlash",
+			Expected: testdata.SharePointLibraryItems,
+			Opts: utils.SharePointOpts{
+				LibraryPaths: []string{testdata.SharePointLibraryFolder + "/"},
+			},
+		},
+		{
+			Name: "ShortRef",
+			Expected: []details.DetailsEntry{
+				testdata.SharePointLibraryItems[0],
+				testdata.SharePointLibraryItems[1],
+			},
+			Opts: utils.SharePointOpts{
+				LibraryItems: []string{
+					testdata.SharePointLibraryItems[0].ShortRef,
+					testdata.SharePointLibraryItems[1].ShortRef,
+				},
+			},
+		},
+		// {
+		// 	Name:     "CreatedBefore",
+		// 	Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[1]},
+		// 	Opts: utils.SharePointOpts{
+		// 		FileCreatedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+		// 	},
+		// },
+	}
+)
+
 // MockBackupGetter implements the repo.BackupGetter interface and returns
 // (selectors/testdata.GetDetailsSet(), nil, nil) when BackupDetails is called
 // on the nil instance. If an instance is given or Backups is called returns an
@@ -408,7 +496,14 @@ func (MockBackupGetter) Backup(
 	return nil, errors.New("unexpected call to mock")
 }
 
-func (MockBackupGetter) Backups(context.Context, ...store.FilterOption) ([]*backup.Backup, error) {
+func (MockBackupGetter) Backups(context.Context, []model.StableID) ([]*backup.Backup, error) {
+	return nil, errors.New("unexpected call to mock")
+}
+
+func (MockBackupGetter) BackupsByTag(
+	context.Context,
+	...store.FilterOption,
+) ([]*backup.Backup, error) {
 	return nil, errors.New("unexpected call to mock")
 }
 

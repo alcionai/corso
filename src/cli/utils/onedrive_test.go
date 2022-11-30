@@ -4,12 +4,21 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-func (suite *ExchangeUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
+type OneDriveUtilsSuite struct {
+	suite.Suite
+}
+
+func TestOneDriveUtilsSuite(t *testing.T) {
+	suite.Run(t, new(OneDriveUtilsSuite))
+}
+
+func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 	var (
 		empty             = []string{}
 		single            = []string{"single"}
