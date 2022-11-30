@@ -7,6 +7,7 @@ import (
 var restoreCommands = []func(parent *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
+	addSharePointCommands,
 }
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
