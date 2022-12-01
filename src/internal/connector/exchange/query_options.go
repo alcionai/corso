@@ -3,6 +3,7 @@ package exchange
 import (
 	"fmt"
 
+	abs "github.com/microsoft/kiota-abstractions-go"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
@@ -124,6 +125,24 @@ func CategoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 // Graph queries and reduce / filter the amount of data returned
 // which reduces the overall latency of complex calls
 // -----------------------------------------------------------------------
+
+// Delta requests for mail and contacts have the same parameters and config
+// structs.
+type DeltaRequestBuilderGetQueryParameters struct {
+	Count   *bool    `uriparametername:"%24count"`
+	Filter  *string  `uriparametername:"%24filter"`
+	Orderby []string `uriparametername:"%24orderby"`
+	Search  *string  `uriparametername:"%24search"`
+	Select  []string `uriparametername:"%24select"`
+	Skip    *int32   `uriparametername:"%24skip"`
+	Top     *int32   `uriparametername:"%24top"`
+}
+
+type DeltaRequestBuilderGetRequestConfiguration struct {
+	Headers         map[string]string
+	Options         []abs.RequestOption
+	QueryParameters *DeltaRequestBuilderGetQueryParameters
+}
 
 func optionsForFolderMessages(moreOps []string) (*msmfmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, messages)

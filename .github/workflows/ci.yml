@@ -44,7 +44,7 @@ jobs:
       # the results will cascade onto both testing and linting.
       - name: Setup Golang with cache
         uses: ./.github/actions/go-setup-cache
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true'
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.websitefileschanged == 'true'
         with:
           go-version-file: src/go.mod
 
@@ -54,6 +54,8 @@ jobs:
     outputs:
       environment: ${{ steps.environment.outputs.environment }}
       version: ${{ steps.version.outputs.version }}
+      website-bucket: ${{ steps.website-bucket.output.website-bucket }}
+      website-cfid: ${{ steps.website-cfid.output.website-cfid }}
     steps:
       - uses: actions/checkout@v3
 
@@ -79,15 +81,37 @@ jobs:
             echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
           fi
 
+      - name: Get bucket name for website
+        id: website-bucket
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=website-bucket::corsobackup.io"
+            echo "::set-output name=website-bucket::corsobackup.io"
+          else
+            echo "set-output name=website-bucket::test-corso-docs"
+            echo "::set-output name=website-bucket::test-corso-docs"
+          fi
+
+      - name: Get cfid for website
+        id: website-cfid
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "set-output name=website-cfid::E1W9NGI9YTVZ1A"
+            echo "::set-output name=website-cfid::E1W9NGI9YTVZ1A"
+          else
+            echo "set-output name=website-cfid::ESFTEIYTIP7Y3"
+            echo "::set-output name=website-cfid::ESFTEIYTIP7Y3"
+          fi
+
   # ----------------------------------------------------------------------------------------------------
-  # --- Docs Linting -----------------------------------------------------------------------------------
+  # --- Website Linting -----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  Docs-Linting:
+  Website-Linting:
     needs: [Precheck, Checkout, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.docfileschanged == 'true' # docsfileschanged also includes srcfileschanged
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.websitefileschanged == 'true' # websitefileschanged also includes srcfileschanged
 
     steps:
       - uses: actions/checkout@v3
@@ -102,39 +126,37 @@ jobs:
         run: |
           go run ./cmd/mdgen/mdgen.go generate
 
-      # migrate generated md files into /docs/docs/cli
+      # migrate generated md files into /website/docs/cli
       - name: Move CLI .md to Docs
         run: |
-          mkdir -p ./docs/docs/cli
-          mv ./src/cmd/mdgen/cli_markdown/* ./docs/docs/cli/
+          mkdir -p ./website/docs/cli
+          mv ./src/cmd/mdgen/cli_markdown/* ./website/docs/cli/
           rm -R ./src/cmd/mdgen/cli_markdown/
 
-      - name: Install dependencies for docs lint
+      - name: Install dependencies for website lint
         run: |
           wget https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
           mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
           echo "$PWD/bin" >> $GITHUB_PATH
           npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
 
-      - name: Run docs lint
-        env:
-          CORSO_USE_DOCKER: -1 # prevent using docker inside makefile
+      - name: Run website lint
         run: |
-          cd docs && make -o genclidocs localcheck
+          cd website && make -o genclidocs localcheck
 
-      - name: Build docs
+      - name: Build website
         env:
           CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
         run: |
-          cd docs &&
+          cd website &&
             npm ci &&
             npm run build
 
       - uses: actions/upload-artifact@master
-        name: Upload docs as artifacts
+        name: Upload website as artifacts
         with:
-          name: docs
-          path: docs/build
+          name: website
+          path: website/build
 
   # ----------------------------------------------------------------------------------------------------
   # --- Integration and Unit Testing -------------------------------------------------------------------
@@ -324,9 +346,12 @@ jobs:
       - name: Go Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.45.2
+          # Keep pinned to a verson as sometimes updates will add new lint
+          # failures in unchanged code.
+          version: v1.50.1
           working-directory: src
-          skip-cache: true
+          skip-pkg-cache: true
+          skip-build-cache: true
 
       # check licenses
       - name: Get go-licenses
@@ -340,7 +365,7 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Publish-Binary:
-    needs: [Test-Suite-Trusted, Linting, Docs-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
@@ -376,23 +401,23 @@ jobs:
           name: corso
           path: src/dist/*
 
-  Publish-Docs:
-    needs: [Test-Suite-Trusted, Linting, Docs-Linting, SetEnv]
+  Publish-Website:
+    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
     defaults:
       run:
-        working-directory: docs
+        working-directory: website
 
     steps:
       - uses: actions/checkout@v3
 
       - uses: actions/download-artifact@master
-        name: Download docs from build step
+        name: Download website from build step
         with:
-          name: docs
-          path: docs/build
+          name: website
+          path: website/build
 
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
@@ -406,16 +431,16 @@ jobs:
         run: |
           printf 'User-agent: *\nDisallow: /' > build/robots.txt
 
-      - name: Push docs
+      - name: Push website
         run: |
-          aws s3 sync build "s3://${{ secrets.DOCS_S3_BUCKET }}"
+          aws s3 sync build "s3://${{ needs.SetEnv.outputs.website-bucket }}" --delete
 
       - name: Invalidate cloudfront
         run: |
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id ${{ needs.SetEnv.outputs.website-cfid }} --paths "/*"
 
   Publish-Image:
-    needs: [Test-Suite-Trusted, Linting, Docs-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'

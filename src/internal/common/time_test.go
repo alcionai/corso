@@ -89,8 +89,6 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 		parseT("2006-01-02T03:00:04-01:00"),
 	}
 
-	type timeFormatter func(time.Time) string
-
 	formats := []common.TimeFormat{
 		common.ClippedSimple,
 		common.ClippedSimpleOneDrive,

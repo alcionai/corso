@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -181,22 +183,57 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel := sharePointBackupCreateSelectors(site)
 
-	bo, err := r.NewBackup(ctx, sel)
+	sites, err := m365.Sites(ctx, acct)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to initialize SharePoint backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to retrieve SharePoint sites"))
 	}
 
-	err = bo.Run(ctx)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to run SharePoint backup"))
+	var (
+		errs *multierror.Error
+		bIDs []model.StableID
+	)
+
+	for _, scope := range sel.DiscreteScopes(sites) {
+		for _, selSite := range scope.Get(selectors.SharePointSite) {
+			opSel := selectors.NewSharePointBackup()
+			opSel.Include([]selectors.SharePointScope{scope.DiscreteCopy(selSite)})
+
+			bo, err := r.NewBackup(ctx, opSel.Selector)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to initialize SharePoint backup for site %s",
+					scope.Get(selectors.SharePointSite),
+				))
+
+				continue
+			}
+
+			err = bo.Run(ctx)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to run SharePoint backup for site %s",
+					scope.Get(selectors.SharePointSite),
+				))
+
+				continue
+			}
+
+			bIDs = append(bIDs, bo.Results.BackupID)
+		}
 	}
 
-	bu, err := r.Backup(ctx, bo.Results.BackupID)
+	bups, err := r.Backups(ctx, bIDs)
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve backup results from storage")
+		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}
 
-	bu.Print(ctx)
+	backup.PrintAll(ctx, bups)
+
+	if e := errs.ErrorOrNil(); e != nil {
+		return Only(ctx, e)
+	}
 
 	return nil
 }
@@ -209,11 +246,11 @@ func validateSharePointBackupCreateFlags(sites []string) error {
 	return nil
 }
 
-func sharePointBackupCreateSelectors(sites []string) selectors.Selector {
+func sharePointBackupCreateSelectors(sites []string) *selectors.SharePointBackup {
 	sel := selectors.NewSharePointBackup()
 	sel.Include(sel.Sites(sites))
 
-	return sel.Selector
+	return sel
 }
 
 // ------------------------------------------------------------------------------------------------
