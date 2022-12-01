@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -51,7 +52,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	defer func() {
 		for _, id := range folderIDs {
-			assert.NoError(t, DeleteItem(ctx, gs, driveID, id))
+			err := DeleteItem(ctx, gs, driveID, id)
+			if err != nil {
+				logger.Ctx(ctx).Warnw("deleting folder", "id", id, "error", err)
+			}
 		}
 	}()
 
