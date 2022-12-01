@@ -104,6 +104,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		suite.T().Run(test.name, func(t *testing.T) {
 			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t))
 			require.NoError(t, err)
+			require.Greater(t, len(collection), 0, "no collections returned from query")
 			assert.Equal(t, len(collection), 1)
 			channel := collection[0].Items()
 			for object := range channel {
