@@ -1,5 +1,5 @@
 # This must match the version defined in .github/workflows/lint.yaml.
-WANTED_LINT_VERSION := 1.45.2
+WANTED_LINT_VERSION := 1.50.1
 LINT_VERSION := $(shell golangci-lint version | cut -d' ' -f4)
 HAS_LINT := $(shell which golangci-lint)
 

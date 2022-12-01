@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -37,10 +38,10 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 			"list sharepoint", listCommand, expectUse,
 			sharePointListCmd().Short, listSharePointCmd,
 		},
-		// {
-		// 	"details sharepoint", detailsCommand, expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
-		// 	sharePointDetailsCmd().Short, detailsSharePointCmd,
-		// },
+		{
+			"details sharepoint", detailsCommand, expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
+			sharePointDetailsCmd().Short, detailsSharePointCmd,
+		},
 		{
 			"delete sharepoint", deleteCommand, expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
 			sharePointDeleteCmd().Short, deleteSharePointCmd,
@@ -87,40 +88,40 @@ func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
 	}
 }
 
-// func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
-// 	ctx, flush := tester.NewContext()
-// 	defer flush()
+func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
+	ctx, flush := tester.NewContext()
+	defer flush()
 
-// 	for _, test := range testdata.SharePointOptionDetailLookups {
-// 		suite.T().Run(test.Name, func(t *testing.T) {
-// 			output, err := runDetailsSharePointCmd(
-// 				ctx,
-// 				test.BackupGetter,
-// 				"backup-ID",
-// 				test.Opts,
-// 			)
-// 			assert.NoError(t, err)
+	for _, test := range testdata.SharePointOptionDetailLookups {
+		suite.T().Run(test.Name, func(t *testing.T) {
+			output, err := runDetailsSharePointCmd(
+				ctx,
+				test.BackupGetter,
+				"backup-ID",
+				test.Opts,
+			)
+			assert.NoError(t, err)
 
-// 			assert.ElementsMatch(t, test.Expected, output.Entries)
-// 		})
-// 	}
-// }
+			assert.ElementsMatch(t, test.Expected, output.Entries)
+		})
+	}
+}
 
-// func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
-// 	ctx, flush := tester.NewContext()
-// 	defer flush()
+func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
+	ctx, flush := tester.NewContext()
+	defer flush()
 
-// 	for _, test := range testdata.BadSharePointOptionsFormats {
-// 		suite.T().Run(test.Name, func(t *testing.T) {
-// 			output, err := runDetailsSharePointCmd(
-// 				ctx,
-// 				test.BackupGetter,
-// 				"backup-ID",
-// 				test.Opts,
-// 			)
+	for _, test := range testdata.BadSharePointOptionsFormats {
+		suite.T().Run(test.Name, func(t *testing.T) {
+			output, err := runDetailsSharePointCmd(
+				ctx,
+				test.BackupGetter,
+				"backup-ID",
+				test.Opts,
+			)
 
-// 			assert.Error(t, err)
-// 			assert.Empty(t, output)
-// 		})
-// 	}
-// }
+			assert.Error(t, err)
+			assert.Empty(t, output)
+		})
+	}
+}
