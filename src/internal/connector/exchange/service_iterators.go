@@ -168,13 +168,18 @@ func FetchEventIDsFromCalendar(
 		ids  []string
 	)
 
-	query := gs.Client().
+	options, err := optionsForCalendarEvents([]string{"id"})
+	if err != nil {
+		return nil, err
+	}
+
+	builder := gs.Client().
 		UsersById(user).
 		CalendarsById(calendarID).
 		Events()
 
 	for {
-		resp, err := query.Get(ctx, nil)
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -198,7 +203,7 @@ func FetchEventIDsFromCalendar(
 			break
 		}
 
-		query = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
+		builder = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
