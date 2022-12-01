@@ -1,0 +1,11 @@
+[Cc]orso
+Docusaurus
+[Cc]onfig
+Config
+datetime
+(?i)OneDrive
+[Rr]epo
+env
+src
+Powershell
+Backblaze
