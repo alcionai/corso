@@ -299,24 +299,23 @@ func optionsForMailFoldersItem(
 }
 
 // optionsForContactFoldersItem is the same as optionsForContacts.
-// TODO: Remove after Issue #828; requires updating msgraph to v0.34
-//func optionsForContactFoldersItem(
-//	moreOps []string,
-//) (*mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration, error) {
-//	selecting, err := buildOptions(moreOps, contacts)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	requestParameters := &mscontactfolderitemcontact.ContactsRequestBuilderGetQueryParameters{
-//		Select: selecting,
-//	}
-//	options := &mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration{
-//		QueryParameters: requestParameters,
-//	}
-//
-//	return options, nil
-//}
+func optionsForContactFoldersItem(
+	moreOps []string,
+) (*DeltaRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, contacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &DeltaRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &DeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
 
 // optionsForEvents ensures valid option inputs for exchange.Events
 // @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
