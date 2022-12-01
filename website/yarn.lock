@@ -3333,10 +3333,10 @@ js-base64@^2.1.9:
   resolved "https://registry.yarnpkg.com/js-base64/-/js-base64-2.6.4.tgz#f4e686c5de1ea1f867dbcad3d46d969428df98c4"
   integrity sha512-pZe//GGmwJndub7ZghVHz7vjb2LgC1m8B07Au3eYqeqv9emhESByMXxaEgkUkEqJe87oBbSniGYoQNIBklc7IQ==
 
-js-datepicker@^5.18.1:
-  version "5.18.1"
-  resolved "https://registry.yarnpkg.com/js-datepicker/-/js-datepicker-5.18.1.tgz#98d7089d4538917cd389b93285ec21ae339ca454"
-  integrity sha512-gcNh01sydVfF2B/s5mFfBExZnFVGvGfNlR50N1CyKHCJ8jmzVR3hKTvzoWcwNx9pVkecB1nBAPa5DcMIDSi2ug==
+js-datepicker@^5.18.2:
+  version "5.18.2"
+  resolved "https://registry.yarnpkg.com/js-datepicker/-/js-datepicker-5.18.2.tgz#2f25c7a4d25207dd5a3053efe95173ddf840527f"
+  integrity sha512-lBh5tIwb1ewDVlNHuwczoLiMhTFWnGYuHSA7ONAPKyMeofIFZDFGeOZ71UTY/Mk2evJJt+L66ec/RiXUy8XzEg==
 
 js-yaml@^3.12.0:
   version "3.14.1"
