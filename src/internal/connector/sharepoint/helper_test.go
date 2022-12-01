@@ -14,9 +14,10 @@ type testService struct {
 	credentials account.M365Config
 }
 
-///------------------------------------------------------------
+//------------------------------------------------------------
 // Functions to comply with graph.Service Interface
-//-------------------------------------------------------
+//------------------------------------------------------------
+
 func (ts *testService) Client() *msgraphsdk.GraphServiceClient {
 	return &ts.client
 }
