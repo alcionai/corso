@@ -294,7 +294,7 @@ func FetchMessageIDsFromDirectory(
 		return nil, errors.Wrap(err, "getting query options")
 	}
 
-	query := gs.Client().
+	builder := gs.Client().
 		UsersById(user).
 		MailFoldersById(directoryID).
 		Messages().
@@ -302,7 +302,7 @@ func FetchMessageIDsFromDirectory(
 
 	for {
 		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := sendMessagesDeltaGet(ctx, query, options, gs.Adapter())
+		resp, err := sendMessagesDeltaGet(ctx, builder, options, gs.Adapter())
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -331,7 +331,7 @@ func FetchMessageIDsFromDirectory(
 			break
 		}
 
-		query = mdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = mdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
