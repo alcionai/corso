@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dustin/go-humanize"
+
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/dustin/go-humanize"
 )
 
 // Backup represents the result of a backup operation

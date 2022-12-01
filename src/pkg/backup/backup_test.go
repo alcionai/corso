@@ -46,10 +46,10 @@ func stubBackup(t time.Time) backup.Backup {
 			WriteErrors: errors.New("1"),
 		},
 		ReadWrites: stats.ReadWrites{
-			BytesRead: 301,
+			BytesRead:     301,
 			BytesUploaded: 301,
-			ItemsRead:    1,
-			ItemsWritten: 1,
+			ItemsRead:     1,
+			ItemsWritten:  1,
 		},
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,
