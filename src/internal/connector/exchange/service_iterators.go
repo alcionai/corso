@@ -223,12 +223,12 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		ids  []string
 	)
 
-	//options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "getting query options")
-	//}
+	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
+	if err != nil {
+		return nil, errors.Wrap(err, "getting query options")
+	}
 
-	query := gs.Client().
+	builder := gs.Client().
 		UsersById(user).
 		ContactFoldersById(directoryID).
 		Contacts().
@@ -236,7 +236,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 
 	for {
 		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := query.Get(ctx, nil)
+		resp, err := sendContactsDeltaGet(ctx, builder, options, gs.Adapter())
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -265,7 +265,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 			break
 		}
 
-		query = cdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = cdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
