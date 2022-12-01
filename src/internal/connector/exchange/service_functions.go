@@ -204,7 +204,7 @@ func pathAndMatch(
 		category,
 		false,
 	)
-	// Only true for containers without a path e.g. Root mail folder
+	// Containers without a path (e.g. Root mail folder) always err here.
 	if err != nil {
 		return nil, false
 	}
