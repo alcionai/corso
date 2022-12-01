@@ -233,7 +233,7 @@ func runRestoreBackupTest(
 	assert.NotNil(t, deets)
 
 	status := restoreGC.AwaitStatus()
-	runTime := time.Now().Sub(start)
+	runTime := time.Since(start)
 
 	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 	assert.Equal(t, totalItems, status.Successful, "status.Successful")
@@ -268,7 +268,7 @@ func runRestoreBackupTest(
 	dcs, err := backupGC.DataCollections(ctx, backupSel)
 	require.NoError(t, err)
 
-	t.Logf("Backup enumeration complete in %v\n", time.Now().Sub(start))
+	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.

@@ -25,18 +25,22 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
+//nolint:unused
 func orgSiteSet(t *testing.T) []string {
 	return tester.LoadTestM365OrgSites(t)
 }
 
+//nolint:unused
 func orgUserSet(t *testing.T) []string {
 	return tester.LoadTestM365OrgUsers(t)
 }
 
+//nolint:unused
 func singleSiteSet(t *testing.T) []string {
 	return []string{tester.LoadTestM365SiteID(t)}
 }
 
+//nolint:unused
 func singleUserSet(t *testing.T) []string {
 	return []string{tester.LoadTestM365UserID(t)}
 }
@@ -181,7 +185,7 @@ func runBackupListLoadTest(
 		)
 
 		pprof.Do(ctx, labels, func(ctx context.Context) {
-			bs, err = r.Backups(ctx)
+			bs, err = r.BackupsByTag(ctx)
 		})
 
 		require.NoError(t, err, "retrieving backups")
@@ -368,8 +372,8 @@ type RepositoryLoadTestExchangeSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account
-	st             storage.Storage
+	acct           account.Account //nolint:unused
+	st             storage.Storage //nolint:unused
 	usersUnderTest []string
 }
 
@@ -418,8 +422,8 @@ type RepositoryIndividualLoadTestExchangeSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account
-	st             storage.Storage
+	acct           account.Account //nolint:unused
+	st             storage.Storage //nolint:unused
 	usersUnderTest []string
 }
 
@@ -471,8 +475,8 @@ type RepositoryLoadTestOneDriveSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account
-	st             storage.Storage
+	acct           account.Account //nolint:unused
+	st             storage.Storage //nolint:unused
 	usersUnderTest []string
 }
 
@@ -518,8 +522,8 @@ type RepositoryIndividualLoadTestOneDriveSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account
-	st             storage.Storage
+	acct           account.Account //nolint:unused
+	st             storage.Storage //nolint:unused
 	usersUnderTest []string
 }
 
@@ -569,8 +573,8 @@ type RepositoryLoadTestSharePointSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account
-	st             storage.Storage
+	acct           account.Account //nolint:unused
+	st             storage.Storage //nolint:unused
 	sitesUnderTest []string
 }
 
@@ -616,8 +620,8 @@ type RepositoryIndividualLoadTestSharePointSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account
-	st             storage.Storage
+	acct           account.Account //nolint:unused
+	st             storage.Storage //nolint:unused
 	sitesUnderTest []string
 }
 
