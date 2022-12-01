@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -171,6 +172,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return err
 	}
 	backupCh <- struct{}{}
+
+	logger.Ctx(ctx).Debugf(
+		"Backed up %d directories and %d files",
+		opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount,
+	)
 
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
