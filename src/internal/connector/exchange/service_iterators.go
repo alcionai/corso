@@ -245,7 +245,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 			if item.GetId() == nil {
 				errs = multierror.Append(
 					errs,
-					errors.Errorf("item with nil ID in folder %s", directoryID),
+					errors.Errorf("contact with nil ID in folder %s", directoryID),
 				)
 
 				// TODO(ashmrtn): Handle fail-fast.
