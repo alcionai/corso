@@ -328,6 +328,9 @@ jobs:
           working-directory: src
           skip-cache: true
 
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1.2.0
+
       # check licenses
       - name: Get go-licenses
         run: go install github.com/google/go-licenses@latest
