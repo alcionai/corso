@@ -13,17 +13,20 @@ import (
 
 // opStatus describes the current status of an operation.
 // InProgress - the standard value for any process that has not
-//   arrived at an end state.  The end states are Failed, Completed,
-//   or NoData.
+// arrived at an end state.  The end states are Failed, Completed,
+// or NoData.
+//
 // Failed - the operation was unable to begin processing data at all.
-//   No items have been written by the consumer.
+// No items have been written by the consumer.
+//
 // Completed - the operation was able to process one or more of the
-//   items in the request. Both partial success (0 < N < len(items)
-//   errored) and total success (0 errors) are set as Completed.
+// items in the request. Both partial success (0 < N < len(items)
+// errored) and total success (0 errors) are set as Completed.
+//
 // NoData - only occurs when no data was involved in an operation.
-//   For example, if a backup is requested for a specific user's
-//   mail, but that account contains zero mail messages, the backup
-//   contains No Data.
+// For example, if a backup is requested for a specific user's
+// mail, but that account contains zero mail messages, the backup
+// contains No Data.
 type opStatus int
 
 //go:generate stringer -type=opStatus -linecomment

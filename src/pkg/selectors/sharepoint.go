@@ -407,6 +407,30 @@ func (s SharePointScope) setDefaults() {
 	}
 }
 
+// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
+// site comparison with only the provided site.
+func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
+	return discreteCopy(s, site)
+}
+
+// ---------------------------------------------------------------------------
+// Backup Details Filtering
+// ---------------------------------------------------------------------------
+
+// Reduce filters the entries in a details struct to only those that match the
+// inclusions, filters, and exclusions in the selector.
+func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details.Details {
+	return reduce[SharePointScope](
+		ctx,
+		deets,
+		s.Selector,
+		map[path.CategoryType]sharePointCategory{
+			path.LibrariesCategory: SharePointLibraryItem,
+			// TODO: list category type
+		},
+	)
+}
+
 // matchesInfo handles the standard behavior when comparing a scope and an sharePointInfo
 // returns true if the scope and info match for the provided category.
 func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
@@ -427,22 +451,4 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	// }
 
 	return s.Matches(filterCat, i)
-}
-
-// ---------------------------------------------------------------------------
-// Backup Details Filtering
-// ---------------------------------------------------------------------------
-
-// Reduce filters the entries in a details struct to only those that match the
-// inclusions, filters, and exclusions in the selector.
-func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details.Details {
-	return reduce[SharePointScope](
-		ctx,
-		deets,
-		s.Selector,
-		map[path.CategoryType]sharePointCategory{
-			path.LibrariesCategory: SharePointLibraryItem,
-			// TODO: list category type
-		},
-	)
 }

@@ -459,6 +459,29 @@ func (s OneDriveScope) setDefaults() {
 	}
 }
 
+// DiscreteCopy makes a clone of the scope, then replaces the clone's user comparison
+// with only the provided user.
+func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
+	return discreteCopy(s, user)
+}
+
+// ---------------------------------------------------------------------------
+// Backup Details Filtering
+// ---------------------------------------------------------------------------
+
+// Reduce filters the entries in a details struct to only those that match the
+// inclusions, filters, and exclusions in the selector.
+func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.Details {
+	return reduce[OneDriveScope](
+		ctx,
+		deets,
+		s.Selector,
+		map[path.CategoryType]oneDriveCategory{
+			path.FilesCategory: OneDriveItem,
+		},
+	)
+}
+
 // matchesInfo handles the standard behavior when comparing a scope and an oneDriveInfo
 // returns true if the scope and info match for the provided category.
 func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
@@ -479,21 +502,4 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 	}
 
 	return s.Matches(filterCat, i)
-}
-
-// ---------------------------------------------------------------------------
-// Backup Details Filtering
-// ---------------------------------------------------------------------------
-
-// Reduce filters the entries in a details struct to only those that match the
-// inclusions, filters, and exclusions in the selector.
-func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.Details {
-	return reduce[OneDriveScope](
-		ctx,
-		deets,
-		s.Selector,
-		map[path.CategoryType]oneDriveCategory{
-			path.FilesCategory: OneDriveItem,
-		},
-	)
 }
