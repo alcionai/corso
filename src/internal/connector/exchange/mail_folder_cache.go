@@ -4,7 +4,7 @@ import (
 	"context"
 
 	multierror "github.com/hashicorp/go-multierror"
-	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
+	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/delta"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -81,13 +81,11 @@ func (mc *mailFolderCache) Populate(
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(baseID).ChildFolders().
+		MailFolders().
 		Delta()
 
 	var errs *multierror.Error
 
-	// TODO: Cannot use Iterator for delta
-	// Awaiting resolution: https://github.com/microsoftgraph/msgraph-sdk-go/issues/272
 	for {
 		resp, err := query.Get(ctx, nil)
 		if err != nil {
