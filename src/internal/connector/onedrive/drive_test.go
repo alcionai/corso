@@ -49,14 +49,16 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	driveID := *drives[0].GetId()
 
+	defer func() {
+		for _, id := range folderIDs {
+			assert.NoError(t, DeleteItem(ctx, gs, driveID, id))
+		}
+	}()
+
 	folderID, err := createRestoreFolders(ctx, gs, driveID, folderElements)
 	require.NoError(t, err)
 
 	folderIDs = append(folderIDs, folderID)
-
-	defer func() {
-		assert.NoError(t, DeleteItem(ctx, gs, driveID, folderIDs[0]))
-	}()
 
 	folderName2 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
 	folderElements = append(folderElements, folderName2)
