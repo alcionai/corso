@@ -118,6 +118,50 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Sites() {
 	}
 }
 
+func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
+	t := suite.T()
+	sel := NewSharePointRestore()
+
+	const (
+		s1 = "s1"
+		s2 = "s2"
+	)
+
+	sel.Include(sel.WebURL([]string{s1, s2}))
+	scopes := sel.Includes
+	require.Len(t, scopes, 1)
+
+	for _, sc := range scopes {
+		scopeMustHave(
+			t,
+			SharePointScope(sc),
+			map[categorizer]string{SharePointWebURL: join(s1, s2)},
+		)
+	}
+}
+
+func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
+	t := suite.T()
+	sel := NewSharePointRestore()
+
+	const (
+		s1 = "s1"
+		s2 = "s2"
+	)
+
+	sel.Exclude(sel.WebURL([]string{s1, s2}))
+	scopes := sel.Excludes
+	require.Len(t, scopes, 1)
+
+	for _, sc := range scopes {
+		scopeMustHave(
+			t,
+			SharePointScope(sc),
+			map[categorizer]string{SharePointWebURL: join(s1, s2)},
+		)
+	}
+}
+
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_Sites() {
 	t := suite.T()
 	sel := NewSharePointBackup()
@@ -288,28 +332,39 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
-	ods := NewSharePointRestore()
-
-	// var url = "www.website.com"
-
-	itemInfo := details.ItemInfo{
-		SharePoint: &details.SharePointInfo{
-			ItemType: details.SharePointItem,
-			// WebURL:   "www.website.com",
-		},
-	}
+	var (
+		ods  = NewSharePointRestore()
+		host = "www.website.com"
+		pth  = "/foo"
+		url  = host + pth
+	)
 
 	table := []struct {
-		name   string
-		scope  []SharePointScope
-		expect assert.BoolAssertionFunc
+		name    string
+		infoURL string
+		scope   []SharePointScope
+		expect  assert.BoolAssertionFunc
 	}{
-		// {"item webURL match", ods.WebURL(url), assert.True},
-		// {"item webURL substring", ods.WebURL("website"), assert.True},
-		{"item webURL mismatch", ods.WebURL("google"), assert.False},
+		{"host match", host, ods.WebURL([]string{host}), assert.True},
+		{"url match", url, ods.WebURL([]string{url}), assert.True},
+		{"url contains host", url, ods.WebURL([]string{host}), assert.True},
+		{"host suffixes host", host, ods.WebURL([]string{host}, PathSuffixFilter()), assert.True},
+		{"url does not suffix host", url, ods.WebURL([]string{host}, PathSuffixFilter()), assert.False},
+		{"url contains path", url, ods.WebURL([]string{pth}), assert.True},
+		{"url has path suffix", url, ods.WebURL([]string{pth}, PathSuffixFilter()), assert.True},
+		{"host does not contain substring", host, ods.WebURL([]string{"website"}), assert.False},
+		{"url does not suffix substring", url, ods.WebURL([]string{"oo"}), assert.False},
+		{"host mismatch", host, ods.WebURL([]string{"www.google.com"}), assert.False},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			itemInfo := details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					ItemType: details.SharePointItem,
+					WebURL:   test.infoURL,
+				},
+			}
+
 			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {
 				test.expect(t, scope.matchesInfo(itemInfo))
@@ -324,10 +379,10 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 		pathType path.CategoryType
 	}{
 		{SharePointCategoryUnknown, path.UnknownCategory},
+		{SharePointWebURL, path.UnknownCategory},
 		{SharePointSite, path.UnknownCategory},
 		{SharePointLibrary, path.LibrariesCategory},
 		{SharePointLibraryItem, path.LibrariesCategory},
-		{SharePointFilterWebURL, path.LibrariesCategory},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {

@@ -175,6 +175,26 @@ func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
 // -------------------
 // Scope Factories
 
+// Produces one or more SharePoint webURL scopes.
+// One scope is created per webURL entry.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *SharePointRestore) WebURL(urlSuffixes []string, fOpts ...filterOption) []SharePointScope {
+	// always normalize to pathContains.  If PathSuffix is declared, it will override.
+	os := []filterOption{PathContainsFilter()}
+	os = append(os, fOpts...)
+
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			SharePointWebURL,
+			urlSuffixes,
+			wrapFilter(filters.Less, os...)),
+		// TODO: list scope
+	}
+}
+
 // Produces one or more SharePoint site scopes.
 // One scope is created per site entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -226,20 +246,6 @@ func (s *sharePoint) LibraryItems(sites, libraries, items []string, opts ...opti
 // -------------------
 // Filter Factories
 
-// WebURL produces a SharePoint item webURL filter scope.
-// Matches any item where the webURL contains the substring.
-// If the input equals selectors.Any, the scope will match all times.
-// If the input is empty or selectors.None, the scope will always fail comparisons.
-func (s *sharePoint) WebURL(substring string) []SharePointScope {
-	return []SharePointScope{
-		makeFilterScope[SharePointScope](
-			SharePointLibraryItem,
-			SharePointFilterWebURL,
-			[]string{substring},
-			wrapFilter(filters.Less)),
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -253,13 +259,14 @@ var _ categorizer = SharePointCategoryUnknown
 
 const (
 	SharePointCategoryUnknown sharePointCategory = ""
+
 	// types of data identified by SharePoint
+	SharePointWebURL      sharePointCategory = "SharePointWebURL"
 	SharePointSite        sharePointCategory = "SharePointSite"
 	SharePointLibrary     sharePointCategory = "SharePointLibrary"
 	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
 
 	// filterable topics identified by SharePoint
-	SharePointFilterWebURL sharePointCategory = "SharePointFilterWebURL"
 )
 
 // sharePointLeafProperties describes common metadata of the leaf categories
@@ -285,8 +292,7 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointLibrary, SharePointLibraryItem,
-		SharePointFilterWebURL:
+	case SharePointLibrary, SharePointLibraryItem:
 		return SharePointLibraryItem
 	}
 
@@ -301,6 +307,12 @@ func (c sharePointCategory) rootCat() categorizer {
 // unknownCat returns the unknown category type.
 func (c sharePointCategory) unknownCat() categorizer {
 	return SharePointCategoryUnknown
+}
+
+// isUnion returns true if the category is a site or a webURL, which
+// can act as an alternative identifier to siteID across all site types.
+func (c sharePointCategory) isUnion() bool {
+	return c == SharePointWebURL || c == c.rootCat()
 }
 
 // isLeaf is true if the category is a SharePointItem category.
@@ -434,21 +446,20 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 // matchesInfo handles the standard behavior when comparing a scope and an sharePointInfo
 // returns true if the scope and info match for the provided category.
 func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
-	// info := dii.SharePoint
-	// if info == nil {
-	// 	return false
-	// }
 	var (
 		filterCat = s.FilterCategory()
 		i         = ""
+		info      = dii.SharePoint
 	)
 
-	// switch filterCat {
-	// case FileFilterCreatedAfter, FileFilterCreatedBefore:
-	// 	i = common.FormatTime(info.Created)
-	// case FileFilterModifiedAfter, FileFilterModifiedBefore:
-	// 	i = common.FormatTime(info.Modified)
-	// }
+	if info == nil {
+		return false
+	}
+
+	switch filterCat {
+	case SharePointWebURL:
+		i = info.WebURL
+	}
 
 	return s.Matches(filterCat, i)
 }

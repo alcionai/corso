@@ -496,12 +496,46 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 
 type filterFunc func(string) filters.Filter
 
+type filterConfig struct {
+	usePathContainsFilter bool
+	usePathSuffixFilter   bool
+}
+
+type filterOption func(*filterConfig)
+
+func (cfg *filterConfig) populate(opts ...filterOption) {
+	for _, opt := range opts {
+		opt(cfg)
+	}
+}
+
+// PathSuffixFilter ensures the selector uses a PathSuffix comparator, instead
+// of contains or equals.  Will not override a default Any() or None()
+// comparator.  If PathContainsFilter is also flagged, suffix takes priority.
+func PathSuffixFilter() filterOption {
+	return func(cfg *filterConfig) {
+		cfg.usePathSuffixFilter = true
+	}
+}
+
+// PathContainsFilter ensures the selector uses a PathContains comparator, instead
+// of contains or equals.  Will not override a default Any() or None()
+// comparator.  If PathSuffixFilter is also flagged, suffix takes priority.
+func PathContainsFilter() filterOption {
+	return func(cfg *filterConfig) {
+		cfg.usePathContainsFilter = true
+	}
+}
+
 // wrapFilter produces a func that filterizes the input by:
 // - cleans the input string
 // - normalizes the cleaned input (returns anyFail if empty, allFail if *)
 // - joins the string
 // - and generates a filter with the joined input.
-func wrapFilter(ff filterFunc) func([]string) filters.Filter {
+func wrapFilter(ff filterFunc, fOpts ...filterOption) func([]string) filters.Filter {
+	cfg := &filterConfig{}
+	cfg.populate(fOpts...)
+
 	return func(s []string) filters.Filter {
 		s = clean(s)
 
@@ -513,6 +547,14 @@ func wrapFilter(ff filterFunc) func([]string) filters.Filter {
 			if s[0] == NoneTgt {
 				return failAny
 			}
+		}
+
+		if cfg.usePathSuffixFilter {
+			return filters.PathSuffix(s)
+		}
+
+		if cfg.usePathContainsFilter {
+			return filters.PathContains(s)
 		}
 
 		ss := join(s...)

@@ -556,6 +556,11 @@ func (ec exchangeCategory) unknownCat() categorizer {
 	return ExchangeCategoryUnknown
 }
 
+// isUnion returns true if c is a user
+func (ec exchangeCategory) isUnion() bool {
+	return ec == ec.rootCat()
+}
+
 // isLeaf is true if the category is a mail, event, or contact category.
 func (ec exchangeCategory) isLeaf() bool {
 	return ec == ec.leafCat()
