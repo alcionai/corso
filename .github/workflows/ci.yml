@@ -328,15 +328,16 @@ jobs:
           working-directory: src
           skip-cache: true
 
-      - name: Run staticcheck
-        uses: dominikh/staticcheck-action@v1.2.0
-
       # check licenses
       - name: Get go-licenses
         run: go install github.com/google/go-licenses@latest
 
       - name: Run go-licenses
         run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
+
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1.2.0
+
 
   # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
