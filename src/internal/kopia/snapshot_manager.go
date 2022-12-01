@@ -46,9 +46,9 @@ func makeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
 }
 
-// tagsFromStrings returns a map[string]string with the union of both maps
-// passed in. Currently uses placeholder values for each tag because there can be
-// multiple instances of resource owners and categories in a single snapshot.
+// tagsFromStrings returns a map[string]string with tags for all ownersCats
+// passed in. Currently uses placeholder values for each tag because there can
+// be multiple instances of resource owners and categories in a single snapshot.
 func tagsFromStrings(oc *ownersCats) map[string]string {
 	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
 
@@ -96,7 +96,7 @@ func getLastIdx(
 // complete manifest (if one exists) and maybe the most recent incomplete
 // manifest. If the newest incomplete manifest is more recent than the newest
 // complete manifest then adds it to the returned list. Otherwise no incomplete
-// manifest is returned. Returns nil if there are no complete or complete
+// manifest is returned. Returns nil if there are no complete or incomplete
 // manifests in mans.
 func manifestsSinceLastComplete(
 	mans []*snapshot.Manifest,
