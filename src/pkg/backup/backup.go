@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/dustin/go-humanize"
 )
 
 // Backup represents the result of a backup operation
@@ -95,6 +96,8 @@ type Printable struct {
 	Status     string              `json:"status"`
 	Version    string              `json:"version"`
 	Selectors  selectors.Printable `json:"selectors"`
+	Size       int64               `json:"size"`
+	StoredSize int64               `json:"storedSize"`
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
@@ -106,6 +109,8 @@ func (b Backup) MinimumPrintable() any {
 		Status:     b.Status,
 		Version:    "0",
 		Selectors:  b.Selectors.ToPrintable(),
+		Size:       b.BytesRead,
+		StoredSize: b.BytesUploaded,
 	}
 }
 
@@ -117,6 +122,8 @@ func (b Backup) Headers() []string {
 		"ID",
 		"Status",
 		"Selectors",
+		"Size",
+		"Stored Size",
 	}
 }
 
@@ -131,5 +138,7 @@ func (b Backup) Values() []string {
 		string(b.ID),
 		status,
 		b.Selectors.ToPrintable().Resources(),
+		humanize.Bytes(uint64(b.ReadWrites.BytesRead)),
+		humanize.Bytes(uint64(b.ReadWrites.BytesUploaded)),
 	}
 }
