@@ -526,8 +526,6 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
 		),
 	}
 
-	expected := []*snapshot.Manifest{mockData[2].man}
-
 	msm := &mockErrorSnapshotManager{
 		sm: &mockSnapshotManager{
 			data: mockData,
@@ -536,5 +534,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
 
 	snaps := fetchPrevSnapshotManifests(ctx, msm, input)
 
-	assert.ElementsMatch(t, expected, snaps)
+	// Only 1 snapshot should be chosen because the other two attempts fail.
+	// However, which one is returned is non-deterministic because maps are used.
+	assert.Len(t, snaps, 1)
 }
