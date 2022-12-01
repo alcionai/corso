@@ -66,7 +66,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 
 	newConnector.graphService = *service
 
-	suite.Equal(len(newConnector.Users), 0)
+	suite.Empty(len(newConnector.Users))
 	err = newConnector.setTenantUsers(ctx)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Users))
@@ -93,6 +93,10 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	err = newConnector.setTenantSites(ctx)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Sites))
+
+	for _, site := range newConnector.Sites {
+		suite.NotContains("sharepoint.com/personal/", site)
+	}
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
@@ -229,7 +233,7 @@ func runRestoreBackupTest(
 	assert.NotNil(t, deets)
 
 	status := restoreGC.AwaitStatus()
-	runTime := time.Now().Sub(start)
+	runTime := time.Since(start)
 
 	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 	assert.Equal(t, totalItems, status.Successful, "status.Successful")
@@ -264,7 +268,7 @@ func runRestoreBackupTest(
 	dcs, err := backupGC.DataCollections(ctx, backupSel)
 	require.NoError(t, err)
 
-	t.Logf("Backup enumeration complete in %v\n", time.Now().Sub(start))
+	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.

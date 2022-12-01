@@ -281,6 +281,8 @@ func getStreamItemFunc(
 		ctx, end := D.Span(ctx, "kopia:getStreamItemFunc")
 		defer end()
 
+		log := logger.Ctx(ctx)
+
 		// Collect all errors and return them at the end so that iteration for this
 		// directory doesn't end early.
 		var errs *multierror.Error
@@ -314,11 +316,12 @@ func getStreamItemFunc(
 					err = errors.Wrap(err, "getting full item path")
 					errs = multierror.Append(errs, err)
 
-					logger.Ctx(ctx).Error(err)
+					log.Error(err)
 
 					continue
 				}
 
+				log.Debugw("reading item", "path", itemPath.String())
 				trace.Log(ctx, "kopia:getStreamItemFunc:item", itemPath.String())
 
 				ei, ok := e.(data.StreamInfo)
@@ -326,8 +329,7 @@ func getStreamItemFunc(
 					errs = multierror.Append(
 						errs, errors.Errorf("item %q does not implement DataStreamInfo", itemPath))
 
-					logger.Ctx(ctx).Errorw(
-						"item does not implement DataStreamInfo; skipping", "path", itemPath)
+					log.Errorw("item does not implement DataStreamInfo; skipping", "path", itemPath)
 
 					continue
 				}
@@ -518,32 +520,6 @@ func (w Wrapper) BackupCollections(
 	}
 
 	return s, progress.deets, nil
-}
-
-type ownersCats struct {
-	resourceOwners map[string]struct{}
-	serviceCats    map[string]struct{}
-}
-
-func serviceCatTag(p path.Path) string {
-	return p.Service().String() + p.Category().String()
-}
-
-// tagsFromStrings returns a map[string]string with the union of both maps
-// passed in. Currently uses empty values for each tag because there can be
-// multiple instances of resource owners and categories in a single snapshot.
-func tagsFromStrings(oc *ownersCats) map[string]string {
-	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
-
-	for k := range oc.serviceCats {
-		res[k] = ""
-	}
-
-	for k := range oc.resourceOwners {
-		res[k] = ""
-	}
-
-	return res
 }
 
 func (w Wrapper) makeSnapshotWithRoot(

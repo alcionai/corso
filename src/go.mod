@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.1.0
-	github.com/aws/aws-sdk-go v1.44.132
+	github.com/aws/aws-sdk-go v1.44.145
 	github.com/aws/aws-xray-sdk-go v1.7.1
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -24,7 +24,7 @@ require (
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.4
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 	golang.org/x/tools v0.3.0
 	gopkg.in/resty.v1 v1.12.0
 )

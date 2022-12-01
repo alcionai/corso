@@ -4,6 +4,9 @@ package onedrive
 import (
 	"context"
 	"io"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -16,7 +19,15 @@ import (
 
 const (
 	// TODO: This number needs to be tuned
+	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
 	collectionChannelBufferSize = 50
+
+	// TODO: Tune this later along with collectionChannelBufferSize
+	urlPrefetchChannelBufferSize = 25
+
+	// Max number of retries to get doc from M365
+	// Seems to timeout at times because of multiple requests
+	maxRetries = 4 // 1 + 3 retries
 )
 
 var (
@@ -110,7 +121,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	var (
 		errs      error
 		byteCount int64
-		itemsRead = 0
+		itemsRead int64
+		wg        sync.WaitGroup
+		m         sync.Mutex
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -123,43 +136,81 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	folderProgress, colCloser := observe.ProgressWithCount(
 		observe.ItemQueueMsg,
-		"Folder: /"+parentPathString,
+		"/"+parentPathString,
 		int64(len(oc.driveItemIDs)),
 	)
 	defer colCloser()
 	defer close(folderProgress)
 
-	for _, itemID := range oc.driveItemIDs {
-		// Read the item
-		itemInfo, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
-		if err != nil {
-			errs = support.WrapAndAppendf(itemID, err, errs)
+	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	defer close(semaphoreCh)
 
-			if oc.service.ErrPolicy() {
-				break
-			}
-
-			continue
-		}
-		// Item read successfully, add to collection
-		itemsRead++
-		// byteCount iteration
-		byteCount += itemInfo.Size
-
-		itemInfo.ParentPath = parentPathString
-		progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
-
-		go closer()
-
-		oc.data <- &Item{
-			id:   itemInfo.ItemName,
-			data: progReader,
-			info: itemInfo,
-		}
-		folderProgress <- struct{}{}
+	errUpdater := func(id string, err error) {
+		m.Lock()
+		errs = support.WrapAndAppend(id, err, errs)
+		m.Unlock()
 	}
 
-	oc.reportAsCompleted(ctx, itemsRead, byteCount, errs)
+	for _, itemID := range oc.driveItemIDs {
+		if oc.service.ErrPolicy() && errs != nil {
+			break
+		}
+
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(itemID string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			// Read the item
+			var (
+				itemInfo *details.OneDriveInfo
+				itemData io.ReadCloser
+				err      error
+			)
+
+			// Retrying as we were hitting timeouts when we have multiple requests
+			// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
+			for i := 1; i <= maxRetries; i++ {
+				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+				if err == nil {
+					break
+				}
+				// TODO: Tweak sleep times
+				if i < maxRetries {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+				}
+			}
+
+			if err != nil {
+				errUpdater(itemID, err)
+				return
+			}
+
+			// Item read successfully, add to collection
+			atomic.AddInt64(&itemsRead, 1)
+			// byteCount iteration
+			atomic.AddInt64(&byteCount, itemInfo.Size)
+
+			itemInfo.ParentPath = parentPathString
+			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
+
+			go closer()
+
+			oc.data <- &Item{
+				id:   itemInfo.ItemName,
+				data: progReader,
+				info: itemInfo,
+			}
+			folderProgress <- struct{}{}
+		}(itemID)
+	}
+
+	wg.Wait()
+
+	oc.reportAsCompleted(ctx, int(itemsRead), byteCount, errs)
 }
 
 func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byteCount int64, errs error) {

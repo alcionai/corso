@@ -104,6 +104,10 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 
 	gc.graphService = *aService
 
+	// TODO(ashmrtn): When selectors only encapsulate a single resource owner that
+	// is not a wildcard don't populate users or sites when making the connector.
+	// For now this keeps things functioning if callers do pass in a selector like
+	// "*" instead of.
 	if r == AllResources || r == Users {
 		if err = gc.setTenantUsers(ctx); err != nil {
 			return nil, errors.Wrap(err, "retrieving tenant user list")
@@ -220,6 +224,8 @@ func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
 
 var errKnownSkippableCase = errors.New("case is known and skippable")
 
+const personalSitePath = "sharepoint.com/personal/"
+
 // Transforms an interface{} into a key,value pair representing
 // siteName:siteID.
 func identifySite(item any) (string, string, error) {
@@ -235,6 +241,12 @@ func identifySite(item any) (string, string, error) {
 		}
 
 		return "", "", errors.Errorf("no name for Site: %s", *m.GetId())
+	}
+
+	// personal (ie: oneDrive) sites have to be filtered out server-side.
+	url := m.GetWebUrl()
+	if url != nil && strings.Contains(*url, personalSitePath) {
+		return "", "", errKnownSkippableCase
 	}
 
 	return *m.GetName(), *m.GetId(), nil
