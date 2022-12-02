@@ -62,6 +62,7 @@ runs:
     - name: Run the old purge script to clear out onedrive buildup
       working-directory: ./src
       if: ${{ inputs.folder-prefix != '' }}
+      shell: sh
       env:
         AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}

@@ -360,6 +360,10 @@ jobs:
       - name: Run go-licenses
         run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
 
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1.2.0
+
+
   # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
