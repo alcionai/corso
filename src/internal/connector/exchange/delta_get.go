@@ -18,7 +18,6 @@ const (
 // The following functions are based off the code in v0.41.0 of msgraph-sdk-go
 // for sending delta requests with query parameters.
 
-//nolint:unused
 func createGetRequestInformationWithRequestConfiguration(
 	baseRequestInfoFunc func() (*abs.RequestInformation, error),
 	requestConfig *DeltaRequestBuilderGetRequestConfiguration,
@@ -43,7 +42,6 @@ func createGetRequestInformationWithRequestConfiguration(
 	return requestInfo, nil
 }
 
-//nolint:unused
 func sendMessagesDeltaGet(
 	ctx context.Context,
 	m *msmaildelta.DeltaRequestBuilder,
