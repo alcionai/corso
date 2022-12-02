@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -68,8 +67,6 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 		"ID",
 		"Status",
 		"Selectors",
-		"Size",
-		"Stored Size",
 	}
 	hs := b.Headers()
 	assert.Equal(t, expectHs, hs)
@@ -80,8 +77,6 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 		"id",
 		"status (2 errors)",
 		selectors.All,
-		humanize.Bytes(uint64(301)),
-		humanize.Bytes(uint64(301)),
 	}
 
 	vs := b.Values()
@@ -106,6 +101,6 @@ func (suite *BackupSuite) TestBackup_MinimumPrintable() {
 	assert.Equal(t, bselp, result.Selectors, "selectors")
 	assert.Equal(t, bselp.Resources(), result.Selectors.Resources(), "selector resources")
 
-	assert.Equal(t, b.BytesRead, result.Size, "size")
-	assert.Equal(t, b.BytesUploaded, result.StoredSize, "stored size")
+	assert.Equal(t, b.BytesRead, result.BytesRead, "size")
+	assert.Equal(t, b.BytesUploaded, result.BytesUploaded, "stored size")
 }
