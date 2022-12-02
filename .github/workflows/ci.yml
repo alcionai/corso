@@ -294,7 +294,7 @@ jobs:
           retention-days: 14
 
       # Update check run called "Test-Suite-Fork"
-      - uses: actions/github-script@v5
+      - uses: actions/github-script@v6
         id: update-check-run
         if: ${{ always() }}
         env:
