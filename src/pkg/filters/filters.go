@@ -28,10 +28,14 @@ const (
 	IdentityValue
 	// "foo" is a prefix of "foobarbaz"
 	TargetPrefixes
+	// "baz" is a suffix of "foobarbaz"
+	TargetSuffixes
 	// "foo" equals any complete element prefix of "foo/bar/baz"
 	TargetPathPrefix
 	// "foo" equals any complete element in "foo/bar/baz"
 	TargetPathContains
+	// "baz" equals any complete element suffix of "foo/bar/baz"
+	TargetPathSuffix
 )
 
 func norm(s string) string {
@@ -161,6 +165,18 @@ func NotPrefix(target string) Filter {
 	return newFilter(TargetPrefixes, target, true)
 }
 
+// Suffix creates a filter where Compare(v) is true if
+// target.Suffix(v)
+func Suffix(target string) Filter {
+	return newFilter(TargetSuffixes, target, false)
+}
+
+// NotSuffix creates a filter where Compare(v) is true if
+// !target.Suffix(v)
+func NotSuffix(target string) Filter {
+	return newFilter(TargetSuffixes, target, true)
+}
+
 // PathPrefix creates a filter where Compare(v) is true if
 // target.Prefix(v) &&
 // split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
@@ -241,6 +257,44 @@ func NotPathContains(targets []string) Filter {
 	return newSliceFilter(TargetPathContains, targets, tgts, true)
 }
 
+// PathSuffix creates a filter where Compare(v) is true if
+// target.Suffix(v) &&
+// split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
+// ex: target "/bar/baz" returns true for input "/foo/bar/baz",
+// but false for "/foobar/baz"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
+func PathSuffix(targets []string) Filter {
+	tgts := make([]string, len(targets))
+	for i := range targets {
+		tgts[i] = normPathElem(targets[i])
+	}
+
+	return newSliceFilter(TargetPathSuffix, targets, tgts, false)
+}
+
+// NotPathSuffix creates a filter where Compare(v) is true if
+// !target.Suffix(v) ||
+// !split(target)[i].Equals(split(v)[i]) for _any_ i in 0..len(target)-1
+// ex: target "/bar/baz" returns false for input "/foo/bar/baz",
+// but true for "/foobar/baz"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
+func NotPathSuffix(targets []string) Filter {
+	tgts := make([]string, len(targets))
+	for i := range targets {
+		tgts[i] = normPathElem(targets[i])
+	}
+
+	return newSliceFilter(TargetPathSuffix, targets, tgts, true)
+}
+
 // newFilter is the standard filter constructor.
 func newFilter(c comparator, target string, negate bool) Filter {
 	return Filter{
@@ -302,11 +356,16 @@ func (f Filter) Compare(input string) bool {
 		cmp = in
 	case TargetPrefixes:
 		cmp = prefixed
+	case TargetSuffixes:
+		cmp = suffixed
 	case TargetPathPrefix:
 		cmp = pathPrefix
 		hasSlice = true
 	case TargetPathContains:
 		cmp = pathContains
+		hasSlice = true
+	case TargetPathSuffix:
+		cmp = pathSuffix
 		hasSlice = true
 	case Passes:
 		return true
@@ -364,6 +423,11 @@ func prefixed(target, input string) bool {
 	return strings.HasPrefix(input, target)
 }
 
+// true if target has input as a suffix.
+func suffixed(target, input string) bool {
+	return strings.HasSuffix(input, target)
+}
+
 // true if target is an _element complete_ prefix match
 // on the input.  Element complete means we do not
 // succeed on partial element matches (ex: "/foo" does
@@ -393,6 +457,20 @@ func pathContains(target, input string) bool {
 	return strings.Contains(normPathElem(input), target)
 }
 
+// true if target is an _element complete_ suffix match
+// on the input.  Element complete means we do not
+// succeed on partial element matches (ex: "/bar" does
+// not match "/foobar").
+//
+// As a precondition, assumes the target value has been
+// passed through normPathElem().
+//
+// The input is assumed to be the complete path that may
+// have the target as a suffix.
+func pathSuffix(target, input string) bool {
+	return strings.HasSuffix(normPathElem(input), target)
+}
+
 // ----------------------------------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------------------------------
@@ -405,8 +483,10 @@ var prefixString = map[comparator]string{
 	TargetContains:     "cont:",
 	TargetIn:           "in:",
 	TargetPrefixes:     "pfx:",
+	TargetSuffixes:     "sfx:",
 	TargetPathPrefix:   "pathPfx:",
 	TargetPathContains: "pathCont:",
+	TargetPathSuffix:   "pathSfx:",
 }
 
 func (f Filter) String() string {
