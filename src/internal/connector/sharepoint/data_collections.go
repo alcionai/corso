@@ -57,6 +57,12 @@ func DataCollections(
 			defer close(foldersComplete)
 
 			switch scope.Category().PathType() {
+			// TODO path.ListCategory: PR
+			// collect Lists
+			// done?
+			case path.ListsCategory:
+				return nil, fmt.Errorf("sharePoint list collections not supported")
+
 			case path.LibrariesCategory:
 				spcs, err := collectLibraries(
 					ctx,
