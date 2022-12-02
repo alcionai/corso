@@ -7,6 +7,7 @@ import (
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/hashicorp/go-multierror"
@@ -127,6 +128,8 @@ type BackupStats struct {
 	TotalUploadedBytes int64
 
 	TotalFileCount      int
+	CachedFileCount     int
+	UncachedFileCount   int
 	TotalDirectoryCount int
 	IgnoredErrorCount   int
 	ErrorCount          int
@@ -147,6 +150,8 @@ func manifestToStats(
 		TotalUploadedBytes: uploadCount.NumBytes,
 
 		TotalFileCount:      int(man.Stats.TotalFileCount),
+		CachedFileCount:     int(man.Stats.CachedFiles),
+		UncachedFileCount:   int(man.Stats.NonCachedFiles),
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),
@@ -340,8 +345,14 @@ func getStreamItemFunc(
 				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
-				entry := virtualfs.StreamingFileFromReader(
+				modTime := time.Now()
+				if smt, ok := e.(data.StreamModTime); ok {
+					modTime = smt.ModTime()
+				}
+
+				entry := virtualfs.StreamingFileWithModTimeFromReader(
 					encodeAsPath(e.UUID()),
+					modTime,
 					&backupStreamReader{
 						version:    serializationVersion,
 						ReadCloser: e.ToReader(),
