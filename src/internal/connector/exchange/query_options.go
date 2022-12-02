@@ -6,6 +6,7 @@ import (
 	abs "github.com/microsoft/kiota-abstractions-go"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
+	mscevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
 	mscontactfolderchild "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
@@ -311,6 +312,24 @@ func optionsForContactFoldersItem(
 		Select: selecting,
 	}
 	options := &DeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
+// optionsForEvents ensures valid option inputs for exchange.Events
+// @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
+func optionsForCalendarEvents(moreOps []string) (*mscevents.EventsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, events)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &mscevents.EventsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscevents.EventsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
