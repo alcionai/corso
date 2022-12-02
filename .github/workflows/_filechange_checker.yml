@@ -6,9 +6,6 @@ on:
       srcfileschanged:
         description: "'true' if src/** or .github/workflows/** files have changed in the branch"
         value: ${{ jobs.file-change-check.outputs.srcfileschanged }}
-      docfileschanged:
-        description: "'true' if docs/** or src/** or .github/workflows/** files have changed in the branch"
-        value: ${{ jobs.file-change-check.outputs.docfileschanged }}
       websitefileschanged:
         description: "'true' if websites/** or .github/workflows/** files have changed in the branch"
         value: ${{ jobs.file-change-check.outputs.websitefileschanged }}
@@ -21,7 +18,6 @@ jobs:
       pull-requests: read
     outputs:
       srcfileschanged: ${{ steps.srcchecker.outputs.srcfileschanged }}
-      docfileschanged: ${{ steps.docchecker.outputs.docfileschanged }}
       websitefileschanged: ${{ steps.websitechecker.outputs.websitefileschanged }}
     steps:
       - uses: actions/checkout@v3
@@ -35,8 +31,6 @@ jobs:
           filters: |
             src:
               - 'src/**'
-            docs:
-              - 'docs/**'
             website:
               - 'website/**'
             actions:
@@ -50,16 +44,9 @@ jobs:
           echo "src or workflow file changes occurred"
           echo ::set-output name=srcfileschanged::true
 
-      - name: Check dorny for changes in docs related filepaths
-        id: docchecker
-        if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.docs == 'true' || steps.dornycheck.outputs.actions == 'true'
-        run: |
-          echo "docs, src or workflow file changes occurred"
-          echo ::set-output name=docfileschanged::true
-
       - name: Check dorny for changes in website related filepaths
         id: websitechecker
-        if: steps.dornycheck.outputs.website == 'true' || steps.dornycheck.outputs.actions == 'true'
+        if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.website == 'true' || steps.dornycheck.outputs.actions == 'true'
         run: |
           echo "website or workflow file changes occurred"
           echo ::set-output name=websitefileschanged::true
