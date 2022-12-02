@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -180,17 +179,13 @@ func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *SharePointRestore) WebURL(urlSuffixes []string, fOpts ...filterOption) []SharePointScope {
-	// always normalize to pathContains.  If PathSuffix is declared, it will override.
-	os := []filterOption{PathContainsFilter()}
-	os = append(os, fOpts...)
-
+func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
 			SharePointWebURL,
 			urlSuffixes,
-			wrapFilter(filters.Less, os...)),
+			pathFilterFactory(opts...)),
 		// TODO: list scope
 	}
 }
