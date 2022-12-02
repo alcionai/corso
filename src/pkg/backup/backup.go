@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dustin/go-humanize"
-
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -91,27 +89,27 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID         model.StableID      `json:"id"`
-	ErrorCount int                 `json:"errorCount"`
-	StartedAt  time.Time           `json:"started at"`
-	Status     string              `json:"status"`
-	Version    string              `json:"version"`
-	Selectors  selectors.Printable `json:"selectors"`
-	Size       int64               `json:"size"`
-	StoredSize int64               `json:"storedSize"`
+	ID            model.StableID      `json:"id"`
+	ErrorCount    int                 `json:"errorCount"`
+	StartedAt     time.Time           `json:"started at"`
+	Status        string              `json:"status"`
+	Version       string              `json:"version"`
+	Selectors     selectors.Printable `json:"selectors"`
+	BytesRead     int64               `json:"bytesRead"`
+	BytesUploaded int64               `json:"bytesUploaded"`
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
 func (b Backup) MinimumPrintable() any {
 	return Printable{
-		ID:         b.ID,
-		ErrorCount: support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors),
-		StartedAt:  b.StartedAt,
-		Status:     b.Status,
-		Version:    "0",
-		Selectors:  b.Selectors.ToPrintable(),
-		Size:       b.BytesRead,
-		StoredSize: b.BytesUploaded,
+		ID:            b.ID,
+		ErrorCount:    support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors),
+		StartedAt:     b.StartedAt,
+		Status:        b.Status,
+		Version:       "0",
+		Selectors:     b.Selectors.ToPrintable(),
+		BytesRead:     b.BytesRead,
+		BytesUploaded: b.BytesUploaded,
 	}
 }
 
@@ -123,8 +121,6 @@ func (b Backup) Headers() []string {
 		"ID",
 		"Status",
 		"Selectors",
-		"Size",
-		"Stored Size",
 	}
 }
 
@@ -139,7 +135,5 @@ func (b Backup) Values() []string {
 		string(b.ID),
 		status,
 		b.Selectors.ToPrintable().Resources(),
-		humanize.Bytes(uint64(b.ReadWrites.BytesRead)),
-		humanize.Bytes(uint64(b.ReadWrites.BytesUploaded)),
 	}
 }
