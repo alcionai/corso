@@ -490,11 +490,19 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 			return filters.PathPrefix(s)
 		}
 
+		if sc.useSuffixFilter {
+			return filters.PathSuffix(s)
+		}
+
 		return filters.PathContains(s)
 	}
 
 	if sc.usePrefixFilter {
 		return filters.Prefix(join(s...))
+	}
+
+	if sc.useSuffixFilter {
+		return filters.Suffix(join(s...))
 	}
 
 	if len(s) == 1 {
