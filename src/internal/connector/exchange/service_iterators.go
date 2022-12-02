@@ -188,7 +188,7 @@ func FetchEventIDsFromCalendar(
 			if item.GetId() == nil {
 				errs = multierror.Append(
 					errs,
-					errors.Errorf("item with nil ID in folder %s", calendarID),
+					errors.Errorf("event with nil ID in calendar %s", calendarID),
 				)
 
 				// TODO(ashmrtn): Handle fail-fast.
