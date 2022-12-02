@@ -59,5 +59,16 @@ runs:
         ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Purges
         ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge Deletions
 
-# possible future extensions
-# ./foldersAndItems.ps1 -WellKnownRoot recoverableitemsroot -User ${{ inputs.user }} -FolderNamePurge "Calendar Logging"
+    - name: Run the old purge script to clear out onedrive buildup
+      working-directory: ./src
+      if: ${{ inputs.folder-prefix != '' }}
+      shell: sh
+      env:
+        AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
+        AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
+        AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
+      run: >
+        go run ./cmd/purge/purge.go onedrive
+        --user ${{ inputs.user }}
+        --prefix ${{ inputs.folder-prefix }}
+        --before ${{ inputs.older-than }}

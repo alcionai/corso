@@ -24,7 +24,7 @@ require (
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.4
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 	golang.org/x/tools v0.3.0
 	gopkg.in/resty.v1 v1.12.0
 )

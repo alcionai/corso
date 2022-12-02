@@ -10,6 +10,7 @@ import (
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/compression"
 	"github.com/kopia/kopia/repo/content"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/pkg/errors"
@@ -58,6 +59,8 @@ func IsRepoAlreadyExistsError(e error) bool {
 	var erae ErrorRepoAlreadyExists
 	return errors.As(e, &erae)
 }
+
+var _ snapshotManager = &conn{}
 
 type conn struct {
 	storage storage.Storage
@@ -378,4 +381,11 @@ func checkCompressor(compressor compression.Name) error {
 	}
 
 	return errors.Errorf("unknown compressor type %s", compressor)
+}
+
+func (w *conn) LoadSnapshots(
+	ctx context.Context,
+	ids []manifest.ID,
+) ([]*snapshot.Manifest, error) {
+	return snapshot.LoadSnapshots(ctx, w.Repository, ids)
 }
