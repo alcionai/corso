@@ -530,6 +530,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
+	prevSnaps := fetchPrevSnapshotManifests(ctx, w.c, oc)
+
 	bc := &stats.ByteCounter{}
 
 	err := repo.WriteSession(
@@ -569,7 +571,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			progress.UploadProgress = u.Progress
 			u.Progress = progress
 
-			man, err = u.Upload(innerCtx, root, policyTree, si)
+			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
 				err = errors.Wrap(err, "uploading data")
 				logger.Ctx(innerCtx).Errorw("kopia backup", err)
