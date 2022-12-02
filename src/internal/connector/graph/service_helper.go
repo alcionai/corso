@@ -4,7 +4,6 @@ import (
 	"context"
 	nethttp "net/http"
 	"net/http/httputil"
-	"os"
 	"strings"
 	"time"
 
@@ -45,9 +44,9 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
 
 	// When true, additional logging middleware support added for http request
-	if os.Getenv(logGraphRequestsEnvKey) != "" {
-		middlewares = append(middlewares, &LoggingMiddleware{})
-	}
+	// if os.Getenv(logGraphRequestsEnvKey) != "" {
+	middlewares = append(middlewares, &LoggingMiddleware{})
+	// }
 
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = time.Second * 90
@@ -64,9 +63,25 @@ func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline, middlewareIndex int, req *nethttp.Request,
 ) (*nethttp.Response, error) {
 	requestDump, _ := httputil.DumpRequest(req, true)
-	logger.Ctx(context.TODO()).Infof("REQUEST: %s", string(requestDump))
 
-	return pipeline.Next(req, middlewareIndex)
+	resp, err := pipeline.Next(req, middlewareIndex)
+
+	if resp != nil && (resp.StatusCode/100) != 2 {
+		dump, _ := httputil.DumpResponse(resp, true)
+		logger.Ctx(context.TODO()).Infof("\n-----\nNEW RESP ERR\n-----\n")
+		logger.Ctx(context.TODO()).
+			Infof("-----\n> %v %v %v\n> %v %v\n> %v %v\n\n> %v %v\n-----\n",
+				"url", req.Method, req.URL,
+				"reqlen", req.ContentLength,
+				"code", resp.Status,
+				"RESP:", string(dump))
+		if resp.StatusCode == 400 {
+			logger.Ctx(context.TODO()).Info("REQUEST:", string(requestDump))
+		}
+		logger.Ctx(context.TODO()).Infof("-----\nFIN\n-----\n")
+	}
+
+	return resp, err
 }
 
 func StringToPathCategory(input string) path.CategoryType {

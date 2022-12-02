@@ -321,7 +321,7 @@ func getStreamItemFunc(
 					continue
 				}
 
-				log.Debugw("reading item", "path", itemPath.String())
+				// log.Debugw("reading item", "path", itemPath.String())
 				trace.Log(ctx, "kopia:getStreamItemFunc:item", itemPath.String())
 
 				ei, ok := e.(data.StreamInfo)

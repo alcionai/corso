@@ -69,6 +69,8 @@ func RestoreExchangeContact(
 		return nil, errors.Wrap(err, "creating contact from bytes: RestoreExchangeContact")
 	}
 
+	// logger.Ctx(ctx).Infow("rc", "u", user, "d", destination, "name", *contact.GetGivenName()+" "+*contact.GetSurname(), "id", *contact.GetId())
+
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
 		name := *contact.GetGivenName()
@@ -311,6 +313,8 @@ func RestoreExchangeDataCollections(
 			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerResolver)
 			userCaches = directoryCaches[userID]
 		}
+
+		logger.Ctx(ctx).Warn("destination", dest.ContainerName)
 
 		containerID, err := GetContainerIDFromCache(
 			ctx,

@@ -136,6 +136,7 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoOperationTests,
+		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
@@ -180,9 +181,9 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	bsel := selectors.NewExchangeBackup()
 	bsel.Include(
-		bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
+		// bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
 		bsel.ContactFolders([]string{m365UserID}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		bsel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
+		// bsel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
 	)
 
 	bo, err := NewBackupOperation(
