@@ -294,7 +294,7 @@ jobs:
           retention-days: 14
 
       # Update check run called "Test-Suite-Fork"
-      - uses: actions/github-script@v5
+      - uses: actions/github-script@v6
         id: update-check-run
         if: ${{ always() }}
         env:
@@ -359,6 +359,10 @@ jobs:
 
       - name: Run go-licenses
         run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
+
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1.2.0
+
 
   # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
