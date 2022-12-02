@@ -89,23 +89,27 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID         model.StableID      `json:"id"`
-	ErrorCount int                 `json:"errorCount"`
-	StartedAt  time.Time           `json:"started at"`
-	Status     string              `json:"status"`
-	Version    string              `json:"version"`
-	Selectors  selectors.Printable `json:"selectors"`
+	ID            model.StableID      `json:"id"`
+	ErrorCount    int                 `json:"errorCount"`
+	StartedAt     time.Time           `json:"started at"`
+	Status        string              `json:"status"`
+	Version       string              `json:"version"`
+	Selectors     selectors.Printable `json:"selectors"`
+	BytesRead     int64               `json:"bytesRead"`
+	BytesUploaded int64               `json:"bytesUploaded"`
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
 func (b Backup) MinimumPrintable() any {
 	return Printable{
-		ID:         b.ID,
-		ErrorCount: support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors),
-		StartedAt:  b.StartedAt,
-		Status:     b.Status,
-		Version:    "0",
-		Selectors:  b.Selectors.ToPrintable(),
+		ID:            b.ID,
+		ErrorCount:    support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors),
+		StartedAt:     b.StartedAt,
+		Status:        b.Status,
+		Version:       "0",
+		Selectors:     b.Selectors.ToPrintable(),
+		BytesRead:     b.BytesRead,
+		BytesUploaded: b.BytesUploaded,
 	}
 }
 
