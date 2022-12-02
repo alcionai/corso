@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
+	cdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts/delta"
+	mdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -15,6 +17,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+const nextLinkKey = "@odata.nextLink"
 
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -162,50 +166,47 @@ func FetchEventIDsFromCalendar(
 	gs graph.Service,
 	user, calendarID string,
 ) ([]string, error) {
-	ids := []string{}
+	var (
+		errs *multierror.Error
+		ids  []string
+	)
 
-	response, err := gs.Client().
+	options, err := optionsForCalendarEvents([]string{"id"})
+	if err != nil {
+		return nil, err
+	}
+
+	builder := gs.Client().
 		UsersById(user).
 		CalendarsById(calendarID).
-		Events().Get(ctx, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
+		Events()
 
-	pageIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		gs.Adapter(),
-		models.CreateEventCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "iterator creation failure during fetchEventIDs")
-	}
-
-	var errs *multierror.Error
-
-	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
-		entry, ok := pageItem.(graph.Idable)
-		if !ok {
-			errs = multierror.Append(errs, errors.New("item without GetId() call"))
-			return true
+	for {
+		resp, err := builder.Get(ctx, options)
+		if err != nil {
+			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
-		if entry.GetId() == nil {
-			errs = multierror.Append(errs, errors.New("item with nil ID"))
-			return true
+		for _, item := range resp.GetValue() {
+			if item.GetId() == nil {
+				errs = multierror.Append(
+					errs,
+					errors.Errorf("event with nil ID in calendar %s", calendarID),
+				)
+
+				// TODO(ashmrtn): Handle fail-fast.
+				continue
+			}
+
+			ids = append(ids, *item.GetId())
 		}
 
-		ids = append(ids, *entry.GetId())
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
+			break
+		}
 
-		return true
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(
-			err,
-			support.ConnectorStackErrorTrace(err)+
-				" :fetching events from calendar "+calendarID,
-		)
+		builder = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
@@ -214,61 +215,54 @@ func FetchEventIDsFromCalendar(
 // FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
 // of the targeted directory
 func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, directoryID string) ([]string, error) {
+	var (
+		errs *multierror.Error
+		ids  []string
+	)
+
 	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "getting query options")
 	}
 
-	ids := []string{}
-
-	response, err := gs.Client().
+	builder := gs.Client().
 		UsersById(user).
 		ContactFoldersById(directoryID).
 		Contacts().
-		Get(ctx, options)
-	if err != nil {
-		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
+		Delta()
 
-	pageIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		gs.Adapter(),
-		models.CreateContactCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "iterator creation during FetchContactIDs")
-	}
-
-	var errs *multierror.Error
-
-	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
-		entry, ok := pageItem.(graph.Idable)
-		if !ok {
-			errs = multierror.Append(
-				errs,
-				errors.New("casting pageItem to models.Contactable"),
-			)
-
-			return true
+	for {
+		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
+		resp, err := sendContactsDeltaGet(ctx, builder, options, gs.Adapter())
+		if err != nil {
+			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
-		if entry.GetId() == nil {
-			errs = multierror.Append(errs, errors.New("item with nil ID"))
-			return true
+		for _, item := range resp.GetValue() {
+			if item.GetId() == nil {
+				errs = multierror.Append(
+					errs,
+					errors.Errorf("contact with nil ID in folder %s", directoryID),
+				)
+
+				// TODO(ashmrtn): Handle fail-fast.
+				continue
+			}
+
+			ids = append(ids, *item.GetId())
 		}
 
-		ids = append(ids, *entry.GetId())
+		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
+		if nextLinkIface == nil {
+			break
+		}
 
-		return true
-	})
+		nextLink := nextLinkIface.(*string)
+		if len(*nextLink) == 0 {
+			break
+		}
 
-	if err != nil {
-		return nil,
-			errors.Wrap(
-				err,
-				support.ConnectorStackErrorTrace(err)+
-					" :fetching contactIDs from directory "+directoryID,
-			)
+		builder = cdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
@@ -281,57 +275,54 @@ func FetchMessageIDsFromDirectory(
 	gs graph.Service,
 	user, directoryID string,
 ) ([]string, error) {
-	ids := []string{}
+	var (
+		errs *multierror.Error
+		ids  []string
+	)
 
 	options, err := optionsForFolderMessages([]string{"id"})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting query options")
 	}
 
-	response, err := gs.Client().
+	builder := gs.Client().
 		UsersById(user).
 		MailFoldersById(directoryID).
 		Messages().
-		Get(ctx, options)
-	if err != nil {
-		return nil,
-			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
+		Delta()
 
-	pageIter, err := msgraphgocore.NewPageIterator(
-		response,
-		gs.Adapter(),
-		models.CreateMessageCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating graph iterator")
-	}
-
-	var errs *multierror.Error
-
-	err = pageIter.Iterate(ctx, func(pageItem any) bool {
-		item, ok := pageItem.(graph.Idable)
-		if !ok {
-			errs = multierror.Append(errs, errors.New("item without ID function"))
-			return true
+	for {
+		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
+		resp, err := sendMessagesDeltaGet(ctx, builder, options, gs.Adapter())
+		if err != nil {
+			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
-		if item.GetId() == nil {
-			errs = multierror.Append(errs, errors.New("item with nil ID"))
-			return true
+		for _, item := range resp.GetValue() {
+			if item.GetId() == nil {
+				errs = multierror.Append(
+					errs,
+					errors.Errorf("item with nil ID in folder %s", directoryID),
+				)
+
+				// TODO(ashmrtn): Handle fail-fast.
+				continue
+			}
+
+			ids = append(ids, *item.GetId())
 		}
 
-		ids = append(ids, *item.GetId())
+		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
+		if nextLinkIface == nil {
+			break
+		}
 
-		return true
-	})
+		nextLink := nextLinkIface.(*string)
+		if len(*nextLink) == 0 {
+			break
+		}
 
-	if err != nil {
-		return nil, errors.Wrap(
-			err,
-			support.ConnectorStackErrorTrace(err)+
-				" :fetching messages from directory "+directoryID,
-		)
+		builder = mdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
