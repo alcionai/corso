@@ -60,7 +60,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	t := suite.T()
 	wg := sync.WaitGroup{}
 	collStatus := support.ConnectorOperationStatus{}
-	t1 := time.Now()
+	now := time.Now()
 
 	folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "a-tenant", "a-user", OneDriveSource)
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
 		return &details.OneDriveInfo{
 			ItemName: testItemName,
-			Modified: t1,
+			Modified: now,
 		}, io.NopCloser(bytes.NewReader(testItemData)), nil
 	}
 
@@ -109,7 +109,7 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 
 	require.Implements(t, (*data.StreamModTime)(nil), readItem)
 	mt := readItem.(data.StreamModTime)
-	assert.Equal(t, t1, mt.ModTime())
+	assert.Equal(t, now, mt.ModTime())
 
 	readData, err := io.ReadAll(readItem.ToReader())
 	require.NoError(t, err)
