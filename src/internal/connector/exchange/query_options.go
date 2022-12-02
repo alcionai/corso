@@ -9,7 +9,6 @@ import (
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
 	mscontactfolderchild "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
-	mscontactfolderitemcontact "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -300,19 +299,18 @@ func optionsForMailFoldersItem(
 }
 
 // optionsForContactFoldersItem is the same as optionsForContacts.
-// TODO: Remove after Issue #828; requires updating msgraph to v0.34
 func optionsForContactFoldersItem(
 	moreOps []string,
-) (*mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration, error) {
+) (*DeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &mscontactfolderitemcontact.ContactsRequestBuilderGetQueryParameters{
+	requestParameters := &DeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration{
+	options := &DeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 

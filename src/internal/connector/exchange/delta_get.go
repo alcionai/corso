@@ -81,7 +81,6 @@ func sendMessagesDeltaGet(
 	return res.(msmaildelta.DeltaResponseable), nil
 }
 
-//nolint:unused
 func sendContactsDeltaGet(
 	ctx context.Context,
 	m *mscontactdelta.DeltaRequestBuilder,
