@@ -372,14 +372,6 @@ func messageToDataCollection(
 		return 0, fmt.Errorf("expected Messageable, got %T", parsable)
 	}
 
-	adtl := aMessage.GetAdditionalData()
-	if len(adtl) > 2 {
-		aMessage, err = support.ConvertFromMessageable(adtl, aMessage)
-		if err != nil {
-			return 0, err
-		}
-	}
-
 	if *aMessage.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
