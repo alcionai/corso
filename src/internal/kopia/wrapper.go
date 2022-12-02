@@ -522,32 +522,6 @@ func (w Wrapper) BackupCollections(
 	return s, progress.deets, nil
 }
 
-type ownersCats struct {
-	resourceOwners map[string]struct{}
-	serviceCats    map[string]struct{}
-}
-
-func serviceCatTag(p path.Path) string {
-	return p.Service().String() + p.Category().String()
-}
-
-// tagsFromStrings returns a map[string]string with the union of both maps
-// passed in. Currently uses empty values for each tag because there can be
-// multiple instances of resource owners and categories in a single snapshot.
-func tagsFromStrings(oc *ownersCats) map[string]string {
-	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
-
-	for k := range oc.serviceCats {
-		res[k] = ""
-	}
-
-	for k := range oc.resourceOwners {
-		res[k] = ""
-	}
-
-	return res
-}
-
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,

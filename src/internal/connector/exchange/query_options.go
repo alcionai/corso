@@ -10,12 +10,10 @@ import (
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
 	mscontactfolderchild "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
-	mscontactfolderitemcontact "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
 	msfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item"
-	msmfmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages"
 	msmessage "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages"
 	msitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item"
 	"github.com/pkg/errors"
@@ -145,16 +143,16 @@ type DeltaRequestBuilderGetRequestConfiguration struct {
 	QueryParameters *DeltaRequestBuilderGetQueryParameters
 }
 
-func optionsForFolderMessages(moreOps []string) (*msmfmessage.MessagesRequestBuilderGetRequestConfiguration, error) {
+func optionsForFolderMessages(moreOps []string) (*DeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msmfmessage.MessagesRequestBuilderGetQueryParameters{
+	requestParameters := &DeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msmfmessage.MessagesRequestBuilderGetRequestConfiguration{
+	options := &DeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -302,19 +300,18 @@ func optionsForMailFoldersItem(
 }
 
 // optionsForContactFoldersItem is the same as optionsForContacts.
-// TODO: Remove after Issue #828; requires updating msgraph to v0.34
 func optionsForContactFoldersItem(
 	moreOps []string,
-) (*mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration, error) {
+) (*DeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &mscontactfolderitemcontact.ContactsRequestBuilderGetQueryParameters{
+	requestParameters := &DeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration{
+	options := &DeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
