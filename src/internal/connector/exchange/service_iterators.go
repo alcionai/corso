@@ -8,6 +8,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	mdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -15,6 +16,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+const nextLinkKey = "@odata.nextLink"
 
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -281,57 +284,54 @@ func FetchMessageIDsFromDirectory(
 	gs graph.Service,
 	user, directoryID string,
 ) ([]string, error) {
-	ids := []string{}
+	var (
+		errs *multierror.Error
+		ids  []string
+	)
 
 	options, err := optionsForFolderMessages([]string{"id"})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting query options")
 	}
 
-	response, err := gs.Client().
+	builder := gs.Client().
 		UsersById(user).
 		MailFoldersById(directoryID).
 		Messages().
-		Get(ctx, options)
-	if err != nil {
-		return nil,
-			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
+		Delta()
 
-	pageIter, err := msgraphgocore.NewPageIterator(
-		response,
-		gs.Adapter(),
-		models.CreateMessageCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating graph iterator")
-	}
-
-	var errs *multierror.Error
-
-	err = pageIter.Iterate(ctx, func(pageItem any) bool {
-		item, ok := pageItem.(graph.Idable)
-		if !ok {
-			errs = multierror.Append(errs, errors.New("item without ID function"))
-			return true
+	for {
+		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
+		resp, err := sendMessagesDeltaGet(ctx, builder, options, gs.Adapter())
+		if err != nil {
+			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
-		if item.GetId() == nil {
-			errs = multierror.Append(errs, errors.New("item with nil ID"))
-			return true
+		for _, item := range resp.GetValue() {
+			if item.GetId() == nil {
+				errs = multierror.Append(
+					errs,
+					errors.Errorf("item with nil ID in folder %s", directoryID),
+				)
+
+				// TODO(ashmrtn): Handle fail-fast.
+				continue
+			}
+
+			ids = append(ids, *item.GetId())
 		}
 
-		ids = append(ids, *item.GetId())
+		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
+		if nextLinkIface == nil {
+			break
+		}
 
-		return true
-	})
+		nextLink := nextLinkIface.(*string)
+		if len(*nextLink) == 0 {
+			break
+		}
 
-	if err != nil {
-		return nil, errors.Wrap(
-			err,
-			support.ConnectorStackErrorTrace(err)+
-				" :fetching messages from directory "+directoryID,
-		)
+		builder = mdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
