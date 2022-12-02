@@ -275,7 +275,7 @@ func GetAllFolders(
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}
 
-	res := []*Displayable{}
+	folders := map[string]*Displayable{}
 
 	for _, d := range drives {
 		err = collectItems(
@@ -294,13 +294,18 @@ func GetAllFolders(
 						continue
 					}
 
+					if item.GetId() == nil || len(*item.GetId()) == 0 {
+						logger.Ctx(ctx).Warn("folder without ID")
+						continue
+					}
+
 					if !strings.HasPrefix(*item.GetName(), prefix) {
 						continue
 					}
 
 					// Add the item instead of the folder because the item has more
 					// functionality.
-					res = append(res, &Displayable{item})
+					folders[*item.GetId()] = &Displayable{item}
 				}
 
 				return nil
@@ -309,6 +314,12 @@ func GetAllFolders(
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting items for drive %s", *d.GetName())
 		}
+	}
+
+	res := make([]*Displayable, 0, len(folders))
+
+	for _, f := range folders {
+		res = append(res, f)
 	}
 
 	return res, nil
