@@ -18,8 +18,8 @@ import (
 
 type ItemIntegrationSuite struct {
 	suite.Suite
-	site        string
-	siteDriveID string
+	// site        string
+	// siteDriveID string
 	user        string
 	userDriveID string
 	client      *msgraphsdk.GraphServiceClient
