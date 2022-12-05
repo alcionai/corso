@@ -40,7 +40,6 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	t := suite.T()
 	folderIDs := []string{}
-	t.Logf("User %s in the test\n", suite.userID)
 	folderName1 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
 	folderElements := []string{folderName1}
 	gs := loadTestService(t)
