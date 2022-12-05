@@ -1,11 +1,10 @@
 import React from "react";
-import "animate.css";
 
 export default function Hero() {
   return (
-    <section className="relative !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
+    <section className="relative first-section---custom !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
       <div
-        className="bg-[#151C3D] absolute"
+        className="bg---rotated absolute"
         style={{
           left: "-20rem",
           right: 0,
@@ -24,27 +23,24 @@ export default function Hero() {
       >
         <div className="grid !z-10 grid-cols-1 mt-28 text-center">
           <div className="wow !z-10 animate__animated animate__fadeIn">
-            <h4 className="font-bold !text-white !z-10 !leading-normal text-4xl lg:text-5xl mb-5">
+            <h4
+              className={`font-bold !z-10 !leading-normal text-4xl lg:text-5xl mb-5`}
+            >
               Free, Secure, and Open-Source
               <br /> Backup for Microsoft 365
             </h4>
-            <p className="text-slate-300 !z-10 text-xl max-w-xl mx-auto">
+            <p className={` !z-10 text-xl max-w-xl mx-auto`}>
               The #1 open-source backup tool for Microsoft 365
             </p>
           </div>
 
-          <div className="mt-12 !z-10 mb-6 space-x-4">
+          <div className="mt-12 !z-10 mb-6">
             <a
-              href="../docs/quickstart"
-              className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
+              href="https://docs.corsobackup.io/setup/download"
+              target="_blank"
+              className="text-2xl !z-10 !no-underline hover:text-white py-3 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
             >
-              Quickstart
-            </a>
-            <a
-              href="../docs/setup/download"
-              className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
-            >
-              Download
+              Download Now
             </a>
           </div>
 
@@ -56,7 +52,7 @@ export default function Hero() {
             }}
           >
             <img
-              src="img/cloudbackup.svg"
+              src="assets/images/cloudbackup.svg"
               className="w-[70%] inline-block object-contain"
               alt="Cloud backup and storage"
             />

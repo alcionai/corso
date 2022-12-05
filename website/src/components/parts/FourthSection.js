@@ -1,5 +1,4 @@
 import React from "react";
-import "animate.css";
 import { Icon } from "@iconify/react";
 
 export default function FourthSection() {
@@ -46,7 +45,7 @@ export default function FourthSection() {
                           minutes.
                         </p>
                         <a
-                          href="docs/quickstart"
+                          href="https://docs.corsobackup.io/quickstart"
                           className="!text-white !no-underline flex flex-row items-center !hover:text-white"
                         >
                           Get Started{" "}
