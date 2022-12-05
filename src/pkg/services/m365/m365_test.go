@@ -3,6 +3,7 @@ package m365
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -40,30 +41,12 @@ func (suite *M365IntegrationSuite) TestUsers() {
 
 	require.NotNil(suite.T(), users)
 	require.Greater(suite.T(), len(users), 0)
-}
 
-func (suite *M365IntegrationSuite) TestUserIDs() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+	for _, u := range users {
+		suite.T().Log(u)
+		assert.NotEmpty(suite.T(), u.ID)
+		assert.NotEmpty(suite.T(), u.PrincipalName)
+		assert.NotEmpty(suite.T(), u.Name)
+	}
 
-	acct := tester.NewM365Account(suite.T())
-
-	ids, err := UserIDs(ctx, acct)
-	require.NoError(suite.T(), err)
-
-	require.NotNil(suite.T(), ids)
-	require.Greater(suite.T(), len(ids), 0)
-}
-
-func (suite *M365IntegrationSuite) TestGetEmailAndUserID() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	acct := tester.NewM365Account(suite.T())
-
-	ids, err := GetEmailAndUserID(ctx, acct)
-	require.NoError(suite.T(), err)
-
-	require.NotNil(suite.T(), ids)
-	require.Greater(suite.T(), len(ids), 0)
 }
