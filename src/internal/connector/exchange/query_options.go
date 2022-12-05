@@ -6,10 +6,10 @@ import (
 	abs "github.com/microsoft/kiota-abstractions-go"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
+	mscevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
 	mscontactfolderitem "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item"
 	mscontactfolderchild "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
-	mscontactfolderitemcontact "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts"
 	mscontacts "github.com/microsoftgraph/msgraph-sdk-go/users/item/contacts"
 	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/events"
 	msfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders"
@@ -300,19 +300,36 @@ func optionsForMailFoldersItem(
 }
 
 // optionsForContactFoldersItem is the same as optionsForContacts.
-// TODO: Remove after Issue #828; requires updating msgraph to v0.34
 func optionsForContactFoldersItem(
 	moreOps []string,
-) (*mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration, error) {
+) (*DeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &mscontactfolderitemcontact.ContactsRequestBuilderGetQueryParameters{
+	requestParameters := &DeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &mscontactfolderitemcontact.ContactsRequestBuilderGetRequestConfiguration{
+	options := &DeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
+// optionsForEvents ensures valid option inputs for exchange.Events
+// @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
+func optionsForCalendarEvents(moreOps []string) (*mscevents.EventsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, events)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &mscevents.EventsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mscevents.EventsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
