@@ -187,9 +187,6 @@ func fetchPrevManifests(
 // incomplete. An incomplete manifest may be returned if it is newer than the
 // newest complete manifest for the tuple. Manifests are deduped such that if
 // multiple tuples match the same manifest it will only be returned once.
-//
-// TODO(ashmrtn): Use to get previous manifests so backup can find previously
-// uploaded versions of a file.
 func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
