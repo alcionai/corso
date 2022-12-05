@@ -7,7 +7,6 @@ import (
 	"io"
 	"sync"
 	"testing"
-	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/assert"
@@ -20,31 +19,31 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-type OneDriveCollectionSuite struct {
+type CollectionUnitTestSuite struct {
 	suite.Suite
 }
 
-// Allows `*OneDriveCollectionSuite` to be used as a graph.Service
+// Allows `*CollectionUnitTestSuite` to be used as a graph.Service
 // TODO: Implement these methods
 
-func (suite *OneDriveCollectionSuite) Client() *msgraphsdk.GraphServiceClient {
+func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
 	return nil
 }
 
-func (suite *OneDriveCollectionSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (suite *OneDriveCollectionSuite) ErrPolicy() bool {
+func (suite *CollectionUnitTestSuite) ErrPolicy() bool {
 	return false
 }
 
-func TestOneDriveCollectionSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveCollectionSuite))
+func TestCollectionUnitTestSuite(t *testing.T) {
+	suite.Run(t, new(CollectionUnitTestSuite))
 }
 
 // Returns a status update function that signals the specified WaitGroup when it is done
-func (suite *OneDriveCollectionSuite) testStatusUpdater(
+func (suite *CollectionUnitTestSuite) testStatusUpdater(
 	wg *sync.WaitGroup,
 	statusToUpdate *support.ConnectorOperationStatus,
 ) support.StatusUpdater {
@@ -56,42 +55,95 @@ func (suite *OneDriveCollectionSuite) testStatusUpdater(
 	}
 }
 
-func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
-	t := suite.T()
-	wg := sync.WaitGroup{}
-	collStatus := support.ConnectorOperationStatus{}
-	now := time.Now()
+func (suite *CollectionUnitTestSuite) TestCollection() {
+	var (
+		testItemID   = "fakeItemID"
+		testItemName = "itemName"
+		testItemData = []byte("testdata")
+	)
 
-	folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "a-tenant", "a-user", OneDriveSource)
-	require.NoError(t, err)
-	driveFolderPath, err := getDriveFolderPath(folderPath)
-	require.NoError(t, err)
-
-	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
-	require.NotNil(t, coll)
-	assert.Equal(t, folderPath, coll.FullPath())
-
-	testItemID := "fakeItemID"
-	testItemName := "itemName"
-	testItemData := []byte("testdata")
-
-	// Set a item reader, add an item and validate we get the item back
-	coll.Add(testItemID)
-
-	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
-		return &details.OneDriveInfo{
-			ItemName: testItemName,
-			Modified: now,
-		}, io.NopCloser(bytes.NewReader(testItemData)), nil
+	table := []struct {
+		name       string
+		source     driveSource
+		itemReader itemReaderFunc
+		infoFrom   func(*testing.T, details.ItemInfo) (string, string)
+	}{
+		{
+			name:   "oneDrive",
+			source: OneDriveSource,
+			itemReader: func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+		},
+		{
+			name:   "sharePoint",
+			source: SharePointSource,
+			itemReader: func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.SharePoint)
+				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
+			},
+		},
 	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var (
+				wg         = sync.WaitGroup{}
+				collStatus = support.ConnectorOperationStatus{}
+				readItems  = []data.Stream{}
+			)
 
-	// Read items from the collection
-	wg.Add(1)
+			folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "tenant", "owner", test.source)
+			require.NoError(t, err)
+			driveFolderPath, err := getDriveFolderPath(folderPath)
+			require.NoError(t, err)
 
-	readItems := []data.Stream{}
+			coll := NewCollection(folderPath, "drive-id", suite, suite.testStatusUpdater(&wg, &collStatus), test.source)
+			require.NotNil(t, coll)
+			assert.Equal(t, folderPath, coll.FullPath())
 
-	for item := range coll.Items() {
-		readItems = append(readItems, item)
+			// Set a item reader, add an item and validate we get the item back
+			coll.Add(testItemID)
+			coll.itemReader = test.itemReader
+
+			// Read items from the collection
+			wg.Add(1)
+
+			for item := range coll.Items() {
+				readItems = append(readItems, item)
+			}
+
+			wg.Wait()
+
+			// Expect only 1 item
+			require.Len(t, readItems, 1)
+			require.Equal(t, 1, collStatus.ObjectCount)
+			require.Equal(t, 1, collStatus.Successful)
+
+			// Validate item info and data
+			readItem := readItems[0]
+			readItemInfo := readItem.(data.StreamInfo)
+
+			assert.Equal(t, testItemName, readItem.UUID())
+			readData, err := io.ReadAll(readItem.ToReader())
+			require.NoError(t, err)
+
+			name, parentPath := test.infoFrom(t, readItemInfo.Info())
+
+			assert.Equal(t, testItemData, readData)
+			assert.Equal(t, testItemName, name)
+			assert.Equal(t, driveFolderPath, parentPath)
+		})
 	}
 
 	wg.Wait()
@@ -122,27 +174,47 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 	assert.Equal(t, driveFolderPath, readItemInfo.Info().OneDrive.ParentPath)
 }
 
-func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
-	t := suite.T()
-	collStatus := support.ConnectorOperationStatus{}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", OneDriveSource)
-	require.NoError(t, err)
-
-	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
-	coll.Add("testItemID")
-
-	readError := errors.New("Test error")
-
-	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
-		return nil, nil, readError
+func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
+	table := []struct {
+		name   string
+		source driveSource
+	}{
+		{
+			name:   "oneDrive",
+			source: OneDriveSource,
+		},
+		{
+			name:   "sharePoint",
+			source: SharePointSource,
+		},
 	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var (
+				collStatus = support.ConnectorOperationStatus{}
+				wg         = sync.WaitGroup{}
+			)
 
-	coll.Items()
-	wg.Wait()
-	// Expect no items
-	require.Equal(t, 1, collStatus.ObjectCount)
-	require.Equal(t, 0, collStatus.Successful)
+			wg.Add(1)
+
+			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			require.NoError(t, err)
+
+			coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus), test.source)
+			coll.Add("testItemID")
+
+			readError := errors.New("Test error")
+
+			coll.itemReader = func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, readError
+			}
+
+			coll.Items()
+			wg.Wait()
+
+			// Expect no items
+			require.Equal(t, 1, collStatus.ObjectCount)
+			require.Equal(t, 0, collStatus.Successful)
+		})
+	}
 }
