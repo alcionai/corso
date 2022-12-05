@@ -1,19 +1,24 @@
-import React, { useEffect } from "react";
-import feather from "feather-icons";
-import { WOW } from "wowjs";
-import { jarallax } from "jarallax";
+import React, { useEffect, useRef } from "react";
 import { Icon } from "@iconify/react";
-import "animate.css";
-import "tw-elements";
 
 export default function KeyLoveFAQ() {
+  const jarallaxRef = useRef(null);
   useEffect(() => {
-    new WOW().init();
-    feather.replace();
-    jarallax(document.querySelectorAll(".jarallax"), {
-      speed: 0.2,
-    });
-  });
+    if (typeof window !== "undefined") {
+      const WOW = require("wowjs");
+      const father = require("feather-icons");
+      const jarallax = require("jarallax");
+      require("tw-elements");
+
+      new WOW.WOW({
+        live: false,
+      }).init();
+      father.replace();
+      jarallax.jarallax(jarallaxRef.current, {
+        speed: 0.2,
+      });
+    }
+  }, []);
 
   return (
     <section className="relative md:py-24 !tracking-wide py-16 overflow-hidden">
@@ -448,6 +453,7 @@ export default function KeyLoveFAQ() {
               <div className="relative rounded-xl overflow-hidden shadow-md dark:shadow-gray-800">
                 <div
                   className="w-full jarallax py-72 bg-slate-400 custom-bg_ bg-no-repeat bg-top"
+                  ref={jarallaxRef}
                   data-jarallax='{"speed": 0.1}'
                 ></div>
               </div>
