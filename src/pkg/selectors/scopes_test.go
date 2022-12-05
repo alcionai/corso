@@ -273,7 +273,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 		},
 		false)
 	assert.Len(t, result, 1)
-	assert.Len(t, result[rootCatStub], 1)
+	assert.Len(t, result[rootCatStub], 2)
 	assert.Empty(t, result[leafCatStub])
 }
 

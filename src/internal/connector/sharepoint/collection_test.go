@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -43,9 +42,6 @@ func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
 // SharePoint collection and to use the data stream channel.
 func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
-
-	defer flush()
 
 	ow := kw.NewJsonSerializationWriter()
 	listing := mockconnector.GetMockList("Mock List")
@@ -73,7 +69,6 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 		data: io.NopCloser(bytes.NewReader(byteArray)),
 		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
-	col.finishPopulation(ctx, 0, 0, nil)
 
 	readItems := []data.Stream{}
 	for item := range col.Items() {
