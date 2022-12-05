@@ -512,23 +512,42 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 	return filters.Contains(join(s...))
 }
 
-type filterFunc func(string) filters.Filter
+type (
+	filterFunc      func(string) filters.Filter
+	sliceFilterFunc func([]string) filters.Filter
+)
 
 // pathFilterFactory returns the appropriate path filter
 // (contains, prefix, or suffix) for the provided options.
 // If multiple options are flagged, Prefix takes priority.
 // If no options are provided, returns PathContains.
-func pathFilterFactory(opts ...option) func([]string) filters.Filter {
+func pathFilterFactory(opts ...option) sliceFilterFunc {
 	sc := &scopeConfig{}
 	sc.populate(opts...)
 
+	var ff sliceFilterFunc
+
 	switch true {
 	case sc.usePrefixFilter:
-		return filters.PathPrefix
+		ff = filters.PathPrefix
 	case sc.useSuffixFilter:
-		return filters.PathSuffix
+		ff = filters.PathSuffix
 	default:
-		return filters.PathContains
+		ff = filters.PathContains
+	}
+
+	return wrapSliceFilter(ff)
+}
+
+func wrapSliceFilter(ff sliceFilterFunc) sliceFilterFunc {
+	return func(s []string) filters.Filter {
+		s = clean(s)
+
+		if f, ok := isAnyOrNone(s); ok {
+			return f
+		}
+
+		return ff(s)
 	}
 }
 
@@ -537,22 +556,37 @@ func pathFilterFactory(opts ...option) func([]string) filters.Filter {
 // - normalizes the cleaned input (returns anyFail if empty, allFail if *)
 // - joins the string
 // - and generates a filter with the joined input.
-func wrapFilter(ff filterFunc) func([]string) filters.Filter {
+func wrapFilter(ff filterFunc) sliceFilterFunc {
 	return func(s []string) filters.Filter {
 		s = clean(s)
 
-		if len(s) == 1 {
-			if s[0] == AnyTgt {
-				return passAny
-			}
-
-			if s[0] == NoneTgt {
-				return failAny
-			}
+		if f, ok := isAnyOrNone(s); ok {
+			return f
 		}
 
-		ss := join(s...)
-
-		return ff(ss)
+		return ff(join(s...))
 	}
+}
+
+// returns (<filter>, true) if s is len==1 and s[0] is
+// anyTgt or noneTgt, implying that the caller should use
+// the returned filter.  On (<filter>, false), the caller
+// can ignore the returned filter.
+// a special case exists for len(s)==0, interpreted as
+// "noneTgt"
+func isAnyOrNone(s []string) (filters.Filter, bool) {
+	switch len(s) {
+	case 0:
+		return failAny, true
+
+	case 1:
+		switch s[0] {
+		case AnyTgt:
+			return passAny, true
+		case NoneTgt:
+			return failAny, true
+		}
+	}
+
+	return failAny, false
 }
