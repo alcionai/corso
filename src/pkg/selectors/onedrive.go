@@ -351,6 +351,11 @@ func (c oneDriveCategory) unknownCat() categorizer {
 	return OneDriveCategoryUnknown
 }
 
+// isUnion returns true if c is a user
+func (c oneDriveCategory) isUnion() bool {
+	return c == c.rootCat()
+}
+
 // isLeaf is true if the category is a OneDriveItem category.
 func (c oneDriveCategory) isLeaf() bool {
 	// return c == c.leafCat()??

@@ -24,6 +24,9 @@ buildimage:
 dev: genclidocs
 	$(WEBC) npm start -- --host 0.0.0.0
 
+noclidev:
+	$(WEBC) npm start -- --host 0.0.0.0
+
 VALE_TARGET ?= docs README.md
 
 check: genclidocs
