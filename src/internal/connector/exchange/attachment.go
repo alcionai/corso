@@ -55,7 +55,6 @@ func uploadAttachment(
 
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
 	if attachmentType != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
-
 		err := uploader.uploadSmallAttachment(ctx, attachment)
 
 		return err
