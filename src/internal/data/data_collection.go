@@ -2,6 +2,7 @@ package data
 
 import (
 	"io"
+	"time"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -45,6 +46,11 @@ type StreamInfo interface {
 // information about the Stream
 type StreamSize interface {
 	Size() int64
+}
+
+// StreamModTime is used to provide the modified time of the stream's data.
+type StreamModTime interface {
+	ModTime() time.Time
 }
 
 // ------------------------------------------------------------------------------------------------
