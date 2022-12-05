@@ -17,7 +17,9 @@ Given the increased role of automation in flagging “bad” accounts,
  email account suspensions lead to lost accessing to other services that you have used your entire life
  (due to SSO via your email account), AdWords account suspensions lead to a small business unable to advertise, or a
  flagged application account leads to published applications being automatically withdrawn from app stores.
+
  <!-- truncate -->
+
 
 Thankfully, the growth of easy-to-use SaaS services now allow you to, for the price of a coffee a month,
 control and maintain not just your identity without risk but also all your personal and,
@@ -69,7 +71,9 @@ can see your data and that it is safe against hackers and ransomware.
 
 ![corso Screenshot](../static/img/blog/corso_backup.png)
 
+
 Corso is available now, and we’d love to hear your thoughts!
 Download it, [give it a try,](https://corsobackup.io/docs/intro/) and
 [join us on Discord](https://discord.gg/63DTTSnuhT) to let
+
 us know what you think.
