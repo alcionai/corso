@@ -4,7 +4,7 @@ import (
 	"context"
 
 	multierror "github.com/hashicorp/go-multierror"
-	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/delta"
+	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -119,7 +119,7 @@ func (mc *mailFolderCache) Populate(
 		}
 
 		link := *(n.(*string))
-		query = msfolderdelta.NewDeltaRequestBuilder(link, mc.gs.Adapter())
+		query = msfolderdelta.NewUsersItemMailFoldersDeltaRequestBuilder(link, mc.gs.Adapter())
 	}
 
 	if err := mc.populatePaths(ctx); err != nil {
