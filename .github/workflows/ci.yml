@@ -54,8 +54,8 @@ jobs:
     outputs:
       environment: ${{ steps.environment.outputs.environment }}
       version: ${{ steps.version.outputs.version }}
-      website-bucket: ${{ steps.website-bucket.output.website-bucket }}
-      website-cfid: ${{ steps.website-cfid.output.website-cfid }}
+      website-bucket: ${{ steps.website-bucket.outputs.website-bucket }}
+      website-cfid: ${{ steps.website-cfid.outputs.website-cfid }}
     steps:
       - uses: actions/checkout@v3
 
@@ -294,7 +294,7 @@ jobs:
           retention-days: 14
 
       # Update check run called "Test-Suite-Fork"
-      - uses: actions/github-script@v5
+      - uses: actions/github-script@v6
         id: update-check-run
         if: ${{ always() }}
         env:

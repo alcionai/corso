@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
 	cdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts/delta"
 	mdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
 	"github.com/pkg/errors"
@@ -166,50 +166,47 @@ func FetchEventIDsFromCalendar(
 	gs graph.Service,
 	user, calendarID string,
 ) ([]string, error) {
-	ids := []string{}
+	var (
+		errs *multierror.Error
+		ids  []string
+	)
 
-	response, err := gs.Client().
+	options, err := optionsForCalendarEvents([]string{"id"})
+	if err != nil {
+		return nil, err
+	}
+
+	builder := gs.Client().
 		UsersById(user).
 		CalendarsById(calendarID).
-		Events().Get(ctx, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
+		Events()
 
-	pageIterator, err := msgraphgocore.NewPageIterator(
-		response,
-		gs.Adapter(),
-		models.CreateEventCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "iterator creation failure during fetchEventIDs")
-	}
-
-	var errs *multierror.Error
-
-	err = pageIterator.Iterate(ctx, func(pageItem any) bool {
-		entry, ok := pageItem.(graph.Idable)
-		if !ok {
-			errs = multierror.Append(errs, errors.New("item without GetId() call"))
-			return true
+	for {
+		resp, err := builder.Get(ctx, options)
+		if err != nil {
+			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
-		if entry.GetId() == nil {
-			errs = multierror.Append(errs, errors.New("item with nil ID"))
-			return true
+		for _, item := range resp.GetValue() {
+			if item.GetId() == nil {
+				errs = multierror.Append(
+					errs,
+					errors.Errorf("event with nil ID in calendar %s", calendarID),
+				)
+
+				// TODO(ashmrtn): Handle fail-fast.
+				continue
+			}
+
+			ids = append(ids, *item.GetId())
 		}
 
-		ids = append(ids, *entry.GetId())
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
+			break
+		}
 
-		return true
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(
-			err,
-			support.ConnectorStackErrorTrace(err)+
-				" :fetching events from calendar "+calendarID,
-		)
+		builder = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()

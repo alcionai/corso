@@ -395,6 +395,7 @@ func resourceOwnersIn(s []scope, rootCat string) []string {
 type scopeConfig struct {
 	usePathFilter   bool
 	usePrefixFilter bool
+	useSuffixFilter bool
 }
 
 type option func(*scopeConfig)
@@ -411,6 +412,15 @@ func (sc *scopeConfig) populate(opts ...option) {
 func PrefixMatch() option {
 	return func(sc *scopeConfig) {
 		sc.usePrefixFilter = true
+	}
+}
+
+// SuffixMatch ensures the selector uses a Suffix comparator, instead
+// of contains or equals.  Will not override a default Any() or None()
+// comparator.
+func SuffixMatch() option {
+	return func(sc *scopeConfig) {
+		sc.useSuffixFilter = true
 	}
 }
 
@@ -480,11 +490,19 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 			return filters.PathPrefix(s)
 		}
 
+		if sc.useSuffixFilter {
+			return filters.PathSuffix(s)
+		}
+
 		return filters.PathContains(s)
 	}
 
 	if sc.usePrefixFilter {
 		return filters.Prefix(join(s...))
+	}
+
+	if sc.useSuffixFilter {
+		return filters.Suffix(join(s...))
 	}
 
 	if len(s) == 1 {
@@ -495,6 +513,24 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 }
 
 type filterFunc func(string) filters.Filter
+
+// pathFilterFactory returns the appropriate path filter
+// (contains, prefix, or suffix) for the provided options.
+// If multiple options are flagged, Prefix takes priority.
+// If no options are provided, returns PathContains.
+func pathFilterFactory(opts ...option) func([]string) filters.Filter {
+	sc := &scopeConfig{}
+	sc.populate(opts...)
+
+	switch true {
+	case sc.usePrefixFilter:
+		return filters.PathPrefix
+	case sc.useSuffixFilter:
+		return filters.PathSuffix
+	default:
+		return filters.PathContains
+	}
+}
 
 // wrapFilter produces a func that filterizes the input by:
 // - cleans the input string

@@ -588,7 +588,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 		check  assert.BoolAssertionFunc
 	}{
 		{ExchangeCategoryUnknown, ExchangeCategoryUnknown, assert.False},
-		{ExchangeCategoryUnknown, ExchangeUser, assert.False},
+		{ExchangeCategoryUnknown, ExchangeUser, assert.True},
 		{ExchangeContact, ExchangeContactFolder, assert.True},
 		{ExchangeContact, ExchangeMailFolder, assert.False},
 		{ExchangeContactFolder, ExchangeContact, assert.True},
@@ -608,7 +608,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 		{ExchangeMailFolder, ExchangeContactFolder, assert.False},
 		{ExchangeMailFolder, ExchangeEventCalendar, assert.False},
 		{ExchangeUser, ExchangeUser, assert.True},
-		{ExchangeUser, ExchangeCategoryUnknown, assert.False},
+		{ExchangeUser, ExchangeCategoryUnknown, assert.True},
 		{ExchangeUser, ExchangeMail, assert.True},
 		{ExchangeUser, ExchangeEventCalendar, assert.True},
 	}
