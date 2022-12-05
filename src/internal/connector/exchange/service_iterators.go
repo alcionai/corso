@@ -7,7 +7,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	cdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts/delta"
 	mdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
 	"github.com/pkg/errors"
@@ -171,7 +171,7 @@ func FetchEventIDsFromCalendar(
 		ids  []string
 	)
 
-	options, err := optionsForCalendarEvents([]string{"id"})
+	options, err := optionsForEventsByCalendar([]string{"id"})
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func FetchEventIDsFromCalendar(
 			break
 		}
 
-		builder = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
