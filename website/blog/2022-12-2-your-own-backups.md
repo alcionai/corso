@@ -5,7 +5,6 @@ authors: nica
 tags: [corso, microsoft 365]
 ---
 
-
 I recently saw a tweet that really spoke to me:
 
 ![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](../static/img/blog/gian_tweet_backups.png)
