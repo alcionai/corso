@@ -5,13 +5,13 @@ import (
 	"context"
 	"io"
 	"testing"
-	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -70,7 +70,9 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.client = msgraphsdk.NewGraphServiceClient(adapter)
 	suite.adapter = adapter
 
-	// TODO: fulfill file preconditions required for testing (expected files w/in drive)
+	// TODO: fulfill file preconditions required for testing (expected files w/in drive
+	// and guarateed drive read-write access)
+	// suite.site = tester.M365SiteID(t)
 	// spDrives, err := drives(ctx, suite, suite.site, SharePointSource)
 	// require.NoError(t, err)
 	// // Test Requirement 1: Need a drive
@@ -88,8 +90,6 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	// Pick the first drive
 	suite.userDriveID = *odDrives[0].GetId()
-
-	suite.site = tester.M365SiteID(t)
 }
 
 // TestItemReader is an integration test that makes a few assumptions
@@ -142,53 +142,70 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 // TestItemWriter is an integration test for uploading data to OneDrive
 // It creates a new `testfolder_<timestamp` folder with a new
 // testitem_<timestamp> item and writes data to it
-func (suite *ItemIntegrationSuite) TestItemWriter_oneDrive() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+func (suite *ItemIntegrationSuite) TestItemWriter() {
+	table := []struct {
+		name    string
+		driveID string
+	}{
+		{
+			name:    "",
+			driveID: suite.userDriveID,
+		},
+		// {
+		// 	name:   "sharePoint",
+		// 	driveID: suite.siteDriveID,
+		// },
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
 
-	root, err := suite.Client().DrivesById(suite.userDriveID).Root().Get(ctx, nil)
-	require.NoError(suite.T(), err)
+			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			require.NoError(suite.T(), err)
 
-	// Test Requirement 2: "Test Folder" should exist
-	folder, err := getFolder(ctx, suite, suite.userDriveID, *root.GetId(), "Test Folder")
-	require.NoError(suite.T(), err)
+			// Test Requirement 2: "Test Folder" should exist
+			folder, err := getFolder(ctx, suite, test.driveID, *root.GetId(), "Test Folder")
+			require.NoError(suite.T(), err)
 
-	newFolderName := "testfolder_" + time.Now().Format("2006-01-02T15-04-05")
-	suite.T().Logf("Test will create folder %s", newFolderName)
+			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
+			suite.T().Logf("Test will create folder %s", newFolderName)
 
-	newFolder, err := createItem(ctx, suite, suite.userDriveID, *folder.GetId(), newItem(newFolderName, true))
-	require.NoError(suite.T(), err)
+			newFolder, err := createItem(ctx, suite, test.driveID, *folder.GetId(), newItem(newFolderName, true))
+			require.NoError(suite.T(), err)
 
-	require.NotNil(suite.T(), newFolder.GetId())
+			require.NotNil(suite.T(), newFolder.GetId())
 
-	newItemName := "testItem_" + time.Now().Format("2006-01-02T15-04-05")
-	suite.T().Logf("Test will create item %s", newItemName)
+			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
+			suite.T().Logf("Test will create item %s", newItemName)
 
-	newItem, err := createItem(ctx, suite, suite.userDriveID, *newFolder.GetId(), newItem(newItemName, false))
-	require.NoError(suite.T(), err)
+			newItem, err := createItem(ctx, suite, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
+			require.NoError(suite.T(), err)
 
-	require.NotNil(suite.T(), newItem.GetId())
+			require.NotNil(suite.T(), newItem.GetId())
 
-	// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
-	// newly created item should fail because it's a file not a folder
-	_, err = getFolder(ctx, suite, suite.userDriveID, *newFolder.GetId(), newItemName)
-	require.ErrorIs(suite.T(), err, errFolderNotFound)
+			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
+			// newly created item should fail because it's a file not a folder
+			_, err = getFolder(ctx, suite, test.driveID, *newFolder.GetId(), newItemName)
+			require.ErrorIs(suite.T(), err, errFolderNotFound)
 
-	// Initialize a 100KB mockDataProvider
-	td, writeSize := mockDataReader(int64(100 * 1024))
+			// Initialize a 100KB mockDataProvider
+			td, writeSize := mockDataReader(int64(100 * 1024))
 
-	w, err := driveItemWriter(ctx, suite, suite.userDriveID, *newItem.GetId(), writeSize)
-	require.NoError(suite.T(), err)
+			w, err := driveItemWriter(ctx, suite, test.driveID, *newItem.GetId(), writeSize)
+			require.NoError(suite.T(), err)
 
-	// Using a 32 KB buffer for the copy allows us to validate the
-	// multi-part upload. `io.CopyBuffer` will only write 32 KB at
-	// a time
-	copyBuffer := make([]byte, 32*1024)
+			// Using a 32 KB buffer for the copy allows us to validate the
+			// multi-part upload. `io.CopyBuffer` will only write 32 KB at
+			// a time
+			copyBuffer := make([]byte, 32*1024)
 
-	size, err := io.CopyBuffer(w, td, copyBuffer)
-	require.NoError(suite.T(), err)
+			size, err := io.CopyBuffer(w, td, copyBuffer)
+			require.NoError(suite.T(), err)
 
-	require.Equal(suite.T(), writeSize, size)
+			require.Equal(suite.T(), writeSize, size)
+		})
+	}
 }
 
 func mockDataReader(size int64) (io.Reader, int64) {
@@ -196,18 +213,35 @@ func mockDataReader(size int64) (io.Reader, int64) {
 	return bytes.NewReader(data), size
 }
 
-func (suite *ItemIntegrationSuite) TestDriveGetFolder_oneDrive() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
+	table := []struct {
+		name    string
+		driveID string
+	}{
+		{
+			name:    "oneDrive",
+			driveID: suite.userDriveID,
+		},
+		// {
+		// 	name:   "sharePoint",
+		// 	driveID: suite.siteDriveID,
+		// },
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
 
-	root, err := suite.Client().DrivesById(suite.userDriveID).Root().Get(ctx, nil)
-	require.NoError(suite.T(), err)
+			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			require.NoError(suite.T(), err)
 
-	// Lookup a folder that doesn't exist
-	_, err = getFolder(ctx, suite, suite.userDriveID, *root.GetId(), "FolderDoesNotExist")
-	require.ErrorIs(suite.T(), err, errFolderNotFound)
+			// Lookup a folder that doesn't exist
+			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "FolderDoesNotExist")
+			require.ErrorIs(suite.T(), err, errFolderNotFound)
 
-	// Lookup a folder that does exist
-	_, err = getFolder(ctx, suite, suite.userDriveID, *root.GetId(), "")
-	require.NoError(suite.T(), err)
+			// Lookup a folder that does exist
+			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "")
+			require.NoError(suite.T(), err)
+		})
+	}
 }

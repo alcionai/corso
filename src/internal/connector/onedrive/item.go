@@ -133,12 +133,11 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 // and kiota drops any SetSize update.
 func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
 	var (
-		id  string
-		url string
+		id   string
+		url  string
+		idp  = di.GetSharepointIds().GetSiteId()
+		urlp = di.GetSharepointIds().GetSiteUrl()
 	)
-
-	idp := di.GetSharepointIds().GetSiteId()
-	urlp := di.GetSharepointIds().GetSiteUrl()
 
 	if idp != nil {
 		id = *idp
