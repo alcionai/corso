@@ -31,11 +31,13 @@ func Users(ctx context.Context, m365Account account.Account) ([]*User, error) {
 	}
 
 	ret := make([]*User, 0, len(users))
+
 	for _, u := range users {
 		pu, err := parseUser(u)
 		if err != nil {
 			return nil, err
 		}
+
 		ret = append(ret, pu)
 	}
 
