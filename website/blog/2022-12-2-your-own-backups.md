@@ -4,7 +4,6 @@ title: "Owning Your Identity and Data For The Price of One ☕️/Month "
 authors: nica
 tags: [corso, microsoft 365]
 ---
-
 I recently saw a tweet that really spoke to me:
 
 ![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](../static/img/blog/gian_tweet_backups.png)
@@ -17,7 +16,6 @@ Given the increased role of automation in flagging “bad” accounts,
  (due to SSO via your email account), AdWords account suspensions lead to a small business unable to advertise, or a
  flagged application account leads to published applications being automatically withdrawn from app stores.
  <!-- truncate -->
-
 Thankfully, the growth of easy-to-use SaaS services now allow you to, for the price of a coffee a month,
 control and maintain not just your identity without risk but also all your personal and,
 for all you entrepreneurs, business data too. There’s a happy state, for individuals and teams, where you feel fully in
