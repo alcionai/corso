@@ -362,6 +362,8 @@ jobs:
 
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@v1.2.0
+        with:
+          working-directory: src
 
 
   # ----------------------------------------------------------------------------------------------------
@@ -423,7 +425,7 @@ jobs:
           name: website
           path: website/build
 
-      - name: Configure AWS credentials from Test account
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
