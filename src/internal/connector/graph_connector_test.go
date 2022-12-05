@@ -102,6 +102,18 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 			urls:   []string{url1, url2},
 			expect: []string{id1, id2},
 		},
+		{
+			name:   "partial non-match on path",
+			ids:    []string{},
+			urls:   []string{path1[2:], path2[2:]},
+			expect: []string{},
+		},
+		{
+			name:   "partial non-match on url",
+			ids:    []string{},
+			urls:   []string{url1[5:], url2[5:]},
+			expect: []string{},
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
