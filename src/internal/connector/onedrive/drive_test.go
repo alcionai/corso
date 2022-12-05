@@ -92,7 +92,6 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 			if test.name == "NoPrefix" {
 				// TODO: Issue #1688
 				t.Skipf("Inconsistent test. Skipping until test is refactored")
-
 			}
 			allFolders, err := GetAllFolders(ctx, gs, suite.userID, test.prefix)
 			require.NoError(t, err)
