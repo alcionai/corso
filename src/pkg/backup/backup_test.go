@@ -45,8 +45,10 @@ func stubBackup(t time.Time) backup.Backup {
 			WriteErrors: errors.New("1"),
 		},
 		ReadWrites: stats.ReadWrites{
-			ItemsRead:    1,
-			ItemsWritten: 1,
+			BytesRead:     301,
+			BytesUploaded: 301,
+			ItemsRead:     1,
+			ItemsWritten:  1,
 		},
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,
@@ -98,4 +100,7 @@ func (suite *BackupSuite) TestBackup_MinimumPrintable() {
 	bselp := b.Selectors.ToPrintable()
 	assert.Equal(t, bselp, result.Selectors, "selectors")
 	assert.Equal(t, bselp.Resources(), result.Selectors.Resources(), "selector resources")
+
+	assert.Equal(t, b.BytesRead, result.BytesRead, "size")
+	assert.Equal(t, b.BytesUploaded, result.BytesUploaded, "stored size")
 }

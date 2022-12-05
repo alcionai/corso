@@ -16,6 +16,8 @@ var (
 	// logging level flag
 	// TODO: infer default based on environment.
 	llFlag = "info"
+
+	readableOutput bool
 )
 
 type logLevel int
@@ -28,7 +30,10 @@ const (
 	Disabled
 )
 
-const logLevelFN = "log-level"
+const (
+	logLevelFN     = "log-level"
+	readableLogsFN = "readable-logs"
+)
 
 // adds the persistent flag --log-level to the provided command.
 // defaults to "info".
@@ -37,6 +42,12 @@ const logLevelFN = "log-level"
 func AddLogLevelFlag(parent *cobra.Command) {
 	fs := parent.PersistentFlags()
 	fs.StringVar(&llFlag, logLevelFN, "info", "set the log level to debug|info|warn|error")
+
+	fs.Bool(
+		readableLogsFN, false,
+		"minimizes log output for console readability: removes the file and date, colors the level")
+	//nolint:errcheck
+	fs.MarkHidden(readableLogsFN)
 }
 
 // Due to races between the lazy evaluation of flags in cobra and the need to init logging
@@ -46,6 +57,7 @@ func PreloadLogLevel() string {
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.String(logLevelFN, "info", "set the log level to debug|info|warn|error")
+	fs.BoolVar(&readableOutput, readableLogsFN, false, "minimizes log output: removes the file and date, colors the level")
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
@@ -111,7 +123,15 @@ func genLogger(level logLevel) (*zapcore.Core, *zap.SugaredLogger) {
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.FatalLevel)
 		}
 
-		lgr, err = cfg.Build()
+		opts := []zap.Option{}
+
+		if readableOutput {
+			opts = append(opts, zap.WithCaller(false), zap.AddStacktrace(zapcore.DPanicLevel))
+			cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.00")
+			cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		}
+
+		lgr, err = cfg.Build(opts...)
 	} else {
 		lgr, err = zap.NewProduction()
 	}
@@ -149,7 +169,7 @@ type loggingKey string
 
 const ctxKey loggingKey = "corsoLogger"
 
-// Seed embeds a logger into the context for later retrieval.
+// Seed generates a logger within the context for later retrieval.
 // It also parses the command line for flag values prior to executing
 // cobra.  This early parsing is necessary since logging depends on
 // a seeded context prior to cobra evaluating flags.
@@ -159,22 +179,28 @@ func Seed(ctx context.Context, lvl string) (context.Context, *zap.SugaredLogger)
 	}
 
 	zsl := singleton(levelOf(lvl))
-	ctxOut := context.WithValue(ctx, ctxKey, zsl)
 
-	return ctxOut, zsl
+	return Set(ctx, zsl), zsl
 }
 
-// SeedLevel embeds a logger into the context with the given log-level.
+// SeedLevel generates a logger within the context with the given log-level.
 func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.SugaredLogger) {
 	l := ctx.Value(ctxKey)
 	if l == nil {
 		zsl := singleton(level)
-		ctxWV := context.WithValue(ctx, ctxKey, zsl)
-
-		return ctxWV, zsl
+		return Set(ctx, zsl), zsl
 	}
 
 	return ctx, l.(*zap.SugaredLogger)
+}
+
+// Set allows users to embed their own zap.SugaredLogger within the context.
+func Set(ctx context.Context, logger *zap.SugaredLogger) context.Context {
+	if logger == nil {
+		return ctx
+	}
+
+	return context.WithValue(ctx, ctxKey, logger)
 }
 
 // Ctx retrieves the logger embedded in the context.

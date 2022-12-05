@@ -9,15 +9,98 @@ permissions:
   packages: write
   pull-requests: read
 
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: push-website-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  SetEnv:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # needed to get latest tag
+
+      - name: Get version string
+        id: version
+        run: |
+          echo "set-output name=version::$(git describe --tags --abbrev=0)"
+          echo "::set-output name=version::$(git describe --tags --abbrev=0)"
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Website Linting -----------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Website-Linting:
+    needs: [SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - name: Generate CLI Docs
+        working-directory: ./src
+        run: |
+          go run ./cmd/mdgen/mdgen.go generate
+
+      # migrate generated md files into /website/docs/cli
+      - name: Move CLI .md to Docs
+        run: |
+          mkdir -p ./website/docs/cli
+          mv ./src/cmd/mdgen/cli_markdown/* ./website/docs/cli/
+          rm -R ./src/cmd/mdgen/cli_markdown/
+
+      - name: Install dependencies for website lint
+        run: |
+          wget https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
+          mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
+          echo "$PWD/bin" >> $GITHUB_PATH
+          npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
+
+      - name: Run website lint
+        run: |
+          cd website && make -o genclidocs localcheck
+
+      - name: Build website
+        env:
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+        run: |
+          cd website &&
+            npm ci &&
+            npm run build
+
+      - uses: actions/upload-artifact@master
+        name: Upload website as artifacts
+        with:
+          name: website
+          path: website/build
+
   Publish-Website:
+    needs: [Website-Linting]
     environment: Production
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: website
+
     steps:
       - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@master
+        name: Download website from build step
+        with:
+          name: website
+          path: website/build
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -26,10 +109,10 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
-      - name: Build docs image
+      - name: Push website
         run: |
-          make buildimage
+          aws s3 sync build "s3://corsobackup.io" --delete
 
-      - name: Build & Publish docs
+      - name: Invalidate cloudfront
         run: |
-          make publish
+          aws cloudfront create-invalidation --distribution-id E1W9NGI9YTVZ1A --paths "/*"

@@ -228,6 +228,70 @@ var (
 			},
 		},
 	}
+
+	SharePointRootPath    = mustParsePath("tenant-id/sharepoint/site-id/libraries/drives/foo/root:", false)
+	SharePointLibraryPath = mustAppendPath(SharePointRootPath, "library", false)
+	SharePointBasePath1   = mustAppendPath(SharePointLibraryPath, "a", false)
+	SharePointBasePath2   = mustAppendPath(SharePointLibraryPath, "b", false)
+
+	SharePointLibraryItemPath1 = mustAppendPath(SharePointLibraryPath, ItemName1, true)
+	SharePointLibraryItemPath2 = mustAppendPath(SharePointBasePath1, ItemName2, true)
+	SharePointLibraryItemPath3 = mustAppendPath(SharePointBasePath2, ItemName3, true)
+
+	SharePointLibraryFolder  = stdpath.Join(SharePointLibraryPath.Folders()[3:]...)
+	SharePointParentLibrary1 = stdpath.Join(SharePointBasePath1.Folders()[3:]...)
+	SharePointParentLibrary2 = stdpath.Join(SharePointBasePath2.Folders()[3:]...)
+
+	SharePointLibraryItems = []details.DetailsEntry{
+		{
+			RepoRef:   SharePointLibraryItemPath1.String(),
+			ShortRef:  SharePointLibraryItemPath1.ShortRef(),
+			ParentRef: SharePointLibraryItemPath1.ToBuilder().Dir().ShortRef(),
+			ItemInfo: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					ItemType:   details.SharePointItem,
+					ParentPath: SharePointLibraryFolder,
+					ItemName:   SharePointLibraryItemPath1.Item() + "name",
+					Size:       int64(23),
+					Owner:      UserEmail1,
+					Created:    Time2,
+					Modified:   Time4,
+				},
+			},
+		},
+		{
+			RepoRef:   SharePointLibraryItemPath2.String(),
+			ShortRef:  SharePointLibraryItemPath2.ShortRef(),
+			ParentRef: SharePointLibraryItemPath2.ToBuilder().Dir().ShortRef(),
+			ItemInfo: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					ItemType:   details.SharePointItem,
+					ParentPath: SharePointParentLibrary1,
+					ItemName:   SharePointLibraryItemPath2.Item() + "name",
+					Size:       int64(42),
+					Owner:      UserEmail1,
+					Created:    Time1,
+					Modified:   Time3,
+				},
+			},
+		},
+		{
+			RepoRef:   SharePointLibraryItemPath3.String(),
+			ShortRef:  SharePointLibraryItemPath3.ShortRef(),
+			ParentRef: SharePointLibraryItemPath3.ToBuilder().Dir().ShortRef(),
+			ItemInfo: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					ItemType:   details.SharePointItem,
+					ParentPath: SharePointParentLibrary2,
+					ItemName:   SharePointLibraryItemPath3.Item() + "name",
+					Size:       int64(19),
+					Owner:      UserEmail2,
+					Created:    Time2,
+					Modified:   Time4,
+				},
+			},
+		},
+	}
 )
 
 func GetDetailsSet() *details.Details {
@@ -246,6 +310,10 @@ func GetDetailsSet() *details.Details {
 	}
 
 	for _, e := range OneDriveItems {
+		entries = append(entries, e)
+	}
+
+	for _, e := range SharePointLibraryItems {
 		entries = append(entries, e)
 	}
 

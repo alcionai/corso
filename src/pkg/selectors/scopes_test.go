@@ -273,7 +273,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 		},
 		false)
 	assert.Len(t, result, 1)
-	assert.Len(t, result[rootCatStub], 1)
+	assert.Len(t, result[rootCatStub], 2)
 	assert.Empty(t, result[leafCatStub])
 }
 
@@ -511,5 +511,22 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 			result := filterize(test.config, input)
 			assert.Equal(t, test.expect, int(result.Comparator))
 		})
+	}
+}
+
+func (suite *SelectorScopesSuite) TestDiscreteCopy() {
+	var (
+		t     = suite.T()
+		orig  = stubScope(AnyTgt)
+		clone = discreteCopy(orig, "fnords")
+	)
+
+	for k, v := range orig {
+		if k != rootCatStub.String() {
+			assert.Equal(t, v.Target, clone[k].Target)
+		} else {
+			assert.Equal(t, AnyTgt, v.Target)
+			assert.Equal(t, "fnords", clone[k].Target)
+		}
 	}
 }

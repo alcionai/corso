@@ -7,6 +7,7 @@ import (
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/hashicorp/go-multierror"
@@ -127,6 +128,8 @@ type BackupStats struct {
 	TotalUploadedBytes int64
 
 	TotalFileCount      int
+	CachedFileCount     int
+	UncachedFileCount   int
 	TotalDirectoryCount int
 	IgnoredErrorCount   int
 	ErrorCount          int
@@ -147,6 +150,8 @@ func manifestToStats(
 		TotalUploadedBytes: uploadCount.NumBytes,
 
 		TotalFileCount:      int(man.Stats.TotalFileCount),
+		CachedFileCount:     int(man.Stats.CachedFiles),
+		UncachedFileCount:   int(man.Stats.NonCachedFiles),
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
 		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),
@@ -340,8 +345,14 @@ func getStreamItemFunc(
 				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
-				entry := virtualfs.StreamingFileFromReader(
+				modTime := time.Now()
+				if smt, ok := e.(data.StreamModTime); ok {
+					modTime = smt.ModTime()
+				}
+
+				entry := virtualfs.StreamingFileWithModTimeFromReader(
 					encodeAsPath(e.UUID()),
+					modTime,
 					&backupStreamReader{
 						version:    serializationVersion,
 						ReadCloser: e.ToReader(),
@@ -522,32 +533,6 @@ func (w Wrapper) BackupCollections(
 	return s, progress.deets, nil
 }
 
-type ownersCats struct {
-	resourceOwners map[string]struct{}
-	serviceCats    map[string]struct{}
-}
-
-func serviceCatTag(p path.Path) string {
-	return p.Service().String() + p.Category().String()
-}
-
-// tagsFromStrings returns a map[string]string with the union of both maps
-// passed in. Currently uses empty values for each tag because there can be
-// multiple instances of resource owners and categories in a single snapshot.
-func tagsFromStrings(oc *ownersCats) map[string]string {
-	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
-
-	for k := range oc.serviceCats {
-		res[k] = ""
-	}
-
-	for k := range oc.resourceOwners {
-		res[k] = ""
-	}
-
-	return res
-}
-
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
@@ -555,6 +540,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 	progress *corsoProgress,
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
+
+	prevSnaps := fetchPrevSnapshotManifests(ctx, w.c, oc)
 
 	bc := &stats.ByteCounter{}
 
@@ -595,7 +582,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			progress.UploadProgress = u.Progress
 			u.Progress = progress
 
-			man, err = u.Upload(innerCtx, root, policyTree, si)
+			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
 				err = errors.Wrap(err, "uploading data")
 				logger.Ctx(innerCtx).Errorw("kopia backup", err)

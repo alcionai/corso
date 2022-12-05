@@ -47,6 +47,10 @@ func (mc mockCategorizer) unknownCat() categorizer {
 	return unknownCatStub
 }
 
+func (mc mockCategorizer) isUnion() bool {
+	return mc == rootCatStub
+}
+
 func (mc mockCategorizer) isLeaf() bool {
 	return mc == leafCatStub
 }

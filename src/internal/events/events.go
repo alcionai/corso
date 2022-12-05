@@ -19,6 +19,7 @@ import (
 const (
 	corsoVersion = "corso_version"
 	repoID       = "repo_id"
+	tenantID     = "m365_tenant_hash"
 
 	// Event Keys
 	RepoInit     = "repo_init"
@@ -53,6 +54,7 @@ type Bus struct {
 	client analytics.Client
 
 	repoID  string // one-way hash that uniquely identifies the repo.
+	tenant  string // one-way hash that uniquely identifies the tenant.
 	version string // the Corso release version
 }
 
@@ -65,8 +67,6 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 	if opts.DisableMetrics {
 		return Bus{}, nil
 	}
-
-	hash := repoHash(s, tenID)
 
 	envWK := os.Getenv("RUDDERSTACK_CORSO_WRITE_KEY")
 	if len(envWK) > 0 {
@@ -96,7 +96,8 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 
 	return Bus{
 		client:  client,
-		repoID:  hash,
+		repoID:  repoHash(s),
+		tenant:  tenantHash(tenID),
 		version: "vTODO", // TODO: corso versioning implementation
 	}, nil
 }
@@ -117,6 +118,7 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 	props := analytics.
 		NewProperties().
 		Set(repoID, b.repoID).
+		Set(tenantID, b.tenant).
 		Set(corsoVersion, b.version)
 
 	for k, v := range data {
@@ -128,7 +130,8 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 		err := b.client.Enqueue(analytics.Identify{
 			UserId: b.repoID,
 			Traits: analytics.NewTraits().
-				SetName(b.repoID),
+				SetName(b.tenant).
+				Set(tenantID, b.tenant),
 		})
 		if err != nil {
 			logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
@@ -162,9 +165,17 @@ func storageID(s storage.Storage) string {
 	return id
 }
 
-func repoHash(s storage.Storage, tenID string) string {
+func repoHash(s storage.Storage) string {
+	return md5HashOf(storageID(s))
+}
+
+func tenantHash(tenID string) string {
+	return md5HashOf(tenID)
+}
+
+func md5HashOf(s string) string {
 	sum := md5.Sum(
-		[]byte(storageID(s) + tenID),
+		[]byte(s),
 	)
 
 	return fmt.Sprintf("%x", sum)

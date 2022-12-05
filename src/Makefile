@@ -1,5 +1,5 @@
 # This must match the version defined in .github/workflows/lint.yaml.
-WANTED_LINT_VERSION := 1.45.2
+WANTED_LINT_VERSION := 1.50.1
 LINT_VERSION := $(shell golangci-lint version | cut -d' ' -f4)
 HAS_LINT := $(shell which golangci-lint)
 
@@ -9,8 +9,7 @@ BAD_LINT_MSG := "Missing golangci-lint version $(WANTED_LINT_VERSION). Visit $(I
 .PHONY: check-lint check-lint-version lint load-test
 
 build:
-	go build -o corso -ldflags \
-	"-X 'github.com/alcionai/corso/src/cli/version.Version=$(shell git describe --exact-match --tags $(git rev-parse HEAD) 2>/dev/null || echo unreleased)-$(shell git rev-parse --short HEAD)'"
+	go build -o corso
 
 lint: check-lint-version
 	golangci-lint run
