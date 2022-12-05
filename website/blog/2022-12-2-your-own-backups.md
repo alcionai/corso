@@ -24,7 +24,7 @@ for all you entrepreneurs, business data too. There’s a happy state, for indiv
 control of your own identity. This makes you more resilient to systemic failures and changes in one platform’s policy.
 How do we achieve this ownership nirvana? The pieces are simple:
 
-* Buy your own domain: Right now, `.me` is available for $3/year and `.online` is available for $0.99/year
+* Buy your own domain: Right now, `.me` is available for $3/year and `.online` is available for $0.99/year.
 
 * Pick someone to host your email with the above domain: We highly recommend [Microsoft 365 Business for $6 /month](https://www.microsoft.com/en-us/microsoft-365/business).
 
