@@ -1,12 +1,16 @@
 package sharepoint
 
 import (
+	"bytes"
 	"context"
 	"io"
+
+	kw "github.com/microsoft/kiota-serialization-json-go"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -63,6 +67,7 @@ func (sc *Collection) FullPath() path.Path {
 }
 
 func (sc *Collection) Items() <-chan data.Stream {
+	go sc.populate(context.TODO())
 	return sc.data
 }
 
@@ -99,4 +104,63 @@ func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBy
 		errs,
 		sc.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
+}
+
+// populate utility function to retrieve data from back store for a given collection
+func (sc *Collection) populate(ctx context.Context) {
+	var (
+		success                 int
+		totalBytes, arrayLength int64
+		errs                    error
+		writer                  = kw.NewJsonSerializationWriter()
+	)
+
+	// TODO: Insert correct ID for CollectionProgress
+	colProgress, closer := observe.CollectionProgress("name", sc.fullPath.Category().String(), sc.fullPath.Folder())
+	go closer()
+
+	defer func() {
+		close(colProgress)
+		sc.finishPopulation(ctx, success, totalBytes, errs)
+	}()
+
+	// sc.jobs contains query = all of the site IDs.
+	for _, id := range sc.jobs {
+		// Retrieve list data from M365
+		lists, err := loadLists(ctx, sc.service, id)
+		if err != nil {
+			errs = support.WrapAndAppend(id, err, errs)
+		}
+		// Write Data and Send
+		for _, lst := range lists {
+			err = writer.WriteObjectValue("", lst)
+			if err != nil {
+				errs = support.WrapAndAppend(*lst.GetId(), err, errs)
+				continue
+			}
+
+			byteArray, err := writer.GetSerializedContent()
+			if err != nil {
+				errs = support.WrapAndAppend(*lst.GetId(), err, errs)
+				continue
+			}
+
+			writer.Close()
+
+			arrayLength = int64(len(byteArray))
+
+			if arrayLength > 0 {
+				totalBytes += arrayLength
+
+				success++
+				sc.data <- &Item{
+					id:   *lst.GetId(),
+					data: io.NopCloser(bytes.NewReader(byteArray)),
+					info: sharePointListInfo(lst, arrayLength),
+				}
+
+				colProgress <- struct{}{}
+			}
+		}
+	}
 }
