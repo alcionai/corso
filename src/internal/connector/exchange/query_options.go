@@ -271,7 +271,7 @@ func optionsForContactFoldersItem(
 
 // optionsForEvents ensures valid option inputs for exchange.Events
 // @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForCalendarEvents(moreOps []string) (*msuser.UsersItemEventsRequestBuilderGetRequestConfiguration, error) {
+func optionsForEvents(moreOps []string) (*msuser.UsersItemEventsRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, events)
 	if err != nil {
 		return nil, err
@@ -281,6 +281,23 @@ func optionsForCalendarEvents(moreOps []string) (*msuser.UsersItemEventsRequestB
 		Select: selecting,
 	}
 	options := &msuser.UsersItemEventsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	return options, nil
+}
+
+func optionsForEventsByCalendar(moreOps []string) (*msuser.UsersItemCalendarsItemEventsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, events)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &msuser.UsersItemCalendarsItemEventsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &msuser.UsersItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
