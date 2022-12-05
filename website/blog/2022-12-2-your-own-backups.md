@@ -26,7 +26,7 @@ How do we achieve this ownership nirvana? The pieces are simple:
 
 * Buy your own domain: Right now, `.me` is available for $3/year and `.online` is available for $0.99/year
 
-* Pick someone to host your email with the above domain: We highly recommend [Microsoft 365 Business for $6 /month](https://www.microsoft.com/en-us/microsoft-365/business)
+* Pick someone to host your email with the above domain: We highly recommend [Microsoft 365 Business for $6 /month](https://www.microsoft.com/en-us/microsoft-365/business).
 
 * Microsoft Office applications that you know and love, 1TB of file storage, unlimited video meetings,
 and more: FREE with your Microsoft 365 subscription
