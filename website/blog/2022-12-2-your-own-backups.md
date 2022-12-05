@@ -29,7 +29,7 @@ How do we achieve this ownership nirvana? The pieces are simple:
 * Pick someone to host your email with the above domain: We highly recommend [Microsoft 365 Business for $6 /month](https://www.microsoft.com/en-us/microsoft-365/business).
 
 * Microsoft Office applications that you know and love, 1TB of file storage, unlimited video meetings,
-and more: FREE with your Microsoft 365 subscription
+and more: FREE with your Microsoft 365 subscription.
 
 * Your own blog at your own domain: Static hosting with a global CDN like AWS CloudFront will be < $1/month!
 
