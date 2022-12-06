@@ -233,6 +233,101 @@ func (suite *DataLayerResourcePath) TestDir() {
 	}
 }
 
+func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
+	tenant := "a-tenant"
+	user := "a-user"
+	table := []struct {
+		name             string
+		service          path.ServiceType
+		category         path.CategoryType
+		postfix          []string
+		expectedCategory path.CategoryType
+		check            assert.ErrorAssertionFunc
+	}{
+		{
+			name:             "NoPostfixPasses",
+			service:          path.ExchangeService,
+			category:         path.EmailCategory,
+			expectedCategory: path.EmailMetadataCategory,
+			check:            assert.NoError,
+		},
+		{
+			name:             "PostfixPasses",
+			service:          path.ExchangeService,
+			category:         path.EmailCategory,
+			postfix:          []string{"a", "b"},
+			expectedCategory: path.EmailMetadataCategory,
+			check:            assert.NoError,
+		},
+		{
+			name:     "Fails",
+			service:  path.ExchangeService,
+			category: path.FilesCategory,
+			check:    assert.Error,
+		},
+		{
+			name:             "Passes",
+			service:          path.ExchangeService,
+			category:         path.ContactsCategory,
+			expectedCategory: path.ContactsMetadataCategory,
+			check:            assert.NoError,
+		},
+		{
+			name:             "Passes",
+			service:          path.ExchangeService,
+			category:         path.EventsCategory,
+			expectedCategory: path.EventsMetadataCategory,
+			check:            assert.NoError,
+		},
+		{
+			name:             "Passes",
+			service:          path.OneDriveService,
+			category:         path.FilesCategory,
+			expectedCategory: path.FilesMetadataCategory,
+			check:            assert.NoError,
+		},
+		{
+			name:             "Passes",
+			service:          path.SharePointService,
+			category:         path.LibrariesCategory,
+			expectedCategory: path.LibrariesMetadataCategory,
+			check:            assert.NoError,
+		},
+		{
+			name:             "Passes",
+			service:          path.SharePointService,
+			category:         path.ListsCategory,
+			expectedCategory: path.ListsMetadataCategory,
+			check:            assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(strings.Join([]string{
+			test.name,
+			test.service.String(),
+			test.category.String(),
+		}, "_"), func(t *testing.T) {
+			pb := path.Builder{}.Append(test.postfix...)
+			p, err := pb.ToServiceCategoryMetadataPath(
+				tenant,
+				user,
+				test.service,
+				test.category,
+				false,
+			)
+
+			test.check(t, err)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expectedCategory, p.Category())
+		})
+	}
+}
+
 func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 	b := path.Builder{}.Append(rest...)
 	table := []struct {
