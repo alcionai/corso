@@ -31,17 +31,33 @@ func toServiceType(service string) ServiceType {
 
 var ErrorUnknownCategory = errors.New("unknown category string")
 
+// CategoryType denotes what category of data the path corresponds to. Metadata
+// categories are also included though they are only used for paths that house
+// metadata for Corso backups.
+//
+// MetadataCategory is not considered a valid category type for resource paths
+// though it can be used for metadata paths.
+//
+// The order of the enums below can be changed, but the string representation of
+// each enum must remain the same or migration code needs to be added to handle
+// changes to the string format.
 type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
 const (
-	UnknownCategory   CategoryType = iota
-	EmailCategory                  // email
-	ContactsCategory               // contacts
-	EventsCategory                 // events
-	FilesCategory                  // files
-	ListsCategory                  // lists
-	LibrariesCategory              // libraries
+	UnknownCategory           CategoryType = iota
+	EmailCategory                          // email
+	ContactsCategory                       // contacts
+	EventsCategory                         // events
+	FilesCategory                          // files
+	ListsCategory                          // lists
+	LibrariesCategory                      // libraries
+	EmailMetadataCategory                  // emailMetadata
+	ContactsMetadataCategory               // contactsMetadata
+	EventsMetadataCategory                 // eventsMetadata
+	FilesMetadataCategory                  // filesMetadata
+	ListsMetadataCategory                  // listsMetadata
+	LibrariesMetadataCategory              // librariesMetadata
 )
 
 func ToCategoryType(category string) CategoryType {
@@ -58,12 +74,25 @@ func ToCategoryType(category string) CategoryType {
 		return LibrariesCategory
 	case ListsCategory.String():
 		return ListsCategory
+	case EmailMetadataCategory.String():
+		return EmailMetadataCategory
+	case ContactsMetadataCategory.String():
+		return ContactsMetadataCategory
+	case EventsMetadataCategory.String():
+		return EventsMetadataCategory
+	case FilesMetadataCategory.String():
+		return FilesMetadataCategory
+	case LibrariesMetadataCategory.String():
+		return LibrariesMetadataCategory
+	case ListsMetadataCategory.String():
+		return ListsMetadataCategory
 	default:
 		return UnknownCategory
 	}
 }
 
-// serviceCategories is a mapping of all valid service/category pairs.
+// serviceCategories is a mapping of all valid service/category pairs for
+// non-metadata paths.
 var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	ExchangeService: {
 		EmailCategory:    {},
