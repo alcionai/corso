@@ -302,8 +302,8 @@ func checkFlags(
 	assert.Equal(t, expected.GetCompletedDateTime(), got.GetCompletedDateTime())
 	assert.Equal(t, expected.GetDueDateTime(), got.GetDueDateTime())
 	assert.Equal(t, expected.GetFlagStatus(), got.GetFlagStatus())
-	assert.Equal(t, expected.GetCompletedDateTime(), got.GetCompletedDateTime())
-	assert.Equal(t, expected.GetCompletedDateTime(), got.GetCompletedDateTime())
+	assert.Equal(t, expected.GetStartDateTime(), got.GetStartDateTime())
+	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
 }
 
 // checkRecipentables is a helper function to check equality between
