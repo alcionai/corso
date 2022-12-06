@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	abs "github.com/microsoft/kiota-abstractions-go"
-	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	mscalendars "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	mscevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
 	mscontactfolder "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders"
@@ -386,22 +385,6 @@ func optionsForContacts(moreOps []string) (*mscontacts.ContactsRequestBuilderGet
 	}
 	options := &mscontacts.ContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
-func optionsForUsers(moreOps []string) (*msuser.UsersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, users)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParams,
 	}
 
 	return options, nil
