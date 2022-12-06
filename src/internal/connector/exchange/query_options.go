@@ -3,7 +3,6 @@ package exchange
 import (
 	"fmt"
 
-	abs "github.com/microsoft/kiota-abstractions-go"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
@@ -126,12 +125,6 @@ type DeltaRequestBuilderGetQueryParameters struct {
 	Top     *int32   `uriparametername:"%24top"`
 }
 
-type DeltaRequestBuilderGetRequestConfiguration struct {
-	Headers         map[string]string
-	Options         []abs.RequestOption
-	QueryParameters *DeltaRequestBuilderGetQueryParameters
-}
-
 func optionsForFolderMessagesDelta(
 	moreOps []string,
 ) (*msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
@@ -249,25 +242,6 @@ func optionsForMailFoldersItem(
 		Select: selecting,
 	}
 	options := &msuser.UsersItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
-// optionsForContactFoldersItem is the same as optionsForContacts.
-func optionsForContactFoldersItem(
-	moreOps []string,
-) (*DeltaRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, contacts)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &DeltaRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &DeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
