@@ -4,9 +4,9 @@ import (
 	"context"
 
 	abs "github.com/microsoft/kiota-abstractions-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
-	mscontactdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts/delta"
-	msmaildelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
 //nolint:lll
@@ -42,12 +42,14 @@ func createGetRequestInformationWithRequestConfiguration(
 	return requestInfo, nil
 }
 
+// TODO: ash --> verify
+// From source: *msuser.users_item_mail_folders_item_messages_delta_request_builder.go
 func sendMessagesDeltaGet(
 	ctx context.Context,
-	m *msmaildelta.DeltaRequestBuilder,
+	m *msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilder,
 	requestConfiguration *DeltaRequestBuilderGetRequestConfiguration,
 	adapter abs.RequestAdapter,
-) (msmaildelta.DeltaResponseable, error) {
+) (models.UsersItemMailFoldersItemMessagesDeltaResponseable, error) {
 	requestInfo, err := createGetRequestInformationWithRequestConfiguration(
 		func() (*abs.RequestInformation, error) {
 			return m.CreateGetRequestInformation(ctx, nil)
@@ -67,7 +69,7 @@ func sendMessagesDeltaGet(
 	res, err := adapter.SendAsync(
 		ctx,
 		requestInfo,
-		msmaildelta.CreateDeltaResponseFromDiscriminatorValue,
+		models.CreateUsersItemMailFoldersItemMessagesDeltaResponseFromDiscriminatorValue,
 		errorMapping,
 	)
 	if err != nil {
@@ -78,15 +80,16 @@ func sendMessagesDeltaGet(
 		return nil, nil
 	}
 
-	return res.(msmaildelta.DeltaResponseable), nil
+	return res.(models.UsersItemMailFoldersItemMessagesDeltaResponseable), nil
 }
 
+// From source: *msuser.users_item_contact_folders_item_contacts_delta_request_builder.go
 func sendContactsDeltaGet(
 	ctx context.Context,
-	m *mscontactdelta.DeltaRequestBuilder,
+	m *msuser.UsersItemContactFoldersItemContactsDeltaRequestBuilder,
 	requestConfiguration *DeltaRequestBuilderGetRequestConfiguration,
 	adapter abs.RequestAdapter,
-) (mscontactdelta.DeltaResponseable, error) {
+) (models.UsersItemContactFoldersItemContactsDeltaResponseable, error) {
 	requestInfo, err := createGetRequestInformationWithRequestConfiguration(
 		func() (*abs.RequestInformation, error) {
 			return m.CreateGetRequestInformation(ctx, nil)
@@ -106,7 +109,7 @@ func sendContactsDeltaGet(
 	res, err := adapter.SendAsync(
 		ctx,
 		requestInfo,
-		mscontactdelta.CreateDeltaResponseFromDiscriminatorValue,
+		models.CreateUsersItemContactFoldersItemContactsDeltaResponseFromDiscriminatorValue,
 		errorMapping,
 	)
 	if err != nil {
@@ -117,5 +120,5 @@ func sendContactsDeltaGet(
 		return nil, nil
 	}
 
-	return res.(mscontactdelta.DeltaResponseable), nil
+	return res.(models.UsersItemContactFoldersItemContactsDeltaResponseable), nil
 }
