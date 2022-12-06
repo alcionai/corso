@@ -237,7 +237,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		ids  []string
 	)
 
-	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
+	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting query options")
 	}
@@ -249,8 +249,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		Delta()
 
 	for {
-		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := sendContactsDeltaGet(ctx, builder, options, gs.Adapter())
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -294,7 +293,7 @@ func FetchMessageIDsFromDirectory(
 		ids  []string
 	)
 
-	options, err := optionsForFolderMessages([]string{"id"})
+	options, err := optionsForFolderMessagesDelta([]string{"id"})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting query options")
 	}
@@ -306,8 +305,7 @@ func FetchMessageIDsFromDirectory(
 		Delta()
 
 	for {
-		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := sendMessagesDeltaGet(ctx, builder, options, gs.Adapter())
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
