@@ -66,16 +66,16 @@ corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>`
 )
 
-// called by backup.go to map parent subcommands to provider-specific handling.
-func addSharePointCommands(parent *cobra.Command) *cobra.Command {
+// called by backup.go to map subcommands to provider-specific handling.
+func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
 
-	switch parent.Use {
+	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(parent, sharePointCreateCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointCreateCmd(), utils.HideCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
@@ -91,14 +91,14 @@ func addSharePointCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(parent, sharePointListCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointListCmd(), utils.HideCommand())
 
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(parent, sharePointDetailsCmd())
+		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
@@ -128,7 +128,7 @@ func addSharePointCommands(parent *cobra.Command) *cobra.Command {
 		// 	"Select backup details for items created after this datetime.")
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(parent, sharePointDeleteCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.HideCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples

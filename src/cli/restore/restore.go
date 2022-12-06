@@ -4,15 +4,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var restoreCommands = []func(parent *cobra.Command) *cobra.Command{
+var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
+	addSharePointCommands,
 }
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
-func AddCommands(parent *cobra.Command) {
+func AddCommands(cmd *cobra.Command) {
 	restoreC := restoreCmd()
-	parent.AddCommand(restoreC)
+	cmd.AddCommand(restoreC)
 
 	for _, addRestoreTo := range restoreCommands {
 		addRestoreTo(restoreC)

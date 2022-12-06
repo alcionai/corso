@@ -1,4 +1,4 @@
-<img src="https://github.com/alcionai/corso/blob/main/docs/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
+<img src="https://github.com/alcionai/corso/blob/main/website/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
 
 # Corso
 

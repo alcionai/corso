@@ -69,16 +69,16 @@ var (
 	fileModifiedBefore string
 )
 
-// called by backup.go to map parent subcommands to provider-specific handling.
-func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
+// called by backup.go to map subcommands to provider-specific handling.
+func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
 
-	switch parent.Use {
+	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(parent, oneDriveCreateCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveCreateCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
@@ -89,14 +89,14 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(parent, oneDriveListCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
 
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(parent, oneDriveDetailsCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveDetailsCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
@@ -139,7 +139,7 @@ func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
 			"Select backup details for files modified before this datetime.")
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(parent, oneDriveDeleteCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveDeleteCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples

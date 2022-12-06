@@ -26,22 +26,22 @@ var (
 	succeedIfExists bool
 )
 
-// called by repo.go to map parent subcommands to provider-specific handling.
-func addS3Commands(parent *cobra.Command) *cobra.Command {
+// called by repo.go to map subcommands to provider-specific handling.
+func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
 
-	switch parent.Use {
+	switch cmd.Use {
 	case initCommand:
-		c, fs = utils.AddCommand(parent, s3InitCmd())
+		c, fs = utils.AddCommand(cmd, s3InitCmd())
 	case connectCommand:
-		c, fs = utils.AddCommand(parent, s3ConnectCmd())
+		c, fs = utils.AddCommand(cmd, s3ConnectCmd())
 	}
 
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
-	c.SetUsageTemplate(parent.UsageTemplate())
+	c.SetUsageTemplate(cmd.UsageTemplate())
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.
