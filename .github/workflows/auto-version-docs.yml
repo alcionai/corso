@@ -1,0 +1,30 @@
+name: Auto version docs on release
+on:
+  push:
+    tags: ["v*.*.*"]
+
+
+jobs:
+  Version-Docs:
+    environment: Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create new version of docs
+        run: |
+          set -xe
+          export VERSION="$(git describe --exact-match --tags $(git rev-parse HEAD))"
+          npm run docusaurus docs:version "$VERSION"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          commit-message: Add new version to versioned docs
+          title: Add new version to versioned docs
+          body: Creates a new versioned set of docs for the latest release to `versioned_docs`.
+          branch: versioned-docs-update
