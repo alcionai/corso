@@ -1,7 +1,7 @@
 name: Auto version docs on release
 on:
   push:
-    tags: ["v*.*.*"]
+    # tags: ["v*.*.*"]
 
 
 jobs:
@@ -18,7 +18,9 @@ jobs:
       - name: Create new version of docs
         run: |
           set -xe
-          export VERSION="$(git describe --exact-match --tags $(git rev-parse HEAD))"
+          # export VERSION="$(git describe --exact-match --tags $(git rev-parse HEAD))"
+          export VERSION="testing"
+          npm ci
           npm run docusaurus docs:version "$VERSION"
 
       - name: Create Pull Request
