@@ -59,3 +59,4 @@ jobs:
           title: Add new version to versioned docs
           body: Creates a new versioned set of docs for the latest release to `versioned_docs`.
           branch: versioned-docs-update
+          add-paths: website
