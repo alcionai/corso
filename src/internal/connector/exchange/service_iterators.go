@@ -25,9 +25,9 @@ const nextLinkKey = "@odata.nextLink"
 // the value is not in the map returns an empty string.
 func getAdditionalDataString(
 	key string,
-	data map[string]any,
+	addtlData map[string]any,
 ) string {
-	iface := data[key]
+	iface := addtlData[key]
 	if iface == nil {
 		return ""
 	}
