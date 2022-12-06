@@ -38,6 +38,20 @@ jobs:
           npm ci
           npm run docusaurus docs:version "$VERSION"
 
+      - name: Build website
+        env:
+          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+        run: |
+          cd website &&
+            npm ci &&
+            npm run build
+
+      - uses: actions/upload-artifact@master
+        name: Upload website as artifacts
+        with:
+          name: website
+          path: website/build
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
         with:
