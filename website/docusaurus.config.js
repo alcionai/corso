@@ -145,7 +145,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} | Version ${process.env.CORSO_VERSION}`,
+        copyright: `Copyright © ${new Date().getFullYear()} | Latest Version ${process.env.CORSO_VERSION}`,
       },
       colorMode: {
         defaultMode: 'dark',
