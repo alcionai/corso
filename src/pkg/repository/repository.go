@@ -176,7 +176,7 @@ func Connect(
 		return nil, errors.New("retrieving repo info")
 	}
 
-	bus.SetRepoID(rm.ID())
+	bus.SetRepoID(rm.RepoID())
 
 	complete <- struct{}{}
 
@@ -356,6 +356,6 @@ func (rm repositoryModel) write(ctx context.Context, ms *kopia.ModelStore) error
 }
 
 // retrieves the stored repository ID.
-func (rm repositoryModel) ID() string {
+func (rm repositoryModel) RepoID() string {
 	return rm.Tags[repoIDTag]
 }
