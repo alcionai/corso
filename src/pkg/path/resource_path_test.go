@@ -237,27 +237,27 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 	tenant := "a-tenant"
 	user := "a-user"
 	table := []struct {
-		name             string
-		service          path.ServiceType
-		category         path.CategoryType
-		postfix          []string
-		expectedCategory path.CategoryType
-		check            assert.ErrorAssertionFunc
+		name            string
+		service         path.ServiceType
+		category        path.CategoryType
+		postfix         []string
+		expectedService path.ServiceType
+		check           assert.ErrorAssertionFunc
 	}{
 		{
-			name:             "NoPostfixPasses",
-			service:          path.ExchangeService,
-			category:         path.EmailCategory,
-			expectedCategory: path.EmailMetadataCategory,
-			check:            assert.NoError,
+			name:            "NoPostfixPasses",
+			service:         path.ExchangeService,
+			category:        path.EmailCategory,
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
 		},
 		{
-			name:             "PostfixPasses",
-			service:          path.ExchangeService,
-			category:         path.EmailCategory,
-			postfix:          []string{"a", "b"},
-			expectedCategory: path.EmailMetadataCategory,
-			check:            assert.NoError,
+			name:            "PostfixPasses",
+			service:         path.ExchangeService,
+			category:        path.EmailCategory,
+			postfix:         []string{"a", "b"},
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
 		},
 		{
 			name:     "Fails",
@@ -266,39 +266,39 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			check:    assert.Error,
 		},
 		{
-			name:             "Passes",
-			service:          path.ExchangeService,
-			category:         path.ContactsCategory,
-			expectedCategory: path.ContactsMetadataCategory,
-			check:            assert.NoError,
+			name:            "Passes",
+			service:         path.ExchangeService,
+			category:        path.ContactsCategory,
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
 		},
 		{
-			name:             "Passes",
-			service:          path.ExchangeService,
-			category:         path.EventsCategory,
-			expectedCategory: path.EventsMetadataCategory,
-			check:            assert.NoError,
+			name:            "Passes",
+			service:         path.ExchangeService,
+			category:        path.EventsCategory,
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
 		},
 		{
-			name:             "Passes",
-			service:          path.OneDriveService,
-			category:         path.FilesCategory,
-			expectedCategory: path.FilesMetadataCategory,
-			check:            assert.NoError,
+			name:            "Passes",
+			service:         path.OneDriveService,
+			category:        path.FilesCategory,
+			expectedService: path.OneDriveMetadataService,
+			check:           assert.NoError,
 		},
 		{
-			name:             "Passes",
-			service:          path.SharePointService,
-			category:         path.LibrariesCategory,
-			expectedCategory: path.LibrariesMetadataCategory,
-			check:            assert.NoError,
+			name:            "Passes",
+			service:         path.SharePointService,
+			category:        path.LibrariesCategory,
+			expectedService: path.SharePointMetadataService,
+			check:           assert.NoError,
 		},
 		{
-			name:             "Passes",
-			service:          path.SharePointService,
-			category:         path.ListsCategory,
-			expectedCategory: path.ListsMetadataCategory,
-			check:            assert.NoError,
+			name:            "Passes",
+			service:         path.SharePointService,
+			category:        path.ListsCategory,
+			expectedService: path.SharePointMetadataService,
+			check:           assert.NoError,
 		},
 	}
 
@@ -323,7 +323,7 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 				return
 			}
 
-			assert.Equal(t, test.expectedCategory, p.Category())
+			assert.Equal(t, test.expectedService, p.Service())
 		})
 	}
 }
