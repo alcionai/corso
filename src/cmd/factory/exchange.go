@@ -30,10 +30,10 @@ var (
 	}
 )
 
-func addExchangeCommands(parent *cobra.Command) {
-	parent.AddCommand(emailsCmd)
-	parent.AddCommand(eventsCmd)
-	parent.AddCommand(contactsCmd)
+func addExchangeCommands(cmd *cobra.Command) {
+	cmd.AddCommand(emailsCmd)
+	cmd.AddCommand(eventsCmd)
+	cmd.AddCommand(contactsCmd)
 }
 
 func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
