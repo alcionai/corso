@@ -199,7 +199,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Libraries(selSites, selectors.Any()))
-
 				return sel.Selector
 			},
 		},
@@ -209,7 +208,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Lists(selSites, selectors.Any()))
-
 				return sel.Selector
 			},
 		},
