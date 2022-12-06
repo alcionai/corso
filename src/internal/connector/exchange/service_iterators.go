@@ -305,7 +305,6 @@ func FetchMessageIDsFromDirectory(
 		Delta()
 
 	for {
-		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
