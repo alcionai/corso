@@ -134,7 +134,20 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				Service: selectors.ServiceOneDrive,
 			},
 		},
-		// TODO: SharePoint
+		{
+			name: "SharePointNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceSharePoint,
+			},
+		},
+		{
+			name: "SharePointEmpty",
+			col:  []data.Collection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceSharePoint,
+			},
+		},
 	}
 
 	for _, test := range table {
