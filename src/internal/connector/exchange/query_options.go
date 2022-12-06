@@ -341,22 +341,6 @@ func optionsForContacts(moreOps []string) (*msuser.UsersItemContactsRequestBuild
 	return options, nil
 }
 
-func optionsForUsers(moreOps []string) (*msuser.UsersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, users)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParams := &msuser.UsersRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &msuser.UsersRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParams,
-	}
-
-	return options, nil
-}
-
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used

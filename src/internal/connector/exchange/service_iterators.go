@@ -8,8 +8,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
-	cdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts/delta"
-	mdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -278,7 +276,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 			break
 		}
 
-		builder = cdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
@@ -300,7 +298,7 @@ func FetchMessageIDsFromDirectory(
 	if err != nil {
 		return nil, errors.Wrap(err, "getting query options")
 	}
-
+	//*msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilder
 	builder := gs.Client().
 		UsersById(user).
 		MailFoldersById(directoryID).
@@ -335,7 +333,7 @@ func FetchMessageIDsFromDirectory(
 			break
 		}
 
-		builder = mdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
