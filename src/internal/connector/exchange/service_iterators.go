@@ -166,8 +166,9 @@ func IterativeCollectCalendarContainers(
 	}
 }
 
-// FetchIDFunc collection of helper functions which return a list of strings
-// from a response.
+// FetchIDFunc collection of helper functions which return a list of all item
+// IDs in the given container and a delta token for future requests if the
+// container supports fetching delta records.
 type FetchIDFunc func(
 	ctx context.Context,
 	gs graph.Service,
