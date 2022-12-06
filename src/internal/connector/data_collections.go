@@ -109,16 +109,16 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 func (gc *GraphConnector) createExchangeCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
-) ([]*exchange.Collection, error) {
+) ([]data.Collection, error) {
 	var (
 		errs           *multierror.Error
 		users          = scope.Get(selectors.ExchangeUser)
-		allCollections = make([]*exchange.Collection, 0)
+		allCollections = make([]data.Collection, 0)
 	)
 
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
-		collections := make(map[string]*exchange.Collection)
+		collections := make(map[string]data.Collection)
 
 		qp := graph.QueryParams{
 			Category:      scope.Category().PathType(),
@@ -188,9 +188,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 			return nil, support.WrapAndAppend(user[0], err, errs)
 		}
 
-		for _, collection := range dcs {
-			collections = append(collections, collection)
-		}
+		collections = append(collections, dcs...)
 	}
 
 	return collections, errs
