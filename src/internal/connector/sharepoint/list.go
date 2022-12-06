@@ -272,7 +272,11 @@ func fetchColumnLinks(
 			break
 		}
 
-		builder = mssite.NewSitesItemListsItemContentTypesItemColumnLinksRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.
+			NewSitesItemListsItemContentTypesItemColumnLinksRequestBuilder(
+				*resp.GetOdataNextLink(),
+				gs.Adapter(),
+			)
 	}
 
 	return links, nil
