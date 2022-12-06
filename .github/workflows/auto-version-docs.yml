@@ -38,7 +38,7 @@ jobs:
           npm ci
           npm run docusaurus docs:version "$VERSION"
 
-      - name: Build website
+      - name: Build website # making sure website builds
         env:
           CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
         run: |
