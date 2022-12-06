@@ -20,6 +20,25 @@ import (
 
 const nextLinkKey = "@odata.nextLink"
 
+// getAdditionalDataString gets a string value from the AdditionalData map. If
+// the value is not in the map returns an empty string.
+func getAdditionalDataString(
+	key string,
+	data map[string]any,
+) string {
+	iface := data[key]
+	if iface == nil {
+		return ""
+	}
+
+	value, ok := iface.(*string)
+	if !ok {
+		return ""
+	}
+
+	return *value
+}
+
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
@@ -252,17 +271,14 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 			ids = append(ids, *item.GetId())
 		}
 
-		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
-		if nextLinkIface == nil {
+		addtlData := resp.GetAdditionalData()
+
+		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
+		if len(nextLink) == 0 {
 			break
 		}
 
-		nextLink := nextLinkIface.(*string)
-		if len(*nextLink) == 0 {
-			break
-		}
-
-		builder = cdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = cdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
@@ -312,17 +328,14 @@ func FetchMessageIDsFromDirectory(
 			ids = append(ids, *item.GetId())
 		}
 
-		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
-		if nextLinkIface == nil {
+		addtlData := resp.GetAdditionalData()
+
+		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
+		if len(nextLink) == 0 {
 			break
 		}
 
-		nextLink := nextLinkIface.(*string)
-		if len(*nextLink) == 0 {
-			break
-		}
-
-		builder = mdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = mdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()

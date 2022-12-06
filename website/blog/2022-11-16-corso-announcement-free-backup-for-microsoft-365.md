@@ -3,9 +3,10 @@ slug: corso-announcement-free-backup-for-microsoft-365
 title: "A Home to Call Your Own: The Need for Your Own Backups in IT"
 authors: nica
 tags: [corso, microsoft 365]
+image: ./images/office_desk.jpg
 ---
 
-![Office desk](../static/img/blog/office_desk.jpg)
+![Office desk](./images/office_desk.jpg)
 
 Have you had it with Google sheets? So have I. Excel is my home. It’s where I write all my best formulae. And what
 about PowerPoint? The way it just finds stock photos for you? The automatic ‘alternative designs for this slide’
