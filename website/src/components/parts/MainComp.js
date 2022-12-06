@@ -5,8 +5,8 @@ import Hero from "./Hero";
 import Demo from "./Demo";
 import FourthSection from "./FourthSection";
 import Cookies from "./Cookies";
+import KeyLoveFAQ from "./KeyLoveFAQ";
 
-const KeyLoveFAQComp = loadable(() => import("./KeyLoveFAQ"));
 const BackToTopComp = loadable(() => import("./BackToTop"));
 
 export function MainComp() {
@@ -14,7 +14,7 @@ export function MainComp() {
     <>
       <Hero />
       <Demo />
-      <KeyLoveFAQComp />
+      <KeyLoveFAQ />
       <FourthSection />
       <BackToTopComp />
       <Cookies />

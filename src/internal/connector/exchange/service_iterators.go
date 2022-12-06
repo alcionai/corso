@@ -14,11 +14,31 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 const nextLinkKey = "@odata.nextLink"
+
+// getAdditionalDataString gets a string value from the AdditionalData map. If
+// the value is not in the map returns an empty string.
+func getAdditionalDataString(
+	key string,
+	addtlData map[string]any,
+) string {
+	iface := addtlData[key]
+	if iface == nil {
+		return ""
+	}
+
+	value, ok := iface.(*string)
+	if !ok {
+		return ""
+	}
+
+	return *value
+}
 
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -28,45 +48,45 @@ const nextLinkKey = "@odata.nextLink"
 func FilterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	collections map[string]*Collection,
+	collections map[string]data.Collection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
 ) error {
 	var (
-		collectionType = CategoryToOptionIdentifier(scope.Category().PathType())
 		errs           error
+		collectionType = CategoryToOptionIdentifier(qp.Category)
 	)
 
 	for _, c := range resolver.Items() {
 		dirPath, ok := pathAndMatch(qp, c, scope)
-		if ok {
-			// Create only those that match
-			service, err := createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errs = support.WrapAndAppend(
-					qp.ResourceOwner+" FilterContainerAndFillCollection",
-					err,
-					errs)
-
-				if qp.FailFast {
-					return errs
-				}
-			}
-
-			edc := NewCollection(
-				qp.ResourceOwner,
-				dirPath,
-				collectionType,
-				service,
-				statusUpdater,
-			)
-			collections[*c.GetId()] = &edc
+		if !ok {
+			continue
 		}
-	}
 
-	for directoryID, col := range collections {
-		fetchFunc, err := getFetchIDFunc(scope.Category().PathType())
+		// Create only those that match
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				qp.ResourceOwner+" FilterContainerAndFillCollection",
+				err,
+				errs)
+
+			if qp.FailFast {
+				return errs
+			}
+		}
+
+		edc := NewCollection(
+			qp.ResourceOwner,
+			dirPath,
+			collectionType,
+			service,
+			statusUpdater,
+		)
+		collections[*c.GetId()] = &edc
+
+		fetchFunc, err := getFetchIDFunc(qp.Category)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -80,7 +100,7 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, err := fetchFunc(ctx, col.service, qp.ResourceOwner, directoryID)
+		jobs, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -89,7 +109,7 @@ func FilterContainersAndFillCollections(
 			)
 		}
 
-		col.jobs = append(col.jobs, jobs...)
+		edc.jobs = append(edc.jobs, jobs...)
 	}
 
 	return errs
@@ -252,17 +272,14 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 			ids = append(ids, *item.GetId())
 		}
 
-		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
-		if nextLinkIface == nil {
+		addtlData := resp.GetAdditionalData()
+
+		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
+		if len(nextLink) == 0 {
 			break
 		}
 
-		nextLink := nextLinkIface.(*string)
-		if len(*nextLink) == 0 {
-			break
-		}
-
-		builder = cdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = cdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
@@ -312,17 +329,14 @@ func FetchMessageIDsFromDirectory(
 			ids = append(ids, *item.GetId())
 		}
 
-		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
-		if nextLinkIface == nil {
+		addtlData := resp.GetAdditionalData()
+
+		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
+		if len(nextLink) == 0 {
 			break
 		}
 
-		nextLink := nextLinkIface.(*string)
-		if len(*nextLink) == 0 {
-			break
-		}
-
-		builder = mdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = mdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
 	return ids, errs.ErrorOrNil()
