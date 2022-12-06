@@ -299,32 +299,26 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		return nil, errors.New("missing path beyond prefix")
 	}
 
-	metadataCategory := UnknownCategory
+	metadataService := UnknownService
 
-	switch category {
-	case EmailCategory:
-		metadataCategory = EmailMetadataCategory
-	case ContactsCategory:
-		metadataCategory = ContactsMetadataCategory
-	case EventsCategory:
-		metadataCategory = EventsMetadataCategory
-	case FilesCategory:
-		metadataCategory = FilesMetadataCategory
-	case ListsCategory:
-		metadataCategory = ListsMetadataCategory
-	case LibrariesCategory:
-		metadataCategory = LibrariesMetadataCategory
+	switch service {
+	case ExchangeService:
+		metadataService = ExchangeMetadataService
+	case OneDriveService:
+		metadataService = OneDriveMetadataService
+	case SharePointService:
+		metadataService = SharePointMetadataService
 	}
 
 	return &dataLayerResourcePath{
 		Builder: *pb.withPrefix(
 			tenant,
-			service.String(),
+			metadataService.String(),
 			user,
-			metadataCategory.String(),
+			category.String(),
 		),
-		service:  service,
-		category: metadataCategory,
+		service:  metadataService,
+		category: category,
 		hasItem:  isItem,
 	}, nil
 }
