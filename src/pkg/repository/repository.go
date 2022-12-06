@@ -111,6 +111,9 @@ func Initialize(
 		return nil, err
 	}
 
+	repoID := events.NewRepoID(s)
+	bus.SetRepoID(repoID)
+
 	r := &repository{
 		ID:         uuid.New(),
 		Version:    "v1",
@@ -119,6 +122,10 @@ func Initialize(
 		Bus:        bus,
 		dataLayer:  w,
 		modelStore: ms,
+	}
+
+	if err := newRepoModel(repoID).write(ctx, ms); err != nil {
+		return nil, errors.New("setting up repository")
 	}
 
 	r.Bus.Event(ctx, events.RepoInit, nil)
@@ -163,6 +170,13 @@ func Connect(
 	if err != nil {
 		return nil, err
 	}
+
+	rm, err := getRepoModel(ctx, ms)
+	if err != nil {
+		return nil, errors.New("retrieving repo info")
+	}
+
+	bus.SetRepoID(rm.ID())
 
 	complete <- struct{}{}
 
@@ -302,4 +316,46 @@ func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 	sw := store.NewKopiaStore(r.modelStore)
 
 	return sw.DeleteBackup(ctx, id)
+}
+
+// ---------------------------------------------------------------------------
+// Repository ID Model
+// ---------------------------------------------------------------------------
+
+// repositoryModel identifies the current repository
+type repositoryModel struct {
+	model.BaseModel
+}
+
+const (
+	repositoryID = "repository-id"
+	repoIDTag    = "repo-id"
+)
+
+// should only be called on init.
+func newRepoModel(repoID string) repositoryModel {
+	return repositoryModel{
+		BaseModel: model.BaseModel{
+			ID: repositoryID,
+			Tags: map[string]string{
+				repoIDTag: repoID,
+			},
+		},
+	}
+}
+
+// retrieves the repository info
+func getRepoModel(ctx context.Context, ms *kopia.ModelStore) (*repositoryModel, error) {
+	rm := &repositoryModel{}
+	return rm, ms.Get(ctx, model.RepositorySchema, repositoryID, rm)
+}
+
+// should only be called following a successful init.
+func (rm repositoryModel) write(ctx context.Context, ms *kopia.ModelStore) error {
+	return ms.Put(ctx, model.RepositorySchema, &rm)
+}
+
+// retrieves the stored repository ID.
+func (rm repositoryModel) ID() string {
+	return rm.Tags[repoIDTag]
 }

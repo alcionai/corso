@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	analytics "github.com/rudderlabs/analytics-go"
 
@@ -99,7 +100,6 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 
 	return Bus{
 		client:  client,
-		repoID:  repoHash(s),
 		tenant:  tenantHash(tenID),
 		version: version.Version,
 	}, nil
@@ -152,6 +152,10 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 	}
 }
 
+func (b *Bus) SetRepoID(hash string) {
+	b.repoID = hash
+}
+
 func storageID(s storage.Storage) string {
 	id := s.Provider.String()
 
@@ -168,8 +172,15 @@ func storageID(s storage.Storage) string {
 	return id
 }
 
-func repoHash(s storage.Storage) string {
-	return md5HashOf(storageID(s))
+// NewRepoID generates a new unique repository id hash.
+// Repo ids should only be generated once per repository,
+// and must be stored after that.
+func NewRepoID(s storage.Storage) string {
+	return repoHash(s, uuid.NewString())
+}
+
+func repoHash(s storage.Storage, uid string) string {
+	return md5HashOf(storageID(s) + uid)
 }
 
 func tenantHash(tenID string) string {
