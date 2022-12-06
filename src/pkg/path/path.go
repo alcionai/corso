@@ -250,13 +250,21 @@ func (pb Builder) join(start, end int) string {
 	return join(pb.elements[start:end])
 }
 
-func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+func verifyInputValues(tenant, resourceOwner string) error {
 	if len(tenant) == 0 {
 		return errors.Wrap(errMissingSegment, "tenant")
 	}
 
 	if len(resourceOwner) == 0 {
 		return errors.Wrap(errMissingSegment, "resourceOwner")
+	}
+
+	return nil
+}
+
+func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+	if err := verifyInputValues(tenant, resourceOwner); err != nil {
+		return err
 	}
 
 	if len(pb.elements) == 0 {
@@ -271,6 +279,54 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	res.elements = append(res.elements, pb.elements...)
 
 	return res
+}
+
+func (pb Builder) ToServiceCategoryMetadataPath(
+	tenant, user string,
+	service ServiceType,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	if err := validateServiceAndCategory(service, category); err != nil {
+		return nil, err
+	}
+
+	if err := verifyInputValues(tenant, user); err != nil {
+		return nil, err
+	}
+
+	if isItem && len(pb.elements) == 0 {
+		return nil, errors.New("missing path beyond prefix")
+	}
+
+	metadataCategory := UnknownCategory
+
+	switch category {
+	case EmailCategory:
+		metadataCategory = EmailMetadataCategory
+	case ContactsCategory:
+		metadataCategory = ContactsMetadataCategory
+	case EventsCategory:
+		metadataCategory = EventsMetadataCategory
+	case FilesCategory:
+		metadataCategory = FilesMetadataCategory
+	case ListsCategory:
+		metadataCategory = ListsMetadataCategory
+	case LibrariesCategory:
+		metadataCategory = LibrariesMetadataCategory
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			service.String(),
+			user,
+			metadataCategory.String(),
+		),
+		service:  service,
+		category: metadataCategory,
+		hasItem:  isItem,
+	}, nil
 }
 
 func (pb Builder) ToDataLayerExchangePathForCategory(
