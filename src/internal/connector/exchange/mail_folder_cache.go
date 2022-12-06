@@ -111,15 +111,12 @@ func (mc *mailFolderCache) Populate(
 			}
 		}
 
-		r := resp.GetAdditionalData()
-
-		n, ok := r[nextDataLink]
-		if !ok || n == nil {
+		link := resp.GetOdataNextLink()
+		if link == nil {
 			break
 		}
 
-		link := *(n.(*string))
-		query = msfolderdelta.NewUsersItemMailFoldersDeltaRequestBuilder(link, mc.gs.Adapter())
+		query = msfolderdelta.NewUsersItemMailFoldersDeltaRequestBuilder(*link, mc.gs.Adapter())
 	}
 
 	if err := mc.populatePaths(ctx); err != nil {
