@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -337,11 +338,11 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 
 	tests := []struct {
 		name          string
-		getCollection func(t *testing.T) []*exchange.Collection
+		getCollection func(t *testing.T) []data.Collection
 	}{
 		{
 			name: "Default Contact Folder",
-			getCollection: func(t *testing.T) []*exchange.Collection {
+			getCollection: func(t *testing.T) []data.Collection {
 				scope := selectors.
 					NewExchangeBackup().
 					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch())[0]
@@ -390,12 +391,12 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 
 	tests := []struct {
 		name, expected string
-		getCollection  func(t *testing.T) []*exchange.Collection
+		getCollection  func(t *testing.T) []data.Collection
 	}{
 		{
 			name:     "Default Event Calendar",
 			expected: exchange.DefaultCalendar,
-			getCollection: func(t *testing.T) []*exchange.Collection {
+			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
@@ -407,7 +408,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 		{
 			name:     "Birthday Calendar",
 			expected: "Birthdays",
-			getCollection: func(t *testing.T) []*exchange.Collection {
+			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}, selectors.PrefixMatch()))
 				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
