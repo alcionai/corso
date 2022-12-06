@@ -21,16 +21,16 @@ var (
 	libraryItems []string
 )
 
-// called by restore.go to map parent subcommands to provider-specific handling.
-func addSharePointCommands(parent *cobra.Command) *cobra.Command {
+// called by restore.go to map subcommands to provider-specific handling.
+func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
 
-	switch parent.Use {
+	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(parent, sharePointRestoreCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointRestoreCmd(), utils.HideCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandUseSuffix
 

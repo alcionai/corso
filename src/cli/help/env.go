@@ -7,8 +7,8 @@ import (
 )
 
 // AddCommands attaches all `corso env * *` commands to the parent.
-func AddCommands(parent *cobra.Command) {
-	parent.AddCommand(envCmd())
+func AddCommands(cmd *cobra.Command) {
+	cmd.AddCommand(envCmd())
 }
 
 // The env command: purely a help display.
