@@ -286,6 +286,8 @@ func (gc *GraphConnector) RestoreDataCollections(
 		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs, deets)
+	case selectors.ServiceSharePoint:
+		status, err = sharepoint.RestoreCollections(ctx, gc, dest, dcs, deets)
 	default:
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}

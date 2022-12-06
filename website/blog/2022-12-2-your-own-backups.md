@@ -3,20 +3,22 @@ slug: your-own-backups
 title: "Owning Your Identity and Data For The Price of One ☕️/Month "
 authors: nica
 tags: [corso, microsoft 365]
+image: ./images/gian_tweet_backups.png
 ---
-
 
 I recently saw a tweet that really spoke to me:
 
-![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](../static/img/blog/gian_tweet_backups.png)
+![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](./images/gian_tweet_backups.png)
 
 Gian was really addressing the chaotic situation with Twitter, but it feels much more broadly applicable in today’s climate.
 Given the increased role of automation in flagging “bad” accounts,
- there is now an ever-growing list of examples where imperfect AI-based systems misclassify perfectly legitimate accounts
- as bad. With no human-based recourse with most large companies, this has led to disastrous situations where
- email account suspensions lead to lost accessing to other services that you have used your entire life
- (due to SSO via your email account), AdWords account suspensions lead to a small business unable to advertise, or a
- flagged application account leads to published applications being automatically withdrawn from app stores.
+there is now an ever-growing list of examples where imperfect AI-based systems misclassify perfectly legitimate accounts
+as bad. With no human-based recourse with most large companies, this has led to disastrous situations where
+email account suspensions lead to lost accessing to other services that you have used your entire life
+(due to SSO via your email account), AdWords account suspensions lead to a small business unable to advertise, or a
+flagged application account leads to published applications being automatically withdrawn from app stores.
+
+<!-- truncate -->
 
 Thankfully, the growth of easy-to-use SaaS services now allow you to, for the price of a coffee a month,
 control and maintain not just your identity without risk but also all your personal and,
@@ -66,7 +68,9 @@ your data and independence from your primary cloud provider. Data is also compre
 (pennies a month with systems such as AWS Glacier Instant Access) and encrypted with user-provided keys so that no one
 can see your data and that it is safe against hackers and ransomware.
 
-![corso Screenshot](../static/img/blog/corso_backup.png)
+![corso Screenshot](./images/corso_backup.png)
 
-Corso is available now, and we’d love to hear your thoughts! Download it, give it a try, and join us on Discord to let
+Corso is available now, and we’d love to hear your thoughts!
+Download it, [give it a try,](https://corsobackup.io/docs/intro/) and
+[join us on Discord](https://discord.gg/63DTTSnuhT) to let
 us know what you think.

@@ -66,7 +66,7 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		temp, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, deets, errUpdater)
+		temp, canceled := RestoreCollection(ctx, service, dc, dest.ContainerName, deets, errUpdater)
 
 		restoreMetrics.Combine(temp)
 
@@ -85,10 +85,11 @@ func RestoreCollections(
 		nil
 }
 
-// restoreCollection handles restoration of an individual collection.
-// @returns Integer representing totalItems, restoredItems, and the
-// amount of bytes restored. The bool represents whether the context was cancelled
-func restoreCollection(
+// RestoreCollection handles restoration of an individual collection.
+// returns:
+// - the collection's item and byte count metrics
+// - the context cancellation state (true if the context is cancelled)
+func RestoreCollection(
 	ctx context.Context,
 	service graph.Service,
 	dc data.Collection,

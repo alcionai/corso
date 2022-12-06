@@ -140,6 +140,41 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 	}
 }
 
+func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_anyNone() {
+	table := []struct {
+		name   string
+		in     []string
+		expect string
+	}{
+		{
+			name:   "any",
+			in:     []string{AnyTgt},
+			expect: AnyTgt,
+		},
+		{
+			name:   "none",
+			in:     []string{NoneTgt},
+			expect: NoneTgt,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := NewSharePointRestore()
+			sel.Include(sel.WebURL(test.in))
+			scopes := sel.Includes
+			require.Len(t, scopes, 1)
+
+			for _, sc := range scopes {
+				scopeMustHave(
+					t,
+					SharePointScope(sc),
+					map[categorizer]string{SharePointWebURL: test.expect},
+				)
+			}
+		})
+	}
+}
+
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 	t := suite.T()
 	sel := NewSharePointRestore()
