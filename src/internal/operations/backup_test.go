@@ -660,6 +660,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	defer flush()
 
 	m365UserID := tester.M365UserID(suite.T())
+	users := []string{m365UserID}
 
 	tests := []struct {
 		name          string
@@ -671,12 +672,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Mail",
 			selectFunc: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders(
-					[]string{m365UserID},
-					[]string{exchange.DefaultMailFolder},
-					selectors.PrefixMatch()))
-
+				sel := selectors.NewExchangeBackup(users)
+				sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 				return sel
 			},
 			resourceOwner: m365UserID,
@@ -686,9 +683,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Contacts",
 			selectFunc: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup()
+				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.ContactFolders(
-					[]string{m365UserID},
+					users,
 					[]string{exchange.DefaultContactFolder},
 					selectors.PrefixMatch()))
 
@@ -701,12 +698,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Calendar Events",
 			selectFunc: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars(
-					[]string{m365UserID},
-					[]string{exchange.DefaultCalendar},
-					selectors.PrefixMatch()))
-
+				sel := selectors.NewExchangeBackup(users)
+				sel.Include(sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
 			resourceOwner: m365UserID,
@@ -808,7 +801,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 		t          = suite.T()
 		mb         = evmock.NewBus()
 		m365UserID = tester.SecondaryM365UserID(t)
-		sel        = selectors.NewOneDriveBackup()
+		sel        = selectors.NewOneDriveBackup([]string{m365UserID})
 	)
 
 	sel.Include(sel.Users([]string{m365UserID}))
@@ -841,7 +834,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		t      = suite.T()
 		mb     = evmock.NewBus()
 		siteID = tester.M365SiteID(t)
-		sel    = selectors.NewSharePointBackup()
+		sel    = selectors.NewSharePointBackup([]string{siteID})
 	)
 
 	sel.Include(sel.Sites([]string{siteID}))

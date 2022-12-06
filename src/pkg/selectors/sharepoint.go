@@ -34,17 +34,16 @@ type (
 )
 
 var (
-	_ Reducer         = &SharePointRestore{}
-	_ printabler      = &SharePointRestore{}
-	_ resourceOwnerer = &SharePointRestore{}
-	_ pathCategorier  = &SharePointRestore{}
+	_ Reducer        = &SharePointRestore{}
+	_ printabler     = &SharePointRestore{}
+	_ pathCategorier = &SharePointRestore{}
 )
 
 // NewSharePointBackup produces a new Selector with the service set to ServiceSharePoint.
-func NewSharePointBackup() *SharePointBackup {
+func NewSharePointBackup(sites []string) *SharePointBackup {
 	src := SharePointBackup{
 		sharePoint{
-			newSelector(ServiceSharePoint),
+			newSelector(ServiceSharePoint, sites),
 		},
 	}
 
@@ -64,10 +63,10 @@ func (s Selector) ToSharePointBackup() (*SharePointBackup, error) {
 }
 
 // NewSharePointRestore produces a new Selector with the service set to ServiceSharePoint.
-func NewSharePointRestore() *SharePointRestore {
+func NewSharePointRestore(sites []string) *SharePointRestore {
 	src := SharePointRestore{
 		sharePoint{
-			newSelector(ServiceSharePoint),
+			newSelector(ServiceSharePoint, sites),
 		},
 	}
 
@@ -89,16 +88,6 @@ func (s Selector) ToSharePointRestore() (*SharePointRestore, error) {
 // Printable creates the minimized display of a selector, formatted for human readability.
 func (s sharePoint) Printable() Printable {
 	return toPrintable[SharePointScope](s.Selector)
-}
-
-// ResourceOwners produces the aggregation of discrete sitets described by each type of scope.
-// Any and None values are omitted.
-func (s sharePoint) ResourceOwners() selectorResourceOwners {
-	return selectorResourceOwners{
-		Excludes: resourceOwnersIn(s.Excludes, SharePointSite.String()),
-		Filters:  resourceOwnersIn(s.Filters, SharePointSite.String()),
-		Includes: resourceOwnersIn(s.Includes, SharePointSite.String()),
-	}
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.

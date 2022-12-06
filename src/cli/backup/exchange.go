@@ -284,7 +284,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	for _, scope := range sel.DiscreteScopes(users) {
 		for _, selUser := range scope.Get(selectors.ExchangeUser) {
-			opSel := selectors.NewExchangeBackup()
+			opSel := selectors.NewExchangeBackup([]string{selUser})
 			opSel.Include([]selectors.ExchangeScope{scope.DiscreteCopy(selUser)})
 
 			bo, err := r.NewBackup(ctx, opSel.Selector)
@@ -328,7 +328,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 }
 
 func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBackup {
-	sel := selectors.NewExchangeBackup()
+	sel := selectors.NewExchangeBackup(userIDs)
 
 	if len(data) == 0 {
 		sel.Include(sel.ContactFolders(userIDs, selectors.Any()))
@@ -510,7 +510,7 @@ func runDetailsExchangeCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewExchangeRestore()
+	sel := selectors.NewExchangeRestore(nil) // TODO: generate selector in IncludeExchangeRestoreDataSelectors
 	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 

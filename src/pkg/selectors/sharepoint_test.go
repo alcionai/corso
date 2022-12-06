@@ -22,14 +22,14 @@ func TestSharePointSelectorSuite(t *testing.T) {
 
 func (suite *SharePointSelectorSuite) TestNewSharePointBackup() {
 	t := suite.T()
-	ob := NewSharePointBackup()
+	ob := NewSharePointBackup(nil)
 	assert.Equal(t, ob.Service, ServiceSharePoint)
 	assert.NotZero(t, ob.Scopes())
 }
 
 func (suite *SharePointSelectorSuite) TestToSharePointBackup() {
 	t := suite.T()
-	ob := NewSharePointBackup()
+	ob := NewSharePointBackup(nil)
 	s := ob.Selector
 	ob, err := s.ToSharePointBackup()
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func (suite *SharePointSelectorSuite) TestSharePointBackup_DiscreteScopes() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			eb := NewSharePointBackup()
+			eb := NewSharePointBackup(test.include)
 			eb.Include(eb.Sites(test.include))
 
 			scopes := eb.DiscreteScopes(test.discrete)
@@ -81,14 +81,15 @@ func (suite *SharePointSelectorSuite) TestSharePointBackup_DiscreteScopes() {
 
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Sites() {
 	t := suite.T()
-	sel := NewSharePointBackup()
 
 	const (
 		s1 = "s1"
 		s2 = "s2"
 	)
 
+	sel := NewSharePointBackup([]string{s1, s2})
 	siteScopes := sel.Sites([]string{s1, s2})
+
 	for _, scope := range siteScopes {
 		// Scope value is either s1 or s2
 		assert.Contains(t, join(s1, s2), scope[SharePointSite.String()].Target)
@@ -120,13 +121,13 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Sites() {
 
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 	t := suite.T()
-	sel := NewSharePointRestore()
 
 	const (
 		s1 = "s1"
 		s2 = "s2"
 	)
 
+	sel := NewSharePointRestore([]string{s1, s2})
 	sel.Include(sel.WebURL([]string{s1, s2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 2)
@@ -159,7 +160,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := NewSharePointRestore()
+			sel := NewSharePointRestore(Any())
 			sel.Include(sel.WebURL(test.in))
 			scopes := sel.Includes
 			require.Len(t, scopes, 2)
@@ -177,13 +178,13 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 	t := suite.T()
-	sel := NewSharePointRestore()
 
 	const (
 		s1 = "s1"
 		s2 = "s2"
 	)
 
+	sel := NewSharePointRestore([]string{s1, s2})
 	sel.Exclude(sel.WebURL([]string{s1, s2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 2)
@@ -201,13 +202,13 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 // SharePoint Libraries & SharePoint Lists are created.
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_Sites() {
 	t := suite.T()
-	sel := NewSharePointBackup()
 
 	const (
 		s1 = "s1"
 		s2 = "s2"
 	)
 
+	sel := NewSharePointBackup([]string{s1, s2})
 	sel.Include(sel.Sites([]string{s1, s2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 2)
@@ -223,13 +224,13 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_Sites() {
 
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_Sites() {
 	t := suite.T()
-	sel := NewSharePointBackup()
 
 	const (
 		s1 = "s1"
 		s2 = "s2"
 	)
 
+	sel := NewSharePointBackup([]string{s1, s2})
 	sel.Exclude(sel.Sites([]string{s1, s2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 2)
@@ -245,14 +246,14 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_Sites() {
 
 func (suite *SharePointSelectorSuite) TestNewSharePointRestore() {
 	t := suite.T()
-	or := NewSharePointRestore()
+	or := NewSharePointRestore(nil)
 	assert.Equal(t, or.Service, ServiceSharePoint)
 	assert.NotZero(t, or.Scopes())
 }
 
 func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 	t := suite.T()
-	eb := NewSharePointRestore()
+	eb := NewSharePointRestore(nil)
 	s := eb.Selector
 	or, err := s.ToSharePointRestore()
 	require.NoError(t, err)
@@ -312,7 +313,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			"all",
 			deets,
 			func() *SharePointRestore {
-				odr := NewSharePointRestore()
+				odr := NewSharePointRestore(Any())
 				odr.Include(odr.Sites(Any()))
 				return odr
 			},
@@ -322,7 +323,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			"only match item",
 			deets,
 			func() *SharePointRestore {
-				odr := NewSharePointRestore()
+				odr := NewSharePointRestore(Any())
 				odr.Include(odr.LibraryItems(Any(), Any(), []string{"item2"}))
 				return odr
 			},
@@ -332,8 +333,8 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			"only match folder",
 			deets,
 			func() *SharePointRestore {
-				odr := NewSharePointRestore()
-				odr.Include(odr.Libraries([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
+				odr := NewSharePointRestore([]string{"sid"})
+				odr.Include(odr.Libraries([]string{"sid"}, []string{"folderA/folderB", "folderA/folderC"}))
 				return odr
 			},
 			arr(item, item2),
@@ -398,7 +399,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 	var (
-		ods  = NewSharePointRestore()
+		ods  = NewSharePointRestore(nil) // TODO: move into test
 		host = "www.website.com"
 		pth  = "/foo"
 		url  = host + pth

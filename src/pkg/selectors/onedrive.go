@@ -36,17 +36,16 @@ type (
 )
 
 var (
-	_ Reducer         = &OneDriveRestore{}
-	_ printabler      = &OneDriveRestore{}
-	_ resourceOwnerer = &OneDriveRestore{}
-	_ pathCategorier  = &OneDriveRestore{}
+	_ Reducer        = &OneDriveRestore{}
+	_ printabler     = &OneDriveRestore{}
+	_ pathCategorier = &OneDriveRestore{}
 )
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
-func NewOneDriveBackup() *OneDriveBackup {
+func NewOneDriveBackup(users []string) *OneDriveBackup {
 	src := OneDriveBackup{
 		oneDrive{
-			newSelector(ServiceOneDrive),
+			newSelector(ServiceOneDrive, users),
 		},
 	}
 
@@ -66,10 +65,10 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 }
 
 // NewOneDriveRestore produces a new Selector with the service set to ServiceOneDrive.
-func NewOneDriveRestore() *OneDriveRestore {
+func NewOneDriveRestore(users []string) *OneDriveRestore {
 	src := OneDriveRestore{
 		oneDrive{
-			newSelector(ServiceOneDrive),
+			newSelector(ServiceOneDrive, users),
 		},
 	}
 
@@ -91,16 +90,6 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 // Printable creates the minimized display of a selector, formatted for human readability.
 func (s oneDrive) Printable() Printable {
 	return toPrintable[OneDriveScope](s.Selector)
-}
-
-// ResourceOwners produces the aggregation of discrete users described by each type of scope.
-// Any and None values are omitted.
-func (s oneDrive) ResourceOwners() selectorResourceOwners {
-	return selectorResourceOwners{
-		Excludes: resourceOwnersIn(s.Excludes, OneDriveUser.String()),
-		Filters:  resourceOwnersIn(s.Filters, OneDriveUser.String()),
-		Includes: resourceOwnersIn(s.Includes, OneDriveUser.String()),
-	}
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.

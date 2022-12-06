@@ -92,10 +92,7 @@ func (gc *GraphConnector) DataCollections(
 func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
 	var ids []string
 
-	resourceOwners, err := sels.ResourceOwners()
-	if err != nil {
-		return errors.Wrap(err, "invalid backup inputs")
-	}
+	resourceOwners := sels.DiscreteResourceOwners()
 
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
@@ -112,21 +109,9 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 		normROs[strings.ToLower(id)] = struct{}{}
 	}
 
-	for _, ro := range resourceOwners.Includes {
+	for _, ro := range resourceOwners {
 		if _, ok := normROs[strings.ToLower(ro)]; !ok {
 			return fmt.Errorf("included resource owner %s not found within tenant", ro)
-		}
-	}
-
-	for _, ro := range resourceOwners.Excludes {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("excluded resource owner %s not found within tenant", ro)
-		}
-	}
-
-	for _, ro := range resourceOwners.Filters {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("filtered resource owner %s not found within tenant", ro)
 		}
 	}
 

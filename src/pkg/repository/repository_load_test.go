@@ -400,7 +400,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	bsel := selectors.NewExchangeBackup()
+	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
 	bsel.Include(bsel.MailFolders(suite.usersUnderTest, selectors.Any()))
 	bsel.Include(bsel.ContactFolders(suite.usersUnderTest, selectors.Any()))
 	bsel.Include(bsel.EventCalendars(suite.usersUnderTest, selectors.Any()))
@@ -451,7 +451,7 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	bsel := selectors.NewExchangeBackup()
+	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
 	bsel.Include(bsel.MailFolders(suite.usersUnderTest, selectors.Any()))
 	bsel.Include(bsel.ContactFolders(suite.usersUnderTest, selectors.Any()))
 	bsel.Include(bsel.EventCalendars(suite.usersUnderTest, selectors.Any()))
@@ -504,7 +504,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	bsel := selectors.NewOneDriveBackup()
+	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
 	bsel.Include(bsel.Users(suite.usersUnderTest))
 	sel := bsel.Selector
 
@@ -551,7 +551,7 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	bsel := selectors.NewOneDriveBackup()
+	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
 	bsel.Include(bsel.Users(suite.usersUnderTest))
 	sel := bsel.Selector
 
@@ -602,7 +602,7 @@ func (suite *RepositoryLoadTestSharePointSuite) TestSharePoint() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	bsel := selectors.NewSharePointBackup()
+	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)
 	bsel.Include(bsel.Sites(suite.sitesUnderTest))
 	sel := bsel.Selector
 
@@ -649,7 +649,7 @@ func (suite *RepositoryIndividualLoadTestSharePointSuite) TestSharePoint() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
-	bsel := selectors.NewSharePointBackup()
+	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)
 	bsel.Include(bsel.Sites(suite.sitesUnderTest))
 	sel := bsel.Selector
 

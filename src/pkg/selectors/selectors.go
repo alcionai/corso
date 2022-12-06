@@ -71,19 +71,6 @@ type Reducer interface {
 	Reduce(context.Context, *details.Details) *details.Details
 }
 
-// selectorResourceOwners aggregates all discrete resource owner ids described
-// in the selector.  Any and None values are ignored.  ResourceOwner sets are
-// grouped by their scope type (includes, excludes, filters).
-type selectorResourceOwners struct {
-	Includes []string
-	Excludes []string
-	Filters  []string
-}
-
-type resourceOwnerer interface {
-	ResourceOwners() selectorResourceOwners
-}
-
 // selectorResourceOwners aggregates all discrete path category types described
 // in the selector.  Category sets are grouped by their scope type (includes,
 // excludes, filters).
@@ -106,6 +93,10 @@ type pathCategorier interface {
 type Selector struct {
 	// The service scope of the data.  Exchange, Teams, SharePoint, etc.
 	Service service `json:"service,omitempty"`
+
+	// A record of the resource owners matched by this selector.
+	ResourceOwners filters.Filter `json:"resourceOwners,omitempty"`
+
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.
 	Excludes []scope `json:"exclusions,omitempty"`
@@ -117,12 +108,19 @@ type Selector struct {
 }
 
 // helper for specific selector instance constructors.
-func newSelector(s service) Selector {
+func newSelector(s service, resourceOwners []string) Selector {
 	return Selector{
-		Service:  s,
-		Excludes: []scope{},
-		Includes: []scope{},
+		Service:        s,
+		ResourceOwners: filterize(scopeConfig{}, resourceOwners...),
+		Excludes:       []scope{},
+		Includes:       []scope{},
 	}
+}
+
+// DiscreteResourceOwners returns the list of individual resourceOwners used
+// in the selector.
+func (s Selector) DiscreteResourceOwners() []string {
+	return split(s.ResourceOwners.Target)
 }
 
 func (s Selector) String() string {
@@ -216,16 +214,6 @@ func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.
 	}
 
 	return r.Reduce(ctx, deets), nil
-}
-
-// returns the sets of resource owners identified in each scope set.
-func (s Selector) ResourceOwners() (selectorResourceOwners, error) {
-	ro, err := selectorAsIface[resourceOwnerer](s)
-	if err != nil {
-		return selectorResourceOwners{}, err
-	}
-
-	return ro.ResourceOwners(), nil
 }
 
 // returns the sets of path categories identified in each scope set.
