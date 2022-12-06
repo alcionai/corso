@@ -96,6 +96,9 @@ html{
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
+html[data-theme='light'] {
+  --ifm-background-color: #ffffff;
+}
 html[data-theme='dark'] {
   --ifm-background-color: #111629;
   --ifm-link-color: #087EA4;
@@ -333,5 +336,74 @@ html[class*='docs-doc-id-cli'] .markdown table thead tr {
 
   :nth-of-type(4) {
     width: 50%;
+  }
+}
+
+// Theming by SCSS Variables instead of Docusaurus Hooks
+[data-theme='dark'] .cookies---custom {
+  background-color: #0f172a;
+  p{
+    color: #94a3b8;
+  }
+  .icon---custom{
+    color: #e2e8f0;
+  }
+}
+
+[data-theme='light'] .cookies---custom {
+  background-color: #fff;
+  p{
+    color: #161c2d;
+  }
+  .icon---custom{
+    color:  #3c4858;
+  }
+}
+
+[data-theme='dark'] .first-section---custom {
+  .bg---rotated{
+  background-color: #151C3D;
+  }
+  h4{
+    color: #fff;
+  }
+  p{
+    color: #cbd5e1;
+  }
+}
+
+[data-theme='light'] .first-section---custom {
+  .bg---rotated{
+  background-color: #f6f6fe;
+  }
+  h4{
+    color: #161c2d;
+  }
+  p{
+    color: #94A3B8;
+  }
+}
+
+[data-theme='dark'] .third-section---custom {
+  .h3-1---custom{
+    color: #fff;
+  }
+  .p-1---custom{
+    color: #94a3b8;
+  }
+  .h3-1---custom{
+    background-color: #0f172a;
+  }
+}
+
+[data-theme='light'] .third-section---custom {
+  .h3-1---custom{
+    color: #161C2D;
+  }
+  .p-1---custom{
+    color: #94A3B8;
+  }
+  .h3-1---custom{
+    background-color: #fff;
   }
 }

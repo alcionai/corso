@@ -1,5 +1,4 @@
 import React from "react";
-import "animate.css";
 
 export default function Demo() {
   return (
@@ -20,7 +19,14 @@ export default function Demo() {
                 borderBottom: "2px solid #e5e7eb",
               }}
             >
-              <video className="w-full" poster="assets/images/corso_demo_thumbnail.png" muted loop autoPlay playsInline>
+              <video
+                className="w-full"
+                poster="assets/images/corso_demo_thumbnail.png"
+                muted
+                loop
+                autoPlay
+                playsInline
+              >
                 <source src="assets/images/corso_demo.mp4" type="video/mp4" />
               </video>
             </div>

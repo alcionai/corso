@@ -1,11 +1,10 @@
 import React from "react";
-import "animate.css";
 
 export default function Hero() {
   return (
-    <section className="relative !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
+    <section className="relative first-section---custom !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
       <div
-        className="bg-[#151C3D] absolute"
+        className="bg---rotated absolute"
         style={{
           left: "-20rem",
           right: 0,
@@ -24,11 +23,11 @@ export default function Hero() {
       >
         <div className="grid !z-10 grid-cols-1 mt-28 text-center">
           <div className="wow !z-10 animate__animated animate__fadeIn">
-            <h4 className="font-bold !text-white !z-10 !leading-normal text-4xl lg:text-5xl mb-5">
+            <h4 className="font-bold !z-10 !leading-normal text-4xl lg:text-5xl mb-5">
               Free, Secure, and Open-Source
               <br /> Backup for Microsoft 365
             </h4>
-            <p className="text-slate-300 !z-10 text-xl max-w-xl mx-auto">
+            <p className="!z-10 text-xl max-w-xl mx-auto">
               The #1 open-source backup tool for Microsoft 365
             </p>
           </div>
