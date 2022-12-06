@@ -33,7 +33,7 @@ export default function Hero() {
             </p>
           </div>
 
-          <div className="mt-12 !z-10 mb-6 flex flex-col sm:flex-row items-center justify-center sm:space-y-0 space-y-4 sm:space-x-4">
+          <div className="mt-12 !z-10 mb-6 flex flex-col xsm:flex-row items-center justify-center xsm:space-y-0 space-y-4 xsm:space-x-4">
             <a
               href="../docs/quickstart"
               className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
