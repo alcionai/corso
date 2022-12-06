@@ -128,7 +128,6 @@ type DeltaRequestBuilderGetQueryParameters struct {
 func optionsForFolderMessagesDelta(
 	moreOps []string,
 ) (*msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
-	// *msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilder
 	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
 		return nil, err
