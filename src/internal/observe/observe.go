@@ -38,8 +38,8 @@ func init() {
 // adds the persistent boolean flag --hide-progress to the provided command.
 // This is a hack for help displays.  Due to seeding the context, we also
 // need to parse the configuration before we execute the command.
-func AddProgressBarFlags(parent *cobra.Command) {
-	fs := parent.PersistentFlags()
+func AddProgressBarFlags(cmd *cobra.Command) {
+	fs := cmd.PersistentFlags()
 	fs.Bool(hideProgressBarsFN, false, "turn off the progress bar displays")
 	fs.Bool(retainProgressBarsFN, false, "retain the progress bar displays after completion")
 }

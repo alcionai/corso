@@ -12,16 +12,16 @@ var (
 )
 
 // AddOperationFlags adds command-local operation flags
-func AddOperationFlags(parent *cobra.Command) {
-	fs := parent.Flags()
+func AddOperationFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
 	fs.BoolVar(&fastFail, "fast-fail", false, "stop processing immediately if any error occurs")
 	// TODO: reveal this flag when fail-fast support is implemented
 	cobra.CheckErr(fs.MarkHidden("fast-fail"))
 }
 
 // AddGlobalOperationFlags adds the global operations flag set.
-func AddGlobalOperationFlags(parent *cobra.Command) {
-	fs := parent.PersistentFlags()
+func AddGlobalOperationFlags(cmd *cobra.Command) {
+	fs := cmd.PersistentFlags()
 	fs.BoolVar(&noStats, "no-stats", false, "disable anonymous usage statistics gathering")
 }
 
