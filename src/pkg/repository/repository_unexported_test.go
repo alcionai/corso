@@ -49,6 +49,8 @@ func (suite *RepositoryModelSuite) TestWriteGetModel() {
 
 	ms, err := kopia.NewModelStore(kopiaRef)
 	require.NoError(t, err)
+	defer ms.Close(ctx)
+
 	require.NoError(t, newRepoModel(ctx, ms, "fnords"))
 
 	got, err := getRepoModel(ctx, ms)
