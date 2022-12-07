@@ -24,6 +24,8 @@ import (
 const (
 	nextLinkKey  = "@odata.nextLink"
 	deltaLinkKey = "@odata.deltaLink"
+
+	metadataKey = "metadata"
 )
 
 // getAdditionalDataString gets a string value from the AdditionalData map. If
@@ -104,6 +106,8 @@ func FilterContainersAndFillCollections(
 	var (
 		errs           error
 		collectionType = CategoryToOptionIdentifier(qp.Category)
+		// folder ID -> delta token for folder.
+		deltaTokens = map[string]string{}
 	)
 
 	for _, c := range resolver.Items() {
@@ -148,7 +152,7 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, _, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
+		jobs, token, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -158,9 +162,34 @@ func FilterContainersAndFillCollections(
 		}
 
 		edc.jobs = append(edc.jobs, jobs...)
+
+		if len(token) > 0 {
+			deltaTokens[*c.GetId()] = token
+		}
 	}
 
-	return errs
+	// TODO(ashmrtn): getFetchIDFunc functions should probably just return a
+	// multierror and all of the error handling should just use those so that it
+	// all ends up more consistent.
+	merrs := multierror.Append(nil, errs)
+
+	col, err := makeMetadataCollection(
+		qp.Credentials.AzureTenantID,
+		qp.ResourceOwner,
+		qp.Category,
+		deltaTokens,
+		statusUpdater,
+	)
+	if err != nil {
+		merrs = multierror.Append(
+			merrs,
+			errors.Wrap(err, "making metadata collection"),
+		)
+	} else if col != nil {
+		collections[metadataKey] = col
+	}
+
+	return merrs.ErrorOrNil()
 }
 
 func IterativeCollectContactContainers(
