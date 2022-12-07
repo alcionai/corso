@@ -155,7 +155,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	var (
-		scopes      = odb.DiscreteScopes(gc.GetUsers())
+		scopes      = odb.DiscreteScopes([]string{selector.DiscreteOwner})
 		collections = []data.Collection{}
 		errs        error
 	)
