@@ -119,69 +119,82 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 		err = op.createBackupModels(ctx, opStats.k.SnapshotID, backupDetails)
 		if err != nil {
-			// todo: we're not persisting this yet, except for the error shown to the user.
 			opStats.writeErr = err
 		}
 	}()
 
-	complete, closer := observe.MessageWithCompletion("Connecting to M365:")
-	defer closer()
-	defer close(complete)
-
-	// retrieve data from the producer
-	resource := connector.Users
-	if op.Selectors.Service == selectors.ServiceSharePoint {
-		resource = connector.Sites
-	}
-
-	gc, err := connector.NewGraphConnector(ctx, op.account, resource)
+	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
-		err = errors.Wrap(err, "connecting to graph api")
-		opStats.readErr = err
-
-		return err
+		opStats.readErr = errors.Wrap(err, "connecting to M365")
+		return opStats.readErr
 	}
-	complete <- struct{}{}
 
-	discoverCh, closer := observe.MessageWithCompletion("Discovering items to backup:")
-	defer closer()
-	defer close(discoverCh)
-
-	cs, err := gc.DataCollections(ctx, op.Selectors, nil)
+	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors)
 	if err != nil {
-		err = errors.Wrap(err, "retrieving service data")
-		opStats.readErr = err
-
-		return err
+		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
+		return opStats.readErr
 	}
 
-	discoverCh <- struct{}{}
-
-	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
-
-	backupCh, closer := observe.MessageWithCompletion("Backing up data:")
-	defer closer()
-	defer close(backupCh)
-
-	// hand the results to the consumer
-	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, nil, cs, op.Selectors.PathService())
+	opStats.k, backupDetails, err = consumeBackupDataCollections(ctx, op.kopia, op.Selectors, cs)
 	if err != nil {
-		err = errors.Wrap(err, "backing up service data")
-		opStats.writeErr = err
-
-		return err
+		opStats.writeErr = errors.Wrap(err, "backing up service data")
+		return opStats.writeErr
 	}
-	backupCh <- struct{}{}
 
 	logger.Ctx(ctx).Debugf(
 		"Backed up %d directories and %d files",
 		opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount,
 	)
 
+	// TODO: should always be 1, since backups are 1:1 with resourceOwners now.
+	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
 	return err
+}
+
+// calls the producer to generate collections of data to backup
+func produceBackupDataCollections(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	sel selectors.Selector,
+) ([]data.Collection, error) {
+	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	cs, err := gc.DataCollections(ctx, sel)
+	if err != nil {
+		return nil, err
+	}
+
+	return cs, nil
+}
+
+// calls kopia to backup the collections of data
+func consumeBackupDataCollections(
+	ctx context.Context,
+	kw *kopia.Wrapper,
+	sel selectors.Selector,
+	cs []data.Collection,
+) (*kopia.BackupStats, *details.Details, error) {
+	complete, closer := observe.MessageWithCompletion("Backing up data:")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	kstats, deets, err := kw.BackupCollections(ctx, cs, sel.PathService())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return kstats, deets, nil
 }
 
 // writes the results metrics to the operation results.

@@ -9,7 +9,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -161,24 +160,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
-	gcComplete, closer := observe.MessageWithCompletion("Connecting to M365:")
-	defer closer()
-	defer close(gcComplete)
-
-	// restore those collections using graph
-	resource := connector.Users
-	if op.Selectors.Service == selectors.ServiceSharePoint {
-		resource = connector.Sites
-	}
-
-	gc, err := connector.NewGraphConnector(ctx, op.account, resource)
+	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
-		err = errors.Wrap(err, "connecting to microsoft servers")
-		opStats.writeErr = err
-
-		return nil, err
+		opStats.readErr = errors.Wrap(err, "connecting to M365")
+		return nil, opStats.readErr
 	}
-	gcComplete <- struct{}{}
 
 	restoreComplete, closer := observe.MessageWithCompletion("Restoring data:")
 	defer closer()
