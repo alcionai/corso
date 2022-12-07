@@ -176,12 +176,12 @@ func FilterContainersAndFillCollections(
 		statusUpdater,
 	)
 	if err != nil {
-		errs = support.WrapAndAppend("making metadata collection", e, errs)
+		errs = support.WrapAndAppend("making metadata collection", err, errs)
 	} else if col != nil {
 		collections[metadataKey] = col
 	}
 
-	return merrs.ErrorOrNil()
+	return errs
 }
 
 func IterativeCollectContactContainers(
