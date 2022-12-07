@@ -98,6 +98,18 @@ func (oc *Collection) FullPath() path.Path {
 	return oc.folderPath
 }
 
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (oc Collection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (oc Collection) State() data.CollectionState {
+	return data.NewState
+}
+
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
@@ -111,6 +123,11 @@ func (od *Item) UUID() string {
 
 func (od *Item) ToReader() io.ReadCloser {
 	return od.data
+}
+
+// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+func (od Item) Deleted() bool {
+	return false
 }
 
 func (od *Item) Info() details.ItemInfo {
