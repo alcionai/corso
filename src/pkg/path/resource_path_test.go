@@ -233,6 +233,101 @@ func (suite *DataLayerResourcePath) TestDir() {
 	}
 }
 
+func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
+	tenant := "a-tenant"
+	user := "a-user"
+	table := []struct {
+		name            string
+		service         path.ServiceType
+		category        path.CategoryType
+		postfix         []string
+		expectedService path.ServiceType
+		check           assert.ErrorAssertionFunc
+	}{
+		{
+			name:            "NoPostfixPasses",
+			service:         path.ExchangeService,
+			category:        path.EmailCategory,
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
+		},
+		{
+			name:            "PostfixPasses",
+			service:         path.ExchangeService,
+			category:        path.EmailCategory,
+			postfix:         []string{"a", "b"},
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
+		},
+		{
+			name:     "Fails",
+			service:  path.ExchangeService,
+			category: path.FilesCategory,
+			check:    assert.Error,
+		},
+		{
+			name:            "Passes",
+			service:         path.ExchangeService,
+			category:        path.ContactsCategory,
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
+		},
+		{
+			name:            "Passes",
+			service:         path.ExchangeService,
+			category:        path.EventsCategory,
+			expectedService: path.ExchangeMetadataService,
+			check:           assert.NoError,
+		},
+		{
+			name:            "Passes",
+			service:         path.OneDriveService,
+			category:        path.FilesCategory,
+			expectedService: path.OneDriveMetadataService,
+			check:           assert.NoError,
+		},
+		{
+			name:            "Passes",
+			service:         path.SharePointService,
+			category:        path.LibrariesCategory,
+			expectedService: path.SharePointMetadataService,
+			check:           assert.NoError,
+		},
+		{
+			name:            "Passes",
+			service:         path.SharePointService,
+			category:        path.ListsCategory,
+			expectedService: path.SharePointMetadataService,
+			check:           assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(strings.Join([]string{
+			test.name,
+			test.service.String(),
+			test.category.String(),
+		}, "_"), func(t *testing.T) {
+			pb := path.Builder{}.Append(test.postfix...)
+			p, err := pb.ToServiceCategoryMetadataPath(
+				tenant,
+				user,
+				test.service,
+				test.category,
+				false,
+			)
+
+			test.check(t, err)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expectedService, p.Service())
+		})
+	}
+}
+
 func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 	b := path.Builder{}.Append(rest...)
 	table := []struct {
