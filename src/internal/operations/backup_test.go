@@ -196,6 +196,7 @@ func checkMetadataFilesExist(
 ) {
 	//revive:enable:context-as-argument
 	bup := &backup.Backup{}
+
 	err := ms.Get(ctx, model.BackupSchema, backupID, bup)
 	if !assert.NoError(t, err) {
 		return
