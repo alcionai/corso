@@ -11,16 +11,16 @@ var subCommandFuncs = []func() *cobra.Command{
 	deleteCmd,
 }
 
-var serviceCommands = []func(parent *cobra.Command) *cobra.Command{
+var serviceCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
 	addSharePointCommands,
 }
 
 // AddCommands attaches all `corso backup * *` commands to the parent.
-func AddCommands(parent *cobra.Command) {
+func AddCommands(cmd *cobra.Command) {
 	backupC := backupCmd()
-	parent.AddCommand(backupC)
+	cmd.AddCommand(backupC)
 
 	for _, sc := range subCommandFuncs {
 		subCommand := sc()

@@ -3,11 +3,13 @@ slug: your-own-backups
 title: "Owning Your Identity and Data For The Price of One ☕️/Month "
 authors: nica
 tags: [corso, microsoft 365]
+date: 2022-12-05
+image: ./images/gian_tweet_backups.png
 ---
 
 I recently saw a tweet that really spoke to me:
 
-![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](../static/img/blog/gian_tweet_backups.png)
+![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](./images/gian_tweet_backups.png)
 
 Gian was really addressing the chaotic situation with Twitter, but it feels much more broadly applicable in today’s climate.
 Given the increased role of automation in flagging “bad” accounts,
@@ -67,7 +69,7 @@ your data and independence from your primary cloud provider. Data is also compre
 (pennies a month with systems such as AWS Glacier Instant Access) and encrypted with user-provided keys so that no one
 can see your data and that it is safe against hackers and ransomware.
 
-![corso Screenshot](../static/img/blog/corso_backup.png)
+![corso Screenshot](./images/corso_backup.png)
 
 Corso is available now, and we’d love to hear your thoughts!
 Download it, [give it a try,](https://corsobackup.io/docs/intro/) and
