@@ -111,7 +111,7 @@ func Initialize(
 		return nil, err
 	}
 
-	repoID := events.NewRepoID(s)
+	repoID := newRepoID(s)
 	bus.SetRepoID(repoID)
 
 	r := &repository{
@@ -124,7 +124,7 @@ func Initialize(
 		modelStore: ms,
 	}
 
-	if err := newRepoModel(repoID).write(ctx, ms); err != nil {
+	if err := newRepoModel(ctx, ms, repoID); err != nil {
 		return nil, errors.New("setting up repository")
 	}
 
@@ -176,7 +176,7 @@ func Connect(
 		return nil, errors.New("retrieving repo info")
 	}
 
-	bus.SetRepoID(rm.RepoID())
+	bus.SetRepoID(string(rm.ID))
 
 	complete <- struct{}{}
 
@@ -327,35 +327,37 @@ type repositoryModel struct {
 	model.BaseModel
 }
 
-const (
-	repositoryID = "repository-id"
-	repoIDTag    = "repo-id"
-)
-
 // should only be called on init.
-func newRepoModel(repoID string) repositoryModel {
-	return repositoryModel{
+func newRepoModel(ctx context.Context, ms *kopia.ModelStore, repoID string) error {
+	rm := repositoryModel{
 		BaseModel: model.BaseModel{
-			ID: repositoryID,
-			Tags: map[string]string{
-				repoIDTag: repoID,
-			},
+			ID: model.StableID(repoID),
 		},
 	}
+
+	return ms.Put(ctx, model.RepositorySchema, &rm)
 }
 
 // retrieves the repository info
 func getRepoModel(ctx context.Context, ms *kopia.ModelStore) (*repositoryModel, error) {
+	bms, err := ms.GetIDsForType(ctx, model.RepositorySchema, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	rm := &repositoryModel{}
-	return rm, ms.Get(ctx, model.RepositorySchema, repositoryID, rm)
+	if len(bms) == 0 {
+		return rm, nil
+	}
+
+	rm.BaseModel = *bms[0]
+
+	return rm, nil
 }
 
-// should only be called following a successful init.
-func (rm repositoryModel) write(ctx context.Context, ms *kopia.ModelStore) error {
-	return ms.Put(ctx, model.RepositorySchema, &rm)
-}
-
-// retrieves the stored repository ID.
-func (rm repositoryModel) RepoID() string {
-	return rm.Tags[repoIDTag]
+// newRepoID generates a new unique repository id hash.
+// Repo IDs should only be generated once per repository,
+// and must be stored after that.
+func newRepoID(s storage.Storage) string {
+	return uuid.NewString()
 }

@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	analytics "github.com/rudderlabs/analytics-go"
 
@@ -156,41 +155,7 @@ func (b *Bus) SetRepoID(hash string) {
 	b.repoID = hash
 }
 
-func storageID(s storage.Storage) string {
-	id := s.Provider.String()
-
-	switch s.Provider {
-	case storage.ProviderS3:
-		s3, err := s.S3Config()
-		if err != nil {
-			return id
-		}
-
-		id += s3.Bucket + s3.Prefix
-	}
-
-	return id
-}
-
-// NewRepoID generates a new unique repository id hash.
-// Repo ids should only be generated once per repository,
-// and must be stored after that.
-func NewRepoID(s storage.Storage) string {
-	return repoHash(s, uuid.NewString())
-}
-
-func repoHash(s storage.Storage, uid string) string {
-	return md5HashOf(storageID(s) + uid)
-}
-
 func tenantHash(tenID string) string {
-	return md5HashOf(tenID)
-}
-
-func md5HashOf(s string) string {
-	sum := md5.Sum(
-		[]byte(s),
-	)
-
+	sum := md5.Sum([]byte(tenID))
 	return fmt.Sprintf("%x", sum)
 }

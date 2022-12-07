@@ -34,15 +34,6 @@ func (suite *RepositoryModelSuite) SetupSuite() {
 	require.NoError(suite.T(), err)
 }
 
-func (suite *RepositoryModelSuite) TestNewRepoModel() {
-	t := suite.T()
-
-	rm := newRepoModel("smarf")
-	assert.NotEmpty(t, rm)
-	assert.Equal(t, repositoryID, rm.ID)
-	assert.Equal(t, "smarf", rm.RepoID())
-}
-
 func (suite *RepositoryModelSuite) TestWriteGetModel() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -51,7 +42,6 @@ func (suite *RepositoryModelSuite) TestWriteGetModel() {
 		t        = suite.T()
 		s        = tester.NewPrefixedS3Storage(t)
 		kopiaRef = kopia.NewConn(s)
-		rm       = newRepoModel("fnords")
 	)
 
 	require.NoError(t, kopiaRef.Connect(ctx))
@@ -59,9 +49,9 @@ func (suite *RepositoryModelSuite) TestWriteGetModel() {
 
 	ms, err := kopia.NewModelStore(kopiaRef)
 	require.NoError(t, err)
-	require.NoError(t, rm.write(ctx, ms))
+	require.NoError(t, newRepoModel(ctx, ms, "fnords"))
 
 	got, err := getRepoModel(ctx, ms)
 	require.NoError(t, err)
-	assert.Equal(t, "fnords", got.RepoID())
+	assert.Equal(t, "fnords", string(got.ID))
 }
