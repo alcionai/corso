@@ -16,6 +16,7 @@ type CollectionState int
 
 const (
 	NewState = CollectionState(iota)
+	NotMovedState
 	MovedState
 	DeletedState
 )
@@ -39,11 +40,12 @@ type Collection interface {
 	PreviousPath() path.Path
 	// State represents changes to the Collection compared to the last backup
 	// involving the Collection. State changes are based on the M365 ID of the
-	// Collection, not just the path the collection resides at. Renaming or
-	// reparenting the Collection counts as Moved. Collections marked as Deleted
-	// will be removed from the current backup along with all items and
-	// Collections below them in the hierarchy unless said items/Collections were
-	// moved.
+	// Collection, not just the path the collection resides at. Collections that
+	// are in the same location as they were in the previous backup should be
+	// marked as NotMovedState. Renaming or reparenting the Collection counts as
+	// Moved. Collections marked as Deleted will be removed from the current
+	// backup along with all items and Collections below them in the hierarchy
+	// unless said items/Collections were moved.
 	State() CollectionState
 }
 
