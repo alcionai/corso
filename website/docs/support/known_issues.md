@@ -5,7 +5,7 @@ Below is a list of known Corso issues and limitations:
 * Only supports Exchange (email, calendars, contact) and OneDrive (files) M365 data. Additional
   data types and services will be added in subsequent releases.
 
-* Backups of Exchange email may not include changes to whether an email is marked as read or not if no other changes
+* Backups of Exchange email may not include changes to the read status of an email if no other changes
   to the email have been made since the previous backup.
 
 * Restores are non-destructive to a dedicated restore folder in the original Exchange mailbox or OneDrive account.
