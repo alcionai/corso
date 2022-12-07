@@ -684,9 +684,10 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.Collection,
-) {
+) int {
 	collectionsWithItems := []data.Collection{}
 
+	skipped := 0
 	gotItems := 0
 
 	for _, returned := range got {
@@ -699,6 +700,18 @@ func checkCollections(
 		// because otherwise we'll deadlock waiting for GC status. Unexpected or
 		// missing collection paths will be reported by checkHasCollections.
 		for item := range returned.Items() {
+			// Skip metadata collections as they aren't directly related to items to
+			// backup. Don't add them to the item count either since the item count
+			// is for actual pull items.
+			// TODO(ashmrtn): Should probably eventually check some data in metadata
+			// collections.
+			if service == path.ExchangeMetadataService ||
+				service == path.OneDriveMetadataService ||
+				service == path.SharePointMetadataService {
+				skipped++
+				continue
+			}
+
 			gotItems++
 
 			if expectedColData == nil {
@@ -715,6 +728,10 @@ func checkCollections(
 
 	assert.Equal(t, expectedItems, gotItems, "expected items")
 	checkHasCollections(t, expected, collectionsWithItems)
+
+	// Return how many metadata files were skipped so we can account for it in the
+	// check on GraphConnector status.
+	return skipped
 }
 
 type destAndCats struct {
