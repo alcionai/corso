@@ -3,6 +3,7 @@ package graph
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -14,6 +15,49 @@ var (
 	_ data.Collection = &MetadataCollection{}
 	_ data.Stream     = &MetadataItem{}
 )
+
+// makeMetadataCollection creates a metadata collection that has a file
+// containing all the delta tokens in tokens. Returns nil if the map does not
+// have any entries.
+//
+// TODO(ashmrtn): Expand this/break it out into multiple functions so that we
+// can also store map[container ID]->full container path in a file in the
+// metadata collection.
+func MakeMetadataCollection(
+	tenant, user string,
+	service path.ServiceType,
+	cat path.CategoryType,
+	tokens map[string]string,
+	statusUpdater support.StatusUpdater,
+) (data.Collection, error) {
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+
+	if err := encoder.Encode(tokens); err != nil {
+		return nil, errors.Wrap(err, "serializing delta tokens")
+	}
+
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenant,
+		user,
+		service,
+		cat,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "making path")
+	}
+
+	return NewMetadataCollection(
+		p,
+		[]MetadataItem{NewMetadataItem(DeltaTokenFileName, buf.Bytes())},
+		statusUpdater,
+	), nil
+}
 
 // MetadataCollection in a simple collection that assumes all items to be
 // returned are already resident in-memory and known when the collection is

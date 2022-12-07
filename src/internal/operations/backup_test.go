@@ -402,7 +402,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			m365, err := acct.M365Config()
 			require.NoError(t, err)
 
-			for _, scope := range sel.DiscreteScopes(nil) {
+			for _, scope := range sel.Scopes() {
 				cat := scope.Category().PathType()
 
 				if cat != path.EmailCategory && cat != path.ContactsCategory {
