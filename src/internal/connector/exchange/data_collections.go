@@ -174,7 +174,7 @@ func DataCollections(
 	}
 
 	var (
-		scopes      = eb.DiscreteScopes(userPNs)
+		scopes      = eb.DiscreteScopes([]string{selector.DiscreteOwner})
 		collections = []data.Collection{}
 		errs        error
 	)
