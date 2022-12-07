@@ -13,7 +13,7 @@ builds:
       - goos: windows
         goarch: arm64
     ldflags:
-          - -X 'github.com/alcionai/corso/src/cli.version={{.Env.CORSO_VERSION}}'
+          - -X 'github.com/alcionai/corso/src/cli/version.Version={{.Env.CORSO_VERSION}}'
           - -X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey={{.Env.RUDDERSTACK_CORSO_WRITE_KEY}}'
           - -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL={{.Env.RUDDERSTACK_CORSO_DATA_PLANE_URL}}'
 

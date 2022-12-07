@@ -492,7 +492,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            CORSO_BUILD_LDFLAGS=-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' -X 'github.com/alcionai/corso/src/cli.version=${{ needs.SetEnv.outputs.version }}'
+            CORSO_BUILD_LDFLAGS=-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' -X 'github.com/alcionai/corso/src/cli/version.Version=${{ needs.SetEnv.outputs.version }}'
           # use the github cache
           cache-from: type=gha
           cache-to: type=gha,mode=max
