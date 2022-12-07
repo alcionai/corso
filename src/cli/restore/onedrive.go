@@ -25,16 +25,16 @@ var (
 	fileModifiedBefore string
 )
 
-// called by restore.go to map parent subcommands to provider-specific handling.
-func addOneDriveCommands(parent *cobra.Command) *cobra.Command {
+// called by restore.go to map subcommands to provider-specific handling.
+func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
 
-	switch parent.Use {
+	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(parent, oneDriveRestoreCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveRestoreCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandUseSuffix
 

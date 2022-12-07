@@ -14,19 +14,23 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const nextLinkKey = "@odata.nextLink"
+const (
+	nextLinkKey  = "@odata.nextLink"
+	deltaLinkKey = "@odata.deltaLink"
+)
 
 // getAdditionalDataString gets a string value from the AdditionalData map. If
 // the value is not in the map returns an empty string.
 func getAdditionalDataString(
 	key string,
-	data map[string]any,
+	addtlData map[string]any,
 ) string {
-	iface := data[key]
+	iface := addtlData[key]
 	if iface == nil {
 		return ""
 	}
@@ -47,45 +51,45 @@ func getAdditionalDataString(
 func FilterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	collections map[string]*Collection,
+	collections map[string]data.Collection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
 ) error {
 	var (
-		collectionType = CategoryToOptionIdentifier(scope.Category().PathType())
 		errs           error
+		collectionType = CategoryToOptionIdentifier(qp.Category)
 	)
 
 	for _, c := range resolver.Items() {
 		dirPath, ok := pathAndMatch(qp, c, scope)
-		if ok {
-			// Create only those that match
-			service, err := createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errs = support.WrapAndAppend(
-					qp.ResourceOwner+" FilterContainerAndFillCollection",
-					err,
-					errs)
-
-				if qp.FailFast {
-					return errs
-				}
-			}
-
-			edc := NewCollection(
-				qp.ResourceOwner,
-				dirPath,
-				collectionType,
-				service,
-				statusUpdater,
-			)
-			collections[*c.GetId()] = &edc
+		if !ok {
+			continue
 		}
-	}
 
-	for directoryID, col := range collections {
-		fetchFunc, err := getFetchIDFunc(scope.Category().PathType())
+		// Create only those that match
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				qp.ResourceOwner+" FilterContainerAndFillCollection",
+				err,
+				errs)
+
+			if qp.FailFast {
+				return errs
+			}
+		}
+
+		edc := NewCollection(
+			qp.ResourceOwner,
+			dirPath,
+			collectionType,
+			service,
+			statusUpdater,
+		)
+		collections[*c.GetId()] = &edc
+
+		fetchFunc, err := getFetchIDFunc(qp.Category)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -99,7 +103,7 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, err := fetchFunc(ctx, col.service, qp.ResourceOwner, directoryID)
+		jobs, _, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -108,7 +112,7 @@ func FilterContainersAndFillCollections(
 			)
 		}
 
-		col.jobs = append(col.jobs, jobs...)
+		edc.jobs = append(edc.jobs, jobs...)
 	}
 
 	return errs
@@ -162,9 +166,14 @@ func IterativeCollectCalendarContainers(
 	}
 }
 
-// FetchIDFunc collection of helper functions which return a list of strings
-// from a response.
-type FetchIDFunc func(ctx context.Context, gs graph.Service, user, containerID string) ([]string, error)
+// FetchIDFunc collection of helper functions which return a list of all item
+// IDs in the given container and a delta token for future requests if the
+// container supports fetching delta records.
+type FetchIDFunc func(
+	ctx context.Context,
+	gs graph.Service,
+	user, containerID string,
+) ([]string, string, error)
 
 func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
 	switch category {
@@ -184,7 +193,7 @@ func FetchEventIDsFromCalendar(
 	ctx context.Context,
 	gs graph.Service,
 	user, calendarID string,
-) ([]string, error) {
+) ([]string, string, error) {
 	var (
 		errs *multierror.Error
 		ids  []string
@@ -192,7 +201,7 @@ func FetchEventIDsFromCalendar(
 
 	options, err := optionsForCalendarEvents([]string{"id"})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	builder := gs.Client().
@@ -203,7 +212,7 @@ func FetchEventIDsFromCalendar(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -228,20 +237,26 @@ func FetchEventIDsFromCalendar(
 		builder = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
-	return ids, errs.ErrorOrNil()
+	// Events don't have a delta endpoint so just return an empty string.
+	return ids, "", errs.ErrorOrNil()
 }
 
 // FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
 // of the targeted directory
-func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, directoryID string) ([]string, error) {
+func FetchContactIDsFromDirectory(
+	ctx context.Context,
+	gs graph.Service,
+	user, directoryID string,
+) ([]string, string, error) {
 	var (
-		errs *multierror.Error
-		ids  []string
+		errs       *multierror.Error
+		ids        []string
+		deltaToken string
 	)
 
 	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
 	if err != nil {
-		return nil, errors.Wrap(err, "getting query options")
+		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
 
 	builder := gs.Client().
@@ -254,7 +269,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
 		resp, err := sendContactsDeltaGet(ctx, builder, options, gs.Adapter())
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -273,6 +288,11 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 
 		addtlData := resp.GetAdditionalData()
 
+		delta := getAdditionalDataString(deltaLinkKey, addtlData)
+		if len(delta) > 0 {
+			deltaToken = delta
+		}
+
 		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
 		if len(nextLink) == 0 {
 			break
@@ -281,7 +301,7 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		builder = cdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
-	return ids, errs.ErrorOrNil()
+	return ids, deltaToken, errs.ErrorOrNil()
 }
 
 // FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
@@ -290,15 +310,16 @@ func FetchMessageIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Service,
 	user, directoryID string,
-) ([]string, error) {
+) ([]string, string, error) {
 	var (
-		errs *multierror.Error
-		ids  []string
+		errs       *multierror.Error
+		ids        []string
+		deltaToken string
 	)
 
 	options, err := optionsForFolderMessages([]string{"id"})
 	if err != nil {
-		return nil, errors.Wrap(err, "getting query options")
+		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
 
 	builder := gs.Client().
@@ -311,7 +332,7 @@ func FetchMessageIDsFromDirectory(
 		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
 		resp, err := sendMessagesDeltaGet(ctx, builder, options, gs.Adapter())
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -330,6 +351,11 @@ func FetchMessageIDsFromDirectory(
 
 		addtlData := resp.GetAdditionalData()
 
+		delta := getAdditionalDataString(deltaLinkKey, addtlData)
+		if len(delta) > 0 {
+			deltaToken = delta
+		}
+
 		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
 		if len(nextLink) == 0 {
 			break
@@ -338,5 +364,5 @@ func FetchMessageIDsFromDirectory(
 		builder = mdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
 	}
 
-	return ids, errs.ErrorOrNil()
+	return ids, deltaToken, errs.ErrorOrNil()
 }
