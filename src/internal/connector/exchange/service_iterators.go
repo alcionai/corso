@@ -66,49 +66,6 @@ func makeMetadataCollection(
 	), nil
 }
 
-// makeMetadataCollection creates a metadata collection that has a file
-// containing all the delta tokens in tokens. Returns nil if the map does not
-// have any entries.
-//
-// TODO(ashmrtn): Expand this/break it out into multiple functions so that we
-// can also store map[container ID]->full container path in a file in the
-// metadata collection.
-func makeMetadataCollection(
-	tenant string,
-	user string,
-	cat path.CategoryType,
-	tokens map[string]string,
-	statusUpdater support.StatusUpdater,
-) (data.Collection, error) {
-	if len(tokens) == 0 {
-		return nil, nil
-	}
-
-	buf := &bytes.Buffer{}
-	encoder := json.NewEncoder(buf)
-
-	if err := encoder.Encode(tokens); err != nil {
-		return nil, errors.Wrap(err, "serializing delta tokens")
-	}
-
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
-		tenant,
-		user,
-		path.ExchangeService,
-		cat,
-		false,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "making path")
-	}
-
-	return graph.NewMetadataCollection(
-		p,
-		[]graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, buf.Bytes())},
-		statusUpdater,
-	), nil
-}
-
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
@@ -200,7 +157,28 @@ func FilterContainersAndFillCollections(
 		collections[metadataKey] = col
 	}
 
-	return errs
+	// TODO(ashmrtn): getFetchIDFunc functions should probably just return a
+	// multierror and all of the error handling should just use those so that it
+	// all ends up more consistent.
+	merrs := multierror.Append(nil, errs)
+
+	col, err = makeMetadataCollection(
+		qp.Credentials.AzureTenantID,
+		qp.ResourceOwner,
+		qp.Category,
+		deltaTokens,
+		statusUpdater,
+	)
+	if err != nil {
+		merrs = multierror.Append(
+			merrs,
+			errors.Wrap(err, "making metadata collection"),
+		)
+	} else if col != nil {
+		collections[metadataKey] = col
+	}
+
+	return merrs.ErrorOrNil()
 }
 
 func IterativeCollectContactContainers(
