@@ -1,7 +1,9 @@
 package exchange
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -43,6 +45,49 @@ func getAdditionalDataString(
 	}
 
 	return *value
+}
+
+// makeMetadataCollection creates a metadata collection that has a file
+// containing all the delta tokens in tokens. Returns nil if the map does not
+// have any entries.
+//
+// TODO(ashmrtn): Expand this/break it out into multiple functions so that we
+// can also store map[container ID]->full container path in a file in the
+// metadata collection.
+func makeMetadataCollection(
+	tenant string,
+	user string,
+	cat path.CategoryType,
+	tokens map[string]string,
+	statusUpdater support.StatusUpdater,
+) (data.Collection, error) {
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+
+	if err := encoder.Encode(tokens); err != nil {
+		return nil, errors.Wrap(err, "serializing delta tokens")
+	}
+
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenant,
+		user,
+		path.ExchangeService,
+		cat,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "making path")
+	}
+
+	return graph.NewMetadataCollection(
+		p,
+		[]graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, buf.Bytes())},
+		statusUpdater,
+	), nil
 }
 
 // FilterContainersAndFillCollections is a utility function
@@ -123,10 +168,9 @@ func FilterContainersAndFillCollections(
 		}
 	}
 
-	col, err := graph.MakeMetadataCollection(
+	col, err := makeMetadataCollection(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
-		path.ExchangeService,
 		qp.Category,
 		deltaTokens,
 		statusUpdater,
