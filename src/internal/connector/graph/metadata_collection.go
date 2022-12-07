@@ -15,6 +15,9 @@ var (
 	_ data.Stream     = &MetadataItem{}
 )
 
+// MetadataCollection in a simple collection that assumes all items to be
+// returned are already resident in-memory and known when the collection is
+// created. This collection has no logic for lazily fetching item data.
 type MetadataCollection struct {
 	fullPath      path.Path
 	items         []MetadataItem
@@ -73,20 +76,29 @@ func (md MetadataCollection) Items() <-chan data.Stream {
 	return res
 }
 
+// MetadataItem is an in-memory data.Stream implementation. MetadataItem does
+// not implement additional interfaces like data.StreamInfo, so it should only
+// be used for items with a small amount of content that don't need to be added
+// to backup details.
+//
+// Currently the expected use-case for this struct are storing metadata for a
+// backup like delta tokens or a mapping of container IDs to container paths.
 type MetadataItem struct {
-	name string
+	// uuid is an ID that can be used to refer to the item.
+	uuid string
+	// data is a buffer of data that the item refers to.
 	data []byte
 }
 
-func NewMetadataItem(name string, itemData []byte) MetadataItem {
+func NewMetadataItem(uuid string, itemData []byte) MetadataItem {
 	return MetadataItem{
-		name: name,
+		uuid: uuid,
 		data: itemData,
 	}
 }
 
 func (mi MetadataItem) UUID() string {
-	return mi.name
+	return mi.uuid
 }
 
 func (mi MetadataItem) ToReader() io.ReadCloser {
