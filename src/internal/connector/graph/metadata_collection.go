@@ -40,6 +40,18 @@ func (md MetadataCollection) FullPath() path.Path {
 	return md.fullPath
 }
 
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (md MetadataCollection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (md MetadataCollection) State() data.CollectionState {
+	return data.NewState
+}
+
 func (md MetadataCollection) Items() <-chan data.Stream {
 	res := make(chan data.Stream)
 
@@ -99,6 +111,11 @@ func NewMetadataItem(uuid string, itemData []byte) MetadataItem {
 
 func (mi MetadataItem) UUID() string {
 	return mi.uuid
+}
+
+// TODO(ashmrtn): Fill in once we know how to handle this.
+func (mi MetadataItem) Deleted() bool {
+	return false
 }
 
 func (mi MetadataItem) ToReader() io.ReadCloser {
