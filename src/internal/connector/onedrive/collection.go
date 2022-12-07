@@ -31,10 +31,11 @@ const (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Item{}
-	_ data.StreamInfo    = &Item{}
-	_ data.StreamModTime = &Item{}
+	_ data.Collection = &Collection{}
+	_ data.Stream     = &Item{}
+	_ data.StreamInfo = &Item{}
+	// TODO(ashmrtn): Uncomment when #1702 is resolved.
+	//_ data.StreamModTime = &Item{}
 )
 
 // Collection represents a set of OneDrive objects retreived from M365
@@ -116,9 +117,10 @@ func (od *Item) Info() details.ItemInfo {
 	return details.ItemInfo{OneDrive: od.info}
 }
 
-func (od *Item) ModTime() time.Time {
-	return od.info.Modified
-}
+// TODO(ashmrtn): Uncomment when #1702 is resolved.
+//func (od *Item) ModTime() time.Time {
+//	return od.info.Modified
+//}
 
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
