@@ -107,9 +107,10 @@ func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
 
 	assert.Equal(t, testItemName, readItem.UUID())
 
-	require.Implements(t, (*data.StreamModTime)(nil), readItem)
-	mt := readItem.(data.StreamModTime)
-	assert.Equal(t, now, mt.ModTime())
+	// TODO(ashmrtn): Uncomment when #1702 is resolved.
+	// require.Implements(t, (*data.StreamModTime)(nil), readItem)
+	// mt := readItem.(data.StreamModTime)
+	// assert.Equal(t, now, mt.ModTime())
 
 	readData, err := io.ReadAll(readItem.ToReader())
 	require.NoError(t, err)
