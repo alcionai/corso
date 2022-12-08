@@ -39,6 +39,7 @@ var (
 	_ Reducer         = &OneDriveRestore{}
 	_ printabler      = &OneDriveRestore{}
 	_ resourceOwnerer = &OneDriveRestore{}
+	_ pathCategorier  = &OneDriveRestore{}
 )
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
@@ -99,6 +100,15 @@ func (s oneDrive) ResourceOwners() selectorResourceOwners {
 		Excludes: resourceOwnersIn(s.Excludes, OneDriveUser.String()),
 		Filters:  resourceOwnersIn(s.Filters, OneDriveUser.String()),
 		Includes: resourceOwnersIn(s.Includes, OneDriveUser.String()),
+	}
+}
+
+// PathCategories produces the aggregation of discrete users described by each type of scope.
+func (s oneDrive) PathCategories() selectorPathCategories {
+	return selectorPathCategories{
+		Excludes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Excludes),
+		Filters:  pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Filters),
+		Includes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Includes),
 	}
 }
 
@@ -197,7 +207,7 @@ func (s *oneDrive) Users(users []string) []OneDriveScope {
 func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveScope {
 	var (
 		scopes = []OneDriveScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
@@ -447,7 +457,7 @@ func (s OneDriveScope) Get(cat oneDriveCategory) []string {
 func (s OneDriveScope) set(cat oneDriveCategory, v []string, opts ...option) OneDriveScope {
 	os := []option{}
 	if cat == OneDriveFolder {
-		os = append(os, pathType())
+		os = append(os, pathComparator())
 	}
 
 	return set(s, cat, v, append(os, opts...)...)

@@ -40,6 +40,7 @@ var (
 	_ Reducer         = &ExchangeRestore{}
 	_ printabler      = &ExchangeRestore{}
 	_ resourceOwnerer = &ExchangeRestore{}
+	_ pathCategorier  = &ExchangeRestore{}
 )
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
@@ -100,6 +101,15 @@ func (s exchange) ResourceOwners() selectorResourceOwners {
 		Excludes: resourceOwnersIn(s.Excludes, ExchangeUser.String()),
 		Filters:  resourceOwnersIn(s.Filters, ExchangeUser.String()),
 		Includes: resourceOwnersIn(s.Includes, ExchangeUser.String()),
+	}
+}
+
+// PathCategories produces the aggregation of discrete users described by each type of scope.
+func (s exchange) PathCategories() selectorPathCategories {
+	return selectorPathCategories{
+		Excludes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Excludes),
+		Filters:  pathCategoriesIn[ExchangeScope, exchangeCategory](s.Filters),
+		Includes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Includes),
 	}
 }
 
@@ -210,7 +220,7 @@ func (s *exchange) Contacts(users, folders, contacts []string, opts ...option) [
 func (s *exchange) ContactFolders(users, folders []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
@@ -247,7 +257,7 @@ func (s *exchange) Events(users, calendars, events []string, opts ...option) []E
 func (s *exchange) EventCalendars(users, events []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
@@ -283,7 +293,7 @@ func (s *exchange) Mails(users, folders, mails []string, opts ...option) []Excha
 func (s *exchange) MailFolders(users, folders []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
@@ -663,7 +673,7 @@ func (s ExchangeScope) Get(cat exchangeCategory) []string {
 func (s ExchangeScope) set(cat exchangeCategory, v []string, opts ...option) ExchangeScope {
 	os := []option{}
 	if cat == ExchangeContactFolder || cat == ExchangeEventCalendar || cat == ExchangeMailFolder {
-		os = append(os, pathType())
+		os = append(os, pathComparator())
 	}
 
 	return set(s, cat, v, append(os, opts...)...)
