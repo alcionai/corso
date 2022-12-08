@@ -20,6 +20,115 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+type GraphConnectorUnitSuite struct {
+	suite.Suite
+}
+
+func TestGraphConnectorUnitSuite(t *testing.T) {
+	suite.Run(t, new(GraphConnectorUnitSuite))
+}
+
+func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
+	const (
+		url1  = "www.foo.com/bar"
+		url2  = "www.fnords.com/smarf"
+		path1 = "bar"
+		path2 = "/smarf"
+		id1   = "site-id-1"
+		id2   = "site-id-2"
+	)
+
+	gc := &GraphConnector{
+		// must be populated, else the func will try to make a graph call
+		// to retrieve site data.
+		Sites: map[string]string{
+			url1: id1,
+			url2: id2,
+		},
+	}
+
+	table := []struct {
+		name   string
+		ids    []string
+		urls   []string
+		expect []string
+	}{
+		{
+			name: "nil",
+		},
+		{
+			name:   "empty",
+			ids:    []string{},
+			urls:   []string{},
+			expect: []string{},
+		},
+		{
+			name:   "ids only",
+			ids:    []string{id1, id2},
+			urls:   []string{},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "urls only",
+			ids:    []string{},
+			urls:   []string{url1, url2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "url suffix only",
+			ids:    []string{},
+			urls:   []string{path1, path2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "url and suffix overlap",
+			ids:    []string{},
+			urls:   []string{url1, url2, path1, path2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "ids and urls, no overlap",
+			ids:    []string{id1},
+			urls:   []string{url2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "ids and urls, overlap",
+			ids:    []string{id1, id2},
+			urls:   []string{url1, url2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "partial non-match on path",
+			ids:    []string{},
+			urls:   []string{path1[2:], path2[2:]},
+			expect: []string{},
+		},
+		{
+			name:   "partial non-match on url",
+			ids:    []string{},
+			urls:   []string{url1[5:], url2[5:]},
+			expect: []string{},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			//nolint
+			result, err := gc.UnionSiteIDsAndWebURLs(context.Background(), test.ids, test.urls)
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, test.expect, result)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Integration tests
+// ---------------------------------------------------------------------------
+
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector

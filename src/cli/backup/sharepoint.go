@@ -183,7 +183,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel := sharePointBackupCreateSelectors(site)
 
-	sites, err := m365.Sites(ctx, acct)
+	sites, err := m365.SiteIDs(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve SharePoint sites"))
 	}
