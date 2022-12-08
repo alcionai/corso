@@ -167,7 +167,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	cs, err := gc.DataCollections(ctx, sel)
+	cs, err := gc.DataCollections(ctx, sel, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func consumeBackupDataCollections(
 		closer()
 	}()
 
-	kstats, deets, err := kw.BackupCollections(ctx, cs, sel.PathService())
+	kstats, deets, err := kw.BackupCollections(ctx, nil, cs, sel.PathService())
 	if err != nil {
 		return nil, nil, err
 	}
