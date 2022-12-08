@@ -14,8 +14,7 @@ RUN apt-get -y update && apt-get -y install gpg emacs curl zip git make \
   && cd /tmp && curl -O -L https://github.com/errata-ai/vale/releases/download/v2.20.1/vale_2.20.1_Linux_${arch}.tar.gz \
   && tar -xvzf vale_2.20.1_Linux_${arch}.tar.gz -C /usr/bin vale \
   && npm install -g markdownlint-cli@0.32.2 \
-  && arch=$(arch) \
-  && curl "https://awscli.amazonaws.com/awscli-exe-linux-${arch}.zip" -o "awscliv2.zip" \
+  && curl "https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip" -o "awscliv2.zip" \
   && unzip awscliv2.zip && /bin/bash aws/install && rm -rf awscliv2.zip aws
 
 WORKDIR /usr/src
