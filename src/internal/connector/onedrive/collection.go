@@ -49,6 +49,7 @@ type Collection struct {
 	driveItemIDs []string
 	// M365 ID of the drive this collection was created from
 	driveID       string
+	source        driveSource
 	service       graph.Service
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
@@ -59,7 +60,7 @@ type itemReaderFunc func(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
-) (itemInfo *details.OneDriveInfo, itemData io.ReadCloser, err error)
+) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -67,17 +68,25 @@ func NewCollection(
 	driveID string,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
+	source driveSource,
 ) *Collection {
 	c := &Collection{
 		folderPath:    folderPath,
 		driveItemIDs:  []string{},
 		driveID:       driveID,
+		source:        source,
 		service:       service,
 		data:          make(chan data.Stream, collectionChannelBufferSize),
 		statusUpdater: statusUpdater,
 	}
+
 	// Allows tests to set a mock populator
-	c.itemReader = driveItemReader
+	switch source {
+	case SharePointSource:
+		c.itemReader = sharePointItemReader
+	default:
+		c.itemReader = oneDriveItemReader
+	}
 
 	return c
 }
@@ -114,7 +123,7 @@ func (oc Collection) State() data.CollectionState {
 type Item struct {
 	id   string
 	data io.ReadCloser
-	info *details.OneDriveInfo
+	info details.ItemInfo
 }
 
 func (od *Item) UUID() string {
@@ -131,7 +140,7 @@ func (od Item) Deleted() bool {
 }
 
 func (od *Item) Info() details.ItemInfo {
-	return details.ItemInfo{OneDrive: od.info}
+	return od.info
 }
 
 // TODO(ashmrtn): Uncomment when #1702 is resolved.
@@ -190,7 +199,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			// Read the item
 			var (
-				itemInfo *details.OneDriveInfo
+				itemInfo details.ItemInfo
 				itemData io.ReadCloser
 				err      error
 			)
@@ -213,18 +222,32 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				return
 			}
 
+			var (
+				itemName string
+				itemSize int64
+			)
+
+			switch oc.source {
+			case SharePointSource:
+				itemInfo.SharePoint.ParentPath = parentPathString
+				itemName = itemInfo.SharePoint.ItemName
+				itemSize = itemInfo.SharePoint.Size
+			default:
+				itemInfo.OneDrive.ParentPath = parentPathString
+				itemName = itemInfo.OneDrive.ItemName
+				itemSize = itemInfo.OneDrive.Size
+			}
+
+			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemName, itemSize)
+			go closer()
+
 			// Item read successfully, add to collection
 			atomic.AddInt64(&itemsRead, 1)
 			// byteCount iteration
-			atomic.AddInt64(&byteCount, itemInfo.Size)
-
-			itemInfo.ParentPath = parentPathString
-			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
-
-			go closer()
+			atomic.AddInt64(&byteCount, itemSize)
 
 			oc.data <- &Item{
-				id:   itemInfo.ItemName,
+				id:   itemName,
 				data: progReader,
 				info: itemInfo,
 			}
