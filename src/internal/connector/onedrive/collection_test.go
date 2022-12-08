@@ -145,33 +145,6 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, driveFolderPath, parentPath)
 		})
 	}
-
-	wg.Wait()
-
-	// Expect only 1 item
-	require.Len(t, readItems, 1)
-	require.Equal(t, 1, collStatus.ObjectCount)
-	require.Equal(t, 1, collStatus.Successful)
-
-	// Validate item info and data
-	readItem := readItems[0]
-	readItemInfo := readItem.(data.StreamInfo)
-
-	assert.Equal(t, testItemName, readItem.UUID())
-
-	// TODO(ashmrtn): Uncomment when #1702 is resolved.
-	// require.Implements(t, (*data.StreamModTime)(nil), readItem)
-	// mt := readItem.(data.StreamModTime)
-	// assert.Equal(t, now, mt.ModTime())
-
-	readData, err := io.ReadAll(readItem.ToReader())
-	require.NoError(t, err)
-
-	assert.Equal(t, testItemData, readData)
-	require.NotNil(t, readItemInfo.Info())
-	require.NotNil(t, readItemInfo.Info().OneDrive)
-	assert.Equal(t, testItemName, readItemInfo.Info().OneDrive.ItemName)
-	assert.Equal(t, driveFolderPath, readItemInfo.Info().OneDrive.ParentPath)
 }
 
 func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
