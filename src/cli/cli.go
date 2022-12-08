@@ -16,10 +16,9 @@ import (
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
-
-var version = "dev"
 
 // ------------------------------------------------------------------------------------------
 // Corso Command
@@ -40,7 +39,7 @@ var corsoCmd = &cobra.Command{
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	v, _ := cmd.Flags().GetBool("version")
 	if v {
-		print.Outf(cmd.Context(), "Corso\nversion: "+version)
+		print.Outf(cmd.Context(), "Corso\nversion: "+version.Version)
 		return nil
 	}
 

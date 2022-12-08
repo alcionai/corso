@@ -25,22 +25,22 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-//nolint:unused
+//lint:ignore U1000 future test use
 func orgSiteSet(t *testing.T) []string {
 	return tester.LoadTestM365OrgSites(t)
 }
 
-//nolint:unused
+//lint:ignore U1000 future test use
 func orgUserSet(t *testing.T) []string {
 	return tester.LoadTestM365OrgUsers(t)
 }
 
-//nolint:unused
+//lint:ignore U1000 future test use
 func singleSiteSet(t *testing.T) []string {
 	return []string{tester.LoadTestM365SiteID(t)}
 }
 
-//nolint:unused
+//lint:ignore U1000 future test use
 func singleUserSet(t *testing.T) []string {
 	return []string{tester.LoadTestM365UserID(t)}
 }
@@ -372,8 +372,8 @@ type RepositoryLoadTestExchangeSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account //nolint:unused
-	st             storage.Storage //nolint:unused
+	acct           account.Account //lint:ignore U1000 future test use
+	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
 }
 
@@ -422,8 +422,8 @@ type RepositoryIndividualLoadTestExchangeSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account //nolint:unused
-	st             storage.Storage //nolint:unused
+	acct           account.Account //lint:ignore U1000 future test use
+	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
 }
 
@@ -475,8 +475,8 @@ type RepositoryLoadTestOneDriveSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account //nolint:unused
-	st             storage.Storage //nolint:unused
+	acct           account.Account //lint:ignore U1000 future test use
+	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
 }
 
@@ -522,8 +522,8 @@ type RepositoryIndividualLoadTestOneDriveSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account //nolint:unused
-	st             storage.Storage //nolint:unused
+	acct           account.Account //lint:ignore U1000 future test use
+	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
 }
 
@@ -573,8 +573,8 @@ type RepositoryLoadTestSharePointSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account //nolint:unused
-	st             storage.Storage //nolint:unused
+	acct           account.Account //lint:ignore U1000 future test use
+	st             storage.Storage //lint:ignore U1000 future test use
 	sitesUnderTest []string
 }
 
@@ -620,8 +620,8 @@ type RepositoryIndividualLoadTestSharePointSuite struct {
 	suite.Suite
 	ctx            context.Context
 	repo           repository.Repository
-	acct           account.Account //nolint:unused
-	st             storage.Storage //nolint:unused
+	acct           account.Account //lint:ignore U1000 future test use
+	st             storage.Storage //lint:ignore U1000 future test use
 	sitesUnderTest []string
 }
 
