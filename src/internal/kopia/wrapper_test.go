@@ -882,7 +882,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
+			stats, deets, err := suite.w.BackupCollections(
+				suite.ctx,
+				nil,
+				collections,
+				path.ExchangeService,
+			)
 			assert.NoError(t, err)
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
@@ -933,7 +938,12 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	fp2, err := suite.testPath2.Append(dc2.Names[0], true)
 	require.NoError(t, err)
 
-	stats, deets, err := w.BackupCollections(ctx, []data.Collection{dc1, dc2}, path.ExchangeService)
+	stats, deets, err := w.BackupCollections(
+		ctx,
+		nil,
+		[]data.Collection{dc1, dc2},
+		path.ExchangeService,
+	)
 	require.NoError(t, err)
 	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 
@@ -999,7 +1009,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
-	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
+	stats, deets, err := suite.w.BackupCollections(
+		suite.ctx,
+		nil,
+		collections,
+		path.ExchangeService,
+	)
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, stats.ErrorCount)
@@ -1038,7 +1053,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			s, d, err := suite.w.BackupCollections(ctx, test.collections, path.UnknownService)
+			s, d, err := suite.w.BackupCollections(
+				ctx,
+				nil,
+				test.collections,
+				path.UnknownService,
+			)
 			require.NoError(t, err)
 
 			assert.Equal(t, BackupStats{}, *s)
@@ -1184,7 +1204,12 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collections = append(collections, collection)
 	}
 
-	stats, deets, err := suite.w.BackupCollections(suite.ctx, collections, path.ExchangeService)
+	stats, deets, err := suite.w.BackupCollections(
+		suite.ctx,
+		nil,
+		collections,
+		path.ExchangeService,
+	)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, expectedFiles)

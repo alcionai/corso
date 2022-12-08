@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         folder: [Corso_Restore_, TestRestore, '']
-        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID]
+        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID]
 
     steps:
       - uses: actions/checkout@v3

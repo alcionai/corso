@@ -138,6 +138,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 					driveID,
 					c.service,
 					c.statusUpdater,
+					c.source,
 				)
 
 				c.CollectionMap[collectionPath.String()] = col
