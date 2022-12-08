@@ -20,30 +20,8 @@ import (
 )
 
 const (
-	nextLinkKey  = "@odata.nextLink"
-	deltaLinkKey = "@odata.deltaLink"
-
 	metadataKey = "metadata"
 )
-
-// getAdditionalDataString gets a string value from the AdditionalData map. If
-// the value is not in the map returns an empty string.
-// func getAdditionalDataString(
-// 	key string,
-// 	addtlData map[string]any,
-// ) string {
-// 	iface := addtlData[key]
-// 	if iface == nil {
-// 		return ""
-// 	}
-
-// 	value, ok := iface.(*string)
-// 	if !ok {
-// 		return ""
-// 	}
-
-// 	return *value
-// }
 
 // makeMetadataCollection creates a metadata collection that has a file
 // containing all the delta tokens in tokens. Returns nil if the map does not
