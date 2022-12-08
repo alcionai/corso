@@ -328,12 +328,12 @@ func FetchContactIDsFromDirectory(
 		}
 
 		delta := resp.GetOdataDeltaLink()
-		if delta != nil {
+		if delta != nil && len(*delta) > 0 {
 			deltaToken = *delta
 		}
 
 		nextLink := resp.GetOdataNextLink()
-		if nextLink == nil {
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
@@ -388,12 +388,12 @@ func FetchMessageIDsFromDirectory(
 		}
 
 		delta := resp.GetOdataDeltaLink()
-		if delta != nil {
+		if delta != nil && len(*delta) > 0 {
 			deltaToken = *delta
 		}
 
 		nextLink := resp.GetOdataNextLink()
-		if nextLink == nil {
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
