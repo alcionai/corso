@@ -27,7 +27,8 @@ import (
 // DataCollections utility function to launch backup operations for exchange and
 // onedrive. metadataCols contains any collections with metadata files that may
 // be useful for the current backup. Metadata can include things like delta
-// tokens or the previous backup's folder hierarchy.
+// tokens or the previous backup's folder hierarchy. The absence of metadataCols
+// results in all data being pulled.
 func (gc *GraphConnector) DataCollections(
 	ctx context.Context,
 	sels selectors.Selector,

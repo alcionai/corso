@@ -499,8 +499,8 @@ func inflateDirTree(
 // with the data that they contain. previousSnapshots is used for incremental
 // backups and should represent the base snapshot from which metadata is sourced
 // from as well as any incomplete snapshot checkpoints that may contain more
-// recent data than the base snapshot. Passing nil for previousSnapshots means
-// denotes that a complete backup of all data should be done.
+// recent data than the base snapshot. The absence of previousSnapshots causes a
+// complete backup of all data.
 //
 // TODO(ashmrtn): Use previousSnapshots parameter.
 func (w Wrapper) BackupCollections(
