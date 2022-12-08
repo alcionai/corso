@@ -69,6 +69,18 @@ func (sc *Collection) FullPath() path.Path {
 	return sc.fullPath
 }
 
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (sc Collection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (sc Collection) State() data.CollectionState {
+	return data.NewState
+}
+
 func (sc *Collection) Items() <-chan data.Stream {
 	go sc.populate(context.TODO())
 	return sc.data
@@ -87,6 +99,11 @@ func (sd *Item) UUID() string {
 
 func (sd *Item) ToReader() io.ReadCloser {
 	return sd.data
+}
+
+// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+func (sd Item) Deleted() bool {
+	return false
 }
 
 func (sd *Item) Info() details.ItemInfo {

@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	analytics "github.com/rudderlabs/analytics-go"
 
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -98,7 +99,7 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 		client:  client,
 		repoID:  repoHash(s),
 		tenant:  tenantHash(tenID),
-		version: "vTODO", // TODO: corso versioning implementation
+		version: version.Version,
 	}, nil
 }
 

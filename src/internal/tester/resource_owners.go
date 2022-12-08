@@ -1,6 +1,7 @@
 package tester
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -89,7 +90,25 @@ func LoadTestM365OrgUsers(t *testing.T) []string {
 	users = strings.ReplaceAll(users, `'`, "")
 	users = strings.ReplaceAll(users, "|", ",")
 
-	return strings.Split(users, ",")
+	// a hack to skip using certain users when those accounts are
+	// temporarily being co-opted for non-testing purposes.
+	sl := strings.Split(users, ",")
+	remove := os.Getenv("IGNORE_LOAD_TEST_USER_ID")
+
+	if len(remove) == 0 {
+		return sl
+	}
+
+	idx := -1
+
+	for i, s := range sl {
+		if s == remove {
+			idx = i
+			break
+		}
+	}
+
+	return append(sl[:idx], sl[idx+1:]...)
 }
 
 // M365SiteID returns a siteID string representing the m365SiteID described

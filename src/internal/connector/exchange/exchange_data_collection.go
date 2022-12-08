@@ -116,6 +116,18 @@ func (col *Collection) FullPath() path.Path {
 	return col.fullPath
 }
 
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (col Collection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (col Collection) State() data.CollectionState {
+	return data.NewState
+}
+
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the jobs field. data channel is closed by this function
 func (col *Collection) populateByOptionIdentifier(
@@ -436,6 +448,11 @@ func (od *Stream) UUID() string {
 
 func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
+}
+
+// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+func (od Stream) Deleted() bool {
+	return false
 }
 
 func (od *Stream) Info() details.ItemInfo {

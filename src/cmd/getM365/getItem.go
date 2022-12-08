@@ -148,6 +148,7 @@ func runDisplayM365JSON(
 
 		fmt.Println(string(array))
 
+		//lint:ignore SA4004 only expecting one item
 		return nil
 	}
 
