@@ -40,7 +40,14 @@ func RestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, canceled = onedrive.RestoreCollection(ctx, service, dc, onedrive.OneDriveSource, dest.ContainerName, deets, errUpdater)
+			metrics, canceled = onedrive.RestoreCollection(
+				ctx,
+				service,
+				dc,
+				onedrive.OneDriveSource,
+				dest.ContainerName,
+				deets,
+				errUpdater)
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
