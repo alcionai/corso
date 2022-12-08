@@ -10,13 +10,18 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -121,7 +126,7 @@ func prepNewBackupOp(
 	ctx context.Context,
 	bus events.Eventer,
 	sel selectors.Selector,
-) (BackupOperation, func()) {
+) (BackupOperation, account.Account, *kopia.Wrapper, *kopia.ModelStore, func()) {
 	//revive:enable:context-as-argument
 	acct := tester.NewM365Account(t)
 
@@ -173,7 +178,80 @@ func prepNewBackupOp(
 		t.FailNow()
 	}
 
-	return bo, closer
+	return bo, acct, kw, ms, closer
+}
+
+//revive:disable:context-as-argument
+func checkMetadataFilesExist(
+	t *testing.T,
+	ctx context.Context,
+	backupID model.StableID,
+	kw *kopia.Wrapper,
+	ms *kopia.ModelStore,
+	tenant string,
+	user string,
+	service path.ServiceType,
+	category path.CategoryType,
+	files []string,
+) {
+	//revive:enable:context-as-argument
+	bup := &backup.Backup{}
+
+	err := ms.Get(ctx, model.BackupSchema, backupID, bup)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	paths := []path.Path{}
+	pathsByRef := map[string][]string{}
+
+	for _, fName := range files {
+		p, err := path.Builder{}.
+			Append(fName).
+			ToServiceCategoryMetadataPath(tenant, user, service, category, true)
+		if !assert.NoError(t, err, "bad metadata path") {
+			continue
+		}
+
+		dir, err := p.Dir()
+		if !assert.NoError(t, err, "parent path") {
+			continue
+		}
+
+		paths = append(paths, p)
+		pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
+	}
+
+	cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil)
+	assert.NoError(t, err)
+
+	for _, col := range cols {
+		itemNames := []string{}
+
+		for item := range col.Items() {
+			assert.Implements(t, (*data.StreamSize)(nil), item)
+
+			s := item.(data.StreamSize)
+			assert.Greaterf(
+				t,
+				s.Size(),
+				int64(0),
+				"empty metadata file: %s/%s",
+				col.FullPath(),
+				item.UUID(),
+			)
+
+			itemNames = append(itemNames, item.UUID())
+		}
+
+		assert.ElementsMatchf(
+			t,
+			pathsByRef[col.FullPath().ShortRef()],
+			itemNames,
+			"collection %s missing expected files",
+			col.FullPath(),
+		)
+	}
 }
 
 type BackupOpIntegrationSuite struct {
@@ -245,48 +323,64 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 
 	tests := []struct {
 		name       string
-		selectFunc func() *selectors.Selector
+		selectFunc func() *selectors.ExchangeBackup
 	}{
 		{
 			name: "Integration Exchange.Mail",
-			selectFunc: func() *selectors.Selector {
+			selectFunc: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-				return &sel.Selector
+				return sel
 			},
 		},
 		{
 			name: "Integration Exchange.Contacts",
-			selectFunc: func() *selectors.Selector {
+			selectFunc: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.ContactFolders(
 					[]string{m365UserID},
 					[]string{exchange.DefaultContactFolder},
 					selectors.PrefixMatch()))
-				return &sel.Selector
+				return sel
 			},
 		},
 		{
 			name: "Integration Exchange.Events",
-			selectFunc: func() *selectors.Selector {
+			selectFunc: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
-				return &sel.Selector
+				return sel
 			},
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			mb := evmock.NewBus()
-			bo, closer := prepNewBackupOp(t, ctx, mb, *test.selectFunc())
+			sel := test.selectFunc()
+			bo, acct, kw, ms, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
 			defer closer()
+
+			failed := false
 
 			require.NoError(t, bo.Run(ctx))
 			require.NotEmpty(t, bo.Results)
 			require.NotEmpty(t, bo.Results.BackupID)
-			assert.Equalf(t, Completed, bo.Status, "backup status %s is not Completed", bo.Status)
+
+			if !assert.Equalf(
+				t,
+				Completed,
+				bo.Status,
+				"backup status %s is not Completed",
+				bo.Status,
+			) {
+				failed = true
+			}
+
+			if !assert.Less(t, 0, bo.Results.ItemsWritten) {
+				failed = true
+			}
+
 			assert.Less(t, 0, bo.Results.ItemsRead)
-			assert.Less(t, 0, bo.Results.ItemsWritten)
 			assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 			assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
 			assert.Equal(t, 1, bo.Results.ResourceOwners)
@@ -297,6 +391,37 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			assert.Equal(t,
 				mb.CalledWith[events.BackupStart][0][events.BackupID],
 				bo.Results.BackupID, "backupID pre-declaration")
+
+			// Check that metadata files with delta tokens were created. Currently
+			// these files will only be made for contacts and email in Exchange if any
+			// items were backed up. Events does not support delta queries.
+			if failed {
+				return
+			}
+
+			m365, err := acct.M365Config()
+			require.NoError(t, err)
+
+			for _, scope := range sel.Scopes() {
+				cat := scope.Category().PathType()
+
+				if cat != path.EmailCategory && cat != path.ContactsCategory {
+					return
+				}
+
+				checkMetadataFilesExist(
+					t,
+					ctx,
+					bo.Results.BackupID,
+					kw,
+					ms,
+					m365.AzureTenantID,
+					m365UserID,
+					path.ExchangeService,
+					cat,
+					[]string{graph.DeltaTokenFileName},
+				)
+			}
 		})
 	}
 }
@@ -314,7 +439,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.Users([]string{m365UserID}))
 
-	bo, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
+	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
 	defer closer()
 
 	require.NoError(t, bo.Run(ctx))
@@ -347,7 +472,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(sel.Sites([]string{siteID}))
 
-	bo, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
+	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
 	defer closer()
 
 	require.NoError(t, bo.Run(ctx))

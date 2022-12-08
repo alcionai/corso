@@ -1,7 +1,9 @@
 package exchange
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -22,6 +24,8 @@ import (
 const (
 	nextLinkKey  = "@odata.nextLink"
 	deltaLinkKey = "@odata.deltaLink"
+
+	metadataKey = "metadata"
 )
 
 // getAdditionalDataString gets a string value from the AdditionalData map. If
@@ -43,6 +47,49 @@ func getAdditionalDataString(
 	return *value
 }
 
+// makeMetadataCollection creates a metadata collection that has a file
+// containing all the delta tokens in tokens. Returns nil if the map does not
+// have any entries.
+//
+// TODO(ashmrtn): Expand this/break it out into multiple functions so that we
+// can also store map[container ID]->full container path in a file in the
+// metadata collection.
+func makeMetadataCollection(
+	tenant string,
+	user string,
+	cat path.CategoryType,
+	tokens map[string]string,
+	statusUpdater support.StatusUpdater,
+) (data.Collection, error) {
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+
+	if err := encoder.Encode(tokens); err != nil {
+		return nil, errors.Wrap(err, "serializing delta tokens")
+	}
+
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenant,
+		user,
+		path.ExchangeService,
+		cat,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "making path")
+	}
+
+	return graph.NewMetadataCollection(
+		p,
+		[]graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, buf.Bytes())},
+		statusUpdater,
+	), nil
+}
+
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
@@ -59,6 +106,8 @@ func FilterContainersAndFillCollections(
 	var (
 		errs           error
 		collectionType = CategoryToOptionIdentifier(qp.Category)
+		// folder ID -> delta token for folder.
+		deltaTokens = map[string]string{}
 	)
 
 	for _, c := range resolver.Items() {
@@ -103,7 +152,7 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, _, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
+		jobs, token, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -113,6 +162,23 @@ func FilterContainersAndFillCollections(
 		}
 
 		edc.jobs = append(edc.jobs, jobs...)
+
+		if len(token) > 0 {
+			deltaTokens[*c.GetId()] = token
+		}
+	}
+
+	col, err := makeMetadataCollection(
+		qp.Credentials.AzureTenantID,
+		qp.ResourceOwner,
+		qp.Category,
+		deltaTokens,
+		statusUpdater,
+	)
+	if err != nil {
+		errs = support.WrapAndAppend("making metadata collection", err, errs)
+	} else if col != nil {
+		collections[metadataKey] = col
 	}
 
 	return errs
