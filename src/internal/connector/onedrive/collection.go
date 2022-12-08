@@ -4,6 +4,7 @@ package onedrive
 import (
 	"context"
 	"io"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -139,6 +140,16 @@ func (od *Item) Info() details.ItemInfo {
 //	return od.info.Modified
 //}
 
+// isTimeoutErr is used to determine if the Graph error returned is because of Timeout
+func isTimeoutErr(err error) bool {
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	default:
+		return false
+	}
+}
+
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
@@ -199,12 +210,15 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
 			for i := 1; i <= maxRetries; i++ {
 				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
-				if err == nil {
+
+				// Don't retry if it is not a timeout error as we
+				// already have a retry handler within client
+				if err == nil || !isTimeoutErr(err) {
 					break
 				}
-				// TODO: Tweak sleep times
+
 				if i < maxRetries {
-					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+					time.Sleep(1 * time.Second)
 				}
 			}
 
