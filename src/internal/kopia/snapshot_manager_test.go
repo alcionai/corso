@@ -35,24 +35,24 @@ var (
 	testUser2  = "user2"
 	testUser3  = "user3"
 
-	testAllUsersAllCats = &ownersCats{
-		resourceOwners: map[string]struct{}{
+	testAllUsersAllCats = &OwnersCats{
+		ResourceOwners: map[string]struct{}{
 			testUser1: {},
 			testUser2: {},
 			testUser3: {},
 		},
-		serviceCats: map[string]struct{}{
+		ServiceCats: map[string]struct{}{
 			testMail:   {},
 			testEvents: {},
 		},
 	}
-	testAllUsersMail = &ownersCats{
-		resourceOwners: map[string]struct{}{
+	testAllUsersMail = &OwnersCats{
+		ResourceOwners: map[string]struct{}{
 			testUser1: {},
 			testUser2: {},
 			testUser3: {},
 		},
-		serviceCats: map[string]struct{}{
+		ServiceCats: map[string]struct{}{
 			testMail: {},
 		},
 	}
@@ -168,7 +168,7 @@ func TestSnapshotFetchUnitSuite(t *testing.T) {
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 	table := []struct {
 		name  string
-		input *ownersCats
+		input *OwnersCats
 		data  []manifestInfo
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and
@@ -442,7 +442,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				}
 			}
 
-			snaps := fetchPrevSnapshotManifests(ctx, msm, test.input)
+			snaps := FetchPrevSnapshotManifests(ctx, msm, test.input)
 
 			expected := make([]*snapshot.Manifest, 0, len(test.expectedIdxs))
 			for _, i := range test.expectedIdxs {
@@ -532,7 +532,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
 		},
 	}
 
-	snaps := fetchPrevSnapshotManifests(ctx, msm, input)
+	snaps := FetchPrevSnapshotManifests(ctx, msm, input)
 
 	// Only 1 snapshot should be chosen because the other two attempts fail.
 	// However, which one is returned is non-deterministic because maps are used.

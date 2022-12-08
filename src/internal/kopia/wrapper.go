@@ -410,11 +410,11 @@ func inflateDirTree(
 	ctx context.Context,
 	collections []data.Collection,
 	progress *corsoProgress,
-) (fs.Directory, *ownersCats, error) {
+) (fs.Directory, *OwnersCats, error) {
 	roots := make(map[string]*treeMap)
-	ownerCats := &ownersCats{
-		resourceOwners: make(map[string]struct{}),
-		serviceCats:    make(map[string]struct{}),
+	ownerCats := &OwnersCats{
+		ResourceOwners: make(map[string]struct{}),
+		ServiceCats:    make(map[string]struct{}),
 	}
 
 	for _, s := range collections {
@@ -423,8 +423,8 @@ func inflateDirTree(
 		}
 
 		serviceCat := serviceCatTag(s.FullPath())
-		ownerCats.serviceCats[serviceCat] = struct{}{}
-		ownerCats.resourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
+		ownerCats.ServiceCats[serviceCat] = struct{}{}
+		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
 		itemPath := s.FullPath().Elements()
 
@@ -543,12 +543,12 @@ func (w Wrapper) BackupCollections(
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	root fs.Directory,
-	oc *ownersCats,
+	oc *OwnersCats,
 	progress *corsoProgress,
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
-	prevSnaps := fetchPrevSnapshotManifests(ctx, w.c, oc)
+	prevSnaps := FetchPrevSnapshotManifests(ctx, w.c, oc)
 
 	bc := &stats.ByteCounter{}
 

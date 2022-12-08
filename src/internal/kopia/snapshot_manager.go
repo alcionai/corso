@@ -33,9 +33,9 @@ type snapshotManager interface {
 	LoadSnapshots(ctx context.Context, ids []manifest.ID) ([]*snapshot.Manifest, error)
 }
 
-type ownersCats struct {
-	resourceOwners map[string]struct{}
-	serviceCats    map[string]struct{}
+type OwnersCats struct {
+	ResourceOwners map[string]struct{}
+	ServiceCats    map[string]struct{}
 }
 
 func serviceCatTag(p path.Path) string {
@@ -49,15 +49,15 @@ func makeTagKV(k string) (string, string) {
 // tagsFromStrings returns a map[string]string with tags for all ownersCats
 // passed in. Currently uses placeholder values for each tag because there can
 // be multiple instances of resource owners and categories in a single snapshot.
-func tagsFromStrings(oc *ownersCats) map[string]string {
-	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
+func tagsFromStrings(oc *OwnersCats) map[string]string {
+	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
 
-	for k := range oc.serviceCats {
+	for k := range oc.ServiceCats {
 		tk, tv := makeTagKV(k)
 		res[tk] = tv
 	}
 
-	for k := range oc.resourceOwners {
+	for k := range oc.ResourceOwners {
 		tk, tv := makeTagKV(k)
 		res[tk] = tv
 	}
@@ -181,16 +181,16 @@ func fetchPrevManifests(
 	return manifestsSinceLastComplete(mans), nil
 }
 
-// fetchPrevSnapshotManifests returns a set of manifests for complete and maybe
+// FetchPrevSnapshotManifests returns a set of manifests for complete and maybe
 // incomplete snapshots for the given (resource owner, service, category)
 // tuples. Up to two manifests can be returned per tuple: one complete and one
 // incomplete. An incomplete manifest may be returned if it is newer than the
 // newest complete manifest for the tuple. Manifests are deduped such that if
 // multiple tuples match the same manifest it will only be returned once.
-func fetchPrevSnapshotManifests(
+func FetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
-	oc *ownersCats,
+	oc *OwnersCats,
 ) []*snapshot.Manifest {
 	mans := map[manifest.ID]*snapshot.Manifest{}
 
@@ -198,10 +198,10 @@ func fetchPrevSnapshotManifests(
 	// there's a previous incomplete snapshot and/or a previous complete snapshot
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
-	for serviceCat := range oc.serviceCats {
+	for serviceCat := range oc.ServiceCats {
 		serviceTagKey, serviceTagValue := makeTagKV(serviceCat)
 
-		for resourceOwner := range oc.resourceOwners {
+		for resourceOwner := range oc.ResourceOwners {
 			resourceOwnerTagKey, resourceOwnerTagValue := makeTagKV(resourceOwner)
 
 			tags := map[string]string{
