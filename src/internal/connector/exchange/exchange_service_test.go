@@ -379,6 +379,19 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 				return *folder.GetId()
 			},
 		},
+		{
+			name:        "Test Mail: Reference(OneDrive) Attachment",
+			bytes:       mockconnector.GetMessageWithOneDriveAttachment("Restore Reference(OneDrive) Attachment"),
+			category:    path.EmailCategory,
+			cleanupFunc: DeleteMailFolder,
+			destination: func(ctx context.Context) string {
+				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
 		// TODO: #884 - reinstate when able to specify root folder by name
 		{
 			name:        "Test Contact",

@@ -6,14 +6,27 @@ import (
 
 var ErrorUnknownService = errors.New("unknown service string")
 
+// ServiceType denotes what service the path corresponds to. Metadata services
+// are also included though they are only used for paths that house metadata for
+// Corso backups.
+//
+// Metadata services are not considered valid service types for resource paths
+// though they can be used for metadata paths.
+//
+// The order of the enums below can be changed, but the string representation of
+// each enum must remain the same or migration code needs to be added to handle
+// changes to the string format.
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
 const (
-	UnknownService    ServiceType = iota
-	ExchangeService               // exchange
-	OneDriveService               // onedrive
-	SharePointService             // sharepoint
+	UnknownService            ServiceType = iota
+	ExchangeService                       // exchange
+	OneDriveService                       // onedrive
+	SharePointService                     // sharepoint
+	ExchangeMetadataService               // exchangeMetadata
+	OneDriveMetadataService               // onedriveMetadata
+	SharePointMetadataService             // sharepointMetadata
 )
 
 func toServiceType(service string) ServiceType {
@@ -24,6 +37,12 @@ func toServiceType(service string) ServiceType {
 		return OneDriveService
 	case SharePointService.String():
 		return SharePointService
+	case ExchangeMetadataService.String():
+		return ExchangeMetadataService
+	case OneDriveMetadataService.String():
+		return OneDriveMetadataService
+	case SharePointMetadataService.String():
+		return SharePointMetadataService
 	default:
 		return UnknownService
 	}
@@ -31,6 +50,10 @@ func toServiceType(service string) ServiceType {
 
 var ErrorUnknownCategory = errors.New("unknown category string")
 
+// CategoryType denotes what category of data the path corresponds to. The order
+// of the enums below can be changed, but the string representation of each enum
+// must remain the same or migration code needs to be added to handle changes to
+// the string format.
 type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
@@ -63,7 +86,8 @@ func ToCategoryType(category string) CategoryType {
 	}
 }
 
-// serviceCategories is a mapping of all valid service/category pairs.
+// serviceCategories is a mapping of all valid service/category pairs for
+// non-metadata paths.
 var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	ExchangeService: {
 		EmailCategory:    {},
