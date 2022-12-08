@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 	analytics "github.com/rudderlabs/analytics-go"
 
-	"github.com/alcionai/corso/src/cli/version"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
