@@ -160,7 +160,7 @@ func collectItems(
 		}
 
 		// Check if there are more items
-		nextLink := r.GetOdataDeltaLink()
+		nextLink := r.GetOdataNextLink()
 		if nextLink == nil {
 			break
 		}
