@@ -13,8 +13,8 @@ var filesCmd = &cobra.Command{
 	RunE:  handleOneDriveFileFactory,
 }
 
-func addOneDriveCommands(parent *cobra.Command) {
-	parent.AddCommand(filesCmd)
+func addOneDriveCommands(cmd *cobra.Command) {
+	cmd.AddCommand(filesCmd)
 }
 
 func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
