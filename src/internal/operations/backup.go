@@ -147,7 +147,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer closer()
 	defer close(discoverCh)
 
-	cs, err := gc.DataCollections(ctx, op.Selectors)
+	cs, err := gc.DataCollections(ctx, op.Selectors, nil)
 	if err != nil {
 		err = errors.Wrap(err, "retrieving service data")
 		opStats.readErr = err
