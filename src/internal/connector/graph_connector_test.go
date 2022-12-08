@@ -387,7 +387,7 @@ func runRestoreBackupTest(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel)
+	dcs, err := backupGC.DataCollections(ctx, backupSel, nil)
 	require.NoError(t, err)
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
@@ -855,7 +855,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, err := backupGC.DataCollections(ctx, backupSel)
+			dcs, err := backupGC.DataCollections(ctx, backupSel, nil)
 			require.NoError(t, err)
 
 			t.Log("Backup enumeration complete")

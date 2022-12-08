@@ -493,8 +493,17 @@ func inflateDirTree(
 	return res, ownerCats, nil
 }
 
+// BackupCollections takes a set of collections and creates a kopia snapshot
+// with the data that they contain. previousSnapshots is used for incremental
+// backups and should represent the base snapshot from which metadata is sourced
+// from as well as any incomplete snapshot checkpoints that may contain more
+// recent data than the base snapshot. The absence of previousSnapshots causes a
+// complete backup of all data.
+//
+// TODO(ashmrtn): Use previousSnapshots parameter.
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
+	previousSnapshots []*snapshot.Manifest,
 	collections []data.Collection,
 	service path.ServiceType,
 ) (*BackupStats, *details.Details, error) {
