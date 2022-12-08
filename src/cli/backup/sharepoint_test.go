@@ -119,7 +119,13 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 	}{
 		{
 			name:   "no sites or urls",
-			expect: selectors.Any(),
+			expect: selectors.None(),
+		},
+		{
+			name:   "empty sites and urls",
+			site:   []string{},
+			weburl: []string{},
+			expect: selectors.None(),
 		},
 		{
 			name:   "site wildcard",
@@ -157,13 +163,13 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 			name:   "unnecessary site wildcard",
 			site:   []string{"id_1", utils.Wildcard},
 			weburl: []string{"url_1", "url_2"},
-			expect: []string{"id_1", utils.Wildcard},
+			expect: selectors.Any(),
 		},
 		{
 			name:   "unnecessary url wildcard",
 			site:   []string{"id_1", "id_2"},
 			weburl: []string{"url_1", utils.Wildcard},
-			expect: []string{"url_1", utils.Wildcard},
+			expect: selectors.Any(),
 		},
 	}
 	for _, test := range table {
