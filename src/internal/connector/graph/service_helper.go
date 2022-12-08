@@ -41,6 +41,14 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 		return nil, errors.Wrap(err, "creating new AzureIdentityAuthentication")
 	}
 
+	httpClient := CreateHTTPClient()
+
+	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+		auth, nil, nil, httpClient)
+}
+
+// CreateHTTPClient creates the httpClient with middlewares and timeout configured
+func CreateHTTPClient() *nethttp.Client {
 	clientOptions := msgraphsdk.GetDefaultClientOptions()
 	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
 
@@ -52,8 +60,7 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = time.Second * 90
 
-	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
-		auth, nil, nil, httpClient)
+	return httpClient
 }
 
 // LoggingMiddleware can be used to log the http request sent by the graph client
