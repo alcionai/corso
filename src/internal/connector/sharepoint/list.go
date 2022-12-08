@@ -177,7 +177,7 @@ func fetchColumns(
 			if resp.GetOdataNextLink() == nil {
 				break
 			}
-			// *mssite.SitesItemListsItemContentTypesItemColumnsRequestBuilder
+
 			builder = mssite.NewSitesItemListsItemContentTypesItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
 	}
