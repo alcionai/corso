@@ -54,19 +54,13 @@ func IncludeSharePointRestoreDataSelectors(
 	sel *selectors.SharePointRestore,
 	opts SharePointOpts,
 ) {
-	lp, ln, lwu := len(opts.LibraryPaths), len(opts.LibraryItems), len(opts.WebURLs)
+	lp, li, lwu := len(opts.LibraryPaths), len(opts.LibraryItems), len(opts.WebURLs)
 
-	// only use the inclusion if either a path or item name
-	// is specified
-	if lp+ln == 0 {
-		return
-	}
-
-	if len(opts.Sites) == 0 {
+	if len(opts.Sites)+lwu == 0 {
 		opts.Sites = selectors.Any()
 	}
 
-	if lp+ln+lwu == 0 {
+	if lp+li+lwu == 0 {
 		sel.Include(sel.Sites(opts.Sites))
 
 		return
@@ -74,18 +68,8 @@ func IncludeSharePointRestoreDataSelectors(
 
 	opts.LibraryPaths = trimFolderSlash(opts.LibraryPaths)
 
-	if ln == 0 {
+	if li == 0 {
 		opts.LibraryItems = selectors.Any()
-	}
-
-	containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURLs)
-
-	if len(containsURLs) > 0 {
-		sel.Include(sel.WebURL(containsURLs))
-	}
-
-	if len(suffixURLs) > 0 {
-		sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
 	}
 
 	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
@@ -96,6 +80,21 @@ func IncludeSharePointRestoreDataSelectors(
 
 	if len(prefixFolders) > 0 {
 		sel.Include(sel.LibraryItems(opts.Sites, prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+	}
+
+	// weburls, unlike the owner/folder/item combo, are only optionally included
+	if lwu > 0 {
+		opts.WebURLs = trimFolderSlash(opts.WebURLs)
+
+		containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURLs)
+
+		if len(containsURLs) > 0 {
+			sel.Include(sel.WebURL(containsURLs))
+		}
+
+		if len(suffixURLs) > 0 {
+			sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
+		}
 	}
 }
 
