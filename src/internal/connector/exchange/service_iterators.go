@@ -20,30 +20,8 @@ import (
 )
 
 const (
-	nextLinkKey  = "@odata.nextLink"
-	deltaLinkKey = "@odata.deltaLink"
-
 	metadataKey = "metadata"
 )
-
-// getAdditionalDataString gets a string value from the AdditionalData map. If
-// the value is not in the map returns an empty string.
-func getAdditionalDataString(
-	key string,
-	addtlData map[string]any,
-) string {
-	iface := addtlData[key]
-	if iface == nil {
-		return ""
-	}
-
-	value, ok := iface.(*string)
-	if !ok {
-		return ""
-	}
-
-	return *value
-}
 
 // makeMetadataCollection creates a metadata collection that has a file
 // containing all the delta tokens in tokens. Returns nil if the map does not
@@ -349,19 +327,17 @@ func FetchContactIDsFromDirectory(
 			ids = append(ids, *item.GetId())
 		}
 
-		addtlData := resp.GetAdditionalData()
-
-		delta := getAdditionalDataString(deltaLinkKey, addtlData)
-		if len(delta) > 0 {
-			deltaToken = delta
+		delta := resp.GetOdataDeltaLink()
+		if delta != nil && len(*delta) > 0 {
+			deltaToken = *delta
 		}
 
-		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
-		if len(nextLink) == 0 {
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
-		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaToken, errs.ErrorOrNil()
@@ -411,19 +387,17 @@ func FetchMessageIDsFromDirectory(
 			ids = append(ids, *item.GetId())
 		}
 
-		addtlData := resp.GetAdditionalData()
-
-		delta := getAdditionalDataString(deltaLinkKey, addtlData)
-		if len(delta) > 0 {
-			deltaToken = delta
+		delta := resp.GetOdataDeltaLink()
+		if delta != nil && len(*delta) > 0 {
+			deltaToken = *delta
 		}
 
-		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
-		if len(nextLink) == 0 {
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
-		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaToken, errs.ErrorOrNil()
