@@ -61,6 +61,7 @@ jobs:
           CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           CORSO_M365_LOAD_TEST_ORG_USERS: ${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}
+          IGNORE_LOAD_TEST_USER_ID: ${{ secrets.EXT_SDK_TEST_USER_ID }}
           CORSO_LOAD_TESTS: true 
         run: |
           set -euo pipefail
