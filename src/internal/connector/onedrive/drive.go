@@ -160,11 +160,11 @@ func collectItems(
 		}
 
 		// Check if there are more items
-		if _, found := r.GetAdditionalData()[nextLinkKey]; !found {
+		nextLink := r.GetOdataNextLink()
+		if nextLink == nil {
 			break
 		}
 
-		nextLink := r.GetAdditionalData()[nextLinkKey].(*string)
 		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
 		builder = msdrives.NewDrivesItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
