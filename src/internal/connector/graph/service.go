@@ -9,6 +9,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// DeltaTokenFileName is the name of the file containing delta token(s) for a
+// given endpoint. The endpoint granularity varies by service.
+const DeltaTokenFileName = "delta"
+
 type QueryParams struct {
 	Category      path.CategoryType
 	ResourceOwner string
