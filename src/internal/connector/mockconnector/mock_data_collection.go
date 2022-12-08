@@ -91,6 +91,16 @@ func (medc *MockExchangeDataCollection) FullPath() path.Path {
 	return medc.fullPath
 }
 
+// TODO(ashmrtn): May want to allow setting this in the future for testing.
+func (medc MockExchangeDataCollection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): May want to allow setting this in the future for testing.
+func (medc MockExchangeDataCollection) State() data.CollectionState {
+	return data.NewState
+}
+
 // Items returns a channel that has the next items in the collection. The
 // channel is closed when there are no more items available.
 func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
@@ -123,6 +133,11 @@ type MockExchangeData struct {
 
 func (med *MockExchangeData) UUID() string {
 	return med.ID
+}
+
+// TODO(ashmrtn): May want to allow setting this in the future for testing.
+func (med MockExchangeData) Deleted() bool {
+	return false
 }
 
 func (med *MockExchangeData) ToReader() io.ReadCloser {

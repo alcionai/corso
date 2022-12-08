@@ -39,8 +39,8 @@ const (
 // defaults to "info".
 // This is a hack for help displays.  Due to seeding the context, we also
 // need to parse the log level before we execute the command.
-func AddLogLevelFlag(parent *cobra.Command) {
-	fs := parent.PersistentFlags()
+func AddLogLevelFlag(cmd *cobra.Command) {
+	fs := cmd.PersistentFlags()
 	fs.StringVar(&llFlag, logLevelFN, "info", "set the log level to debug|info|warn|error")
 
 	fs.Bool(

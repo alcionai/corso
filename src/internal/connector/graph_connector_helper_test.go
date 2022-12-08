@@ -633,6 +633,10 @@ func compareItem(
 	category path.CategoryType,
 	item data.Stream,
 ) {
+	if mt, ok := item.(data.StreamModTime); ok {
+		assert.NotZero(t, mt.ModTime())
+	}
+
 	switch service {
 	case path.ExchangeService:
 		switch category {

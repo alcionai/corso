@@ -28,9 +28,10 @@ import (
 )
 
 var (
-	_ data.Collection = &Collection{}
-	_ data.Stream     = &Stream{}
-	_ data.StreamInfo = &Stream{}
+	_ data.Collection    = &Collection{}
+	_ data.Stream        = &Stream{}
+	_ data.StreamInfo    = &Stream{}
+	_ data.StreamModTime = &Stream{}
 )
 
 const (
@@ -113,6 +114,18 @@ func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, Graph
 // FullPath returns the Collection's fullPath []string
 func (col *Collection) FullPath() path.Path {
 	return col.fullPath
+}
+
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (col Collection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (col Collection) State() data.CollectionState {
+	return data.NewState
 }
 
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
@@ -222,6 +235,20 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 	col.statusUpdater(status)
 }
 
+type modTimer interface {
+	GetLastModifiedDateTime() *time.Time
+}
+
+func getModTime(mt modTimer) time.Time {
+	res := time.Now()
+
+	if t := mt.GetLastModifiedDateTime(); t != nil {
+		res = *t
+	}
+
+	return res
+}
+
 // GraphSerializeFunc are class of functions that are used by Collections to transform GraphRetrievalFunc
 // responses into data.Stream items contained within the Collection
 type GraphSerializeFunc func(
@@ -290,7 +317,12 @@ func eventToDataCollection(
 	}
 
 	if len(byteArray) > 0 {
-		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: EventInfo(event, int64(len(byteArray)))}
+		dataChannel <- &Stream{
+			id:      *event.GetId(),
+			message: byteArray,
+			info:    EventInfo(event, int64(len(byteArray))),
+			modTime: getModTime(event),
+		}
 	}
 
 	return len(byteArray), nil
@@ -323,7 +355,12 @@ func contactToDataCollection(
 	}
 
 	if len(byteArray) > 0 {
-		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: ContactInfo(contact, int64(len(byteArray)))}
+		dataChannel <- &Stream{
+			id:      *contact.GetId(),
+			message: byteArray,
+			info:    ContactInfo(contact, int64(len(byteArray))),
+			modTime: getModTime(contact),
+		}
 	}
 
 	return len(byteArray), nil
@@ -382,7 +419,12 @@ func messageToDataCollection(
 		return 0, support.SetNonRecoverableError(err)
 	}
 
-	dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage, int64(len(byteArray)))}
+	dataChannel <- &Stream{
+		id:      *aMessage.GetId(),
+		message: byteArray,
+		info:    MessageInfo(aMessage, int64(len(byteArray))),
+		modTime: getModTime(aMessage),
+	}
 
 	return len(byteArray), nil
 }
@@ -395,6 +437,9 @@ type Stream struct {
 	// some structured type in here (serialization to []byte can be done in `Read`)
 	message []byte
 	info    *details.ExchangeInfo // temporary change to bring populate function into directory
+	// TODO(ashmrtn): Can probably eventually be sourced from info as there's a
+	// request to provide modtime in ItemInfo structs.
+	modTime time.Time
 }
 
 func (od *Stream) UUID() string {
@@ -405,15 +450,25 @@ func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
 }
 
+// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+func (od Stream) Deleted() bool {
+	return false
+}
+
 func (od *Stream) Info() details.ItemInfo {
 	return details.ItemInfo{Exchange: od.info}
 }
 
+func (od *Stream) ModTime() time.Time {
+	return od.modTime
+}
+
 // NewStream constructor for exchange.Stream object
-func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo) Stream {
+func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo, modTime time.Time) Stream {
 	return Stream{
 		id:      identifier,
 		message: dataBytes,
 		info:    &detail,
+		modTime: modTime,
 	}
 }

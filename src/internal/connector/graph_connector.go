@@ -14,6 +14,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -154,36 +155,18 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := getResources(
-		ctx,
-		gc.graphService,
-		gc.tenant,
-		exchange.GetAllUsersForTenant,
-		models.CreateUserCollectionResponseFromDiscriminatorValue,
-		identifyUser,
-	)
+	users, err := discovery.Users(ctx, gc.graphService, gc.tenant)
 	if err != nil {
 		return err
 	}
 
-	gc.Users = users
+	gc.Users = make(map[string]string, len(users))
+
+	for _, u := range users {
+		gc.Users[*u.GetUserPrincipalName()] = *u.GetId()
+	}
 
 	return nil
-}
-
-// Transforms an interface{} into a key,value pair representing
-// userPrincipalName:userID.
-func identifyUser(item any) (string, string, error) {
-	m, ok := item.(models.Userable)
-	if !ok {
-		return "", "", errors.New("iteration retrieved non-User item")
-	}
-
-	if m.GetUserPrincipalName() == nil {
-		return "", "", errors.Errorf("no principal name for User: %s", *m.GetId())
-	}
-
-	return *m.GetUserPrincipalName(), *m.GetId(), nil
 }
 
 // GetUsers returns the email address of users within tenant.
@@ -303,6 +286,8 @@ func (gc *GraphConnector) RestoreDataCollections(
 		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs, deets)
+	case selectors.ServiceSharePoint:
+		status, err = sharepoint.RestoreCollections(ctx, gc, dest, dcs, deets)
 	default:
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}

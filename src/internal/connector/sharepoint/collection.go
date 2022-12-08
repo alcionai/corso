@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"time"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
 
@@ -27,8 +28,10 @@ const (
 )
 
 var (
-	_ data.Collection = &Collection{}
-	_ data.Stream     = &Item{}
+	_ data.Collection    = &Collection{}
+	_ data.Stream        = &Item{}
+	_ data.StreamInfo    = &Item{}
+	_ data.StreamModTime = &Item{}
 )
 
 type Collection struct {
@@ -66,15 +69,28 @@ func (sc *Collection) FullPath() path.Path {
 	return sc.fullPath
 }
 
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (sc Collection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (sc Collection) State() data.CollectionState {
+	return data.NewState
+}
+
 func (sc *Collection) Items() <-chan data.Stream {
 	go sc.populate(context.TODO())
 	return sc.data
 }
 
 type Item struct {
-	id   string
-	data io.ReadCloser
-	info *details.SharePointInfo
+	id      string
+	data    io.ReadCloser
+	info    *details.SharePointInfo
+	modTime time.Time
 }
 
 func (sd *Item) UUID() string {
@@ -85,8 +101,17 @@ func (sd *Item) ToReader() io.ReadCloser {
 	return sd.data
 }
 
+// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+func (sd Item) Deleted() bool {
+	return false
+}
+
 func (sd *Item) Info() details.ItemInfo {
 	return details.ItemInfo{SharePoint: sd.info}
+}
+
+func (sd *Item) ModTime() time.Time {
+	return sd.modTime
 }
 
 func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
@@ -150,13 +175,19 @@ func (sc *Collection) populate(ctx context.Context) {
 			arrayLength = int64(len(byteArray))
 
 			if arrayLength > 0 {
+				t := time.Now()
+				if t1 := lst.GetLastModifiedDateTime(); t1 != nil {
+					t = *t1
+				}
+
 				totalBytes += arrayLength
 
 				success++
 				sc.data <- &Item{
-					id:   *lst.GetId(),
-					data: io.NopCloser(bytes.NewReader(byteArray)),
-					info: sharePointListInfo(lst, arrayLength),
+					id:      *lst.GetId(),
+					data:    io.NopCloser(bytes.NewReader(byteArray)),
+					info:    sharePointListInfo(lst, arrayLength),
+					modTime: t,
 				}
 
 				colProgress <- struct{}{}

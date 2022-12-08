@@ -22,6 +22,14 @@ func (mc mockColl) FullPath() path.Path {
 	return mc.p
 }
 
+func (mc mockColl) PreviousPath() path.Path {
+	return nil
+}
+
+func (mc mockColl) State() CollectionState {
+	return NewState
+}
+
 type CollectionSuite struct {
 	suite.Suite
 }
