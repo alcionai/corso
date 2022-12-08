@@ -190,6 +190,86 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 	return cp.pending[k]
 }
 
+func streamEntries(
+	ctx context.Context,
+	cb func(context.Context, fs.Entry) error,
+	streamedEnts data.Collection,
+	progress *corsoProgress,
+) *multierror.Error {
+	if streamedEnts == nil {
+		return nil
+	}
+
+	var (
+		errs *multierror.Error
+		// Track which items have already been seen so we can skip them if we see
+		// them again in the data from the base snapshot.
+		items = streamedEnts.Items()
+		log   = logger.Ctx(ctx)
+	)
+
+	for {
+		select {
+		case <-ctx.Done():
+			errs = multierror.Append(errs, ctx.Err())
+			return errs
+
+		case e, ok := <-items:
+			if !ok {
+				return errs
+			}
+
+			// For now assuming that item IDs don't need escaping.
+			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
+			if err != nil {
+				err = errors.Wrap(err, "getting full item path")
+				errs = multierror.Append(errs, err)
+
+				log.Error(err)
+
+				continue
+			}
+
+			log.Debugw("reading item", "path", itemPath.String())
+			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
+
+			// Not all items implement StreamInfo. For example, the metadata files
+			// do not because they don't contain information directly backed up or
+			// used for restore. If progress does not contain information about a
+			// finished file it just returns without an error so it's safe to skip
+			// adding something to it.
+			ei, ok := e.(data.StreamInfo)
+			if ok {
+				// Relative path given to us in the callback is missing the root
+				// element. Add to pending set before calling the callback to avoid race
+				// conditions when the item is completed.
+				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
+				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
+			}
+
+			modTime := time.Now()
+			if smt, ok := e.(data.StreamModTime); ok {
+				modTime = smt.ModTime()
+			}
+
+			entry := virtualfs.StreamingFileWithModTimeFromReader(
+				encodeAsPath(e.UUID()),
+				modTime,
+				&backupStreamReader{
+					version:    serializationVersion,
+					ReadCloser: e.ToReader(),
+				},
+			)
+			if err := cb(ctx, entry); err != nil {
+				// Kopia's uploader swallows errors in most cases, so if we see
+				// something here it's probably a big issue and we should return.
+				errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
+				return errs
+			}
+		}
+	}
+}
+
 // getStreamItemFunc returns a function that can be used by kopia's
 // virtualfs.StreamingDirectory to iterate through directory entries and call
 // kopia callbacks on directory entries. It binds the directory to the given
@@ -203,12 +283,6 @@ func getStreamItemFunc(
 		ctx, end := D.Span(ctx, "kopia:getStreamItemFunc")
 		defer end()
 
-		log := logger.Ctx(ctx)
-
-		// Collect all errors and return them at the end so that iteration for this
-		// directory doesn't end early.
-		var errs *multierror.Error
-
 		// Return static entries in this directory first.
 		for _, d := range staticEnts {
 			if err := cb(ctx, d); err != nil {
@@ -216,71 +290,11 @@ func getStreamItemFunc(
 			}
 		}
 
-		if streamedEnts == nil {
-			return nil
-		}
+		errs := streamEntries(ctx, cb, streamedEnts, progress)
 
-		items := streamedEnts.Items()
+		// TODO(ashmrtn): Stream entries from base snapshot if they exist.
 
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-
-			case e, ok := <-items:
-				if !ok {
-					return errs.ErrorOrNil()
-				}
-
-				// For now assuming that item IDs don't need escaping.
-				itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
-				if err != nil {
-					err = errors.Wrap(err, "getting full item path")
-					errs = multierror.Append(errs, err)
-
-					log.Error(err)
-
-					continue
-				}
-
-				log.Debugw("reading item", "path", itemPath.String())
-				trace.Log(ctx, "kopia:getStreamItemFunc:item", itemPath.String())
-
-				// Not all items implement StreamInfo. For example, the metadata files
-				// do not because they don't contain information directly backed up or
-				// used for restore. If progress does not contain information about a
-				// finished file it just returns without an error so it's safe to skip
-				// adding something to it.
-				ei, ok := e.(data.StreamInfo)
-				if ok {
-					// Relative path given to us in the callback is missing the root
-					// element. Add to pending set before calling the callback to avoid race
-					// conditions when the item is completed.
-					d := &itemDetails{info: ei.Info(), repoPath: itemPath}
-					progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
-				}
-
-				modTime := time.Now()
-				if smt, ok := e.(data.StreamModTime); ok {
-					modTime = smt.ModTime()
-				}
-
-				entry := virtualfs.StreamingFileWithModTimeFromReader(
-					encodeAsPath(e.UUID()),
-					modTime,
-					&backupStreamReader{
-						version:    serializationVersion,
-						ReadCloser: e.ToReader(),
-					},
-				)
-				if err := cb(ctx, entry); err != nil {
-					// Kopia's uploader swallows errors in most cases, so if we see
-					// something here it's probably a big issue and we should return.
-					errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
-					return errs.ErrorOrNil()
-				}
-			}
-		}
+		return errs.ErrorOrNil()
 	}
 }
 
