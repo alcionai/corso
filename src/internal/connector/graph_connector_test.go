@@ -394,11 +394,11 @@ func runRestoreBackupTest(
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	checkCollections(t, totalItems, expectedData, dcs)
+	skipped := checkCollections(t, totalItems, expectedData, dcs)
 
 	status = backupGC.AwaitStatus()
-	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
+	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
@@ -862,11 +862,11 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			checkCollections(t, allItems, allExpectedData, dcs)
+			skipped := checkCollections(t, allItems, allExpectedData, dcs)
 
 			status := backupGC.AwaitStatus()
-			assert.Equal(t, allItems, status.ObjectCount, "status.ObjectCount")
-			assert.Equal(t, allItems, status.Successful, "status.Successful")
+			assert.Equal(t, allItems+skipped, status.ObjectCount, "status.ObjectCount")
+			assert.Equal(t, allItems+skipped, status.Successful, "status.Successful")
 		})
 	}
 }

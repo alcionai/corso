@@ -329,21 +329,19 @@ func getStreamItemFunc(
 				log.Debugw("reading item", "path", itemPath.String())
 				trace.Log(ctx, "kopia:getStreamItemFunc:item", itemPath.String())
 
+				// Not all items implement StreamInfo. For example, the metadata files
+				// do not because they don't contain information directly backed up or
+				// used for restore. If progress does not contain information about a
+				// finished file it just returns without an error so it's safe to skip
+				// adding something to it.
 				ei, ok := e.(data.StreamInfo)
-				if !ok {
-					errs = multierror.Append(
-						errs, errors.Errorf("item %q does not implement DataStreamInfo", itemPath))
-
-					log.Errorw("item does not implement DataStreamInfo; skipping", "path", itemPath)
-
-					continue
+				if ok {
+					// Relative path given to us in the callback is missing the root
+					// element. Add to pending set before calling the callback to avoid race
+					// conditions when the item is completed.
+					d := &itemDetails{info: ei.Info(), repoPath: itemPath}
+					progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 				}
-
-				// Relative path given to us in the callback is missing the root
-				// element. Add to pending set before calling the callback to avoid race
-				// conditions when the item is completed.
-				d := &itemDetails{info: ei.Info(), repoPath: itemPath}
-				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
 				modTime := time.Now()
 				if smt, ok := e.(data.StreamModTime); ok {
