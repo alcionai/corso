@@ -110,6 +110,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			// as well as the actual data pulled.
 			assert.GreaterOrEqual(t, len(collection), 1, "expected 1 <= num collections <= 2")
 			assert.GreaterOrEqual(t, 2, len(collection), "expected 1 <= num collections <= 2")
+
 			for _, col := range collection {
 				for object := range col.Items() {
 					buf := &bytes.Buffer{}
