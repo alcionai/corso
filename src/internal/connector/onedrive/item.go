@@ -10,7 +10,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
@@ -24,22 +23,60 @@ const (
 	downloadURLKey = "@microsoft.graph.downloadUrl"
 )
 
-// itemReader will return a io.ReadCloser for the specified item
+// sharePointItemReader will return a io.ReadCloser for the specified item
+// It crafts this by querying M365 for a download URL for the item
+// and using a http client to initialize a reader
+func sharePointItemReader(
+	ctx context.Context,
+	service graph.Service,
+	driveID, itemID string,
+) (details.ItemInfo, io.ReadCloser, error) {
+	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
+	if err != nil {
+		return details.ItemInfo{}, nil, err
+	}
+
+	dii := details.ItemInfo{
+		SharePoint: sharePointItemInfo(item, *item.GetSize()),
+	}
+
+	return dii, rc, nil
+}
+
+// oneDriveItemReader will return a io.ReadCloser for the specified item
+// It crafts this by querying M365 for a download URL for the item
+// and using a http client to initialize a reader
+func oneDriveItemReader(
+	ctx context.Context,
+	service graph.Service,
+	driveID, itemID string,
+) (details.ItemInfo, io.ReadCloser, error) {
+	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
+	if err != nil {
+		return details.ItemInfo{}, nil, err
+	}
+
+	dii := details.ItemInfo{
+		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
+	}
+
+	return dii, rc, nil
+}
+
+// driveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func driveItemReader(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
-) (*details.OneDriveInfo, io.ReadCloser, error) {
-	logger.Ctx(ctx).Debugf("Reading Item %s at %s", itemID, time.Now())
+) (models.DriveItemable, io.ReadCloser, error) {
+	logger.Ctx(ctx).Debugw("Reading Item", "id", itemID, "time", time.Now())
 
 	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get item %s", itemID)
 	}
-
-	logger.Ctx(ctx).Debugw("reading item", "name", *item.GetName(), "time", common.Now())
 
 	// Get the download URL - https://docs.microsoft.com/en-us/graph/api/driveitem-get-content
 	// These URLs are pre-authenticated and can be used to download the data using the standard
@@ -62,15 +99,15 @@ func driveItemReader(
 		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
 	}
 
-	return driveItemInfo(item, *item.GetSize()), resp.Body, nil
+	return item, resp.Body, nil
 }
 
-// driveItemInfo will populate a details.OneDriveInfo struct
+// oneDriveItemInfo will populate a details.OneDriveInfo struct
 // with properties from the drive item.  ItemSize is specified
 // separately for restore processes because the local itemable
 // doesn't have its size value updated as a side effect of creation,
 // and kiota drops any SetSize update.
-func driveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
+func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
 	ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
 
 	email := ""
@@ -85,6 +122,39 @@ func driveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInf
 		Modified: *di.GetLastModifiedDateTime(),
 		Size:     itemSize,
 		Owner:    email,
+	}
+}
+
+// sharePointItemInfo will populate a details.SharePointInfo struct
+// with properties from the drive item.  ItemSize is specified
+// separately for restore processes because the local itemable
+// doesn't have its size value updated as a side effect of creation,
+// and kiota drops any SetSize update.
+func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
+	var (
+		id  string
+		url string
+	)
+
+	gsi := di.GetSharepointIds()
+	if gsi != nil {
+		if gsi.GetSiteId() != nil {
+			id = *gsi.GetSiteId()
+		}
+
+		if gsi.GetSiteUrl() != nil {
+			url = *gsi.GetSiteUrl()
+		}
+	}
+
+	return &details.SharePointInfo{
+		ItemType: details.OneDriveItem,
+		ItemName: *di.GetName(),
+		Created:  *di.GetCreatedDateTime(),
+		Modified: *di.GetLastModifiedDateTime(),
+		Size:     itemSize,
+		Owner:    id,
+		WebURL:   url,
 	}
 }
 
