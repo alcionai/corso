@@ -318,7 +318,6 @@ func FetchMessageIDsFromDirectory(
 	if err != nil {
 		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
-	//*msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilder
 	builder := gs.Client().
 		UsersById(user).
 		MailFoldersById(directoryID).
