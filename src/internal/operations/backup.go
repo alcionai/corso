@@ -164,7 +164,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer close(backupCh)
 
 	// hand the results to the consumer
-	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, cs, op.Selectors.PathService())
+	opStats.k, backupDetails, err = op.kopia.BackupCollections(ctx, nil, cs, op.Selectors.PathService())
 	if err != nil {
 		err = errors.Wrap(err, "backing up service data")
 		opStats.writeErr = err
