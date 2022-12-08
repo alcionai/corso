@@ -3,9 +3,9 @@ import "animate.css";
 
 export default function Hero() {
   return (
-    <section className="relative !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
+    <section className="relative first-section---custom tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
       <div
-        className="bg-[#151C3D] absolute"
+        className="bg---rotated absolute"
         style={{
           left: "-20rem",
           right: 0,
