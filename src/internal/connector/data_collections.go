@@ -29,7 +29,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIds())
+	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIDs())
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	case selectors.ServiceSharePoint:
-		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIds(), gc.credentials.AzureTenantID, gc)
+		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIDs(), gc.credentials.AzureTenantID, gc)
 		if err != nil {
 			return nil, err
 		}
