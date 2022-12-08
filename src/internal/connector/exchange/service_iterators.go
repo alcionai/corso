@@ -9,9 +9,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
-	cdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts/delta"
-	mdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -22,30 +20,8 @@ import (
 )
 
 const (
-	nextLinkKey  = "@odata.nextLink"
-	deltaLinkKey = "@odata.deltaLink"
-
 	metadataKey = "metadata"
 )
-
-// getAdditionalDataString gets a string value from the AdditionalData map. If
-// the value is not in the map returns an empty string.
-func getAdditionalDataString(
-	key string,
-	addtlData map[string]any,
-) string {
-	iface := addtlData[key]
-	if iface == nil {
-		return ""
-	}
-
-	value, ok := iface.(*string)
-	if !ok {
-		return ""
-	}
-
-	return *value
-}
 
 // makeMetadataCollection creates a metadata collection that has a file
 // containing all the delta tokens in tokens. Returns nil if the map does not
@@ -265,7 +241,7 @@ func FetchEventIDsFromCalendar(
 		ids  []string
 	)
 
-	options, err := optionsForCalendarEvents([]string{"id"})
+	options, err := optionsForEventsByCalendar([]string{"id"})
 	if err != nil {
 		return nil, "", err
 	}
@@ -300,7 +276,7 @@ func FetchEventIDsFromCalendar(
 			break
 		}
 
-		builder = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
@@ -320,7 +296,7 @@ func FetchContactIDsFromDirectory(
 		deltaToken string
 	)
 
-	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
+	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
 		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
@@ -332,8 +308,7 @@ func FetchContactIDsFromDirectory(
 		Delta()
 
 	for {
-		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := sendContactsDeltaGet(ctx, builder, options, gs.Adapter())
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -352,19 +327,17 @@ func FetchContactIDsFromDirectory(
 			ids = append(ids, *item.GetId())
 		}
 
-		addtlData := resp.GetAdditionalData()
-
-		delta := getAdditionalDataString(deltaLinkKey, addtlData)
-		if len(delta) > 0 {
-			deltaToken = delta
+		delta := resp.GetOdataDeltaLink()
+		if delta != nil && len(*delta) > 0 {
+			deltaToken = *delta
 		}
 
-		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
-		if len(nextLink) == 0 {
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
-		builder = cdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaToken, errs.ErrorOrNil()
@@ -383,7 +356,7 @@ func FetchMessageIDsFromDirectory(
 		deltaToken string
 	)
 
-	options, err := optionsForFolderMessages([]string{"id"})
+	options, err := optionsForFolderMessagesDelta([]string{"id"})
 	if err != nil {
 		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
@@ -395,8 +368,7 @@ func FetchMessageIDsFromDirectory(
 		Delta()
 
 	for {
-		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := sendMessagesDeltaGet(ctx, builder, options, gs.Adapter())
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -415,19 +387,17 @@ func FetchMessageIDsFromDirectory(
 			ids = append(ids, *item.GetId())
 		}
 
-		addtlData := resp.GetAdditionalData()
-
-		delta := getAdditionalDataString(deltaLinkKey, addtlData)
-		if len(delta) > 0 {
-			deltaToken = delta
+		delta := resp.GetOdataDeltaLink()
+		if delta != nil && len(*delta) > 0 {
+			deltaToken = *delta
 		}
 
-		nextLink := getAdditionalDataString(nextLinkKey, addtlData)
-		if len(nextLink) == 0 {
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
-		builder = mdelta.NewDeltaRequestBuilder(nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaToken, errs.ErrorOrNil()

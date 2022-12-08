@@ -204,12 +204,9 @@ func pathAndMatch(
 		category,
 		false,
 	)
+	// Containers without a path (e.g. Root mail folder) always err here.
 	if err != nil {
 		return nil, false
-	}
-
-	if dirPath == nil && category == path.EmailCategory {
-		return nil, false // Only true for root mail folder
 	}
 
 	directory = pb.String()

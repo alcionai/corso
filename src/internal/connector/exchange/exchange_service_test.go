@@ -120,42 +120,6 @@ func (suite *ExchangeServiceSuite) TestOptionsForCalendars() {
 	}
 }
 
-// TestOptionsForMessages checks to ensure approved query
-// options are added to the type specific RequestBuildConfiguration. Expected
-// will be +1 on all select parameters
-func (suite *ExchangeServiceSuite) TestOptionsForMessages() {
-	tests := []struct {
-		name       string
-		params     []string
-		checkError assert.ErrorAssertionFunc
-	}{
-		{
-			name:       "Valid Message Option",
-			params:     []string{"subject"},
-			checkError: assert.NoError,
-		},
-		{
-			name:       "Multiple Message Options: Accepted",
-			params:     []string{"webLink", "parentFolderId"},
-			checkError: assert.NoError,
-		},
-		{
-			name:       "Invalid Message Parameter",
-			params:     []string{"status"},
-			checkError: assert.Error,
-		},
-	}
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			config, err := optionsForMessages(test.params)
-			test.checkError(t, err)
-			if err == nil {
-				suite.Equal(len(config.QueryParameters.Select), len(test.params)+1)
-			}
-		})
-	}
-}
-
 // TestOptionsForFolders ensures that approved query options
 // are added to the RequestBuildConfiguration. Expected will always be +1
 // on than the input as "id" are always included within the select parameters
