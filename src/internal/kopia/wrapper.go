@@ -148,7 +148,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
-	prevSnaps := fetchPrevSnapshotManifests(ctx, w.c, oc)
+	prevSnaps := FetchPrevSnapshotManifests(ctx, w.c, oc)
 
 	bc := &stats.ByteCounter{}
 
