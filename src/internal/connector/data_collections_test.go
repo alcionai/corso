@@ -157,7 +157,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := connector.DataCollections(ctx, test.getSelector(t))
+			collections, err := connector.DataCollections(ctx, test.getSelector(t), nil)
 			assert.Error(t, err)
 			assert.Empty(t, collections)
 		})
@@ -542,6 +542,6 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		selectors.PrefixMatch(),
 	))
 
-	_, err := gc.DataCollections(ctx, sel.Selector)
+	_, err := gc.DataCollections(ctx, sel.Selector, nil)
 	require.NoError(t, err)
 }
