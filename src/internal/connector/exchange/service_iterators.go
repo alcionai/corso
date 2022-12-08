@@ -318,6 +318,7 @@ func FetchMessageIDsFromDirectory(
 	if err != nil {
 		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
+
 	builder := gs.Client().
 		UsersById(user).
 		MailFoldersById(directoryID).
