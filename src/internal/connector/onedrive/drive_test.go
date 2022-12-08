@@ -48,6 +48,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	require.NoError(t, err)
 	require.NotEmpty(t, drives)
 
+	// TODO: Verify the intended drive
 	driveID := *drives[0].GetId()
 
 	defer func() {
@@ -88,12 +89,17 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			if test.name == "NoPrefix" {
+				// TODO: Issue #1688
+				t.Skipf("Inconsistent test. Skipping until test is refactored")
+			}
 			allFolders, err := GetAllFolders(ctx, gs, suite.userID, test.prefix)
 			require.NoError(t, err)
 
 			foundFolderIDs := []string{}
 
 			for _, f := range allFolders {
+
 				if *f.GetName() == folderName1 || *f.GetName() == folderName2 {
 					foundFolderIDs = append(foundFolderIDs, *f.GetId())
 				}
