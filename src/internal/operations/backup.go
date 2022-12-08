@@ -6,9 +6,11 @@ import (
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -23,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -124,19 +127,25 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	_, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, op.Selectors, op.account)
+	if err != nil {
+		opStats.readErr = errors.Wrap(err, "connecting to M365")
+		return opStats.readErr
+	}
+
 	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
 	}
 
-	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors)
+	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
 		return opStats.readErr
 	}
 
-	opStats.k, backupDetails, err = consumeBackupDataCollections(ctx, op.kopia, op.Selectors, cs)
+	opStats.k, backupDetails, err = consumeBackupDataCollections(ctx, op.kopia, op.Selectors, cs, op.Results.BackupID)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "backing up service data")
 		return opStats.writeErr
@@ -155,11 +164,139 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	return err
 }
 
+// calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
+func produceManifestsAndMetadata(
+	ctx context.Context,
+	kw *kopia.Wrapper,
+	sw *store.Wrapper,
+	sel selectors.Selector,
+	acct account.Account,
+) ([]*snapshot.Manifest, []data.Collection, error) {
+	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	m365, err := acct.M365Config()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var (
+		tid         = m365.AzureTenantID
+		oc          = selectorToOwnersCats(sel)
+		ms          = kopia.FetchPrevSnapshotManifests(ctx, kw.Conn(), &oc)
+		collections []data.Collection
+	)
+
+	for _, man := range ms {
+		bup := backup.Backup{}
+		if err := sw.Get(
+			ctx,
+			model.BackupSchema,
+			model.StableID(man.Tags[kopia.BackupIDTag]),
+			&bup,
+		); err != nil {
+			return nil, nil, err
+		}
+
+		for _, fn := range []string{graph.DeltaTokenFileName} {
+			for ro := range oc.ResourceOwners {
+				for _, sc := range oc.ServiceCats {
+					colls, err := collectMetadata(ctx, kw, fn, tid, ro, bup.SnapshotID, sc)
+					if err != nil {
+						return nil, nil, err
+					}
+
+					collections = append(collections, colls...)
+				}
+			}
+		}
+	}
+
+	return ms, collections, err
+}
+
+func collectMetadata(
+	ctx context.Context,
+	kw *kopia.Wrapper,
+	fileName, tenantID, resourceOwner, snapshotID string,
+	sc kopia.ServiceCat,
+) ([]data.Collection, error) {
+	paths := []path.Path{}
+	pathsByRef := map[string][]string{}
+
+	p, err := path.Builder{}.
+		Append(fileName).
+		ToServiceCategoryMetadataPath(
+			tenantID,
+			resourceOwner,
+			sc.Service,
+			sc.Category,
+			true)
+	if err != nil {
+		return nil, errors.Wrap(err, "building metadata path")
+	}
+
+	dir, err := p.Dir()
+	if err != nil {
+		return nil, errors.Wrap(err, "malformed metadata path: "+p.String())
+	}
+
+	paths = append(paths, p)
+	pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fileName)
+
+	dcs, err := kw.RestoreMultipleItems(ctx, snapshotID, paths, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting prior metadata")
+	}
+
+	return dcs, nil
+}
+
+func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
+	service := sel.PathService()
+	oc := kopia.OwnersCats{
+		ResourceOwners: map[string]struct{}{},
+		ServiceCats:    map[string]kopia.ServiceCat{},
+	}
+
+	ros, err := sel.ResourceOwners()
+	if err != nil {
+		return oc
+	}
+
+	for _, sl := range [][]string{ros.Includes, ros.Filters} {
+		for _, ro := range sl {
+			oc.ResourceOwners[ro] = struct{}{}
+		}
+	}
+
+	pcs, err := sel.PathCategories()
+	if err != nil {
+		return oc
+	}
+
+	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
+		for _, cat := range sl {
+			oc.ServiceCats[kopia.MakeServiceCat(service, cat)] = kopia.ServiceCat{
+				Service:  service,
+				Category: cat,
+			}
+		}
+	}
+
+	return oc
+}
+
 // calls the producer to generate collections of data to backup
 func produceBackupDataCollections(
 	ctx context.Context,
 	gc *connector.GraphConnector,
 	sel selectors.Selector,
+	metadata []data.Collection,
 ) ([]data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
 	defer func() {
@@ -168,12 +305,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	cs, err := gc.DataCollections(ctx, sel, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return cs, nil
+	return gc.DataCollections(ctx, sel, metadata)
 }
 
 // calls kopia to backup the collections of data
@@ -182,6 +314,7 @@ func consumeBackupDataCollections(
 	kw *kopia.Wrapper,
 	sel selectors.Selector,
 	cs []data.Collection,
+	backupID model.StableID,
 ) (*kopia.BackupStats, *details.Details, error) {
 	complete, closer := observe.MessageWithCompletion("Backing up data:")
 	defer func() {
@@ -190,12 +323,7 @@ func consumeBackupDataCollections(
 		closer()
 	}()
 
-	kstats, deets, err := kw.BackupCollections(ctx, nil, cs, sel.PathService())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return kstats, deets, nil
+	return kw.BackupCollections(ctx, nil, cs, sel.PathService(), string(backupID))
 }
 
 // writes the results metrics to the operation results.

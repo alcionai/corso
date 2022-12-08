@@ -247,6 +247,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				collections,
 				path.ExchangeService,
+				"",
 			)
 			assert.NoError(t, err)
 
@@ -302,6 +303,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		nil,
 		[]data.Collection{dc1, dc2},
 		path.ExchangeService,
+		"",
 	)
 	require.NoError(t, err)
 
@@ -372,6 +374,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		collections,
 		path.ExchangeService,
+		"",
 	)
 	require.NoError(t, err)
 
@@ -415,6 +418,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				test.collections,
 				path.UnknownService,
+				"",
 			)
 			require.NoError(t, err)
 
@@ -564,6 +568,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		nil,
 		collections,
 		path.ExchangeService,
+		"",
 	)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)

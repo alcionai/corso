@@ -42,6 +42,8 @@ func (gc *GraphConnector) DataCollections(
 		return nil, err
 	}
 
+	// serialize metadata into maps here
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
 		return gc.ExchangeDataCollection(ctx, sels)

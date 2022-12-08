@@ -41,7 +41,7 @@ var (
 			testUser2: {},
 			testUser3: {},
 		},
-		ServiceCats: map[string]struct{}{
+		ServiceCats: map[string]ServiceCat{
 			testMail:   {},
 			testEvents: {},
 		},
@@ -52,7 +52,7 @@ var (
 			testUser2: {},
 			testUser3: {},
 		},
-		ServiceCats: map[string]struct{}{
+		ServiceCats: map[string]ServiceCat{
 			testMail: {},
 		},
 	}

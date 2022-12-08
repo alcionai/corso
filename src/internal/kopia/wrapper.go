@@ -26,6 +26,8 @@ const (
 	corsoHost = "corso-host"
 	corsoUser = "corso"
 
+	BackupIDTag = "corso-backup-id"
+
 	serializationVersion uint32 = 1
 )
 
@@ -86,6 +88,10 @@ type Wrapper struct {
 	c *conn
 }
 
+func (w *Wrapper) Conn() *conn {
+	return w.c
+}
+
 func (w *Wrapper) Close(ctx context.Context) error {
 	if w.c == nil {
 		return nil
@@ -110,6 +116,7 @@ func (w Wrapper) BackupCollections(
 	previousSnapshots []*snapshot.Manifest,
 	collections []data.Collection,
 	service path.ServiceType,
+	backupID string,
 ) (*BackupStats, *details.Details, error) {
 	if w.c == nil {
 		return nil, nil, errNotConnected
@@ -132,7 +139,11 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	s, err := w.makeSnapshotWithRoot(ctx, dirTree, oc, progress)
+	addTags := map[string]string{
+		BackupIDTag: backupID,
+	}
+
+	s, err := w.makeSnapshotWithRoot(ctx, dirTree, oc, progress, addTags)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -145,6 +156,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 	root fs.Directory,
 	oc *OwnersCats,
 	progress *corsoProgress,
+	addlTags map[string]string,
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
@@ -197,6 +209,9 @@ func (w Wrapper) makeSnapshotWithRoot(
 			}
 
 			man.Tags = tagsFromStrings(oc)
+			for k, v := range addlTags {
+				man.Tags[k] = v
+			}
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = errors.Wrap(err, "saving snapshot")

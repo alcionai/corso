@@ -35,11 +35,26 @@ type snapshotManager interface {
 
 type OwnersCats struct {
 	ResourceOwners map[string]struct{}
-	ServiceCats    map[string]struct{}
+	ServiceCats    map[string]ServiceCat
+}
+
+type ServiceCat struct {
+	Service  path.ServiceType
+	Category path.CategoryType
+}
+
+// MakeServiceCat produces the expected OwnersCats.ServiceCats key from a
+// path service and path category.
+func MakeServiceCat(s path.ServiceType, c path.CategoryType) string {
+	return serviceCatString(s, c)
 }
 
 func serviceCatTag(p path.Path) string {
-	return p.Service().String() + p.Category().String()
+	return serviceCatString(p.Service(), p.Category())
+}
+
+func serviceCatString(s path.ServiceType, c path.CategoryType) string {
+	return s.String() + c.String()
 }
 
 // MakeTagKV normalizes the provided key to protect it from clobbering
