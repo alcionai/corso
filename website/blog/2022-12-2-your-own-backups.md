@@ -3,6 +3,7 @@ slug: your-own-backups
 title: "Owning Your Identity and Data For The Price of One ☕️/Month "
 authors: nica
 tags: [corso, microsoft 365]
+date: 2022-12-05
 image: ./images/gian_tweet_backups.png
 ---
 
