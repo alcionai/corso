@@ -257,7 +257,12 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 func validateSharePointBackupCreateFlags(sites, weburls []string) error {
 	if len(sites) == 0 && len(weburls) == 0 {
-		return errors.New("requires one or more --" + utils.SiteFN + " ids, --" + utils.WebURLFN + " urls, or the wildcard --" + utils.SiteFN + " *")
+		return errors.New(
+			"requires one or more --" +
+				utils.SiteFN + " ids, --" +
+				utils.WebURLFN + " urls, or the wildcard --" +
+				utils.SiteFN + " *",
+		)
 	}
 
 	return nil
