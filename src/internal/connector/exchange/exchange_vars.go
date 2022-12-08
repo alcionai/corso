@@ -38,10 +38,4 @@ const (
 	rootFolderAlias      = "msgfolderroot"
 	DefaultContactFolder = "Contacts"
 	DefaultCalendar      = "Calendar"
-
-	// ----------------------------------
-	// Paging
-	// ----------------------------------
-	// nextDataLink definition https://docs.microsoft.com/en-us/graph/paging
-	nextDataLink = "@odata.nextLink"
 )

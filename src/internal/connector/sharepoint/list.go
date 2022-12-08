@@ -4,12 +4,7 @@ import (
 	"context"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/columns"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnlinks"
-	tc "github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columns"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/items"
+	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -81,7 +76,7 @@ func loadLists(
 			break
 		}
 
-		builder = lists.NewListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewSitesItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
@@ -130,7 +125,7 @@ func fetchListItems(
 			break
 		}
 
-		builder = items.NewItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewSitesItemListsItemItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
@@ -166,7 +161,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = columns.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewSitesItemListsItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
 	} else {
 		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
@@ -183,7 +178,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = tc.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewSitesItemListsItemContentTypesItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
 	}
 
@@ -245,7 +240,7 @@ func fetchContentTypes(
 			break
 		}
 
-		builder = contenttypes.NewContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewSitesItemListsItemContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
@@ -277,7 +272,11 @@ func fetchColumnLinks(
 			break
 		}
 
-		builder = columnlinks.NewColumnLinksRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.
+			NewSitesItemListsItemContentTypesItemColumnLinksRequestBuilder(
+				*resp.GetOdataNextLink(),
+				gs.Adapter(),
+			)
 	}
 
 	return links, nil

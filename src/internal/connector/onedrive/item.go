@@ -7,7 +7,6 @@ import (
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	msup "github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item/createuploadsession"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -161,14 +160,14 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 
 // driveItemWriter is used to initialize and return an io.Writer to upload data for the specified item
 // It does so by creating an upload session and using that URL to initialize an `itemWriter`
+// TODO: @vkamra verify if var session is the desired input
 func driveItemWriter(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
-	// TODO: @vkamra verify if var session is the desired input
-	session := msup.NewCreateUploadSessionPostRequestBody()
+	session := models.NewUsersItemDrivesItemItemsItemCreateUploadSessionPostRequestBody()
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {

@@ -524,8 +524,8 @@ func establishMailRestoreLocation(
 
 	for _, folder := range folders {
 		pb = *pb.Append(folder)
-		cached, ok := mfc.PathInCache(pb.String())
 
+		cached, ok := mfc.PathInCache(pb.String())
 		if ok {
 			folderID = cached
 			continue
@@ -544,7 +544,7 @@ func establishMailRestoreLocation(
 		// newCache to false in this we'll only try to populate it once per function
 		// call even if we make a new cache.
 		if isNewCache {
-			if err := mfc.Populate(ctx, folderID, folder); err != nil {
+			if err := mfc.Populate(ctx, rootFolderAlias); err != nil {
 				return "", errors.Wrap(err, "populating folder cache")
 			}
 

@@ -244,10 +244,9 @@ func checkMessage(
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	assert.Equal(t, expected.GetFlag(), got.GetFlag(), "Flag")
+	checkFlags(t, expected.GetFlag(), got.GetFlag())
 
-	assert.Equal(t, expected.GetFrom(), got.GetFrom(), "From")
-
+	checkRecipentables(t, expected.GetFrom(), got.GetFrom())
 	testEmptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
@@ -281,7 +280,7 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
-	assert.Equal(t, expected.GetSender(), got.GetSender(), "Sender")
+	checkRecipentables(t, expected.GetSender(), got.GetSender())
 
 	testEmptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
 
@@ -292,6 +291,39 @@ func checkMessage(
 	// Skip WebLink as it's tied to this specific instance of the item.
 
 	assert.Equal(t, expected.GetUniqueBody(), got.GetUniqueBody(), "UniqueBody")
+}
+
+// checkFlags is a helper function to check equality of models.FollowupFlabables
+// OdataTypes are omitted as these do change between msgraph-sdk-go versions
+func checkFlags(
+	t *testing.T,
+	expected, got models.FollowupFlagable,
+) {
+	assert.Equal(t, expected.GetCompletedDateTime(), got.GetCompletedDateTime())
+	assert.Equal(t, expected.GetDueDateTime(), got.GetDueDateTime())
+	assert.Equal(t, expected.GetFlagStatus(), got.GetFlagStatus())
+	assert.Equal(t, expected.GetStartDateTime(), got.GetStartDateTime())
+	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
+}
+
+// checkRecipentables is a helper function to check equality between
+// models.Recipientables. OdataTypes omitted.
+func checkRecipentables(
+	t *testing.T,
+	expected, got models.Recipientable,
+) {
+	checkEmailAddressables(t, expected.GetEmailAddress(), got.GetEmailAddress())
+	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
+}
+
+// checkEmailAddressables inspects EmailAddressables for equality
+func checkEmailAddressables(
+	t *testing.T,
+	expected, got models.EmailAddressable,
+) {
+	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
+	assert.Equal(t, *expected.GetAddress(), *got.GetAddress())
+	assert.Equal(t, expected.GetName(), got.GetName())
 }
 
 func checkContact(

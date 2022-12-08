@@ -4,7 +4,7 @@ import (
 	"context"
 
 	multierror "github.com/hashicorp/go-multierror"
-	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/childfolders/delta"
+	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -23,16 +23,13 @@ type mailFolderCache struct {
 	userID string
 }
 
-// populateMailRoot fetches and populates the "base" directory from user's inbox.
+// populateMailRoot manually fetches directories that are not returned during Graph for msgraph-sdk-go v. 40+
+// rootFolderAlias is the top-level directory for exchange.Mail.
+// DefaultMailFolder is the traditional "Inbox" for exchange.Mail
 // Action ensures that cache will stop at appropriate level.
-// @param directory: M365 ID of the root all intended inquiries.
-// Function should only be used directly when it is known that all
-// folder inquiries are going to a specific node. In all other cases
 // @error iff the struct is not properly instantiated
 func (mc *mailFolderCache) populateMailRoot(
 	ctx context.Context,
-	directoryID string,
-	baseContainerPath []string,
 ) error {
 	wantedOpts := []string{"displayName", "parentFolderId"}
 
@@ -41,23 +38,31 @@ func (mc *mailFolderCache) populateMailRoot(
 		return errors.Wrapf(err, "getting options for mail folders %v", wantedOpts)
 	}
 
-	f, err := mc.
-		gs.
-		Client().
-		UsersById(mc.userID).
-		MailFoldersById(directoryID).
-		Get(ctx, opts)
-	if err != nil {
-		return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
-	}
+	for _, fldr := range []string{rootFolderAlias, DefaultMailFolder} {
+		var directory string
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(baseContainerPath...),
-	}
+		f, err := mc.
+			gs.
+			Client().
+			UsersById(mc.userID).
+			MailFoldersById(fldr).
+			Get(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
+		}
 
-	if err := mc.addFolder(temp); err != nil {
-		return errors.Wrap(err, "initializing mail resolver")
+		if fldr == DefaultMailFolder {
+			directory = DefaultMailFolder
+		}
+
+		temp := cacheFolder{
+			Container: f,
+			p:         path.Builder{}.Append(directory),
+		}
+
+		if err := mc.addFolder(temp); err != nil {
+			return errors.Wrap(err, "initializing mail resolver")
+		}
 	}
 
 	return nil
@@ -73,7 +78,7 @@ func (mc *mailFolderCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if err := mc.init(ctx, baseID, baseContainerPath); err != nil {
+	if err := mc.init(ctx); err != nil {
 		return err
 	}
 
@@ -81,13 +86,11 @@ func (mc *mailFolderCache) Populate(
 		gs.
 		Client().
 		UsersById(mc.userID).
-		MailFoldersById(baseID).ChildFolders().
+		MailFolders().
 		Delta()
 
 	var errs *multierror.Error
 
-	// TODO: Cannot use Iterator for delta
-	// Awaiting resolution: https://github.com/microsoftgraph/msgraph-sdk-go/issues/272
 	for {
 		resp, err := query.Get(ctx, nil)
 		if err != nil {
@@ -108,15 +111,12 @@ func (mc *mailFolderCache) Populate(
 			}
 		}
 
-		r := resp.GetAdditionalData()
-
-		n, ok := r[nextDataLink]
-		if !ok || n == nil {
+		link := resp.GetOdataNextLink()
+		if link == nil {
 			break
 		}
 
-		link := *(n.(*string))
-		query = msfolderdelta.NewDeltaRequestBuilder(link, mc.gs.Adapter())
+		query = msfolderdelta.NewUsersItemMailFoldersDeltaRequestBuilder(*link, mc.gs.Adapter())
 	}
 
 	if err := mc.populatePaths(ctx); err != nil {
@@ -131,16 +131,10 @@ func (mc *mailFolderCache) Populate(
 // [mc.cache]
 func (mc *mailFolderCache) init(
 	ctx context.Context,
-	baseNode string,
-	baseContainerPath []string,
 ) error {
-	if len(baseNode) == 0 {
-		return errors.New("m365 folder ID required for base folder")
-	}
-
 	if mc.containerResolver == nil {
 		mc.containerResolver = newContainerResolver()
 	}
 
-	return mc.populateMailRoot(ctx, baseNode, baseContainerPath)
+	return mc.populateMailRoot(ctx)
 }

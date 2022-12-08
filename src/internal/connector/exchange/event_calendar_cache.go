@@ -3,7 +3,7 @@ package exchange
 import (
 	"context"
 
-	mscal "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -68,7 +68,7 @@ func (ecc *eventCalendarCache) Populate(
 			break
 		}
 
-		builder = mscal.NewCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
+		builder = msuser.NewUsersItemCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
 	}
 
 	for _, container := range directories {
