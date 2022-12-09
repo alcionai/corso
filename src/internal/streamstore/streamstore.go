@@ -116,23 +116,32 @@ func (ss *streamStore) ReadBackupDetails(
 
 	dc := dcs[0]
 
-	select {
-	case <-ctx.Done():
-		return nil, errors.New("context cancelled waiting for backup details data")
+	var d details.Details
 
-	case itemData, ok := <-dc.Items():
-		if !ok {
-			return nil, errors.New("no backup details found")
+	found := false
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("context cancelled waiting for backup details data")
+
+		case itemData, ok := <-items:
+			if !ok {
+				if !found {
+					return nil, errors.New("no backup details found")
+				}
+
+				return &d, nil
+			}
+
+			err := json.NewDecoder(itemData.ToReader()).Decode(&d)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to decode details data from repository")
+			}
+
+			found = true
 		}
-
-		var d details.Details
-
-		err := json.NewDecoder(itemData.ToReader()).Decode(&d)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to decode details data from repository")
-		}
-
-		return &d, nil
 	}
 }
 
