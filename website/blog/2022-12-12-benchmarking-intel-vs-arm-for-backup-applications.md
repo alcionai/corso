@@ -1,6 +1,7 @@
 ---
 slug: benchmarking-intel-vs-arm-for-backup-applications
 title: "Benchmarking Intel vs. ARM (Graviton) for Splitting, Compressing, Hashing, and Encrypting Data"
+description: "Throughput and cost-effectiveness comparision of Intel vs. Arm using compute-intensive data-processing microbenchmarks."
 authors: ntolia
 tags: [corso, intel, arm, benchmarks]
 date: 2022-12-12
