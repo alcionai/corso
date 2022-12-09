@@ -412,10 +412,6 @@ func resourceOwnersIn(s []scope, rootCat string) []string {
 	return rs
 }
 
-type pathTyper interface {
-	PathType() path.CategoryType
-}
-
 // produces the discrete set of path categories in the slice of scopes.
 func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
 	rm := map[path.CategoryType]struct{}{}
