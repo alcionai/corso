@@ -331,6 +331,75 @@ func newTreeMap() *treeMap {
 	}
 }
 
+// getTreeNode walks the tree(s) with roots roots and returns the node specified
+// by pathElements. If pathElements is nil or empty then returns nil. Tree nodes
+// are created for any path elements where a node is not already present.
+func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
+	if len(pathElements) == 0 {
+		return nil
+	}
+
+	dir, ok := roots[pathElements[0]]
+	if !ok {
+		dir = newTreeMap()
+		roots[pathElements[0]] = dir
+	}
+
+	// Use actual indices so this is automatically skipped if
+	// len(pathElements) == 1.
+	for i := 1; i < len(pathElements); i++ {
+		p := pathElements[i]
+
+		newDir := dir.childDirs[p]
+		if newDir == nil {
+			newDir = newTreeMap()
+
+			if dir.childDirs == nil {
+				dir.childDirs = map[string]*treeMap{}
+			}
+
+			dir.childDirs[p] = newDir
+		}
+
+		dir = newDir
+	}
+
+	return dir
+}
+
+func inflateCollectionTree(
+	ctx context.Context,
+	collections []data.Collection,
+) (map[string]*treeMap, *OwnersCats, error) {
+	roots := make(map[string]*treeMap)
+	ownerCats := &OwnersCats{
+		ResourceOwners: make(map[string]struct{}),
+		ServiceCats:    make(map[string]struct{}),
+	}
+
+	for _, s := range collections {
+		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
+			return nil, nil, errors.New("no identifier for collection")
+		}
+
+		node := getTreeNode(roots, s.FullPath().Elements())
+		if node == nil {
+			return nil, nil, errors.Errorf(
+				"unable to get tree node for path %s",
+				s.FullPath(),
+			)
+		}
+
+		serviceCat := serviceCatTag(s.FullPath())
+		ownerCats.ServiceCats[serviceCat] = struct{}{}
+		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
+
+		node.collection = s
+	}
+
+	return roots, ownerCats, nil
+}
+
 // inflateDirTree returns a set of tags representing all the resource owners and
 // service/categories in the snapshot and a fs.Directory tree rooted at the
 // oldest common ancestor of the streams. All nodes are
@@ -342,68 +411,9 @@ func inflateDirTree(
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, *OwnersCats, error) {
-	roots := make(map[string]*treeMap)
-	ownerCats := &OwnersCats{
-		ResourceOwners: make(map[string]struct{}),
-		ServiceCats:    make(map[string]struct{}),
-	}
-
-	for _, s := range collections {
-		if s.FullPath() == nil {
-			return nil, nil, errors.New("no identifier for collection")
-		}
-
-		serviceCat := serviceCatTag(s.FullPath())
-		ownerCats.ServiceCats[serviceCat] = struct{}{}
-		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
-
-		itemPath := s.FullPath().Elements()
-
-		if len(itemPath) == 0 {
-			return nil, nil, errors.New("no identifier for collection")
-		}
-
-		dir, ok := roots[itemPath[0]]
-		if !ok {
-			dir = newTreeMap()
-			roots[itemPath[0]] = dir
-		}
-
-		// Single DataCollection with no ancestors.
-		if len(itemPath) == 1 {
-			dir.collection = s
-			continue
-		}
-
-		for _, p := range itemPath[1 : len(itemPath)-1] {
-			newDir := dir.childDirs[p]
-			if newDir == nil {
-				newDir = newTreeMap()
-
-				if dir.childDirs == nil {
-					dir.childDirs = map[string]*treeMap{}
-				}
-
-				dir.childDirs[p] = newDir
-			}
-
-			dir = newDir
-		}
-
-		// At this point we have all the ancestor directories of this DataCollection
-		// as treeMap objects and `dir` is the parent directory of this
-		// DataCollection.
-
-		end := len(itemPath) - 1
-
-		// Make sure this entry doesn't already exist.
-		tmpDir := dir.childDirs[itemPath[end]]
-		if tmpDir == nil {
-			tmpDir = newTreeMap()
-			dir.childDirs[itemPath[end]] = tmpDir
-		}
-
-		tmpDir.collection = s
+	roots, ownerCats, err := inflateCollectionTree(ctx, collections)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "inflating collection tree")
 	}
 
 	if len(roots) > 1 {
