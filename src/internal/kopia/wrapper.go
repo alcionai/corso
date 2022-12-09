@@ -210,7 +210,13 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 			man.Tags = tagsFromStrings(oc)
 			for k, v := range addlTags {
-				man.Tags[k] = v
+				mk, mv := MakeTagKV(k)
+
+				if len(v) == 0 {
+					v = mv
+				}
+
+				man.Tags[mk] = v
 			}
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {

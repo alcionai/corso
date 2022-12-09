@@ -211,11 +211,18 @@ func produceManifestsAndMetadata(
 			return nil, nil, err
 		}
 
-		for _, fn := range []string{graph.DeltaTokenFileName} {
+		for _, fn := range graph.MetadataFileNames() {
 			for ro := range oc.ResourceOwners {
 				for _, sc := range oc.ServiceCats {
 					colls, err := collectMetadata(ctx, kw, fn, tid, ro, bup.SnapshotID, sc)
 					if err != nil {
+						// prior metadata isn't guaranteed to exist.
+						// if it doesn't, we'll just have to do a
+						// full backup for that data.
+						if errors.Is(err, errNotRestored) {
+							continue
+						}
+
 						return nil, nil, err
 					}
 
@@ -227,6 +234,8 @@ func produceManifestsAndMetadata(
 
 	return ms, collections, err
 }
+
+var errNotRestored = errors.New("unable to restore metadata")
 
 func collectMetadata(
 	ctx context.Context,
