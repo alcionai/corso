@@ -18,10 +18,9 @@ import (
 )
 
 type streamStore struct {
-	kw       *kopia.Wrapper
-	resource string
-	tenant   string
-	service  path.ServiceType
+	kw      *kopia.Wrapper
+	tenant  string
+	service path.ServiceType
 }
 
 func New(
@@ -29,10 +28,17 @@ func New(
 	tenant string,
 	service path.ServiceType,
 ) *streamStore {
-	return &streamStore{kw: kw, resource: "metadata", tenant: tenant, service: service}
+	return &streamStore{kw: kw, tenant: tenant, service: service}
 }
 
-const detailsItemName = "details"
+const (
+	// detailsItemName is the name of the stream used to store
+	// backup details
+	detailsItemName = "details"
+	// collectionPurposeDetails is used to indicate
+	// what the collection is being used for
+	collectionPurposeDetails = "details"
+)
 
 // WriteBackupDetails persists a `details.Details`
 // object in the stream store
@@ -44,7 +50,7 @@ func (ss *streamStore) WriteBackupDetails(
 	p, err := path.Builder{}.
 		ToServiceCategoryMetadataPath(
 			ss.tenant,
-			ss.resource,
+			collectionPurposeDetails,
 			ss.service,
 			path.DetailsCategory,
 			false,
@@ -84,10 +90,10 @@ func (ss *streamStore) ReadBackupDetails(
 ) (*details.Details, error) {
 	// construct the path for the `details` item
 	detailsPath, err := path.Builder{}.
-		Append("details").
+		Append(detailsItemName).
 		ToServiceCategoryMetadataPath(
 			ss.tenant,
-			ss.resource,
+			collectionPurposeDetails,
 			ss.service,
 			path.DetailsCategory,
 			true,
@@ -110,25 +116,23 @@ func (ss *streamStore) ReadBackupDetails(
 
 	dc := dcs[0]
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, errors.New("context cancelled waiting for backup details data")
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("context cancelled waiting for backup details data")
 
-		case itemData, ok := <-dc.Items():
-			if !ok {
-				return nil, errors.New("no backup details found")
-			}
-
-			var d details.Details
-
-			err := json.NewDecoder(itemData.ToReader()).Decode(&d)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to decode details data from repository")
-			}
-
-			return &d, nil
+	case itemData, ok := <-dc.Items():
+		if !ok {
+			return nil, errors.New("no backup details found")
 		}
+
+		var d details.Details
+
+		err := json.NewDecoder(itemData.ToReader()).Decode(&d)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to decode details data from repository")
+		}
+
+		return &d, nil
 	}
 }
 

@@ -3,9 +3,9 @@ package streamstore
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/zeebo/assert"
 
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -17,7 +17,7 @@ type StreamStoreIntegrationSuite struct {
 	suite.Suite
 }
 
-func TestKopiaIntegrationSuite(t *testing.T) {
+func TestStreamStoreIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 	); err != nil {

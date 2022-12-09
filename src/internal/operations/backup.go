@@ -246,7 +246,8 @@ func (op *BackupOperation) createBackupModels(
 	detailsID, err := streamstore.New(
 		op.kopia,
 		op.account.ID(),
-		op.Selectors.PathService()).WriteBackupDetails(ctx, backupDetails)
+		op.Selectors.PathService(),
+	).WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
