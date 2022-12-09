@@ -5,8 +5,6 @@ import (
 	"io"
 	"time"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -88,11 +86,8 @@ func driveItemReader(
 
 	downloadURL := item.GetAdditionalData()[downloadURLKey].(*string)
 
-	clientOptions := msgraphsdk.GetDefaultClientOptions()
-	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
-
-	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = 0 // need infinite timeout for pulling large files
+	httpClient := graph.CreateHTTPClient()
+	httpClient.Timeout = 0 // infinite timeout for pulling large files
 
 	resp, err := httpClient.Get(*downloadURL)
 	if err != nil {
