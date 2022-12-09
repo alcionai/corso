@@ -385,21 +385,34 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.Collection,
-) (map[string]*treeMap, *OwnersCats, error) {
+) (map[string]*treeMap, map[string]path.Path, *OwnersCats, error) {
 	roots := make(map[string]*treeMap)
+	// Contains the old path for collections that have been moved or renamed.
+	// Allows resolving what the new path should be when walking the base
+	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
+	updatedPaths := make(map[string]path.Path)
 	ownerCats := &OwnersCats{
 		ResourceOwners: make(map[string]struct{}),
 		ServiceCats:    make(map[string]struct{}),
 	}
 
 	for _, s := range collections {
+		switch s.State() {
+		case data.DeletedState:
+			updatedPaths[s.PreviousPath().String()] = nil
+			continue
+
+		case data.MovedState:
+			updatedPaths[s.PreviousPath().String()] = s.FullPath()
+		}
+
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, errors.New("no identifier for collection")
+			return nil, nil, nil, errors.New("no identifier for collection")
 		}
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, errors.Errorf(
+			return nil, nil, nil, errors.Errorf(
 				"unable to get tree node for path %s",
 				s.FullPath(),
 			)
@@ -412,7 +425,7 @@ func inflateCollectionTree(
 		node.collection = s
 	}
 
-	return roots, ownerCats, nil
+	return roots, updatedPaths, ownerCats, nil
 }
 
 // inflateDirTree returns a set of tags representing all the resource owners and
@@ -426,7 +439,7 @@ func inflateDirTree(
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, *OwnersCats, error) {
-	roots, ownerCats, err := inflateCollectionTree(ctx, collections)
+	roots, _, ownerCats, err := inflateCollectionTree(ctx, collections)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "inflating collection tree")
 	}
