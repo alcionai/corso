@@ -19,7 +19,8 @@ Another reason if you’re looking to level up both your skills,
 you may want to experiment with being the admin in your own space,
 rather than bumping into other users on a production domain. It’s also a good step to experiment with [owning your own identity](https://corsobackup.io/blog/your-own-backups/).
 
-Another great reason is for developing an M365 app, so that programmatic updates to your domain can’t accidentally destroy anything important.
+Another great reason is for developing an M365 app, so that programmatic
+updates to your domain can’t accidentally destroy anything important.
 
 ## 1) Join the Microsoft 365 Developer Program
 
