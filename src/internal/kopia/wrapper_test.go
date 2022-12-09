@@ -22,7 +22,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -897,7 +896,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			assert.Equal(t, 0, stats.IgnoredErrorCount)
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
-			assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 			// 47 file and 6 folder entries.
 			assert.Len(
 				t,
@@ -938,14 +936,13 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	fp2, err := suite.testPath2.Append(dc2.Names[0], true)
 	require.NoError(t, err)
 
-	stats, deets, err := w.BackupCollections(
+	stats, _, err := w.BackupCollections(
 		ctx,
 		nil,
 		[]data.Collection{dc1, dc2},
 		path.ExchangeService,
 	)
 	require.NoError(t, err)
-	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 
 	require.NoError(t, k.Compression(ctx, "gzip"))
 
@@ -1022,7 +1019,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
-	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 	// 5 file and 6 folder entries.
 	assert.Len(t, deets.Entries, 5+6)
 }
@@ -1063,8 +1059,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 
 			assert.Equal(t, BackupStats{}, *s)
 			assert.Empty(t, d.Entries)
-			// unknownService resolves to an empty string here.
-			assert.Equal(t, "", d.Tags[model.ServiceTag])
 		})
 	}
 }
@@ -1216,7 +1210,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	assert.Equal(t, path.ExchangeService.String(), deets.Tags[model.ServiceTag])
 	// 6 file and 6 folder entries.
 	assert.Len(t, deets.Entries, expectedFiles+expectedDirs)
 

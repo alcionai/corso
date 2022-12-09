@@ -17,7 +17,6 @@ const (
 	BackupOpSchema
 	RestoreOpSchema
 	BackupSchema
-	BackupDetailsSchema
 )
 
 // common tags for filtering
@@ -27,7 +26,7 @@ const (
 
 // Valid returns true if the ModelType value fits within the iota range.
 func (mt Schema) Valid() bool {
-	return mt > 0 && mt < BackupDetailsSchema+1
+	return mt > 0 && mt < BackupSchema+1
 }
 
 type Model interface {

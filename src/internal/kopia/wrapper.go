@@ -22,7 +22,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -521,10 +520,6 @@ func (w Wrapper) BackupCollections(
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Details{},
-	}
-
-	progress.deets.Tags = map[string]string{
-		model.ServiceTag: service.String(),
 	}
 
 	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
