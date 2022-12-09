@@ -168,8 +168,6 @@ const config = {
       metadata : [
         {name: 'twitter:card', content: 'summary_large_image'},
         {name: 'twitter:site', content: '@corsobackup'},
-        {name: 'twitter:title', content: 'Corso: Free, Secure, and Open-Source Backup for Microsoft 365'},
-        {name: 'twitter:description', content: 'Corso is an open-source tool that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
       ],
 
       prism: {

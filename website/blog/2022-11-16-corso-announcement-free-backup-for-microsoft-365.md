@@ -1,6 +1,7 @@
 ---
 slug: corso-announcement-free-backup-for-microsoft-365
 title: "A Home to Call Your Own: The Need for Your Own Backups in IT"
+description: "Announcing Corso, a free, open-source, and secure backup tool for Microsoft 365."
 authors: nica
 tags: [corso, microsoft 365]
 image: ./images/office_desk.jpg
