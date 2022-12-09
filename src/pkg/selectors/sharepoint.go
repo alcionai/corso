@@ -2,7 +2,6 @@ package selectors
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -428,7 +427,6 @@ func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
 // Reduce filters the entries in a details struct to only those that match the
 // inclusions, filters, and exclusions in the selector.
 func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details.Details {
-	fmt.Printf("\n-----\nreduce %v\n-----\n", s.Includes)
 	return reduce[SharePointScope](
 		ctx,
 		deets,
