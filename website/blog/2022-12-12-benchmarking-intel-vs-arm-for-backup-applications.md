@@ -103,7 +103,7 @@ vs. Intel. For a more price-accurate comparison, we also present the
 price-adjusted relative performance where we see how many more MiB/s
 we can process for the same dollar.
 
-While there is color on some of the results not presented but give us
+While the results shown here are truncated for brevity, feel free to give us
 a shout on [Discord](https://discord.gg/63DTTSnuhT) if you want to see
 the raw data.
 
