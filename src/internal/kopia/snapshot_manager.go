@@ -44,9 +44,9 @@ type ServiceCat struct {
 }
 
 // MakeServiceCat produces the expected OwnersCats.ServiceCats key from a
-// path service and path category.
-func MakeServiceCat(s path.ServiceType, c path.CategoryType) string {
-	return serviceCatString(s, c)
+// path service and path category, as well as the ServiceCat value.
+func MakeServiceCat(s path.ServiceType, c path.CategoryType) (string, ServiceCat) {
+	return serviceCatString(s, c), ServiceCat{s, c}
 }
 
 func serviceCatTag(p path.Path) string {

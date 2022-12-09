@@ -28,6 +28,7 @@ const (
 	CorsoModelStoreTests                          = "CORSO_MODEL_STORE_TESTS"
 	CorsoOneDriveTests                            = "CORSO_ONE_DRIVE_TESTS"
 	CorsoOperationTests                           = "CORSO_OPERATION_TESTS"
+	CorsoOperationBackupTests                     = "CORSO_OPERATION_BACKUP_TESTS"
 	CorsoRepositoryTests                          = "CORSO_REPOSITORY_TESTS"
 )
 

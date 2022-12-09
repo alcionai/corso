@@ -260,7 +260,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				collections,
 				path.ExchangeService,
-				nil,
+				customTags,
 			)
 			assert.NoError(t, err)
 

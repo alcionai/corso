@@ -190,7 +190,10 @@ func produceManifestsAndMetadata(
 		collections []data.Collection
 	)
 
-	ms, err := kw.FetchPrevSnapshotManifests(ctx, oc, map[string]string{kopia.TagBackupCategory: ""})
+	ms, err := kw.FetchPrevSnapshotManifests(
+		ctx,
+		oc,
+		map[string]string{kopia.TagBackupCategory: ""})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -288,10 +291,8 @@ func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
-			oc.ServiceCats[kopia.MakeServiceCat(service, cat)] = kopia.ServiceCat{
-				Service:  service,
-				Category: cat,
-			}
+			k, v := kopia.MakeServiceCat(service, cat)
+			oc.ServiceCats[k] = v
 		}
 	}
 
