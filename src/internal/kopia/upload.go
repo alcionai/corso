@@ -398,7 +398,7 @@ func inflateCollectionTree(
 	updatedPaths := make(map[string]path.Path)
 	ownerCats := &OwnersCats{
 		ResourceOwners: make(map[string]struct{}),
-		ServiceCats:    make(map[string]struct{}),
+		ServiceCats:    make(map[string]ServiceCat),
 	}
 
 	for _, s := range collections {
@@ -424,7 +424,7 @@ func inflateCollectionTree(
 		}
 
 		serviceCat := serviceCatTag(s.FullPath())
-		ownerCats.ServiceCats[serviceCat] = struct{}{}
+		ownerCats.ServiceCats[serviceCat] = ServiceCat{}
 		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
 		node.collection = s
