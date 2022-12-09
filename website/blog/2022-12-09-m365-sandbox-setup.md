@@ -1,6 +1,7 @@
 ---
 slug: m365-sandbox-setup
 title: "Setting up your own Microsoft 365 sandbox"
+description: "Getting started with a Microsoft 365 sandbox in under 10 minutes for development and testing purposes"
 authors: nica
 tags: [corso, microsoft 365]
 date: 2022-12-09

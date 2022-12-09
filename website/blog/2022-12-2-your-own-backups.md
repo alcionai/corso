@@ -1,6 +1,7 @@
 ---
 slug: your-own-backups
 title: "Owning Your Identity and Data For The Price of One ☕️/Month "
+description: "How to, for the price of a cup of coffee/month, control your identity by owning your domain, email, and portable data backups"
 authors: nica
 tags: [corso, microsoft 365]
 date: 2022-12-05
