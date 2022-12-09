@@ -20,6 +20,8 @@ Another reason to do this is if you’re looking to level up both your skills an
 want to experiment with being the admin in your own space
 rather than impacting other users on a production domain. It’s also a good step to experiment with [owning your own identity](https://corsobackup.io/blog/your-own-backups/).
 
+<!-- truncate -->
+
 Finally, this might also be useful if you are developing an M365 app. This way, programmatic
 updates to your domain can’t accidentally destroy anything important.
 
