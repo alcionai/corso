@@ -29,7 +29,7 @@ To get access to the free hosting required for your sandbox domain,
 you’ll need to [join the M365 Developer Program](https://developer.microsoft.com/en-us/microsoft-365/dev-program).
 This process is quite straightforward and fairly foolproof.
 
-![Screen Shot 2022-11-30 at 3.20.45 PM.png](./images/12-09-2022-a.png)
+![Screenshot of Microsoft 365 developer program website](./images/12-09-2022-a.png)
 > Note that when you go to set this up the first time, you may find that your Microsoft Account isn’t fully set up.
 > For example on my account I didn’t have a full name set on my profile. You’ll be prompted to add this info if needed
 
@@ -72,7 +72,7 @@ Remember that you want to set up your sandbox when you’re ready to use it.
 The data is persistent but it’s wiped after 90 days.
 
 Also, you can’t just do whatever you want with this instance, it’s for development and testing purposes only.
-Commercial transactions, including purchasing paid services, are not supported.
+Commercial transactions, including purchasing paid services, aren't supported.
 
 ## 4) Next steps
 
