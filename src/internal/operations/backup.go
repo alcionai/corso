@@ -187,12 +187,21 @@ func produceManifestsAndMetadata(
 	var (
 		tid         = m365.AzureTenantID
 		oc          = selectorToOwnersCats(sel)
-		ms          = kopia.FetchPrevSnapshotManifests(ctx, kw.Conn(), &oc)
 		collections []data.Collection
 	)
 
+	ms, err := kw.FetchPrevSnapshotManifests(ctx, oc)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	for _, man := range ms {
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
 		bup := backup.Backup{}
+
 		if err := sw.Get(
 			ctx,
 			model.BackupSchema,
@@ -225,9 +234,6 @@ func collectMetadata(
 	fileName, tenantID, resourceOwner, snapshotID string,
 	sc kopia.ServiceCat,
 ) ([]data.Collection, error) {
-	paths := []path.Path{}
-	pathsByRef := map[string][]string{}
-
 	p, err := path.Builder{}.
 		Append(fileName).
 		ToServiceCategoryMetadataPath(
@@ -240,15 +246,7 @@ func collectMetadata(
 		return nil, errors.Wrap(err, "building metadata path")
 	}
 
-	dir, err := p.Dir()
-	if err != nil {
-		return nil, errors.Wrap(err, "malformed metadata path: "+p.String())
-	}
-
-	paths = append(paths, p)
-	pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fileName)
-
-	dcs, err := kw.RestoreMultipleItems(ctx, snapshotID, paths, nil)
+	dcs, err := kw.RestoreMultipleItems(ctx, snapshotID, []path.Path{p}, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting prior metadata")
 	}
@@ -265,7 +263,7 @@ func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
 
 	ros, err := sel.ResourceOwners()
 	if err != nil {
-		return oc
+		return kopia.OwnersCats{}
 	}
 
 	for _, sl := range [][]string{ros.Includes, ros.Filters} {
@@ -276,7 +274,7 @@ func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
-		return oc
+		return kopia.OwnersCats{}
 	}
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
