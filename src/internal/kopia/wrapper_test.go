@@ -210,17 +210,30 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 
+	// tags that are expected to populate as a side effect
+	// of the backup process.
 	baseTagKeys := []string{
 		serviceCatTag(suite.testPath1),
 		suite.testPath1.ResourceOwner(),
 		serviceCatTag(suite.testPath2),
 		suite.testPath2.ResourceOwner(),
 	}
+
+	// tags that are supplied by the caller.
+	customTags := map[string]string{
+		"fnords":    "smarf",
+		"brunhilda": "",
+	}
+
 	expectedTags := map[string]string{}
 
 	for _, k := range baseTagKeys {
 		tk, tv := MakeTagKV(k)
 		expectedTags[tk] = tv
+	}
+
+	for k, v := range normalizeTagKVs(customTags) {
+		expectedTags[k] = v
 	}
 
 	table := []struct {
@@ -247,7 +260,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				collections,
 				path.ExchangeService,
-				"",
+				nil,
 			)
 			assert.NoError(t, err)
 
@@ -303,7 +316,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		nil,
 		[]data.Collection{dc1, dc2},
 		path.ExchangeService,
-		"",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -374,7 +387,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		collections,
 		path.ExchangeService,
-		"",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -418,7 +431,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				test.collections,
 				path.UnknownService,
-				"",
+				nil,
 			)
 			require.NoError(t, err)
 
@@ -568,7 +581,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		nil,
 		collections,
 		path.ExchangeService,
-		"",
+		nil,
 	)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)

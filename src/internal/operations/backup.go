@@ -190,7 +190,7 @@ func produceManifestsAndMetadata(
 		collections []data.Collection
 	)
 
-	ms, err := kw.FetchPrevSnapshotManifests(ctx, oc)
+	ms, err := kw.FetchPrevSnapshotManifests(ctx, oc, map[string]string{kopia.TagBackupCategory: ""})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -205,7 +205,7 @@ func produceManifestsAndMetadata(
 		if err := sw.Get(
 			ctx,
 			model.BackupSchema,
-			model.StableID(man.Tags[kopia.BackupIDTag]),
+			model.StableID(man.Tags[kopia.TagBackupID]),
 			&bup,
 		); err != nil {
 			return nil, nil, err
@@ -330,7 +330,12 @@ func consumeBackupDataCollections(
 		closer()
 	}()
 
-	return kw.BackupCollections(ctx, nil, cs, sel.PathService(), string(backupID))
+	tags := map[string]string{
+		kopia.TagBackupID:       string(backupID),
+		kopia.TagBackupCategory: "",
+	}
+
+	return kw.BackupCollections(ctx, nil, cs, sel.PathService(), tags)
 }
 
 // writes the results metrics to the operation results.
