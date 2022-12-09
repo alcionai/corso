@@ -195,15 +195,16 @@ func collectionEntries(
 	cb func(context.Context, fs.Entry) error,
 	streamedEnts data.Collection,
 	progress *corsoProgress,
-) *multierror.Error {
+) (map[string]struct{}, *multierror.Error) {
 	if streamedEnts == nil {
-		return nil
+		return nil, nil
 	}
 
 	var (
 		errs *multierror.Error
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
+		seen  = map[string]struct{}{}
 		items = streamedEnts.Items()
 		log   = logger.Ctx(ctx)
 	)
@@ -212,12 +213,22 @@ func collectionEntries(
 		select {
 		case <-ctx.Done():
 			errs = multierror.Append(errs, ctx.Err())
-			return errs
+			return seen, errs
 
 		case e, ok := <-items:
 			if !ok {
-				return errs
+				return seen, errs
 			}
+
+			// Even if this item has been deleted and should not appear at all in
+			// the new snapshot we need to record that we've seen it here so we know
+			// to skip it if it's also present in the base snapshot.
+			//
+			// TODO(ashmrtn): Determine if we want to try to use the old version of
+			// the data (if it exists in the base) if we fail uploading the new
+			// version. If so, we should split this call into where we check for the
+			// item being deleted and then again after we do the kopia callback.
+			seen[e.UUID()] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
 			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
@@ -231,7 +242,11 @@ func collectionEntries(
 			}
 
 			log.Debugw("reading item", "path", itemPath.String())
-			trace.Log(ctx, "kopia:collectionEntries:item", itemPath.String())
+			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
+
+			if e.Deleted() {
+				continue
+			}
 
 			// Not all items implement StreamInfo. For example, the metadata files
 			// do not because they don't contain information directly backed up or
@@ -264,7 +279,7 @@ func collectionEntries(
 				// Kopia's uploader swallows errors in most cases, so if we see
 				// something here it's probably a big issue and we should return.
 				errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
-				return errs
+				return seen, errs
 			}
 		}
 	}
@@ -290,7 +305,7 @@ func getStreamItemFunc(
 			}
 		}
 
-		errs := collectionEntries(ctx, cb, streamedEnts, progress)
+		_, errs := collectionEntries(ctx, cb, streamedEnts, progress)
 
 		// TODO(ashmrtn): Stream entries from base snapshot if they exist.
 
