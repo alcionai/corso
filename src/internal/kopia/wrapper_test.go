@@ -569,8 +569,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree() {
 	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(t, err)
 
-	assert.Equal(t, expectedServiceCats, oc.serviceCats)
-	assert.Equal(t, expectedResourceOwners, oc.resourceOwners)
+	assert.Equal(t, expectedServiceCats, oc.ServiceCats)
+	assert.Equal(t, expectedResourceOwners, oc.ResourceOwners)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
@@ -670,8 +670,8 @@ func (suite *KopiaUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
 			dirTree, oc, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
 
-			assert.Equal(t, expectedServiceCats, oc.serviceCats)
-			assert.Equal(t, expectedResourceOwners, oc.resourceOwners)
+			assert.Equal(t, expectedServiceCats, oc.ServiceCats)
+			assert.Equal(t, expectedResourceOwners, oc.ResourceOwners)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 

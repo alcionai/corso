@@ -157,7 +157,28 @@ func FilterContainersAndFillCollections(
 		collections[metadataKey] = col
 	}
 
-	return errs
+	// TODO(ashmrtn): getFetchIDFunc functions should probably just return a
+	// multierror and all of the error handling should just use those so that it
+	// all ends up more consistent.
+	merrs := multierror.Append(nil, errs)
+
+	col, err = makeMetadataCollection(
+		qp.Credentials.AzureTenantID,
+		qp.ResourceOwner,
+		qp.Category,
+		deltaTokens,
+		statusUpdater,
+	)
+	if err != nil {
+		merrs = multierror.Append(
+			merrs,
+			errors.Wrap(err, "making metadata collection"),
+		)
+	} else if col != nil {
+		collections[metadataKey] = col
+	}
+
+	return merrs.ErrorOrNil()
 }
 
 func IterativeCollectContactContainers(
