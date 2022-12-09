@@ -42,7 +42,13 @@ func serviceCatTag(p path.Path) string {
 	return p.Service().String() + p.Category().String()
 }
 
-func makeTagKV(k string) (string, string) {
+// MakeTagKV normalizes the provided key to protect it from clobbering
+// similarly named tags from non-user input (user inputs are still open
+// to collisions amongst eachother).
+// Returns the normalized Key plus a default value.  If you're embedding a
+// key-only tag, the returned default value msut be used instead of an
+// empty string.
+func MakeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
 }
 
@@ -53,12 +59,12 @@ func tagsFromStrings(oc *OwnersCats) map[string]string {
 	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
 
 	for k := range oc.ServiceCats {
-		tk, tv := makeTagKV(k)
+		tk, tv := MakeTagKV(k)
 		res[tk] = tv
 	}
 
 	for k := range oc.ResourceOwners {
-		tk, tv := makeTagKV(k)
+		tk, tv := MakeTagKV(k)
 		res[tk] = tv
 	}
 
@@ -181,13 +187,14 @@ func fetchPrevManifests(
 	return manifestsSinceLastComplete(mans), nil
 }
 
-// FetchPrevSnapshotManifests returns a set of manifests for complete and maybe
+// fetchPrevSnapshotManifests returns a set of manifests for complete and maybe
 // incomplete snapshots for the given (resource owner, service, category)
 // tuples. Up to two manifests can be returned per tuple: one complete and one
 // incomplete. An incomplete manifest may be returned if it is newer than the
 // newest complete manifest for the tuple. Manifests are deduped such that if
 // multiple tuples match the same manifest it will only be returned once.
-func FetchPrevSnapshotManifests(
+// External callers can access this via wrapper.FetchPrevSnapshotManifests().
+func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
 	oc *OwnersCats,
@@ -199,10 +206,10 @@ func FetchPrevSnapshotManifests(
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
 	for serviceCat := range oc.ServiceCats {
-		serviceTagKey, serviceTagValue := makeTagKV(serviceCat)
+		serviceTagKey, serviceTagValue := MakeTagKV(serviceCat)
 
 		for resourceOwner := range oc.ResourceOwners {
-			resourceOwnerTagKey, resourceOwnerTagValue := makeTagKV(resourceOwner)
+			resourceOwnerTagKey, resourceOwnerTagValue := MakeTagKV(resourceOwner)
 
 			tags := map[string]string{
 				serviceTagKey:       serviceTagValue,

@@ -548,7 +548,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 ) (*BackupStats, error) {
 	var man *snapshot.Manifest
 
-	prevSnaps := FetchPrevSnapshotManifests(ctx, w.c, oc)
+	prevSnaps := fetchPrevSnapshotManifests(ctx, w.c, oc)
 
 	bc := &stats.ByteCounter{}
 
@@ -781,4 +781,21 @@ func (w Wrapper) DeleteSnapshot(
 	}
 
 	return nil
+}
+
+// FetchPrevSnapshotManifests returns a set of manifests for complete and maybe
+// incomplete snapshots for the given (resource owner, service, category)
+// tuples. Up to two manifests can be returned per tuple: one complete and one
+// incomplete. An incomplete manifest may be returned if it is newer than the
+// newest complete manifest for the tuple. Manifests are deduped such that if
+// multiple tuples match the same manifest it will only be returned once.
+func (w Wrapper) FetchPrevSnapshotManifests(
+	ctx context.Context,
+	oc OwnersCats,
+) ([]*snapshot.Manifest, error) {
+	if w.c == nil {
+		return nil, errors.WithStack(errNotConnected)
+	}
+
+	return fetchPrevSnapshotManifests(ctx, w.c, &oc), nil
 }
