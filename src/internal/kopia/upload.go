@@ -228,6 +228,11 @@ func collectionEntries(
 			// the data (if it exists in the base) if we fail uploading the new
 			// version. If so, we should split this call into where we check for the
 			// item being deleted and then again after we do the kopia callback.
+			//
+			// TODO(ashmrtn): With a little more info, we could reduce the number of
+			// items we need to track. Namely, we can track the created time of the
+			// item and if it's after the base snapshot was finalized we can skip it
+			// because it's not possible for the base snapshot to contain that item.
 			seen[e.UUID()] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
