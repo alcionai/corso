@@ -190,7 +190,7 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 	return cp.pending[k]
 }
 
-func streamEntries(
+func collectionEntries(
 	ctx context.Context,
 	cb func(context.Context, fs.Entry) error,
 	streamedEnts data.Collection,
@@ -231,7 +231,7 @@ func streamEntries(
 			}
 
 			log.Debugw("reading item", "path", itemPath.String())
-			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
+			trace.Log(ctx, "kopia:collectionEntries:item", itemPath.String())
 
 			// Not all items implement StreamInfo. For example, the metadata files
 			// do not because they don't contain information directly backed up or
@@ -290,7 +290,7 @@ func getStreamItemFunc(
 			}
 		}
 
-		errs := streamEntries(ctx, cb, streamedEnts, progress)
+		errs := collectionEntries(ctx, cb, streamedEnts, progress)
 
 		// TODO(ashmrtn): Stream entries from base snapshot if they exist.
 
