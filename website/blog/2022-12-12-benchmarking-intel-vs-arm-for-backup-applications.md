@@ -226,9 +226,9 @@ applicability of ARM to multi-threaded applications.
 The above results show how exciting ARM is as an architecture for us
 data-processing nerds because of the performance and cost
 optimizations possible. The improvement is a result of the hardware
-acceleration available on the ARM platform we used for benchmarking
-(AWS Graviton) and the optimization found in the libraries used in our
-product. While these things will constantly shift, we're excited
+acceleration available on the ARM platform used for benchmarking
+(AWS Graviton) and the additional optimizations in the libraries used in our
+software. While these things may constantly shift, we're excited
 about the advances and the benefits for users of backup software.
 
 If you have questions, want access to raw data, or want to talk about
