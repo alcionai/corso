@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	site         []string
-	libraryPaths []string
 	libraryItems []string
+	libraryPaths []string
+	site         []string
+	weburl       []string
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -46,6 +47,10 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(&site,
 			utils.SiteFN, nil,
 			"Restore data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
+
+		fs.StringSliceVar(&weburl,
+			utils.WebURLFN, nil,
+			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
 
 		// sharepoint hierarchy (path/name) flags
 
@@ -110,9 +115,10 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.SharePointOpts{
-		Sites:        site,
-		LibraryPaths: libraryPaths,
 		LibraryItems: libraryItems,
+		LibraryPaths: libraryPaths,
+		Sites:        site,
+		WebURLs:      weburl,
 		// FileCreatedAfter:   fileCreatedAfter,
 
 		Populated: utils.GetPopulatedFlags(cmd),

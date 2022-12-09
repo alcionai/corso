@@ -136,6 +136,9 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 		url string
 	)
 
+	// TODO: we rely on this info for details/restore lookups,
+	// so if it's nil we have an issue, and will need an alternative
+	// way to source the data.
 	gsi := di.GetSharepointIds()
 	if gsi != nil {
 		if gsi.GetSiteId() != nil {
