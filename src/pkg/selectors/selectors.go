@@ -84,6 +84,19 @@ type resourceOwnerer interface {
 	ResourceOwners() selectorResourceOwners
 }
 
+// selectorResourceOwners aggregates all discrete path category types described
+// in the selector.  Category sets are grouped by their scope type (includes,
+// excludes, filters).
+type selectorPathCategories struct {
+	Includes []path.CategoryType
+	Excludes []path.CategoryType
+	Filters  []path.CategoryType
+}
+
+type pathCategorier interface {
+	PathCategories() selectorPathCategories
+}
+
 // ---------------------------------------------------------------------------
 // Selector
 // ---------------------------------------------------------------------------
@@ -205,6 +218,7 @@ func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.
 	return r.Reduce(ctx, deets), nil
 }
 
+// returns the sets of resource owners identified in each scope set.
 func (s Selector) ResourceOwners() (selectorResourceOwners, error) {
 	ro, err := selectorAsIface[resourceOwnerer](s)
 	if err != nil {
@@ -212,6 +226,16 @@ func (s Selector) ResourceOwners() (selectorResourceOwners, error) {
 	}
 
 	return ro.ResourceOwners(), nil
+}
+
+// returns the sets of path categories identified in each scope set.
+func (s Selector) PathCategories() (selectorPathCategories, error) {
+	ro, err := selectorAsIface[pathCategorier](s)
+	if err != nil {
+		return selectorPathCategories{}, err
+	}
+
+	return ro.PathCategories(), nil
 }
 
 // transformer for arbitrary selector interfaces
@@ -388,6 +412,30 @@ func resourceOwnersIn(s []scope, rootCat string) []string {
 	return rs
 }
 
+// produces the discrete set of path categories in the slice of scopes.
+func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
+	rm := map[path.CategoryType]struct{}{}
+
+	for _, s := range ss {
+		t := T(s)
+
+		lc := t.categorizer().leafCat()
+		if lc == lc.unknownCat() {
+			continue
+		}
+
+		rm[lc.PathType()] = struct{}{}
+	}
+
+	rs := []path.CategoryType{}
+
+	for k := range rm {
+		rs = append(rs, k)
+	}
+
+	return rs
+}
+
 // ---------------------------------------------------------------------------
 // scope helpers
 // ---------------------------------------------------------------------------
@@ -424,10 +472,10 @@ func SuffixMatch() option {
 	}
 }
 
-// pathType is an internal-facing option.  It is assumed that scope
-// constructors will provide the pathType option whenever a folder-
+// pathComparator is an internal-facing option.  It is assumed that scope
+// constructors will provide the pathComparator option whenever a folder-
 // level scope (ie, a scope that compares path hierarchies) is created.
-func pathType() option {
+func pathComparator() option {
 	return func(sc *scopeConfig) {
 		sc.usePathFilter = true
 	}

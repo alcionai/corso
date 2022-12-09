@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type SelectorSuite struct {
@@ -203,6 +204,39 @@ func (suite *SelectorSuite) TestResourceOwnersIn() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			result := resourceOwnersIn(test.input, rootCat)
+			assert.ElementsMatch(t, test.expect, result)
+		})
+	}
+}
+
+func (suite *SelectorSuite) TestPathCategoriesIn() {
+	leafCat := leafCatStub.String()
+	f := filters.Identity(leafCat)
+
+	table := []struct {
+		name   string
+		input  []scope
+		expect []path.CategoryType
+	}{
+		{
+			name:   "nil",
+			input:  nil,
+			expect: []path.CategoryType{},
+		},
+		{
+			name:   "empty",
+			input:  []scope{},
+			expect: []path.CategoryType{},
+		},
+		{
+			name:   "single",
+			input:  []scope{{leafCat: f, scopeKeyCategory: f}},
+			expect: []path.CategoryType{leafCatStub.PathType()},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := pathCategoriesIn[mockScope, mockCategorizer](test.input)
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
