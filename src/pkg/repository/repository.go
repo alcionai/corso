@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -270,7 +271,21 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 // BackupDetails returns the specified backup details object
 func (r repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetDetailsFromBackupID(ctx, model.StableID(backupID))
+
+	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deets, err := streamstore.New(
+		r.dataLayer,
+		r.Account.ID(),
+		b.Selectors.PathService()).ReadBackupDetails(ctx, dID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return deets, b, nil
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
