@@ -96,16 +96,13 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		EmailCategory:    {},
 		ContactsCategory: {},
 		EventsCategory:   {},
-		DetailsCategory:  {},
 	},
 	OneDriveService: {
-		FilesCategory:   {},
-		DetailsCategory: {},
+		FilesCategory: {},
 	},
 	SharePointService: {
 		LibrariesCategory: {},
 		ListsCategory:     {},
-		DetailsCategory:   {},
 	},
 }
 

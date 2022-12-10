@@ -48,11 +48,10 @@ func (ss *streamStore) WriteBackupDetails(
 ) (string, error) {
 	// construct the path of the container for the `details` item
 	p, err := path.Builder{}.
-		ToServiceCategoryMetadataPath(
+		ToStreamStorePath(
 			ss.tenant,
 			collectionPurposeDetails,
 			ss.service,
-			path.DetailsCategory,
 			false,
 		)
 	if err != nil {
@@ -91,11 +90,10 @@ func (ss *streamStore) ReadBackupDetails(
 	// construct the path for the `details` item
 	detailsPath, err := path.Builder{}.
 		Append(detailsItemName).
-		ToServiceCategoryMetadataPath(
+		ToStreamStorePath(
 			ss.tenant,
 			collectionPurposeDetails,
 			ss.service,
-			path.DetailsCategory,
 			true,
 		)
 	if err != nil {
