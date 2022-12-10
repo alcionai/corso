@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -42,11 +43,14 @@ func (gc *GraphConnector) DataCollections(
 		return nil, err
 	}
 
-	// serialize metadata into maps here
+	_, deltas, err := parseMetadataCollections(ctx, metadataCols)
+	if err != nil {
+		return nil, err
+	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		return gc.ExchangeDataCollection(ctx, sels)
+		return gc.ExchangeDataCollection(ctx, sels, deltas)
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	case selectors.ServiceSharePoint:
@@ -109,6 +113,57 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 	return nil
 }
 
+// parseMetadataCollections produces two maps:
+// 1- paths: folderID->filePath, used to look up previous folder pathing
+// in case of a name change or relocation.
+// 2- deltas: folderID->deltaToken, used to look up previous delta token
+// retrievals.
+// Finally
+func parseMetadataCollections(
+	ctx context.Context,
+	colls []data.Collection,
+) (map[string]string, map[string]string, error) {
+	var (
+		paths  = map[string]string{}
+		deltas = map[string]string{}
+	)
+
+	for _, coll := range colls {
+		items := coll.Items()
+
+		for {
+			var breakLoop bool
+
+			select {
+			case <-ctx.Done():
+				return nil, nil, errors.Wrap(context.Canceled, "parsing collection metadata")
+			case item, ok := <-items:
+				if !ok {
+					breakLoop = true
+					break
+				}
+
+				switch item.UUID() {
+				// case graph.PreviousPathFileName:
+				case graph.DeltaTokenFileName:
+					err := json.NewDecoder(item.ToReader()).Decode(&deltas)
+					if err != nil {
+						return nil, nil, errors.New("parsing delta token map")
+					}
+
+					breakLoop = true
+				}
+			}
+
+			if breakLoop {
+				break
+			}
+		}
+	}
+
+	return paths, deltas, nil
+}
+
 // ---------------------------------------------------------------------------
 // Exchange
 // ---------------------------------------------------------------------------
@@ -119,6 +174,7 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 func (gc *GraphConnector) createExchangeCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
+	deltas map[string]string,
 ) ([]data.Collection, error) {
 	var (
 		errs           *multierror.Error
@@ -152,7 +208,8 @@ func (gc *GraphConnector) createExchangeCollections(
 			collections,
 			gc.UpdateStatus,
 			resolver,
-			scope)
+			scope,
+			deltas)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "filling collections")
@@ -178,6 +235,7 @@ func (gc *GraphConnector) createExchangeCollections(
 func (gc *GraphConnector) ExchangeDataCollection(
 	ctx context.Context,
 	selector selectors.Selector,
+	deltas map[string]string,
 ) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
@@ -192,7 +250,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 
 	for _, scope := range scopes {
 		// Creates a map of collections based on scope
-		dcs, err := gc.createExchangeCollections(ctx, scope)
+		dcs, err := gc.createExchangeCollections(ctx, scope, deltas)
 		if err != nil {
 			user := scope.Get(selectors.ExchangeUser)
 			return nil, support.WrapAndAppend(user[0], err, errs)

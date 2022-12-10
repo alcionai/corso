@@ -2,6 +2,7 @@ package connector
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -16,6 +18,45 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+type DataCollectionsUnitSuite struct {
+	suite.Suite
+}
+
+func TestDataCollectionsUnitSuite(t *testing.T) {
+	suite.Run(t, new(DataCollectionsUnitSuite))
+}
+
+func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
+	t := suite.T()
+	ctx, flush := tester.NewContext()
+
+	defer flush()
+
+	bs, err := json.Marshal(map[string]string{"key": "token"})
+	require.NoError(t, err)
+
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		"t", "u",
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(t, err)
+
+	item := []graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, bs)}
+	mdcoll := graph.NewMetadataCollection(p, item, func(cos *support.ConnectorOperationStatus) {})
+	colls := []data.Collection{mdcoll}
+
+	_, deltas, err := parseMetadataCollections(ctx, colls)
+	require.NoError(t, err)
+	assert.NotEmpty(t, deltas, "delta urls")
+	assert.Equal(t, "token", deltas["key"])
+}
 
 // ---------------------------------------------------------------------------
 // DataCollection tests
@@ -104,7 +145,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t))
+			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t), nil)
 			require.NoError(t, err)
 			// Categories with delta endpoints will produce a collection for metadata
 			// as well as the actual data pulled.
@@ -233,6 +274,7 @@ func TestConnectorCreateExchangeCollectionIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoConnectorCreateExchangeCollectionTests,
+		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
@@ -283,7 +325,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() 
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := gc.createExchangeCollections(ctx, test.scope)
+			collections, err := gc.createExchangeCollections(ctx, test.scope, nil)
 			require.NoError(t, err)
 
 			for _, c := range collections {
@@ -302,6 +344,61 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() 
 	}
 }
 
+func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		userID = tester.M365UserID(suite.T())
+		gc     = loadConnector(ctx, suite.T(), Users)
+	)
+
+	tests := []struct {
+		name  string
+		scope selectors.ExchangeScope
+	}{
+		{
+			name: "Mail",
+			scope: selectors.NewExchangeBackup().MailFolders(
+				[]string{userID},
+				[]string{exchange.DefaultMailFolder},
+				selectors.PrefixMatch(),
+			)[0],
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections, err := gc.createExchangeCollections(ctx, test.scope, nil)
+			require.NoError(t, err)
+			assert.Less(t, 1, len(collections), "found metadata and data collections")
+
+			var metadata data.Collection
+
+			for _, coll := range collections {
+				if coll.FullPath().Service() == path.ExchangeMetadataService {
+					metadata = coll
+				}
+			}
+
+			require.NotNil(t, metadata, "found metadata collection")
+
+			_, deltas, err := parseMetadataCollections(ctx, []data.Collection{metadata})
+			require.NoError(t, err)
+
+			collections, err = gc.createExchangeCollections(ctx, test.scope, deltas)
+			require.NoError(t, err)
+
+			for _, coll := range collections {
+				if coll.FullPath().Service() != path.ExchangeMetadataService {
+					ec, ok := coll.(*exchange.Collection)
+					require.True(t, ok, "collection is *exchange.Collection")
+					assert.NotNil(t, ec)
+				}
+			}
+		})
+	}
+}
+
 // TestMailSerializationRegression verifies that all mail data stored in the
 // test account can be successfully downloaded into bytes and restored into
 // M365 mail objects
@@ -313,7 +410,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailSerializ
 	connector := loadConnector(ctx, t, Users)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
+	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil)
 	require.NoError(t, err)
 
 	for _, edc := range collection {
@@ -356,7 +453,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 				scope := selectors.
 					NewExchangeBackup().
 					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch())[0]
-				collections, err := connector.createExchangeCollections(ctx, scope)
+				collections, err := connector.createExchangeCollections(ctx, scope, nil)
 				require.NoError(t, err)
 
 				return collections
@@ -423,7 +520,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
-				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
+				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil)
 				require.NoError(t, err)
 
 				return collections
@@ -435,7 +532,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}, selectors.PrefixMatch()))
-				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
+				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil)
 				require.NoError(t, err)
 
 				return collections
@@ -465,31 +562,6 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			suite.NotNil(status)
 			suite.Equal(status.ObjectCount, status.Successful)
 		})
-	}
-}
-
-// TestAccessOfInboxAllUsers verifies that GraphConnector can
-// support `--users *` for backup operations. Selector.DiscreteScopes
-// returns all of the users within one scope. Only users who have
-// messages in their inbox will have a collection returned.
-// The final test insures that more than a 75% of the user collections are
-// returned. If an error was experienced, the test will fail overall
-func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestAccessOfInboxAllUsers() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	connector := loadConnector(ctx, t, Users)
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders(selectors.Any(), []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-	scopes := sel.DiscreteScopes(connector.GetUsers())
-
-	for _, scope := range scopes {
-		users := scope.Get(selectors.ExchangeUser)
-		standard := (len(users) / 4) * 3
-		collections, err := connector.createExchangeCollections(ctx, scope)
-		require.NoError(t, err)
-		suite.Greater(len(collections), standard)
 	}
 }
 

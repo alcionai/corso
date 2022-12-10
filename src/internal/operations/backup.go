@@ -127,7 +127,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	_, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, op.Selectors, op.account)
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, op.Selectors, op.account)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -145,7 +145,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	opStats.k, backupDetails, err = consumeBackupDataCollections(ctx, op.kopia, op.Selectors, cs, op.Results.BackupID)
+	opStats.k, backupDetails, err = consumeBackupDataCollections(
+		ctx,
+		op.kopia,
+		op.Selectors,
+		mans,
+		cs,
+		op.Results.BackupID)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "backing up service data")
 		return opStats.writeErr
@@ -326,6 +332,7 @@ func consumeBackupDataCollections(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sel selectors.Selector,
+	mans []*snapshot.Manifest,
 	cs []data.Collection,
 	backupID model.StableID,
 ) (*kopia.BackupStats, *details.Details, error) {
@@ -341,7 +348,7 @@ func consumeBackupDataCollections(
 		kopia.TagBackupCategory: "",
 	}
 
-	return kw.BackupCollections(ctx, nil, cs, sel.PathService(), tags)
+	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), tags)
 }
 
 // writes the results metrics to the operation results.
