@@ -23,11 +23,13 @@ const (
 	tenantID     = "m365_tenant_hash"
 
 	// Event Keys
-	RepoInit     = "repo_init"
-	BackupStart  = "backup_start"
-	BackupEnd    = "backup_end"
-	RestoreStart = "restore_start"
-	RestoreEnd   = "restore_end"
+	CorsoStart   = "Corso Start"
+	RepoInit     = "Repo Init"
+	RepoConnect  = "Repo Connect"
+	BackupStart  = "Backup Start"
+	BackupEnd    = "Backup End"
+	RestoreStart = "Restore Start"
+	RestoreEnd   = "Restore End"
 
 	// Event Data Keys
 	BackupCreateTime = "backup_creation_time"

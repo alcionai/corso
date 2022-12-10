@@ -1,6 +1,7 @@
 ---
 slug: m365-sandbox-setup
 title: "Setting up your own Microsoft 365 sandbox"
+description: "Getting started with a Microsoft 365 sandbox in under 10 minutes for development and testing purposes"
 authors: nica
 tags: [corso, microsoft 365]
 date: 2022-12-09
@@ -20,6 +21,8 @@ Another reason to do this is if you’re looking to level up both your skills an
 want to experiment with being the admin in your own space
 rather than impacting other users on a production domain. It’s also a good step to experiment with [owning your own identity](https://corsobackup.io/blog/your-own-backups/).
 
+<!-- truncate -->
+
 Finally, this might also be useful if you are developing an M365 app. This way, programmatic
 updates to your domain can’t accidentally destroy anything important.
 
@@ -29,7 +32,7 @@ To get access to the free hosting required for your sandbox domain,
 you’ll need to [join the M365 Developer Program](https://developer.microsoft.com/en-us/microsoft-365/dev-program).
 This process is quite straightforward and fairly foolproof.
 
-![Screen Shot 2022-11-30 at 3.20.45 PM.png](./images/12-09-2022-a.png)
+![Screenshot of Microsoft 365 developer program website](./images/12-09-2022-a.png)
 > Note that when you go to set this up the first time, you may find that your Microsoft Account isn’t fully set up.
 > For example on my account I didn’t have a full name set on my profile. You’ll be prompted to add this info if needed
 
@@ -72,7 +75,7 @@ Remember that you want to set up your sandbox when you’re ready to use it.
 The data is persistent but it’s wiped after 90 days.
 
 Also, you can’t just do whatever you want with this instance, it’s for development and testing purposes only.
-Commercial transactions, including purchasing paid services, are not supported.
+Commercial transactions, including purchasing paid services, aren't supported.
 
 ## 4) Next steps
 

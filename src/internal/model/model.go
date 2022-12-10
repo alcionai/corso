@@ -11,6 +11,11 @@ type (
 	Schema   int
 )
 
+// Schema constants denote the type of model stored. The integer values of the
+// constants can be changed without issue, but the string values should remain
+// the same. If the string values are changed, additional code will be needed to
+// transform from the old value to the new value.
+//
 //go:generate go run golang.org/x/tools/cmd/stringer -type=Schema
 const (
 	UnknownSchema = Schema(iota)

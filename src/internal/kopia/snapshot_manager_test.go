@@ -79,7 +79,7 @@ func newManifestInfo(
 	structTags := make(map[string]struct{}, len(tags))
 
 	for _, t := range tags {
-		tk, _ := makeTagKV(t)
+		tk, _ := MakeTagKV(t)
 		structTags[tk] = struct{}{}
 	}
 
@@ -442,7 +442,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				}
 			}
 
-			snaps := FetchPrevSnapshotManifests(ctx, msm, test.input)
+			snaps := fetchPrevSnapshotManifests(ctx, msm, test.input)
 
 			expected := make([]*snapshot.Manifest, 0, len(test.expectedIdxs))
 			for _, i := range test.expectedIdxs {
@@ -532,7 +532,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
 		},
 	}
 
-	snaps := FetchPrevSnapshotManifests(ctx, msm, input)
+	snaps := fetchPrevSnapshotManifests(ctx, msm, input)
 
 	// Only 1 snapshot should be chosen because the other two attempts fail.
 	// However, which one is returned is non-deterministic because maps are used.
