@@ -35,6 +35,14 @@ func (kdc kopiaDataCollection) FullPath() path.Path {
 	return kdc.path
 }
 
+func (kdc kopiaDataCollection) PreviousPath() path.Path {
+	return nil
+}
+
+func (kdc kopiaDataCollection) State() data.CollectionState {
+	return data.NewState
+}
+
 type kopiaDataStream struct {
 	reader io.ReadCloser
 	uuid   string
@@ -47,6 +55,10 @@ func (kds kopiaDataStream) ToReader() io.ReadCloser {
 
 func (kds kopiaDataStream) UUID() string {
 	return kds.uuid
+}
+
+func (kds kopiaDataStream) Deleted() bool {
+	return false
 }
 
 func (kds kopiaDataStream) Size() int64 {

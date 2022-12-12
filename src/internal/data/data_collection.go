@@ -12,6 +12,15 @@ import (
 // standard ifaces
 // ------------------------------------------------------------------------------------------------
 
+type CollectionState int
+
+const (
+	NewState = CollectionState(iota)
+	NotMovedState
+	MovedState
+	DeletedState
+)
+
 // A Collection represents a compilation of data from the
 // same type application (e.g. mail)
 type Collection interface {
@@ -25,6 +34,19 @@ type Collection interface {
 	// generic. For example, a DataCollection for emails from a specific user
 	// would be {"<tenant id>", "exchange", "<user ID>", "emails"}.
 	FullPath() path.Path
+	// PreviousPath returns the path.Path this collection used to reside at
+	// (according to the M365 ID for the container) if the collection was moved or
+	// renamed. Returns nil if the collection is new or has been deleted.
+	PreviousPath() path.Path
+	// State represents changes to the Collection compared to the last backup
+	// involving the Collection. State changes are based on the M365 ID of the
+	// Collection, not just the path the collection resides at. Collections that
+	// are in the same location as they were in the previous backup should be
+	// marked as NotMovedState. Renaming or reparenting the Collection counts as
+	// Moved. Collections marked as Deleted will be removed from the current
+	// backup along with all items and Collections below them in the hierarchy
+	// unless said items/Collections were moved.
+	State() CollectionState
 }
 
 // Stream represents a single item within a Collection
@@ -34,6 +56,9 @@ type Stream interface {
 	ToReader() io.ReadCloser
 	// UUID provides a unique identifier for this data
 	UUID() string
+	// Deleted returns true if the item represented by this Stream has been
+	// deleted and should be removed from the current in-progress backup.
+	Deleted() bool
 }
 
 // StreamInfo is used to provide service specific

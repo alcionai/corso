@@ -74,18 +74,6 @@ func GetAllContactFolderNamesForUser(ctx context.Context, gs graph.Service, user
 	return gs.Client().UsersById(user).ContactFolders().Get(ctx, options)
 }
 
-// GetAllUsersForTenant makes a GraphQuery request retrieving all the users in the tenant.
-func GetAllUsersForTenant(ctx context.Context, gs graph.Service) (absser.Parsable, error) {
-	selecting := []string{"userPrincipalName"}
-
-	options, err := optionsForUsers(selecting)
-	if err != nil {
-		return nil, err
-	}
-
-	return gs.Client().Users().Get(ctx, options)
-}
-
 // GetAllEvents for User. Default returns EventResponseCollection for future events.
 // of the time that the call was made. 'calendar' option must be present to gain
 // access to additional data map in future calls.

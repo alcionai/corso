@@ -3,50 +3,92 @@ package m365
 import (
 	"context"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
+type User struct {
+	PrincipalName string
+	ID            string
+	Name          string
+}
+
 // Users returns a list of users in the specified M365 tenant
 // TODO: Implement paging support
-func Users(ctx context.Context, m365Account account.Account) ([]string, error) {
+func Users(ctx context.Context, m365Account account.Account) ([]*User, error) {
 	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Users)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
 	}
 
-	return gc.GetUsers(), nil
+	users, err := discovery.Users(ctx, gc.Service(), m365Account.ID())
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]*User, 0, len(users))
+
+	for _, u := range users {
+		pu, err := parseUser(u)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, pu)
+	}
+
+	return ret, nil
 }
 
-// UserIDs returns a list of user IDs for the specified M365 tenant
-// TODO: Implement paging support
 func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Users)
+	users, err := Users(ctx, m365Account)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+		return nil, err
 	}
 
-	return gc.GetUsersIds(), nil
-}
-
-func GetEmailAndUserID(ctx context.Context, m365Account account.Account) (map[string]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Users)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+	ret := make([]string, 0, len(users))
+	for _, u := range users {
+		ret = append(ret, u.ID)
 	}
 
-	return gc.Users, nil
+	return ret, nil
 }
 
-// Sites returns a list of SharePoint sites in the specified M365 tenant
-// TODO: Implement paging support
-func Sites(ctx context.Context, m365Account account.Account) ([]string, error) {
+// SiteURLs returns a list of SharePoint site WebURLs in the specified M365 tenant
+func SiteURLs(ctx context.Context, m365Account account.Account) ([]string, error) {
 	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Sites)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
 	}
 
-	return gc.GetSites(), nil
+	return gc.GetSiteWebURLs(), nil
+}
+
+// SiteURLs returns a list of SharePoint sites IDs in the specified M365 tenant
+func SiteIDs(ctx context.Context, m365Account account.Account) ([]string, error) {
+	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Sites)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+	}
+
+	return gc.GetSiteIDs(), nil
+}
+
+// parseUser extracts information from `models.Userable` we care about
+func parseUser(item models.Userable) (*User, error) {
+	if item.GetUserPrincipalName() == nil {
+		return nil, errors.Errorf("no principal name for User: %s", *item.GetId())
+	}
+
+	u := &User{PrincipalName: *item.GetUserPrincipalName(), ID: *item.GetId()}
+
+	if item.GetDisplayName() != nil {
+		u.Name = *item.GetDisplayName()
+	}
+
+	return u, nil
 }

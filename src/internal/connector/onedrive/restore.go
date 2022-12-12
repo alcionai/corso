@@ -66,7 +66,7 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		temp, canceled := restoreCollection(ctx, service, dc, dest.ContainerName, deets, errUpdater)
+		temp, canceled := RestoreCollection(ctx, service, dc, OneDriveSource, dest.ContainerName, deets, errUpdater)
 
 		restoreMetrics.Combine(temp)
 
@@ -85,13 +85,15 @@ func RestoreCollections(
 		nil
 }
 
-// restoreCollection handles restoration of an individual collection.
-// @returns Integer representing totalItems, restoredItems, and the
-// amount of bytes restored. The bool represents whether the context was cancelled
-func restoreCollection(
+// RestoreCollection handles restoration of an individual collection.
+// returns:
+// - the collection's item and byte count metrics
+// - the context cancellation state (true if the context is cancelled)
+func RestoreCollection(
 	ctx context.Context,
 	service graph.Service,
 	dc data.Collection,
+	source driveSource,
 	restoreContainerName string,
 	deets *details.Details,
 	errUpdater func(string, error),
@@ -150,7 +152,8 @@ func restoreCollection(
 				itemData,
 				drivePath.driveID,
 				restoreFolderID,
-				copyBuffer)
+				copyBuffer,
+				source)
 			if err != nil {
 				errUpdater(itemData.UUID(), err)
 				continue
@@ -168,9 +171,7 @@ func restoreCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
-				details.ItemInfo{
-					OneDrive: itemInfo,
-				})
+				itemInfo)
 
 			metrics.Successes++
 		}
@@ -229,7 +230,8 @@ func restoreItem(
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-) (*details.OneDriveInfo, error) {
+	source driveSource,
+) (details.ItemInfo, error) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
 	defer end()
 
@@ -239,19 +241,19 @@ func restoreItem(
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.StreamSize)
 	if !ok {
-		return nil, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
+		return details.ItemInfo{}, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
 	}
 
 	// Create Item
 	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create item %s", itemName)
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item %s", itemName)
 	}
 
 	// Get a drive item writer
 	w, err := driveItemWriter(ctx, service, driveID, *newItem.GetId(), ss.Size())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create item upload session %s", itemName)
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item upload session %s", itemName)
 	}
 
 	iReader := itemData.ToReader()
@@ -262,8 +264,17 @@ func restoreItem(
 	// Upload the stream data
 	written, err := io.CopyBuffer(w, progReader, copyBuffer)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to upload data: item %s", itemName)
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}
 
-	return driveItemInfo(newItem, written), nil
+	dii := details.ItemInfo{}
+
+	switch source {
+	case SharePointSource:
+		dii.SharePoint = sharePointItemInfo(newItem, written)
+	default:
+		dii.OneDrive = oneDriveItemInfo(newItem, written)
+	}
+
+	return dii, nil
 }

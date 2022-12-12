@@ -1,24 +1,70 @@
 package exchange
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	msevents "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events"
-	cdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/contacts/delta"
-	mdelta "github.com/microsoftgraph/msgraph-sdk-go/users/item/mailfolders/item/messages/delta"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const nextLinkKey = "@odata.nextLink"
+const (
+	metadataKey = "metadata"
+)
+
+// makeMetadataCollection creates a metadata collection that has a file
+// containing all the delta tokens in tokens. Returns nil if the map does not
+// have any entries.
+//
+// TODO(ashmrtn): Expand this/break it out into multiple functions so that we
+// can also store map[container ID]->full container path in a file in the
+// metadata collection.
+func makeMetadataCollection(
+	tenant string,
+	user string,
+	cat path.CategoryType,
+	tokens map[string]string,
+	statusUpdater support.StatusUpdater,
+) (data.Collection, error) {
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+
+	if err := encoder.Encode(tokens); err != nil {
+		return nil, errors.Wrap(err, "serializing delta tokens")
+	}
+
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenant,
+		user,
+		path.ExchangeService,
+		cat,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "making path")
+	}
+
+	return graph.NewMetadataCollection(
+		p,
+		[]graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, buf.Bytes())},
+		statusUpdater,
+	), nil
+}
 
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -28,45 +74,47 @@ const nextLinkKey = "@odata.nextLink"
 func FilterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	collections map[string]*Collection,
+	collections map[string]data.Collection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
 ) error {
 	var (
-		collectionType = CategoryToOptionIdentifier(scope.Category().PathType())
 		errs           error
+		collectionType = CategoryToOptionIdentifier(qp.Category)
+		// folder ID -> delta token for folder.
+		deltaTokens = map[string]string{}
 	)
 
 	for _, c := range resolver.Items() {
 		dirPath, ok := pathAndMatch(qp, c, scope)
-		if ok {
-			// Create only those that match
-			service, err := createService(qp.Credentials, qp.FailFast)
-			if err != nil {
-				errs = support.WrapAndAppend(
-					qp.ResourceOwner+" FilterContainerAndFillCollection",
-					err,
-					errs)
-
-				if qp.FailFast {
-					return errs
-				}
-			}
-
-			edc := NewCollection(
-				qp.ResourceOwner,
-				dirPath,
-				collectionType,
-				service,
-				statusUpdater,
-			)
-			collections[*c.GetId()] = &edc
+		if !ok {
+			continue
 		}
-	}
 
-	for directoryID, col := range collections {
-		fetchFunc, err := getFetchIDFunc(scope.Category().PathType())
+		// Create only those that match
+		service, err := createService(qp.Credentials, qp.FailFast)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				qp.ResourceOwner+" FilterContainerAndFillCollection",
+				err,
+				errs)
+
+			if qp.FailFast {
+				return errs
+			}
+		}
+
+		edc := NewCollection(
+			qp.ResourceOwner,
+			dirPath,
+			collectionType,
+			service,
+			statusUpdater,
+		)
+		collections[*c.GetId()] = &edc
+
+		fetchFunc, err := getFetchIDFunc(qp.Category)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -80,7 +128,7 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, err := fetchFunc(ctx, col.service, qp.ResourceOwner, directoryID)
+		jobs, token, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -89,7 +137,24 @@ func FilterContainersAndFillCollections(
 			)
 		}
 
-		col.jobs = append(col.jobs, jobs...)
+		edc.jobs = append(edc.jobs, jobs...)
+
+		if len(token) > 0 {
+			deltaTokens[*c.GetId()] = token
+		}
+	}
+
+	col, err := makeMetadataCollection(
+		qp.Credentials.AzureTenantID,
+		qp.ResourceOwner,
+		qp.Category,
+		deltaTokens,
+		statusUpdater,
+	)
+	if err != nil {
+		errs = support.WrapAndAppend("making metadata collection", err, errs)
+	} else if col != nil {
+		collections[metadataKey] = col
 	}
 
 	return errs
@@ -143,9 +208,14 @@ func IterativeCollectCalendarContainers(
 	}
 }
 
-// FetchIDFunc collection of helper functions which return a list of strings
-// from a response.
-type FetchIDFunc func(ctx context.Context, gs graph.Service, user, containerID string) ([]string, error)
+// FetchIDFunc collection of helper functions which return a list of all item
+// IDs in the given container and a delta token for future requests if the
+// container supports fetching delta records.
+type FetchIDFunc func(
+	ctx context.Context,
+	gs graph.Service,
+	user, containerID string,
+) ([]string, string, error)
 
 func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
 	switch category {
@@ -165,15 +235,15 @@ func FetchEventIDsFromCalendar(
 	ctx context.Context,
 	gs graph.Service,
 	user, calendarID string,
-) ([]string, error) {
+) ([]string, string, error) {
 	var (
 		errs *multierror.Error
 		ids  []string
 	)
 
-	options, err := optionsForCalendarEvents([]string{"id"})
+	options, err := optionsForEventsByCalendar([]string{"id"})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	builder := gs.Client().
@@ -184,7 +254,7 @@ func FetchEventIDsFromCalendar(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -206,23 +276,29 @@ func FetchEventIDsFromCalendar(
 			break
 		}
 
-		builder = msevents.NewEventsRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
-	return ids, errs.ErrorOrNil()
+	// Events don't have a delta endpoint so just return an empty string.
+	return ids, "", errs.ErrorOrNil()
 }
 
 // FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
 // of the targeted directory
-func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, directoryID string) ([]string, error) {
+func FetchContactIDsFromDirectory(
+	ctx context.Context,
+	gs graph.Service,
+	user, directoryID string,
+) ([]string, string, error) {
 	var (
-		errs *multierror.Error
-		ids  []string
+		errs       *multierror.Error
+		ids        []string
+		deltaToken string
 	)
 
-	options, err := optionsForContactFoldersItem([]string{"parentFolderId"})
+	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
-		return nil, errors.Wrap(err, "getting query options")
+		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
 
 	builder := gs.Client().
@@ -232,10 +308,9 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 		Delta()
 
 	for {
-		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := sendContactsDeltaGet(ctx, builder, options, gs.Adapter())
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -252,20 +327,20 @@ func FetchContactIDsFromDirectory(ctx context.Context, gs graph.Service, user, d
 			ids = append(ids, *item.GetId())
 		}
 
-		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
-		if nextLinkIface == nil {
+		delta := resp.GetOdataDeltaLink()
+		if delta != nil && len(*delta) > 0 {
+			deltaToken = *delta
+		}
+
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
-		nextLink := nextLinkIface.(*string)
-		if len(*nextLink) == 0 {
-			break
-		}
-
-		builder = cdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
-	return ids, errs.ErrorOrNil()
+	return ids, deltaToken, errs.ErrorOrNil()
 }
 
 // FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
@@ -274,15 +349,16 @@ func FetchMessageIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Service,
 	user, directoryID string,
-) ([]string, error) {
+) ([]string, string, error) {
 	var (
-		errs *multierror.Error
-		ids  []string
+		errs       *multierror.Error
+		ids        []string
+		deltaToken string
 	)
 
-	options, err := optionsForFolderMessages([]string{"id"})
+	options, err := optionsForFolderMessagesDelta([]string{"id"})
 	if err != nil {
-		return nil, errors.Wrap(err, "getting query options")
+		return nil, deltaToken, errors.Wrap(err, "getting query options")
 	}
 
 	builder := gs.Client().
@@ -292,10 +368,9 @@ func FetchMessageIDsFromDirectory(
 		Delta()
 
 	for {
-		// TODO(ashmrtn): Update to pass options once graph SDK dependency is updated.
-		resp, err := sendMessagesDeltaGet(ctx, builder, options, gs.Adapter())
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -312,18 +387,18 @@ func FetchMessageIDsFromDirectory(
 			ids = append(ids, *item.GetId())
 		}
 
-		nextLinkIface := resp.GetAdditionalData()[nextLinkKey]
-		if nextLinkIface == nil {
+		delta := resp.GetOdataDeltaLink()
+		if delta != nil && len(*delta) > 0 {
+			deltaToken = *delta
+		}
+
+		nextLink := resp.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
 			break
 		}
 
-		nextLink := nextLinkIface.(*string)
-		if len(*nextLink) == 0 {
-			break
-		}
-
-		builder = mdelta.NewDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
-	return ids, errs.ErrorOrNil()
+	return ids, deltaToken, errs.ErrorOrNil()
 }

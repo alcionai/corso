@@ -27,7 +27,7 @@ dev: genclidocs
 noclidev:
 	$(WEBC) npm start -- --host 0.0.0.0
 
-VALE_TARGET ?= docs README.md
+VALE_TARGET ?= docs README.md blog
 
 check: genclidocs
 	$(WEBC) vale $(VALE_TARGET)

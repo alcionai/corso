@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	analytics "github.com/rudderlabs/analytics-go"
 
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -22,11 +23,13 @@ const (
 	tenantID     = "m365_tenant_hash"
 
 	// Event Keys
-	RepoInit     = "repo_init"
-	BackupStart  = "backup_start"
-	BackupEnd    = "backup_end"
-	RestoreStart = "restore_start"
-	RestoreEnd   = "restore_end"
+	CorsoStart   = "Corso Start"
+	RepoInit     = "Repo Init"
+	RepoConnect  = "Repo Connect"
+	BackupStart  = "Backup Start"
+	BackupEnd    = "Backup End"
+	RestoreStart = "Restore Start"
+	RestoreEnd   = "Restore End"
 
 	// Event Data Keys
 	BackupCreateTime = "backup_creation_time"
@@ -98,7 +101,7 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 		client:  client,
 		repoID:  repoHash(s),
 		tenant:  tenantHash(tenID),
-		version: "vTODO", // TODO: corso versioning implementation
+		version: version.Version,
 	}, nil
 }
 

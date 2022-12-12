@@ -84,6 +84,19 @@ type resourceOwnerer interface {
 	ResourceOwners() selectorResourceOwners
 }
 
+// selectorResourceOwners aggregates all discrete path category types described
+// in the selector.  Category sets are grouped by their scope type (includes,
+// excludes, filters).
+type selectorPathCategories struct {
+	Includes []path.CategoryType
+	Excludes []path.CategoryType
+	Filters  []path.CategoryType
+}
+
+type pathCategorier interface {
+	PathCategories() selectorPathCategories
+}
+
 // ---------------------------------------------------------------------------
 // Selector
 // ---------------------------------------------------------------------------
@@ -205,6 +218,7 @@ func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.
 	return r.Reduce(ctx, deets), nil
 }
 
+// returns the sets of resource owners identified in each scope set.
 func (s Selector) ResourceOwners() (selectorResourceOwners, error) {
 	ro, err := selectorAsIface[resourceOwnerer](s)
 	if err != nil {
@@ -212,6 +226,16 @@ func (s Selector) ResourceOwners() (selectorResourceOwners, error) {
 	}
 
 	return ro.ResourceOwners(), nil
+}
+
+// returns the sets of path categories identified in each scope set.
+func (s Selector) PathCategories() (selectorPathCategories, error) {
+	ro, err := selectorAsIface[pathCategorier](s)
+	if err != nil {
+		return selectorPathCategories{}, err
+	}
+
+	return ro.PathCategories(), nil
 }
 
 // transformer for arbitrary selector interfaces
@@ -388,6 +412,30 @@ func resourceOwnersIn(s []scope, rootCat string) []string {
 	return rs
 }
 
+// produces the discrete set of path categories in the slice of scopes.
+func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
+	rm := map[path.CategoryType]struct{}{}
+
+	for _, s := range ss {
+		t := T(s)
+
+		lc := t.categorizer().leafCat()
+		if lc == lc.unknownCat() {
+			continue
+		}
+
+		rm[lc.PathType()] = struct{}{}
+	}
+
+	rs := []path.CategoryType{}
+
+	for k := range rm {
+		rs = append(rs, k)
+	}
+
+	return rs
+}
+
 // ---------------------------------------------------------------------------
 // scope helpers
 // ---------------------------------------------------------------------------
@@ -424,10 +472,10 @@ func SuffixMatch() option {
 	}
 }
 
-// pathType is an internal-facing option.  It is assumed that scope
-// constructors will provide the pathType option whenever a folder-
+// pathComparator is an internal-facing option.  It is assumed that scope
+// constructors will provide the pathComparator option whenever a folder-
 // level scope (ie, a scope that compares path hierarchies) is created.
-func pathType() option {
+func pathComparator() option {
 	return func(sc *scopeConfig) {
 		sc.usePathFilter = true
 	}
@@ -512,23 +560,42 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 	return filters.Contains(join(s...))
 }
 
-type filterFunc func(string) filters.Filter
+type (
+	filterFunc      func(string) filters.Filter
+	sliceFilterFunc func([]string) filters.Filter
+)
 
 // pathFilterFactory returns the appropriate path filter
 // (contains, prefix, or suffix) for the provided options.
 // If multiple options are flagged, Prefix takes priority.
 // If no options are provided, returns PathContains.
-func pathFilterFactory(opts ...option) func([]string) filters.Filter {
+func pathFilterFactory(opts ...option) sliceFilterFunc {
 	sc := &scopeConfig{}
 	sc.populate(opts...)
 
+	var ff sliceFilterFunc
+
 	switch true {
 	case sc.usePrefixFilter:
-		return filters.PathPrefix
+		ff = filters.PathPrefix
 	case sc.useSuffixFilter:
-		return filters.PathSuffix
+		ff = filters.PathSuffix
 	default:
-		return filters.PathContains
+		ff = filters.PathContains
+	}
+
+	return wrapSliceFilter(ff)
+}
+
+func wrapSliceFilter(ff sliceFilterFunc) sliceFilterFunc {
+	return func(s []string) filters.Filter {
+		s = clean(s)
+
+		if f, ok := isAnyOrNone(s); ok {
+			return f
+		}
+
+		return ff(s)
 	}
 }
 
@@ -537,22 +604,37 @@ func pathFilterFactory(opts ...option) func([]string) filters.Filter {
 // - normalizes the cleaned input (returns anyFail if empty, allFail if *)
 // - joins the string
 // - and generates a filter with the joined input.
-func wrapFilter(ff filterFunc) func([]string) filters.Filter {
+func wrapFilter(ff filterFunc) sliceFilterFunc {
 	return func(s []string) filters.Filter {
 		s = clean(s)
 
-		if len(s) == 1 {
-			if s[0] == AnyTgt {
-				return passAny
-			}
-
-			if s[0] == NoneTgt {
-				return failAny
-			}
+		if f, ok := isAnyOrNone(s); ok {
+			return f
 		}
 
-		ss := join(s...)
-
-		return ff(ss)
+		return ff(join(s...))
 	}
+}
+
+// returns (<filter>, true) if s is len==1 and s[0] is
+// anyTgt or noneTgt, implying that the caller should use
+// the returned filter.  On (<filter>, false), the caller
+// can ignore the returned filter.
+// a special case exists for len(s)==0, interpreted as
+// "noneTgt"
+func isAnyOrNone(s []string) (filters.Filter, bool) {
+	switch len(s) {
+	case 0:
+		return failAny, true
+
+	case 1:
+		switch s[0] {
+		case AnyTgt:
+			return passAny, true
+		case NoneTgt:
+			return failAny, true
+		}
+	}
+
+	return failAny, false
 }

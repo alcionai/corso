@@ -33,32 +33,38 @@ type snapshotManager interface {
 	LoadSnapshots(ctx context.Context, ids []manifest.ID) ([]*snapshot.Manifest, error)
 }
 
-type ownersCats struct {
-	resourceOwners map[string]struct{}
-	serviceCats    map[string]struct{}
+type OwnersCats struct {
+	ResourceOwners map[string]struct{}
+	ServiceCats    map[string]struct{}
 }
 
 func serviceCatTag(p path.Path) string {
 	return p.Service().String() + p.Category().String()
 }
 
-func makeTagKV(k string) (string, string) {
+// MakeTagKV normalizes the provided key to protect it from clobbering
+// similarly named tags from non-user input (user inputs are still open
+// to collisions amongst eachother).
+// Returns the normalized Key plus a default value.  If you're embedding a
+// key-only tag, the returned default value msut be used instead of an
+// empty string.
+func MakeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
 }
 
 // tagsFromStrings returns a map[string]string with tags for all ownersCats
 // passed in. Currently uses placeholder values for each tag because there can
 // be multiple instances of resource owners and categories in a single snapshot.
-func tagsFromStrings(oc *ownersCats) map[string]string {
-	res := make(map[string]string, len(oc.serviceCats)+len(oc.resourceOwners))
+func tagsFromStrings(oc *OwnersCats) map[string]string {
+	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
 
-	for k := range oc.serviceCats {
-		tk, tv := makeTagKV(k)
+	for k := range oc.ServiceCats {
+		tk, tv := MakeTagKV(k)
 		res[tk] = tv
 	}
 
-	for k := range oc.resourceOwners {
-		tk, tv := makeTagKV(k)
+	for k := range oc.ResourceOwners {
+		tk, tv := MakeTagKV(k)
 		res[tk] = tv
 	}
 
@@ -187,10 +193,11 @@ func fetchPrevManifests(
 // incomplete. An incomplete manifest may be returned if it is newer than the
 // newest complete manifest for the tuple. Manifests are deduped such that if
 // multiple tuples match the same manifest it will only be returned once.
+// External callers can access this via wrapper.FetchPrevSnapshotManifests().
 func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
-	oc *ownersCats,
+	oc *OwnersCats,
 ) []*snapshot.Manifest {
 	mans := map[manifest.ID]*snapshot.Manifest{}
 
@@ -198,11 +205,11 @@ func fetchPrevSnapshotManifests(
 	// there's a previous incomplete snapshot and/or a previous complete snapshot
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
-	for serviceCat := range oc.serviceCats {
-		serviceTagKey, serviceTagValue := makeTagKV(serviceCat)
+	for serviceCat := range oc.ServiceCats {
+		serviceTagKey, serviceTagValue := MakeTagKV(serviceCat)
 
-		for resourceOwner := range oc.resourceOwners {
-			resourceOwnerTagKey, resourceOwnerTagValue := makeTagKV(resourceOwner)
+		for resourceOwner := range oc.ResourceOwners {
+			resourceOwnerTagKey, resourceOwnerTagValue := MakeTagKV(resourceOwner)
 
 			tags := map[string]string{
 				serviceTagKey:       serviceTagValue,

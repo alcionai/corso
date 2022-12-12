@@ -96,16 +96,16 @@ corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --user alice@example.com --contact-name Andy`
 )
 
-// called by backup.go to map parent subcommands to provider-specific handling.
-func addExchangeCommands(parent *cobra.Command) *cobra.Command {
+// called by backup.go to map subcommands to provider-specific handling.
+func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
 
-	switch parent.Use {
+	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
+		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
@@ -123,14 +123,14 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(parent, exchangeListCmd())
+		c, fs = utils.AddCommand(cmd, exchangeListCmd())
 
 		fs.StringVar(&backupID,
 			"backup", "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
@@ -218,7 +218,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"Select backup details for contacts whose contact name contains this value.")
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples

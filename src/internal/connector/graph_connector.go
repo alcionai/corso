@@ -14,6 +14,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -24,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -154,39 +156,21 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := getResources(
-		ctx,
-		gc.graphService,
-		gc.tenant,
-		exchange.GetAllUsersForTenant,
-		models.CreateUserCollectionResponseFromDiscriminatorValue,
-		identifyUser,
-	)
+	users, err := discovery.Users(ctx, gc.graphService, gc.tenant)
 	if err != nil {
 		return err
 	}
 
-	gc.Users = users
+	gc.Users = make(map[string]string, len(users))
+
+	for _, u := range users {
+		gc.Users[*u.GetUserPrincipalName()] = *u.GetId()
+	}
 
 	return nil
 }
 
-// Transforms an interface{} into a key,value pair representing
-// userPrincipalName:userID.
-func identifyUser(item any) (string, string, error) {
-	m, ok := item.(models.Userable)
-	if !ok {
-		return "", "", errors.New("iteration retrieved non-User item")
-	}
-
-	if m.GetUserPrincipalName() == nil {
-		return "", "", errors.Errorf("no principal name for User: %s", *m.GetId())
-	}
-
-	return *m.GetUserPrincipalName(), *m.GetId(), nil
-}
-
-// GetUsers returns the email address of users within tenant.
+// GetUsers returns the email address of users within the tenant.
 func (gc *GraphConnector) GetUsers() []string {
 	return buildFromMap(true, gc.Users)
 }
@@ -235,7 +219,7 @@ func identifySite(item any) (string, string, error) {
 	}
 
 	if m.GetName() == nil {
-		// the built-in site at "htps://{tenant-domain}/search" never has a name.
+		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
 			return "", "", errKnownSkippableCase
 		}
@@ -249,17 +233,53 @@ func identifySite(item any) (string, string, error) {
 		return "", "", errKnownSkippableCase
 	}
 
-	return *m.GetName(), *m.GetId(), nil
+	return *m.GetWebUrl(), *m.GetId(), nil
 }
 
-// GetSites returns the siteIDs of sharepoint sites within tenant.
-func (gc *GraphConnector) GetSites() []string {
+// GetSiteWebURLs returns the WebURLs of sharepoint sites within the tenant.
+func (gc *GraphConnector) GetSiteWebURLs() []string {
 	return buildFromMap(true, gc.Sites)
 }
 
-// GetSiteIds returns the M365 id for the user
-func (gc *GraphConnector) GetSiteIds() []string {
+// GetSiteIds returns the canonical site IDs in the tenant
+func (gc *GraphConnector) GetSiteIDs() []string {
 	return buildFromMap(false, gc.Sites)
+}
+
+// UnionSiteIDsAndWebURLs reduces the id and url slices into a single slice of site IDs.
+// WebURLs will run as a path-suffix style matcher.  Callers may provide partial urls, though
+// each element in the url must fully match.  Ex: the webURL value "foo" will match "www.ex.com/foo",
+// but not match "www.ex.com/foobar".
+// The returned IDs are reduced to a set of unique values.
+func (gc *GraphConnector) UnionSiteIDsAndWebURLs(ctx context.Context, ids, urls []string) ([]string, error) {
+	if len(gc.Sites) == 0 {
+		if err := gc.setTenantSites(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	idm := map[string]struct{}{}
+
+	for _, id := range ids {
+		idm[id] = struct{}{}
+	}
+
+	match := filters.PathSuffix(urls)
+
+	for url, id := range gc.Sites {
+		if !match.Compare(url) {
+			continue
+		}
+
+		idm[id] = struct{}{}
+	}
+
+	idsl := make([]string, 0, len(idm))
+	for id := range idm {
+		idsl = append(idsl, id)
+	}
+
+	return idsl, nil
 }
 
 // buildFromMap helper function for returning []string from map.
@@ -303,6 +323,8 @@ func (gc *GraphConnector) RestoreDataCollections(
 		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs, deets)
+	case selectors.ServiceSharePoint:
+		status, err = sharepoint.RestoreCollections(ctx, gc, dest, dcs, deets)
 	default:
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- *Breaking Change*:
+  Changed how backup details are stored in the repository to
+  improve memory usage (#1735) from [vkamra](https://github.com/vkamra)
+
+## [v0.0.3] (alpha) - 2022-12-05
+
+### Added
+
+- Display backup size in backup list command (#1648) from [meain](https://github.com/meain)
+- Improve OneDrive backup performance (#1607) from [meain](https://github.com/meain)
+- Improve Exchange backup performance (#1608) from [meain](https://github.com/meain)
+- Add flag to retain all progress bars (#1582) from [ryanfkeepers](https://github.com/ryanfkeepers)
+- Fix resource owner display on backup list (#1580) from [ryanfkeepers](https://github.com/ryanfkeepers)
+
+### Changed
+
+- Improve logging (#1642) from [ryanfkeepers](https://github.com/ryanfkeepers)
+- Generate separate backup for each resource owner (#1609) from [ashmrtn](https://github.com/ashmrtn)
+- Print version info to stdout instead of stderr (#1503) from [meain](https://github.com/meain)
 
 ## [v0.0.2] (alpha) - 2022-11-14
 

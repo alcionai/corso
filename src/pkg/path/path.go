@@ -250,13 +250,21 @@ func (pb Builder) join(start, end int) string {
 	return join(pb.elements[start:end])
 }
 
-func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+func verifyInputValues(tenant, resourceOwner string) error {
 	if len(tenant) == 0 {
 		return errors.Wrap(errMissingSegment, "tenant")
 	}
 
 	if len(resourceOwner) == 0 {
 		return errors.Wrap(errMissingSegment, "resourceOwner")
+	}
+
+	return nil
+}
+
+func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+	if err := verifyInputValues(tenant, resourceOwner); err != nil {
+		return err
 	}
 
 	if len(pb.elements) == 0 {
@@ -271,6 +279,85 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	res.elements = append(res.elements, pb.elements...)
 
 	return res
+}
+
+func (pb Builder) ToStreamStorePath(
+	tenant, purpose string,
+	service ServiceType,
+	isItem bool,
+) (Path, error) {
+	if err := verifyInputValues(tenant, purpose); err != nil {
+		return nil, err
+	}
+
+	if isItem && len(pb.elements) == 0 {
+		return nil, errors.New("missing path beyond prefix")
+	}
+
+	metadataService := UnknownService
+
+	switch service {
+	case ExchangeService:
+		metadataService = ExchangeMetadataService
+	case OneDriveService:
+		metadataService = OneDriveMetadataService
+	case SharePointService:
+		metadataService = SharePointMetadataService
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			metadataService.String(),
+			purpose,
+			DetailsCategory.String(),
+		),
+		service:  metadataService,
+		category: DetailsCategory,
+		hasItem:  isItem,
+	}, nil
+}
+
+func (pb Builder) ToServiceCategoryMetadataPath(
+	tenant, user string,
+	service ServiceType,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	if err := validateServiceAndCategory(service, category); err != nil {
+		return nil, err
+	}
+
+	if err := verifyInputValues(tenant, user); err != nil {
+		return nil, err
+	}
+
+	if isItem && len(pb.elements) == 0 {
+		return nil, errors.New("missing path beyond prefix")
+	}
+
+	metadataService := UnknownService
+
+	switch service {
+	case ExchangeService:
+		metadataService = ExchangeMetadataService
+	case OneDriveService:
+		metadataService = OneDriveMetadataService
+	case SharePointService:
+		metadataService = SharePointMetadataService
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			metadataService.String(),
+			user,
+			category.String(),
+		),
+		service:  metadataService,
+		category: category,
+		hasItem:  isItem,
+	}, nil
 }
 
 func (pb Builder) ToDataLayerExchangePathForCategory(

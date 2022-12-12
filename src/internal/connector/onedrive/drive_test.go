@@ -48,6 +48,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	require.NoError(t, err)
 	require.NotEmpty(t, drives)
 
+	// TODO: Verify the intended drive
 	driveID := *drives[0].GetId()
 
 	defer func() {
@@ -94,6 +95,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 			foundFolderIDs := []string{}
 
 			for _, f := range allFolders {
+
 				if *f.GetName() == folderName1 || *f.GetName() == folderName2 {
 					foundFolderIDs = append(foundFolderIDs, *f.GetId())
 				}
