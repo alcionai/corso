@@ -39,6 +39,7 @@ type BackupGetter interface {
 }
 
 type Repository interface {
+	GetID() string
 	Close(context.Context) error
 	NewBackup(
 		ctx context.Context,
@@ -56,7 +57,7 @@ type Repository interface {
 
 // Repository contains storage provider information.
 type repository struct {
-	ID        uuid.UUID
+	ID        string
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
@@ -67,6 +68,10 @@ type repository struct {
 	Bus        events.Eventer
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
+}
+
+func (r repository) GetID() string {
+	return r.ID
 }
 
 // Initialize will:
@@ -115,7 +120,7 @@ func Initialize(
 	bus.SetRepoID(repoID)
 
 	r := &repository{
-		ID:         uuid.New(),
+		ID:         repoID,
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
@@ -124,7 +129,7 @@ func Initialize(
 		modelStore: ms,
 	}
 
-	if err := newRepoModel(ctx, ms, repoID); err != nil {
+	if err := newRepoModel(ctx, ms, r.ID); err != nil {
 		return nil, errors.New("setting up repository")
 	}
 
@@ -182,6 +187,7 @@ func Connect(
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
+		ID:         string(rm.ID),
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
