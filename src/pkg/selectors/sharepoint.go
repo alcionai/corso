@@ -213,6 +213,17 @@ func (s *sharePoint) Sites(sites []string) []SharePointScope {
 	return scopes
 }
 
+func (s *sharePoint) Lists(sites, lists []string, opts ...option) []SharePointScope {
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(scopes, makeScope[SharePointScope](SharePointList, sites, lists, os...))
+
+	return scopes
+}
+
 // Libraries produces one or more SharePoint library scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
@@ -268,6 +279,7 @@ const (
 	// types of data identified by SharePoint
 	SharePointWebURL      sharePointCategory = "SharePointWebURL"
 	SharePointSite        sharePointCategory = "SharePointSite"
+	SharePointList        sharePointCategory = "SharePointList"
 	SharePointLibrary     sharePointCategory = "SharePointLibrary"
 	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
 
@@ -283,6 +295,10 @@ var sharePointLeafProperties = map[categorizer]leafProperty{
 	SharePointSite: { // the root category must be represented, even though it isn't a leaf
 		pathKeys: []categorizer{SharePointSite},
 		pathType: path.UnknownCategory,
+	},
+	SharePointList: {
+		pathKeys: []categorizer{SharePointSite, SharePointList},
+		pathType: path.ListsCategory,
 	},
 }
 
