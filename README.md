@@ -1,6 +1,7 @@
-<img src="https://github.com/alcionai/corso/blob/main/website/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
-
-# Corso
+<p align="center">
+    <img src="https://github.com/alcionai/corso/blob/main/website/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
+    <h1 style="text-align:center">Corso</h1>
+</p>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/alcionai/corso/src)](https://goreportcard.com/report/github.com/alcionai/corso/src)
 [![Discord](https://img.shields.io/badge/discuss-discord-blue)](https://discord.gg/63DTTSnuhT)
