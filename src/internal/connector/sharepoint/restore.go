@@ -17,7 +17,7 @@ import (
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
 	deets *details.Details,

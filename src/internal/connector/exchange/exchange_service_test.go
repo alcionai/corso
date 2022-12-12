@@ -324,7 +324,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 		name        string
 		bytes       []byte
 		category    path.CategoryType
-		cleanupFunc func(context.Context, graph.Service, string, string) error
+		cleanupFunc func(context.Context, graph.Servicer, string, string) error
 		destination func(context.Context) string
 	}{
 		{

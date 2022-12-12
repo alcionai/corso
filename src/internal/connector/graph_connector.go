@@ -52,12 +52,12 @@ type GraphConnector struct {
 	status support.ConnectorOperationStatus // contains the status of the last run status
 }
 
-// Service returns the GC's embedded graph.Service
-func (gc *GraphConnector) Service() graph.Service {
+// Service returns the GC's embedded graph.Servicer
+func (gc *GraphConnector) Service() graph.Servicer {
 	return gc.graphService
 }
 
-var _ graph.Service = &graphService{}
+var _ graph.Servicer = &graphService{}
 
 type graphService struct {
 	client   msgraphsdk.GraphServiceClient
@@ -380,9 +380,9 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 
 func getResources(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	tenantID string,
-	query func(context.Context, graph.Service) (serialization.Parsable, error),
+	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
 	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
 	identify func(any) (string, string, error),
 ) (map[string]string, error) {
