@@ -35,11 +35,26 @@ type snapshotManager interface {
 
 type OwnersCats struct {
 	ResourceOwners map[string]struct{}
-	ServiceCats    map[string]struct{}
+	ServiceCats    map[string]ServiceCat
+}
+
+type ServiceCat struct {
+	Service  path.ServiceType
+	Category path.CategoryType
+}
+
+// MakeServiceCat produces the expected OwnersCats.ServiceCats key from a
+// path service and path category, as well as the ServiceCat value.
+func MakeServiceCat(s path.ServiceType, c path.CategoryType) (string, ServiceCat) {
+	return serviceCatString(s, c), ServiceCat{s, c}
 }
 
 func serviceCatTag(p path.Path) string {
-	return p.Service().String() + p.Category().String()
+	return serviceCatString(p.Service(), p.Category())
+}
+
+func serviceCatString(s path.ServiceType, c path.CategoryType) string {
+	return s.String() + c.String()
 }
 
 // MakeTagKV normalizes the provided key to protect it from clobbering
@@ -194,29 +209,34 @@ func fetchPrevManifests(
 // newest complete manifest for the tuple. Manifests are deduped such that if
 // multiple tuples match the same manifest it will only be returned once.
 // External callers can access this via wrapper.FetchPrevSnapshotManifests().
+// If tags are provided, manifests must include a superset of the k:v pairs
+// specified by those tags.  Tags should pass their raw values, and will be
+// normalized inside the func using MakeTagKV.
 func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
 	oc *OwnersCats,
+	tags map[string]string,
 ) []*snapshot.Manifest {
 	mans := map[manifest.ID]*snapshot.Manifest{}
+	tags = normalizeTagKVs(tags)
 
 	// For each serviceCat/resource owner pair that we will be backing up, see if
 	// there's a previous incomplete snapshot and/or a previous complete snapshot
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
 	for serviceCat := range oc.ServiceCats {
-		serviceTagKey, serviceTagValue := MakeTagKV(serviceCat)
-
 		for resourceOwner := range oc.ResourceOwners {
-			resourceOwnerTagKey, resourceOwnerTagValue := MakeTagKV(resourceOwner)
+			allTags := normalizeTagKVs(map[string]string{
+				serviceCat:    "",
+				resourceOwner: "",
+			})
 
-			tags := map[string]string{
-				serviceTagKey:       serviceTagValue,
-				resourceOwnerTagKey: resourceOwnerTagValue,
+			for k, v := range tags {
+				allTags[k] = v
 			}
 
-			found, err := fetchPrevManifests(ctx, sm, mans, tags)
+			found, err := fetchPrevManifests(ctx, sm, mans, allTags)
 			if err != nil {
 				logger.Ctx(ctx).Warnw(
 					"fetching previous snapshot manifests for service/category/resource owner",
@@ -243,4 +263,20 @@ func fetchPrevSnapshotManifests(
 	}
 
 	return res
+}
+
+func normalizeTagKVs(tags map[string]string) map[string]string {
+	t2 := make(map[string]string, len(tags))
+
+	for k, v := range tags {
+		mk, mv := MakeTagKV(k)
+
+		if len(v) == 0 {
+			v = mv
+		}
+
+		t2[mk] = v
+	}
+
+	return t2
 }
