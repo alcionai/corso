@@ -35,24 +35,24 @@ var (
 	testUser2  = "user2"
 	testUser3  = "user3"
 
-	testAllUsersAllCats = &ownersCats{
-		resourceOwners: map[string]struct{}{
+	testAllUsersAllCats = &OwnersCats{
+		ResourceOwners: map[string]struct{}{
 			testUser1: {},
 			testUser2: {},
 			testUser3: {},
 		},
-		serviceCats: map[string]struct{}{
+		ServiceCats: map[string]struct{}{
 			testMail:   {},
 			testEvents: {},
 		},
 	}
-	testAllUsersMail = &ownersCats{
-		resourceOwners: map[string]struct{}{
+	testAllUsersMail = &OwnersCats{
+		ResourceOwners: map[string]struct{}{
 			testUser1: {},
 			testUser2: {},
 			testUser3: {},
 		},
-		serviceCats: map[string]struct{}{
+		ServiceCats: map[string]struct{}{
 			testMail: {},
 		},
 	}
@@ -79,7 +79,7 @@ func newManifestInfo(
 	structTags := make(map[string]struct{}, len(tags))
 
 	for _, t := range tags {
-		tk, _ := makeTagKV(t)
+		tk, _ := MakeTagKV(t)
 		structTags[tk] = struct{}{}
 	}
 
@@ -168,7 +168,7 @@ func TestSnapshotFetchUnitSuite(t *testing.T) {
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 	table := []struct {
 		name  string
-		input *ownersCats
+		input *OwnersCats
 		data  []manifestInfo
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and

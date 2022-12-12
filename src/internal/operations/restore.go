@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -116,9 +117,21 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		}
 	}()
 
-	deets, bup, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
+	dID, bup, err := op.store.GetDetailsIDFromBackupID(ctx, op.BackupID)
 	if err != nil {
-		err = errors.Wrap(err, "getting backup details for restore")
+		err = errors.Wrap(err, "getting backup details ID for restore")
+		opStats.readErr = err
+
+		return nil, err
+	}
+
+	deets, err := streamstore.New(
+		op.kopia,
+		op.account.ID(),
+		op.Selectors.PathService(),
+	).ReadBackupDetails(ctx, dID)
+	if err != nil {
+		err = errors.Wrap(err, "getting backup details data for restore")
 		opStats.readErr = err
 
 		return nil, err
