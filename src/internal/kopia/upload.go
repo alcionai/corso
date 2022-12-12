@@ -183,11 +183,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 }
 
 // Kopia interface function used as a callback when kopia finishes hashing a file.
-func (cp *corsoProgress) FinishedHashingFile(fname string, b int64) {
+func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	// Pass the call through as well so we don't break expected functionality.
-	defer cp.UploadProgress.FinishedHashingFile(fname, b)
+	defer cp.UploadProgress.FinishedHashingFile(fname, bs)
 
-	atomic.AddInt64(&cp.totalBytes, b)
+	atomic.AddInt64(&cp.totalBytes, bs)
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {
