@@ -443,7 +443,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 		user1Encoded: 5,
 		user2Encoded: 42,
 	}
-	expectedServiceCats := map[string]struct{}{
+	expectedServiceCats := map[string]ServiceCat{
 		serviceCatTag(suite.testPath): {},
 		serviceCatTag(p2):             {},
 	}
