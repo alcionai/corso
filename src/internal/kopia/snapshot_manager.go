@@ -202,7 +202,7 @@ func fetchPrevManifests(
 	return manifestsSinceLastComplete(mans), nil
 }
 
-// FetchPrevSnapshotManifests returns a set of manifests for complete and maybe
+// fetchPrevSnapshotManifests returns a set of manifests for complete and maybe
 // incomplete snapshots for the given (resource owner, service, category)
 // tuples. Up to two manifests can be returned per tuple: one complete and one
 // incomplete. An incomplete manifest may be returned if it is newer than the

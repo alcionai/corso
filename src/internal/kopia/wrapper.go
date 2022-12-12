@@ -92,10 +92,6 @@ type Wrapper struct {
 	c *conn
 }
 
-func (w *Wrapper) Conn() *conn {
-	return w.c
-}
-
 func (w *Wrapper) Close(ctx context.Context) error {
 	if w.c == nil {
 		return nil

@@ -214,25 +214,19 @@ func produceManifestsAndMetadata(
 			return nil, nil, err
 		}
 
-		for _, fn := range graph.MetadataFileNames() {
-			for ro := range oc.ResourceOwners {
-				for _, sc := range oc.ServiceCats {
-					colls, err := collectMetadata(ctx, kw, fn, tid, ro, bup.SnapshotID, sc)
-					if err != nil {
-						// prior metadata isn't guaranteed to exist.
-						// if it doesn't, we'll just have to do a
-						// full backup for that data.
-						if errors.Is(err, errNotRestored) {
-							continue
-						}
-
-						return nil, nil, err
-					}
-
-					collections = append(collections, colls...)
-				}
+		colls, err := collectMetadata(ctx, kw, graph.MetadataFileNames(), oc, tid, bup.SnapshotID)
+		if err != nil {
+			// prior metadata isn't guaranteed to exist.
+			// if it doesn't, we'll just have to do a
+			// full backup for that data.
+			if errors.Is(err, errNotRestored) {
+				continue
 			}
+
+			return nil, nil, err
 		}
+
+		collections = append(collections, colls...)
 	}
 
 	return ms, collections, err
@@ -243,22 +237,33 @@ var errNotRestored = errors.New("unable to restore metadata")
 func collectMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
-	fileName, tenantID, resourceOwner, snapshotID string,
-	sc kopia.ServiceCat,
+	fileNames []string,
+	oc kopia.OwnersCats,
+	tenantID, snapshotID string,
 ) ([]data.Collection, error) {
-	p, err := path.Builder{}.
-		Append(fileName).
-		ToServiceCategoryMetadataPath(
-			tenantID,
-			resourceOwner,
-			sc.Service,
-			sc.Category,
-			true)
-	if err != nil {
-		return nil, errors.Wrap(err, "building metadata path")
+	paths := []path.Path{}
+
+	for _, fn := range fileNames {
+		for ro := range oc.ResourceOwners {
+			for _, sc := range oc.ServiceCats {
+				p, err := path.Builder{}.
+					Append(fn).
+					ToServiceCategoryMetadataPath(
+						tenantID,
+						ro,
+						sc.Service,
+						sc.Category,
+						true)
+				if err != nil {
+					return nil, errors.Wrapf(err, "building metadata path")
+				}
+
+				paths = append(paths, p)
+			}
+		}
 	}
 
-	dcs, err := kw.RestoreMultipleItems(ctx, snapshotID, []path.Path{p}, nil)
+	dcs, err := kw.RestoreMultipleItems(ctx, snapshotID, paths, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting prior metadata")
 	}
