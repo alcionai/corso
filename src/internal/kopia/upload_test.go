@@ -522,7 +522,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 	p2, err := suite.testPath.Append(subdir, false)
 	require.NoError(suite.T(), err)
 
-	expectedServiceCats := map[string]struct{}{
+	expectedServiceCats := map[string]ServiceCat{
 		serviceCatTag(suite.testPath): {},
 		serviceCatTag(p2):             {},
 	}
