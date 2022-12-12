@@ -185,6 +185,15 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				return sel.Selector
 			},
 		},
+		{
+			name: "Lists",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Include(sel.Sites([]string{suite.site}))
+
+				return sel.Selector
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -525,6 +534,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	tester.LogTimeOfTest(suite.T())
 }
 
+// TODO: SharePoint Tests :: This creates a :: Need to put in a prefix match for lists later.. as if
 func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -542,6 +552,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		selectors.PrefixMatch(),
 	))
 
-	_, err := gc.DataCollections(ctx, sel.Selector, nil)
+	cols, err := gc.DataCollections(ctx, sel.Selector, nil)
+	t.Logf("These are the numbers: %d", len(cols))
 	require.NoError(t, err)
 }
