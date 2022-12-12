@@ -118,7 +118,6 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 // in case of a name change or relocation.
 // 2- deltas: folderID->deltaToken, used to look up previous delta token
 // retrievals.
-// Finally
 func parseMetadataCollections(
 	ctx context.Context,
 	colls []data.Collection,
@@ -136,7 +135,7 @@ func parseMetadataCollections(
 
 			select {
 			case <-ctx.Done():
-				return nil, nil, errors.Wrap(context.Canceled, "parsing collection metadata")
+				return nil, nil, errors.Wrap(ctx.Err(), "parsing collection metadata")
 			case item, ok := <-items:
 				if !ok {
 					breakLoop = true

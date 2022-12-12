@@ -365,12 +365,21 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
 				selectors.PrefixMatch(),
 			)[0],
 		},
+		{
+			name: "Contacts",
+			scope: selectors.NewExchangeBackup().ContactFolders(
+				[]string{userID},
+				[]string{exchange.DefaultContactFolder},
+				selectors.PrefixMatch(),
+			)[0],
+		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			// get collections without providing any delta history (ie: full backup)
 			collections, err := gc.createExchangeCollections(ctx, test.scope, nil)
 			require.NoError(t, err)
-			assert.Less(t, 1, len(collections), "found metadata and data collections")
+			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
 
 			var metadata data.Collection
 
@@ -380,14 +389,21 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
 				}
 			}
 
-			require.NotNil(t, metadata, "found metadata collection")
+			require.NotNil(t, metadata, "collections contains a metadata collection")
 
 			_, deltas, err := parseMetadataCollections(ctx, []data.Collection{metadata})
 			require.NoError(t, err)
 
+			// now do another backup with the previous delta tokens,
+			// which should only contain the difference.
 			collections, err = gc.createExchangeCollections(ctx, test.scope, deltas)
 			require.NoError(t, err)
 
+			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
+			// investigate the items in the original and delta collections to at least
+			// assert some minimum assumptions, such as "deltas should retrieve fewer items".
+			// Delta usage is commented out at the moment, anyway.  So this is currently
+			// a sanity check that the minimum behavior won't break.
 			for _, coll := range collections {
 				if coll.FullPath().Service() != path.ExchangeMetadataService {
 					ec, ok := coll.(*exchange.Collection)

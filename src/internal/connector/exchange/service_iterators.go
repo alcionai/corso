@@ -311,9 +311,11 @@ func FetchContactIDsFromDirectory(
 		Contacts().
 		Delta()
 
-	if len(oldDelta) > 0 {
-		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
-	}
+		// TODO(rkeepers): Awaiting full integration of incremental support, else this
+		// will cause unexpected behavior/errors.
+	// if len(oldDelta) > 0 {
+	// 	builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
+	// }
 
 	for {
 		resp, err := builder.Get(ctx, options)
@@ -375,9 +377,11 @@ func FetchMessageIDsFromDirectory(
 		Messages().
 		Delta()
 
-	if len(oldDelta) > 0 {
-		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
-	}
+		// TODO(rkeepers): Awaiting full integration of incremental support, else this
+		// will cause unexpected behavior/errors.
+	// if len(oldDelta) > 0 {
+	// 	builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
+	// }
 
 	for {
 		resp, err := builder.Get(ctx, options)
