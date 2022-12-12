@@ -1,13 +1,18 @@
 package operations
 
 import (
+	"context"
 	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -81,4 +86,31 @@ func (op operation) validate() error {
 	}
 
 	return nil
+}
+
+// produces a graph connector.
+func connectToM365(
+	ctx context.Context,
+	sel selectors.Selector,
+	acct account.Account,
+) (*connector.GraphConnector, error) {
+	complete, closer := observe.MessageWithCompletion("Connecting to M365:")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	// retrieve data from the producer
+	resource := connector.Users
+	if sel.Service == selectors.ServiceSharePoint {
+		resource = connector.Sites
+	}
+
+	gc, err := connector.NewGraphConnector(ctx, acct, resource)
+	if err != nil {
+		return nil, err
+	}
+
+	return gc, nil
 }

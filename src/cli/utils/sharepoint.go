@@ -9,12 +9,14 @@ import (
 const (
 	LibraryItemFN = "library-item"
 	LibraryFN     = "library"
+	WebURLFN      = "web-url"
 )
 
 type SharePointOpts struct {
-	Sites        []string
 	LibraryItems []string
 	LibraryPaths []string
+	Sites        []string
+	WebURLs      []string
 
 	Populated PopulatedFlags
 }
@@ -52,7 +54,7 @@ func IncludeSharePointRestoreDataSelectors(
 	sel *selectors.SharePointRestore,
 	opts SharePointOpts,
 ) {
-	lp, ln := len(opts.LibraryPaths), len(opts.LibraryItems)
+	lp, ln, lwu := len(opts.LibraryPaths), len(opts.LibraryItems), len(opts.WebURLs)
 
 	// only use the inclusion if either a path or item name
 	// is specified
@@ -64,8 +66,7 @@ func IncludeSharePointRestoreDataSelectors(
 		opts.Sites = selectors.Any()
 	}
 
-	// either scope the request to a set of sites
-	if lp+ln == 0 {
+	if lp+ln+lwu == 0 {
 		sel.Include(sel.Sites(opts.Sites))
 
 		return
@@ -75,6 +76,16 @@ func IncludeSharePointRestoreDataSelectors(
 
 	if ln == 0 {
 		opts.LibraryItems = selectors.Any()
+	}
+
+	containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURLs)
+
+	if len(containsURLs) > 0 {
+		sel.Include(sel.WebURL(containsURLs))
+	}
+
+	if len(suffixURLs) > 0 {
+		sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
 	}
 
 	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)

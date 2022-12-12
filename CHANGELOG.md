@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- *Breaking Change*:
+  Changed how backup details are stored in the repository to
+  improve memory usage (#1735) from [vkamra](https://github.com/vkamra)
+
 ## [v0.0.3] (alpha) - 2022-12-05
 
 ### Added

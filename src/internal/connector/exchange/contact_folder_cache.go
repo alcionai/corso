@@ -3,7 +3,7 @@ package exchange
 import (
 	"context"
 
-	cf "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -117,7 +117,7 @@ func (cfc *contactFolderCache) Populate(
 			break
 		}
 
-		builder = cf.NewChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
+		builder = msuser.NewUsersItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {

@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"encoding/json"
 	"testing"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
@@ -14,8 +15,96 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+type ExchangeIteratorUnitSuite struct {
+	suite.Suite
+}
+
+func TestExchangeIteratorUnitSuite(t *testing.T) {
+	suite.Run(t, new(ExchangeIteratorUnitSuite))
+}
+
+func (suite *ExchangeIteratorUnitSuite) TestMakeMetadataCollection() {
+	tenant := "a-tenant"
+	user := "a-user"
+
+	table := []struct {
+		name            string
+		cat             path.CategoryType
+		tokens          map[string]string
+		collectionCheck assert.ValueAssertionFunc
+		errCheck        assert.ErrorAssertionFunc
+	}{
+		{
+			name:            "EmptyTokens",
+			cat:             path.EmailCategory,
+			tokens:          nil,
+			collectionCheck: assert.Nil,
+			errCheck:        assert.NoError,
+		},
+		{
+			name: "Tokens",
+			cat:  path.EmailCategory,
+			tokens: map[string]string{
+				"hello": "world",
+				"hola":  "mundo",
+			},
+			collectionCheck: assert.NotNil,
+			errCheck:        assert.NoError,
+		},
+		{
+			name: "BadCategory",
+			cat:  path.FilesCategory,
+			tokens: map[string]string{
+				"hello": "world",
+				"hola":  "mundo",
+			},
+			collectionCheck: assert.Nil,
+			errCheck:        assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			col, err := makeMetadataCollection(
+				tenant,
+				user,
+				test.cat,
+				test.tokens,
+				func(*support.ConnectorOperationStatus) {},
+			)
+
+			test.errCheck(t, err)
+			if err != nil {
+				return
+			}
+
+			test.collectionCheck(t, col)
+			if col == nil {
+				return
+			}
+
+			itemCount := 0
+			for item := range col.Items() {
+				gotMap := map[string]string{}
+				decoder := json.NewDecoder(item.ToReader())
+				itemCount++
+
+				err := decoder.Decode(&gotMap)
+				if !assert.NoError(t, err) {
+					continue
+				}
+
+				assert.Equal(t, test.tokens, gotMap)
+			}
+
+			assert.Equal(t, 1, itemCount)
+		})
+	}
+}
 
 type ExchangeIteratorSuite struct {
 	suite.Suite
