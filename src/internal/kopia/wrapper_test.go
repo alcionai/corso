@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	stdpath "path"
 	"testing"
 
@@ -68,7 +67,7 @@ func testForFiles(
 			expected, ok := expected[fullPath.String()]
 			require.True(t, ok, "unexpected file with path %q", fullPath)
 
-			buf, err := ioutil.ReadAll(s.ToReader())
+			buf, err := io.ReadAll(s.ToReader())
 			require.NoError(t, err, "reading collection item: %s", fullPath)
 
 			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
