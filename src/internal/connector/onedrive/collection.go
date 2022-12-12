@@ -4,6 +4,7 @@ package onedrive
 import (
 	"context"
 	"io"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,7 +39,7 @@ var (
 	//_ data.StreamModTime = &Item{}
 )
 
-// Collection represents a set of OneDrive objects retreived from M365
+// Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -148,6 +149,19 @@ func (od *Item) Info() details.ItemInfo {
 //	return od.info.Modified
 //}
 
+// isTimeoutErr is used to determine if the Graph error returned is
+// because of Timeout. This is used to restrict retries to just
+// timeouts as other errors are handled within a middleware in the
+// client.
+func isTimeoutErr(err error) bool {
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	default:
+		return false
+	}
+}
+
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
@@ -204,16 +218,19 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				err      error
 			)
 
-			// Retrying as we were hitting timeouts when we have multiple requests
-			// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
 			for i := 1; i <= maxRetries; i++ {
 				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
-				if err == nil {
+
+				// We only retry if it is a timeout error. Other
+				// errors like throttling are already handled within
+				// the graph client via a retry middleware.
+				// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
+				if err == nil || !isTimeoutErr(err) {
 					break
 				}
-				// TODO: Tweak sleep times
+
 				if i < maxRetries {
-					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+					time.Sleep(1 * time.Second)
 				}
 			}
 
