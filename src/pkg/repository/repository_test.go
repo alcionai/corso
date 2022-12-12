@@ -99,7 +99,6 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoRepositoryTests,
-		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
