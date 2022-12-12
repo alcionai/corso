@@ -418,6 +418,7 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 		{SharePointSite, path.UnknownCategory},
 		{SharePointLibrary, path.LibrariesCategory},
 		{SharePointLibraryItem, path.LibrariesCategory},
+		{SharePointList, path.ListsCategory},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {
