@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -38,6 +37,7 @@ var (
 	_ Reducer         = &SharePointRestore{}
 	_ printabler      = &SharePointRestore{}
 	_ resourceOwnerer = &SharePointRestore{}
+	_ pathCategorier  = &SharePointRestore{}
 )
 
 // NewSharePointBackup produces a new Selector with the service set to ServiceSharePoint.
@@ -98,6 +98,15 @@ func (s sharePoint) ResourceOwners() selectorResourceOwners {
 		Excludes: resourceOwnersIn(s.Excludes, SharePointSite.String()),
 		Filters:  resourceOwnersIn(s.Filters, SharePointSite.String()),
 		Includes: resourceOwnersIn(s.Includes, SharePointSite.String()),
+	}
+}
+
+// PathCategories produces the aggregation of discrete users described by each type of scope.
+func (s sharePoint) PathCategories() selectorPathCategories {
+	return selectorPathCategories{
+		Excludes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Excludes),
+		Filters:  pathCategoriesIn[SharePointScope, sharePointCategory](s.Filters),
+		Includes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Includes),
 	}
 }
 
@@ -175,6 +184,22 @@ func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
 // -------------------
 // Scope Factories
 
+// Produces one or more SharePoint webURL scopes.
+// One scope is created per webURL entry.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			SharePointWebURL,
+			urlSuffixes,
+			pathFilterFactory(opts...)),
+		// TODO: list scope
+	}
+}
+
 // Produces one or more SharePoint site scopes.
 // One scope is created per site entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -195,7 +220,7 @@ func (s *sharePoint) Sites(sites []string) []SharePointScope {
 func (s *sharePoint) Libraries(sites, libraries []string, opts ...option) []SharePointScope {
 	var (
 		scopes = []SharePointScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
@@ -226,20 +251,6 @@ func (s *sharePoint) LibraryItems(sites, libraries, items []string, opts ...opti
 // -------------------
 // Filter Factories
 
-// WebURL produces a SharePoint item webURL filter scope.
-// Matches any item where the webURL contains the substring.
-// If the input equals selectors.Any, the scope will match all times.
-// If the input is empty or selectors.None, the scope will always fail comparisons.
-func (s *sharePoint) WebURL(substring string) []SharePointScope {
-	return []SharePointScope{
-		makeFilterScope[SharePointScope](
-			SharePointLibraryItem,
-			SharePointFilterWebURL,
-			[]string{substring},
-			wrapFilter(filters.Less)),
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -253,13 +264,14 @@ var _ categorizer = SharePointCategoryUnknown
 
 const (
 	SharePointCategoryUnknown sharePointCategory = ""
+
 	// types of data identified by SharePoint
+	SharePointWebURL      sharePointCategory = "SharePointWebURL"
 	SharePointSite        sharePointCategory = "SharePointSite"
 	SharePointLibrary     sharePointCategory = "SharePointLibrary"
 	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
 
 	// filterable topics identified by SharePoint
-	SharePointFilterWebURL sharePointCategory = "SharePointFilterWebURL"
 )
 
 // sharePointLeafProperties describes common metadata of the leaf categories
@@ -285,8 +297,7 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointLibrary, SharePointLibraryItem,
-		SharePointFilterWebURL:
+	case SharePointLibrary, SharePointLibraryItem:
 		return SharePointLibraryItem
 	}
 
@@ -301,6 +312,12 @@ func (c sharePointCategory) rootCat() categorizer {
 // unknownCat returns the unknown category type.
 func (c sharePointCategory) unknownCat() categorizer {
 	return SharePointCategoryUnknown
+}
+
+// isUnion returns true if the category is a site or a webURL, which
+// can act as an alternative identifier to siteID across all site types.
+func (c sharePointCategory) isUnion() bool {
+	return c == SharePointWebURL || c == c.rootCat()
 }
 
 // isLeaf is true if the category is a SharePointItem category.
@@ -390,7 +407,7 @@ func (s SharePointScope) Get(cat sharePointCategory) []string {
 func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option) SharePointScope {
 	os := []option{}
 	if cat == SharePointLibrary {
-		os = append(os, pathType())
+		os = append(os, pathComparator())
 	}
 
 	return set(s, cat, v, append(os, opts...)...)
@@ -407,26 +424,10 @@ func (s SharePointScope) setDefaults() {
 	}
 }
 
-// matchesInfo handles the standard behavior when comparing a scope and an sharePointInfo
-// returns true if the scope and info match for the provided category.
-func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
-	// info := dii.SharePoint
-	// if info == nil {
-	// 	return false
-	// }
-	var (
-		filterCat = s.FilterCategory()
-		i         = ""
-	)
-
-	// switch filterCat {
-	// case FileFilterCreatedAfter, FileFilterCreatedBefore:
-	// 	i = common.FormatTime(info.Created)
-	// case FileFilterModifiedAfter, FileFilterModifiedBefore:
-	// 	i = common.FormatTime(info.Modified)
-	// }
-
-	return s.Matches(filterCat, i)
+// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
+// site comparison with only the provided site.
+func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
+	return discreteCopy(s, site)
 }
 
 // ---------------------------------------------------------------------------
@@ -445,4 +446,25 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 			// TODO: list category type
 		},
 	)
+}
+
+// matchesInfo handles the standard behavior when comparing a scope and an sharePointInfo
+// returns true if the scope and info match for the provided category.
+func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
+	var (
+		filterCat = s.FilterCategory()
+		i         = ""
+		info      = dii.SharePoint
+	)
+
+	if info == nil {
+		return false
+	}
+
+	switch filterCat {
+	case SharePointWebURL:
+		i = info.WebURL
+	}
+
+	return s.Matches(filterCat, i)
 }

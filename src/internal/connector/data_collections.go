@@ -24,12 +24,20 @@ import (
 // Data Collections
 // ---------------------------------------------------------------------------
 
-// DataCollections utility function to launch backup operations for exchange and onedrive
-func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
+// DataCollections utility function to launch backup operations for exchange and
+// onedrive. metadataCols contains any collections with metadata files that may
+// be useful for the current backup. Metadata can include things like delta
+// tokens or the previous backup's folder hierarchy. The absence of metadataCols
+// results in all data being pulled.
+func (gc *GraphConnector) DataCollections(
+	ctx context.Context,
+	sels selectors.Selector,
+	metadataCols []data.Collection,
+) ([]data.Collection, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIds())
+	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIDs())
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +48,7 @@ func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Se
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	case selectors.ServiceSharePoint:
-		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIds(), gc.credentials.AzureTenantID, gc)
+		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIDs(), gc.credentials.AzureTenantID, gc)
 		if err != nil {
 			return nil, err
 		}
@@ -109,16 +117,16 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 func (gc *GraphConnector) createExchangeCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
-) ([]*exchange.Collection, error) {
+) ([]data.Collection, error) {
 	var (
 		errs           *multierror.Error
 		users          = scope.Get(selectors.ExchangeUser)
-		allCollections = make([]*exchange.Collection, 0)
+		allCollections = make([]data.Collection, 0)
 	)
 
 	// Create collection of ExchangeDataCollection
 	for _, user := range users {
-		collections := make(map[string]*exchange.Collection)
+		collections := make(map[string]data.Collection)
 
 		qp := graph.QueryParams{
 			Category:      scope.Category().PathType(),
@@ -188,9 +196,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 			return nil, support.WrapAndAppend(user[0], err, errs)
 		}
 
-		for _, collection := range dcs {
-			collections = append(collections, collection)
-		}
+		collections = append(collections, dcs...)
 	}
 
 	return collections, errs

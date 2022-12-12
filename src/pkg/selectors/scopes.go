@@ -63,8 +63,12 @@ type (
 		// rootCat returns the root category for the categorizer
 		rootCat() categorizer
 
-		// unknownType returns the unknown category value
+		// unknownCat returns the unknown category value
 		unknownCat() categorizer
+
+		// isUnion returns true if the category can be used to match against any leaf category.
+		// This can occur when an itemInfo property is used as an alternative resourceOwner id.
+		isUnion() bool
 
 		// isLeaf returns true if the category is one of the leaf categories.
 		// eg: in a resourceOwner/folder/item structure, the item is the leaf.
@@ -241,6 +245,21 @@ func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
 	s[cat.String()] = filterize(*sc, v...)
 
 	return s
+}
+
+// discreteCopy makes a shallow clone of the scocpe, and sets the resource
+// owner filter target in the clone to the provided string.
+func discreteCopy[T scopeT](s T, resourceOwner string) T {
+	clone := T{}
+
+	for k, v := range s {
+		clone[k] = v
+	}
+
+	return set(
+		clone,
+		clone.categorizer().rootCat(),
+		[]string{resourceOwner})
 }
 
 // returns true if the category is included in the scope's category type,
@@ -472,6 +491,10 @@ func matchesPathValues[T scopeT, C categoryT](
 // - either type is the root type
 // - the leaf types match
 func categoryMatches[C categoryT](a, b C) bool {
+	if a.isUnion() || b.isUnion() {
+		return true
+	}
+
 	u := a.unknownCat()
 	if a == u || b == u {
 		return false

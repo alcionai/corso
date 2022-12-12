@@ -11,7 +11,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -104,13 +106,19 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		suite.T().Run(test.name, func(t *testing.T) {
 			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t))
 			require.NoError(t, err)
-			assert.Equal(t, len(collection), 1)
-			channel := collection[0].Items()
-			for object := range channel {
-				buf := &bytes.Buffer{}
-				_, err := buf.ReadFrom(object.ToReader())
-				assert.NoError(t, err, "received a buf.Read error")
+			// Categories with delta endpoints will produce a collection for metadata
+			// as well as the actual data pulled.
+			assert.GreaterOrEqual(t, len(collection), 1, "expected 1 <= num collections <= 2")
+			assert.GreaterOrEqual(t, 2, len(collection), "expected 1 <= num collections <= 2")
+
+			for _, col := range collection {
+				for object := range col.Items() {
+					buf := &bytes.Buffer{}
+					_, err := buf.ReadFrom(object.ToReader())
+					assert.NoError(t, err, "received a buf.Read error")
+				}
 			}
+
 			status := connector.AwaitStatus()
 			assert.NotZero(t, status.Successful)
 			t.Log(status.String())
@@ -149,7 +157,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := connector.DataCollections(ctx, test.getSelector(t))
+			collections, err := connector.DataCollections(ctx, test.getSelector(t), nil)
 			assert.Error(t, err)
 			assert.Empty(t, collections)
 		})
@@ -169,7 +177,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		getSelector func(t *testing.T) selectors.Selector
 	}{
 		{
-			name: "Items - TODO: actual sharepoint categories",
+			name: "Libraries",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
@@ -188,7 +196,10 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector.credentials.AzureTenantID,
 				connector)
 			require.NoError(t, err)
-			assert.Equal(t, 1, len(collection))
+
+			// we don't know an exact count of drives this will produce,
+			// but it should be more than one.
+			assert.Less(t, 1, len(collection))
 
 			// the test only reads the firstt collection
 			connector.incrementAwaitingMessages()
@@ -276,12 +287,14 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() 
 			require.NoError(t, err)
 
 			for _, c := range collections {
+				if c.FullPath().Service() == path.ExchangeMetadataService {
+					continue
+				}
+
 				require.NotEmpty(t, c.FullPath().Folder())
 				folder := c.FullPath().Folder()
 
-				if _, ok := test.folderNames[folder]; ok {
-					delete(test.folderNames, folder)
-				}
+				delete(test.folderNames, folder)
 			}
 
 			assert.Empty(t, test.folderNames)
@@ -335,11 +348,11 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 
 	tests := []struct {
 		name          string
-		getCollection func(t *testing.T) []*exchange.Collection
+		getCollection func(t *testing.T) []data.Collection
 	}{
 		{
 			name: "Default Contact Folder",
-			getCollection: func(t *testing.T) []*exchange.Collection {
+			getCollection: func(t *testing.T) []data.Collection {
 				scope := selectors.
 					NewExchangeBackup().
 					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch())[0]
@@ -354,22 +367,36 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			edcs := test.getCollection(t)
-			require.Equal(t, len(edcs), 1)
-			edc := edcs[0]
-			assert.Equal(t, edc.FullPath().Folder(), exchange.DefaultContactFolder)
-			streamChannel := edc.Items()
-			count := 0
-			for stream := range streamChannel {
-				buf := &bytes.Buffer{}
-				read, err := buf.ReadFrom(stream.ToReader())
-				assert.NoError(t, err)
-				assert.NotZero(t, read)
-				contact, err := support.CreateContactFromBytes(buf.Bytes())
-				assert.NotNil(t, contact)
-				assert.NoError(t, err, "error on converting contact bytes: "+string(buf.Bytes()))
-				count++
+			require.GreaterOrEqual(t, len(edcs), 1, "expected 1 <= num collections <= 2")
+			require.GreaterOrEqual(t, 2, len(edcs), "expected 1 <= num collections <= 2")
+
+			for _, edc := range edcs {
+				isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
+				count := 0
+
+				for stream := range edc.Items() {
+					buf := &bytes.Buffer{}
+					read, err := buf.ReadFrom(stream.ToReader())
+					assert.NoError(t, err)
+					assert.NotZero(t, read)
+
+					if isMetadata {
+						continue
+					}
+
+					contact, err := support.CreateContactFromBytes(buf.Bytes())
+					assert.NotNil(t, contact)
+					assert.NoError(t, err, "error on converting contact bytes: "+buf.String())
+					count++
+				}
+
+				if isMetadata {
+					continue
+				}
+
+				assert.Equal(t, edc.FullPath().Folder(), exchange.DefaultContactFolder)
+				assert.NotZero(t, count)
 			}
-			assert.NotZero(t, count)
 
 			status := connector.AwaitStatus()
 			suite.NotNil(status)
@@ -388,12 +415,12 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 
 	tests := []struct {
 		name, expected string
-		getCollection  func(t *testing.T) []*exchange.Collection
+		getCollection  func(t *testing.T) []data.Collection
 	}{
 		{
 			name:     "Default Event Calendar",
 			expected: exchange.DefaultCalendar,
-			getCollection: func(t *testing.T) []*exchange.Collection {
+			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
@@ -405,7 +432,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 		{
 			name:     "Birthday Calendar",
 			expected: "Birthdays",
-			getCollection: func(t *testing.T) []*exchange.Collection {
+			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}, selectors.PrefixMatch()))
 				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0])
@@ -431,7 +458,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 				assert.NotZero(t, read)
 				event, err := support.CreateEventFromBytes(buf.Bytes())
 				assert.NotNil(t, event)
-				assert.NoError(t, err, "experienced error parsing event bytes: "+string(buf.Bytes()))
+				assert.NoError(t, err, "experienced error parsing event bytes: "+buf.String())
 			}
 
 			status := connector.AwaitStatus()
@@ -515,6 +542,6 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		selectors.PrefixMatch(),
 	))
 
-	_, err := gc.DataCollections(ctx, sel.Selector)
+	_, err := gc.DataCollections(ctx, sel.Selector, nil)
 	require.NoError(t, err)
 }

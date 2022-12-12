@@ -8,6 +8,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
@@ -25,14 +28,19 @@ import (
 )
 
 var (
-	_ data.Collection = &Collection{}
-	_ data.Stream     = &Stream{}
-	_ data.StreamInfo = &Stream{}
+	_ data.Collection    = &Collection{}
+	_ data.Stream        = &Stream{}
+	_ data.StreamInfo    = &Stream{}
+	_ data.StreamModTime = &Stream{}
 )
 
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
+
+	// Outlooks expects max 4 concurrent requests
+	// https://learn.microsoft.com/en-us/graph/throttling-limits#outlook-service-limits
+	urlPrefetchChannelBufferSize = 4
 )
 
 // Collection implements the interface from data.Collection
@@ -108,6 +116,18 @@ func (col *Collection) FullPath() path.Path {
 	return col.fullPath
 }
 
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (col Collection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (col Collection) State() data.CollectionState {
+	return data.NewState
+}
+
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the jobs field. data channel is closed by this function
 func (col *Collection) populateByOptionIdentifier(
@@ -115,11 +135,11 @@ func (col *Collection) populateByOptionIdentifier(
 ) {
 	var (
 		errs       error
-		success    int
+		success    int64
 		totalBytes int64
+		wg         sync.WaitGroup
 
-		user         = col.user
-		objectWriter = kw.NewJsonSerializationWriter()
+		user = col.user
 	)
 
 	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
@@ -127,7 +147,7 @@ func (col *Collection) populateByOptionIdentifier(
 
 	defer func() {
 		close(colProgress)
-		col.finishPopulation(ctx, success, totalBytes, errs)
+		col.finishPopulation(ctx, int(success), totalBytes, errs)
 	}()
 
 	// get QueryBasedonIdentifier
@@ -139,34 +159,61 @@ func (col *Collection) populateByOptionIdentifier(
 		return
 	}
 
-	for _, identifier := range col.jobs {
-		response, err := query(ctx, col.service, user, identifier)
-		if err != nil {
-			errs = support.WrapAndAppendf(user, err, errs)
+	// Limit the max number of active requests to GC
+	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	defer close(semaphoreCh)
 
-			if col.service.ErrPolicy() {
-				break
-			}
-
-			continue
-		}
-
-		byteCount, err := serializeFunc(ctx, col.service.Client(), objectWriter, col.data, response, user)
-		if err != nil {
-			errs = support.WrapAndAppendf(user, err, errs)
-
-			if col.service.ErrPolicy() {
-				break
-			}
-
-			continue
-		}
-
-		success++
-
-		totalBytes += int64(byteCount)
-		colProgress <- struct{}{}
+	errUpdater := func(user string, err error) {
+		errs = support.WrapAndAppend(user, err, errs)
 	}
+
+	for _, identifier := range col.jobs {
+		if col.service.ErrPolicy() && errs != nil {
+			break
+		}
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(identifier string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			var (
+				response absser.Parsable
+				err      error
+			)
+
+			for i := 1; i <= numberOfRetries; i++ {
+				response, err = query(ctx, col.service, user, identifier)
+				if err == nil {
+					break
+				}
+				// TODO: Tweak sleep times
+				if i < numberOfRetries {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+				}
+			}
+
+			if err != nil {
+				errUpdater(user, err)
+				return
+			}
+
+			byteCount, err := serializeFunc(ctx, col.service.Client(), kw.NewJsonSerializationWriter(), col.data, response, user)
+			if err != nil {
+				errUpdater(user, err)
+				return
+			}
+
+			atomic.AddInt64(&success, 1)
+			atomic.AddInt64(&totalBytes, int64(byteCount))
+
+			colProgress <- struct{}{}
+		}(identifier)
+	}
+
+	wg.Wait()
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
@@ -186,6 +233,20 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 		col.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
 	col.statusUpdater(status)
+}
+
+type modTimer interface {
+	GetLastModifiedDateTime() *time.Time
+}
+
+func getModTime(mt modTimer) time.Time {
+	res := time.Now()
+
+	if t := mt.GetLastModifiedDateTime(); t != nil {
+		res = *t
+	}
+
+	return res
 }
 
 // GraphSerializeFunc are class of functions that are used by Collections to transform GraphRetrievalFunc
@@ -256,7 +317,12 @@ func eventToDataCollection(
 	}
 
 	if len(byteArray) > 0 {
-		dataChannel <- &Stream{id: *event.GetId(), message: byteArray, info: EventInfo(event, int64(len(byteArray)))}
+		dataChannel <- &Stream{
+			id:      *event.GetId(),
+			message: byteArray,
+			info:    EventInfo(event, int64(len(byteArray))),
+			modTime: getModTime(event),
+		}
 	}
 
 	return len(byteArray), nil
@@ -289,7 +355,12 @@ func contactToDataCollection(
 	}
 
 	if len(byteArray) > 0 {
-		dataChannel <- &Stream{id: *contact.GetId(), message: byteArray, info: ContactInfo(contact, int64(len(byteArray)))}
+		dataChannel <- &Stream{
+			id:      *contact.GetId(),
+			message: byteArray,
+			info:    ContactInfo(contact, int64(len(byteArray))),
+			modTime: getModTime(contact),
+		}
 	}
 
 	return len(byteArray), nil
@@ -311,14 +382,6 @@ func messageToDataCollection(
 	aMessage, ok := parsable.(models.Messageable)
 	if !ok {
 		return 0, fmt.Errorf("expected Messageable, got %T", parsable)
-	}
-
-	adtl := aMessage.GetAdditionalData()
-	if len(adtl) > 2 {
-		aMessage, err = support.ConvertFromMessageable(adtl, aMessage)
-		if err != nil {
-			return 0, err
-		}
 	}
 
 	if *aMessage.GetHasAttachments() {
@@ -356,7 +419,12 @@ func messageToDataCollection(
 		return 0, support.SetNonRecoverableError(err)
 	}
 
-	dataChannel <- &Stream{id: *aMessage.GetId(), message: byteArray, info: MessageInfo(aMessage, int64(len(byteArray)))}
+	dataChannel <- &Stream{
+		id:      *aMessage.GetId(),
+		message: byteArray,
+		info:    MessageInfo(aMessage, int64(len(byteArray))),
+		modTime: getModTime(aMessage),
+	}
 
 	return len(byteArray), nil
 }
@@ -369,6 +437,9 @@ type Stream struct {
 	// some structured type in here (serialization to []byte can be done in `Read`)
 	message []byte
 	info    *details.ExchangeInfo // temporary change to bring populate function into directory
+	// TODO(ashmrtn): Can probably eventually be sourced from info as there's a
+	// request to provide modtime in ItemInfo structs.
+	modTime time.Time
 }
 
 func (od *Stream) UUID() string {
@@ -379,15 +450,25 @@ func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
 }
 
+// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+func (od Stream) Deleted() bool {
+	return false
+}
+
 func (od *Stream) Info() details.ItemInfo {
 	return details.ItemInfo{Exchange: od.info}
 }
 
+func (od *Stream) ModTime() time.Time {
+	return od.modTime
+}
+
 // NewStream constructor for exchange.Stream object
-func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo) Stream {
+func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo, modTime time.Time) Stream {
 	return Stream{
 		id:      identifier,
 		message: dataBytes,
 		info:    &detail,
+		modTime: modTime,
 	}
 }

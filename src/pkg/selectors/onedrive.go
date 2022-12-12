@@ -39,6 +39,7 @@ var (
 	_ Reducer         = &OneDriveRestore{}
 	_ printabler      = &OneDriveRestore{}
 	_ resourceOwnerer = &OneDriveRestore{}
+	_ pathCategorier  = &OneDriveRestore{}
 )
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
@@ -99,6 +100,15 @@ func (s oneDrive) ResourceOwners() selectorResourceOwners {
 		Excludes: resourceOwnersIn(s.Excludes, OneDriveUser.String()),
 		Filters:  resourceOwnersIn(s.Filters, OneDriveUser.String()),
 		Includes: resourceOwnersIn(s.Includes, OneDriveUser.String()),
+	}
+}
+
+// PathCategories produces the aggregation of discrete users described by each type of scope.
+func (s oneDrive) PathCategories() selectorPathCategories {
+	return selectorPathCategories{
+		Excludes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Excludes),
+		Filters:  pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Filters),
+		Includes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Includes),
 	}
 }
 
@@ -197,7 +207,7 @@ func (s *oneDrive) Users(users []string) []OneDriveScope {
 func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveScope {
 	var (
 		scopes = []OneDriveScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
@@ -351,6 +361,11 @@ func (c oneDriveCategory) unknownCat() categorizer {
 	return OneDriveCategoryUnknown
 }
 
+// isUnion returns true if c is a user
+func (c oneDriveCategory) isUnion() bool {
+	return c == c.rootCat()
+}
+
 // isLeaf is true if the category is a OneDriveItem category.
 func (c oneDriveCategory) isLeaf() bool {
 	// return c == c.leafCat()??
@@ -442,7 +457,7 @@ func (s OneDriveScope) Get(cat oneDriveCategory) []string {
 func (s OneDriveScope) set(cat oneDriveCategory, v []string, opts ...option) OneDriveScope {
 	os := []option{}
 	if cat == OneDriveFolder {
-		os = append(os, pathType())
+		os = append(os, pathComparator())
 	}
 
 	return set(s, cat, v, append(os, opts...)...)
@@ -457,6 +472,29 @@ func (s OneDriveScope) setDefaults() {
 	case OneDriveFolder:
 		s[OneDriveItem.String()] = passAny
 	}
+}
+
+// DiscreteCopy makes a clone of the scope, then replaces the clone's user comparison
+// with only the provided user.
+func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
+	return discreteCopy(s, user)
+}
+
+// ---------------------------------------------------------------------------
+// Backup Details Filtering
+// ---------------------------------------------------------------------------
+
+// Reduce filters the entries in a details struct to only those that match the
+// inclusions, filters, and exclusions in the selector.
+func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.Details {
+	return reduce[OneDriveScope](
+		ctx,
+		deets,
+		s.Selector,
+		map[path.CategoryType]oneDriveCategory{
+			path.FilesCategory: OneDriveItem,
+		},
+	)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an oneDriveInfo
@@ -479,21 +517,4 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 	}
 
 	return s.Matches(filterCat, i)
-}
-
-// ---------------------------------------------------------------------------
-// Backup Details Filtering
-// ---------------------------------------------------------------------------
-
-// Reduce filters the entries in a details struct to only those that match the
-// inclusions, filters, and exclusions in the selector.
-func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.Details {
-	return reduce[OneDriveScope](
-		ctx,
-		deets,
-		s.Selector,
-		map[path.CategoryType]oneDriveCategory{
-			path.FilesCategory: OneDriveItem,
-		},
-	)
 }

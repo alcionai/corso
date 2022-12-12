@@ -9,12 +9,12 @@ const (
 	connectCommand = "connect"
 )
 
-var repoCommands = []func(parent *cobra.Command) *cobra.Command{
+var repoCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addS3Commands,
 }
 
 // AddCommands attaches all `corso repo * *` commands to the parent.
-func AddCommands(parent *cobra.Command) {
+func AddCommands(cmd *cobra.Command) {
 	var (
 		// Get new instances so that setting the context during tests works
 		// properly.
@@ -23,7 +23,7 @@ func AddCommands(parent *cobra.Command) {
 		connectCmd = connectCmd()
 	)
 
-	parent.AddCommand(repoCmd)
+	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
 

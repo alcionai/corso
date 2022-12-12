@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/model"
 )
 
 type FolderEntry struct {
@@ -26,7 +25,6 @@ type FolderEntry struct {
 
 // DetailsModel describes what was stored in a Backup
 type DetailsModel struct {
-	model.BaseModel
 	Entries []DetailsEntry `json:"entries"`
 }
 
@@ -352,12 +350,14 @@ func (i ExchangeInfo) Values() []string {
 
 // SharePointInfo describes a sharepoint item
 type SharePointInfo struct {
-	ItemType ItemType  `json:"itemType,omitempty"`
-	ItemName string    `json:"itemName,omitempty"`
-	Created  time.Time `json:"created,omitempty"`
-	Modified time.Time `josn:"modified,omitempty"`
-	WebURL   string    `json:"webUrl,omitempty"`
-	Size     int64     `json:"size,omitempty"`
+	Created    time.Time `json:"created,omitempty"`
+	ItemName   string    `json:"itemName,omitempty"`
+	ItemType   ItemType  `json:"itemType,omitempty"`
+	Modified   time.Time `josn:"modified,omitempty"`
+	Owner      string    `json:"owner,omitempty"`
+	ParentPath string    `json:"parentPath"`
+	Size       int64     `json:"size,omitempty"`
+	WebURL     string    `json:"webUrl,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -374,13 +374,13 @@ func (i SharePointInfo) Values() []string {
 
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
-	ItemType   ItemType  `json:"itemType,omitempty"`
-	ParentPath string    `json:"parentPath"`
-	ItemName   string    `json:"itemName"`
-	Size       int64     `json:"size,omitempty"`
-	Owner      string    `json:"owner,omitempty"`
 	Created    time.Time `json:"created,omitempty"`
+	ItemName   string    `json:"itemName"`
+	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
+	Owner      string    `json:"owner,omitempty"`
+	ParentPath string    `json:"parentPath"`
+	Size       int64     `json:"size,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a OneDriveInfo

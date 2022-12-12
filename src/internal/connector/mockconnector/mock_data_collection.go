@@ -19,6 +19,7 @@ type MockExchangeDataCollection struct {
 	messageCount int
 	Data         [][]byte
 	Names        []string
+	ModTimes     []time.Time
 }
 
 var (
@@ -36,12 +37,15 @@ func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn
 		messageCount: numMessagesToReturn,
 		Data:         [][]byte{},
 		Names:        []string{},
+		ModTimes:     []time.Time{},
 	}
+	baseTime := time.Now()
 
 	for i := 0; i < c.messageCount; i++ {
 		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
 		c.Data = append(c.Data, GetMockMessageBytes("From: NewMockExchangeCollection"))
 		c.Names = append(c.Names, uuid.NewString())
+		c.ModTimes = append(c.ModTimes, baseTime.Add(1*time.Hour))
 	}
 
 	return c
@@ -87,6 +91,16 @@ func (medc *MockExchangeDataCollection) FullPath() path.Path {
 	return medc.fullPath
 }
 
+// TODO(ashmrtn): May want to allow setting this in the future for testing.
+func (medc MockExchangeDataCollection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): May want to allow setting this in the future for testing.
+func (medc MockExchangeDataCollection) State() data.CollectionState {
+	return data.NewState
+}
+
 // Items returns a channel that has the next items in the collection. The
 // channel is closed when there are no more items available.
 func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
@@ -97,9 +111,10 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 
 		for i := 0; i < medc.messageCount; i++ {
 			res <- &MockExchangeData{
-				ID:     medc.Names[i],
-				Reader: io.NopCloser(bytes.NewReader(medc.Data[i])),
-				size:   int64(len(medc.Data[i])),
+				ID:           medc.Names[i],
+				Reader:       io.NopCloser(bytes.NewReader(medc.Data[i])),
+				size:         int64(len(medc.Data[i])),
+				modifiedTime: medc.ModTimes[i],
 			}
 		}
 	}()
@@ -109,14 +124,20 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 
 // ExchangeData represents a single item retrieved from exchange
 type MockExchangeData struct {
-	ID      string
-	Reader  io.ReadCloser
-	ReadErr error
-	size    int64
+	ID           string
+	Reader       io.ReadCloser
+	ReadErr      error
+	size         int64
+	modifiedTime time.Time
 }
 
 func (med *MockExchangeData) UUID() string {
 	return med.ID
+}
+
+// TODO(ashmrtn): May want to allow setting this in the future for testing.
+func (med MockExchangeData) Deleted() bool {
+	return false
 }
 
 func (med *MockExchangeData) ToReader() io.ReadCloser {
@@ -139,6 +160,10 @@ func (med *MockExchangeData) Info() details.ItemInfo {
 
 func (med *MockExchangeData) Size() int64 {
 	return med.size
+}
+
+func (med *MockExchangeData) ModTime() time.Time {
+	return med.modifiedTime
 }
 
 type errReader struct {

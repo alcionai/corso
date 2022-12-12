@@ -3,8 +3,7 @@ package exchange
 import (
 	"context"
 
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -70,52 +69,55 @@ func (cfc *contactFolderCache) Populate(
 	}
 
 	var (
-		containers = make(map[string]graph.Container)
-		errs       error
-		errUpdater = func(s string, e error) {
-			errs = support.WrapAndAppend(s, e, errs)
-		}
+		errs         error
+		options, err = optionsForContactChildFolders([]string{"displayName", "parentFolderId"})
 	)
 
-	query, err := cfc.
+	if err != nil {
+		return errors.Wrap(err, "contact cache resolver option")
+	}
+
+	builder := cfc.
 		gs.Client().
 		UsersById(cfc.userID).
 		ContactFoldersById(baseID).
-		ChildFolders().
-		Get(ctx, nil)
-	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
+		ChildFolders()
 
-	iter, err := msgraphgocore.NewPageIterator(query, cfc.gs.Adapter(),
-		models.CreateContactFolderCollectionResponseFromDiscriminatorValue)
-	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
-
-	cb := IterativeCollectContactContainers(containers,
-		"",
-		errUpdater)
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
-
-	if errs != nil {
-		return errs
-	}
-
-	for _, entry := range containers {
-		temp := cacheFolder{
-			Container: entry,
-		}
-
-		err = cfc.addFolder(temp)
+	for {
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			errs = support.WrapAndAppend(
-				"cache build in cfc.Populate",
-				err,
-				errs)
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
+
+		for _, fold := range resp.GetValue() {
+			if err := checkIDAndName(fold); err != nil {
+				errs = support.WrapAndAppend(
+					"adding folder to contact resolver",
+					err,
+					errs,
+				)
+
+				continue
+			}
+
+			temp := cacheFolder{
+				Container: fold,
+			}
+
+			err = cfc.addFolder(temp)
+			if err != nil {
+				errs = support.WrapAndAppend(
+					"cache build in cfc.Populate",
+					err,
+					errs)
+			}
+		}
+
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
+
+		builder = msuser.NewUsersItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {

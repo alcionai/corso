@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	analytics "github.com/rudderlabs/analytics-go"
 
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -17,30 +18,32 @@ import (
 
 // keys for ease of use
 const (
-	corsoVersion = "corso-version"
-	repoID       = "repo-id"
-	payload      = "payload"
+	corsoVersion = "corso_version"
+	repoID       = "repo_id"
+	tenantID     = "m365_tenant_hash"
 
 	// Event Keys
-	RepoInit     = "repo-init"
-	BackupStart  = "backup-start"
-	BackupEnd    = "backup-end"
-	RestoreStart = "restore-start"
-	RestoreEnd   = "restore-end"
+	CorsoStart   = "Corso Start"
+	RepoInit     = "Repo Init"
+	RepoConnect  = "Repo Connect"
+	BackupStart  = "Backup Start"
+	BackupEnd    = "Backup End"
+	RestoreStart = "Restore Start"
+	RestoreEnd   = "Restore End"
 
 	// Event Data Keys
-	BackupCreateTime = "backup-creation-time"
-	BackupID         = "backup-id"
-	DataRetrieved    = "data-retrieved"
-	DataStored       = "data-stored"
+	BackupCreateTime = "backup_creation_time"
+	BackupID         = "backup_id"
+	DataRetrieved    = "data_retrieved"
+	DataStored       = "data_stored"
 	Duration         = "duration"
-	EndTime          = "end-time"
-	ItemsRead        = "items-read"
-	ItemsWritten     = "items-written"
+	EndTime          = "end_time"
+	ItemsRead        = "items_read"
+	ItemsWritten     = "items_written"
 	Resources        = "resources"
-	RestoreID        = "restore-id"
+	RestoreID        = "restore_id"
 	Service          = "service"
-	StartTime        = "start-time"
+	StartTime        = "start_time"
 	Status           = "status"
 )
 
@@ -54,6 +57,7 @@ type Bus struct {
 	client analytics.Client
 
 	repoID  string // one-way hash that uniquely identifies the repo.
+	tenant  string // one-way hash that uniquely identifies the tenant.
 	version string // the Corso release version
 }
 
@@ -66,8 +70,6 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 	if opts.DisableMetrics {
 		return Bus{}, nil
 	}
-
-	hash := repoHash(s, tenID)
 
 	envWK := os.Getenv("RUDDERSTACK_CORSO_WRITE_KEY")
 	if len(envWK) > 0 {
@@ -97,8 +99,9 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 
 	return Bus{
 		client:  client,
-		repoID:  hash,
-		version: "vTODO", // TODO: corso versioning implementation
+		repoID:  repoHash(s),
+		tenant:  tenantHash(tenID),
+		version: version.Version,
 	}, nil
 }
 
@@ -118,10 +121,24 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 	props := analytics.
 		NewProperties().
 		Set(repoID, b.repoID).
+		Set(tenantID, b.tenant).
 		Set(corsoVersion, b.version)
 
-	if len(data) > 0 {
-		props.Set(payload, data)
+	for k, v := range data {
+		props.Set(k, v)
+	}
+
+	// need to setup identity when initializing a new repo
+	if key == RepoInit {
+		err := b.client.Enqueue(analytics.Identify{
+			UserId: b.repoID,
+			Traits: analytics.NewTraits().
+				SetName(b.tenant).
+				Set(tenantID, b.tenant),
+		})
+		if err != nil {
+			logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
+		}
 	}
 
 	err := b.client.Enqueue(analytics.Track{
@@ -151,9 +168,17 @@ func storageID(s storage.Storage) string {
 	return id
 }
 
-func repoHash(s storage.Storage, tenID string) string {
+func repoHash(s storage.Storage) string {
+	return md5HashOf(storageID(s))
+}
+
+func tenantHash(tenID string) string {
+	return md5HashOf(tenID)
+}
+
+func md5HashOf(s string) string {
 	sum := md5.Sum(
-		[]byte(storageID(s) + tenID),
+		[]byte(s),
 	)
 
 	return fmt.Sprintf("%x", sum)

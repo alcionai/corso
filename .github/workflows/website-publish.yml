@@ -9,27 +9,59 @@ permissions:
   packages: write
   pull-requests: read
 
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: push-website-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  SetEnv:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # needed to get latest tag
+
+      - name: Get version string
+        id: version
+        run: |
+          echo "set-output name=version::$(git describe --tags --abbrev=0)"
+          echo "::set-output name=version::$(git describe --tags --abbrev=0)"
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Website Linting -----------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Website-Linting:
+    needs: [SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Lint Website
+        uses: ./.github/actions/website-linting
+        with:
+          version: ${{ needs.SetEnv.outputs.version }}
+
   Publish-Website:
+    needs: [Website-Linting]
     environment: Production
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: website
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3 # need to checkout to make the action available
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Publish website
+        uses: ./.github/actions/publish-website
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
-
-      - name: Build docs image
-        run: |
-          make buildimage
-
-      - name: Build & Publish docs
-        run: |
-          make publish
+          aws-iam-role: ${{ secrets.AWS_IAM_ROLE }}
+          bucket: "corsobackup.io"
+          cfid: "E1W9NGI9YTVZ1A"

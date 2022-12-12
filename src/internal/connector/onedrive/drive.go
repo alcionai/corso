@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
+	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -84,7 +84,13 @@ func drives(
 }
 
 func siteDrives(ctx context.Context, service graph.Service, site string) ([]models.Driveable, error) {
-	r, err := service.Client().SitesById(site).Drives().Get(ctx, nil)
+	options := &sites.SitesItemDrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.SitesItemDrivesRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name", "weburl", "system"},
+		},
+	}
+
+	r, err := service.Client().SitesById(site).Drives().Get(ctx, options)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve site drives. site: %s, details: %s",
 			site, support.ConnectorStackErrorTrace(err))
@@ -154,13 +160,13 @@ func collectItems(
 		}
 
 		// Check if there are more items
-		if _, found := r.GetAdditionalData()[nextLinkKey]; !found {
+		nextLink := r.GetOdataNextLink()
+		if nextLink == nil {
 			break
 		}
 
-		nextLink := r.GetAdditionalData()[nextLinkKey].(*string)
 		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
-		builder = delta.NewDeltaRequestBuilder(*nextLink, service.Adapter())
+		builder = msdrives.NewDrivesItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 
 	return nil
@@ -178,8 +184,7 @@ func getFolder(
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
 	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
-
-	builder := item.NewDriveItemItemRequestBuilder(rawURL, service.Adapter())
+	builder := msdrive.NewDriveItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
@@ -218,7 +223,7 @@ func createItem(
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
 
-	builder := items.NewItemsRequestBuilder(rawURL, service.Adapter())
+	builder := msdrive.NewDriveItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
@@ -268,7 +273,7 @@ func GetAllFolders(
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}
 
-	res := []*Displayable{}
+	folders := map[string]*Displayable{}
 
 	for _, d := range drives {
 		err = collectItems(
@@ -287,13 +292,18 @@ func GetAllFolders(
 						continue
 					}
 
+					if item.GetId() == nil || len(*item.GetId()) == 0 {
+						logger.Ctx(ctx).Warn("folder without ID")
+						continue
+					}
+
 					if !strings.HasPrefix(*item.GetName(), prefix) {
 						continue
 					}
 
 					// Add the item instead of the folder because the item has more
 					// functionality.
-					res = append(res, &Displayable{item})
+					folders[*item.GetId()] = &Displayable{item}
 				}
 
 				return nil
@@ -302,6 +312,12 @@ func GetAllFolders(
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting items for drive %s", *d.GetName())
 		}
+	}
+
+	res := make([]*Displayable, 0, len(folders))
+
+	for _, f := range folders {
+		res = append(res, f)
 	}
 
 	return res, nil

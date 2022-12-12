@@ -20,6 +20,115 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+type GraphConnectorUnitSuite struct {
+	suite.Suite
+}
+
+func TestGraphConnectorUnitSuite(t *testing.T) {
+	suite.Run(t, new(GraphConnectorUnitSuite))
+}
+
+func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
+	const (
+		url1  = "www.foo.com/bar"
+		url2  = "www.fnords.com/smarf"
+		path1 = "bar"
+		path2 = "/smarf"
+		id1   = "site-id-1"
+		id2   = "site-id-2"
+	)
+
+	gc := &GraphConnector{
+		// must be populated, else the func will try to make a graph call
+		// to retrieve site data.
+		Sites: map[string]string{
+			url1: id1,
+			url2: id2,
+		},
+	}
+
+	table := []struct {
+		name   string
+		ids    []string
+		urls   []string
+		expect []string
+	}{
+		{
+			name: "nil",
+		},
+		{
+			name:   "empty",
+			ids:    []string{},
+			urls:   []string{},
+			expect: []string{},
+		},
+		{
+			name:   "ids only",
+			ids:    []string{id1, id2},
+			urls:   []string{},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "urls only",
+			ids:    []string{},
+			urls:   []string{url1, url2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "url suffix only",
+			ids:    []string{},
+			urls:   []string{path1, path2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "url and suffix overlap",
+			ids:    []string{},
+			urls:   []string{url1, url2, path1, path2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "ids and urls, no overlap",
+			ids:    []string{id1},
+			urls:   []string{url2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "ids and urls, overlap",
+			ids:    []string{id1, id2},
+			urls:   []string{url1, url2},
+			expect: []string{id1, id2},
+		},
+		{
+			name:   "partial non-match on path",
+			ids:    []string{},
+			urls:   []string{path1[2:], path2[2:]},
+			expect: []string{},
+		},
+		{
+			name:   "partial non-match on url",
+			ids:    []string{},
+			urls:   []string{url1[5:], url2[5:]},
+			expect: []string{},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			//nolint
+			result, err := gc.UnionSiteIDsAndWebURLs(context.Background(), test.ids, test.urls)
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, test.expect, result)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Integration tests
+// ---------------------------------------------------------------------------
+
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
@@ -134,7 +243,20 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				Service: selectors.ServiceOneDrive,
 			},
 		},
-		// TODO: SharePoint
+		{
+			name: "SharePointNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceSharePoint,
+			},
+		},
+		{
+			name: "SharePointEmpty",
+			col:  []data.Collection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceSharePoint,
+			},
+		},
 	}
 
 	for _, test := range table {
@@ -233,7 +355,7 @@ func runRestoreBackupTest(
 	assert.NotNil(t, deets)
 
 	status := restoreGC.AwaitStatus()
-	runTime := time.Now().Sub(start)
+	runTime := time.Since(start)
 
 	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
 	assert.Equal(t, totalItems, status.Successful, "status.Successful")
@@ -265,18 +387,18 @@ func runRestoreBackupTest(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel)
+	dcs, err := backupGC.DataCollections(ctx, backupSel, nil)
 	require.NoError(t, err)
 
-	t.Logf("Backup enumeration complete in %v\n", time.Now().Sub(start))
+	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	checkCollections(t, totalItems, expectedData, dcs)
+	skipped := checkCollections(t, totalItems, expectedData, dcs)
 
 	status = backupGC.AwaitStatus()
-	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
+	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
@@ -733,18 +855,18 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, err := backupGC.DataCollections(ctx, backupSel)
+			dcs, err := backupGC.DataCollections(ctx, backupSel, nil)
 			require.NoError(t, err)
 
 			t.Log("Backup enumeration complete")
 
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			checkCollections(t, allItems, allExpectedData, dcs)
+			skipped := checkCollections(t, allItems, allExpectedData, dcs)
 
 			status := backupGC.AwaitStatus()
-			assert.Equal(t, allItems, status.ObjectCount, "status.ObjectCount")
-			assert.Equal(t, allItems, status.Successful, "status.Successful")
+			assert.Equal(t, allItems+skipped, status.ObjectCount, "status.ObjectCount")
+			assert.Equal(t, allItems+skipped, status.Successful, "status.Successful")
 		})
 	}
 }

@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -28,7 +30,8 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
+	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error)
+	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
@@ -67,13 +70,13 @@ type repository struct {
 }
 
 // Initialize will:
-//  * validate the m365 account & secrets
-//  * connect to the m365 account to ensure communication capability
-//  * validate the provider config & secrets
-//  * initialize the kopia repo with the provider
-//  * store the configuration details
-//  * connect to the provider
-//  * return the connected repository
+//   - validate the m365 account & secrets
+//   - connect to the m365 account to ensure communication capability
+//   - validate the provider config & secrets
+//   - initialize the kopia repo with the provider
+//   - store the configuration details
+//   - connect to the provider
+//   - return the connected repository
 func Initialize(
 	ctx context.Context,
 	acct account.Account,
@@ -124,10 +127,10 @@ func Initialize(
 }
 
 // Connect will:
-//  * validate the m365 account details
-//  * connect to the m365 account to ensure communication capability
-//  * connect to the provider storage
-//  * return the connected repository
+//   - validate the m365 account details
+//   - connect to the m365 account to ensure communication capability
+//   - connect to the provider storage
+//   - return the connected repository
 func Connect(
 	ctx context.Context,
 	acct account.Account,
@@ -238,8 +241,29 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 	return sw.GetBackup(ctx, id)
 }
 
+// BackupsByID lists backups by ID. Returns as many backups as possible with
+// errors for the backups it was unable to retrieve.
+func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error) {
+	var (
+		errs *multierror.Error
+		bups []*backup.Backup
+		sw   = store.NewKopiaStore(r.modelStore)
+	)
+
+	for _, id := range ids {
+		b, err := sw.GetBackup(ctx, id)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+
+		bups = append(bups, b)
+	}
+
+	return bups, errs.ErrorOrNil()
+}
+
 // backups lists backups in a repository
-func (r repository) Backups(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
+func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
 	return sw.GetBackups(ctx, fs...)
 }
@@ -247,7 +271,21 @@ func (r repository) Backups(ctx context.Context, fs ...store.FilterOption) ([]*b
 // BackupDetails returns the specified backup details object
 func (r repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetDetailsFromBackupID(ctx, model.StableID(backupID))
+
+	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deets, err := streamstore.New(
+		r.dataLayer,
+		r.Account.ID(),
+		b.Selectors.PathService()).ReadBackupDetails(ctx, dID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return deets, b, nil
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.

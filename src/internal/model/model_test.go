@@ -27,7 +27,6 @@ func (suite *ModelUnitSuite) TestValid() {
 		{model.BackupOpSchema, assert.True},
 		{model.RestoreOpSchema, assert.True},
 		{model.BackupSchema, assert.True},
-		{model.BackupDetailsSchema, assert.True},
 		{model.Schema(-1), assert.False},
 		{model.Schema(100), assert.False},
 	}

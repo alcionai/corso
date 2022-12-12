@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -94,16 +96,16 @@ corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --user alice@example.com --contact-name Andy`
 )
 
-// called by backup.go to map parent subcommands to provider-specific handling.
-func addExchangeCommands(parent *cobra.Command) *cobra.Command {
+// called by backup.go to map subcommands to provider-specific handling.
+func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
 	)
 
-	switch parent.Use {
+	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(parent, exchangeCreateCmd())
+		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
@@ -121,14 +123,14 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(parent, exchangeListCmd())
+		c, fs = utils.AddCommand(cmd, exchangeListCmd())
 
 		fs.StringVar(&backupID,
 			"backup", "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(parent, exchangeDetailsCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
@@ -216,7 +218,7 @@ func addExchangeCommands(parent *cobra.Command) *cobra.Command {
 			"Select backup details for contacts whose contact name contains this value.")
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(parent, exchangeDeleteCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
@@ -270,27 +272,62 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(user, exchangeData)
 
-	bo, err := r.NewBackup(ctx, sel)
+	users, err := m365.UserIDs(ctx, acct)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange backup"))
+		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
-	err = bo.Run(ctx)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to run Exchange backup"))
+	var (
+		errs *multierror.Error
+		bIDs []model.StableID
+	)
+
+	for _, scope := range sel.DiscreteScopes(users) {
+		for _, selUser := range scope.Get(selectors.ExchangeUser) {
+			opSel := selectors.NewExchangeBackup()
+			opSel.Include([]selectors.ExchangeScope{scope.DiscreteCopy(selUser)})
+
+			bo, err := r.NewBackup(ctx, opSel.Selector)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to initialize Exchange backup for user %s",
+					scope.Get(selectors.ExchangeUser),
+				))
+
+				continue
+			}
+
+			err = bo.Run(ctx)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(
+					err,
+					"Failed to run Exchange backup for user %s",
+					scope.Get(selectors.ExchangeUser),
+				))
+
+				continue
+			}
+
+			bIDs = append(bIDs, bo.Results.BackupID)
+		}
 	}
 
-	bu, err := r.Backup(ctx, bo.Results.BackupID)
+	bups, err := r.Backups(ctx, bIDs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
 	}
 
-	bu.Print(ctx)
+	backup.PrintAll(ctx, bups)
+
+	if e := errs.ErrorOrNil(); e != nil {
+		return Only(ctx, e)
+	}
 
 	return nil
 }
 
-func exchangeBackupCreateSelectors(userIDs, data []string) selectors.Selector {
+func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBackup {
 	sel := selectors.NewExchangeBackup()
 
 	if len(data) == 0 {
@@ -310,7 +347,7 @@ func exchangeBackupCreateSelectors(userIDs, data []string) selectors.Selector {
 		}
 	}
 
-	return sel.Selector
+	return sel
 }
 
 func validateExchangeBackupCreateFlags(userIDs, data []string) error {
@@ -373,7 +410,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	bs, err := r.Backups(ctx, store.Service(path.ExchangeService))
+	bs, err := r.BackupsByTag(ctx, store.Service(path.ExchangeService))
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
 	}
@@ -453,8 +490,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runDetailsExchangeCmd actually performs the lookup in backup details. Assumes
-// len(backupID) > 0.
+// runDetailsExchangeCmd actually performs the lookup in backup details.
 func runDetailsExchangeCmd(
 	ctx context.Context,
 	r repository.BackupGetter,

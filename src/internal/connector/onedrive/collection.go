@@ -4,6 +4,10 @@ package onedrive
 import (
 	"context"
 	"io"
+	"net/url"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -16,16 +20,26 @@ import (
 
 const (
 	// TODO: This number needs to be tuned
+	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
 	collectionChannelBufferSize = 50
+
+	// TODO: Tune this later along with collectionChannelBufferSize
+	urlPrefetchChannelBufferSize = 25
+
+	// Max number of retries to get doc from M365
+	// Seems to timeout at times because of multiple requests
+	maxRetries = 4 // 1 + 3 retries
 )
 
 var (
 	_ data.Collection = &Collection{}
 	_ data.Stream     = &Item{}
 	_ data.StreamInfo = &Item{}
+	// TODO(ashmrtn): Uncomment when #1702 is resolved.
+	//_ data.StreamModTime = &Item{}
 )
 
-// Collection represents a set of OneDrive objects retreived from M365
+// Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -36,6 +50,7 @@ type Collection struct {
 	driveItemIDs []string
 	// M365 ID of the drive this collection was created from
 	driveID       string
+	source        driveSource
 	service       graph.Service
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
@@ -46,7 +61,7 @@ type itemReaderFunc func(
 	ctx context.Context,
 	service graph.Service,
 	driveID, itemID string,
-) (itemInfo *details.OneDriveInfo, itemData io.ReadCloser, err error)
+) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -54,17 +69,25 @@ func NewCollection(
 	driveID string,
 	service graph.Service,
 	statusUpdater support.StatusUpdater,
+	source driveSource,
 ) *Collection {
 	c := &Collection{
 		folderPath:    folderPath,
 		driveItemIDs:  []string{},
 		driveID:       driveID,
+		source:        source,
 		service:       service,
 		data:          make(chan data.Stream, collectionChannelBufferSize),
 		statusUpdater: statusUpdater,
 	}
+
 	// Allows tests to set a mock populator
-	c.itemReader = driveItemReader
+	switch source {
+	case SharePointSource:
+		c.itemReader = sharePointItemReader
+	default:
+		c.itemReader = oneDriveItemReader
+	}
 
 	return c
 }
@@ -85,11 +108,23 @@ func (oc *Collection) FullPath() path.Path {
 	return oc.folderPath
 }
 
+// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// and new folder hierarchies.
+func (oc Collection) PreviousPath() path.Path {
+	return nil
+}
+
+// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// hierarchies.
+func (oc Collection) State() data.CollectionState {
+	return data.NewState
+}
+
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
 	data io.ReadCloser
-	info *details.OneDriveInfo
+	info details.ItemInfo
 }
 
 func (od *Item) UUID() string {
@@ -100,8 +135,31 @@ func (od *Item) ToReader() io.ReadCloser {
 	return od.data
 }
 
+// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+func (od Item) Deleted() bool {
+	return false
+}
+
 func (od *Item) Info() details.ItemInfo {
-	return details.ItemInfo{OneDrive: od.info}
+	return od.info
+}
+
+// TODO(ashmrtn): Uncomment when #1702 is resolved.
+//func (od *Item) ModTime() time.Time {
+//	return od.info.Modified
+//}
+
+// isTimeoutErr is used to determine if the Graph error returned is
+// because of Timeout. This is used to restrict retries to just
+// timeouts as other errors are handled within a middleware in the
+// client.
+func isTimeoutErr(err error) bool {
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	default:
+		return false
+	}
 }
 
 // populateItems iterates through items added to the collection
@@ -110,7 +168,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	var (
 		errs      error
 		byteCount int64
-		itemsRead = 0
+		itemsRead int64
+		wg        sync.WaitGroup
+		m         sync.Mutex
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -123,43 +183,98 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	folderProgress, colCloser := observe.ProgressWithCount(
 		observe.ItemQueueMsg,
-		"Folder: /"+parentPathString,
+		"/"+parentPathString,
 		int64(len(oc.driveItemIDs)),
 	)
 	defer colCloser()
 	defer close(folderProgress)
 
-	for _, itemID := range oc.driveItemIDs {
-		// Read the item
-		itemInfo, itemData, err := oc.itemReader(ctx, oc.service, oc.driveID, itemID)
-		if err != nil {
-			errs = support.WrapAndAppendf(itemID, err, errs)
+	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	defer close(semaphoreCh)
 
-			if oc.service.ErrPolicy() {
-				break
-			}
-
-			continue
-		}
-		// Item read successfully, add to collection
-		itemsRead++
-		// byteCount iteration
-		byteCount += itemInfo.Size
-
-		itemInfo.ParentPath = parentPathString
-		progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemInfo.ItemName, itemInfo.Size)
-
-		go closer()
-
-		oc.data <- &Item{
-			id:   itemInfo.ItemName,
-			data: progReader,
-			info: itemInfo,
-		}
-		folderProgress <- struct{}{}
+	errUpdater := func(id string, err error) {
+		m.Lock()
+		errs = support.WrapAndAppend(id, err, errs)
+		m.Unlock()
 	}
 
-	oc.reportAsCompleted(ctx, itemsRead, byteCount, errs)
+	for _, itemID := range oc.driveItemIDs {
+		if oc.service.ErrPolicy() && errs != nil {
+			break
+		}
+
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(itemID string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			// Read the item
+			var (
+				itemInfo details.ItemInfo
+				itemData io.ReadCloser
+				err      error
+			)
+
+			for i := 1; i <= maxRetries; i++ {
+				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+
+				// We only retry if it is a timeout error. Other
+				// errors like throttling are already handled within
+				// the graph client via a retry middleware.
+				// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
+				if err == nil || !isTimeoutErr(err) {
+					break
+				}
+
+				if i < maxRetries {
+					time.Sleep(1 * time.Second)
+				}
+			}
+
+			if err != nil {
+				errUpdater(itemID, err)
+				return
+			}
+
+			var (
+				itemName string
+				itemSize int64
+			)
+
+			switch oc.source {
+			case SharePointSource:
+				itemInfo.SharePoint.ParentPath = parentPathString
+				itemName = itemInfo.SharePoint.ItemName
+				itemSize = itemInfo.SharePoint.Size
+			default:
+				itemInfo.OneDrive.ParentPath = parentPathString
+				itemName = itemInfo.OneDrive.ItemName
+				itemSize = itemInfo.OneDrive.Size
+			}
+
+			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemName, itemSize)
+			go closer()
+
+			// Item read successfully, add to collection
+			atomic.AddInt64(&itemsRead, 1)
+			// byteCount iteration
+			atomic.AddInt64(&byteCount, itemSize)
+
+			oc.data <- &Item{
+				id:   itemName,
+				data: progReader,
+				info: itemInfo,
+			}
+			folderProgress <- struct{}{}
+		}(itemID)
+	}
+
+	wg.Wait()
+
+	oc.reportAsCompleted(ctx, int(itemsRead), byteCount, errs)
 }
 
 func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byteCount int64, errs error) {

@@ -198,7 +198,9 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	suite.backupID = bo.Results.BackupID
-	suite.numItems = bo.Results.ItemsWritten
+	// Remove delta metadata files for contacts and email as they are not part of
+	// the data restored.
+	suite.numItems = bo.Results.ItemsWritten - 2
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
