@@ -1,12 +1,10 @@
-package sharepoint_test
+package sharepoint
 
 import (
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -15,7 +13,7 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// consts, mocks
+// consts
 // ---------------------------------------------------------------------------
 
 const (
@@ -32,20 +30,6 @@ func (fm testFolderMatcher) IsAny() bool {
 
 func (fm testFolderMatcher) Matches(path string) bool {
 	return fm.scope.Matches(selectors.SharePointLibrary, path)
-}
-
-type MockGraphService struct{}
-
-func (ms *MockGraphService) Client() *msgraphsdk.GraphServiceClient {
-	return nil
-}
-
-func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return nil
-}
-
-func (ms *MockGraphService) ErrPolicy() bool {
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -136,21 +120,4 @@ func driveItem(name string, path string, isFile bool) models.DriveItemable {
 	}
 
 	return item
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
-	res := make([]string, 0, len(rest))
-
-	for _, r := range rest {
-		p, err := onedrive.GetCanonicalPath(r, tenant, user, onedrive.SharePointSource)
-		require.NoError(t, err)
-
-		res = append(res, p.String())
-	}
-
-	return res
 }
