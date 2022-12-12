@@ -1,0 +1,57 @@
+name: Lint Website
+
+inputs:
+  version:
+    description: Corso version to use for publishing
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Golang with cache
+      uses: magnetikonline/action-golang-cache@v3
+      with:
+        go-version-file: src/go.mod
+
+    - name: Generate CLI Docs
+      working-directory: ./src
+      shell: bash
+      run: |
+        go run ./cmd/mdgen/mdgen.go generate
+
+    # migrate generated md files into /website/docs/cli
+    - name: Move CLI .md to Docs
+      shell: bash
+      run: |
+        mkdir -p ./website/docs/cli
+        mv ./src/cmd/mdgen/cli_markdown/* ./website/docs/cli/
+        rm -R ./src/cmd/mdgen/cli_markdown/
+
+    - name: Install dependencies for website lint
+      shell: bash
+      run: |
+        wget --quiet https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
+        mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
+        echo "$PWD/bin" >> $GITHUB_PATH
+        npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
+
+    - name: Run website lint
+      shell: bash
+      run: |
+        cd website && make -o genclidocs localcheck
+
+    - name: Build website
+      shell: bash
+      env:
+        CORSO_VERSION: ${{ inputs.version }}
+      run: |
+        cd website &&
+          npm ci &&
+          npm run build
+
+    - uses: actions/upload-artifact@master
+      name: Upload website as artifacts
+      with:
+        name: website
+        path: website/build

@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/model"
 )
 
 type FolderEntry struct {
@@ -26,7 +25,6 @@ type FolderEntry struct {
 
 // DetailsModel describes what was stored in a Backup
 type DetailsModel struct {
-	model.BaseModel
 	Entries []DetailsEntry `json:"entries"`
 }
 

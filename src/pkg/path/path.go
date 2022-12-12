@@ -281,6 +281,43 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	return res
 }
 
+func (pb Builder) ToStreamStorePath(
+	tenant, purpose string,
+	service ServiceType,
+	isItem bool,
+) (Path, error) {
+	if err := verifyInputValues(tenant, purpose); err != nil {
+		return nil, err
+	}
+
+	if isItem && len(pb.elements) == 0 {
+		return nil, errors.New("missing path beyond prefix")
+	}
+
+	metadataService := UnknownService
+
+	switch service {
+	case ExchangeService:
+		metadataService = ExchangeMetadataService
+	case OneDriveService:
+		metadataService = OneDriveMetadataService
+	case SharePointService:
+		metadataService = SharePointMetadataService
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			metadataService.String(),
+			purpose,
+			DetailsCategory.String(),
+		),
+		service:  metadataService,
+		category: DetailsCategory,
+		hasItem:  isItem,
+	}, nil
+}
+
 func (pb Builder) ToServiceCategoryMetadataPath(
 	tenant, user string,
 	service ServiceType,
