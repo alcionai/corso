@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -242,13 +243,17 @@ func (op *BackupOperation) createBackupModels(
 		return errors.New("no backup details to record")
 	}
 
-	err := op.store.Put(ctx, model.BackupDetailsSchema, &backupDetails.DetailsModel)
+	detailsID, err := streamstore.New(
+		op.kopia,
+		op.account.ID(),
+		op.Selectors.PathService(),
+	).WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
 
 	b := backup.New(
-		snapID, string(backupDetails.ModelStoreID), op.Status.String(),
+		snapID, detailsID, op.Status.String(),
 		op.Results.BackupID,
 		op.Selectors,
 		op.Results.ReadWrites,

@@ -209,15 +209,16 @@ func collectionEntries(
 	cb func(context.Context, fs.Entry) error,
 	streamedEnts data.Collection,
 	progress *corsoProgress,
-) *multierror.Error {
+) (map[string]struct{}, *multierror.Error) {
 	if streamedEnts == nil {
-		return nil
+		return nil, nil
 	}
 
 	var (
 		errs *multierror.Error
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
+		seen  = map[string]struct{}{}
 		items = streamedEnts.Items()
 		log   = logger.Ctx(ctx)
 	)
@@ -226,12 +227,27 @@ func collectionEntries(
 		select {
 		case <-ctx.Done():
 			errs = multierror.Append(errs, ctx.Err())
-			return errs
+			return seen, errs
 
 		case e, ok := <-items:
 			if !ok {
-				return errs
+				return seen, errs
 			}
+
+			// Even if this item has been deleted and should not appear at all in
+			// the new snapshot we need to record that we've seen it here so we know
+			// to skip it if it's also present in the base snapshot.
+			//
+			// TODO(ashmrtn): Determine if we want to try to use the old version of
+			// the data (if it exists in the base) if we fail uploading the new
+			// version. If so, we should split this call into where we check for the
+			// item being deleted and then again after we do the kopia callback.
+			//
+			// TODO(ashmrtn): With a little more info, we could reduce the number of
+			// items we need to track. Namely, we can track the created time of the
+			// item and if it's after the base snapshot was finalized we can skip it
+			// because it's not possible for the base snapshot to contain that item.
+			seen[e.UUID()] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
 			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
@@ -245,7 +261,11 @@ func collectionEntries(
 			}
 
 			log.Debugw("reading item", "path", itemPath.String())
-			trace.Log(ctx, "kopia:collectionEntries:item", itemPath.String())
+			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
+
+			if e.Deleted() {
+				continue
+			}
 
 			// Not all items implement StreamInfo. For example, the metadata files
 			// do not because they don't contain information directly backed up or
@@ -275,7 +295,7 @@ func collectionEntries(
 				// Kopia's uploader swallows errors in most cases, so if we see
 				// something here it's probably a big issue and we should return.
 				errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
-				return errs
+				return seen, errs
 			}
 		}
 	}
@@ -301,7 +321,7 @@ func getStreamItemFunc(
 			}
 		}
 
-		errs := collectionEntries(ctx, cb, streamedEnts, progress)
+		_, errs := collectionEntries(ctx, cb, streamedEnts, progress)
 
 		// TODO(ashmrtn): Stream entries from base snapshot if they exist.
 
@@ -381,21 +401,34 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.Collection,
-) (map[string]*treeMap, *OwnersCats, error) {
+) (map[string]*treeMap, map[string]path.Path, *OwnersCats, error) {
 	roots := make(map[string]*treeMap)
+	// Contains the old path for collections that have been moved or renamed.
+	// Allows resolving what the new path should be when walking the base
+	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
+	updatedPaths := make(map[string]path.Path)
 	ownerCats := &OwnersCats{
 		ResourceOwners: make(map[string]struct{}),
 		ServiceCats:    make(map[string]struct{}),
 	}
 
 	for _, s := range collections {
+		switch s.State() {
+		case data.DeletedState:
+			updatedPaths[s.PreviousPath().String()] = nil
+			continue
+
+		case data.MovedState:
+			updatedPaths[s.PreviousPath().String()] = s.FullPath()
+		}
+
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, errors.New("no identifier for collection")
+			return nil, nil, nil, errors.New("no identifier for collection")
 		}
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, errors.Errorf(
+			return nil, nil, nil, errors.Errorf(
 				"unable to get tree node for path %s",
 				s.FullPath(),
 			)
@@ -408,7 +441,7 @@ func inflateCollectionTree(
 		node.collection = s
 	}
 
-	return roots, ownerCats, nil
+	return roots, updatedPaths, ownerCats, nil
 }
 
 // inflateDirTree returns a set of tags representing all the resource owners and
@@ -422,7 +455,7 @@ func inflateDirTree(
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, *OwnersCats, error) {
-	roots, ownerCats, err := inflateCollectionTree(ctx, collections)
+	roots, _, ownerCats, err := inflateCollectionTree(ctx, collections)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "inflating collection tree")
 	}

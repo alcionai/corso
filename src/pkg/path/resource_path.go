@@ -65,6 +65,7 @@ const (
 	FilesCategory                  // files
 	ListsCategory                  // lists
 	LibrariesCategory              // libraries
+	DetailsCategory                // details
 )
 
 func ToCategoryType(category string) CategoryType {
@@ -81,6 +82,8 @@ func ToCategoryType(category string) CategoryType {
 		return LibrariesCategory
 	case ListsCategory.String():
 		return ListsCategory
+	case DetailsCategory.String():
+		return DetailsCategory
 	default:
 		return UnknownCategory
 	}
