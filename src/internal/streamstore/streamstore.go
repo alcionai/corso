@@ -73,7 +73,7 @@ func (ss *streamStore) WriteBackupDetails(
 		},
 	}
 
-	backupStats, _, err := ss.kw.BackupCollections(ctx, nil, []data.Collection{dc}, ss.service)
+	backupStats, _, err := ss.kw.BackupCollections(ctx, nil, []data.Collection{dc}, ss.service, nil)
 	if err != nil {
 		return "", nil
 	}

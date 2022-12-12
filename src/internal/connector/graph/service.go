@@ -13,6 +13,12 @@ import (
 // given endpoint. The endpoint granularity varies by service.
 const DeltaTokenFileName = "delta"
 
+// MetadataFileNames produces the standard set of filenames used to store graph
+// metadata such as delta tokens and folderID->path references.
+func MetadataFileNames() []string {
+	return []string{DeltaTokenFileName}
+}
+
 type QueryParams struct {
 	Category      path.CategoryType
 	ResourceOwner string
