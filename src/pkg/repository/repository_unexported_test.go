@@ -19,6 +19,7 @@ func TestRepositoryModelSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoRepositoryTests,
+		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
@@ -45,6 +46,8 @@ func (suite *RepositoryModelSuite) TestWriteGetModel() {
 	)
 
 	require.NoError(t, kopiaRef.Initialize(ctx))
+	require.NoError(t, kopiaRef.Connect(ctx))
+
 	defer kopiaRef.Close(ctx)
 
 	ms, err := kopia.NewModelStore(kopiaRef)
