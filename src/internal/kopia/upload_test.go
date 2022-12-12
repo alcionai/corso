@@ -6,7 +6,6 @@ import (
 	"io"
 	stdpath "path"
 	"testing"
-	"unsafe"
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
@@ -116,10 +115,10 @@ func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
 
 			reversible := &restoreStreamReader{
 				expectedVersion: test.readVersion,
-				ReadCloser: &backupStreamReader{
-					version:    test.writeVersion,
-					ReadCloser: io.NopCloser(baseReader),
-				},
+				ReadCloser: newBackupStreamReader(
+					test.writeVersion,
+					io.NopCloser(baseReader),
+				),
 			}
 
 			defer reversible.Close()
@@ -165,11 +164,8 @@ func (suite *VersionReadersUnitSuite) TestWriteHandlesShortReads() {
 	inputData := []byte("This is some data for the reader to test with")
 	version := uint32(42)
 	baseReader := bytes.NewReader(inputData)
-	versioner := &backupStreamReader{
-		version:    version,
-		ReadCloser: io.NopCloser(baseReader),
-	}
-	expectedToWrite := len(inputData) + int(unsafe.Sizeof(versioner.version))
+	versioner := newBackupStreamReader(version, io.NopCloser(baseReader))
+	expectedToWrite := len(inputData) + int(versionSize)
 
 	// "Write" all the data.
 	versionedData, writtenLen := readAllInParts(t, 1, versioner)
