@@ -43,47 +43,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v3
+      - name: Lint Website
+        uses: ./.github/actions/website-linting
         with:
-          go-version-file: src/go.mod
-
-      - name: Generate CLI Docs
-        working-directory: ./src
-        run: |
-          go run ./cmd/mdgen/mdgen.go generate
-
-      # migrate generated md files into /website/docs/cli
-      - name: Move CLI .md to Docs
-        run: |
-          mkdir -p ./website/docs/cli
-          mv ./src/cmd/mdgen/cli_markdown/* ./website/docs/cli/
-          rm -R ./src/cmd/mdgen/cli_markdown/
-
-      - name: Install dependencies for website lint
-        run: |
-          wget https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
-          mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
-          echo "$PWD/bin" >> $GITHUB_PATH
-          npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
-
-      - name: Run website lint
-        run: |
-          cd website && make -o genclidocs localcheck
-
-      - name: Build website
-        env:
-          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
-        run: |
-          cd website &&
-            npm ci &&
-            npm run build
-
-      - uses: actions/upload-artifact@master
-        name: Upload website as artifacts
-        with:
-          name: website
-          path: website/build
+          version: ${{ needs.SetEnv.outputs.version }}
 
   Publish-Website:
     needs: [Website-Linting]
@@ -94,25 +57,11 @@ jobs:
         working-directory: website
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3 # need to checkout to make the action available
 
-      - uses: actions/download-artifact@master
-        name: Download website from build step
+      - name: Publish website
+        uses: ./.github/actions/publish-website
         with:
-          name: website
-          path: website/build
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
-
-      - name: Push website
-        run: |
-          aws s3 sync build "s3://corsobackup.io" --delete
-
-      - name: Invalidate cloudfront
-        run: |
-          aws cloudfront create-invalidation --distribution-id E1W9NGI9YTVZ1A --paths "/*"
+          aws-iam-role: ${{ secrets.AWS_IAM_ROLE }}
+          bucket: "corsobackup.io"
+          cfid: "E1W9NGI9YTVZ1A"
