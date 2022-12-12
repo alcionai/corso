@@ -39,7 +39,7 @@ var (
 	//_ data.StreamModTime = &Item{}
 )
 
-// Collection represents a set of OneDrive objects retreived from M365
+// Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -140,7 +140,10 @@ func (od *Item) Info() details.ItemInfo {
 //	return od.info.Modified
 //}
 
-// isTimeoutErr is used to determine if the Graph error returned is because of Timeout
+// isTimeoutErr is used to determine if the Graph error returned is
+// because of Timeout. This is used to restrict retries to just
+// timeouts as other errors are handled within a middleware in the
+// client.
 func isTimeoutErr(err error) bool {
 	switch err := err.(type) {
 	case *url.Error:
@@ -206,13 +209,13 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				err      error
 			)
 
-			// Retrying as we were hitting timeouts when we have multiple requests
-			// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
 			for i := 1; i <= maxRetries; i++ {
 				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
 
-				// Don't retry if it is not a timeout error as we
-				// already have a retry handler within client
+				// We only retry if it is a timeout error. Other
+				// errors like throttling are already handled within
+				// the graph client via a retry middleware.
+				// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
 				if err == nil || !isTimeoutErr(err) {
 					break
 				}
