@@ -44,7 +44,7 @@ func (suite *RepositoryModelSuite) TestWriteGetModel() {
 		kopiaRef = kopia.NewConn(s)
 	)
 
-	require.NoError(t, kopiaRef.Connect(ctx))
+	require.NoError(t, kopiaRef.Initialize(ctx))
 	defer kopiaRef.Close(ctx)
 
 	ms, err := kopia.NewModelStore(kopiaRef)
