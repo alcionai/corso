@@ -213,6 +213,10 @@ func (s *sharePoint) Sites(sites []string) []SharePointScope {
 	return scopes
 }
 
+// Lists produces one or more SharePoint list scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// Any empty slice defaults to [selectors.None]
 func (s *sharePoint) Lists(sites, lists []string, opts ...option) []SharePointScope {
 	var (
 		scopes = []SharePointScope{}
