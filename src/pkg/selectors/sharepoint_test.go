@@ -230,7 +230,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_Sites() {
 
 	sel.Exclude(sel.Sites([]string{s1, s2}))
 	scopes := sel.Excludes
-	require.Len(t, scopes, 1)
+	require.Len(t, scopes, 2)
 
 	for _, sc := range scopes {
 		scopeMustHave(
