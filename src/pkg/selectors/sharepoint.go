@@ -190,14 +190,23 @@ func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []SharePointScope {
-	return []SharePointScope{
+	scopes := []SharePointScope{}
+
+	scopes = append(
+		scopes,
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
 			SharePointWebURL,
 			urlSuffixes,
 			pathFilterFactory(opts...)),
-		// TODO: list scope
-	}
+		makeFilterScope[SharePointScope](
+			SharePointListItem,
+			SharePointWebURL,
+			urlSuffixes,
+			pathFilterFactory(opts...)),
+	)
+
+	return scopes
 }
 
 // Produces one or more SharePoint site scopes.
@@ -208,7 +217,11 @@ func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []Share
 func (s *sharePoint) Sites(sites []string) []SharePointScope {
 	scopes := []SharePointScope{}
 
-	scopes = append(scopes, makeScope[SharePointScope](SharePointLibrary, sites, Any()))
+	scopes = append(
+		scopes,
+		makeScope[SharePointScope](SharePointLibrary, sites, Any()),
+		makeScope[SharePointScope](SharePointList, sites, Any()),
+	)
 
 	return scopes
 }
