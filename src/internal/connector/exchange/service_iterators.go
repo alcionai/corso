@@ -78,12 +78,13 @@ func FilterContainersAndFillCollections(
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
+	oldDeltas map[string]string,
 ) error {
 	var (
 		errs           error
 		collectionType = CategoryToOptionIdentifier(qp.Category)
-		// folder ID -> delta token for folder.
-		deltaTokens = map[string]string{}
+		// folder ID -> delta url for folder.
+		deltaURLs = map[string]string{}
 	)
 
 	for _, c := range resolver.Items() {
@@ -128,7 +129,10 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, token, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, *c.GetId())
+		dirID := *c.GetId()
+		oldDelta := oldDeltas[dirID]
+
+		jobs, delta, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, dirID, oldDelta)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner,
@@ -139,8 +143,8 @@ func FilterContainersAndFillCollections(
 
 		edc.jobs = append(edc.jobs, jobs...)
 
-		if len(token) > 0 {
-			deltaTokens[*c.GetId()] = token
+		if len(delta) > 0 {
+			deltaURLs[dirID] = delta
 		}
 	}
 
@@ -148,7 +152,7 @@ func FilterContainersAndFillCollections(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
 		qp.Category,
-		deltaTokens,
+		deltaURLs,
 		statusUpdater,
 	)
 	if err != nil {
@@ -214,7 +218,7 @@ func IterativeCollectCalendarContainers(
 type FetchIDFunc func(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, containerID string,
+	user, containerID, oldDeltaToken string,
 ) ([]string, string, error)
 
 func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
@@ -234,7 +238,7 @@ func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
 func FetchEventIDsFromCalendar(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, calendarID string,
+	user, calendarID, oldDelta string,
 ) ([]string, string, error) {
 	var (
 		errs *multierror.Error
@@ -288,17 +292,17 @@ func FetchEventIDsFromCalendar(
 func FetchContactIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, directoryID string,
+	user, directoryID, oldDelta string,
 ) ([]string, string, error) {
 	var (
-		errs       *multierror.Error
-		ids        []string
-		deltaToken string
+		errs     *multierror.Error
+		ids      []string
+		deltaURL string
 	)
 
 	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
-		return nil, deltaToken, errors.Wrap(err, "getting query options")
+		return nil, deltaURL, errors.Wrap(err, "getting query options")
 	}
 
 	builder := gs.Client().
@@ -307,10 +311,16 @@ func FetchContactIDsFromDirectory(
 		Contacts().
 		Delta()
 
+		// TODO(rkeepers): Awaiting full integration of incremental support, else this
+		// will cause unexpected behavior/errors.
+	// if len(oldDelta) > 0 {
+	// 	builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
+	// }
+
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -329,7 +339,7 @@ func FetchContactIDsFromDirectory(
 
 		delta := resp.GetOdataDeltaLink()
 		if delta != nil && len(*delta) > 0 {
-			deltaToken = *delta
+			deltaURL = *delta
 		}
 
 		nextLink := resp.GetOdataNextLink()
@@ -340,7 +350,7 @@ func FetchContactIDsFromDirectory(
 		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
-	return ids, deltaToken, errs.ErrorOrNil()
+	return ids, deltaURL, errs.ErrorOrNil()
 }
 
 // FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
@@ -348,17 +358,17 @@ func FetchContactIDsFromDirectory(
 func FetchMessageIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, directoryID string,
+	user, directoryID, oldDelta string,
 ) ([]string, string, error) {
 	var (
-		errs       *multierror.Error
-		ids        []string
-		deltaToken string
+		errs     *multierror.Error
+		ids      []string
+		deltaURL string
 	)
 
 	options, err := optionsForFolderMessagesDelta([]string{"id"})
 	if err != nil {
-		return nil, deltaToken, errors.Wrap(err, "getting query options")
+		return nil, deltaURL, errors.Wrap(err, "getting query options")
 	}
 
 	builder := gs.Client().
@@ -367,10 +377,16 @@ func FetchMessageIDsFromDirectory(
 		Messages().
 		Delta()
 
+		// TODO(rkeepers): Awaiting full integration of incremental support, else this
+		// will cause unexpected behavior/errors.
+	// if len(oldDelta) > 0 {
+	// 	builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
+	// }
+
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, deltaToken, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -389,7 +405,7 @@ func FetchMessageIDsFromDirectory(
 
 		delta := resp.GetOdataDeltaLink()
 		if delta != nil && len(*delta) > 0 {
-			deltaToken = *delta
+			deltaURL = *delta
 		}
 
 		nextLink := resp.GetOdataNextLink()
@@ -400,5 +416,5 @@ func FetchMessageIDsFromDirectory(
 		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
-	return ids, deltaToken, errs.ErrorOrNil()
+	return ids, deltaURL, errs.ErrorOrNil()
 }
