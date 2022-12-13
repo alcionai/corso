@@ -51,7 +51,7 @@ type Collection struct {
 	// M365 ID of the drive this collection was created from
 	driveID       string
 	source        driveSource
-	service       graph.Service
+	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
 }
@@ -59,7 +59,7 @@ type Collection struct {
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, itemID string,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
@@ -67,7 +67,7 @@ type itemReaderFunc func(
 func NewCollection(
 	folderPath path.Path,
 	driveID string,
-	service graph.Service,
+	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	source driveSource,
 ) *Collection {

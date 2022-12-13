@@ -15,7 +15,7 @@ var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	*containerResolver
-	gs     graph.Service
+	gs     graph.Servicer
 	userID string
 }
 

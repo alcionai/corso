@@ -150,7 +150,7 @@ func purgeOneDriveFolders(
 	boundary time.Time,
 	uid string,
 ) error {
-	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
+	getter := func(gs graph.Servicer, uid, prefix string) ([]purgable, error) {
 		cfs, err := onedrive.GetAllFolders(ctx, gs, uid, prefix)
 		if err != nil {
 			return nil, err
@@ -165,7 +165,7 @@ func purgeOneDriveFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid string, f purgable) error {
+	deleter := func(gs graph.Servicer, uid string, f purgable) error {
 		driveFolder, ok := f.(*onedrive.Displayable)
 		if !ok {
 			return errors.New("non-OneDrive item")
@@ -189,8 +189,8 @@ func purgeFolders(
 	gc *connector.GraphConnector,
 	boundary time.Time,
 	data, uid string,
-	getter func(graph.Service, string, string) ([]purgable, error),
-	deleter func(graph.Service, string, purgable) error,
+	getter func(graph.Servicer, string, string) ([]purgable, error),
+	deleter func(graph.Servicer, string, purgable) error,
 ) error {
 	Infof(ctx, "Container: %s", data)
 

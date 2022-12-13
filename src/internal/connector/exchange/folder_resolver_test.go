@@ -13,7 +13,7 @@ import (
 
 type CacheResolverSuite struct {
 	suite.Suite
-	gs graph.Service
+	gs graph.Servicer
 }
 
 func TestCacheResolverIntegrationSuite(t *testing.T) {
