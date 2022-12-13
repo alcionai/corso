@@ -198,6 +198,8 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 	}
 }
 
+// TestSharePointselector_Include_Sites ensures that the scopes of
+// SharePoint Libraries & SharePoint Lists are created.
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_Sites() {
 	t := suite.T()
 	sel := NewSharePointBackup()
@@ -209,7 +211,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_Sites() {
 
 	sel.Include(sel.Sites([]string{s1, s2}))
 	scopes := sel.Includes
-	require.Len(t, scopes, 1)
+	require.Len(t, scopes, 2)
 
 	for _, sc := range scopes {
 		scopeMustHave(
