@@ -23,7 +23,7 @@ type CollectionUnitTestSuite struct {
 	suite.Suite
 }
 
-// Allows `*CollectionUnitTestSuite` to be used as a graph.Service
+// Allows `*CollectionUnitTestSuite` to be used as a graph.Servicer
 // TODO: Implement these methods
 
 func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
@@ -71,7 +71,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:   "oneDrive",
 			source: OneDriveSource,
-			itemReader: func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -84,7 +84,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:   "sharePoint",
 			source: SharePointSource,
-			itemReader: func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -178,7 +178,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 
 			readError := errors.New("Test error")
 
-			coll.itemReader = func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			coll.itemReader = func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, readError
 			}
 

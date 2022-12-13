@@ -18,7 +18,7 @@ const (
 	userSelectDisplayName   = "displayName"
 )
 
-func Users(ctx context.Context, gs graph.Service, tenantID string) ([]models.Userable, error) {
+func Users(ctx context.Context, gs graph.Servicer, tenantID string) ([]models.Userable, error) {
 	users := make([]models.Userable, 0)
 
 	options := &msuser.UsersRequestBuilderGetRequestConfiguration{

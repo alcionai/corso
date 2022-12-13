@@ -19,7 +19,7 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
 	*containerResolver
-	gs     graph.Service
+	gs     graph.Servicer
 	userID string
 }
 

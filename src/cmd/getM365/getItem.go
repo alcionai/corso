@@ -93,7 +93,7 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 
 func runDisplayM365JSON(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 ) error {
 	var (
 		get           exchange.GraphRetrievalFunc

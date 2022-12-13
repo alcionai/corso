@@ -213,7 +213,7 @@ func IterativeCollectCalendarContainers(
 // container supports fetching delta records.
 type FetchIDFunc func(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	user, containerID string,
 ) ([]string, string, error)
 
@@ -233,7 +233,7 @@ func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
 // FetchEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
 func FetchEventIDsFromCalendar(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	user, calendarID string,
 ) ([]string, string, error) {
 	var (
@@ -287,7 +287,7 @@ func FetchEventIDsFromCalendar(
 // of the targeted directory
 func FetchContactIDsFromDirectory(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	user, directoryID string,
 ) ([]string, string, error) {
 	var (
@@ -347,7 +347,7 @@ func FetchContactIDsFromDirectory(
 // of the targeted directory
 func FetchMessageIDsFromDirectory(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	user, directoryID string,
 ) ([]string, string, error) {
 	var (

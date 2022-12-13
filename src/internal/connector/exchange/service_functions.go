@@ -24,7 +24,7 @@ type exchangeService struct {
 }
 
 // ------------------------------------------------------------
-// Functions to comply with graph.Service Interface
+// Functions to comply with graph.Servicer Interface
 // ------------------------------------------------------------
 
 func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
@@ -64,7 +64,7 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
-func CreateMailFolder(ctx context.Context, gs graph.Service, user, folder string) (models.MailFolderable, error) {
+func CreateMailFolder(ctx context.Context, gs graph.Servicer, user, folder string) (models.MailFolderable, error) {
 	isHidden := false
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
@@ -75,7 +75,7 @@ func CreateMailFolder(ctx context.Context, gs graph.Service, user, folder string
 
 func CreateMailFolderWithParent(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	user, folder, parentID string,
 ) (models.MailFolderable, error) {
 	isHidden := false
@@ -92,13 +92,13 @@ func CreateMailFolderWithParent(
 
 // DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
-func DeleteMailFolder(ctx context.Context, gs graph.Service, user, folderID string) error {
+func DeleteMailFolder(ctx context.Context, gs graph.Servicer, user, folderID string) error {
 	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
 }
 
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
-func CreateCalendar(ctx context.Context, gs graph.Service, user, calendarName string) (models.Calendarable, error) {
+func CreateCalendar(ctx context.Context, gs graph.Servicer, user, calendarName string) (models.Calendarable, error) {
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
@@ -107,7 +107,7 @@ func CreateCalendar(ctx context.Context, gs graph.Service, user, calendarName st
 
 // DeleteCalendar removes calendar from user's M365 account
 // Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
-func DeleteCalendar(ctx context.Context, gs graph.Service, user, calendarID string) error {
+func DeleteCalendar(ctx context.Context, gs graph.Servicer, user, calendarID string) error {
 	return gs.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
@@ -115,7 +115,7 @@ func DeleteCalendar(ctx context.Context, gs graph.Service, user, calendarID stri
 // If successful, returns the created folder object.
 func CreateContactFolder(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	user, folderName string,
 ) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
@@ -127,7 +127,7 @@ func CreateContactFolder(
 
 // DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
 // Errors returned if the function call was not successful.
-func DeleteContactFolder(ctx context.Context, gs graph.Service, user, folderID string) error {
+func DeleteContactFolder(ctx context.Context, gs graph.Servicer, user, folderID string) error {
 	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 }
 

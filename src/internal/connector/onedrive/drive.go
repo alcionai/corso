@@ -69,7 +69,7 @@ const (
 // Enumerates the drives for the specified user
 func drives(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	resourceOwner string,
 	source driveSource,
 ) ([]models.Driveable, error) {
@@ -83,7 +83,7 @@ func drives(
 	}
 }
 
-func siteDrives(ctx context.Context, service graph.Service, site string) ([]models.Driveable, error) {
+func siteDrives(ctx context.Context, service graph.Servicer, site string) ([]models.Driveable, error) {
 	options := &sites.SitesItemDrivesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &sites.SitesItemDrivesRequestBuilderGetQueryParameters{
 			Select: []string{"id", "name", "weburl", "system"},
@@ -99,7 +99,7 @@ func siteDrives(ctx context.Context, service graph.Service, site string) ([]mode
 	return r.GetValue(), nil
 }
 
-func userDrives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
+func userDrives(ctx context.Context, service graph.Servicer, user string) ([]models.Driveable, error) {
 	var hasDrive bool
 
 	hasDrive, err := hasDriveLicense(ctx, service, user)
@@ -135,7 +135,7 @@ type itemCollector func(ctx context.Context, driveID string, driveItems []models
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID string,
 	collector itemCollector,
 ) error {
@@ -175,7 +175,7 @@ func collectItems(
 // getFolder will lookup the specified folder name under `parentFolderID`
 func getFolder(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
 	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
@@ -215,7 +215,7 @@ func getFolder(
 // Create a new item in the specified folder
 func createItem(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, parentFolderID string,
 	newItem models.DriveItemable,
 ) (models.DriveItemable, error) {
@@ -264,7 +264,7 @@ func (op *Displayable) GetDisplayName() *string {
 // are a subfolder or top-level folder in the hierarchy.
 func GetAllFolders(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	userID string,
 	prefix string,
 ) ([]*Displayable, error) {
@@ -325,7 +325,7 @@ func GetAllFolders(
 
 func DeleteItem(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	driveID string,
 	itemID string,
 ) error {
@@ -341,7 +341,7 @@ func DeleteItem(
 // to investigate the user's includes access to OneDrive.
 func hasDriveLicense(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	user string,
 ) (bool, error) {
 	var hasDrive bool
