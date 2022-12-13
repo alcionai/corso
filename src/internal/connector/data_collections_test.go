@@ -2,7 +2,6 @@ package connector
 
 import (
 	"bytes"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -18,45 +16,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
-
-// ---------------------------------------------------------------------------
-// Unit tests
-// ---------------------------------------------------------------------------
-
-type DataCollectionsUnitSuite struct {
-	suite.Suite
-}
-
-func TestDataCollectionsUnitSuite(t *testing.T) {
-	suite.Run(t, new(DataCollectionsUnitSuite))
-}
-
-func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
-	t := suite.T()
-	ctx, flush := tester.NewContext()
-
-	defer flush()
-
-	bs, err := json.Marshal(map[string]string{"key": "token"})
-	require.NoError(t, err)
-
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
-		"t", "u",
-		path.ExchangeService,
-		path.EmailCategory,
-		false,
-	)
-	require.NoError(t, err)
-
-	item := []graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, bs)}
-	mdcoll := graph.NewMetadataCollection(p, item, func(cos *support.ConnectorOperationStatus) {})
-	colls := []data.Collection{mdcoll}
-
-	_, deltas, err := parseMetadataCollections(ctx, colls)
-	require.NoError(t, err)
-	assert.NotEmpty(t, deltas, "delta urls")
-	assert.Equal(t, "token", deltas["key"])
-}
 
 // ---------------------------------------------------------------------------
 // DataCollection tests
@@ -391,7 +350,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
 
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
-			_, deltas, err := parseMetadataCollections(ctx, []data.Collection{metadata})
+			_, deltas, err := exchange.ParseMetadataCollections(ctx, []data.Collection{metadata})
 			require.NoError(t, err)
 
 			// now do another backup with the previous delta tokens,
