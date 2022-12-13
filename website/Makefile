@@ -13,7 +13,7 @@ CBASE :=  docker run --rm -it \
 		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
 		--workdir ${CORSO_REPO}/src
 GOC :=  ${CBASE} golang:1.18
-GOBASHC :=  ${CBASE} --entrypoint bash golang:1.18
+GOBASHC :=  ${CBASE} --entrypoint bash golang:1.19
 MDGEN_SRC := ${CORSO_REPO}/src/cmd/mdgen/mdgen.go
 MDGEN_BINARY := ${CORSO_BUILD_BIN}/mdgen
 CLI_DOCS := ${CORSO_REPO}/website/docs/cli
