@@ -81,9 +81,7 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = runDisplayM365JSON(
-		ctx,
-		gc)
+	err = runDisplayM365JSON(ctx, gc.Service())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "unable to create mock from M365: %s", m365ID))
 	}
