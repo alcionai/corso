@@ -113,18 +113,6 @@ func CategoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 // which reduces the overall latency of complex calls
 // -----------------------------------------------------------------------
 
-// Delta requests for mail and contacts have the same parameters and config
-// structs.
-type DeltaRequestBuilderGetQueryParameters struct {
-	Count   *bool    `uriparametername:"%24count"`
-	Filter  *string  `uriparametername:"%24filter"`
-	Orderby []string `uriparametername:"%24orderby"`
-	Search  *string  `uriparametername:"%24search"`
-	Select  []string `uriparametername:"%24select"`
-	Skip    *int32   `uriparametername:"%24skip"`
-	Top     *int32   `uriparametername:"%24top"`
-}
-
 func optionsForFolderMessagesDelta(
 	moreOps []string,
 ) (*msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
