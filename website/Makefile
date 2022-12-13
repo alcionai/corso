@@ -1,5 +1,6 @@
 .PHONY: buildimage build dev shell check genclidocs _validatemdgen publish sync
 
+GO_VERSION := 1.19
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
 CORSO_BUILD_MOD := ${CORSO_BUILD_DIR}/mod
@@ -12,8 +13,8 @@ CBASE :=  docker run --rm -it \
 		-v ${CORSO_LOCAL_PATH}:${CORSO_REPO} -v ${CORSO_BUILD_DIR}:${CORSO_BUILD_DIR} \
 		--env GOCACHE=${CORSO_BUILD_CACHE} --env GOMODCACHE=${CORSO_BUILD_MOD} --env GOTMPDIR=${CORSO_BUILD_DIR} \
 		--workdir ${CORSO_REPO}/src
-GOC :=  ${CBASE} golang:1.18
-GOBASHC :=  ${CBASE} --entrypoint bash golang:1.18
+GOC :=  ${CBASE} golang:${GO_VERSION}
+GOBASHC :=  ${CBASE} --entrypoint bash golang:${GO_VERSION}
 MDGEN_SRC := ${CORSO_REPO}/src/cmd/mdgen/mdgen.go
 MDGEN_BINARY := ${CORSO_BUILD_BIN}/mdgen
 CLI_DOCS := ${CORSO_REPO}/website/docs/cli

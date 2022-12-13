@@ -3,7 +3,6 @@ package mockconnector_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -30,7 +29,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 	messagesRead := 0
 
 	for item := range mdc.Items() {
-		_, err := ioutil.ReadAll(item.ToReader())
+		_, err := io.ReadAll(item.ToReader())
 		assert.NoError(suite.T(), err)
 		messagesRead++
 	}
@@ -45,7 +44,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
 	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
 
 	for item := range mdc.Items() {
-		buf, err := ioutil.ReadAll(item.ToReader())
+		buf, err := io.ReadAll(item.ToReader())
 		assert.NoError(t, err)
 
 		assert.Implements(t, (*data.StreamSize)(nil), item)
@@ -110,7 +109,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			assert.Equal(t, id, test.reader.UUID())
-			buf, err := ioutil.ReadAll(test.reader.ToReader())
+			buf, err := io.ReadAll(test.reader.ToReader())
 
 			test.check(t, err)
 			if err != nil {
