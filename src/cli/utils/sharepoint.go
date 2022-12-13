@@ -54,48 +54,47 @@ func IncludeSharePointRestoreDataSelectors(
 	sel *selectors.SharePointRestore,
 	opts SharePointOpts,
 ) {
-	lp, ln, lwu := len(opts.LibraryPaths), len(opts.LibraryItems), len(opts.WebURLs)
+	lp, li := len(opts.LibraryPaths), len(opts.LibraryItems)
+	ls, lwu := len(opts.Sites), len(opts.WebURLs)
 
-	// only use the inclusion if either a path or item name
-	// is specified
-	if lp+ln == 0 {
-		return
-	}
-
-	if len(opts.Sites) == 0 {
+	if ls == 0 {
 		opts.Sites = selectors.Any()
 	}
 
-	if lp+ln+lwu == 0 {
+	if lp+li+lwu == 0 {
 		sel.Include(sel.Sites(opts.Sites))
 
 		return
 	}
 
-	opts.LibraryPaths = trimFolderSlash(opts.LibraryPaths)
+	if lp+li > 0 {
+		if li == 0 {
+			opts.LibraryItems = selectors.Any()
+		}
 
-	if ln == 0 {
-		opts.LibraryItems = selectors.Any()
+		opts.LibraryPaths = trimFolderSlash(opts.LibraryPaths)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.LibraryItems(opts.Sites, containsFolders, opts.LibraryItems))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.LibraryItems(opts.Sites, prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+		}
 	}
 
-	containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURLs)
+	if lwu > 0 {
+		opts.WebURLs = trimFolderSlash(opts.WebURLs)
+		containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURLs)
 
-	if len(containsURLs) > 0 {
-		sel.Include(sel.WebURL(containsURLs))
-	}
+		if len(containsURLs) > 0 {
+			sel.Include(sel.WebURL(containsURLs))
+		}
 
-	if len(suffixURLs) > 0 {
-		sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
-	}
-
-	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
-
-	if len(containsFolders) > 0 {
-		sel.Include(sel.LibraryItems(opts.Sites, containsFolders, opts.LibraryItems))
-	}
-
-	if len(prefixFolders) > 0 {
-		sel.Include(sel.LibraryItems(opts.Sites, prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+		if len(suffixURLs) > 0 {
+			sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
+		}
 	}
 }
 
