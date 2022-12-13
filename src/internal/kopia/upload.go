@@ -303,6 +303,61 @@ func collectionEntries(
 	}
 }
 
+func streamBaseEntries(
+	ctx context.Context,
+	cb func(context.Context, fs.Entry) error,
+	dir fs.Directory,
+	encodedSeen map[string]struct{},
+	progress *corsoProgress,
+) error {
+	if dir == nil {
+		return nil
+	}
+
+	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
+		if err := innerCtx.Err(); err != nil {
+			return err
+		}
+
+		// Don't walk subdirectories in this function.
+		if _, ok := entry.(fs.Directory); ok {
+			return nil
+		}
+
+		// This entry was either updated or deleted. In either case, the external
+		// service notified us about it and it's already been handled so we should
+		// skip it here.
+		if _, ok := encodedSeen[entry.Name()]; ok {
+			return nil
+		}
+
+		if err := cb(ctx, entry); err != nil {
+			entName, err := decodeElement(entry.Name())
+			if err != nil {
+				entName = entry.Name()
+			}
+
+			return errors.Wrapf(err, "executing callback on item %q", entName)
+		}
+
+		return nil
+	})
+	if err != nil {
+		name, err := decodeElement(dir.Name())
+		if err != nil {
+			name = dir.Name()
+		}
+
+		return errors.Wrapf(
+			err,
+			"traversing items in base snapshot directory %q",
+			name,
+		)
+	}
+
+	return nil
+}
+
 // getStreamItemFunc returns a function that can be used by kopia's
 // virtualfs.StreamingDirectory to iterate through directory entries and call
 // kopia callbacks on directory entries. It binds the directory to the given
