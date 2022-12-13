@@ -9,6 +9,7 @@ import (
 	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -418,18 +419,21 @@ func (op *BackupOperation) createBackupModels(
 		return errors.Wrap(err, "creating backup model")
 	}
 
+	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
+
 	op.bus.Event(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
-			events.BackupID:   b.ID,
-			events.DataStored: op.Results.BytesUploaded,
-			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:    op.Results.CompletedAt,
-			events.Resources:  op.Results.ResourceOwners,
-			events.Service:    op.Selectors.PathService().String(),
-			events.StartTime:  op.Results.StartedAt,
-			events.Status:     op.Status,
+			events.BackupID:      b.ID,
+			events.DataStored:    op.Results.BytesUploaded,
+			events.Duration:      dur,
+			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
+			events.HumanDuration: dur.String(),
+			events.Resources:     op.Results.ResourceOwners,
+			events.Service:       op.Selectors.PathService().String(),
+			events.StartTime:     common.FormatTime(op.Results.StartedAt),
+			events.Status:        op.Status.String(),
 		},
 	)
 
