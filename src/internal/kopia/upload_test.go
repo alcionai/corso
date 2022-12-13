@@ -28,6 +28,100 @@ func makePath(t *testing.T, elements []string) path.Path {
 	return p
 }
 
+type expectedNode struct {
+	name     string
+	children []*expectedNode
+	data     []byte
+}
+
+// Currently only works for files that Corso has serialized as it expects a
+// version specifier at the start of the file.
+//
+//revive:disable:context-as-argument
+func expectFileData(
+	t *testing.T,
+	ctx context.Context,
+	expected []byte,
+	f fs.StreamingFile,
+) {
+	//revive:enable:context-as-argument
+	t.Helper()
+
+	if expected == nil {
+		return
+	}
+
+	name, err := decodeElement(f.Name())
+	if err != nil {
+		name = f.Name()
+	}
+
+	r, err := f.GetReader(ctx)
+	if !assert.NoErrorf(t, err, "getting reader for file: %s", name) {
+		return
+	}
+
+	// Need to wrap with a restore stream reader to remove the version.
+	r = &restoreStreamReader{
+		ReadCloser:      io.NopCloser(r),
+		expectedVersion: serializationVersion,
+	}
+
+	got, err := io.ReadAll(r)
+	if !assert.NoErrorf(t, err, "reading data in file: %s", name) {
+		return
+	}
+
+	assert.Equalf(t, expected, got, "data in file: %s", name)
+}
+
+//revive:disable:context-as-argument
+func expectTree(
+	t *testing.T,
+	ctx context.Context,
+	expected *expectedNode,
+	got fs.Entry,
+) {
+	//revive:enable:context-as-argument
+	t.Helper()
+
+	if expected == nil {
+		return
+	}
+
+	names := make([]string, 0, len(expected.children))
+	mapped := make(map[string]*expectedNode, len(expected.children))
+
+	for _, child := range expected.children {
+		encoded := encodeElements(child.name)[0]
+
+		names = append(names, encoded)
+		mapped[encoded] = child
+	}
+
+	entries := getDirEntriesForEntry(t, ctx, got)
+	expectDirs(t, entries, names, true)
+
+	for _, e := range entries {
+		expectedSubtree := mapped[e.Name()]
+		if !assert.NotNil(t, expectedSubtree) {
+			continue
+		}
+
+		if f, ok := e.(fs.StreamingFile); ok {
+			expectFileData(t, ctx, expectedSubtree.data, f)
+			continue
+		}
+
+		dir, ok := e.(fs.Directory)
+		if !ok {
+			continue
+		}
+
+		expectTree(t, ctx, expectedSubtree, dir)
+	}
+}
+
 func expectDirs(
 	t *testing.T,
 	entries []fs.Entry,
