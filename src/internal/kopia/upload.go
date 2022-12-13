@@ -399,6 +399,23 @@ func getStreamItemFunc(
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are virtualfs.StreamingDirectory.
 func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.Directory, error) {
+	// Reuse kopia directories directly if the subtree rooted at them is
+	// unchanged.
+	//
+	// TODO(ashmrtn): This will need updated when we have OneDrive backups where
+	// items have been deleted because we can't determine which directory used to
+	// have the item.
+	//
+	// TODO(ashmrtn): We could possibly also use this optimization if we know that
+	// the collection has no items in it. In that case though, we may need to take
+	// extra care to ensure the name of the directory is properly represented. For
+	// example, a directory that has been renamed but with no additional items may
+	// not be able to directly use kopia's version of the directory due to the
+	// rename.
+	if dir.collection == nil && len(dir.childDirs) == 0 && dir.baseDir != nil {
+		return dir.baseDir, nil
+	}
+
 	// Need to build the directory tree from the leaves up because intermediate
 	// directories need to have all their entries at creation time.
 	var childDirs []fs.Entry
