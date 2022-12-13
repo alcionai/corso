@@ -23,7 +23,7 @@ type statusUpdater interface {
 type connector interface {
 	statusUpdater
 
-	Service() graph.Service
+	Service() graph.Servicer
 }
 
 // DataCollections returns a set of DataCollection which represents the SharePoint data
@@ -89,7 +89,7 @@ func DataCollections(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	serv graph.Service,
+	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
 	updater statusUpdater,

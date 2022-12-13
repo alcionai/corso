@@ -26,7 +26,7 @@ const (
 
 type MailFolderCacheIntegrationSuite struct {
 	suite.Suite
-	gs graph.Service
+	gs graph.Servicer
 }
 
 func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {

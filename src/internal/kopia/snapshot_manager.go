@@ -35,14 +35,35 @@ type snapshotManager interface {
 
 type OwnersCats struct {
 	ResourceOwners map[string]struct{}
-	ServiceCats    map[string]struct{}
+	ServiceCats    map[string]ServiceCat
+}
+
+type ServiceCat struct {
+	Service  path.ServiceType
+	Category path.CategoryType
+}
+
+// MakeServiceCat produces the expected OwnersCats.ServiceCats key from a
+// path service and path category, as well as the ServiceCat value.
+func MakeServiceCat(s path.ServiceType, c path.CategoryType) (string, ServiceCat) {
+	return serviceCatString(s, c), ServiceCat{s, c}
 }
 
 func serviceCatTag(p path.Path) string {
-	return p.Service().String() + p.Category().String()
+	return serviceCatString(p.Service(), p.Category())
 }
 
-func makeTagKV(k string) (string, string) {
+func serviceCatString(s path.ServiceType, c path.CategoryType) string {
+	return s.String() + c.String()
+}
+
+// MakeTagKV normalizes the provided key to protect it from clobbering
+// similarly named tags from non-user input (user inputs are still open
+// to collisions amongst eachother).
+// Returns the normalized Key plus a default value.  If you're embedding a
+// key-only tag, the returned default value msut be used instead of an
+// empty string.
+func MakeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
 }
 
@@ -53,12 +74,12 @@ func tagsFromStrings(oc *OwnersCats) map[string]string {
 	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
 
 	for k := range oc.ServiceCats {
-		tk, tv := makeTagKV(k)
+		tk, tv := MakeTagKV(k)
 		res[tk] = tv
 	}
 
 	for k := range oc.ResourceOwners {
-		tk, tv := makeTagKV(k)
+		tk, tv := MakeTagKV(k)
 		res[tk] = tv
 	}
 
@@ -181,35 +202,41 @@ func fetchPrevManifests(
 	return manifestsSinceLastComplete(mans), nil
 }
 
-// FetchPrevSnapshotManifests returns a set of manifests for complete and maybe
+// fetchPrevSnapshotManifests returns a set of manifests for complete and maybe
 // incomplete snapshots for the given (resource owner, service, category)
 // tuples. Up to two manifests can be returned per tuple: one complete and one
 // incomplete. An incomplete manifest may be returned if it is newer than the
 // newest complete manifest for the tuple. Manifests are deduped such that if
 // multiple tuples match the same manifest it will only be returned once.
-func FetchPrevSnapshotManifests(
+// External callers can access this via wrapper.FetchPrevSnapshotManifests().
+// If tags are provided, manifests must include a superset of the k:v pairs
+// specified by those tags.  Tags should pass their raw values, and will be
+// normalized inside the func using MakeTagKV.
+func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
 	oc *OwnersCats,
+	tags map[string]string,
 ) []*snapshot.Manifest {
 	mans := map[manifest.ID]*snapshot.Manifest{}
+	tags = normalizeTagKVs(tags)
 
 	// For each serviceCat/resource owner pair that we will be backing up, see if
 	// there's a previous incomplete snapshot and/or a previous complete snapshot
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
 	for serviceCat := range oc.ServiceCats {
-		serviceTagKey, serviceTagValue := makeTagKV(serviceCat)
-
 		for resourceOwner := range oc.ResourceOwners {
-			resourceOwnerTagKey, resourceOwnerTagValue := makeTagKV(resourceOwner)
+			allTags := normalizeTagKVs(map[string]string{
+				serviceCat:    "",
+				resourceOwner: "",
+			})
 
-			tags := map[string]string{
-				serviceTagKey:       serviceTagValue,
-				resourceOwnerTagKey: resourceOwnerTagValue,
+			for k, v := range tags {
+				allTags[k] = v
 			}
 
-			found, err := fetchPrevManifests(ctx, sm, mans, tags)
+			found, err := fetchPrevManifests(ctx, sm, mans, allTags)
 			if err != nil {
 				logger.Ctx(ctx).Warnw(
 					"fetching previous snapshot manifests for service/category/resource owner",
@@ -236,4 +263,20 @@ func FetchPrevSnapshotManifests(
 	}
 
 	return res
+}
+
+func normalizeTagKVs(tags map[string]string) map[string]string {
+	t2 := make(map[string]string, len(tags))
+
+	for k, v := range tags {
+		mk, mv := MakeTagKV(k)
+
+		if len(v) == 0 {
+			v = mv
+		}
+
+		t2[mk] = v
+	}
+
+	return t2
 }

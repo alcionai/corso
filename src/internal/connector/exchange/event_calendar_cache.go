@@ -15,7 +15,7 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	gs     graph.Service
+	gs     graph.Servicer
 	userID string
 }
 

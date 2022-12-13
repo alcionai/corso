@@ -28,6 +28,8 @@ func (suite *ModelUnitSuite) TestValid() {
 		{model.RestoreOpSchema, assert.True},
 		{model.BackupSchema, assert.True},
 		{model.BackupDetailsSchema, assert.True},
+		{model.RepositorySchema, assert.True},
+		{model.RepositorySchema + 1, assert.False},
 		{model.Schema(-1), assert.False},
 		{model.Schema(100), assert.False},
 	}

@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup"
 )
 
 type fooModel struct {
@@ -837,29 +836,13 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 	defer flush()
 
 	t := suite.T()
-	numEntries := 10
-	deets := details.DetailsModel{
-		Entries: make([]details.DetailsEntry, 0, numEntries),
-	}
-
-	for i := 0; i < numEntries; i++ {
-		deets.Entries = append(
-			deets.Entries,
-			details.DetailsEntry{
-				RepoRef: fmt.Sprintf("exchange/user1/email/inbox/mail%v", i),
-				ItemInfo: details.ItemInfo{
-					Exchange: &details.ExchangeInfo{
-						Sender:  "John Doe",
-						Subject: fmt.Sprintf("Hola mundo %v", i),
-					},
-				},
-			},
-		)
+	backupModel := backup.Backup{
+		SnapshotID: "snapshotID",
 	}
 
 	conn1, ms1 := openConnAndModelStore(t, ctx)
 
-	require.NoError(t, ms1.Put(ctx, model.BackupDetailsSchema, &deets))
+	require.NoError(t, ms1.Put(ctx, model.BackupSchema, &backupModel))
 	require.NoError(t, ms1.Close(ctx))
 
 	start := make(chan struct{})
@@ -898,22 +881,22 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 	}()
 
 	// New instance should not have model we added.
-	gotDeets := details.Details{}
+	gotBackup := backup.Backup{}
 	err := ms2.GetWithModelStoreID(
 		ctx,
-		model.BackupDetailsSchema,
-		deets.ModelStoreID,
-		&gotDeets,
+		model.BackupSchema,
+		backupModel.ModelStoreID,
+		&gotBackup,
 	)
 	assert.Error(t, err)
 
 	// Old instance should still be able to access added model.
-	gotDeets = details.Details{}
+	gotBackup = backup.Backup{}
 	err = ms1.GetWithModelStoreID(
 		ctx,
-		model.BackupDetailsSchema,
-		deets.ModelStoreID,
-		&gotDeets,
+		model.BackupSchema,
+		backupModel.ModelStoreID,
+		&gotBackup,
 	)
 	assert.NoError(t, err)
 }

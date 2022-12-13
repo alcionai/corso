@@ -36,7 +36,7 @@ type Collections struct {
 	resourceOwner string
 	source        driveSource
 	matcher       folderMatcher
-	service       graph.Service
+	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 
 	// collectionMap allows lookup of the data.Collection
@@ -54,7 +54,7 @@ func NewCollections(
 	resourceOwner string,
 	source driveSource,
 	matcher folderMatcher,
-	service graph.Service,
+	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 ) *Collections {
 	return &Collections{

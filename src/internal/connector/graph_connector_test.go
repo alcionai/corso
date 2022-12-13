@@ -284,7 +284,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 func mustGetDefaultDriveID(
 	t *testing.T,
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	userID string,
 ) string {
 	//revive:enable:context-as-argument

@@ -41,7 +41,7 @@ var (
 			testUser2: {},
 			testUser3: {},
 		},
-		ServiceCats: map[string]struct{}{
+		ServiceCats: map[string]ServiceCat{
 			testMail:   {},
 			testEvents: {},
 		},
@@ -52,7 +52,7 @@ var (
 			testUser2: {},
 			testUser3: {},
 		},
-		ServiceCats: map[string]struct{}{
+		ServiceCats: map[string]ServiceCat{
 			testMail: {},
 		},
 	}
@@ -79,7 +79,7 @@ func newManifestInfo(
 	structTags := make(map[string]struct{}, len(tags))
 
 	for _, t := range tags {
-		tk, _ := makeTagKV(t)
+		tk, _ := MakeTagKV(t)
 		structTags[tk] = struct{}{}
 	}
 
@@ -442,11 +442,104 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				}
 			}
 
-			snaps := FetchPrevSnapshotManifests(ctx, msm, test.input)
+			snaps := fetchPrevSnapshotManifests(ctx, msm, test.input, nil)
 
 			expected := make([]*snapshot.Manifest, 0, len(test.expectedIdxs))
 			for _, i := range test.expectedIdxs {
 				expected = append(expected, test.data[i].man)
+			}
+
+			assert.ElementsMatch(t, expected, snaps)
+
+			// Need to manually check because we don't know the order the
+			// user/service/category labels will be iterated over. For some tests this
+			// could cause more loads than the ideal case.
+			assert.Len(t, loadCounts, len(test.expectedLoadCounts))
+			for id, count := range loadCounts {
+				assert.GreaterOrEqual(t, test.expectedLoadCounts[id], count)
+			}
+		})
+	}
+}
+
+func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_customTags() {
+	data := []manifestInfo{
+		newManifestInfo(
+			testID1,
+			testT1,
+			false,
+			testMail,
+			testUser1,
+			"fnords",
+			"smarf",
+		),
+	}
+	expectLoad1T1 := map[manifest.ID]int{
+		testID1: 1,
+	}
+
+	table := []struct {
+		name  string
+		input *OwnersCats
+		tags  map[string]string
+		// Use this to denote which manifests in data should be expected. Allows
+		// defining data in a table while not repeating things between data and
+		// expected.
+		expectedIdxs []int
+		// Expected number of times a manifest should try to be loaded from kopia.
+		// Used to check that caching is functioning properly.
+		expectedLoadCounts map[manifest.ID]int
+	}{
+		{
+			name:               "no tags specified",
+			tags:               nil,
+			expectedIdxs:       []int{0},
+			expectedLoadCounts: expectLoad1T1,
+		},
+		{
+			name: "all custom tags",
+			tags: map[string]string{
+				"fnords": "",
+				"smarf":  "",
+			},
+			expectedIdxs:       []int{0},
+			expectedLoadCounts: expectLoad1T1,
+		},
+		{
+			name:               "subset of custom tags",
+			tags:               map[string]string{"fnords": ""},
+			expectedIdxs:       []int{0},
+			expectedLoadCounts: expectLoad1T1,
+		},
+		{
+			name:               "custom tag mismatch",
+			tags:               map[string]string{"bojangles": ""},
+			expectedIdxs:       nil,
+			expectedLoadCounts: nil,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			msm := &mockSnapshotManager{
+				data: data,
+			}
+
+			loadCounts := map[manifest.ID]int{}
+			msm.loadCallback = func(ids []manifest.ID) {
+				for _, id := range ids {
+					loadCounts[id]++
+				}
+			}
+
+			snaps := fetchPrevSnapshotManifests(ctx, msm, testAllUsersAllCats, test.tags)
+
+			expected := make([]*snapshot.Manifest, 0, len(test.expectedIdxs))
+			for _, i := range test.expectedIdxs {
+				expected = append(expected, data[i].man)
 			}
 
 			assert.ElementsMatch(t, expected, snaps)
@@ -495,7 +588,7 @@ func (msm *mockErrorSnapshotManager) LoadSnapshots(
 	return msm.sm.LoadSnapshots(ctx, ids)
 }
 
-func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
+func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_withErrors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -532,7 +625,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
 		},
 	}
 
-	snaps := FetchPrevSnapshotManifests(ctx, msm, input)
+	snaps := fetchPrevSnapshotManifests(ctx, msm, input, nil)
 
 	// Only 1 snapshot should be chosen because the other two attempts fail.
 	// However, which one is returned is non-deterministic because maps are used.

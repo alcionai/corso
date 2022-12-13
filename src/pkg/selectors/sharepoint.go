@@ -37,6 +37,7 @@ var (
 	_ Reducer         = &SharePointRestore{}
 	_ printabler      = &SharePointRestore{}
 	_ resourceOwnerer = &SharePointRestore{}
+	_ pathCategorier  = &SharePointRestore{}
 )
 
 // NewSharePointBackup produces a new Selector with the service set to ServiceSharePoint.
@@ -97,6 +98,15 @@ func (s sharePoint) ResourceOwners() selectorResourceOwners {
 		Excludes: resourceOwnersIn(s.Excludes, SharePointSite.String()),
 		Filters:  resourceOwnersIn(s.Filters, SharePointSite.String()),
 		Includes: resourceOwnersIn(s.Includes, SharePointSite.String()),
+	}
+}
+
+// PathCategories produces the aggregation of discrete users described by each type of scope.
+func (s sharePoint) PathCategories() selectorPathCategories {
+	return selectorPathCategories{
+		Excludes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Excludes),
+		Filters:  pathCategoriesIn[SharePointScope, sharePointCategory](s.Filters),
+		Includes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Includes),
 	}
 }
 
@@ -210,7 +220,7 @@ func (s *sharePoint) Sites(sites []string) []SharePointScope {
 func (s *sharePoint) Libraries(sites, libraries []string, opts ...option) []SharePointScope {
 	var (
 		scopes = []SharePointScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
@@ -397,7 +407,7 @@ func (s SharePointScope) Get(cat sharePointCategory) []string {
 func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option) SharePointScope {
 	os := []option{}
 	if cat == SharePointLibrary {
-		os = append(os, pathType())
+		os = append(os, pathComparator())
 	}
 
 	return set(s, cat, v, append(os, opts...)...)

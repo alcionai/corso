@@ -53,7 +53,7 @@ type Collection struct {
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
 	// service - client/adapter pair used to access M365 back store
-	service graph.Service
+	service graph.Servicer
 
 	collectionType optionIdentifier
 	statusUpdater  support.StatusUpdater
@@ -67,7 +67,7 @@ func NewCollection(
 	user string,
 	fullPath path.Path,
 	collectionType optionIdentifier,
-	service graph.Service,
+	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 ) Collection {
 	collection := Collection{
