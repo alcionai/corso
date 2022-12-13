@@ -234,6 +234,8 @@ func collectionEntries(
 				return seen, errs
 			}
 
+			encodedName := encodeAsPath(e.UUID())
+
 			// Even if this item has been deleted and should not appear at all in
 			// the new snapshot we need to record that we've seen it here so we know
 			// to skip it if it's also present in the base snapshot.
@@ -247,7 +249,7 @@ func collectionEntries(
 			// items we need to track. Namely, we can track the created time of the
 			// item and if it's after the base snapshot was finalized we can skip it
 			// because it's not possible for the base snapshot to contain that item.
-			seen[e.UUID()] = struct{}{}
+			seen[encodedName] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
 			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
@@ -287,7 +289,7 @@ func collectionEntries(
 			}
 
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
-				encodeAsPath(e.UUID()),
+				encodedName,
 				modTime,
 				newBackupStreamReader(serializationVersion, e.ToReader()),
 			)
