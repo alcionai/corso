@@ -697,12 +697,20 @@ func inflateBaseTree(
 // caching reasons.
 func inflateDirTree(
 	ctx context.Context,
+	loader snapshotLoader,
+	baseSnaps []*snapshot.Manifest,
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, error) {
-	roots, _, err := inflateCollectionTree(ctx, collections)
+	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
 	if err != nil {
 		return nil, errors.Wrap(err, "inflating collection tree")
+	}
+
+	for _, snap := range baseSnaps {
+		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
+			return nil, errors.Wrap(err, "inflating base snapshot tree(s)")
+		}
 	}
 
 	if len(roots) > 1 {
