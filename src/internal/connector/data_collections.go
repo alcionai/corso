@@ -32,7 +32,7 @@ import (
 func (gc *GraphConnector) DataCollections(
 	ctx context.Context,
 	sels selectors.Selector,
-	metadataCols []data.Collection,
+	metadata []data.Collection,
 ) ([]data.Collection, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
@@ -44,7 +44,7 @@ func (gc *GraphConnector) DataCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		return gc.ExchangeDataCollection(ctx, sels)
+		return gc.ExchangeDataCollection(ctx, sels, metadata)
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels)
 	case selectors.ServiceSharePoint:
@@ -117,6 +117,7 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 func (gc *GraphConnector) createExchangeCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
+	deltas map[string]string,
 ) ([]data.Collection, error) {
 	var (
 		errs           *multierror.Error
@@ -150,7 +151,8 @@ func (gc *GraphConnector) createExchangeCollections(
 			collections,
 			gc.UpdateStatus,
 			resolver,
-			scope)
+			scope,
+			deltas)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "filling collections")
@@ -176,6 +178,7 @@ func (gc *GraphConnector) createExchangeCollections(
 func (gc *GraphConnector) ExchangeDataCollection(
 	ctx context.Context,
 	selector selectors.Selector,
+	metadata []data.Collection,
 ) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
@@ -188,9 +191,14 @@ func (gc *GraphConnector) ExchangeDataCollection(
 		errs        error
 	)
 
+	_, deltas, err := exchange.ParseMetadataCollections(ctx, metadata)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, scope := range scopes {
 		// Creates a map of collections based on scope
-		dcs, err := gc.createExchangeCollections(ctx, scope)
+		dcs, err := gc.createExchangeCollections(ctx, scope, deltas)
 		if err != nil {
 			user := scope.Get(selectors.ExchangeUser)
 			return nil, support.WrapAndAppend(user[0], err, errs)

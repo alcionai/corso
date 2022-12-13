@@ -6,9 +6,11 @@ import (
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -23,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -124,19 +127,31 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, op.Selectors, op.account)
+	if err != nil {
+		opStats.readErr = errors.Wrap(err, "connecting to M365")
+		return opStats.readErr
+	}
+
 	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
 	}
 
-	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors)
+	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
 		return opStats.readErr
 	}
 
-	opStats.k, backupDetails, err = consumeBackupDataCollections(ctx, op.kopia, op.Selectors, cs)
+	opStats.k, backupDetails, err = consumeBackupDataCollections(
+		ctx,
+		op.kopia,
+		op.Selectors,
+		mans,
+		cs,
+		op.Results.BackupID)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "backing up service data")
 		return opStats.writeErr
@@ -155,11 +170,152 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	return err
 }
 
+// calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
+func produceManifestsAndMetadata(
+	ctx context.Context,
+	kw *kopia.Wrapper,
+	sw *store.Wrapper,
+	sel selectors.Selector,
+	acct account.Account,
+) ([]*snapshot.Manifest, []data.Collection, error) {
+	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	m365, err := acct.M365Config()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var (
+		tid         = m365.AzureTenantID
+		oc          = selectorToOwnersCats(sel)
+		collections []data.Collection
+	)
+
+	ms, err := kw.FetchPrevSnapshotManifests(
+		ctx,
+		oc,
+		map[string]string{kopia.TagBackupCategory: ""})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, man := range ms {
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
+		bup := backup.Backup{}
+
+		if err := sw.Get(
+			ctx,
+			model.BackupSchema,
+			model.StableID(man.Tags[kopia.TagBackupID]),
+			&bup,
+		); err != nil {
+			return nil, nil, err
+		}
+
+		colls, err := collectMetadata(ctx, kw, graph.MetadataFileNames(), oc, tid, bup.SnapshotID)
+		if err != nil {
+			// prior metadata isn't guaranteed to exist.
+			// if it doesn't, we'll just have to do a
+			// full backup for that data.
+			if errors.Is(err, errNotRestored) {
+				continue
+			}
+
+			return nil, nil, err
+		}
+
+		collections = append(collections, colls...)
+	}
+
+	return ms, collections, err
+}
+
+var errNotRestored = errors.New("unable to restore metadata")
+
+func collectMetadata(
+	ctx context.Context,
+	kw *kopia.Wrapper,
+	fileNames []string,
+	oc kopia.OwnersCats,
+	tenantID, snapshotID string,
+) ([]data.Collection, error) {
+	paths := []path.Path{}
+
+	for _, fn := range fileNames {
+		for ro := range oc.ResourceOwners {
+			for _, sc := range oc.ServiceCats {
+				p, err := path.Builder{}.
+					Append(fn).
+					ToServiceCategoryMetadataPath(
+						tenantID,
+						ro,
+						sc.Service,
+						sc.Category,
+						true)
+				if err != nil {
+					return nil, errors.Wrapf(err, "building metadata path")
+				}
+
+				paths = append(paths, p)
+			}
+		}
+	}
+
+	dcs, err := kw.RestoreMultipleItems(ctx, snapshotID, paths, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting prior metadata")
+	}
+
+	return dcs, nil
+}
+
+func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
+	service := sel.PathService()
+	oc := kopia.OwnersCats{
+		ResourceOwners: map[string]struct{}{},
+		ServiceCats:    map[string]kopia.ServiceCat{},
+	}
+
+	ros, err := sel.ResourceOwners()
+	if err != nil {
+		return kopia.OwnersCats{}
+	}
+
+	for _, sl := range [][]string{ros.Includes, ros.Filters} {
+		for _, ro := range sl {
+			oc.ResourceOwners[ro] = struct{}{}
+		}
+	}
+
+	pcs, err := sel.PathCategories()
+	if err != nil {
+		return kopia.OwnersCats{}
+	}
+
+	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
+		for _, cat := range sl {
+			k, v := kopia.MakeServiceCat(service, cat)
+			oc.ServiceCats[k] = v
+		}
+	}
+
+	return oc
+}
+
 // calls the producer to generate collections of data to backup
 func produceBackupDataCollections(
 	ctx context.Context,
 	gc *connector.GraphConnector,
 	sel selectors.Selector,
+	metadata []data.Collection,
 ) ([]data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
 	defer func() {
@@ -168,12 +324,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	cs, err := gc.DataCollections(ctx, sel, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return cs, nil
+	return gc.DataCollections(ctx, sel, metadata)
 }
 
 // calls kopia to backup the collections of data
@@ -181,7 +332,9 @@ func consumeBackupDataCollections(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sel selectors.Selector,
+	mans []*snapshot.Manifest,
 	cs []data.Collection,
+	backupID model.StableID,
 ) (*kopia.BackupStats, *details.Details, error) {
 	complete, closer := observe.MessageWithCompletion("Backing up data:")
 	defer func() {
@@ -190,12 +343,12 @@ func consumeBackupDataCollections(
 		closer()
 	}()
 
-	kstats, deets, err := kw.BackupCollections(ctx, nil, cs, sel.PathService())
-	if err != nil {
-		return nil, nil, err
+	tags := map[string]string{
+		kopia.TagBackupID:       string(backupID),
+		kopia.TagBackupCategory: "",
 	}
 
-	return kstats, deets, nil
+	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), tags)
 }
 
 // writes the results metrics to the operation results.

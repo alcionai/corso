@@ -29,6 +29,12 @@ const (
 	serializationVersion uint32 = 1
 )
 
+// common manifest tags
+const (
+	TagBackupID       = "backup-id"
+	TagBackupCategory = "is-canon-backup"
+)
+
 var (
 	errNotConnected  = errors.New("not connected to repo")
 	errNoRestorePath = errors.New("no restore path given")
@@ -110,6 +116,7 @@ func (w Wrapper) BackupCollections(
 	previousSnapshots []*snapshot.Manifest,
 	collections []data.Collection,
 	service path.ServiceType,
+	tags map[string]string,
 ) (*BackupStats, *details.Details, error) {
 	if w.c == nil {
 		return nil, nil, errNotConnected
@@ -132,7 +139,7 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	s, err := w.makeSnapshotWithRoot(ctx, dirTree, oc, progress)
+	s, err := w.makeSnapshotWithRoot(ctx, dirTree, oc, progress, tags)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -145,12 +152,13 @@ func (w Wrapper) makeSnapshotWithRoot(
 	root fs.Directory,
 	oc *OwnersCats,
 	progress *corsoProgress,
+	addlTags map[string]string,
 ) (*BackupStats, error) {
-	var man *snapshot.Manifest
-
-	prevSnaps := fetchPrevSnapshotManifests(ctx, w.c, oc)
-
-	bc := &stats.ByteCounter{}
+	var (
+		man       *snapshot.Manifest
+		prevSnaps = fetchPrevSnapshotManifests(ctx, w.c, oc, nil)
+		bc        = &stats.ByteCounter{}
+	)
 
 	err := repo.WriteSession(
 		ctx,
@@ -197,6 +205,15 @@ func (w Wrapper) makeSnapshotWithRoot(
 			}
 
 			man.Tags = tagsFromStrings(oc)
+			for k, v := range addlTags {
+				mk, mv := MakeTagKV(k)
+
+				if len(v) == 0 {
+					v = mv
+				}
+
+				man.Tags[mk] = v
+			}
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = errors.Wrap(err, "saving snapshot")
@@ -389,13 +406,17 @@ func (w Wrapper) DeleteSnapshot(
 // incomplete. An incomplete manifest may be returned if it is newer than the
 // newest complete manifest for the tuple. Manifests are deduped such that if
 // multiple tuples match the same manifest it will only be returned once.
+// If tags are provided, manifests must include a superset of the k:v pairs
+// specified by those tags.  Tags should pass their raw values, and will be
+// normalized inside the func using MakeTagKV.
 func (w Wrapper) FetchPrevSnapshotManifests(
 	ctx context.Context,
 	oc OwnersCats,
+	tags map[string]string,
 ) ([]*snapshot.Manifest, error) {
 	if w.c == nil {
 		return nil, errors.WithStack(errNotConnected)
 	}
 
-	return fetchPrevSnapshotManifests(ctx, w.c, &oc), nil
+	return fetchPrevSnapshotManifests(ctx, w.c, &oc, tags), nil
 }
