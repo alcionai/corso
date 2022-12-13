@@ -355,18 +355,58 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 
 func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	t := suite.T()
-
 	pathBuilder := path.Builder{}.Append("dir1", "dir2", "item")
-	itemPath, err := pathBuilder.ToDataLayerSharePointPath("tenant", "site", path.LibrariesCategory, true)
-	require.NoError(t, err)
-
-	expected := map[categorizer]string{
-		SharePointSite:        "site",
-		SharePointLibrary:     "dir1/dir2",
-		SharePointLibraryItem: "item",
+	ten := "tenant"
+	site := "site"
+	table := []struct {
+		name     string
+		pb       func() (path.Path, error)
+		sc       sharePointCategory
+		expected map[categorizer]string
+	}{
+		{
+			name: "SharePoint Libraries",
+			sc:   SharePointLibraryItem,
+			expected: map[categorizer]string{
+				SharePointSite:        site,
+				SharePointLibrary:     "dir1/dir2",
+				SharePointLibraryItem: "item",
+			},
+			pb: func() (path.Path, error) {
+				return pathBuilder.ToDataLayerSharePointPath(
+					ten,
+					site,
+					path.LibrariesCategory,
+					true,
+				)
+			},
+		},
+		{
+			name: "SharePoint Lists",
+			sc:   SharePointListItem,
+			expected: map[categorizer]string{
+				SharePointSite:     site,
+				SharePointList:     "dir1/dir2",
+				SharePointListItem: "item",
+			},
+			pb: func() (path.Path, error) {
+				return pathBuilder.ToDataLayerSharePointPath(
+					ten,
+					site,
+					path.ListsCategory,
+					true,
+				)
+			},
+		},
 	}
 
-	assert.Equal(t, expected, SharePointLibraryItem.pathValues(itemPath))
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			itemPath, err := test.pb()
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, test.sc.pathValues(itemPath))
+		})
+	}
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
