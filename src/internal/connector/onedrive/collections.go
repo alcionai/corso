@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -39,6 +40,8 @@ type Collections struct {
 	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 
+	ctrl control.Options
+
 	// collectionMap allows lookup of the data.Collection
 	// for a OneDrive folder
 	CollectionMap map[string]data.Collection
@@ -56,6 +59,7 @@ func NewCollections(
 	matcher folderMatcher,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
+	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
 		tenant:        tenant,
@@ -65,6 +69,7 @@ func NewCollections(
 		CollectionMap: map[string]data.Collection{},
 		service:       service,
 		statusUpdater: statusUpdater,
+		ctrl:          ctrlOpts,
 	}
 }
 
@@ -139,6 +144,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 					c.service,
 					c.statusUpdater,
 					c.source,
+					c.ctrl,
 				)
 
 				c.CollectionMap[collectionPath.String()] = col
