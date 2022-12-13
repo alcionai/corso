@@ -162,6 +162,28 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	assert.NoError(t, err)
 }
 
+func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	// need to initialize the repository before we can test connecting to it.
+	st := tester.NewPrefixedS3Storage(t)
+
+	r, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	require.NoError(t, err)
+
+	oldID := r.GetID()
+
+	require.NoError(t, r.Close(ctx))
+
+	// now re-connect
+	r, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
+	require.NoError(t, err)
+	assert.Equal(t, oldID, r.GetID())
+}
+
 func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	ctx, flush := tester.NewContext()
 	defer flush()
