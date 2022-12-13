@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
@@ -24,6 +25,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+const maxInflateTraversalDepth = 500
 
 var versionSize = int(unsafe.Sizeof(serializationVersion))
 
@@ -516,6 +519,157 @@ func inflateCollectionTree(
 	}
 
 	return roots, updatedPaths, nil
+}
+
+// traverseBaseDir is an unoptimized function that reads items in a directory
+// and traverses subdirectories in the given directory. oldDirPath is the path
+// the directory would be at if the hierarchy was unchanged. newDirPath is the
+// path the directory would be at if all changes from the root to this directory
+// were taken into account. Both are needed to detect some changes like moving
+// a parent directory and moving one of the child directories out of the parent.
+// If a directory on the path was deleted, newDirPath is set to nil.
+//
+// TODO(ashmrtn): A potentially more memory efficient version of this would
+// traverse only the directories that we know are present in the collections
+// passed in. The other directories could be dynamically discovered when kopia
+// was requesting items.
+func traverseBaseDir(
+	ctx context.Context,
+	depth int,
+	updatedPaths map[string]path.Path,
+	oldDirPath *path.Builder,
+	newDirPath *path.Builder,
+	dir fs.Directory,
+	roots map[string]*treeMap,
+) error {
+	if depth >= maxInflateTraversalDepth {
+		return errors.Errorf("base snapshot tree too tall %s", oldDirPath)
+	}
+
+	// Corso base64 encodes all file and folder names to avoid issues with special
+	// characters. Since we're working directly with files and folders from kopia
+	// we need to do the decoding here.
+	dirName, err := decodeElement(dir.Name())
+	if err != nil {
+		return errors.Wrapf(err, "decoding base directory name %s", dir.Name())
+	}
+
+	// Form the path this directory would be at if the hierarchy remained the same
+	// as well as where it would be at if we take into account ancestor
+	// directories that may have had changes. The former is used to check if this
+	// directory specifically has been moved. The latter is used to handle
+	// deletions and moving subtrees in the hierarchy.
+	//
+	// Explicit movement of directories should have the final say though so we
+	// override any subtree movement with what's in updatedPaths if an entry
+	// exists.
+	oldDirPath = oldDirPath.Append(dirName)
+	currentPath := newDirPath
+
+	if currentPath != nil {
+		currentPath = currentPath.Append(dirName)
+	}
+
+	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
+		// This directory was deleted.
+		if upb == nil {
+			currentPath = nil
+		} else {
+			// This directory was moved/renamed and the new location is in upb.
+			currentPath = upb.ToBuilder()
+		}
+	}
+
+	// TODO(ashmrtn): If we can do prefix matching on elements in updatedPaths and
+	// we know that the tree node for this directory has no collection reference
+	// and no child nodes then we can skip traversing this directory. This will
+	// only work if we know what directory deleted items used to belong in (e.x.
+	// it won't work for OneDrive because we only know the ID of the deleted
+	// item).
+
+	var hasItems bool
+
+	err = dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
+		dEntry, ok := entry.(fs.Directory)
+		if !ok {
+			hasItems = true
+			return nil
+		}
+
+		return traverseBaseDir(
+			innerCtx,
+			depth+1,
+			updatedPaths,
+			oldDirPath,
+			currentPath,
+			dEntry,
+			roots,
+		)
+	})
+	if err != nil {
+		return errors.Wrapf(err, "traversing base directory %s", oldDirPath)
+	}
+
+	// We only need to add this base directory to the tree we're building if it
+	// has items in it. The traversal of the directory here just finds
+	// subdirectories. This optimization will not be valid if we dynamically
+	// determine the subdirectories this directory has when handing items to
+	// kopia.
+	if currentPath != nil && hasItems {
+		node := getTreeNode(roots, currentPath.Elements())
+		if node == nil {
+			return errors.Errorf("unable to get tree node for path %s", currentPath)
+		}
+
+		node.baseDir = dir
+	}
+
+	return nil
+}
+
+func inflateBaseTree(
+	ctx context.Context,
+	loader snapshotLoader,
+	snap *snapshot.Manifest,
+	updatedPaths map[string]path.Path,
+	roots map[string]*treeMap,
+) error {
+	// Only complete snapshots should be used to source base information.
+	// Snapshots for checkpoints will rely on kopia-assisted dedupe to efficiently
+	// handle items that were completely uploaded before Corso crashed.
+	if len(snap.IncompleteReason) > 0 {
+		return nil
+	}
+
+	root, err := loader.SnapshotRoot(snap)
+	if err != nil {
+		return errors.Wrapf(err, "getting snapshot %s root directory", snap.ID)
+	}
+
+	dir, ok := root.(fs.Directory)
+	if !ok {
+		return errors.Errorf("snapshot %s root is not a directory", snap.ID)
+	}
+
+	// TODO(ashmrtn): We should actually only traverse a subtree of the snapshot
+	// where the subtree corresponds to the "reason" this snapshot was chosen.
+	// Doing so will avoid pulling in data for categories that should not be
+	// included in the current backup or overwriting some entries with out-dated
+	// information.
+
+	if err = traverseBaseDir(
+		ctx,
+		0,
+		updatedPaths,
+		&path.Builder{},
+		&path.Builder{},
+		dir,
+		roots,
+	); err != nil {
+		return errors.Wrapf(err, "traversing base snapshot %s", snap.ID)
+	}
+
+	return nil
 }
 
 // inflateDirTree returns a set of tags representing all the resource owners and
