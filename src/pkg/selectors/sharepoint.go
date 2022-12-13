@@ -461,9 +461,7 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 	os := []option{}
 
 	switch cat {
-	case SharePointLibrary:
-		os = append(os, pathComparator())
-	case SharePointList: // @keepers not sure if this is necessary... comparator to be omitted?
+	case SharePointLibrary, SharePointList:
 		os = append(os, pathComparator())
 	}
 
