@@ -50,7 +50,11 @@ func oneDriveItemReader(
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	fmt.Println("src/internal/connector/onedrive/item.go:50 item.GetAdditionalData():", item.GetAdditionalData())
-	rc, err := driveItemReader(ctx, item.GetAdditionalData()["@content.downloadUrl"].(string))
+	url, ok := item.GetAdditionalData()["@content.downloadUrl"].(string)
+	if !ok {
+		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
+	}
+	rc, err := driveItemReader(ctx, url)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
