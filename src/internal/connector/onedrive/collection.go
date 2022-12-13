@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 const (
@@ -48,7 +49,8 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItemIDs []string
+	driveItemIDs []string // TODO(meain): remove this
+	driveItems   []models.DriveItemable
 	// M365 ID of the drive this collection was created from
 	driveID       string
 	source        driveSource
@@ -61,8 +63,7 @@ type Collection struct {
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
+	item models.DriveItemable,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
@@ -88,7 +89,7 @@ func NewCollection(
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
-		c.itemReader = sharePointItemReader
+		// c.itemReader = sharePointItemReader
 	default:
 		c.itemReader = oneDriveItemReader
 	}
@@ -205,7 +206,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		m.Unlock()
 	}
 
-	for _, itemID := range oc.driveItemIDs {
+	for _, item := range oc.driveItems {
 		if oc.ctrl.FailFast && errs != nil {
 			break
 		}
@@ -214,7 +215,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 		wg.Add(1)
 
-		go func(itemID string) {
+		go func(item models.DriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -226,7 +227,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			)
 
 			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+				itemInfo, itemData, err = oc.itemReader(ctx, item)
 
 				// We only retry if it is a timeout error. Other
 				// errors like throttling are already handled within
@@ -242,7 +243,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			if err != nil {
-				errUpdater(itemID, err)
+				errUpdater(*item.GetId(), err)
 				return
 			}
 
@@ -276,7 +277,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				info: itemInfo,
 			}
 			folderProgress <- struct{}{}
-		}(itemID)
+		}(item)
 	}
 
 	wg.Wait()

@@ -3,7 +3,6 @@ package onedrive
 import (
 	"context"
 	"io"
-	"time"
 
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -25,32 +24,31 @@ const (
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
-func sharePointItemReader(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
-) (details.ItemInfo, io.ReadCloser, error) {
-	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
-	if err != nil {
-		return details.ItemInfo{}, nil, err
-	}
+// func sharePointItemReader(
+// 	ctx context.Context,
+// 	service graph.Servicer,
+// 	driveID, itemID string,
+// ) (details.ItemInfo, io.ReadCloser, error) {
+// 	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
+// 	if err != nil {
+// 		return details.ItemInfo{}, nil, err
+// 	}
 
-	dii := details.ItemInfo{
-		SharePoint: sharePointItemInfo(item, *item.GetSize()),
-	}
+// 	dii := details.ItemInfo{
+// 		SharePoint: sharePointItemInfo(item, *item.GetSize()),
+// 	}
 
-	return dii, rc, nil
-}
+// 	return dii, rc, nil
+// }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
+	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
+	rc, err := driveItemReader(ctx, item.GetAdditionalData()["@content.downloadUrl"].(string))
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
@@ -67,35 +65,17 @@ func oneDriveItemReader(
 // and using a http client to initialize a reader
 func driveItemReader(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
-) (models.DriveItemable, io.ReadCloser, error) {
-	logger.Ctx(ctx).Debugw("Reading Item", "id", itemID, "time", time.Now())
-
-	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get item %s", itemID)
-	}
-
-	// Get the download URL - https://docs.microsoft.com/en-us/graph/api/driveitem-get-content
-	// These URLs are pre-authenticated and can be used to download the data using the standard
-	// http client
-	if _, found := item.GetAdditionalData()[downloadURLKey]; !found {
-		return nil, nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
-			itemID, item.GetAdditionalData())
-	}
-
-	downloadURL := item.GetAdditionalData()[downloadURLKey].(*string)
-
+	url string,
+) (io.ReadCloser, error) {
 	httpClient := graph.CreateHTTPClient()
 	httpClient.Timeout = 0 // infinite timeout for pulling large files
 
-	resp, err := httpClient.Get(*downloadURL)
+	resp, err := httpClient.Get(url)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
+		return nil, errors.Wrapf(err, "failed to download file from %s", url)
 	}
 
-	return item, resp.Body, nil
+	return resp.Body, nil
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
