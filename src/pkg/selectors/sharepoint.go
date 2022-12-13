@@ -384,10 +384,19 @@ func (c sharePointCategory) isLeaf() bool {
 // [tenantID, service, siteID, category, folder, itemID]
 // => {spSite: siteID, spFolder: folder, spItemID: itemID}
 func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
+	var folderCat, itemCat categorizer
+
+	switch c {
+	case SharePointLibrary, SharePointLibraryItem:
+		folderCat, itemCat = SharePointLibrary, SharePointLibraryItem
+	case SharePointList, SharePointListItem:
+		folderCat, itemCat = SharePointList, SharePointListItem
+	}
+
 	return map[categorizer]string{
-		SharePointSite:        p.ResourceOwner(),
-		SharePointLibrary:     p.Folder(),
-		SharePointLibraryItem: p.Item(),
+		SharePointSite: p.ResourceOwner(),
+		folderCat:      p.Folder(),
+		itemCat:        p.Item(),
 	}
 }
 
