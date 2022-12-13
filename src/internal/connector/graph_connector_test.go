@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -170,7 +171,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	service, err := newConnector.createService(false)
+	service, err := newConnector.createService()
 	require.NoError(suite.T(), err)
 
 	newConnector.graphService = *service
@@ -193,7 +194,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	service, err := newConnector.createService(false)
+	service, err := newConnector.createService()
 	require.NoError(suite.T(), err)
 
 	newConnector.graphService = *service
@@ -387,7 +388,7 @@ func runRestoreBackupTest(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel, nil)
+	dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
 	require.NoError(t, err)
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
@@ -412,7 +413,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	driveID := mustGetDefaultDriveID(
 		suite.T(),
 		ctx,
-		suite.connector.Service(),
+		suite.connector,
 		suite.user,
 	)
 
@@ -855,7 +856,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, err := backupGC.DataCollections(ctx, backupSel, nil)
+			dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
 			require.NoError(t, err)
 
 			t.Log("Backup enumeration complete")

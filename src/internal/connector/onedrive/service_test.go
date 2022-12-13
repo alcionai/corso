@@ -22,10 +22,6 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (ms *MockGraphService) ErrPolicy() bool {
-	return false
-}
-
 // TODO(ashmrtn): Merge with similar structs in graph and exchange packages.
 type oneDriveService struct {
 	client      msgraphsdk.GraphServiceClient
@@ -40,10 +36,6 @@ func (ods *oneDriveService) Client() *msgraphsdk.GraphServiceClient {
 
 func (ods *oneDriveService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &ods.adapter
-}
-
-func (ods *oneDriveService) ErrPolicy() bool {
-	return false
 }
 
 func NewOneDriveService(credentials account.M365Config) (*oneDriveService, error) {

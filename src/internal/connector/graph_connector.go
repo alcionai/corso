@@ -73,10 +73,6 @@ func (gs graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &gs.adapter
 }
 
-func (gs graphService) ErrPolicy() bool {
-	return gs.failFast
-}
-
 type resource int
 
 const (
@@ -99,7 +95,7 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 		credentials: m365,
 	}
 
-	aService, err := gc.createService(false)
+	aService, err := gc.createService()
 	if err != nil {
 		return nil, errors.Wrap(err, "creating service connection")
 	}
@@ -126,7 +122,7 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 }
 
 // createService constructor for graphService component
-func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
+func (gc *GraphConnector) createService() (*graphService, error) {
 	adapter, err := graph.CreateAdapter(
 		gc.credentials.AzureTenantID,
 		gc.credentials.AzureClientID,
@@ -137,9 +133,8 @@ func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, err
 	}
 
 	connector := graphService{
-		adapter:  *adapter,
-		client:   *msgraphsdk.NewGraphServiceClient(adapter),
-		failFast: shouldFailFast,
+		adapter: *adapter,
+		client:  *msgraphsdk.NewGraphServiceClient(adapter),
 	}
 
 	return &connector, nil
@@ -156,7 +151,7 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := discovery.Users(ctx, gc.graphService, gc.tenant)
+	users, err := discovery.Users(ctx, gc, gc.tenant)
 	if err != nil {
 		return err
 	}
