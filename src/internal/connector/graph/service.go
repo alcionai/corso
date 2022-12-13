@@ -28,23 +28,23 @@ type QueryParams struct {
 var _ Servicer = &Service{}
 
 type Service struct {
-	adapter msgraphsdk.GraphRequestAdapter
-	client  msgraphsdk.GraphServiceClient
+	adapter *msgraphsdk.GraphRequestAdapter
+	client  *msgraphsdk.GraphServiceClient
 }
 
-func NewService(adapter *msgraphsdk.GraphRequestAdapter) Service {
-	return Service{
-		adapter: *adapter,
-		client:  *msgraphsdk.NewGraphServiceClient(adapter),
+func NewService(adapter *msgraphsdk.GraphRequestAdapter) *Service {
+	return &Service{
+		adapter: adapter,
+		client:  msgraphsdk.NewGraphServiceClient(adapter),
 	}
 }
 
 func (s Service) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return &s.adapter
+	return s.adapter
 }
 
 func (s Service) Client() *msgraphsdk.GraphServiceClient {
-	return &s.client
+	return s.client
 }
 
 type Servicer interface {

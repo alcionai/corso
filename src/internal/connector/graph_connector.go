@@ -100,14 +100,14 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 }
 
 // createService constructor for graphService component
-func (gc *GraphConnector) createService() (graph.Service, error) {
+func (gc *GraphConnector) createService() (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		gc.credentials.AzureTenantID,
 		gc.credentials.AzureClientID,
 		gc.credentials.AzureClientSecret,
 	)
 	if err != nil {
-		return graph.Service{}, err
+		return &graph.Service{}, err
 	}
 
 	return graph.NewService(adapter), nil
