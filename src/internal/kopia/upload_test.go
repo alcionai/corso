@@ -21,6 +21,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+func makePath(t *testing.T, elements []string) path.Path {
+	p, err := path.FromDataLayerPath(stdpath.Join(elements...), false)
+	require.NoError(t, err)
+
+	return p
+}
+
 func expectDirs(
 	t *testing.T,
 	entries []fs.Entry,
@@ -49,7 +56,7 @@ func getDirEntriesForEntry(
 ) []fs.Entry {
 	//revive:enable:context-as-argument
 	d, ok := entry.(fs.Directory)
-	require.True(t, ok, "returned entry is not a directory")
+	require.True(t, ok, "entry is not a directory")
 
 	entries, err := fs.GetAllEntries(ctx, d)
 	require.NoError(t, err)
@@ -390,19 +397,10 @@ type HierarchyBuilderUnitSuite struct {
 }
 
 func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
-	tmp, err := path.FromDataLayerPath(
-		stdpath.Join(
-			testTenant,
-			path.ExchangeService.String(),
-			testUser,
-			path.EmailCategory.String(),
-			testInboxDir,
-		),
-		false,
+	suite.testPath = makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
 	)
-	require.NoError(suite.T(), err)
-
-	suite.testPath = tmp
 }
 
 func TestHierarchyBuilderUnitSuite(t *testing.T) {
@@ -422,17 +420,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	user2 := "user2"
 	user2Encoded := encodeAsPath(user2)
 
-	p2, err := path.FromDataLayerPath(
-		stdpath.Join(
-			tenant,
-			service,
-			user2,
-			category,
-			testInboxDir,
-		),
-		false,
-	)
-	require.NoError(t, err)
+	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir})
 
 	// Encode user names here so we don't have to decode things later.
 	expectedFileCount := map[string]int{
@@ -504,8 +492,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 	subdir := "subfolder"
 
-	p2, err := suite.testPath.Append(subdir, false)
-	require.NoError(suite.T(), err)
+	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir))
 
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
@@ -597,13 +584,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
-	p2, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
-		"tenant2",
-		"user2",
-		path.EmailCategory,
-		false,
+	p2 := makePath(
+		suite.T(),
+		[]string{"tenant2", service, "user2", category, testInboxDir},
 	)
-	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name   string
