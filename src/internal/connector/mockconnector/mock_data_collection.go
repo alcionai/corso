@@ -20,6 +20,9 @@ type MockExchangeDataCollection struct {
 	Data         [][]byte
 	Names        []string
 	ModTimes     []time.Time
+	ColState     data.CollectionState
+	PrevPath     path.Path
+	DeletedItems []bool
 }
 
 var (
@@ -38,6 +41,7 @@ func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn
 		Data:         [][]byte{},
 		Names:        []string{},
 		ModTimes:     []time.Time{},
+		DeletedItems: []bool{},
 	}
 	baseTime := time.Now()
 
@@ -46,6 +50,7 @@ func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn
 		c.Data = append(c.Data, GetMockMessageBytes("From: NewMockExchangeCollection"))
 		c.Names = append(c.Names, uuid.NewString())
 		c.ModTimes = append(c.ModTimes, baseTime.Add(1*time.Hour))
+		c.DeletedItems = append(c.DeletedItems, false)
 	}
 
 	return c
@@ -91,14 +96,12 @@ func (medc *MockExchangeDataCollection) FullPath() path.Path {
 	return medc.fullPath
 }
 
-// TODO(ashmrtn): May want to allow setting this in the future for testing.
 func (medc MockExchangeDataCollection) PreviousPath() path.Path {
-	return nil
+	return medc.PrevPath
 }
 
-// TODO(ashmrtn): May want to allow setting this in the future for testing.
 func (medc MockExchangeDataCollection) State() data.CollectionState {
-	return data.NewState
+	return medc.ColState
 }
 
 // Items returns a channel that has the next items in the collection. The
@@ -115,6 +118,7 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 				Reader:       io.NopCloser(bytes.NewReader(medc.Data[i])),
 				size:         int64(len(medc.Data[i])),
 				modifiedTime: medc.ModTimes[i],
+				deleted:      medc.DeletedItems[i],
 			}
 		}
 	}()
@@ -129,15 +133,15 @@ type MockExchangeData struct {
 	ReadErr      error
 	size         int64
 	modifiedTime time.Time
+	deleted      bool
 }
 
 func (med *MockExchangeData) UUID() string {
 	return med.ID
 }
 
-// TODO(ashmrtn): May want to allow setting this in the future for testing.
 func (med MockExchangeData) Deleted() bool {
-	return false
+	return med.deleted
 }
 
 func (med *MockExchangeData) ToReader() io.ReadCloser {

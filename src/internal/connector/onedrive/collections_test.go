@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -255,7 +256,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			c := NewCollections(tenant, user, OneDriveSource, testFolderMatcher{tt.scope}, &MockGraphService{}, nil)
+			c := NewCollections(
+				tenant,
+				user,
+				OneDriveSource,
+				testFolderMatcher{tt.scope},
+				&MockGraphService{},
+				nil,
+				control.Options{})
 
 			err := c.UpdateCollections(ctx, "driveID", tt.items)
 			tt.expect(t, err)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -92,7 +93,8 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				onedrive.SharePointSource,
 				testFolderMatcher{test.scope},
 				&MockGraphService{},
-				nil)
+				nil,
+				control.Options{})
 			err := c.UpdateCollections(ctx, "driveID", test.items)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")

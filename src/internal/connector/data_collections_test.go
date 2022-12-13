@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -104,7 +105,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t), nil)
+			collection, err := connector.ExchangeDataCollection(ctx, test.getSelector(t), nil, control.Options{})
 			require.NoError(t, err)
 			// Categories with delta endpoints will produce a collection for metadata
 			// as well as the actual data pulled.
@@ -157,7 +158,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := connector.DataCollections(ctx, test.getSelector(t), nil)
+			collections, err := connector.DataCollections(ctx, test.getSelector(t), nil, control.Options{})
 			assert.Error(t, err)
 			assert.Empty(t, collections)
 		})
@@ -194,7 +195,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				test.getSelector(t),
 				[]string{suite.site},
 				connector.credentials.AzureTenantID,
-				connector)
+				connector,
+				connector,
+				control.Options{})
 			require.NoError(t, err)
 
 			// we don't know an exact count of drives this will produce,
@@ -283,7 +286,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() 
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := gc.createExchangeCollections(ctx, test.scope, nil)
+			collections, err := gc.createExchangeCollections(ctx, test.scope, nil, control.Options{})
 			require.NoError(t, err)
 
 			for _, c := range collections {
@@ -335,7 +338,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			// get collections without providing any delta history (ie: full backup)
-			collections, err := gc.createExchangeCollections(ctx, test.scope, nil)
+			collections, err := gc.createExchangeCollections(ctx, test.scope, nil, control.Options{})
 			require.NoError(t, err)
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
 
@@ -354,7 +357,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
 
 			// now do another backup with the previous delta tokens,
 			// which should only contain the difference.
-			collections, err = gc.createExchangeCollections(ctx, test.scope, deltas)
+			collections, err = gc.createExchangeCollections(ctx, test.scope, deltas, control.Options{})
 			require.NoError(t, err)
 
 			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
@@ -384,7 +387,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailSerializ
 	connector := loadConnector(ctx, t, Users)
 	sel := selectors.NewExchangeBackup()
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil)
+	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil, control.Options{})
 	require.NoError(t, err)
 
 	for _, edc := range collection {
@@ -427,7 +430,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 				scope := selectors.
 					NewExchangeBackup().
 					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch())[0]
-				collections, err := connector.createExchangeCollections(ctx, scope, nil)
+				collections, err := connector.createExchangeCollections(ctx, scope, nil, control.Options{})
 				require.NoError(t, err)
 
 				return collections
@@ -494,7 +497,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
-				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil)
+				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil, control.Options{})
 				require.NoError(t, err)
 
 				return collections
@@ -506,7 +509,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}, selectors.PrefixMatch()))
-				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil)
+				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil, control.Options{})
 				require.NoError(t, err)
 
 				return collections
@@ -588,6 +591,6 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		selectors.PrefixMatch(),
 	))
 
-	_, err := gc.DataCollections(ctx, sel.Selector, nil)
+	_, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
 	require.NoError(t, err)
 }
