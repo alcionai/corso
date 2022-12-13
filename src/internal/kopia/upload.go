@@ -365,6 +365,7 @@ func streamBaseEntries(
 func getStreamItemFunc(
 	staticEnts []fs.Entry,
 	streamedEnts data.Collection,
+	baseDir fs.Directory,
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -378,9 +379,14 @@ func getStreamItemFunc(
 			}
 		}
 
-		_, errs := collectionEntries(ctx, cb, streamedEnts, progress)
+		seen, errs := collectionEntries(ctx, cb, streamedEnts, progress)
 
-		// TODO(ashmrtn): Stream entries from base snapshot if they exist.
+		if err := streamBaseEntries(ctx, cb, baseDir, seen, progress); err != nil {
+			errs = multierror.Append(
+				errs,
+				errors.Wrap(err, "streaming base snapshot entries"),
+			)
+		}
 
 		return errs.ErrorOrNil()
 	}
@@ -404,13 +410,20 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 
 	return virtualfs.NewStreamingDirectory(
 		encodeAsPath(dirName),
-		getStreamItemFunc(childDirs, dir.collection, progress),
+		getStreamItemFunc(childDirs, dir.collection, dir.baseDir, progress),
 	), nil
 }
 
 type treeMap struct {
-	childDirs  map[string]*treeMap
+	// Child directories of this directory.
+	childDirs map[string]*treeMap
+	// Reference to data pulled from the external service. Contains only items in
+	// this directory. Does not contain references to subdirectories.
 	collection data.Collection
+	// Reference to directory in base snapshot. Can contain items and
+	// subdirectories but the subdirectories should be added to childDirs and
+	// ignored when handing items to kopia during the upload process.
+	baseDir fs.Directory
 }
 
 func newTreeMap() *treeMap {
