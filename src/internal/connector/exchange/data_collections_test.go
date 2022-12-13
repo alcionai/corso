@@ -150,7 +150,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls with escaped chars",
 			data: []fileValues{
-				{graph.DeltaTokenFileName, `\n\r\t\b\f\v\0\\`},
+				{graph.DeltaURLsFileName, `\n\r\t\b\f\v\0\\`},
 			},
 			expectDeltas: map[string]string{
 				"key": "\\n\\r\\t\\b\\f\\v\\0\\\\",
