@@ -233,7 +233,6 @@ func TestConnectorCreateExchangeCollectionIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoConnectorCreateExchangeCollectionTests,
-		"flomp",
 	); err != nil {
 		t.Skip(err)
 	}
