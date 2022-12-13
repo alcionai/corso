@@ -452,7 +452,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, progress)
+	dirTree, err := inflateDirTree(ctx, nil, nil, collections, progress)
 	require.NoError(t, err)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -540,7 +540,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		suite.T().Run(test.name, func(t *testing.T) {
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, err := inflateDirTree(ctx, test.layout, progress)
+			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, progress)
 			require.NoError(t, err)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -635,7 +635,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := inflateDirTree(ctx, test.layout, nil)
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil)
 			assert.Error(t, err)
 		})
 	}
