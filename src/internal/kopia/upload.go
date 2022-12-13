@@ -420,9 +420,12 @@ type treeMap struct {
 	// Reference to data pulled from the external service. Contains only items in
 	// this directory. Does not contain references to subdirectories.
 	collection data.Collection
-	// Reference to directory in base snapshot. Can contain items and
-	// subdirectories but the subdirectories should be added to childDirs and
-	// ignored when handing items to kopia during the upload process.
+	// Reference to directory in base snapshot. The referenced directory itself
+	// may contain files and subdirectories, but the subdirectories should
+	// eventually be added when walking the base snapshot to build the hierarchy,
+	// not when handing items to kopia for the new snapshot. Subdirectories should
+	// be added to childDirs while building the hierarchy. They will be ignored
+	// when iterating through the directory to hand items to kopia.
 	baseDir fs.Directory
 }
 
