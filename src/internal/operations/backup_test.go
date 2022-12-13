@@ -504,7 +504,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		sel    = selectors.NewSharePointBackup()
 	)
 
-	sel.Include(sel.Sites([]string{siteID}))
+	sel.Include(sel.Libraries([]string{siteID}, selectors.Any()))
 
 	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
 	defer closer()
