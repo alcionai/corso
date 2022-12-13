@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -30,7 +31,7 @@ func FilterContainersAndFillCollections(
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
-	oldDeltas map[string]string,
+	dps DeltaPaths,
 	ctrlOpts control.Options,
 ) error {
 	var (
@@ -38,7 +39,7 @@ func FilterContainersAndFillCollections(
 		oi   = CategoryToOptionIdentifier(qp.Category)
 		// folder ID -> delta url for folder.
 		deltaURLs = map[string]string{}
-		prevPaths = map[string]string{}
+		currPaths = map[string]string{}
 	)
 
 	for _, c := range resolver.Items() {
@@ -46,12 +47,26 @@ func FilterContainersAndFillCollections(
 			return errs
 		}
 
+		cID := *c.GetId()
+
 		dirPath, ok := pathAndMatch(qp, c, scope)
 		if !ok {
 			continue
 		}
 
-		cID := *c.GetId()
+		var prevPath path.Path
+
+		if ps, ok := dps.paths[cID]; ok {
+			// see below for the issue with building paths for root
+			// folders that have no displayName.
+			ps = strings.TrimSuffix(ps, rootFolderAlias)
+
+			if pp, err := path.FromDataLayerPath(ps, false); err != nil {
+				logger.Ctx(ctx).Error("parsing previous path string")
+			} else {
+				prevPath = pp
+			}
+		}
 
 		// Create only those that match
 		service, err := createService(qp.Credentials)
@@ -63,6 +78,7 @@ func FilterContainersAndFillCollections(
 		edc := NewCollection(
 			qp.ResourceOwner,
 			dirPath,
+			prevPath,
 			oi,
 			service,
 			statusUpdater,
@@ -76,7 +92,7 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		jobs, delta, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, cID, oldDeltas[cID])
+		jobs, delta, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, cID, dps.deltas[cID])
 		if err != nil {
 			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 		}
@@ -89,11 +105,11 @@ func FilterContainersAndFillCollections(
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
-		prevPaths[cID] = dirPath.Folder()
+		currPaths[cID] = dirPath.Folder()
 	}
 
 	entries := []graph.MetadataCollectionEntry{
-		graph.NewMetadataEntry(graph.PreviousPathFileName, prevPaths),
+		graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
 	}
 
 	if len(deltaURLs) > 0 {
