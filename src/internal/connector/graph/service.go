@@ -26,7 +26,7 @@ type QueryParams struct {
 	FailFast      bool
 }
 
-type Service interface {
+type Servicer interface {
 	// Client() returns msgraph Service client that can be used to process and execute
 	// the majority of the queries to the M365 Backstore
 	Client() *msgraphsdk.GraphServiceClient

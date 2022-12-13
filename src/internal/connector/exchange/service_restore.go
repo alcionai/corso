@@ -30,7 +30,7 @@ func RestoreExchangeObject(
 	bits []byte,
 	category path.CategoryType,
 	policy control.CollisionPolicy,
-	service graph.Service,
+	service graph.Servicer,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
 	if policy != control.Copy {
@@ -60,7 +60,7 @@ func RestoreExchangeObject(
 func RestoreExchangeContact(
 	ctx context.Context,
 	bits []byte,
-	service graph.Service,
+	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
@@ -96,7 +96,7 @@ func RestoreExchangeContact(
 func RestoreExchangeEvent(
 	ctx context.Context,
 	bits []byte,
-	service graph.Service,
+	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
@@ -165,7 +165,7 @@ func RestoreExchangeEvent(
 func RestoreMailMessage(
 	ctx context.Context,
 	bits []byte,
-	service graph.Service,
+	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
@@ -230,7 +230,7 @@ func attachmentBytes(attachment models.Attachmentable) []byte {
 // @param message is a models.Messageable interface from "github.com/microsoftgraph/msgraph-sdk-go/models"
 func SendMailToBackStore(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	user, destination string,
 	message models.Messageable,
 ) error {
@@ -285,7 +285,7 @@ func SendMailToBackStore(
 // @param dest:  container destination to M365
 func RestoreExchangeDataCollections(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
 	deets *details.Details,
@@ -345,7 +345,7 @@ func RestoreExchangeDataCollections(
 // restoreCollection handles restoration of an individual collection.
 func restoreCollection(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	dc data.Collection,
 	folderID string,
 	policy control.CollisionPolicy,
@@ -429,7 +429,7 @@ func restoreCollection(
 // Assumption: collisionPolicy == COPY
 func GetContainerIDFromCache(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	directory path.Path,
 	destination string,
 	caches map[path.CategoryType]graph.ContainerResolver,
@@ -514,7 +514,7 @@ func establishMailRestoreLocation(
 	folders []string,
 	mfc graph.ContainerResolver,
 	user string,
-	service graph.Service,
+	service graph.Servicer,
 	isNewCache bool,
 ) (string, error) {
 	// Process starts with the root folder in order to recreate
@@ -571,7 +571,7 @@ func establishContactsRestoreLocation(
 	folders []string,
 	cfc graph.ContainerResolver,
 	user string,
-	gs graph.Service,
+	gs graph.Servicer,
 	isNewCache bool,
 ) (string, error) {
 	cached, ok := cfc.PathInCache(folders[0])
@@ -604,7 +604,7 @@ func establishEventsRestoreLocation(
 	folders []string,
 	ecc graph.ContainerResolver, // eventCalendarCache
 	user string,
-	gs graph.Service,
+	gs graph.Servicer,
 	isNewCache bool,
 ) (string, error) {
 	cached, ok := ecc.PathInCache(folders[0])

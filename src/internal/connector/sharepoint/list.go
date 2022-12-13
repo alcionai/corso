@@ -26,7 +26,7 @@ import (
 // - List Items
 func loadLists(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID string,
 ) ([]models.Listable, error) {
 	var (
@@ -92,7 +92,7 @@ func loadLists(
 // * Fields
 func fetchListItems(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID string,
 ) ([]models.ListItemable, error) {
 	var (
@@ -141,7 +141,7 @@ func fetchListItems(
 // TODO: Refactor on if/else (dadams39)
 func fetchColumns(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID, cTypeID string,
 ) ([]models.ColumnDefinitionable, error) {
 	cs := make([]models.ColumnDefinitionable, 0)
@@ -198,7 +198,7 @@ func fetchColumns(
 // TODO: Verify functionality after version upgrade or remove (dadams39) Check Stubs
 func fetchContentTypes(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID string,
 ) ([]models.ContentTypeable, error) {
 	var (
@@ -252,7 +252,7 @@ func fetchContentTypes(
 
 func fetchColumnLinks(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID, cTypeID string,
 ) ([]models.ColumnLinkable, error) {
 	var (

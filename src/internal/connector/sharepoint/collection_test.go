@@ -53,13 +53,12 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 
 	byteArray, err := ow.GetSerializedContent()
 	require.NoError(t, err)
-	// TODO: Replace with Sharepoint--> ToDataLayerSharePoint
-	// https://github.com/alcionai/corso/issues/1401
+
 	dir, err := path.Builder{}.Append("directory").
-		ToDataLayerExchangePathForCategory(
+		ToDataLayerSharePointPath(
 			"some",
 			"user",
-			path.EmailCategory,
+			path.ListsCategory,
 			false)
 	require.NoError(t, err)
 
