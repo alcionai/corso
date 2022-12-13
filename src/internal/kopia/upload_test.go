@@ -6,8 +6,11 @@ import (
 	"io"
 	stdpath "path"
 	"testing"
+	"time"
 
 	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -733,4 +736,863 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 			assert.Error(t, err)
 		})
 	}
+}
+
+type mockSnapshotWalker struct {
+	snapshotRoot fs.Entry
+}
+
+func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error) {
+	return msw.snapshotRoot, nil
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
+	dirPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+	fileName := testFileName
+
+	// Make this a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	getBaseSnapshot := func() fs.Entry {
+		return virtualfs.NewStaticDirectory(
+			encodeElements(testTenant)[0],
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(service)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testUser)[0],
+							[]fs.Entry{
+								virtualfs.NewStaticDirectory(
+									encodeElements(category)[0],
+									[]fs.Entry{
+										virtualfs.NewStaticDirectory(
+											encodeElements(testInboxDir)[0],
+											[]fs.Entry{
+												virtualfs.StreamingFileWithModTimeFromReader(
+													encodeElements(fileName)[0],
+													time.Time{},
+													bytes.NewReader(testFileData),
+												),
+											},
+										),
+									},
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	table := []struct {
+		name             string
+		inputCollections func() []data.Collection
+		expected         *expectedNode
+	}{
+		{
+			name: "SkipsDeletedItems",
+			inputCollections: func() []data.Collection {
+				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc.Names[0] = fileName
+				mc.DeletedItems[0] = true
+
+				return []data.Collection{mc}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name:     testInboxDir,
+												children: []*expectedNode{},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "AddsNewItems",
+			inputCollections: func() []data.Collection {
+				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc.Names[0] = testFileName2
+				mc.Data[0] = testFileData2
+				mc.ColState = data.NotMovedState
+
+				return []data.Collection{mc}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: testInboxDir,
+												children: []*expectedNode{
+													{
+														name:     testFileName,
+														children: []*expectedNode{},
+													},
+													{
+														name:     testFileName2,
+														children: []*expectedNode{},
+														data:     testFileData2,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "SkipsUpdatedItems",
+			inputCollections: func() []data.Collection {
+				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc.Names[0] = testFileName
+				mc.Data[0] = testFileData2
+				mc.ColState = data.NotMovedState
+
+				return []data.Collection{mc}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: testInboxDir,
+												children: []*expectedNode{
+													{
+														name:     testFileName,
+														children: []*expectedNode{},
+														data:     testFileData2,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			tester.LogTimeOfTest(t)
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			msw := &mockSnapshotWalker{
+				snapshotRoot: getBaseSnapshot(),
+			}
+
+			dirTree, _, err := inflateDirTree(
+				ctx,
+				msw,
+				[]*snapshot.Manifest{{}},
+				test.inputCollections(),
+				progress,
+			)
+			require.NoError(t, err)
+
+			expectTree(t, ctx, test.expected, dirTree)
+		})
+	}
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirectories() {
+	const (
+		personalDir = "personal"
+		workDir     = "work"
+	)
+
+	inboxPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+
+	personalPath := makePath(
+		suite.T(),
+		append(inboxPath.Elements(), personalDir),
+	)
+	personalFileName1 := testFileName
+	personalFileName2 := testFileName2
+
+	workPath := makePath(
+		suite.T(),
+		append(inboxPath.Elements(), workDir),
+	)
+	workFileName := testFileName3
+
+	// Make this a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - personal
+	//             - file1
+	//             - file2
+	//           - work
+	//             - file3
+	getBaseSnapshot := func() fs.Entry {
+		return virtualfs.NewStaticDirectory(
+			encodeElements(testTenant)[0],
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(service)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testUser)[0],
+							[]fs.Entry{
+								virtualfs.NewStaticDirectory(
+									encodeElements(category)[0],
+									[]fs.Entry{
+										virtualfs.NewStaticDirectory(
+											encodeElements(testInboxDir)[0],
+											[]fs.Entry{
+												virtualfs.NewStaticDirectory(
+													encodeElements(personalDir)[0],
+													[]fs.Entry{
+														virtualfs.StreamingFileWithModTimeFromReader(
+															encodeElements(personalFileName1)[0],
+															time.Time{},
+															bytes.NewReader(testFileData),
+														),
+														virtualfs.StreamingFileWithModTimeFromReader(
+															encodeElements(personalFileName2)[0],
+															time.Time{},
+															bytes.NewReader(testFileData2),
+														),
+													},
+												),
+												virtualfs.NewStaticDirectory(
+													encodeElements(workDir)[0],
+													[]fs.Entry{
+														virtualfs.StreamingFileWithModTimeFromReader(
+															encodeElements(workFileName)[0],
+															time.Time{},
+															bytes.NewReader(testFileData3),
+														),
+													},
+												),
+											},
+										),
+									},
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	table := []struct {
+		name             string
+		inputCollections func(t *testing.T) []data.Collection
+		expected         *expectedNode
+	}{
+		{
+			name: "MovesSubtree",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+				)
+
+				mc := mockconnector.NewMockExchangeCollection(newPath, 0)
+				mc.PrevPath = inboxPath
+				mc.ColState = data.MovedState
+
+				return []data.Collection{mc}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: testInboxDir + "2",
+												children: []*expectedNode{
+													{
+														name: personalDir,
+														children: []*expectedNode{
+															{
+																name:     personalFileName1,
+																children: []*expectedNode{},
+															},
+															{
+																name:     personalFileName2,
+																children: []*expectedNode{},
+															},
+														},
+													},
+													{
+														name: workDir,
+														children: []*expectedNode{
+															{
+																name:     workFileName,
+																children: []*expectedNode{},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "MovesChildAfterAncestorMove",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newInboxPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+				)
+				newWorkPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, workDir},
+				)
+
+				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 0)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.MovedState
+
+				work := mockconnector.NewMockExchangeCollection(newWorkPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{inbox, work}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: testInboxDir + "2",
+												children: []*expectedNode{
+													{
+														name: personalDir,
+														children: []*expectedNode{
+															{
+																name:     personalFileName1,
+																children: []*expectedNode{},
+															},
+															{
+																name:     personalFileName2,
+																children: []*expectedNode{},
+															},
+														},
+													},
+												},
+											},
+											{
+												name: workDir,
+												children: []*expectedNode{
+													{
+														name:     workFileName,
+														children: []*expectedNode{},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "MovesChildAfterAncestorDelete",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newWorkPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, workDir},
+				)
+
+				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 0)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.DeletedState
+
+				work := mockconnector.NewMockExchangeCollection(newWorkPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{inbox, work}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: workDir,
+												children: []*expectedNode{
+													{
+														name:     workFileName,
+														children: []*expectedNode{},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ReplaceDeletedDirectory",
+			inputCollections: func(t *testing.T) []data.Collection {
+				personal := mockconnector.NewMockExchangeCollection(personalPath, 0)
+				personal.PrevPath = personalPath
+				personal.ColState = data.DeletedState
+
+				work := mockconnector.NewMockExchangeCollection(personalPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{personal, work}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: testInboxDir,
+												children: []*expectedNode{
+													{
+														name: personalDir,
+														children: []*expectedNode{
+															{
+																name: workFileName,
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ReplaceMovedDirectory",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newPersonalPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, personalDir},
+				)
+
+				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 0)
+				personal.PrevPath = personalPath
+				personal.ColState = data.MovedState
+
+				work := mockconnector.NewMockExchangeCollection(personalPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{personal, work}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: testInboxDir,
+												children: []*expectedNode{
+													{
+														name: personalDir,
+														children: []*expectedNode{
+															{
+																name: workFileName,
+															},
+														},
+													},
+												},
+											},
+											{
+												name: personalDir,
+												children: []*expectedNode{
+													{
+														name: personalFileName1,
+													},
+													{
+														name: personalFileName2,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "MoveDirectoryAndMergeItems",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newPersonalPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, workDir},
+				)
+
+				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 2)
+				personal.PrevPath = personalPath
+				personal.ColState = data.MovedState
+				personal.Names[0] = personalFileName2
+				personal.Data[0] = testFileData5
+				personal.Names[1] = testFileName4
+				personal.Data[1] = testFileData4
+
+				return []data.Collection{personal}
+			},
+			expected: &expectedNode{
+				name: testTenant,
+				children: []*expectedNode{
+					{
+						name: service,
+						children: []*expectedNode{
+							{
+								name: testUser,
+								children: []*expectedNode{
+									{
+										name: category,
+										children: []*expectedNode{
+											{
+												name: testInboxDir,
+												children: []*expectedNode{
+													{
+														name: workDir,
+														children: []*expectedNode{
+															{
+																name:     workFileName,
+																children: []*expectedNode{},
+															},
+														},
+													},
+												},
+											},
+											{
+												name: workDir,
+												children: []*expectedNode{
+													{
+														name: personalFileName1,
+													},
+													{
+														name: personalFileName2,
+														data: testFileData5,
+													},
+													{
+														name: testFileName4,
+														data: testFileData4,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			tester.LogTimeOfTest(t)
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			msw := &mockSnapshotWalker{
+				snapshotRoot: getBaseSnapshot(),
+			}
+
+			dirTree, _, err := inflateDirTree(
+				ctx,
+				msw,
+				[]*snapshot.Manifest{{}},
+				test.inputCollections(t),
+				progress,
+			)
+			require.NoError(t, err)
+
+			expectTree(t, ctx, test.expected, dirTree)
+		})
+	}
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtree() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const (
+		personalDir = "personal"
+		workDir     = "work"
+	)
+
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - personal
+	//             - file1
+	//           - work
+	//             - file2
+	//         - Archive
+	//           - personal
+	//             - file3
+	//           - work
+	//             - file4
+	baseSnapshot := virtualfs.NewStaticDirectory(
+		encodeElements(testTenant)[0],
+		[]fs.Entry{
+			virtualfs.NewStaticDirectory(
+				encodeElements(service)[0],
+				[]fs.Entry{
+					virtualfs.NewStaticDirectory(
+						encodeElements(testUser)[0],
+						[]fs.Entry{
+							virtualfs.NewStaticDirectory(
+								encodeElements(category)[0],
+								[]fs.Entry{
+									virtualfs.NewStaticDirectory(
+										encodeElements(testInboxDir)[0],
+										[]fs.Entry{
+											virtualfs.NewStaticDirectory(
+												encodeElements(personalDir)[0],
+												[]fs.Entry{
+													virtualfs.StreamingFileWithModTimeFromReader(
+														encodeElements(testFileName)[0],
+														time.Time{},
+														bytes.NewReader(testFileData),
+													),
+												},
+											),
+											virtualfs.NewStaticDirectory(
+												encodeElements(workDir)[0],
+												[]fs.Entry{
+													virtualfs.StreamingFileWithModTimeFromReader(
+														encodeElements(testFileName2)[0],
+														time.Time{},
+														bytes.NewReader(testFileData2),
+													),
+												},
+											),
+										},
+									),
+									virtualfs.NewStaticDirectory(
+										encodeElements(testArchiveDir)[0],
+										[]fs.Entry{
+											virtualfs.NewStaticDirectory(
+												encodeElements(personalDir)[0],
+												[]fs.Entry{
+													virtualfs.StreamingFileWithModTimeFromReader(
+														encodeElements(testFileName3)[0],
+														time.Time{},
+														bytes.NewReader(testFileData3),
+													),
+												},
+											),
+											virtualfs.NewStaticDirectory(
+												encodeElements(workDir)[0],
+												[]fs.Entry{
+													virtualfs.StreamingFileWithModTimeFromReader(
+														encodeElements(testFileName4)[0],
+														time.Time{},
+														bytes.NewReader(testFileData4),
+													),
+												},
+											),
+										},
+									),
+								},
+							),
+						},
+					),
+				},
+			),
+		},
+	)
+
+	expected := &expectedNode{
+		name: testTenant,
+		children: []*expectedNode{
+			{
+				name: service,
+				children: []*expectedNode{
+					{
+						name: testUser,
+						children: []*expectedNode{
+							{
+								name: category,
+								children: []*expectedNode{
+									{
+										name: testArchiveDir,
+										children: []*expectedNode{
+											{
+												name: personalDir,
+												children: []*expectedNode{
+													{
+														name:     testFileName3,
+														children: []*expectedNode{},
+													},
+												},
+											},
+											{
+												name: workDir,
+												children: []*expectedNode{
+													{
+														name:     testFileName4,
+														children: []*expectedNode{},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+	mc := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
+	mc.PrevPath = mc.FullPath()
+	mc.ColState = data.DeletedState
+	msw := &mockSnapshotWalker{
+		snapshotRoot: baseSnapshot,
+	}
+
+	collections := []data.Collection{mc}
+
+	// Returned directory structure should look like:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - emails
+	//         - Archive
+	//           - personal
+	//             - file3
+	//           - work
+	//             - file4
+	dirTree, _, err := inflateDirTree(
+		ctx,
+		msw,
+		[]*snapshot.Manifest{{}},
+		collections,
+		progress,
+	)
+	require.NoError(t, err)
+
+	expectTree(t, ctx, expected, dirTree)
 }
