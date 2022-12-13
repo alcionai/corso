@@ -3,7 +3,10 @@ package graph
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
+
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -22,6 +25,44 @@ type MetadataCollection struct {
 	fullPath      path.Path
 	items         []MetadataItem
 	statusUpdater support.StatusUpdater
+}
+
+// MakeMetadataCollection creates a metadata collection that has a file
+// containing all the provided metadata as a single json object. Returns
+// nil if the map does not have any entries.
+func MakeMetadataCollection(
+	tenant, resourceOwner, itemID string,
+	service path.ServiceType,
+	cat path.CategoryType,
+	metadata map[string]string,
+	statusUpdater support.StatusUpdater,
+) (data.Collection, error) {
+	if len(metadata) == 0 {
+		return nil, nil
+	}
+
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+
+	if err := encoder.Encode(metadata); err != nil {
+		return nil, errors.Wrap(err, "serializing metadata")
+	}
+
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenant,
+		resourceOwner,
+		service,
+		cat,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "making metadata path")
+	}
+
+	item := NewMetadataItem(itemID, buf.Bytes())
+	coll := NewMetadataCollection(p, []MetadataItem{item}, statusUpdater)
+
+	return coll, nil
 }
 
 func NewMetadataCollection(

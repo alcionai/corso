@@ -9,9 +9,23 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// DeltaTokenFileName is the name of the file containing delta token(s) for a
-// given endpoint. The endpoint granularity varies by service.
-const DeltaTokenFileName = "delta"
+const (
+	// DeltaTokenFileName is the name of the file containing delta token(s) for a
+	// given endpoint. The endpoint granularity varies by service.
+	DeltaTokenFileName = "delta"
+	// PreviousPathFileName is the name of the file containing previous path(s) for a
+	// given endpoint.
+	PreviousPathFileName = "previouspath"
+)
+
+const (
+	// DeltaMetadataCollectionKey is the name of the collection holding the delta
+	// url lookups inside a collection map otherwise keyed by folder ids.
+	DeltaMetadataCollectionKey = "delta-metadata"
+	// PathsMetadataCollectionKey is the name of the collection holding the previous
+	// paths lookups inside a collection map otherwise keyed by folder ids.
+	PathsMetadataCollectionKey = "paths-metadata"
+)
 
 // MetadataFileNames produces the standard set of filenames used to store graph
 // metadata such as delta tokens and folderID->path references.

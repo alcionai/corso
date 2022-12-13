@@ -1,9 +1,11 @@
 package graph_test
 
 import (
+	"encoding/json"
 	"io"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -99,4 +101,93 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 
 	assert.ElementsMatch(t, itemNames, gotNames)
 	assert.ElementsMatch(t, itemData, gotData)
+}
+
+func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
+	tenant := "a-tenant"
+	user := "a-user"
+
+	table := []struct {
+		name            string
+		service         path.ServiceType
+		cat             path.CategoryType
+		metadata        map[string]string
+		collectionCheck assert.ValueAssertionFunc
+		errCheck        assert.ErrorAssertionFunc
+	}{
+		{
+			name:            "EmptyTokens",
+			service:         path.ExchangeService,
+			cat:             path.EmailCategory,
+			metadata:        nil,
+			collectionCheck: assert.Nil,
+			errCheck:        assert.NoError,
+		},
+		{
+			name:    "Tokens",
+			service: path.ExchangeService,
+			cat:     path.EmailCategory,
+			metadata: map[string]string{
+				"hello": "world",
+				"hola":  "mundo",
+			},
+			collectionCheck: assert.NotNil,
+			errCheck:        assert.NoError,
+		},
+		{
+			name:    "BadCategory",
+			service: path.ExchangeService,
+			cat:     path.FilesCategory,
+			metadata: map[string]string{
+				"hello": "world",
+				"hola":  "mundo",
+			},
+			collectionCheck: assert.Nil,
+			errCheck:        assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			itemID := uuid.NewString()
+
+			col, err := graph.MakeMetadataCollection(
+				tenant,
+				user,
+				itemID,
+				test.service,
+				test.cat,
+				test.metadata,
+				func(*support.ConnectorOperationStatus) {},
+			)
+
+			test.errCheck(t, err)
+			if err != nil {
+				return
+			}
+
+			test.collectionCheck(t, col)
+			if col == nil {
+				return
+			}
+
+			itemCount := 0
+			for item := range col.Items() {
+				assert.Equal(t, itemID, item.UUID())
+
+				gotMap := map[string]string{}
+				decoder := json.NewDecoder(item.ToReader())
+				itemCount++
+
+				err := decoder.Decode(&gotMap)
+				if !assert.NoError(t, err) {
+					continue
+				}
+
+				assert.Equal(t, test.metadata, gotMap)
+			}
+
+			assert.Equal(t, 1, itemCount)
+		})
+	}
 }

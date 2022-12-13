@@ -520,9 +520,11 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			collections := test.getCollection(t)
-			require.Equal(t, len(collections), 1)
+			require.Equal(t, len(collections), 2)
+
 			edc := collections[0]
 			assert.Equal(t, edc.FullPath().Folder(), test.expected)
+
 			streamChannel := edc.Items()
 
 			for stream := range streamChannel {
