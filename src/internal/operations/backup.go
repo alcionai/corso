@@ -425,15 +425,14 @@ func (op *BackupOperation) createBackupModels(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
-			events.BackupID:      b.ID,
-			events.DataStored:    op.Results.BytesUploaded,
-			events.Duration:      dur,
-			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
-			events.HumanDuration: dur.String(),
-			events.Resources:     op.Results.ResourceOwners,
-			events.Service:       op.Selectors.PathService().String(),
-			events.StartTime:     common.FormatTime(op.Results.StartedAt),
-			events.Status:        op.Status.String(),
+			events.BackupID:   b.ID,
+			events.DataStored: op.Results.BytesUploaded,
+			events.Duration:   dur,
+			events.EndTime:    common.FormatTime(op.Results.CompletedAt),
+			events.Resources:  op.Results.ResourceOwners,
+			events.Service:    op.Selectors.PathService().String(),
+			events.StartTime:  common.FormatTime(op.Results.StartedAt),
+			events.Status:     op.Status.String(),
 		},
 	)
 

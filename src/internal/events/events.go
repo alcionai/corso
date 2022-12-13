@@ -38,7 +38,6 @@ const (
 	DataStored       = "data_stored"
 	Duration         = "duration"
 	EndTime          = "end_time"
-	HumanDuration    = "human_duration"
 	ItemsRead        = "items_read"
 	ItemsWritten     = "items_written"
 	Resources        = "resources"

@@ -243,7 +243,6 @@ func (op *RestoreOperation) persistResults(
 			events.DataRetrieved: op.Results.BytesRead,
 			events.Duration:      dur,
 			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
-			events.HumanDuration: dur.String(),
 			events.ItemsRead:     op.Results.ItemsRead,
 			events.ItemsWritten:  op.Results.ItemsWritten,
 			events.Resources:     op.Results.ResourceOwners,
