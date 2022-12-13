@@ -174,7 +174,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	service, err := newConnector.createService()
 	require.NoError(suite.T(), err)
 
-	newConnector.graphService = *service
+	newConnector.Service = service
 
 	suite.Empty(len(newConnector.Users))
 	err = newConnector.setTenantUsers(ctx)
@@ -197,7 +197,7 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	service, err := newConnector.createService()
 	require.NoError(suite.T(), err)
 
-	newConnector.graphService = *service
+	newConnector.Service = service
 
 	suite.Equal(0, len(newConnector.Sites))
 	err = newConnector.setTenantSites(ctx)
@@ -413,7 +413,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	driveID := mustGetDefaultDriveID(
 		suite.T(),
 		ctx,
-		suite.connector,
+		suite.connector.Service,
 		suite.user,
 	)
 
