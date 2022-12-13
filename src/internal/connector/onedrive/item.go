@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -24,22 +25,22 @@ const (
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
-// func sharePointItemReader(
-// 	ctx context.Context,
-// 	service graph.Servicer,
-// 	driveID, itemID string,
-// ) (details.ItemInfo, io.ReadCloser, error) {
-// 	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
-// 	if err != nil {
-// 		return details.ItemInfo{}, nil, err
-// 	}
+func sharePointItemReader(
+	ctx context.Context,
+	item models.DriveItemable,
+) (details.ItemInfo, io.ReadCloser, error) {
+	// TODO(meain): make sure the url is available here
+	rc, err := driveItemReader(ctx, item.GetAdditionalData()["@content.downloadUrl"].(string))
+	if err != nil {
+		return details.ItemInfo{}, nil, err
+	}
 
-// 	dii := details.ItemInfo{
-// 		SharePoint: sharePointItemInfo(item, *item.GetSize()),
-// 	}
+	dii := details.ItemInfo{
+		SharePoint: sharePointItemInfo(item, *item.GetSize()),
+	}
 
-// 	return dii, rc, nil
-// }
+	return dii, rc, nil
+}
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
@@ -48,6 +49,7 @@ func oneDriveItemReader(
 	ctx context.Context,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
+	fmt.Println("src/internal/connector/onedrive/item.go:50 item.GetAdditionalData():", item.GetAdditionalData())
 	rc, err := driveItemReader(ctx, item.GetAdditionalData()["@content.downloadUrl"].(string))
 	if err != nil {
 		return details.ItemInfo{}, nil, err

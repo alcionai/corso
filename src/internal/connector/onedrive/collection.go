@@ -49,8 +49,7 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItemIDs []string // TODO(meain): remove this
-	driveItems   []models.DriveItemable
+	driveItems []models.DriveItemable
 	// M365 ID of the drive this collection was created from
 	driveID       string
 	source        driveSource
@@ -77,7 +76,6 @@ func NewCollection(
 ) *Collection {
 	c := &Collection{
 		folderPath:    folderPath,
-		driveItemIDs:  []string{},
 		driveID:       driveID,
 		source:        source,
 		service:       service,
@@ -89,7 +87,7 @@ func NewCollection(
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
-		// c.itemReader = sharePointItemReader
+		c.itemReader = sharePointItemReader
 	default:
 		c.itemReader = oneDriveItemReader
 	}
@@ -99,8 +97,8 @@ func NewCollection(
 
 // Adds an itemID to the collection
 // This will make it eligible to be populated
-func (oc *Collection) Add(itemID string) {
-	oc.driveItemIDs = append(oc.driveItemIDs, itemID)
+func (oc *Collection) Add(item models.DriveItemable) {
+	oc.driveItems = append(oc.driveItems, item)
 }
 
 // Items() returns the channel containing M365 Exchange objects
@@ -192,7 +190,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		observe.ItemQueueMsg,
 		"/"+parentPathString,
-		int64(len(oc.driveItemIDs)),
+		int64(len(oc.driveItems)),
 	)
 	defer colCloser()
 	defer close(folderProgress)
@@ -291,7 +289,7 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byte
 	status := support.CreateStatus(ctx, support.Backup,
 		1, // num folders (always 1)
 		support.CollectionMetrics{
-			Objects:    len(oc.driveItemIDs), // items to read,
+			Objects:    len(oc.driveItems), // items to read,
 			Successes:  itemsRead,            // items read successfully,
 			TotalBytes: byteCount,            // Number of bytes read in the operation,
 		},
