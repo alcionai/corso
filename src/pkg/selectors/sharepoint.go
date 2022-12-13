@@ -241,6 +241,23 @@ func (s *sharePoint) Lists(sites, lists []string, opts ...option) []SharePointSc
 	return scopes
 }
 
+// ListItems produces one or more SharePoint list item scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the list scopes.
+func (s *sharePoint) ListItems(sites, lists, items []string, opts ...option) []SharePointScope {
+	scopes := []SharePointScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[SharePointScope](SharePointListItem, sites, items).
+			set(SharePointList, lists, opts...),
+	)
+
+	return scopes
+}
+
 // Libraries produces one or more SharePoint library scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
@@ -333,6 +350,8 @@ func (c sharePointCategory) leafCat() categorizer {
 	switch c {
 	case SharePointLibrary, SharePointLibraryItem:
 		return SharePointLibraryItem
+	case SharePointList, SharePointListItem:
+		return SharePointListItem
 	}
 
 	return c
@@ -440,7 +459,11 @@ func (s SharePointScope) Get(cat sharePointCategory) []string {
 // sets a value by category to the scope.  Only intended for internal use.
 func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option) SharePointScope {
 	os := []option{}
-	if cat == SharePointLibrary {
+
+	switch cat {
+	case SharePointLibrary:
+		os = append(os, pathComparator())
+	case SharePointList: // @keepers not sure if this is necessary... comparator to be omitted?
 		os = append(os, pathComparator())
 	}
 
@@ -453,8 +476,12 @@ func (s SharePointScope) setDefaults() {
 	case SharePointSite:
 		s[SharePointLibrary.String()] = passAny
 		s[SharePointLibraryItem.String()] = passAny
+		s[SharePointList.String()] = passAny
+		s[SharePointListItem.String()] = passAny
 	case SharePointLibrary:
 		s[SharePointLibraryItem.String()] = passAny
+	case SharePointList:
+		s[SharePointListItem.String()] = passAny
 	}
 }
 
@@ -477,7 +504,7 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 		s.Selector,
 		map[path.CategoryType]sharePointCategory{
 			path.LibrariesCategory: SharePointLibraryItem,
-			// TODO: list category type
+			path.ListsCategory:     SharePointListItem,
 		},
 	)
 }
