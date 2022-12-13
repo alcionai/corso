@@ -300,8 +300,8 @@ var sharePointLeafProperties = map[categorizer]leafProperty{
 		pathKeys: []categorizer{SharePointSite},
 		pathType: path.UnknownCategory,
 	},
-	SharePointList: {
-		pathKeys: []categorizer{SharePointSite, SharePointList},
+	SharePointListItem: {
+		pathKeys: []categorizer{SharePointSite, SharePointList, SharePointListItem},
 		pathType: path.ListsCategory,
 	},
 }
