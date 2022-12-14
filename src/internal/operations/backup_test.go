@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -342,7 +341,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			},
 			resourceOwner: m365UserID,
 			category:      path.EmailCategory,
-			metadataFiles: graph.MetadataFileNames(path.EmailCategory),
+			metadataFiles: exchange.MetadataFileNames(path.EmailCategory),
 		},
 		{
 			name: "Contacts",
@@ -357,7 +356,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			},
 			resourceOwner: m365UserID,
 			category:      path.ContactsCategory,
-			metadataFiles: graph.MetadataFileNames(path.ContactsCategory),
+			metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
 		},
 		{
 			name: "Calendar Events",
@@ -372,7 +371,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			},
 			resourceOwner: m365UserID,
 			category:      path.EventsCategory,
-			metadataFiles: graph.MetadataFileNames(path.EventsCategory),
+			metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
 		},
 	}
 	for _, test := range tests {

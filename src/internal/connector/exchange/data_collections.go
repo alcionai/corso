@@ -8,7 +8,19 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// MetadataFileNames produces the category-specific set of filenames used to
+// store graph metadata such as delta tokens and folderID->path references.
+func MetadataFileNames(cat path.CategoryType) []string {
+	switch cat {
+	case path.EmailCategory, path.ContactsCategory:
+		return []string{graph.DeltaTokenFileName, graph.PreviousPathFileName}
+	default:
+		return []string{graph.PreviousPathFileName}
+	}
+}
 
 // ParseMetadataCollections produces two maps:
 // 1- paths: folderID->filePath, used to look up previous folder pathing

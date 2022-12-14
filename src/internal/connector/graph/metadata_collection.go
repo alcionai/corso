@@ -163,7 +163,7 @@ func (md MetadataCollection) Items() <-chan data.Stream {
 	return res
 }
 
-// metadataItem is an in-memory data.Stream implementation. MetadataItem does
+// MetadataItem is an in-memory data.Stream implementation. MetadataItem does
 // not implement additional interfaces like data.StreamInfo, so it should only
 // be used for items with a small amount of content that don't need to be added
 // to backup details.

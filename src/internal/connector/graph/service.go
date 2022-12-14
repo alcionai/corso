@@ -24,17 +24,6 @@ func AllMetadataFileNames() []string {
 	return []string{DeltaTokenFileName, PreviousPathFileName}
 }
 
-// MetadataFileNames produces the category-specific set of filenames used to
-// store graph metadata such as delta tokens and folderID->path references.
-func MetadataFileNames(cat path.CategoryType) []string {
-	switch cat {
-	case path.EmailCategory, path.ContactsCategory:
-		return []string{DeltaTokenFileName, PreviousPathFileName}
-	default:
-		return []string{PreviousPathFileName}
-	}
-}
-
 type QueryParams struct {
 	Category      path.CategoryType
 	ResourceOwner string
