@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -33,6 +34,7 @@ func (gc *GraphConnector) DataCollections(
 	ctx context.Context,
 	sels selectors.Selector,
 	metadata []data.Collection,
+	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
@@ -44,11 +46,18 @@ func (gc *GraphConnector) DataCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		return gc.ExchangeDataCollection(ctx, sels, metadata)
+		return gc.ExchangeDataCollection(ctx, sels, metadata, ctrlOpts)
 	case selectors.ServiceOneDrive:
-		return gc.OneDriveDataCollections(ctx, sels)
+		return gc.OneDriveDataCollections(ctx, sels, ctrlOpts)
 	case selectors.ServiceSharePoint:
-		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIDs(), gc.credentials.AzureTenantID, gc)
+		colls, err := sharepoint.DataCollections(
+			ctx,
+			sels,
+			gc.GetSiteIDs(),
+			gc.credentials.AzureTenantID,
+			gc,
+			gc,
+			ctrlOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -118,6 +127,7 @@ func (gc *GraphConnector) createExchangeCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
 	deltas map[string]string,
+	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	var (
 		errs           *multierror.Error
@@ -132,7 +142,6 @@ func (gc *GraphConnector) createExchangeCollections(
 		qp := graph.QueryParams{
 			Category:      scope.Category().PathType(),
 			ResourceOwner: user,
-			FailFast:      gc.failFast,
 			Credentials:   gc.credentials,
 		}
 
@@ -152,7 +161,8 @@ func (gc *GraphConnector) createExchangeCollections(
 			gc.UpdateStatus,
 			resolver,
 			scope,
-			deltas)
+			deltas,
+			ctrlOpts)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "filling collections")
@@ -179,6 +189,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 	ctx context.Context,
 	selector selectors.Selector,
 	metadata []data.Collection,
+	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
@@ -198,7 +209,7 @@ func (gc *GraphConnector) ExchangeDataCollection(
 
 	for _, scope := range scopes {
 		// Creates a map of collections based on scope
-		dcs, err := gc.createExchangeCollections(ctx, scope, deltas)
+		dcs, err := gc.createExchangeCollections(ctx, scope, deltas, control.Options{})
 		if err != nil {
 			user := scope.Get(selectors.ExchangeUser)
 			return nil, support.WrapAndAppend(user[0], err, errs)
@@ -231,6 +242,7 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 func (gc *GraphConnector) OneDriveDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
+	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
@@ -253,8 +265,9 @@ func (gc *GraphConnector) OneDriveDataCollections(
 				user,
 				onedrive.OneDriveSource,
 				odFolderMatcher{scope},
-				&gc.graphService,
+				gc,
 				gc.UpdateStatus,
+				ctrlOpts,
 			).Get(ctx)
 			if err != nil {
 				return nil, support.WrapAndAppend(user, err, errs)

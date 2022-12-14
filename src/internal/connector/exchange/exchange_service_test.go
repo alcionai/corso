@@ -45,7 +45,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	require.NoError(t, err)
 	m365, err := a.M365Config()
 	require.NoError(t, err)
-	service, err := createService(m365, false)
+	service, err := createService(m365)
 	require.NoError(t, err)
 
 	suite.es = service
@@ -79,7 +79,7 @@ func (suite *ExchangeServiceSuite) TestCreateService() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			t.Log(test.credentials.AzureClientSecret)
-			_, err := createService(test.credentials, false)
+			_, err := createService(test.credentials)
 			test.checkErr(t, err)
 		})
 	}

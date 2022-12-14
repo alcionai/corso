@@ -40,7 +40,7 @@ func (suite *CacheResolverSuite) SetupSuite() {
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createService(m365, false)
+	service, err := createService(m365)
 	require.NoError(t, err)
 
 	suite.gs = service

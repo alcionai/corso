@@ -35,20 +35,12 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (ms *MockGraphService) ErrPolicy() bool {
-	return false
-}
-
 func (ts *testService) Client() *msgraphsdk.GraphServiceClient {
 	return &ts.client
 }
 
 func (ts *testService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &ts.adapter
-}
-
-func (ts *testService) ErrPolicy() bool {
-	return false
 }
 
 // ---------------------------------------------------------------------------

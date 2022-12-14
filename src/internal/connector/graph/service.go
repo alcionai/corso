@@ -23,7 +23,6 @@ type QueryParams struct {
 	Category      path.CategoryType
 	ResourceOwner string
 	Credentials   account.M365Config
-	FailFast      bool
 }
 
 type Servicer interface {
@@ -33,8 +32,6 @@ type Servicer interface {
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
 	Adapter() *msgraphsdk.GraphRequestAdapter
-	// ErrPolicy returns if the service is implementing a Fast-Fail policy or not
-	ErrPolicy() bool
 }
 
 // Idable represents objects that implement msgraph-sdk-go/models.entityable
