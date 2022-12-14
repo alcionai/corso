@@ -195,7 +195,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				test.getSelector(t),
 				[]string{suite.site},
 				connector.credentials.AzureTenantID,
-				connector,
+				connector.Service,
 				connector,
 				control.Options{})
 			require.NoError(t, err)
