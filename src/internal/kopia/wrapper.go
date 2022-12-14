@@ -116,6 +116,7 @@ func (w Wrapper) BackupCollections(
 	previousSnapshots []*snapshot.Manifest,
 	collections []data.Collection,
 	service path.ServiceType,
+	oc *OwnersCats,
 	tags map[string]string,
 ) (*BackupStats, *details.Details, error) {
 	if w.c == nil {
@@ -411,12 +412,12 @@ func (w Wrapper) DeleteSnapshot(
 // normalized inside the func using MakeTagKV.
 func (w Wrapper) FetchPrevSnapshotManifests(
 	ctx context.Context,
-	oc OwnersCats,
+	oc *OwnersCats,
 	tags map[string]string,
 ) ([]*snapshot.Manifest, error) {
 	if w.c == nil {
 		return nil, errors.WithStack(errNotConnected)
 	}
 
-	return fetchPrevSnapshotManifests(ctx, w.c, &oc, tags), nil
+	return fetchPrevSnapshotManifests(ctx, w.c, oc, tags), nil
 }
