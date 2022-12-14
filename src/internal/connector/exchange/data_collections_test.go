@@ -156,6 +156,18 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				"key": "\\n\\r\\t\\b\\f\\v\\0\\\\",
 			},
 		},
+		{
+			name: "delta urls with newline char runes",
+			data: []fileValues{
+				// rune(92) = \, rune(110) = n.  If a parsing error were possible
+				// by serializing/deserializing those two runes and producing a
+				// single newline character, this would produce it.
+				{graph.DeltaTokenFileName, string([]rune{rune(92), rune(110)})},
+			},
+			expectDeltas: map[string]string{
+				"key": "\\n",
+			},
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
