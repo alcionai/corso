@@ -186,7 +186,6 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 
 	sel.Exclude(sel.WebURL([]string{s1, s2}))
 	scopes := sel.Excludes
-	// @keepers: Question Should this be 2 as in check for SharePoint Lists and SharePoint Drives?
 	require.Len(t, scopes, 2)
 
 	for _, sc := range scopes {
