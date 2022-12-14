@@ -155,11 +155,11 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			deltas, paths := emails.deltas, emails.paths
 
 			if len(test.expectDeltas) > 0 {
-				assert.Len(t, deltas, len(test.expectDeltas), "deltas")
+				assert.Len(t, deltas, len(test.expectDeltas), "deltas len")
 			}
 
 			if len(test.expectPaths) > 0 {
-				assert.Len(t, paths, len(test.expectPaths), "paths")
+				assert.Len(t, paths, len(test.expectPaths), "paths len")
 			}
 
 			for k, v := range test.expectDeltas {
