@@ -56,6 +56,8 @@ then click **Add permissions**.
 | Files.ReadWrite.All | Application | Read and write files in all site collections |
 | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
 | User.Read.All | Application | Read all users' full profiles |
+| Sites.FullControl.All | Application | Have full control of all site collections |
+
 <!-- vale Microsoft.Spacing = YES -->
 
 ### Grant admin consent

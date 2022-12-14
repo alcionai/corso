@@ -12,7 +12,7 @@ usage() {
 }
 
 ROOT=$(dirname $(dirname $(readlink -f $0)))
-GOVER=1.18                           # go version
+GOVER=1.19                           # go version
 CORSO_BUILD_CACHE="/tmp/.corsobuild" # shared persistent cache
 
 # Figure out os and architecture

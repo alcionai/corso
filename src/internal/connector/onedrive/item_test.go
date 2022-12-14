@@ -34,10 +34,6 @@ func (suite *ItemIntegrationSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return suite.adapter
 }
 
-func (suite *ItemIntegrationSuite) ErrPolicy() bool {
-	return false
-}
-
 func TestItemIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,

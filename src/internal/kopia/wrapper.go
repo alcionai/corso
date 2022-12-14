@@ -113,9 +113,10 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // TODO(ashmrtn): Use previousSnapshots parameter.
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
-	previousSnapshots []*snapshot.Manifest,
+	previousSnapshots []*ManifestEntry,
 	collections []data.Collection,
 	service path.ServiceType,
+	oc *OwnersCats,
 	tags map[string]string,
 ) (*BackupStats, *details.Details, error) {
 	if w.c == nil {
@@ -134,7 +135,7 @@ func (w Wrapper) BackupCollections(
 		deets:   &details.Details{},
 	}
 
-	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
@@ -155,10 +156,15 @@ func (w Wrapper) makeSnapshotWithRoot(
 	addlTags map[string]string,
 ) (*BackupStats, error) {
 	var (
-		man       *snapshot.Manifest
-		prevSnaps = fetchPrevSnapshotManifests(ctx, w.c, oc, nil)
-		bc        = &stats.ByteCounter{}
+		man             *snapshot.Manifest
+		prevSnapEntries = fetchPrevSnapshotManifests(ctx, w.c, oc, nil)
+		bc              = &stats.ByteCounter{}
 	)
+
+	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
+	for _, ent := range prevSnapEntries {
+		prevSnaps = append(prevSnaps, ent.Manifest)
+	}
 
 	err := repo.WriteSession(
 		ctx,
@@ -411,12 +417,12 @@ func (w Wrapper) DeleteSnapshot(
 // normalized inside the func using MakeTagKV.
 func (w Wrapper) FetchPrevSnapshotManifests(
 	ctx context.Context,
-	oc OwnersCats,
+	oc *OwnersCats,
 	tags map[string]string,
-) ([]*snapshot.Manifest, error) {
+) ([]*ManifestEntry, error) {
 	if w.c == nil {
 		return nil, errors.WithStack(errNotConnected)
 	}
 
-	return fetchPrevSnapshotManifests(ctx, w.c, &oc, tags), nil
+	return fetchPrevSnapshotManifests(ctx, w.c, oc, tags), nil
 }

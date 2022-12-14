@@ -18,6 +18,7 @@ export default function Demo() {
                 borderLeft: "2px solid #e5e7eb",
                 borderRight: "2px solid #e5e7eb",
                 borderBottom: "2px solid #e5e7eb",
+                backgroundColor: "#121831",
               }}
             >
               <video className="w-full" poster="assets/images/corso_demo_thumbnail.png" muted loop autoPlay playsInline>

@@ -102,11 +102,18 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
 				ItemInfo: details.ItemInfo{
-					SharePoint: &details.SharePointInfo{},
+					SharePoint: &details.SharePointInfo{
+						ItemName:   "itemName",
+						ParentPath: "parentPath",
+						Size:       1000,
+						WebURL:     "https://not.a.real/url",
+						Created:    now,
+						Modified:   now,
+					},
 				},
 			},
-			expectHs: []string{"ID"},
-			expectVs: []string{"deadbeef"},
+			expectHs: []string{"ID", "ItemName", "ParentPath", "Size", "WebURL", "Created", "Modified"},
+			expectVs: []string{"deadbeef", "itemName", "parentPath", "1.0 kB", "https://not.a.real/url", nowStr, nowStr},
 		},
 		{
 			name: "oneDrive info",

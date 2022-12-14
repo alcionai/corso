@@ -195,7 +195,7 @@ func purgeFolders(
 	Infof(ctx, "Container: %s", data)
 
 	// get them folders
-	fs, err := getter(gc.Service(), uid, prefix)
+	fs, err := getter(gc.Service, uid, prefix)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "retrieving %s folders", data))
 	}
@@ -227,7 +227,7 @@ func purgeFolders(
 
 		Infof(ctx, "∙ Deleting [%s]", displayName)
 
-		err = deleter(gc.Service(), uid, fld)
+		err = deleter(gc.Service, uid, fld)
 		if err != nil {
 			err = errors.Wrapf(err, "!! Error")
 			errs = multierror.Append(errs, err)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	stdpath "path"
 	"testing"
 
@@ -68,7 +67,7 @@ func testForFiles(
 			expected, ok := expected[fullPath.String()]
 			require.True(t, ok, "unexpected file with path %q", fullPath)
 
-			buf, err := ioutil.ReadAll(s.ToReader())
+			buf, err := io.ReadAll(s.ToReader())
 			require.NoError(t, err, "reading collection item: %s", fullPath)
 
 			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
@@ -210,6 +209,16 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 
+	k, v := MakeServiceCat(path.ExchangeService, path.EmailCategory)
+	oc := &OwnersCats{
+		ResourceOwners: map[string]struct{}{
+			testUser: {},
+		},
+		ServiceCats: map[string]ServiceCat{
+			k: v,
+		},
+	}
+
 	// tags that are expected to populate as a side effect
 	// of the backup process.
 	baseTagKeys := []string{
@@ -260,6 +269,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				collections,
 				path.ExchangeService,
+				oc,
 				customTags,
 			)
 			assert.NoError(t, err)
@@ -302,6 +312,16 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	w := &Wrapper{k}
 
+	mapK, mapV := MakeServiceCat(path.ExchangeService, path.EmailCategory)
+	oc := &OwnersCats{
+		ResourceOwners: map[string]struct{}{
+			testUser: {},
+		},
+		ServiceCats: map[string]ServiceCat{
+			mapK: mapV,
+		},
+	}
+
 	dc1 := mockconnector.NewMockExchangeCollection(suite.testPath1, 1)
 	dc2 := mockconnector.NewMockExchangeCollection(suite.testPath2, 1)
 
@@ -316,6 +336,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		nil,
 		[]data.Collection{dc1, dc2},
 		path.ExchangeService,
+		oc,
 		nil,
 	)
 	require.NoError(t, err)
@@ -344,6 +365,16 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
+
+	k, v := MakeServiceCat(path.ExchangeService, path.EmailCategory)
+	oc := &OwnersCats{
+		ResourceOwners: map[string]struct{}{
+			testUser: {},
+		},
+		ServiceCats: map[string]ServiceCat{
+			k: v,
+		},
+	}
 
 	collections := []data.Collection{
 		&kopiaDataCollection{
@@ -387,6 +418,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		collections,
 		path.ExchangeService,
+		oc,
 		nil,
 	)
 	require.NoError(t, err)
@@ -431,6 +463,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				test.collections,
 				path.UnknownService,
+				&OwnersCats{},
 				nil,
 			)
 			require.NoError(t, err)
@@ -576,11 +609,22 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collections = append(collections, collection)
 	}
 
+	k, v := MakeServiceCat(path.ExchangeService, path.EmailCategory)
+	oc := &OwnersCats{
+		ResourceOwners: map[string]struct{}{
+			testUser: {},
+		},
+		ServiceCats: map[string]ServiceCat{
+			k: v,
+		},
+	}
+
 	stats, deets, err := suite.w.BackupCollections(
 		suite.ctx,
 		nil,
 		collections,
 		path.ExchangeService,
+		oc,
 		nil,
 	)
 	require.NoError(t, err)

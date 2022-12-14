@@ -10,7 +10,8 @@ import {Version} from '@site/src/corsoEnv';
 <TabItem value="win" label="Windows (Powershell)">
 
 <CodeBlock language="powershell">{
-`Invoke-WebRequest \`
+`$ProgressPreference = 'SilentlyContinue'
+Invoke-WebRequest \`
   -Uri https://github.com/alcionai/corso/releases/download/${Version()}/corso_${Version()}_Windows_x86_64.zip \`
   -UseBasicParsing -Outfile corso_${Version()}_Windows_x86_64.zip
 Expand-Archive .\\corso_${Version()}_Windows_x86_64.zip`

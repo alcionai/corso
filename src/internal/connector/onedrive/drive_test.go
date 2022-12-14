@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -153,6 +154,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				testFolderMatcher{scope},
 				service,
 				service.updateStatus,
+				control.Options{},
 			).Get(ctx)
 			assert.NoError(t, err)
 
