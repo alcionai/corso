@@ -132,6 +132,7 @@ func DeleteContactFolder(ctx context.Context, gs graph.Servicer, user, folderID 
 func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
+	dps DeltaPaths,
 ) (graph.ContainerResolver, error) {
 	var (
 		res          graph.ContainerResolver
@@ -148,6 +149,7 @@ func PopulateExchangeContainerResolver(
 		res = &mailFolderCache{
 			userID: qp.ResourceOwner,
 			gs:     service,
+			dps:    dps,
 		}
 		cacheRoot = rootFolderAlias
 
@@ -186,6 +188,10 @@ func pathAndMatch(
 		directory string
 		pb        = c.Path()
 	)
+
+	if c.Deleted() {
+		return nil, true
+	}
 
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && *c.GetDisplayName() == DefaultContactFolder {

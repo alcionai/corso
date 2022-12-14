@@ -487,7 +487,7 @@ type Stream struct {
 	// request to provide modtime in ItemInfo structs.
 	modTime time.Time
 
-	// true if the item was marked by graph as deleted.
+	// true if the item was marked as deleted.
 	deleted bool
 }
 

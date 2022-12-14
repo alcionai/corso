@@ -72,9 +72,17 @@ type Displayable interface {
 	GetDisplayName() *string
 }
 
+// Additionalable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of an additional data map.
+type Additionalable interface {
+	Idable
+	GetAdditionalData() map[string]any
+}
+
 type Container interface {
 	Descendable
 	Displayable
+	Additionalable
 }
 
 // ContainerResolver houses functions for getting information about containers
