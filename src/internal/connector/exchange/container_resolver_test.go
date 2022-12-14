@@ -34,6 +34,10 @@ func (m mockContainer) GetParentFolderId() *string {
 	return m.parentID
 }
 
+func (m mockContainer) GetAdditionalData() map[string]any {
+	return nil
+}
+
 type FolderCacheUnitSuite struct {
 	suite.Suite
 }
@@ -232,6 +236,7 @@ type mockCachedContainer struct {
 	displayName  string
 	p            *path.Builder
 	expectedPath string
+	removed      bool
 }
 
 //nolint:revive
@@ -254,6 +259,14 @@ func (m mockCachedContainer) Path() *path.Builder {
 
 func (m *mockCachedContainer) SetPath(newPath *path.Builder) {
 	m.p = newPath
+}
+
+func (m *mockCachedContainer) GetAdditionalData() map[string]any {
+	return nil
+}
+
+func (m *mockCachedContainer) Deleted() bool {
+	return m.removed
 }
 
 func resolverWithContainers(numContainers int) (*containerResolver, []*mockCachedContainer) {

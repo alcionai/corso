@@ -149,7 +149,7 @@ func (gc *GraphConnector) createExchangeCollections(
 		defer closer()
 		defer close(foldersComplete)
 
-		resolver, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+		resolver, err := exchange.PopulateExchangeContainerResolver(ctx, qp, dps)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting folder cache")
 		}

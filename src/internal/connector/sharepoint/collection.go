@@ -101,7 +101,6 @@ func (sd *Item) ToReader() io.ReadCloser {
 	return sd.data
 }
 
-// TODO(ashmrtn): Fill in once delta tokens return deleted items.
 func (sd Item) Deleted() bool {
 	return false
 }

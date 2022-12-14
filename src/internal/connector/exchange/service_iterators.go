@@ -68,7 +68,7 @@ func FilterContainersAndFillCollections(
 
 		cID := *c.GetId()
 
-		dirPath, ok := pathAndMatch(qp, c, scope)
+		currPath, ok := pathAndMatch(qp, c, scope)
 		if !ok {
 			continue
 		}
@@ -76,10 +76,6 @@ func FilterContainersAndFillCollections(
 		var prevPath path.Path
 
 		if ps, ok := dps.paths[cID]; ok {
-			// see below for the issue with building paths for root
-			// folders that have no displayName.
-			ps = strings.TrimSuffix(ps, rootFolderAlias)
-
 			if pp, err := path.FromDataLayerPath(ps, false); err != nil {
 				logger.Ctx(ctx).Error("parsing previous path string")
 			} else {
@@ -120,7 +116,7 @@ func FilterContainersAndFillCollections(
 
 		edc := NewCollection(
 			qp.ResourceOwner,
-			dirPath,
+			currPath,
 			prevPath,
 			oi,
 			service,
@@ -137,7 +133,7 @@ func FilterContainersAndFillCollections(
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
-		currPaths[cID] = dirPath.Folder()
+		currPaths[cID] = currPath.String()
 	}
 
 	entries := []graph.MetadataCollectionEntry{
@@ -319,8 +315,8 @@ func FetchContactIDsFromDirectory(
 		Contacts().
 		Delta()
 
-		// TODO(rkeepers): Awaiting full integration of incremental support, else this
-		// will cause unexpected behavior/errors.
+	// TODO(rkeepers): Awaiting full integration of incremental support, else this
+	// will cause unexpected behavior/errors.
 	// if len(oldDelta) > 0 {
 	// 	builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
 	// }
@@ -393,8 +389,8 @@ func FetchMessageIDsFromDirectory(
 		Messages().
 		Delta()
 
-		// TODO(rkeepers): Awaiting full integration of incremental support, else this
-		// will cause unexpected behavior/errors.
+	// TODO(rkeepers): Awaiting full integration of incremental support, else this
+	// will cause unexpected behavior/errors.
 	// if len(oldDelta) > 0 {
 	// 	builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	// }

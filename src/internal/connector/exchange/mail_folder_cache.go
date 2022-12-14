@@ -21,6 +21,7 @@ type mailFolderCache struct {
 	*containerResolver
 	gs     graph.Servicer
 	userID string
+	dps    DeltaPaths
 }
 
 // populateMailRoot manually fetches directories that are not returned during Graph for msgraph-sdk-go v. 40+
@@ -85,6 +86,12 @@ func (mc *mailFolderCache) Populate(
 		UsersById(mc.userID).
 		MailFolders().
 		Delta()
+
+	// TODO(rkeepers): Awaiting full integration of incremental support, else this
+	// will cause unexpected behavior/errors.
+	// if len(mc.dps.deltas[baseID]) > 0 {
+	// 	query = msfolderdelta.UsersItemMailFoldersDeltaRequestBuilder(oldDelta, mc.gs.Adapter())
+	// }
 
 	var errs *multierror.Error
 

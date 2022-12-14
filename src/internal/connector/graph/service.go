@@ -9,15 +9,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-const (
-	// DeltaURLsFileName is the name of the file containing delta token(s) for a
-	// given endpoint. The endpoint granularity varies by service.
-	DeltaURLsFileName = "delta"
-	// PreviousPathFileName is the name of the file containing previous path(s) for a
-	// given endpoint.
-	PreviousPathFileName = "previouspath"
-)
-
 // AllMetadataFileNames produces the standard set of filenames used to store graph
 // metadata such as delta tokens and folderID->path references.
 func AllMetadataFileNames() []string {
@@ -81,9 +72,17 @@ type Displayable interface {
 	GetDisplayName() *string
 }
 
+// Additionalable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of an additional data map.
+type Additionalable interface {
+	Idable
+	GetAdditionalData() map[string]any
+}
+
 type Container interface {
 	Descendable
 	Displayable
+	Additionalable
 }
 
 // ContainerResolver houses functions for getting information about containers

@@ -1,7 +1,5 @@
 package common
 
-import "strconv"
-
 func ContainsString(super []string, sub string) bool {
 	for _, s := range super {
 		if s == sub {
@@ -23,13 +21,18 @@ func First(vs ...string) string {
 	return ""
 }
 
-// parseBool returns the bool value represented by the string
-// or false on error
-func ParseBool(v string) bool {
-	s, err := strconv.ParseBool(v)
-	if err != nil {
+// Equal returns true if both slices contain the same
+// elements in the same order
+func AreSameSlice[T comparable](s1, s2 []T) bool {
+	if len(s1) != len(s2) {
 		return false
 	}
 
-	return s
+	for i, v := range s1 {
+		if s2[i] != v {
+			return false
+		}
+	}
+
+	return true
 }
