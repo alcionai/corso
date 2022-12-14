@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type CollectionUnitTestSuite struct {
@@ -32,10 +33,6 @@ func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
 
 func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
-}
-
-func (suite *CollectionUnitTestSuite) ErrPolicy() bool {
-	return false
 }
 
 func TestCollectionUnitTestSuite(t *testing.T) {
@@ -108,7 +105,13 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			driveFolderPath, err := getDriveFolderPath(folderPath)
 			require.NoError(t, err)
 
-			coll := NewCollection(folderPath, "drive-id", suite, suite.testStatusUpdater(&wg, &collStatus), test.source)
+			coll := NewCollection(
+				folderPath,
+				"drive-id",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{})
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
 
@@ -173,7 +176,13 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
 			require.NoError(t, err)
 
-			coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus), test.source)
+			coll := NewCollection(
+				folderPath,
+				"fakeDriveID",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{})
 			coll.Add("testItemID")
 
 			readError := errors.New("Test error")

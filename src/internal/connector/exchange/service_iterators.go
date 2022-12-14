@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -79,6 +80,7 @@ func FilterContainersAndFillCollections(
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
 	oldDeltas map[string]string,
+	ctrlOpts control.Options,
 ) error {
 	var (
 		errs           error
@@ -94,14 +96,14 @@ func FilterContainersAndFillCollections(
 		}
 
 		// Create only those that match
-		service, err := createService(qp.Credentials, qp.FailFast)
+		service, err := createService(qp.Credentials)
 		if err != nil {
 			errs = support.WrapAndAppend(
 				qp.ResourceOwner+" FilterContainerAndFillCollection",
 				err,
 				errs)
 
-			if qp.FailFast {
+			if ctrlOpts.FailFast {
 				return errs
 			}
 		}
@@ -112,6 +114,7 @@ func FilterContainersAndFillCollections(
 			collectionType,
 			service,
 			statusUpdater,
+			ctrlOpts,
 		)
 		collections[*c.GetId()] = &edc
 
@@ -122,7 +125,7 @@ func FilterContainersAndFillCollections(
 				err,
 				errs)
 
-			if qp.FailFast {
+			if ctrlOpts.FailFast {
 				return errs
 			}
 
