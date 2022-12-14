@@ -89,56 +89,23 @@ func FilterContainersAndFillCollections(
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
-		if itp, err := resolver.IDToPath(ctx, cID); err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-		} else {
-			// Some root folders have no display name. The exchange path will
-			// fail without that, so we inject a fallback here just for
-			// the previousPaths handling.
-			els := itp.Elements()
-			if len(els) == 0 || len(els[len(els)-1]) == 0 {
-				itp = itp.Append(rootFolderAlias)
-			}
-
-			p, err := itp.ToDataLayerExchangePathForCategory(
-				qp.Credentials.AzureTenantID,
-				qp.ResourceOwner,
-				qp.Category,
-				false)
-			if err != nil {
-				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-			} else {
-				prevPaths[cID] = p.Folder()
-			}
-		}
+		prevPaths[cID] = dirPath.Folder()
 	}
 
 	if col, err := graph.MakeMetadataCollection(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
-		graph.DeltaTokenFileName,
 		path.ExchangeService,
 		qp.Category,
-		deltaURLs,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(graph.DeltaTokenFileName, deltaURLs),
+			graph.NewMetadataEntry(graph.PreviousPathFileName, prevPaths),
+		},
 		statusUpdater,
 	); err != nil {
-		errs = support.WrapAndAppend("making delta metadata collection", err, errs)
+		errs = support.WrapAndAppend("making metadata collection", err, errs)
 	} else if col != nil {
-		collections[graph.DeltaMetadataCollectionKey] = col
-	}
-
-	if col, err := graph.MakeMetadataCollection(
-		qp.Credentials.AzureTenantID,
-		qp.ResourceOwner,
-		graph.PreviousPathFileName,
-		path.ExchangeService,
-		qp.Category,
-		prevPaths,
-		statusUpdater,
-	); err != nil {
-		errs = support.WrapAndAppend("making paths metadata collection", err, errs)
-	} else if col != nil {
-		collections[graph.PathsMetadataCollectionKey] = col
+		collections["metadata"] = col
 	}
 
 	return errs

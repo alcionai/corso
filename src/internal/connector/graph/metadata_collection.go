@@ -27,25 +27,49 @@ type MetadataCollection struct {
 	statusUpdater support.StatusUpdater
 }
 
-// MakeMetadataCollection creates a metadata collection that has a file
-// containing all the provided metadata as a single json object. Returns
-// nil if the map does not have any entries.
-func MakeMetadataCollection(
-	tenant, resourceOwner, itemID string,
-	service path.ServiceType,
-	cat path.CategoryType,
-	metadata map[string]string,
-	statusUpdater support.StatusUpdater,
-) (data.Collection, error) {
-	if len(metadata) == 0 {
-		return nil, nil
+// MetadataCollecionEntry describes a file that should get added to a metadata
+// collection.  The Data value will be encoded into json as part of a
+// transformation into a MetadataItem.
+type MetadataCollectionEntry struct {
+	fileName string
+	data     any
+}
+
+func NewMetadataEntry(fileName string, mData any) MetadataCollectionEntry {
+	return MetadataCollectionEntry{fileName, mData}
+}
+
+func (mce MetadataCollectionEntry) toMetadataItem() (MetadataItem, error) {
+	if len(mce.fileName) == 0 {
+		return MetadataItem{}, errors.New("missing metadata filename")
+	}
+
+	if mce.data == nil {
+		return MetadataItem{}, errors.New("missing metadata")
 	}
 
 	buf := &bytes.Buffer{}
 	encoder := json.NewEncoder(buf)
 
-	if err := encoder.Encode(metadata); err != nil {
-		return nil, errors.Wrap(err, "serializing metadata")
+	if err := encoder.Encode(mce.data); err != nil {
+		return MetadataItem{}, errors.Wrap(err, "serializing metadata")
+	}
+
+	return NewMetadataItem(mce.fileName, buf.Bytes()), nil
+}
+
+// MakeMetadataCollection creates a metadata collection that has a file
+// containing all the provided metadata as a single json object. Returns
+// nil if the map does not have any entries.
+func MakeMetadataCollection(
+	tenant, resourceOwner string,
+	service path.ServiceType,
+	cat path.CategoryType,
+	metadata []MetadataCollectionEntry,
+	statusUpdater support.StatusUpdater,
+) (data.Collection, error) {
+	if len(metadata) == 0 {
+		return nil, nil
 	}
 
 	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
@@ -59,8 +83,18 @@ func MakeMetadataCollection(
 		return nil, errors.Wrap(err, "making metadata path")
 	}
 
-	item := NewMetadataItem(itemID, buf.Bytes())
-	coll := NewMetadataCollection(p, []MetadataItem{item}, statusUpdater)
+	items := make([]MetadataItem, 0, len(metadata))
+
+	for _, md := range metadata {
+		item, err := md.toMetadataItem()
+		if err != nil {
+			return nil, err
+		}
+
+		items = append(items, item)
+	}
+
+	coll := NewMetadataCollection(p, items, statusUpdater)
 
 	return coll, nil
 }
@@ -129,7 +163,7 @@ func (md MetadataCollection) Items() <-chan data.Stream {
 	return res
 }
 
-// MetadataItem is an in-memory data.Stream implementation. MetadataItem does
+// metadataItem is an in-memory data.Stream implementation. MetadataItem does
 // not implement additional interfaces like data.StreamInfo, so it should only
 // be used for items with a small amount of content that don't need to be added
 // to backup details.

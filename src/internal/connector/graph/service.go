@@ -18,19 +18,21 @@ const (
 	PreviousPathFileName = "previouspath"
 )
 
-const (
-	// DeltaMetadataCollectionKey is the name of the collection holding the delta
-	// url lookups inside a collection map otherwise keyed by folder ids.
-	DeltaMetadataCollectionKey = "delta-metadata"
-	// PathsMetadataCollectionKey is the name of the collection holding the previous
-	// paths lookups inside a collection map otherwise keyed by folder ids.
-	PathsMetadataCollectionKey = "paths-metadata"
-)
-
-// MetadataFileNames produces the standard set of filenames used to store graph
+// AllMetadataFileNames produces the standard set of filenames used to store graph
 // metadata such as delta tokens and folderID->path references.
-func MetadataFileNames() []string {
-	return []string{DeltaTokenFileName}
+func AllMetadataFileNames() []string {
+	return []string{DeltaTokenFileName, PreviousPathFileName}
+}
+
+// MetadataFileNames produces the category-specific set of filenames used to
+// store graph metadata such as delta tokens and folderID->path references.
+func MetadataFileNames(cat path.CategoryType) []string {
+	switch cat {
+	case path.EmailCategory, path.ContactsCategory:
+		return []string{DeltaTokenFileName, PreviousPathFileName}
+	default:
+		return []string{PreviousPathFileName}
+	}
 }
 
 type QueryParams struct {

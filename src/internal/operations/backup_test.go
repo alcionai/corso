@@ -342,7 +342,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			},
 			resourceOwner: m365UserID,
 			category:      path.EmailCategory,
-			metadataFiles: []string{graph.DeltaTokenFileName, graph.PreviousPathFileName},
+			metadataFiles: graph.MetadataFileNames(path.EmailCategory),
 		},
 		{
 			name: "Contacts",
@@ -357,7 +357,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			},
 			resourceOwner: m365UserID,
 			category:      path.ContactsCategory,
-			metadataFiles: []string{graph.DeltaTokenFileName, graph.PreviousPathFileName},
+			metadataFiles: graph.MetadataFileNames(path.ContactsCategory),
 		},
 		{
 			name: "Calendar Events",
@@ -372,7 +372,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			},
 			resourceOwner: m365UserID,
 			category:      path.EventsCategory,
-			metadataFiles: []string{graph.PreviousPathFileName},
+			metadataFiles: graph.MetadataFileNames(path.EventsCategory),
 		},
 	}
 	for _, test := range tests {
