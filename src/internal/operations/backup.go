@@ -141,7 +141,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls)
+	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, control.Options{})
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
 		return opStats.readErr
@@ -318,6 +318,7 @@ func produceBackupDataCollections(
 	gc *connector.GraphConnector,
 	sel selectors.Selector,
 	metadata []data.Collection,
+	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
 	defer func() {
@@ -326,7 +327,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return gc.DataCollections(ctx, sel, metadata)
+	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
 }
 
 // calls kopia to backup the collections of data

@@ -19,7 +19,6 @@ var ErrFolderNotFound = errors.New("folder not found")
 type exchangeService struct {
 	client      msgraphsdk.GraphServiceClient
 	adapter     msgraphsdk.GraphRequestAdapter
-	failFast    bool // if true service will exit sequence upon encountering an error
 	credentials account.M365Config
 }
 
@@ -35,14 +34,10 @@ func (es *exchangeService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return &es.adapter
 }
 
-func (es *exchangeService) ErrPolicy() bool {
-	return es.failFast
-}
-
 // createService internal constructor for exchangeService struct returns an error
 // iff the params for the entry are incorrect (e.g. len(TenantID) == 0, etc.)
 // NOTE: Incorrect account information will result in errors on subsequent queries.
-func createService(credentials account.M365Config, shouldFailFast bool) (*exchangeService, error) {
+func createService(credentials account.M365Config) (*exchangeService, error) {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
@@ -55,7 +50,6 @@ func createService(credentials account.M365Config, shouldFailFast bool) (*exchan
 	service := exchangeService{
 		adapter:     *adapter,
 		client:      *msgraphsdk.NewGraphServiceClient(adapter),
-		failFast:    shouldFailFast,
 		credentials: credentials,
 	}
 
@@ -142,7 +136,7 @@ func PopulateExchangeContainerResolver(
 	var (
 		res          graph.ContainerResolver
 		cacheRoot    string
-		service, err = createService(qp.Credentials, qp.FailFast)
+		service, err = createService(qp.Credentials)
 	)
 
 	if err != nil {
