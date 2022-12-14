@@ -198,7 +198,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	suite.backupID = bo.Results.BackupID
-	// Discount delta and paths metadata files as
+	// Discount metadata files (3 paths, 2 deltas) as
 	// they are not part of the data restored.
 	suite.numItems = bo.Results.ItemsWritten - 5
 }

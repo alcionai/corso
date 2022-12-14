@@ -92,15 +92,20 @@ func FilterContainersAndFillCollections(
 		prevPaths[cID] = dirPath.Folder()
 	}
 
+	entries := []graph.MetadataCollectionEntry{
+		graph.NewMetadataEntry(graph.PreviousPathFileName, prevPaths),
+	}
+
+	if len(deltaURLs) > 0 {
+		entries = append(entries, graph.NewMetadataEntry(graph.DeltaTokenFileName, deltaURLs))
+	}
+
 	if col, err := graph.MakeMetadataCollection(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
 		path.ExchangeService,
 		qp.Category,
-		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(graph.DeltaTokenFileName, deltaURLs),
-			graph.NewMetadataEntry(graph.PreviousPathFileName, prevPaths),
-		},
+		entries,
 		statusUpdater,
 	); err != nil {
 		errs = support.WrapAndAppend("making metadata collection", err, errs)
