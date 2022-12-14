@@ -253,7 +253,7 @@ func fetchPrevManifests(
 		})
 	}
 
-	// If we didn't find another complete manifest then we need to make the
+	// If we didn't find another complete manifest then we need to mark the
 	// previous complete manifest as having this ResourceOwner, Service, Category
 	// as the reason as well.
 	if !hasCompleted && man != nil {
