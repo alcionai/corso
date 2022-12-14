@@ -1373,76 +1373,66 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	//             - file3
 	//           - work
 	//             - file4
-	baseSnapshot := virtualfs.NewStaticDirectory(
-		encodeElements(testTenant)[0],
-		[]fs.Entry{
-			virtualfs.NewStaticDirectory(
-				encodeElements(service)[0],
-				[]fs.Entry{
-					virtualfs.NewStaticDirectory(
-						encodeElements(testUser)[0],
-						[]fs.Entry{
-							virtualfs.NewStaticDirectory(
-								encodeElements(category)[0],
-								[]fs.Entry{
-									virtualfs.NewStaticDirectory(
-										encodeElements(testInboxDir)[0],
-										[]fs.Entry{
-											virtualfs.NewStaticDirectory(
-												encodeElements(personalDir)[0],
-												[]fs.Entry{
-													virtualfs.StreamingFileWithModTimeFromReader(
-														encodeElements(testFileName)[0],
-														time.Time{},
-														bytes.NewReader(testFileData),
-													),
-												},
-											),
-											virtualfs.NewStaticDirectory(
-												encodeElements(workDir)[0],
-												[]fs.Entry{
-													virtualfs.StreamingFileWithModTimeFromReader(
-														encodeElements(testFileName2)[0],
-														time.Time{},
-														bytes.NewReader(testFileData2),
-													),
-												},
-											),
-										},
-									),
-									virtualfs.NewStaticDirectory(
-										encodeElements(testArchiveDir)[0],
-										[]fs.Entry{
-											virtualfs.NewStaticDirectory(
-												encodeElements(personalDir)[0],
-												[]fs.Entry{
-													virtualfs.StreamingFileWithModTimeFromReader(
-														encodeElements(testFileName3)[0],
-														time.Time{},
-														bytes.NewReader(testFileData3),
-													),
-												},
-											),
-											virtualfs.NewStaticDirectory(
-												encodeElements(workDir)[0],
-												[]fs.Entry{
-													virtualfs.StreamingFileWithModTimeFromReader(
-														encodeElements(testFileName4)[0],
-														time.Time{},
-														bytes.NewReader(testFileData4),
-													),
-												},
-											),
-										},
-									),
-								},
-							),
-						},
-					),
-				},
-			),
-		},
-	)
+	getBaseSnapshot := func() fs.Entry {
+		return baseWithChildren(
+			testTenant,
+			service,
+			testUser,
+			category,
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(testInboxDir)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(personalDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName)[0],
+									time.Time{},
+									bytes.NewReader(testFileData),
+								),
+							},
+						),
+						virtualfs.NewStaticDirectory(
+							encodeElements(workDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName2)[0],
+									time.Time{},
+									bytes.NewReader(testFileData2),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(testArchiveDir)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(personalDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName3)[0],
+									time.Time{},
+									bytes.NewReader(testFileData3),
+								),
+							},
+						),
+						virtualfs.NewStaticDirectory(
+							encodeElements(workDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName4)[0],
+									time.Time{},
+									bytes.NewReader(testFileData4),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
 
 	expected := expectedTreeWithChildren(
 		testTenant,
@@ -1481,7 +1471,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	mc.PrevPath = mc.FullPath()
 	mc.ColState = data.DeletedState
 	msw := &mockSnapshotWalker{
-		snapshotRoot: baseSnapshot,
+		snapshotRoot: getBaseSnapshot(),
 	}
 
 	collections := []data.Collection{mc}
