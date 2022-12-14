@@ -21,7 +21,6 @@ const ThemeColor = () => {
 };
 
 export default function Home() {
-
   return (
     <Layout
       title="Free, Secure, and Open-Source Backup for Microsoft 365"
