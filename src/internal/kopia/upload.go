@@ -563,9 +563,9 @@ func traverseBaseDir(
 		return errors.Errorf("base snapshot tree too tall %s", oldDirPath)
 	}
 
-	// Corso base64 encodes all file and folder names to avoid issues with special
-	// characters. Since we're working directly with files and folders from kopia
-	// we need to do the decoding here.
+	// Wrapper base64 encodes all file and folder names to avoid issues with
+	// special characters. Since we're working directly with files and folders
+	// from kopia we need to do the decoding here.
 	dirName, err := decodeElement(dir.Name())
 	if err != nil {
 		return errors.Wrapf(err, "decoding base directory name %s", dir.Name())

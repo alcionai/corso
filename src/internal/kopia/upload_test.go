@@ -50,7 +50,7 @@ func expectFileData(
 	//revive:enable:context-as-argument
 	t.Helper()
 
-	if expected == nil {
+	if len(expected) == 0 {
 		return
 	}
 
@@ -753,7 +753,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	)
 	fileName := testFileName
 
-	// Make this a function that returns a new instance each time as StreamingFile
+	// Must be a function that returns a new instance each time as StreamingFile
 	// can only return its Reader once.
 	getBaseSnapshot := func() fs.Entry {
 		return virtualfs.NewStaticDirectory(
@@ -965,7 +965,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	)
 	workFileName := testFileName3
 
-	// Make this a function that returns a new instance each time as StreamingFile
+	// Must be a function that returns a new instance each time as StreamingFile
 	// can only return its Reader once.
 	// baseSnapshot with the following layout:
 	// - a-tenant
