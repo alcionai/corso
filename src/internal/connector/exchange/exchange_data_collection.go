@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -60,6 +61,8 @@ type Collection struct {
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath path.Path
+
+	ctrl control.Options
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
@@ -69,6 +72,7 @@ func NewCollection(
 	collectionType optionIdentifier,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
+	ctrlOpts control.Options,
 ) Collection {
 	collection := Collection{
 		user:           user,
@@ -78,6 +82,7 @@ func NewCollection(
 		statusUpdater:  statusUpdater,
 		fullPath:       fullPath,
 		collectionType: collectionType,
+		ctrl:           ctrlOpts,
 	}
 
 	return collection
@@ -168,7 +173,7 @@ func (col *Collection) populateByOptionIdentifier(
 	}
 
 	for _, identifier := range col.jobs {
-		if col.service.ErrPolicy() && errs != nil {
+		if col.ctrl.FailFast && errs != nil {
 			break
 		}
 		semaphoreCh <- struct{}{}

@@ -151,7 +151,7 @@ func loadService(t *testing.T) *exchangeService {
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createService(m365, false)
+	service, err := createService(m365)
 	require.NoError(t, err)
 
 	return service
