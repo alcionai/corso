@@ -148,6 +148,14 @@ func FilterContainersAndFillCollections(
 		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
 	}
 
+	entries := []graph.MetadataCollectionEntry{
+		graph.NewMetadataEntry(graph.PreviousPathFileName, prevPaths),
+	}
+
+	if len(deltaURLs) > 0 {
+		entries = append(entries, graph.NewMetadataEntry(graph.DeltaTokenFileName, deltaURLs))
+	}
+
 	if col, err := graph.MakeMetadataCollection(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
