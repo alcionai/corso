@@ -135,7 +135,7 @@ func (w Wrapper) BackupCollections(
 		deets:   &details.Details{},
 	}
 
-	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
