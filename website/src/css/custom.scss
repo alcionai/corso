@@ -11,6 +11,13 @@ CUSTOM TO THE NEW HOME PAGE
 html{
   scroll-behavior: smooth !important;
 }
+
+.plugin-pages {
+  .colorModeToggle_---node_modules-\@docusaurus-theme-classic-lib-theme-Navbar-Content-styles-module {
+    display: none;
+  }
+}
+
 .accordion-button-custom::after {
   -ms-flex-shrink: 0;
   flex-shrink: 0;
