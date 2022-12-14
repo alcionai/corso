@@ -123,6 +123,39 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expectError: assert.NoError,
 		},
+		{
+			name: "previous paths",
+			data: []fileValues{
+				{graph.PreviousPathFileName, "previous-path"},
+			},
+			expectPaths: map[string]string{
+				"key": "previous-path",
+			},
+		},
+		{
+			name: "delas and paths",
+			data: []fileValues{
+				{graph.PreviousPathFileName, "previous-path"},
+				{graph.DeltaURLsFileName, "delta-link"},
+			},
+			expectDeltas: map[string]string{
+				"key": "delta-link",
+			},
+			expectPaths: map[string]string{
+				"key": "previous-path",
+			},
+		},
+		{
+			name: "multiple paths files",
+			data: []fileValues{
+				{graph.PreviousPathFileName, "previous-path"},
+				{graph.PreviousPathFileName, "previous-path-2"},
+			},
+			expectPaths: map[string]string{
+				// the second collection clobbers the first on union.
+				"key": "previous-path-2",
+			},
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
