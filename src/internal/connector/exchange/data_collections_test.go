@@ -28,28 +28,65 @@ func TestDataCollectionsUnitSuite(t *testing.T) {
 }
 
 func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
-	t := suite.T()
-	ctx, flush := tester.NewContext()
+	type fileValues struct {
+		fileName string
+		value    string
+	}
 
-	defer flush()
+	table := []struct {
+		name         string
+		data         []fileValues
+		expectDeltas map[string]string
+	}{
+		{
+			name: "delta urls",
+			data: []fileValues{
+				{graph.DeltaTokenFileName, "delta-link"},
+			},
+			expectDeltas: map[string]string{
+				"key": "delta-link",
+			},
+		},
+		{
+			name: "delta urls with special chars",
+			data: []fileValues{
+				{graph.DeltaTokenFileName, "`!@#$%^&*()_[]{}/\"\\"},
+			},
+			expectDeltas: map[string]string{
+				"key": "`!@#$%^&*()_[]{}/\"\\",
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
 
-	bs, err := json.Marshal(map[string]string{"key": "token"})
-	require.NoError(t, err)
+			colls := []data.Collection{}
 
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
-		"t", "u",
-		path.ExchangeService,
-		path.EmailCategory,
-		false,
-	)
-	require.NoError(t, err)
+			for _, d := range test.data {
+				bs, err := json.Marshal(map[string]string{"key": d.value})
+				require.NoError(t, err)
 
-	item := []graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, bs)}
-	mdcoll := graph.NewMetadataCollection(p, item, func(cos *support.ConnectorOperationStatus) {})
-	colls := []data.Collection{mdcoll}
+				p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+					"t", "u",
+					path.ExchangeService,
+					path.EmailCategory,
+					false,
+				)
+				require.NoError(t, err)
 
-	_, deltas, err := ParseMetadataCollections(ctx, colls)
-	require.NoError(t, err)
-	assert.NotEmpty(t, deltas, "delta urls")
-	assert.Equal(t, "token", deltas["key"])
+				item := []graph.MetadataItem{graph.NewMetadataItem(d.fileName, bs)}
+				coll := graph.NewMetadataCollection(p, item, func(cos *support.ConnectorOperationStatus) {})
+				colls = append(colls, coll)
+			}
+
+			_, deltas, err := ParseMetadataCollections(ctx, colls)
+			require.NoError(t, err)
+			assert.NotEmpty(t, deltas, "deltas")
+			for k, v := range test.expectDeltas {
+				assert.Equal(t, v, deltas[k], "deltas elements")
+			}
+		})
+	}
 }
