@@ -25,6 +25,24 @@ const (
 	userTagPrefix = "tag:"
 )
 
+type Reason struct {
+	ResourceOwner string
+	Service       path.ServiceType
+	Category      path.CategoryType
+}
+
+type ManifestEntry struct {
+	*snapshot.Manifest
+	// Reason contains the ResourceOwners and Service/Categories that caused this
+	// snapshot to be selected as a base. We can't reuse OwnersCats here because
+	// it's possible some ResourceOwners will have a subset of the Categories as
+	// the reason for selecting a snapshot. For example:
+	// 1. backup user1 email,contacts -> B1
+	// 2. backup user1 contacts -> B2 (uses B1 as base)
+	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
+	Reasons []Reason
+}
+
 type snapshotManager interface {
 	FindManifests(
 		ctx context.Context,
