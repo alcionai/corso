@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -144,67 +145,67 @@ func (suite *FolderCacheUnitSuite) TestCheckRequiredValues() {
 func (suite *FolderCacheUnitSuite) TestAddFolder() {
 	table := []struct {
 		name  string
-		cf    cacheFolder
+		cf    graph.CacheFolder
 		check assert.ErrorAssertionFunc
 	}{
 		{
 			name: "NoParentNoPath",
-			cf: cacheFolder{
-				Container: &mockContainer{
+			cf: graph.NewCacheFolder(
+				&mockContainer{
 					id:       &testID,
 					name:     &testName,
 					parentID: nil,
 				},
-				p: nil,
-			},
+				nil,
+			),
 			check: assert.Error,
 		},
 		{
 			name: "NoParentPath",
-			cf: cacheFolder{
-				Container: &mockContainer{
+			cf: graph.NewCacheFolder(
+				&mockContainer{
 					id:       &testID,
 					name:     &testName,
 					parentID: nil,
 				},
-				p: path.Builder{}.Append("foo"),
-			},
+				path.Builder{}.Append("foo"),
+			),
 			check: assert.NoError,
 		},
 		{
 			name: "NoName",
-			cf: cacheFolder{
-				Container: &mockContainer{
+			cf: graph.NewCacheFolder(
+				&mockContainer{
 					id:       &testID,
 					name:     nil,
 					parentID: &testParentID,
 				},
-				p: path.Builder{}.Append("foo"),
-			},
+				path.Builder{}.Append("foo"),
+			),
 			check: assert.Error,
 		},
 		{
 			name: "NoID",
-			cf: cacheFolder{
-				Container: &mockContainer{
+			cf: graph.NewCacheFolder(
+				&mockContainer{
 					id:       nil,
 					name:     &testName,
 					parentID: &testParentID,
 				},
-				p: path.Builder{}.Append("foo"),
-			},
+				path.Builder{}.Append("foo"),
+			),
 			check: assert.Error,
 		},
 		{
 			name: "NoPath",
-			cf: cacheFolder{
-				Container: &mockContainer{
+			cf: graph.NewCacheFolder(
+				&mockContainer{
 					id:       &testID,
 					name:     &testName,
 					parentID: &testParentID,
 				},
-				p: nil,
-			},
+				nil,
+			),
 			check: assert.NoError,
 		},
 	}
