@@ -2,6 +2,12 @@
 
 <!-- Insert PR description-->
 
+## Does this PR need a docs update or release note?
+
+- [ ] :white_check_mark: Yes, it's included
+- [ ] :clock1: Yes, but in a later PR
+- [ ] :no_entry: No 
+
 ## Type of change
 
 <!--- Please check the type of change your PR introduces: --->

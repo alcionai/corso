@@ -55,7 +55,7 @@ func (gc *GraphConnector) DataCollections(
 			sels,
 			gc.GetSiteIDs(),
 			gc.credentials.AzureTenantID,
-			gc,
+			gc.Service,
 			gc,
 			ctrlOpts)
 		if err != nil {
@@ -265,7 +265,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 				user,
 				onedrive.OneDriveSource,
 				odFolderMatcher{scope},
-				gc,
+				gc.Service,
 				gc.UpdateStatus,
 				ctrlOpts,
 			).Get(ctx)
