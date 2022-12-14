@@ -31,10 +31,66 @@ func makePath(t *testing.T, elements []string) path.Path {
 	return p
 }
 
+// baseWithChildren returns an fs.Entry hierarchy where the first four levels
+// are the encoded values of tenant, service, user, and category respectively.
+// All items in children are made a direct descendent of the category entry.
+func baseWithChildren(
+	tenant, service, user, category string,
+	children []fs.Entry,
+) fs.Entry {
+	return virtualfs.NewStaticDirectory(
+		encodeElements(tenant)[0],
+		[]fs.Entry{
+			virtualfs.NewStaticDirectory(
+				encodeElements(service)[0],
+				[]fs.Entry{
+					virtualfs.NewStaticDirectory(
+						encodeElements(user)[0],
+						[]fs.Entry{
+							virtualfs.NewStaticDirectory(
+								encodeElements(category)[0],
+								children,
+							),
+						},
+					),
+				},
+			),
+		},
+	)
+}
+
 type expectedNode struct {
 	name     string
 	children []*expectedNode
 	data     []byte
+}
+
+// expectedTreeWithChildren returns an expectedNode hierarchy where the first
+// four levels are the tenant, service, user, and category respectively. All
+// items in children are made a direct descendent of the category node.
+func expectedTreeWithChildren(
+	tenant, service, user, category string,
+	children []*expectedNode,
+) *expectedNode {
+	return &expectedNode{
+		name: tenant,
+		children: []*expectedNode{
+			{
+				name: service,
+				children: []*expectedNode{
+					{
+						name: user,
+						children: []*expectedNode{
+							{
+								name:     category,
+								children: children,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 // Currently only works for files that Corso has serialized as it expects a
@@ -751,36 +807,23 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
 	)
-	fileName := testFileName
 
 	// Must be a function that returns a new instance each time as StreamingFile
 	// can only return its Reader once.
 	getBaseSnapshot := func() fs.Entry {
-		return virtualfs.NewStaticDirectory(
-			encodeElements(testTenant)[0],
+		return baseWithChildren(
+			testTenant,
+			service,
+			testUser,
+			category,
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
-					encodeElements(service)[0],
+					encodeElements(testInboxDir)[0],
 					[]fs.Entry{
-						virtualfs.NewStaticDirectory(
-							encodeElements(testUser)[0],
-							[]fs.Entry{
-								virtualfs.NewStaticDirectory(
-									encodeElements(category)[0],
-									[]fs.Entry{
-										virtualfs.NewStaticDirectory(
-											encodeElements(testInboxDir)[0],
-											[]fs.Entry{
-												virtualfs.StreamingFileWithModTimeFromReader(
-													encodeElements(fileName)[0],
-													time.Time{},
-													bytes.NewReader(testFileData),
-												),
-											},
-										),
-									},
-								),
-							},
+						virtualfs.StreamingFileWithModTimeFromReader(
+							encodeElements(testFileName)[0],
+							time.Time{},
+							bytes.NewReader(testFileData),
 						),
 					},
 				),
@@ -797,35 +840,23 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			name: "SkipsDeletedItems",
 			inputCollections: func() []data.Collection {
 				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
-				mc.Names[0] = fileName
+				mc.Names[0] = testFileName
 				mc.DeletedItems[0] = true
 
 				return []data.Collection{mc}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
-						children: []*expectedNode{
-							{
-								name: testUser,
-								children: []*expectedNode{
-									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name:     testInboxDir,
-												children: []*expectedNode{},
-											},
-										},
-									},
-								},
-							},
-						},
+						name:     testInboxDir,
+						children: []*expectedNode{},
 					},
 				},
-			},
+			),
 		},
 		{
 			name: "AddsNewItems",
@@ -837,40 +868,28 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 
 				return []data.Collection{mc}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: testInboxDir,
 						children: []*expectedNode{
 							{
-								name: testUser,
-								children: []*expectedNode{
-									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: testInboxDir,
-												children: []*expectedNode{
-													{
-														name:     testFileName,
-														children: []*expectedNode{},
-													},
-													{
-														name:     testFileName2,
-														children: []*expectedNode{},
-														data:     testFileData2,
-													},
-												},
-											},
-										},
-									},
-								},
+								name:     testFileName,
+								children: []*expectedNode{},
+							},
+							{
+								name:     testFileName2,
+								children: []*expectedNode{},
+								data:     testFileData2,
 							},
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			name: "SkipsUpdatedItems",
@@ -882,36 +901,24 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 
 				return []data.Collection{mc}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: testInboxDir,
 						children: []*expectedNode{
 							{
-								name: testUser,
-								children: []*expectedNode{
-									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: testInboxDir,
-												children: []*expectedNode{
-													{
-														name:     testFileName,
-														children: []*expectedNode{},
-														data:     testFileData2,
-													},
-												},
-											},
-										},
-									},
-								},
+								name:     testFileName,
+								children: []*expectedNode{},
+								data:     testFileData2,
 							},
 						},
 					},
 				},
-			},
+			),
 		},
 	}
 
@@ -979,49 +986,37 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//           - work
 	//             - file3
 	getBaseSnapshot := func() fs.Entry {
-		return virtualfs.NewStaticDirectory(
-			encodeElements(testTenant)[0],
+		return baseWithChildren(
+			testTenant,
+			service,
+			testUser,
+			category,
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
-					encodeElements(service)[0],
+					encodeElements(testInboxDir)[0],
 					[]fs.Entry{
 						virtualfs.NewStaticDirectory(
-							encodeElements(testUser)[0],
+							encodeElements(personalDir)[0],
 							[]fs.Entry{
-								virtualfs.NewStaticDirectory(
-									encodeElements(category)[0],
-									[]fs.Entry{
-										virtualfs.NewStaticDirectory(
-											encodeElements(testInboxDir)[0],
-											[]fs.Entry{
-												virtualfs.NewStaticDirectory(
-													encodeElements(personalDir)[0],
-													[]fs.Entry{
-														virtualfs.StreamingFileWithModTimeFromReader(
-															encodeElements(personalFileName1)[0],
-															time.Time{},
-															bytes.NewReader(testFileData),
-														),
-														virtualfs.StreamingFileWithModTimeFromReader(
-															encodeElements(personalFileName2)[0],
-															time.Time{},
-															bytes.NewReader(testFileData2),
-														),
-													},
-												),
-												virtualfs.NewStaticDirectory(
-													encodeElements(workDir)[0],
-													[]fs.Entry{
-														virtualfs.StreamingFileWithModTimeFromReader(
-															encodeElements(workFileName)[0],
-															time.Time{},
-															bytes.NewReader(testFileData3),
-														),
-													},
-												),
-											},
-										),
-									},
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(personalFileName1)[0],
+									time.Time{},
+									bytes.NewReader(testFileData),
+								),
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(personalFileName2)[0],
+									time.Time{},
+									bytes.NewReader(testFileData2),
+								),
+							},
+						),
+						virtualfs.NewStaticDirectory(
+							encodeElements(workDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(workFileName)[0],
+									time.Time{},
+									bytes.NewReader(testFileData3),
 								),
 							},
 						),
@@ -1050,53 +1045,41 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 				return []data.Collection{mc}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: testInboxDir + "2",
 						children: []*expectedNode{
 							{
-								name: testUser,
+								name: personalDir,
 								children: []*expectedNode{
 									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: testInboxDir + "2",
-												children: []*expectedNode{
-													{
-														name: personalDir,
-														children: []*expectedNode{
-															{
-																name:     personalFileName1,
-																children: []*expectedNode{},
-															},
-															{
-																name:     personalFileName2,
-																children: []*expectedNode{},
-															},
-														},
-													},
-													{
-														name: workDir,
-														children: []*expectedNode{
-															{
-																name:     workFileName,
-																children: []*expectedNode{},
-															},
-														},
-													},
-												},
-											},
-										},
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName,
+										children: []*expectedNode{},
 									},
 								},
 							},
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			name: "MovesChildAfterAncestorMove",
@@ -1120,53 +1103,41 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 				return []data.Collection{inbox, work}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: testInboxDir + "2",
 						children: []*expectedNode{
 							{
-								name: testUser,
+								name: personalDir,
 								children: []*expectedNode{
 									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: testInboxDir + "2",
-												children: []*expectedNode{
-													{
-														name: personalDir,
-														children: []*expectedNode{
-															{
-																name:     personalFileName1,
-																children: []*expectedNode{},
-															},
-															{
-																name:     personalFileName2,
-																children: []*expectedNode{},
-															},
-														},
-													},
-												},
-											},
-											{
-												name: workDir,
-												children: []*expectedNode{
-													{
-														name:     workFileName,
-														children: []*expectedNode{},
-													},
-												},
-											},
-										},
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
 									},
 								},
 							},
 						},
 					},
+					{
+						name: workDir,
+						children: []*expectedNode{
+							{
+								name:     workFileName,
+								children: []*expectedNode{},
+							},
+						},
+					},
 				},
-			},
+			),
 		},
 		{
 			name: "MovesChildAfterAncestorDelete",
@@ -1186,35 +1157,23 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 				return []data.Collection{inbox, work}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: workDir,
 						children: []*expectedNode{
 							{
-								name: testUser,
-								children: []*expectedNode{
-									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: workDir,
-												children: []*expectedNode{
-													{
-														name:     workFileName,
-														children: []*expectedNode{},
-													},
-												},
-											},
-										},
-									},
-								},
+								name:     workFileName,
+								children: []*expectedNode{},
 							},
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			name: "ReplaceDeletedDirectory",
@@ -1229,39 +1188,27 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 				return []data.Collection{personal, work}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: testInboxDir,
 						children: []*expectedNode{
 							{
-								name: testUser,
+								name: personalDir,
 								children: []*expectedNode{
 									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: testInboxDir,
-												children: []*expectedNode{
-													{
-														name: personalDir,
-														children: []*expectedNode{
-															{
-																name: workFileName,
-															},
-														},
-													},
-												},
-											},
-										},
+										name: workFileName,
 									},
 								},
 							},
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			name: "ReplaceMovedDirectory",
@@ -1281,50 +1228,38 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 				return []data.Collection{personal, work}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: testInboxDir,
 						children: []*expectedNode{
 							{
-								name: testUser,
+								name: personalDir,
 								children: []*expectedNode{
 									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: testInboxDir,
-												children: []*expectedNode{
-													{
-														name: personalDir,
-														children: []*expectedNode{
-															{
-																name: workFileName,
-															},
-														},
-													},
-												},
-											},
-											{
-												name: personalDir,
-												children: []*expectedNode{
-													{
-														name: personalFileName1,
-													},
-													{
-														name: personalFileName2,
-													},
-												},
-											},
-										},
+										name: workFileName,
 									},
 								},
 							},
 						},
 					},
+					{
+						name: personalDir,
+						children: []*expectedNode{
+							{
+								name: personalFileName1,
+							},
+							{
+								name: personalFileName2,
+							},
+						},
+					},
 				},
-			},
+			),
 		},
 		{
 			name: "MoveDirectoryAndMergeItems",
@@ -1344,56 +1279,44 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 				return []data.Collection{personal}
 			},
-			expected: &expectedNode{
-				name: testTenant,
-				children: []*expectedNode{
+			expected: expectedTreeWithChildren(
+				testTenant,
+				service,
+				testUser,
+				category,
+				[]*expectedNode{
 					{
-						name: service,
+						name: testInboxDir,
 						children: []*expectedNode{
 							{
-								name: testUser,
+								name: workDir,
 								children: []*expectedNode{
 									{
-										name: category,
-										children: []*expectedNode{
-											{
-												name: testInboxDir,
-												children: []*expectedNode{
-													{
-														name: workDir,
-														children: []*expectedNode{
-															{
-																name:     workFileName,
-																children: []*expectedNode{},
-															},
-														},
-													},
-												},
-											},
-											{
-												name: workDir,
-												children: []*expectedNode{
-													{
-														name: personalFileName1,
-													},
-													{
-														name: personalFileName2,
-														data: testFileData5,
-													},
-													{
-														name: testFileName4,
-														data: testFileData4,
-													},
-												},
-											},
-										},
+										name:     workFileName,
+										children: []*expectedNode{},
 									},
 								},
 							},
 						},
 					},
+					{
+						name: workDir,
+						children: []*expectedNode{
+							{
+								name: personalFileName1,
+							},
+							{
+								name: personalFileName2,
+								data: testFileData5,
+							},
+							{
+								name: testFileName4,
+								data: testFileData4,
+							},
+						},
+					},
 				},
-			},
+			),
 		},
 	}
 
@@ -1521,49 +1444,37 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 		},
 	)
 
-	expected := &expectedNode{
-		name: testTenant,
-		children: []*expectedNode{
+	expected := expectedTreeWithChildren(
+		testTenant,
+		service,
+		testUser,
+		category,
+		[]*expectedNode{
 			{
-				name: service,
+				name: testArchiveDir,
 				children: []*expectedNode{
 					{
-						name: testUser,
+						name: personalDir,
 						children: []*expectedNode{
 							{
-								name: category,
-								children: []*expectedNode{
-									{
-										name: testArchiveDir,
-										children: []*expectedNode{
-											{
-												name: personalDir,
-												children: []*expectedNode{
-													{
-														name:     testFileName3,
-														children: []*expectedNode{},
-													},
-												},
-											},
-											{
-												name: workDir,
-												children: []*expectedNode{
-													{
-														name:     testFileName4,
-														children: []*expectedNode{},
-													},
-												},
-											},
-										},
-									},
-								},
+								name:     testFileName3,
+								children: []*expectedNode{},
+							},
+						},
+					},
+					{
+						name: workDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName4,
+								children: []*expectedNode{},
 							},
 						},
 					},
 				},
 			},
 		},
-	}
+	)
 
 	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 	mc := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
