@@ -359,7 +359,6 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	site := "site"
 	table := []struct {
 		name     string
-		pb       func() (path.Path, error)
 		sc       sharePointCategory
 		expected map[categorizer]string
 	}{
@@ -371,14 +370,6 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				SharePointLibrary:     "dir1/dir2",
 				SharePointLibraryItem: "item",
 			},
-			pb: func() (path.Path, error) {
-				return pathBuilder.ToDataLayerSharePointPath(
-					ten,
-					site,
-					path.LibrariesCategory,
-					true,
-				)
-			},
 		},
 		{
 			name: "SharePoint Lists",
@@ -388,20 +379,17 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				SharePointList:     "dir1/dir2",
 				SharePointListItem: "item",
 			},
-			pb: func() (path.Path, error) {
-				return pathBuilder.ToDataLayerSharePointPath(
-					ten,
-					site,
-					path.ListsCategory,
-					true,
-				)
-			},
 		},
 	}
 
 	for _, test := range table {
 		t.Run(test.name, func(t *testing.T) {
-			itemPath, err := test.pb()
+			itemPath, err := pathBuilder.ToDataLayerSharePointPath(
+				ten,
+				site,
+				test.sc.PathType(),
+				true,
+			)
 			require.NoError(t, err)
 			assert.Equal(t, test.expected, test.sc.pathValues(itemPath))
 		})
