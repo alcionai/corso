@@ -28,6 +28,6 @@ export default function Home() {
     >
       <ThemeColor />
       <MainComp />
-    </Layout >
+    </Layout>
   );
 }
