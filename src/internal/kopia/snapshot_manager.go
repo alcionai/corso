@@ -109,12 +109,12 @@ func tagsFromStrings(oc *OwnersCats) map[string]string {
 }
 
 // getLastIdx searches for manifests contained in both foundMans and metas
-// and returns the most recent complete manifest index. If no complete manifest
-// is in both lists returns -1.
+// and returns the most recent complete manifest index and the manifest it
+// corresponds to. If no complete manifest is in both lists returns nil, -1.
 func getLastIdx(
-	foundMans map[manifest.ID]*snapshot.Manifest,
+	foundMans map[manifest.ID]*ManifestEntry,
 	metas []*manifest.EntryMetadata,
-) int {
+) (*ManifestEntry, int) {
 	// Minor optimization: the current code seems to return the entries from
 	// earliest timestamp to latest (this is undocumented). Sort in the same
 	// fashion so that we don't incur a bunch of swaps.
@@ -129,24 +129,25 @@ func getLastIdx(
 			continue
 		}
 
-		return i
+		return m, i
 	}
 
-	return -1
+	return nil, -1
 }
 
 // manifestsSinceLastComplete searches through mans and returns the most recent
-// complete manifest (if one exists) and maybe the most recent incomplete
-// manifest. If the newest incomplete manifest is more recent than the newest
-// complete manifest then adds it to the returned list. Otherwise no incomplete
-// manifest is returned. Returns nil if there are no complete or incomplete
-// manifests in mans.
+// complete manifest (if one exists), maybe the most recent incomplete
+// manifest, and a bool denoting if a complete manifest was found. If the newest
+// incomplete manifest is more recent than the newest complete manifest then
+// adds it to the returned list. Otherwise no incomplete manifest is returned.
+// Returns nil if there are no complete or incomplete manifests in mans.
 func manifestsSinceLastComplete(
 	mans []*snapshot.Manifest,
-) []*snapshot.Manifest {
+) ([]*snapshot.Manifest, bool) {
 	var (
 		res             []*snapshot.Manifest
-		foundIncomplete = false
+		foundIncomplete bool
+		foundComplete   bool
 	)
 
 	// Manifests should maintain the sort order of the original IDs that were used
@@ -169,11 +170,12 @@ func manifestsSinceLastComplete(
 		// Once we find a complete snapshot we're done, even if we haven't
 		// found an incomplete one yet.
 		res = append(res, m)
+		foundComplete = true
 
 		break
 	}
 
-	return res
+	return res, foundComplete
 }
 
 // fetchPrevManifests returns the most recent, as-of-yet unfound complete and
@@ -184,10 +186,29 @@ func manifestsSinceLastComplete(
 func fetchPrevManifests(
 	ctx context.Context,
 	sm snapshotManager,
-	foundMans map[manifest.ID]*snapshot.Manifest,
+	foundMans map[manifest.ID]*ManifestEntry,
+	serviceCat ServiceCat,
+	resourceOwner string,
 	tags map[string]string,
-) ([]*snapshot.Manifest, error) {
-	metas, err := sm.FindManifests(ctx, tags)
+) ([]*ManifestEntry, error) {
+	tags = normalizeTagKVs(tags)
+	serviceCatKey, _ := MakeServiceCat(serviceCat.Service, serviceCat.Category)
+	allTags := normalizeTagKVs(map[string]string{
+		serviceCatKey: "",
+		resourceOwner: "",
+	})
+
+	for k, v := range tags {
+		allTags[k] = v
+	}
+
+	reason := Reason{
+		ResourceOwner: resourceOwner,
+		Service:       serviceCat.Service,
+		Category:      serviceCat.Category,
+	}
+
+	metas, err := sm.FindManifests(ctx, allTags)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching manifest metas by tag")
 	}
@@ -196,11 +217,12 @@ func fetchPrevManifests(
 		return nil, nil
 	}
 
-	lastCompleteIdx := getLastIdx(foundMans, metas)
+	man, lastCompleteIdx := getLastIdx(foundMans, metas)
 
 	// We have a complete cached snapshot and it's the most recent. No need
 	// to do anything else.
 	if lastCompleteIdx == len(metas)-1 {
+		man.Reasons = append(man.Reasons, reason)
 		return nil, nil
 	}
 
@@ -221,7 +243,24 @@ func fetchPrevManifests(
 		return nil, errors.Wrap(err, "fetching previous manifests")
 	}
 
-	return manifestsSinceLastComplete(mans), nil
+	found, hasCompleted := manifestsSinceLastComplete(mans)
+	res := make([]*ManifestEntry, 0, len(found))
+
+	for _, m := range found {
+		res = append(res, &ManifestEntry{
+			Manifest: m,
+			Reasons:  []Reason{reason},
+		})
+	}
+
+	// If we didn't find another complete manifest then we need to make the
+	// previous complete manifest as having this ResourceOwner, Service, Category
+	// as the reason as well.
+	if !hasCompleted && man != nil {
+		man.Reasons = append(man.Reasons, reason)
+	}
+
+	return res, nil
 }
 
 // fetchPrevSnapshotManifests returns a set of manifests for complete and maybe
@@ -239,30 +278,27 @@ func fetchPrevSnapshotManifests(
 	sm snapshotManager,
 	oc *OwnersCats,
 	tags map[string]string,
-) []*snapshot.Manifest {
+) []*ManifestEntry {
 	if oc == nil {
 		return nil
 	}
 
-	mans := map[manifest.ID]*snapshot.Manifest{}
-	tags = normalizeTagKVs(tags)
+	mans := map[manifest.ID]*ManifestEntry{}
 
 	// For each serviceCat/resource owner pair that we will be backing up, see if
 	// there's a previous incomplete snapshot and/or a previous complete snapshot
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
-	for serviceCat := range oc.ServiceCats {
+	for _, serviceCat := range oc.ServiceCats {
 		for resourceOwner := range oc.ResourceOwners {
-			allTags := normalizeTagKVs(map[string]string{
-				serviceCat:    "",
-				resourceOwner: "",
-			})
-
-			for k, v := range tags {
-				allTags[k] = v
-			}
-
-			found, err := fetchPrevManifests(ctx, sm, mans, allTags)
+			found, err := fetchPrevManifests(
+				ctx,
+				sm,
+				mans,
+				serviceCat,
+				resourceOwner,
+				tags,
+			)
 			if err != nil {
 				logger.Ctx(ctx).Warnw(
 					"fetching previous snapshot manifests for service/category/resource owner",
@@ -278,12 +314,25 @@ func fetchPrevSnapshotManifests(
 
 			// If we found more recent snapshots then add them.
 			for _, m := range found {
-				mans[m.ID] = m
+				found := mans[m.ID]
+				if found == nil {
+					mans[m.ID] = m
+					continue
+				}
+
+				// If the manifest already exists and it's incomplete then we should
+				// merge the reasons for consistency. This will become easier to handle
+				// once we update how checkpoint manifests are tagged.
+				if len(found.IncompleteReason) == 0 {
+					continue
+				}
+
+				found.Reasons = append(found.Reasons, m.Reasons...)
 			}
 		}
 	}
 
-	res := make([]*snapshot.Manifest, 0, len(mans))
+	res := make([]*ManifestEntry, 0, len(mans))
 	for _, m := range mans {
 		res = append(res, m)
 	}
