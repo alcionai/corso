@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -181,7 +180,7 @@ func produceManifestsAndMetadata(
 	sw *store.Wrapper,
 	oc *kopia.OwnersCats,
 	acct account.Account,
-) ([]*snapshot.Manifest, []data.Collection, error) {
+) ([]*kopia.ManifestEntry, []data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
 	defer func() {
 		complete <- struct{}{}
@@ -337,7 +336,7 @@ func consumeBackupDataCollections(
 	kw *kopia.Wrapper,
 	sel selectors.Selector,
 	oc *kopia.OwnersCats,
-	mans []*snapshot.Manifest,
+	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
 ) (*kopia.BackupStats, *details.Details, error) {

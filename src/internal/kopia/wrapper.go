@@ -113,7 +113,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // TODO(ashmrtn): Use previousSnapshots parameter.
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
-	previousSnapshots []*snapshot.Manifest,
+	previousSnapshots []*ManifestEntry,
 	collections []data.Collection,
 	service path.ServiceType,
 	oc *OwnersCats,
@@ -156,10 +156,15 @@ func (w Wrapper) makeSnapshotWithRoot(
 	addlTags map[string]string,
 ) (*BackupStats, error) {
 	var (
-		man       *snapshot.Manifest
-		prevSnaps = fetchPrevSnapshotManifests(ctx, w.c, oc, nil)
-		bc        = &stats.ByteCounter{}
+		man             *snapshot.Manifest
+		prevSnapEntries = fetchPrevSnapshotManifests(ctx, w.c, oc, nil)
+		bc              = &stats.ByteCounter{}
 	)
+
+	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
+	for _, ent := range prevSnapEntries {
+		prevSnaps = append(prevSnaps, ent.Manifest)
+	}
 
 	err := repo.WriteSession(
 		ctx,
@@ -414,7 +419,7 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 	ctx context.Context,
 	oc *OwnersCats,
 	tags map[string]string,
-) ([]*snapshot.Manifest, error) {
+) ([]*ManifestEntry, error) {
 	if w.c == nil {
 		return nil, errors.WithStack(errNotConnected)
 	}
