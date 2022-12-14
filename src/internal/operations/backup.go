@@ -128,7 +128,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, op.Selectors, op.account)
+	oc := selectorToOwnersCats(op.Selectors)
+
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, op.account)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -150,6 +152,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		ctx,
 		op.kopia,
 		op.Selectors,
+		oc,
 		mans,
 		cs,
 		op.Results.BackupID)
@@ -176,7 +179,7 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	sel selectors.Selector,
+	oc *kopia.OwnersCats,
 	acct account.Account,
 ) ([]*snapshot.Manifest, []data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
@@ -193,7 +196,6 @@ func produceManifestsAndMetadata(
 
 	var (
 		tid         = m365.AzureTenantID
-		oc          = selectorToOwnersCats(sel)
 		collections []data.Collection
 	)
 
@@ -245,7 +247,7 @@ func collectMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	fileNames []string,
-	oc kopia.OwnersCats,
+	oc *kopia.OwnersCats,
 	tenantID, snapshotID string,
 ) ([]data.Collection, error) {
 	paths := []path.Path{}
@@ -278,16 +280,16 @@ func collectMetadata(
 	return dcs, nil
 }
 
-func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
+func selectorToOwnersCats(sel selectors.Selector) *kopia.OwnersCats {
 	service := sel.PathService()
-	oc := kopia.OwnersCats{
+	oc := &kopia.OwnersCats{
 		ResourceOwners: map[string]struct{}{},
 		ServiceCats:    map[string]kopia.ServiceCat{},
 	}
 
 	ros, err := sel.ResourceOwners()
 	if err != nil {
-		return kopia.OwnersCats{}
+		return &kopia.OwnersCats{}
 	}
 
 	for _, sl := range [][]string{ros.Includes, ros.Filters} {
@@ -298,7 +300,7 @@ func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
-		return kopia.OwnersCats{}
+		return &kopia.OwnersCats{}
 	}
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
@@ -334,6 +336,7 @@ func consumeBackupDataCollections(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sel selectors.Selector,
+	oc *kopia.OwnersCats,
 	mans []*snapshot.Manifest,
 	cs []data.Collection,
 	backupID model.StableID,
@@ -350,7 +353,7 @@ func consumeBackupDataCollections(
 		kopia.TagBackupCategory: "",
 	}
 
-	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), tags)
+	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), oc, tags)
 }
 
 // writes the results metrics to the operation results.

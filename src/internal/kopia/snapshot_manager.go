@@ -71,6 +71,10 @@ func MakeTagKV(k string) (string, string) {
 // passed in. Currently uses placeholder values for each tag because there can
 // be multiple instances of resource owners and categories in a single snapshot.
 func tagsFromStrings(oc *OwnersCats) map[string]string {
+	if oc == nil {
+		return map[string]string{}
+	}
+
 	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
 
 	for k := range oc.ServiceCats {
@@ -218,6 +222,10 @@ func fetchPrevSnapshotManifests(
 	oc *OwnersCats,
 	tags map[string]string,
 ) []*snapshot.Manifest {
+	if oc == nil {
+		return nil
+	}
+
 	mans := map[manifest.ID]*snapshot.Manifest{}
 	tags = normalizeTagKVs(tags)
 
