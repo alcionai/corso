@@ -401,7 +401,7 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.Collection,
-) (map[string]*treeMap, map[string]path.Path, *OwnersCats, error) {
+) (map[string]*treeMap, map[string]path.Path, error) {
 	roots := make(map[string]*treeMap)
 	// Contains the old path for collections that have been moved or renamed.
 	// Allows resolving what the new path should be when walking the base
@@ -423,12 +423,12 @@ func inflateCollectionTree(
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, nil, errors.New("no identifier for collection")
+			return nil, nil, errors.New("no identifier for collection")
 		}
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, nil, errors.Errorf(
+			return nil, nil, errors.Errorf(
 				"unable to get tree node for path %s",
 				s.FullPath(),
 			)
@@ -441,7 +441,7 @@ func inflateCollectionTree(
 		node.collection = s
 	}
 
-	return roots, updatedPaths, ownerCats, nil
+	return roots, updatedPaths, nil
 }
 
 // inflateDirTree returns a set of tags representing all the resource owners and
@@ -454,14 +454,14 @@ func inflateDirTree(
 	ctx context.Context,
 	collections []data.Collection,
 	progress *corsoProgress,
-) (fs.Directory, *OwnersCats, error) {
-	roots, _, ownerCats, err := inflateCollectionTree(ctx, collections)
+) (fs.Directory, error) {
+	roots, _, err := inflateCollectionTree(ctx, collections)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "inflating collection tree")
+		return nil, errors.Wrap(err, "inflating collection tree")
 	}
 
 	if len(roots) > 1 {
-		return nil, nil, errors.New("multiple root directories")
+		return nil, errors.New("multiple root directories")
 	}
 
 	var res fs.Directory
@@ -469,11 +469,11 @@ func inflateDirTree(
 	for dirName, dir := range roots {
 		tmp, err := buildKopiaDirs(dirName, dir, progress)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		res = tmp
 	}
 
-	return res, ownerCats, nil
+	return res, nil
 }
