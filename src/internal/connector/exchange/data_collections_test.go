@@ -147,6 +147,15 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expectError: assert.NoError,
 		},
+		{
+			name: "delta urls with escaped chars",
+			data: []fileValues{
+				{graph.DeltaTokenFileName, `\n\r\t\b\f\v\0\\`},
+			},
+			expectDeltas: map[string]string{
+				"key": "\\n\\r\\t\\b\\f\\v\\0\\\\",
+			},
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
