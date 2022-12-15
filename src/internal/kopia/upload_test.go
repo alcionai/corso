@@ -10,6 +10,7 @@ import (
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
@@ -798,6 +799,25 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 	return msw.snapshotRoot, nil
 }
 
+func mockSnapshotEntry(
+	id, resourceOwner string,
+	service path.ServiceType,
+	category path.CategoryType,
+) *ManifestEntry {
+	return &ManifestEntry{
+		Manifest: &snapshot.Manifest{
+			ID: manifest.ID(id),
+		},
+		Reasons: []Reason{
+			{
+				ResourceOwner: resourceOwner,
+				Service:       service,
+				Category:      category,
+			},
+		},
+	}
+}
+
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	dirPath := makePath(
 		suite.T(),
@@ -941,7 +961,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]*snapshot.Manifest{{}},
+				[]*ManifestEntry{
+					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				},
 				test.inputCollections(),
 				progress,
 			)
@@ -1353,7 +1375,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]*snapshot.Manifest{{}},
+				[]*ManifestEntry{
+					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				},
 				test.inputCollections(t),
 				progress,
 			)
@@ -1511,7 +1535,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]*snapshot.Manifest{{}},
+		[]*ManifestEntry{
+			mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+		},
 		collections,
 		progress,
 	)
