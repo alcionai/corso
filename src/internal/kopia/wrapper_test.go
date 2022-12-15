@@ -262,11 +262,13 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 	}
 
+	prevSnaps := []*ManifestEntry{}
+
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			stats, deets, err := suite.w.BackupCollections(
 				suite.ctx,
-				nil,
+				prevSnaps,
 				collections,
 				path.ExchangeService,
 				oc,
@@ -295,6 +297,19 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				expectedTags,
 				stats.SnapshotID,
 			)
+
+			snap, err := snapshot.LoadSnapshot(
+				suite.ctx,
+				suite.w.c,
+				manifest.ID(stats.SnapshotID),
+			)
+			require.NoError(t, err)
+
+			prevSnaps = append(prevSnaps, &ManifestEntry{
+				// Will need to fill out reason if/when we use this test with
+				// incrementals.
+				Manifest: snap,
+			})
 		})
 	}
 }
