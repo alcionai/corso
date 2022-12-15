@@ -93,9 +93,15 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, end := D.Span(ctx, "operations:backup:run")
 	defer end()
 
+	m365, err := op.account.M365Config()
+	if err != nil {
+		return errors.Wrap(err, "getting tenant ID")
+	}
+
 	var (
 		opStats       backupStats
 		backupDetails *details.Details
+		tenantID      = m365.AzureTenantID
 		startTime     = time.Now()
 	)
 
@@ -150,6 +156,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	opStats.k, backupDetails, err = consumeBackupDataCollections(
 		ctx,
 		op.kopia,
+		tenantID,
 		op.Selectors,
 		oc,
 		mans,
@@ -331,10 +338,34 @@ func produceBackupDataCollections(
 	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
 }
 
+func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
+	// This is hacky, but we want the path package to format the path the right
+	// way (e.x. proper order for service, category, etc), but we don't care about
+	// the folders after the prefix.
+	p, err := path.Builder{}.Append("tmp").ToDataLayerPath(
+		tenant,
+		r.ResourceOwner,
+		r.Service,
+		r.Category,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"building path for service %s category %s",
+			r.Service.String(),
+			r.Category.String(),
+		)
+	}
+
+	return p.ToBuilder().Dir(), nil
+}
+
 // calls kopia to backup the collections of data
 func consumeBackupDataCollections(
 	ctx context.Context,
 	kw *kopia.Wrapper,
+	tenantID string,
 	sel selectors.Selector,
 	oc *kopia.OwnersCats,
 	mans []*kopia.ManifestEntry,
@@ -351,6 +382,26 @@ func consumeBackupDataCollections(
 	tags := map[string]string{
 		kopia.TagBackupID:       string(backupID),
 		kopia.TagBackupCategory: "",
+	}
+
+	bases := make([]kopia.IncrementalBase, 0, len(mans))
+
+	for _, m := range mans {
+		paths := make([]*path.Builder, 0, len(m.Reasons))
+
+		for _, reason := range m.Reasons {
+			pb, err := builderFromReason(tenantID, reason)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "getting subtree paths for bases")
+			}
+
+			paths = append(paths, pb)
+		}
+
+		bases = append(bases, kopia.IncrementalBase{
+			Manifest:     m.Manifest,
+			SubtreePaths: paths,
+		})
 	}
 
 	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), oc, tags)
