@@ -799,21 +799,17 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 	return msw.snapshotRoot, nil
 }
 
-func mockSnapshotEntry(
-	id, resourceOwner string,
+func mockIncrementalBase(
+	id, tenant, resourceOwner string,
 	service path.ServiceType,
 	category path.CategoryType,
-) *ManifestEntry {
-	return &ManifestEntry{
+) IncrementalBase {
+	return IncrementalBase{
 		Manifest: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
-		Reasons: []Reason{
-			{
-				ResourceOwner: resourceOwner,
-				Service:       service,
-				Category:      category,
-			},
+		SubtreePaths: []*path.Builder{
+			path.Builder{}.Append(tenant, service.String(), resourceOwner, category.String()),
 		},
 	}
 }
@@ -961,8 +957,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]*ManifestEntry{
-					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				[]IncrementalBase{
+					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
 				progress,
@@ -1375,8 +1371,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]*ManifestEntry{
-					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				[]IncrementalBase{
+					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
 				progress,
@@ -1535,8 +1531,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]*ManifestEntry{
-			mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+		[]IncrementalBase{
+			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		progress,
@@ -1779,9 +1775,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]*ManifestEntry{
-			mockSnapshotEntry("id1", testUser, path.ExchangeService, path.ContactsCategory),
-			mockSnapshotEntry("id2", testUser, path.ExchangeService, path.EmailCategory),
+		[]IncrementalBase{
+			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			mockIncrementalBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		progress,
