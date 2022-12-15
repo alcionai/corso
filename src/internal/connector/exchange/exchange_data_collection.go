@@ -18,7 +18,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -111,7 +110,7 @@ func stateOf(prev, curr path.Path) data.CollectionState {
 		return data.NewState
 	}
 
-	if !common.AreSameSlice(curr.Folders(), prev.Folders()) {
+	if curr.Folder() == prev.Folder() {
 		return data.MovedState
 	}
 
@@ -488,7 +487,7 @@ type Stream struct {
 	// request to provide modtime in ItemInfo structs.
 	modTime time.Time
 
-	// true if the item was marked as deleted.
+	// true if the item was marked by graph as deleted.
 	deleted bool
 }
 
@@ -500,7 +499,6 @@ func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
 }
 
-// TODO(ashmrtn): Fill in once delta tokens return deleted items.
 func (od Stream) Deleted() bool {
 	return od.deleted
 }

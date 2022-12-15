@@ -11,6 +11,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -56,9 +57,12 @@ func FilterContainersAndFillCollections(
 	var (
 		errs error
 		oi   = CategoryToOptionIdentifier(qp.Category)
-		// folder ID -> delta url for folder.
+		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
+		// copy of previousPaths.  any folder found in the resolver get
+		// deleted from this map, leaving only the deleted maps behind
+		deletedPaths = common.CopyMap(dps.paths)
 	)
 
 	for _, c := range resolver.Items() {
@@ -68,22 +72,19 @@ func FilterContainersAndFillCollections(
 
 		cID := *c.GetId()
 
+		delete(deletedPaths, cID)
+
+		// Only create a collection if the path matches the scope.
 		currPath, ok := pathAndMatch(qp, c, scope)
 		if !ok {
 			continue
 		}
 
-		var prevPath path.Path
-
-		if ps, ok := dps.paths[cID]; ok {
-			if pp, err := path.FromDataLayerPath(ps, false); err != nil {
-				logger.Ctx(ctx).Error("parsing previous path string")
-			} else {
-				prevPath = pp
-			}
+		prevPath, err := pathFromPrevString(dps.paths[cID])
+		if err != nil {
+			logger.Ctx(ctx).Error(err)
 		}
 
-		// Create only those that match
 		service, err := createService(qp.Credentials)
 		if err != nil {
 			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
@@ -136,6 +137,35 @@ func FilterContainersAndFillCollections(
 		currPaths[cID] = currPath.String()
 	}
 
+	// any path that wasn't present in the resolver was deleted by the user.
+	// relocations and renames will have removed the dir by id earlier.  What's
+	// left in deletedPaths are only the previous paths that did not appear as
+	// children of the root.
+	for fID, ps := range deletedPaths {
+		service, err := createService(qp.Credentials)
+		if err != nil {
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			continue
+		}
+
+		prevPath, err := pathFromPrevString(ps)
+		if err != nil {
+			logger.Ctx(ctx).Error(err)
+			continue
+		}
+
+		edc := NewCollection(
+			qp.ResourceOwner,
+			nil, // marks the collection as deleted
+			prevPath,
+			oi,
+			service,
+			statusUpdater,
+			ctrlOpts,
+		)
+		collections[fID] = &edc
+	}
+
 	entries := []graph.MetadataCollectionEntry{
 		graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
 	}
@@ -158,6 +188,15 @@ func FilterContainersAndFillCollections(
 	}
 
 	return errs
+}
+
+func pathFromPrevString(ps string) (path.Path, error) {
+	p, err := path.FromDataLayerPath(ps, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing previous path string")
+	}
+
+	return p, nil
 }
 
 func IterativeCollectContactContainers(

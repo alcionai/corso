@@ -86,15 +86,6 @@ func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 // addFolder adds a folder to the cache with the given ID. If the item is
 // already in the cache does nothing. The path for the item is not modified.
 func (cr *containerResolver) addFolder(cf graph.CacheFolder) error {
-	// deleted folders bypass the other checks
-	addtl := cf.GetAdditionalData()
-	_, cf.Removed = addtl[graph.AddtlDataRemoved]
-
-	if cf.Removed {
-		cr.cache[*cf.GetId()] = &cf
-		return nil
-	}
-
 	// Only require a non-nil non-empty parent if the path isn't already populated.
 	if cf.Path() != nil {
 		if err := checkIDAndName(cf.Container); err != nil {

@@ -80,18 +80,15 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
+	// Even though this uses the `Delta` query, we do no store or re-use
+	// the delta-link tokens like with other queries.  The goal is always
+	// to retrieve the complete history of folders.
 	query := mc.
 		gs.
 		Client().
 		UsersById(mc.userID).
 		MailFolders().
 		Delta()
-
-	// TODO(rkeepers): Awaiting full integration of incremental support, else this
-	// will cause unexpected behavior/errors.
-	// if len(mc.dps.deltas[baseID]) > 0 {
-	// 	query = msfolderdelta.UsersItemMailFoldersDeltaRequestBuilder(oldDelta, mc.gs.Adapter())
-	// }
 
 	var errs *multierror.Error
 
