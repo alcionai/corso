@@ -2,7 +2,7 @@ import React from "react";
 import "animate.css";
 import { Icon } from "@iconify/react";
 
-export default function FourthSection() {
+export default function CTA() {
   return (
     <section className="relative !tracking-wide  md:py-16 py-12 md:pt-0 pt-0">
       <div className="absolute bottom-0 left-0 !z-0 right-0 sm:h-2/3 h-4/5 bg-gradient-to-b from-indigo-500 to-indigo-600"></div>
