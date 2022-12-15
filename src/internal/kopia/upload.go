@@ -649,33 +649,10 @@ func traverseBaseDir(
 	return nil
 }
 
-// TODO(ashmrtn): We may want to move this to BackupOp and pass in
-// (Manifest, path) to kopia.BackupCollections() instead of passing in
-// ManifestEntry. That would keep kopia from having to know anything about how
-// paths are formed. It would just encode/decode them and do basic manipulations
-// like pushing/popping elements on a path based on location in the hierarchy.
-func encodedElementsForPath(tenant string, r Reason) (*path.Builder, error) {
-	// This is hacky, but we want the path package to format the path the right
-	// way (e.x. proper order for service, category, etc), but we don't care about
-	// the folders after the prefix.
-	p, err := path.Builder{}.Append("tmp").ToDataLayerPath(
-		tenant,
-		r.ResourceOwner,
-		r.Service,
-		r.Category,
-		false,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "building path")
-	}
-
-	return p.ToBuilder().Dir(), nil
-}
-
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap *ManifestEntry,
+	snap IncrementalBase,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
@@ -696,22 +673,12 @@ func inflateBaseTree(
 		return errors.Errorf("snapshot %s root is not a directory", snap.ID)
 	}
 
-	rootName, err := decodeElement(dir.Name())
-	if err != nil {
-		return errors.Wrapf(err, "snapshot %s root has undecode-able name", snap.ID)
-	}
-
 	// For each subtree corresponding to the tuple
 	// (resource owner, service, category) merge the directories in the base with
 	// what has been reported in the collections we got.
-	for _, reason := range snap.Reasons {
-		pb, err := encodedElementsForPath(rootName, reason)
-		if err != nil {
-			return errors.Wrapf(err, "snapshot %s getting path elements", snap.ID)
-		}
-
+	for _, subtreePath := range snap.SubtreePaths {
 		// We're starting from the root directory so don't need it in the path.
-		pathElems := encodeElements(pb.PopFront().Elements()...)
+		pathElems := encodeElements(subtreePath.PopFront().Elements()...)
 
 		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
 		if err != nil {
@@ -730,8 +697,8 @@ func inflateBaseTree(
 			ctx,
 			0,
 			updatedPaths,
-			pb.Dir(),
-			pb.Dir(),
+			subtreePath.Dir(),
+			subtreePath.Dir(),
 			subtreeDir,
 			roots,
 		); err != nil {
