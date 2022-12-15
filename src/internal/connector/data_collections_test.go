@@ -593,7 +593,6 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		t      = suite.T()
 		siteID = tester.M365SiteID(t)
 		gc     = loadConnector(ctx, t, Sites)
-		sel    = selectors.NewSharePointBackup()
 	)
 
 	tables := []struct {
@@ -605,6 +604,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			name:     "SharePoint.Libraries",
 			expected: 0,
 			sel: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries(
 					[]string{siteID},
 					[]string{"foo"},
@@ -618,10 +618,11 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			name:     "SharePoint.Lists",
 			expected: 1,
 			sel: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Lists(
 					[]string{siteID},
 					selectors.Any(),
-					selectors.PrefixMatch(),
+					selectors.PrefixMatch(), // without this option a SEG Fault occurs
 				))
 
 				return sel.Selector
