@@ -633,6 +633,12 @@ func traverseBaseDir(
 	// determine the subdirectories this directory has when handing items to
 	// kopia.
 	if currentPath != nil && hasItems {
+		// Having this in the if-block has the effect of removing empty directories
+		// from backups that have a base snapshot. If we'd like to preserve empty
+		// directories across incremental backups, move getting the node outside of
+		// the if-block. That will be sufficient to create a StreamingDirectory that
+		// kopia will pick up on. Assigning the baseDir of the node should remain
+		// in the if-block though as that is an optimization.
 		node := getTreeNode(roots, currentPath.Elements())
 		if node == nil {
 			return errors.Errorf("unable to get tree node for path %s", currentPath)
