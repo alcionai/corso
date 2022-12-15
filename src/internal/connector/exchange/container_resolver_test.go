@@ -265,10 +265,6 @@ func (m *mockCachedContainer) GetAdditionalData() map[string]any {
 	return nil
 }
 
-func (m *mockCachedContainer) Deleted() bool {
-	return m.removed
-}
-
 func resolverWithContainers(numContainers int) (*containerResolver, []*mockCachedContainer) {
 	containers := make([]*mockCachedContainer, 0, numContainers)
 
