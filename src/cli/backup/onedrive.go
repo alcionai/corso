@@ -334,7 +334,7 @@ func oneDriveDetailsCmd() *cobra.Command {
 	}
 }
 
-// lists the history of backup operations
+// prints the item details for a given backup
 func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
