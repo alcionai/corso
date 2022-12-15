@@ -26,3 +26,12 @@ deduplicate
 vCPUs
 cybercrime
 cyberattacks
+Rackspace
+AWS_SHARED_CREDENTIALS_FILE
+cryptocurrency
+backordered
+Gitlab
+cyberattack
+Atlassian
+SLAs
+runbooks
