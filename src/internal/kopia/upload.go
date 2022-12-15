@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
-	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
@@ -676,7 +675,7 @@ func encodedElementsForPath(tenant string, r Reason) (*path.Builder, error) {
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap *snapshot.Manifest,
+	snap *ManifestEntry,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
@@ -687,7 +686,7 @@ func inflateBaseTree(
 		return nil
 	}
 
-	root, err := loader.SnapshotRoot(snap)
+	root, err := loader.SnapshotRoot(snap.Manifest)
 	if err != nil {
 		return errors.Wrapf(err, "getting snapshot %s root directory", snap.ID)
 	}
@@ -727,7 +726,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []*snapshot.Manifest,
+	baseSnaps []*ManifestEntry,
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, error) {
