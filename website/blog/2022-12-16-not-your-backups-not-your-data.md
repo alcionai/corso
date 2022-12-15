@@ -5,8 +5,10 @@ description: "Rackspace email outage: What happened, what went wrong, best pract
 authors: nica
 tags: [corso, microsoft 365, ransomware]
 date: 2022-12-16
-image: ./images/gian_tweet_backups.png
+image: ./images/not_your_backups_not_your_data.png
 ---
+
+![Not your backups, not your data](./images/not_your_backups_not_your_data.png)
 
 Rackspace is having a rough few days.
 
