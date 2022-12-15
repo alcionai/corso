@@ -25,6 +25,28 @@ type QueryParams struct {
 	Credentials   account.M365Config
 }
 
+var _ Servicer = &Service{}
+
+type Service struct {
+	adapter *msgraphsdk.GraphRequestAdapter
+	client  *msgraphsdk.GraphServiceClient
+}
+
+func NewService(adapter *msgraphsdk.GraphRequestAdapter) *Service {
+	return &Service{
+		adapter: adapter,
+		client:  msgraphsdk.NewGraphServiceClient(adapter),
+	}
+}
+
+func (s Service) Adapter() *msgraphsdk.GraphRequestAdapter {
+	return s.adapter
+}
+
+func (s Service) Client() *msgraphsdk.GraphServiceClient {
+	return s.client
+}
+
 type Servicer interface {
 	// Client() returns msgraph Service client that can be used to process and execute
 	// the majority of the queries to the M365 Backstore

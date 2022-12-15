@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -127,7 +127,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, op.Selectors, op.account)
+	oc := selectorToOwnersCats(op.Selectors)
+
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, op.account)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -149,6 +151,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		ctx,
 		op.kopia,
 		op.Selectors,
+		oc,
 		mans,
 		cs,
 		op.Results.BackupID)
@@ -175,9 +178,9 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	sel selectors.Selector,
+	oc *kopia.OwnersCats,
 	acct account.Account,
-) ([]*snapshot.Manifest, []data.Collection, error) {
+) ([]*kopia.ManifestEntry, []data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
 	defer func() {
 		complete <- struct{}{}
@@ -192,7 +195,6 @@ func produceManifestsAndMetadata(
 
 	var (
 		tid         = m365.AzureTenantID
-		oc          = selectorToOwnersCats(sel)
 		collections []data.Collection
 	)
 
@@ -244,7 +246,7 @@ func collectMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	fileNames []string,
-	oc kopia.OwnersCats,
+	oc *kopia.OwnersCats,
 	tenantID, snapshotID string,
 ) ([]data.Collection, error) {
 	paths := []path.Path{}
@@ -277,16 +279,16 @@ func collectMetadata(
 	return dcs, nil
 }
 
-func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
+func selectorToOwnersCats(sel selectors.Selector) *kopia.OwnersCats {
 	service := sel.PathService()
-	oc := kopia.OwnersCats{
+	oc := &kopia.OwnersCats{
 		ResourceOwners: map[string]struct{}{},
 		ServiceCats:    map[string]kopia.ServiceCat{},
 	}
 
 	ros, err := sel.ResourceOwners()
 	if err != nil {
-		return kopia.OwnersCats{}
+		return &kopia.OwnersCats{}
 	}
 
 	for _, sl := range [][]string{ros.Includes, ros.Filters} {
@@ -297,7 +299,7 @@ func selectorToOwnersCats(sel selectors.Selector) kopia.OwnersCats {
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
-		return kopia.OwnersCats{}
+		return &kopia.OwnersCats{}
 	}
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
@@ -333,7 +335,8 @@ func consumeBackupDataCollections(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sel selectors.Selector,
-	mans []*snapshot.Manifest,
+	oc *kopia.OwnersCats,
+	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
 ) (*kopia.BackupStats, *details.Details, error) {
@@ -349,7 +352,7 @@ func consumeBackupDataCollections(
 		kopia.TagBackupCategory: "",
 	}
 
-	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), tags)
+	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), oc, tags)
 }
 
 // writes the results metrics to the operation results.
@@ -419,18 +422,20 @@ func (op *BackupOperation) createBackupModels(
 		return errors.Wrap(err, "creating backup model")
 	}
 
+	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
+
 	op.bus.Event(
 		ctx,
 		events.BackupEnd,
 		map[string]any{
 			events.BackupID:   b.ID,
 			events.DataStored: op.Results.BytesUploaded,
-			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:    op.Results.CompletedAt,
+			events.Duration:   dur,
+			events.EndTime:    common.FormatTime(op.Results.CompletedAt),
 			events.Resources:  op.Results.ResourceOwners,
 			events.Service:    op.Selectors.PathService().String(),
-			events.StartTime:  op.Results.StartedAt,
-			events.Status:     op.Status,
+			events.StartTime:  common.FormatTime(op.Results.StartedAt),
+			events.Status:     op.Status.String(),
 		},
 	)
 

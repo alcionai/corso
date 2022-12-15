@@ -405,7 +405,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			// verify that we can find the new backup id in the manifests
 			var (
 				sck, scv = kopia.MakeServiceCat(sel.PathService(), test.category)
-				oc       = kopia.OwnersCats{
+				oc       = &kopia.OwnersCats{
 					ResourceOwners: map[string]struct{}{test.resourceOwner: {}},
 					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
 				}

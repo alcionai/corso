@@ -9,6 +9,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -232,21 +233,23 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsWritten = opStats.gc.Successful
 	op.Results.ResourceOwners = opStats.resourceCount
 
+	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
+
 	op.bus.Event(
 		ctx,
 		events.RestoreEnd,
 		map[string]any{
 			events.BackupID:      op.BackupID,
 			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:       op.Results.CompletedAt,
+			events.Duration:      dur,
+			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
 			events.ItemsRead:     op.Results.ItemsRead,
 			events.ItemsWritten:  op.Results.ItemsWritten,
 			events.Resources:     op.Results.ResourceOwners,
 			events.RestoreID:     opStats.restoreID,
 			events.Service:       op.Selectors.Service.String(),
-			events.StartTime:     op.Results.StartedAt,
-			events.Status:        op.Status,
+			events.StartTime:     common.FormatTime(op.Results.StartedAt),
+			events.Status:        op.Status.String(),
 		},
 	)
 
