@@ -41,8 +41,10 @@ func DataCollections(
 		scopes      = b.DiscreteScopes(siteIDs)
 		collections = []data.Collection{}
 		errs        error
+		spcs        []data.Collection
 	)
 
+	fmt.Printf("Number of Scopes: %d\nScopes:%v\n", len(scopes), scopes)
 	for _, scope := range scopes {
 		// due to DiscreteScopes(siteIDs), each range should only contain one site.
 		for _, site := range scope.Get(selectors.SharePointSite) {
@@ -54,10 +56,21 @@ func DataCollections(
 
 			switch scope.Category().PathType() {
 			case path.ListsCategory:
-				return nil, fmt.Errorf("sharePoint list collections not supported")
+				spcs, err = collectLists(
+					ctx,
+					serv,
+					tenantID,
+					site,
+					scope,
+					su,
+					ctrlOpts,
+				)
+				if err != nil {
+					return nil, support.WrapAndAppend(site, err, errs)
+				}
 
 			case path.LibrariesCategory:
-				spcs, err := collectLibraries(
+				spcs, err = collectLibraries(
 					ctx,
 					serv,
 					tenantID,
@@ -68,15 +81,51 @@ func DataCollections(
 				if err != nil {
 					return nil, support.WrapAndAppend(site, err, errs)
 				}
-
-				collections = append(collections, spcs...)
 			}
+
+			collections = append(collections, spcs...)
 
 			foldersComplete <- struct{}{}
 		}
 	}
 
 	return collections, errs
+}
+
+func collectLists(
+	ctx context.Context,
+	serv graph.Servicer,
+	tenantID, siteID string,
+	scope selectors.SharePointScope,
+	updater statusUpdater,
+	ctrlOpts control.Options,
+) ([]data.Collection, error) {
+	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
+
+	if scope.Matches(selectors.SharePointSite, siteID) {
+		spcs := make([]data.Collection, 0)
+
+		dir, err := path.Builder{}.Append(siteID).
+			ToDataLayerSharePointPath(
+				tenantID,
+				siteID,
+				path.ListsCategory,
+				false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+		}
+
+		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection.AddJob(siteID)
+
+		fmt.Printf("Collection:\nPath: %v\nJobs: %v\n", collection.fullPath, collection.jobs)
+
+		spcs = append(spcs, collection)
+
+		return spcs, nil
+	}
+
+	return nil, nil
 }
 
 // collectLibraries constructs a onedrive Collections struct and Get()s
