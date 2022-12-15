@@ -696,22 +696,48 @@ func inflateBaseTree(
 		return errors.Errorf("snapshot %s root is not a directory", snap.ID)
 	}
 
-	// TODO(ashmrtn): We should actually only traverse a subtree of the snapshot
-	// where the subtree corresponds to the "reason" this snapshot was chosen.
-	// Doing so will avoid pulling in data for categories that should not be
-	// included in the current backup or overwriting some entries with out-dated
-	// information.
+	rootName, err := decodeElement(dir.Name())
+	if err != nil {
+		return errors.Wrapf(err, "snapshot %s root has undecode-able name", snap.ID)
+	}
 
-	if err = traverseBaseDir(
-		ctx,
-		0,
-		updatedPaths,
-		&path.Builder{},
-		&path.Builder{},
-		dir,
-		roots,
-	); err != nil {
-		return errors.Wrapf(err, "traversing base snapshot %s", snap.ID)
+	// For each subtree corresponding to the tuple
+	// (resource owner, service, category) merge the directories in the base with
+	// what has been reported in the collections we got.
+	for _, reason := range snap.Reasons {
+		pb, err := encodedElementsForPath(rootName, reason)
+		if err != nil {
+			return errors.Wrapf(err, "snapshot %s getting path elements", snap.ID)
+		}
+
+		// Root directory is not included in the lookup path we give kopia as we're
+		// starting from the root.
+		pathElems := encodeElements(pb.PopFront().Elements()...)
+
+		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
+		if err != nil {
+			return errors.Wrapf(err, "snapshot %s getting subtree root", snap.ID)
+		}
+
+		subtreeDir, ok := ent.(fs.Directory)
+		if !ok {
+			return errors.Wrapf(err, "snapshot %s subtree root is not directory", snap.ID)
+		}
+
+		// We're assuming here that the prefix for the path has not changed (i.e.
+		// all of tenant, service, resource owner, and category are the same in the
+		// old snapshot (snap) and the snapshot we're currently trying to make.
+		if err = traverseBaseDir(
+			ctx,
+			0,
+			updatedPaths,
+			pb.Dir(),
+			pb.Dir(),
+			subtreeDir,
+			roots,
+		); err != nil {
+			return errors.Wrapf(err, "traversing base snapshot %s", snap.ID)
+		}
 	}
 
 	return nil
