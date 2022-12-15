@@ -115,13 +115,14 @@ type Details struct {
 	knownFolders map[string]struct{} `json:"-"`
 }
 
-func (d *Details) Add(repoRef, shortRef, parentRef string, info ItemInfo) {
+func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Entries = append(d.Entries, DetailsEntry{
 		RepoRef:   repoRef,
 		ShortRef:  shortRef,
 		ParentRef: parentRef,
+		Updated:   updated,
 		ItemInfo:  info,
 	})
 }
@@ -163,6 +164,9 @@ type DetailsEntry struct {
 	RepoRef   string `json:"repoRef"`
 	ShortRef  string `json:"shortRef"`
 	ParentRef string `json:"parentRef,omitempty"`
+	// Indicates the item was added or updated in this backup
+	// Always `true` for full backups
+	Updated bool `json:"updated"`
 	ItemInfo
 }
 

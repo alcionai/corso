@@ -48,7 +48,7 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 
 	deets := &details.Details{}
 
-	deets.Add("ref", "shortref", "parentref",
+	deets.Add("ref", "shortref", "parentref", true,
 		details.ItemInfo{
 			Exchange: &details.ExchangeInfo{
 				Subject: "hello world",
@@ -69,6 +69,7 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 	assert.Equal(t, deets.Entries[0].ParentRef, readDeets.Entries[0].ParentRef)
 	assert.Equal(t, deets.Entries[0].ShortRef, readDeets.Entries[0].ShortRef)
 	assert.Equal(t, deets.Entries[0].RepoRef, readDeets.Entries[0].RepoRef)
+	assert.Equal(t, deets.Entries[0].Updated, readDeets.Entries[0].Updated)
 	assert.NotNil(t, readDeets.Entries[0].Exchange)
 	assert.Equal(t, *deets.Entries[0].Exchange, *readDeets.Entries[0].Exchange)
 }
