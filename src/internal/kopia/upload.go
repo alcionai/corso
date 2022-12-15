@@ -718,7 +718,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []*ManifestEntry,
+	baseSnaps []IncrementalBase,
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, error) {

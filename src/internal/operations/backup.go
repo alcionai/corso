@@ -404,7 +404,7 @@ func consumeBackupDataCollections(
 		})
 	}
 
-	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), oc, tags)
+	return kw.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags)
 }
 
 // writes the results metrics to the operation results.

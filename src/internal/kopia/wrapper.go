@@ -117,7 +117,7 @@ type IncrementalBase struct {
 // complete backup of all data.
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
-	previousSnapshots []*ManifestEntry,
+	previousSnapshots []IncrementalBase,
 	collections []data.Collection,
 	service path.ServiceType,
 	oc *OwnersCats,
