@@ -10,8 +10,11 @@ import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 import {Version} from '@site/src/corsoEnv';
 
-A Corso [repository](../concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are
-supported on the following object storage systems:
+A Corso [repository](../concepts#corso-concepts) stores encrypted copies of your backup data. Corso uses
+AES256-GCM-HMAC-SHA256 to encrypt data at rest using keys that are derived from the repository passphrase.
+Data in flight is encrypted via TLS.
+
+Repositories are supported on the following object storage systems:
 
 <TOCInline toc={toc} maxHeadingLevel={2}/><br/>
 
