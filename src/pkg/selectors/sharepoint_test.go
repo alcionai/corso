@@ -109,7 +109,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Sites() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			require.Len(t, test.scopesToCheck, 1)
+			require.Len(t, test.scopesToCheck, 2)
 			for _, scope := range test.scopesToCheck {
 				// Scope value is s1,s2
 				assert.Contains(t, join(s1, s2), scope[SharePointSite.String()].Target)
@@ -129,7 +129,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 
 	sel.Include(sel.WebURL([]string{s1, s2}))
 	scopes := sel.Includes
-	require.Len(t, scopes, 1)
+	require.Len(t, scopes, 2)
 
 	for _, sc := range scopes {
 		scopeMustHave(
@@ -162,7 +162,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 			sel := NewSharePointRestore()
 			sel.Include(sel.WebURL(test.in))
 			scopes := sel.Includes
-			require.Len(t, scopes, 1)
+			require.Len(t, scopes, 2)
 
 			for _, sc := range scopes {
 				scopeMustHave(
@@ -186,7 +186,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 
 	sel.Exclude(sel.WebURL([]string{s1, s2}))
 	scopes := sel.Excludes
-	require.Len(t, scopes, 1)
+	require.Len(t, scopes, 2)
 
 	for _, sc := range scopes {
 		scopeMustHave(
@@ -197,6 +197,8 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 	}
 }
 
+// TestSharePointselector_Include_Sites ensures that the scopes of
+// SharePoint Libraries & SharePoint Lists are created.
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_Sites() {
 	t := suite.T()
 	sel := NewSharePointBackup()
@@ -208,7 +210,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_Sites() {
 
 	sel.Include(sel.Sites([]string{s1, s2}))
 	scopes := sel.Includes
-	require.Len(t, scopes, 1)
+	require.Len(t, scopes, 2)
 
 	for _, sc := range scopes {
 		scopeMustHave(
@@ -230,7 +232,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_Sites() {
 
 	sel.Exclude(sel.Sites([]string{s1, s2}))
 	scopes := sel.Excludes
-	require.Len(t, scopes, 1)
+	require.Len(t, scopes, 2)
 
 	for _, sc := range scopes {
 		scopeMustHave(
@@ -352,18 +354,46 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 
 func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	t := suite.T()
-
 	pathBuilder := path.Builder{}.Append("dir1", "dir2", "item")
-	itemPath, err := pathBuilder.ToDataLayerSharePointPath("tenant", "site", path.LibrariesCategory, true)
-	require.NoError(t, err)
-
-	expected := map[categorizer]string{
-		SharePointSite:        "site",
-		SharePointLibrary:     "dir1/dir2",
-		SharePointLibraryItem: "item",
+	ten := "tenant"
+	site := "site"
+	table := []struct {
+		name     string
+		sc       sharePointCategory
+		expected map[categorizer]string
+	}{
+		{
+			name: "SharePoint Libraries",
+			sc:   SharePointLibraryItem,
+			expected: map[categorizer]string{
+				SharePointSite:        site,
+				SharePointLibrary:     "dir1/dir2",
+				SharePointLibraryItem: "item",
+			},
+		},
+		{
+			name: "SharePoint Lists",
+			sc:   SharePointListItem,
+			expected: map[categorizer]string{
+				SharePointSite:     site,
+				SharePointList:     "dir1/dir2",
+				SharePointListItem: "item",
+			},
+		},
 	}
 
-	assert.Equal(t, expected, SharePointLibraryItem.pathValues(itemPath))
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			itemPath, err := pathBuilder.ToDataLayerSharePointPath(
+				ten,
+				site,
+				test.sc.PathType(),
+				true,
+			)
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, test.sc.pathValues(itemPath))
+		})
+	}
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
@@ -418,6 +448,7 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 		{SharePointSite, path.UnknownCategory},
 		{SharePointLibrary, path.LibrariesCategory},
 		{SharePointLibraryItem, path.LibrariesCategory},
+		{SharePointList, path.ListsCategory},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {

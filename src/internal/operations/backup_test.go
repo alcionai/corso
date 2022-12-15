@@ -503,8 +503,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		siteID = tester.M365SiteID(t)
 		sel    = selectors.NewSharePointBackup()
 	)
-
-	sel.Include(sel.Sites([]string{siteID}))
+	// TODO: dadams39 Issue #1795: Revert to Sites Upon List Integration
+	sel.Include(sel.Libraries([]string{siteID}, selectors.Any()))
 
 	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
 	defer closer()
