@@ -44,7 +44,6 @@ func DataCollections(
 		spcs        []data.Collection
 	)
 
-	fmt.Printf("Number of Scopes: %d\nScopes:%v\n", len(scopes), scopes)
 	for _, scope := range scopes {
 		// due to DiscreteScopes(siteIDs), each range should only contain one site.
 		for _, site := range scope.Get(selectors.SharePointSite) {
