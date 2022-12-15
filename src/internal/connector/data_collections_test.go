@@ -583,7 +583,8 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	tester.LogTimeOfTest(suite.T())
 }
 
-// TODO: SharePoint Tests :: This creates a :: Need to put in a prefix match for lists later.. as if
+// TestCreateSharePointCollection. Ensures the proper amount of collections are created based
+// on the selector.
 func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -595,13 +596,44 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		sel    = selectors.NewSharePointBackup()
 	)
 
-	sel.Include(sel.Libraries(
-		[]string{siteID},
-		[]string{"foo"},
-		selectors.PrefixMatch(),
-	))
+	tables := []struct {
+		name     string
+		sel      func(t *testing.T) selectors.Selector
+		expected int
+	}{
+		{
+			name:     "SharePoint.Libraries",
+			expected: 0,
+			sel: func(t *testing.T) selectors.Selector {
+				sel.Include(sel.Libraries(
+					[]string{siteID},
+					[]string{"foo"},
+					selectors.PrefixMatch(),
+				))
 
-	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
-	t.Logf("These are the numbers: %d", len(cols))
-	require.NoError(t, err)
+				return sel.Selector
+			},
+		},
+		{
+			name:     "SharePoint.Lists",
+			expected: 1,
+			sel: func(t *testing.T) selectors.Selector {
+				sel.Include(sel.Lists(
+					[]string{siteID},
+					selectors.Any(),
+					selectors.PrefixMatch(),
+				))
+
+				return sel.Selector
+			},
+		},
+	}
+
+	for _, test := range tables {
+		t.Run(test.name, func(t *testing.T) {
+			cols, err := gc.DataCollections(ctx, test.sel(t), nil, control.Options{})
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, len(cols))
+		})
+	}
 }
