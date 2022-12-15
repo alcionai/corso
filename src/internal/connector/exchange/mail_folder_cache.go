@@ -89,12 +89,6 @@ func (mc *mailFolderCache) Populate(
 		MailFolders().
 		Delta()
 
-	// TODO(rkeepers): Awaiting full integration of incremental support, else this
-	// will cause unexpected behavior/errors.
-	// if len(mc.dps.deltas[baseID]) > 0 {
-	// 	query = msfolderdelta.UsersItemMailFoldersDeltaRequestBuilder(oldDelta, mc.gs.Adapter())
-	// }
-
 	var errs *multierror.Error
 
 	for {
