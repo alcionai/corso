@@ -194,8 +194,9 @@ func produceManifestsAndMetadata(
 	}
 
 	var (
-		tid         = m365.AzureTenantID
-		collections []data.Collection
+		tid           = m365.AzureTenantID
+		metadataFiles = graph.AllMetadataFileNames()
+		collections   []data.Collection
 	)
 
 	ms, err := kw.FetchPrevSnapshotManifests(
@@ -211,15 +212,17 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
-		k, _ := kopia.MakeTagKV(kopia.TagBackupID)
-		bupID := man.Tags[k]
+		// TODO(ashmrtn): Uncomment this again when we need to fetch and merge
+		// backup details from previous snapshots.
+		// k, _ := kopia.MakeTagKV(kopia.TagBackupID)
+		// bupID := man.Tags[k]
 
-		bup, err := sw.GetBackup(ctx, model.StableID(bupID))
-		if err != nil {
-			return nil, nil, err
-		}
+		// bup, err := sw.GetBackup(ctx, model.StableID(bupID))
+		// if err != nil {
+		// 	return nil, nil, err
+		// }
 
-		colls, err := collectMetadata(ctx, kw, graph.AllMetadataFileNames(), tid, man)
+		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tid)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
@@ -236,9 +239,9 @@ func produceManifestsAndMetadata(
 func collectMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
+	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
-	man *kopia.ManifestEntry,
 ) ([]data.Collection, error) {
 	paths := []path.Path{}
 
