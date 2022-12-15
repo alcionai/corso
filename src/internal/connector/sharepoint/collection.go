@@ -152,7 +152,7 @@ func (sc *Collection) populate(ctx context.Context) {
 	// sc.jobs contains query = all of the site IDs.
 	for _, id := range sc.jobs {
 		// Retrieve list data from M365
-		lists, err := loadLists(ctx, sc.service, id)
+		lists, err := loadSiteLists(ctx, sc.service, id)
 		if err != nil {
 			errs = support.WrapAndAppend(id, err, errs)
 		}
