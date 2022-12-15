@@ -30,7 +30,7 @@ func sharePointItemReader(
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	// TODO(meain): make sure the url is available here
-	rc, err := driveItemReader(ctx, item.GetAdditionalData()["@content.downloadUrl"].(string))
+	rc, err := driveItemReader(ctx, item.GetAdditionalData()[downloadURLKey].(string))
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
@@ -49,12 +49,11 @@ func oneDriveItemReader(
 	ctx context.Context,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	fmt.Println("src/internal/connector/onedrive/item.go:50 item.GetAdditionalData():", item.GetAdditionalData())
-	url, ok := item.GetAdditionalData()["@content.downloadUrl"].(string)
+	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
 		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
 	}
-	rc, err := driveItemReader(ctx, url)
+	rc, err := driveItemReader(ctx, *url)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}

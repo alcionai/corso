@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	nethttp "net/http"
+	"net/http/httputil"
 	"os"
 	"strings"
 	"time"
@@ -69,8 +70,8 @@ type LoggingMiddleware struct{}
 func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline, middlewareIndex int, req *nethttp.Request,
 ) (*nethttp.Response, error) {
-	// requestDump, _ := httputil.DumpRequest(req, true)
-	logger.Ctx(context.TODO()).Infof("REQUEST: %s", req.URL.String())
+	requestDump, _ := httputil.DumpRequest(req, true)
+	logger.Ctx(context.TODO()).Infof("REQUEST: %s", string(requestDump))
 
 	return pipeline.Next(req, middlewareIndex)
 }

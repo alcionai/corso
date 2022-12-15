@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -275,8 +274,8 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byte
 		1, // num folders (always 1)
 		support.CollectionMetrics{
 			Objects:    len(oc.driveItems), // items to read,
-			Successes:  itemsRead,            // items read successfully,
-			TotalBytes: byteCount,            // Number of bytes read in the operation,
+			Successes:  itemsRead,          // items read successfully,
+			TotalBytes: byteCount,          // Number of bytes read in the operation,
 		},
 		errs,
 		oc.folderPath.Folder(), // Additional details
