@@ -2,13 +2,13 @@
 CUSTOM TO THE NEW HOME PAGE
  */
 
- @import url('https://fonts.googleapis.com/css2?family=Nunito&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito&display=swap');
 
-*{
-    font-family: 'Nunito', sans-serif !important;
+* {
+  font-family: 'Nunito', sans-serif !important;
 }
 
-html{
+html {
   scroll-behavior: smooth !important;
 }
 
@@ -35,13 +35,14 @@ html{
   background-image: url("../../static/assets/download_blue.svg");
   transform: rotate(-180deg);
 }
+
 .accordion-button-custom:not(.collapsed) {
   color: #2563eb;
   background-color: #fff;
   box-shadow: inset 0 -1px 0 #e5e7eb;
 }
 
- .link-underline {
+.link-underline {
   border-bottom-width: 0;
   background-image: linear-gradient(transparent, transparent), linear-gradient(#4f46E5, #4f46E5);
   background-size: 0 2px;
@@ -69,7 +70,7 @@ html{
   }
 }
 
-.custom-bg_{
+.custom-bg_ {
   background: url("../../static/assets/images/cta.jpg")
 }
 
@@ -157,23 +158,21 @@ html[data-theme='dark'] {
       background-color: var(--divider);
       border: 0;
 
-      > .cliFlagsCol {
+      >.cliFlagsCol {
         width: 20%;
       }
 
-      > .cliShortCol {
-          width: 5%;
+      >.cliShortCol {
+        width: 5%;
       }
 
-      > .cliDefaultCol {
+      >.cliDefaultCol {
         width: 20%;
       }
 
-      > .cliHelpCol {
-          width: 55%;
+      >.cliHelpCol {
+        width: 55%;
       }
-
-
 
     }
 
@@ -237,6 +236,7 @@ html[data-theme='dark'] {
     }
 
     div[class*="codeBlockContainer"] {
+
       &,
       & pre {
         margin-bottom: 0;
