@@ -1545,3 +1545,248 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 
 	expectTree(t, ctx, expected, dirTree)
 }
+
+type mockMultiSnapshotWalker struct {
+	snaps map[string]fs.Entry
+}
+
+func (msw *mockMultiSnapshotWalker) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
+	if snap := msw.snaps[string(man.ID)]; snap != nil {
+		return snap, nil
+	}
+
+	return nil, errors.New("snapshot not found")
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubtrees() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const contactsDir = "contacts"
+
+	inboxPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+
+	inboxFileName1 := testFileName
+	inboxFileName2 := testFileName2
+
+	inboxFileData1 := testFileData
+	inboxFileData1v2 := testFileData5
+	inboxFileData2 := testFileData2
+
+	contactsFileName1 := testFileName3
+	contactsFileData1 := testFileData3
+
+	eventsFileName1 := testFileName5
+	eventsFileData1 := testFileData
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1
+	//       - contacts
+	//         - contacts
+	//           - file2
+	getBaseSnapshot1 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									bytes.NewReader(inboxFileData1),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.ContactsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(contactsDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(contactsFileName1)[0],
+									time.Time{},
+									bytes.NewReader(contactsFileData1),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1 <- has different data version
+	//       - events
+	//         - events
+	//           - file3
+	getBaseSnapshot2 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									// Wrap with a backup reader so it gets the version injected.
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(inboxFileData1v2)),
+									),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.EventsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements("events")[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(eventsFileName1)[0],
+									time.Time{},
+									bytes.NewReader(eventsFileData1),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	// Check the following:
+	//   * contacts pulled from base1 unchanged even if no collections reference
+	//     it
+	//   * email pulled from base2
+	//   * new email added
+	//   * events not pulled from base2 as it's not listed as a Reason
+	//
+	// Expected output:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1 <- version of data from second base
+	//           - file2
+	//       - contacts
+	//         - contacts
+	//           - file2
+	expected := expectedTreeWithChildren(
+		[]string{
+			testTenant,
+			service,
+			testUser,
+		},
+		[]*expectedNode{
+			{
+				name: category,
+				children: []*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+								data:     inboxFileData1v2,
+							},
+							{
+								name:     inboxFileName2,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+						},
+					},
+				},
+			},
+			{
+				name: path.ContactsCategory.String(),
+				children: []*expectedNode{
+					{
+						name: contactsDir,
+						children: []*expectedNode{
+							{
+								name:     contactsFileName1,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+
+	mc := mockconnector.NewMockExchangeCollection(inboxPath, 1)
+	mc.PrevPath = mc.FullPath()
+	mc.ColState = data.NotMovedState
+	mc.Names[0] = inboxFileName2
+	mc.Data[0] = inboxFileData2
+
+	msw := &mockMultiSnapshotWalker{
+		snaps: map[string]fs.Entry{
+			"id1": getBaseSnapshot1(),
+			"id2": getBaseSnapshot2(),
+		},
+	}
+
+	collections := []data.Collection{mc}
+
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]*ManifestEntry{
+			mockSnapshotEntry("id1", testUser, path.ExchangeService, path.ContactsCategory),
+			mockSnapshotEntry("id2", testUser, path.ExchangeService, path.EmailCategory),
+		},
+		collections,
+		progress,
+	)
+	require.NoError(t, err)
+
+	expectTree(t, ctx, expected, dirTree)
+}
