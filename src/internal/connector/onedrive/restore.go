@@ -171,6 +171,7 @@ func RestoreCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				true,
 				itemInfo)
 
 			metrics.Successes++
