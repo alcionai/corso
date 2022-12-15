@@ -123,27 +123,6 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expectError: assert.NoError,
 		},
-		{
-			name: "delta urls with escaped chars",
-			data: []fileValues{
-				{graph.DeltaTokenFileName, `\n\r\t\b\f\v\0\\`},
-			},
-			expectDeltas: map[string]string{
-				"key": "\\n\\r\\t\\b\\f\\v\\0\\\\",
-			},
-		},
-		{
-			name: "delta urls with newline char runes",
-			data: []fileValues{
-				// rune(92) = \, rune(110) = n.  Ensuring it's not possible to
-				// error in serializing/deserializing and produce a single newline
-				// character from those two runes.
-				{graph.DeltaTokenFileName, string([]rune{rune(92), rune(110)})},
-			},
-			expectDeltas: map[string]string{
-				"key": "\\n",
-			},
-		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

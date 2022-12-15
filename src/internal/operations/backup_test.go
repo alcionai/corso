@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -392,8 +391,6 @@ func checkMetadataFilesExist(
 
 		for item := range col.Items() {
 			assert.Implements(t, (*data.StreamSize)(nil), item)
-
-			fmt.Printf("\n-----\nrestored %v %v\n-----\n", item.UUID(), col.FullPath())
 
 			s := item.(data.StreamSize)
 			assert.Greaterf(
