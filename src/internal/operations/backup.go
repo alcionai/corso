@@ -219,7 +219,7 @@ func produceManifestsAndMetadata(
 			return nil, nil, err
 		}
 
-		colls, err := collectMetadata(ctx, kw, graph.AllMetadataFileNames(), oc, tid, bup.SnapshotID)
+		colls, err := collectMetadata(ctx, kw, graph.AllMetadataFileNames(), tid, man)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
@@ -237,32 +237,30 @@ func collectMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	fileNames []string,
-	oc *kopia.OwnersCats,
-	tenantID, snapshotID string,
+	tenantID string,
+	man *kopia.ManifestEntry,
 ) ([]data.Collection, error) {
 	paths := []path.Path{}
 
 	for _, fn := range fileNames {
-		for ro := range oc.ResourceOwners {
-			for _, sc := range oc.ServiceCats {
-				p, err := path.Builder{}.
-					Append(fn).
-					ToServiceCategoryMetadataPath(
-						tenantID,
-						ro,
-						sc.Service,
-						sc.Category,
-						true)
-				if err != nil {
-					return nil, errors.Wrapf(err, "building metadata path")
-				}
-
-				paths = append(paths, p)
+		for _, reason := range man.Reasons {
+			p, err := path.Builder{}.
+				Append(fn).
+				ToServiceCategoryMetadataPath(
+					tenantID,
+					reason.ResourceOwner,
+					reason.Service,
+					reason.Category,
+					true)
+			if err != nil {
+				return nil, errors.Wrapf(err, "building metadata path")
 			}
+
+			paths = append(paths, p)
 		}
 	}
 
-	dcs, err := kw.RestoreMultipleItems(ctx, snapshotID, paths, nil)
+	dcs, err := kw.RestoreMultipleItems(ctx, string(man.ID), paths, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting prior metadata")
 	}
