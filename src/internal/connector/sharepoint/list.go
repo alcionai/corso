@@ -18,13 +18,14 @@ import (
 // be found at: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
 // Note additional calls are required for the relationships that exist outside of the object properties.
 
-// loadLists is a utility function to populate the List object.
+// loadSiteLists is a utility function to populate a collection of SharePoint.List
+// objects associated with a given siteID.
 // @param siteID the M365 ID that represents the SharePoint Site
 // Makes additional calls to retrieve the following relationships:
 // - Columns
 // - ContentTypes
 // - List Items
-func loadLists(
+func loadSiteLists(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID string,
