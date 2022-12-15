@@ -224,22 +224,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				err      error
 			)
 
-			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, item)
-
-				// We only retry if it is a timeout error. Other
-				// errors like throttling are already handled within
-				// the graph client via a retry middleware.
-				// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
-				if err == nil || !isTimeoutErr(err) {
-					break
-				}
-
-				if i < maxRetries {
-					time.Sleep(1 * time.Second)
-				}
-			}
-
+			itemInfo, itemData, err = oc.itemReader(ctx, item)
 			if err != nil {
 				errUpdater(*item.GetId(), err)
 				return
