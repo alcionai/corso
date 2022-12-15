@@ -10,8 +10,11 @@ import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 import {Version} from '@site/src/corsoEnv';
 
-A Corso [repository](../concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are
-supported on the following object storage systems:
+A Corso [repository](../concepts#corso-concepts) stores encrypted copies of your backup data. Corso uses
+AES256-GCM-HMAC-SHA256 to encrypt data at rest using keys that are derived from the repository passphrase.
+Data in flight is encrypted via TLS.
+
+Repositories are supported on the following object storage systems:
 
 <TOCInline toc={toc} maxHeadingLevel={2}/><br/>
 
@@ -150,8 +153,3 @@ need to use the following flag with the initial Corso `repo init` command:
 Corso also supports the use of object storage systems with no TLS certificate or with self-signed
 TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
 [These flags](../../cli/corso_repo_init_s3) should only be used for testing.
-
-## Encryption
-
-Backup data in Corso repositories is always encrypted. Corso uses AES256-GCM-HMAC-SHA256 encryption using
-keys that are derived from the repository passphrase.
