@@ -934,7 +934,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				snapshotRoot: getBaseSnapshot(),
 			}
 
-			dirTree, _, err := inflateDirTree(
+			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
 				[]*snapshot.Manifest{{}},
@@ -1332,7 +1332,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				snapshotRoot: getBaseSnapshot(),
 			}
 
-			dirTree, _, err := inflateDirTree(
+			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
 				[]*snapshot.Manifest{{}},
@@ -1486,7 +1486,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	//             - file3
 	//           - work
 	//             - file4
-	dirTree, _, err := inflateDirTree(
+	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
 		[]*snapshot.Manifest{{}},
