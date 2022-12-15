@@ -135,7 +135,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	oc := selectorToOwnersCats(op.Selectors)
 
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, op.account)
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -186,7 +186,7 @@ func produceManifestsAndMetadata(
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	oc *kopia.OwnersCats,
-	acct account.Account,
+	tenantID string,
 ) ([]*kopia.ManifestEntry, []data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
 	defer func() {
@@ -195,13 +195,7 @@ func produceManifestsAndMetadata(
 		closer()
 	}()
 
-	m365, err := acct.M365Config()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	var (
-		tid           = m365.AzureTenantID
 		metadataFiles = graph.AllMetadataFileNames()
 		collections   []data.Collection
 	)
@@ -229,7 +223,7 @@ func produceManifestsAndMetadata(
 		// 	return nil, nil, err
 		// }
 
-		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tid)
+		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
