@@ -29,11 +29,19 @@ var (
 	testID2 = manifest.ID("snap2")
 	testID3 = manifest.ID("snap3")
 
-	testMail   = path.ExchangeService.String() + path.EmailCategory.String()
-	testEvents = path.ExchangeService.String() + path.EventsCategory.String()
-	testUser1  = "user1"
-	testUser2  = "user2"
-	testUser3  = "user3"
+	testMail           = path.ExchangeService.String() + path.EmailCategory.String()
+	testMailServiceCat = ServiceCat{
+		Service:  path.ExchangeService,
+		Category: path.EmailCategory,
+	}
+	testEvents           = path.ExchangeService.String() + path.EventsCategory.String()
+	testEventsServiceCat = ServiceCat{
+		Service:  path.ExchangeService,
+		Category: path.EventsCategory,
+	}
+	testUser1 = "user1"
+	testUser2 = "user2"
+	testUser3 = "user3"
 
 	testAllUsersAllCats = &OwnersCats{
 		ResourceOwners: map[string]struct{}{
@@ -41,9 +49,9 @@ var (
 			testUser2: {},
 			testUser3: {},
 		},
-		ServiceCats: map[string]struct{}{
-			testMail:   {},
-			testEvents: {},
+		ServiceCats: map[string]ServiceCat{
+			testMail:   testMailServiceCat,
+			testEvents: testEventsServiceCat,
 		},
 	}
 	testAllUsersMail = &OwnersCats{
@@ -52,8 +60,8 @@ var (
 			testUser2: {},
 			testUser3: {},
 		},
-		ServiceCats: map[string]struct{}{
-			testMail: {},
+		ServiceCats: map[string]ServiceCat{
+			testMail: testMailServiceCat,
 		},
 	}
 )
@@ -174,6 +182,9 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 		// defining data in a table while not repeating things between data and
 		// expected.
 		expectedIdxs []int
+		// Use this to denote the Reasons a manifest is selected. The int maps to
+		// the index of the manifest in data.
+		expectedReasons map[int][]Reason
 		// Expected number of times a manifest should try to be loaded from kopia.
 		// Used to check that caching is functioning properly.
 		expectedLoadCounts map[manifest.ID]int
@@ -194,6 +205,40 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0},
+			expectedReasons: map[int][]Reason{
+				0: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 1,
 			},
@@ -222,6 +267,42 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
+			expectedReasons: map[int][]Reason{
+				0: {
+					{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+				1: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 1,
 				testID2: 1,
@@ -251,6 +332,42 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
+			expectedReasons: map[int][]Reason{
+				0: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+				1: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 1,
 				testID2: 3,
@@ -280,6 +397,25 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{1},
+			expectedReasons: map[int][]Reason{
+				1: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 1,
 				testID2: 1,
@@ -300,6 +436,25 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0},
+			expectedReasons: map[int][]Reason{
+				0: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 3,
 			},
@@ -328,6 +483,25 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{1},
+			expectedReasons: map[int][]Reason{
+				1: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 1,
 				testID2: 1,
@@ -357,6 +531,25 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{1},
+			expectedReasons: map[int][]Reason{
+				1: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 3,
 				testID2: 3,
@@ -384,6 +577,91 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
+			expectedReasons: map[int][]Reason{
+				0: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+				1: {
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
+			expectedLoadCounts: map[manifest.ID]int{
+				testID1: 2,
+				testID2: 1,
+			},
+		},
+		{
+			name:  "SomeCachedSomeNewerDifferentCategories",
+			input: testAllUsersAllCats,
+			data: []manifestInfo{
+				newManifestInfo(
+					testID1,
+					testT1,
+					testCompleteMan,
+					testMail,
+					testEvents,
+					testUser1,
+					testUser2,
+					testUser3,
+				),
+				newManifestInfo(
+					testID2,
+					testT2,
+					testCompleteMan,
+					testMail,
+					testUser3,
+				),
+			},
+			expectedIdxs: []int{0, 1},
+			expectedReasons: map[int][]Reason{
+				0: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EventsCategory,
+					},
+				},
+				1: {
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 2,
 				testID2: 1,
@@ -411,6 +689,32 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
+			expectedReasons: map[int][]Reason{
+				0: {
+					Reason{
+						ResourceOwner: testUser1,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser2,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+				1: {
+					Reason{
+						ResourceOwner: testUser3,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
 			expectedLoadCounts: map[manifest.ID]int{
 				testID1: 1,
 				testID2: 1,
@@ -442,14 +746,141 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				}
 			}
 
-			snaps := fetchPrevSnapshotManifests(ctx, msm, test.input)
+			snaps := fetchPrevSnapshotManifests(ctx, msm, test.input, nil)
 
+			// Check the proper snapshot manifests were returned.
 			expected := make([]*snapshot.Manifest, 0, len(test.expectedIdxs))
 			for _, i := range test.expectedIdxs {
 				expected = append(expected, test.data[i].man)
 			}
 
-			assert.ElementsMatch(t, expected, snaps)
+			got := make([]*snapshot.Manifest, 0, len(snaps))
+			for _, s := range snaps {
+				got = append(got, s.Manifest)
+			}
+
+			assert.ElementsMatch(t, expected, got)
+
+			// Check the resons for selecting each manifest are correct.
+			expectedReasons := make(map[manifest.ID][]Reason, len(test.expectedReasons))
+			for idx, reason := range test.expectedReasons {
+				expectedReasons[test.data[idx].man.ID] = reason
+			}
+
+			for _, found := range snaps {
+				reason, ok := expectedReasons[found.ID]
+				if !ok {
+					// Missing or extra snapshots will be reported by earlier checks.
+					continue
+				}
+
+				assert.ElementsMatch(
+					t,
+					reason,
+					found.Reasons,
+					"incorrect reasons for snapshot with ID %s",
+					found.ID,
+				)
+			}
+
+			// Check number of loads to make sure caching is working properly.
+			// Need to manually check because we don't know the order the
+			// user/service/category labels will be iterated over. For some tests this
+			// could cause more loads than the ideal case.
+			assert.Len(t, loadCounts, len(test.expectedLoadCounts))
+			for id, count := range loadCounts {
+				assert.GreaterOrEqual(t, test.expectedLoadCounts[id], count)
+			}
+		})
+	}
+}
+
+func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_customTags() {
+	data := []manifestInfo{
+		newManifestInfo(
+			testID1,
+			testT1,
+			false,
+			testMail,
+			testUser1,
+			"fnords",
+			"smarf",
+		),
+	}
+	expectLoad1T1 := map[manifest.ID]int{
+		testID1: 1,
+	}
+
+	table := []struct {
+		name  string
+		input *OwnersCats
+		tags  map[string]string
+		// Use this to denote which manifests in data should be expected. Allows
+		// defining data in a table while not repeating things between data and
+		// expected.
+		expectedIdxs []int
+		// Expected number of times a manifest should try to be loaded from kopia.
+		// Used to check that caching is functioning properly.
+		expectedLoadCounts map[manifest.ID]int
+	}{
+		{
+			name:               "no tags specified",
+			tags:               nil,
+			expectedIdxs:       []int{0},
+			expectedLoadCounts: expectLoad1T1,
+		},
+		{
+			name: "all custom tags",
+			tags: map[string]string{
+				"fnords": "",
+				"smarf":  "",
+			},
+			expectedIdxs:       []int{0},
+			expectedLoadCounts: expectLoad1T1,
+		},
+		{
+			name:               "subset of custom tags",
+			tags:               map[string]string{"fnords": ""},
+			expectedIdxs:       []int{0},
+			expectedLoadCounts: expectLoad1T1,
+		},
+		{
+			name:               "custom tag mismatch",
+			tags:               map[string]string{"bojangles": ""},
+			expectedIdxs:       nil,
+			expectedLoadCounts: nil,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			msm := &mockSnapshotManager{
+				data: data,
+			}
+
+			loadCounts := map[manifest.ID]int{}
+			msm.loadCallback = func(ids []manifest.ID) {
+				for _, id := range ids {
+					loadCounts[id]++
+				}
+			}
+
+			snaps := fetchPrevSnapshotManifests(ctx, msm, testAllUsersAllCats, test.tags)
+
+			expected := make([]*snapshot.Manifest, 0, len(test.expectedIdxs))
+			for _, i := range test.expectedIdxs {
+				expected = append(expected, data[i].man)
+			}
+
+			got := make([]*snapshot.Manifest, 0, len(snaps))
+			for _, s := range snaps {
+				got = append(got, s.Manifest)
+			}
+
+			assert.ElementsMatch(t, expected, got)
 
 			// Need to manually check because we don't know the order the
 			// user/service/category labels will be iterated over. For some tests this
@@ -495,7 +926,7 @@ func (msm *mockErrorSnapshotManager) LoadSnapshots(
 	return msm.sm.LoadSnapshots(ctx, ids)
 }
 
-func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
+func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_withErrors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -532,7 +963,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshotsWorksWithErrors() {
 		},
 	}
 
-	snaps := fetchPrevSnapshotManifests(ctx, msm, input)
+	snaps := fetchPrevSnapshotManifests(ctx, msm, input, nil)
 
 	// Only 1 snapshot should be chosen because the other two attempts fail.
 	// However, which one is returned is non-deterministic because maps are used.

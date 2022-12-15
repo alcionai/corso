@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -53,13 +54,15 @@ type Collection struct {
 	// is desired to be sent through the data channel for eventual storage
 	jobs []string
 	// service - client/adapter pair used to access M365 back store
-	service graph.Service
+	service graph.Servicer
 
 	collectionType optionIdentifier
 	statusUpdater  support.StatusUpdater
 	// FullPath is the slice representation of the action context passed down through the hierarchy.
 	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
 	fullPath path.Path
+
+	ctrl control.Options
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
@@ -67,8 +70,9 @@ func NewCollection(
 	user string,
 	fullPath path.Path,
 	collectionType optionIdentifier,
-	service graph.Service,
+	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
+	ctrlOpts control.Options,
 ) Collection {
 	collection := Collection{
 		user:           user,
@@ -78,6 +82,7 @@ func NewCollection(
 		statusUpdater:  statusUpdater,
 		fullPath:       fullPath,
 		collectionType: collectionType,
+		ctrl:           ctrlOpts,
 	}
 
 	return collection
@@ -168,7 +173,7 @@ func (col *Collection) populateByOptionIdentifier(
 	}
 
 	for _, identifier := range col.jobs {
-		if col.service.ErrPolicy() && errs != nil {
+		if col.ctrl.FailFast && errs != nil {
 			break
 		}
 		semaphoreCh <- struct{}{}

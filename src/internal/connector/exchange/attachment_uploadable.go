@@ -29,7 +29,7 @@ type mailAttachmentUploader struct {
 	userID   string
 	folderID string
 	itemID   string
-	service  graph.Service
+	service  graph.Servicer
 }
 
 func (mau *mailAttachmentUploader) getItemID() string {
@@ -77,7 +77,7 @@ type eventAttachmentUploader struct {
 	userID     string
 	calendarID string
 	itemID     string
-	service    graph.Service
+	service    graph.Servicer
 }
 
 func (eau *eventAttachmentUploader) getItemID() string {

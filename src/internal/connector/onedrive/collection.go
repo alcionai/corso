@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -51,15 +52,16 @@ type Collection struct {
 	// M365 ID of the drive this collection was created from
 	driveID       string
 	source        driveSource
-	service       graph.Service
+	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
+	ctrl          control.Options
 }
 
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, itemID string,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
@@ -67,9 +69,10 @@ type itemReaderFunc func(
 func NewCollection(
 	folderPath path.Path,
 	driveID string,
-	service graph.Service,
+	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	source driveSource,
+	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
 		folderPath:    folderPath,
@@ -79,6 +82,7 @@ func NewCollection(
 		service:       service,
 		data:          make(chan data.Stream, collectionChannelBufferSize),
 		statusUpdater: statusUpdater,
+		ctrl:          ctrlOpts,
 	}
 
 	// Allows tests to set a mock populator
@@ -199,7 +203,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	}
 
 	for _, itemID := range oc.driveItemIDs {
-		if oc.service.ErrPolicy() && errs != nil {
+		if oc.ctrl.FailFast && errs != nil {
 			break
 		}
 

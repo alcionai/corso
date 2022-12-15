@@ -6,7 +6,6 @@ import (
 	"io"
 	stdpath "path"
 	"testing"
-	"unsafe"
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
@@ -116,10 +115,10 @@ func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
 
 			reversible := &restoreStreamReader{
 				expectedVersion: test.readVersion,
-				ReadCloser: &backupStreamReader{
-					version:    test.writeVersion,
-					ReadCloser: io.NopCloser(baseReader),
-				},
+				ReadCloser: newBackupStreamReader(
+					test.writeVersion,
+					io.NopCloser(baseReader),
+				),
 			}
 
 			defer reversible.Close()
@@ -165,11 +164,8 @@ func (suite *VersionReadersUnitSuite) TestWriteHandlesShortReads() {
 	inputData := []byte("This is some data for the reader to test with")
 	version := uint32(42)
 	baseReader := bytes.NewReader(inputData)
-	versioner := &backupStreamReader{
-		version:    version,
-		ReadCloser: io.NopCloser(baseReader),
-	}
-	expectedToWrite := len(inputData) + int(unsafe.Sizeof(versioner.version))
+	versioner := newBackupStreamReader(version, io.NopCloser(baseReader))
+	expectedToWrite := len(inputData) + int(versionSize)
 
 	// "Write" all the data.
 	versionedData, writtenLen := readAllInParts(t, 1, versioner)
@@ -443,14 +439,6 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 		user1Encoded: 5,
 		user2Encoded: 42,
 	}
-	expectedServiceCats := map[string]struct{}{
-		serviceCatTag(suite.testPath): {},
-		serviceCatTag(p2):             {},
-	}
-	expectedResourceOwners := map[string]struct{}{
-		suite.testPath.ResourceOwner(): {},
-		p2.ResourceOwner():             {},
-	}
 
 	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
@@ -476,11 +464,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, oc, err := inflateDirTree(ctx, collections, progress)
+	dirTree, err := inflateDirTree(ctx, collections, progress)
 	require.NoError(t, err)
-
-	assert.Equal(t, expectedServiceCats, oc.ServiceCats)
-	assert.Equal(t, expectedResourceOwners, oc.ResourceOwners)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
@@ -521,15 +506,6 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 	p2, err := suite.testPath.Append(subdir, false)
 	require.NoError(suite.T(), err)
-
-	expectedServiceCats := map[string]struct{}{
-		serviceCatTag(suite.testPath): {},
-		serviceCatTag(p2):             {},
-	}
-	expectedResourceOwners := map[string]struct{}{
-		suite.testPath.ResourceOwner(): {},
-		p2.ResourceOwner():             {},
-	}
 
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
@@ -577,11 +553,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		suite.T().Run(test.name, func(t *testing.T) {
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, oc, err := inflateDirTree(ctx, test.layout, progress)
+			dirTree, err := inflateDirTree(ctx, test.layout, progress)
 			require.NoError(t, err)
-
-			assert.Equal(t, expectedServiceCats, oc.ServiceCats)
-			assert.Equal(t, expectedResourceOwners, oc.ResourceOwners)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
@@ -678,7 +651,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, _, err := inflateDirTree(ctx, test.layout, nil)
+			_, err := inflateDirTree(ctx, test.layout, nil)
 			assert.Error(t, err)
 		})
 	}

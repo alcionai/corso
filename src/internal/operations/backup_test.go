@@ -262,7 +262,7 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoOperationTests,
-		"flomp",
+		tester.CorsoOperationBackupTests,
 	); err != nil {
 		t.Skip(err)
 	}
@@ -322,16 +322,21 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	m365UserID := tester.M365UserID(suite.T())
 
 	tests := []struct {
-		name       string
-		selectFunc func() *selectors.ExchangeBackup
+		name          string
+		selectFunc    func() *selectors.ExchangeBackup
+		resourceOwner string
+		category      path.CategoryType
 	}{
 		{
 			name: "Integration Exchange.Mail",
 			selectFunc: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+
 				return sel
 			},
+			resourceOwner: m365UserID,
+			category:      path.EmailCategory,
 		},
 		{
 			name: "Integration Exchange.Contacts",
@@ -341,8 +346,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 					[]string{m365UserID},
 					[]string{exchange.DefaultContactFolder},
 					selectors.PrefixMatch()))
+
 				return sel
 			},
+			resourceOwner: m365UserID,
+			category:      path.ContactsCategory,
 		},
 		{
 			name: "Integration Exchange.Events",
@@ -351,6 +359,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				sel.Include(sel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
+			resourceOwner: m365UserID,
+			category:      path.EventsCategory,
 		},
 	}
 	for _, test := range tests {
@@ -392,13 +402,37 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				mb.CalledWith[events.BackupStart][0][events.BackupID],
 				bo.Results.BackupID, "backupID pre-declaration")
 
-			// Check that metadata files with delta tokens were created. Currently
-			// these files will only be made for contacts and email in Exchange if any
-			// items were backed up. Events does not support delta queries.
+			// verify that we can find the new backup id in the manifests
+			var (
+				sck, scv = kopia.MakeServiceCat(sel.PathService(), test.category)
+				oc       = &kopia.OwnersCats{
+					ResourceOwners: map[string]struct{}{test.resourceOwner: {}},
+					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
+				}
+				tags  = map[string]string{kopia.TagBackupCategory: ""}
+				found bool
+			)
+
+			mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
+			assert.NoError(t, err)
+
+			for _, man := range mans {
+				tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
+				if man.Tags[tk] == string(bo.Results.BackupID) {
+					found = true
+					break
+				}
+			}
+
+			assert.True(t, found, "backup retrieved by previous snapshot manifest")
+
 			if failed {
 				return
 			}
 
+			// Check that metadata files with delta tokens were created. Currently
+			// these files will only be made for contacts and email in Exchange if any
+			// items were backed up. Events does not support delta queries.
 			m365, err := acct.M365Config()
 			require.NoError(t, err)
 

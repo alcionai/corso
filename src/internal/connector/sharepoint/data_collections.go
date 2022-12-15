@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -20,12 +21,6 @@ type statusUpdater interface {
 	UpdateStatus(status *support.ConnectorOperationStatus)
 }
 
-type connector interface {
-	statusUpdater
-
-	Service() graph.Service
-}
-
 // DataCollections returns a set of DataCollection which represents the SharePoint data
 // for the specified user
 func DataCollections(
@@ -33,7 +28,9 @@ func DataCollections(
 	selector selectors.Selector,
 	siteIDs []string,
 	tenantID string,
-	con connector,
+	serv graph.Servicer,
+	su statusUpdater,
+	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
@@ -43,7 +40,6 @@ func DataCollections(
 	var (
 		scopes      = b.DiscreteScopes(siteIDs)
 		collections = []data.Collection{}
-		serv        = con.Service()
 		errs        error
 	)
 
@@ -67,7 +63,8 @@ func DataCollections(
 					tenantID,
 					site,
 					scope,
-					con)
+					su,
+					ctrlOpts)
 				if err != nil {
 					return nil, support.WrapAndAppend(site, err, errs)
 				}
@@ -86,10 +83,11 @@ func DataCollections(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	serv graph.Service,
+	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
+	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	var (
 		collections = []data.Collection{}
@@ -104,7 +102,8 @@ func collectLibraries(
 		onedrive.SharePointSource,
 		folderMatcher{scope},
 		serv,
-		updater.UpdateStatus)
+		updater.UpdateStatus,
+		ctrlOpts)
 
 	odcs, err := colls.Get(ctx)
 	if err != nil {

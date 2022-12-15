@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -37,7 +36,7 @@ import (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	graphService
+	Service     graph.Servicer
 	tenant      string
 	Users       map[string]string // key<email> value<id>
 	Sites       map[string]string // key<???> value<???>
@@ -50,31 +49,6 @@ type GraphConnector struct {
 	// mutex used to synchronize updates to `status`
 	mu     sync.Mutex
 	status support.ConnectorOperationStatus // contains the status of the last run status
-}
-
-// Service returns the GC's embedded graph.Service
-func (gc *GraphConnector) Service() graph.Service {
-	return gc.graphService
-}
-
-var _ graph.Service = &graphService{}
-
-type graphService struct {
-	client   msgraphsdk.GraphServiceClient
-	adapter  msgraphsdk.GraphRequestAdapter
-	failFast bool // if true service will exit sequence upon encountering an error
-}
-
-func (gs graphService) Client() *msgraphsdk.GraphServiceClient {
-	return &gs.client
-}
-
-func (gs graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return &gs.adapter
-}
-
-func (gs graphService) ErrPolicy() bool {
-	return gs.failFast
 }
 
 type resource int
@@ -99,12 +73,12 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 		credentials: m365,
 	}
 
-	aService, err := gc.createService(false)
+	gService, err := gc.createService()
 	if err != nil {
 		return nil, errors.Wrap(err, "creating service connection")
 	}
 
-	gc.graphService = *aService
+	gc.Service = gService
 
 	// TODO(ashmrtn): When selectors only encapsulate a single resource owner that
 	// is not a wildcard don't populate users or sites when making the connector.
@@ -126,27 +100,17 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 }
 
 // createService constructor for graphService component
-func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
+func (gc *GraphConnector) createService() (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		gc.credentials.AzureTenantID,
 		gc.credentials.AzureClientID,
 		gc.credentials.AzureClientSecret,
 	)
 	if err != nil {
-		return nil, err
+		return &graph.Service{}, err
 	}
 
-	connector := graphService{
-		adapter:  *adapter,
-		client:   *msgraphsdk.NewGraphServiceClient(adapter),
-		failFast: shouldFailFast,
-	}
-
-	return &connector, nil
-}
-
-func (gs *graphService) EnableFailFast() {
-	gs.failFast = true
+	return graph.NewService(adapter), nil
 }
 
 // setTenantUsers queries the M365 to identify the users in the
@@ -156,7 +120,7 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := discovery.Users(ctx, gc.graphService, gc.tenant)
+	users, err := discovery.Users(ctx, gc.Service, gc.tenant)
 	if err != nil {
 		return err
 	}
@@ -191,7 +155,7 @@ func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
 
 	sites, err := getResources(
 		ctx,
-		gc.graphService,
+		gc.Service,
 		gc.tenant,
 		sharepoint.GetAllSitesForTenant,
 		models.CreateSiteCollectionResponseFromDiscriminatorValue,
@@ -320,11 +284,11 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs, deets)
+		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.Service, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs, deets)
+		status, err = onedrive.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, gc, dest, dcs, deets)
+		status, err = sharepoint.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
 	default:
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
@@ -380,9 +344,9 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 
 func getResources(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	tenantID string,
-	query func(context.Context, graph.Service) (serialization.Parsable, error),
+	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
 	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
 	identify func(any) (string, string, error),
 ) (map[string]string, error) {

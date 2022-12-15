@@ -25,7 +25,7 @@ func Users(ctx context.Context, m365Account account.Account) ([]*User, error) {
 		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
 	}
 
-	users, err := discovery.Users(ctx, gc.Service(), m365Account.ID())
+	users, err := discovery.Users(ctx, gc.Service, m365Account.ID())
 	if err != nil {
 		return nil, err
 	}

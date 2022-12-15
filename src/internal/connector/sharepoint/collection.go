@@ -40,13 +40,13 @@ type Collection struct {
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
 	// M365 IDs of the items of this collection
-	service       graph.Service
+	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 }
 
 func NewCollection(
 	folderPath path.Path,
-	service graph.Service,
+	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 ) *Collection {
 	c := &Collection{

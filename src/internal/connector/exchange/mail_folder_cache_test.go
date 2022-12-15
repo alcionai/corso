@@ -26,7 +26,7 @@ const (
 
 type MailFolderCacheIntegrationSuite struct {
 	suite.Suite
-	gs graph.Service
+	gs graph.Servicer
 }
 
 func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
@@ -41,7 +41,7 @@ func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createService(m365, false)
+	service, err := createService(m365)
 	require.NoError(t, err)
 
 	suite.gs = service

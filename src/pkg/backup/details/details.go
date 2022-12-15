@@ -115,13 +115,14 @@ type Details struct {
 	knownFolders map[string]struct{} `json:"-"`
 }
 
-func (d *Details) Add(repoRef, shortRef, parentRef string, info ItemInfo) {
+func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Entries = append(d.Entries, DetailsEntry{
 		RepoRef:   repoRef,
 		ShortRef:  shortRef,
 		ParentRef: parentRef,
+		Updated:   updated,
 		ItemInfo:  info,
 	})
 }
@@ -163,6 +164,9 @@ type DetailsEntry struct {
 	RepoRef   string `json:"repoRef"`
 	ShortRef  string `json:"shortRef"`
 	ParentRef string `json:"parentRef,omitempty"`
+	// Indicates the item was added or updated in this backup
+	// Always `true` for full backups
+	Updated bool `json:"updated"`
 	ItemInfo
 }
 
@@ -355,7 +359,7 @@ type SharePointInfo struct {
 	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `josn:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
-	ParentPath string    `json:"parentPath"`
+	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
 	WebURL     string    `json:"webUrl,omitempty"`
 }
@@ -363,13 +367,20 @@ type SharePointInfo struct {
 // Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i SharePointInfo) Headers() []string {
-	return []string{}
+	return []string{"ItemName", "ParentPath", "Size", "WebURL", "Created", "Modified"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i SharePointInfo) Values() []string {
-	return []string{}
+	return []string{
+		i.ItemName,
+		i.ParentPath,
+		humanize.Bytes(uint64(i.Size)),
+		i.WebURL,
+		common.FormatTabularDisplayTime(i.Created),
+		common.FormatTabularDisplayTime(i.Modified),
+	}
 }
 
 // OneDriveInfo describes a oneDrive item
@@ -393,7 +404,11 @@ func (i OneDriveInfo) Headers() []string {
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
 	return []string{
-		i.ItemName, i.ParentPath, humanize.Bytes(uint64(i.Size)), i.Owner,
-		common.FormatTabularDisplayTime(i.Created), common.FormatTabularDisplayTime(i.Modified),
+		i.ItemName,
+		i.ParentPath,
+		humanize.Bytes(uint64(i.Size)),
+		i.Owner,
+		common.FormatTabularDisplayTime(i.Created),
+		common.FormatTabularDisplayTime(i.Modified),
 	}
 }

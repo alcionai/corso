@@ -13,22 +13,47 @@ import (
 // given endpoint. The endpoint granularity varies by service.
 const DeltaTokenFileName = "delta"
 
+// MetadataFileNames produces the standard set of filenames used to store graph
+// metadata such as delta tokens and folderID->path references.
+func MetadataFileNames() []string {
+	return []string{DeltaTokenFileName}
+}
+
 type QueryParams struct {
 	Category      path.CategoryType
 	ResourceOwner string
 	Credentials   account.M365Config
-	FailFast      bool
 }
 
-type Service interface {
+var _ Servicer = &Service{}
+
+type Service struct {
+	adapter *msgraphsdk.GraphRequestAdapter
+	client  *msgraphsdk.GraphServiceClient
+}
+
+func NewService(adapter *msgraphsdk.GraphRequestAdapter) *Service {
+	return &Service{
+		adapter: adapter,
+		client:  msgraphsdk.NewGraphServiceClient(adapter),
+	}
+}
+
+func (s Service) Adapter() *msgraphsdk.GraphRequestAdapter {
+	return s.adapter
+}
+
+func (s Service) Client() *msgraphsdk.GraphServiceClient {
+	return s.client
+}
+
+type Servicer interface {
 	// Client() returns msgraph Service client that can be used to process and execute
 	// the majority of the queries to the M365 Backstore
 	Client() *msgraphsdk.GraphServiceClient
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
 	Adapter() *msgraphsdk.GraphRequestAdapter
-	// ErrPolicy returns if the service is implementing a Fast-Fail policy or not
-	ErrPolicy() bool
 }
 
 // Idable represents objects that implement msgraph-sdk-go/models.entityable

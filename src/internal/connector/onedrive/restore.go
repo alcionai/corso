@@ -50,7 +50,7 @@ func toOneDrivePath(p path.Path) (*drivePath, error) {
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
 	deets *details.Details,
@@ -91,7 +91,7 @@ func RestoreCollections(
 // - the context cancellation state (true if the context is cancelled)
 func RestoreCollection(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	dc data.Collection,
 	source driveSource,
 	restoreContainerName string,
@@ -171,6 +171,7 @@ func RestoreCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				true,
 				itemInfo)
 
 			metrics.Successes++
@@ -180,7 +181,7 @@ func RestoreCollection(
 
 // createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
 // of the last folder entry in the hiearchy
-func createRestoreFolders(ctx context.Context, service graph.Service, driveID string, restoreFolders []string,
+func createRestoreFolders(ctx context.Context, service graph.Servicer, driveID string, restoreFolders []string,
 ) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
@@ -226,7 +227,7 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 // restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreItem(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,

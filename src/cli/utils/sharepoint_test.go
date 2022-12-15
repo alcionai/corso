@@ -19,8 +19,6 @@ func TestSharePointUtilsSuite(t *testing.T) {
 }
 
 func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
-	suite.T().Skip("just until next PR")
-
 	var (
 		empty             = []string{}
 		single            = []string{"single"}
@@ -43,7 +41,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      empty,
 			},
-			expectIncludeLen: 0,
+			expectIncludeLen: 1,
 		},
 		{
 			name: "single inputs",
@@ -53,7 +51,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        single,
 				WebURLs:      single,
 			},
-			expectIncludeLen: 1,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "multi inputs",
@@ -63,7 +61,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        multi,
 				WebURLs:      multi,
 			},
-			expectIncludeLen: 1,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "library contains",

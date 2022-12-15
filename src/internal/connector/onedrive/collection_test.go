@@ -17,13 +17,14 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type CollectionUnitTestSuite struct {
 	suite.Suite
 }
 
-// Allows `*CollectionUnitTestSuite` to be used as a graph.Service
+// Allows `*CollectionUnitTestSuite` to be used as a graph.Servicer
 // TODO: Implement these methods
 
 func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
@@ -32,10 +33,6 @@ func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
 
 func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
-}
-
-func (suite *CollectionUnitTestSuite) ErrPolicy() bool {
-	return false
 }
 
 func TestCollectionUnitTestSuite(t *testing.T) {
@@ -71,7 +68,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:   "oneDrive",
 			source: OneDriveSource,
-			itemReader: func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -84,7 +81,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:   "sharePoint",
 			source: SharePointSource,
-			itemReader: func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -108,7 +105,13 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			driveFolderPath, err := getDriveFolderPath(folderPath)
 			require.NoError(t, err)
 
-			coll := NewCollection(folderPath, "drive-id", suite, suite.testStatusUpdater(&wg, &collStatus), test.source)
+			coll := NewCollection(
+				folderPath,
+				"drive-id",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{})
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
 
@@ -173,12 +176,18 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
 			require.NoError(t, err)
 
-			coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus), test.source)
+			coll := NewCollection(
+				folderPath,
+				"fakeDriveID",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{})
 			coll.Add("testItemID")
 
 			readError := errors.New("Test error")
 
-			coll.itemReader = func(context.Context, graph.Service, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			coll.itemReader = func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, readError
 			}
 

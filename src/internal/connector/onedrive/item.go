@@ -26,7 +26,7 @@ const (
 // and using a http client to initialize a reader
 func sharePointItemReader(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, itemID string,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
@@ -46,7 +46,7 @@ func sharePointItemReader(
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, itemID string,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
@@ -66,7 +66,7 @@ func oneDriveItemReader(
 // and using a http client to initialize a reader
 func driveItemReader(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, itemID string,
 ) (models.DriveItemable, io.ReadCloser, error) {
 	logger.Ctx(ctx).Debugw("Reading Item", "id", itemID, "time", time.Now())
@@ -161,7 +161,7 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 // TODO: @vkamra verify if var session is the desired input
 func driveItemWriter(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {

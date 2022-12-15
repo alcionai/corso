@@ -3,7 +3,7 @@ import "animate.css";
 import loadable from "@loadable/component";
 import Hero from "./Hero";
 import Demo from "./Demo";
-import FourthSection from "./FourthSection";
+import CTA from "./CTA";
 import Cookies from "./Cookies";
 import KeyLoveFAQ from "./KeyLoveFAQ";
 
@@ -15,7 +15,7 @@ export function MainComp() {
       <Hero />
       <Demo />
       <KeyLoveFAQ />
-      <FourthSection />
+      <CTA />
       <BackToTopComp />
       <Cookies />
     </>
