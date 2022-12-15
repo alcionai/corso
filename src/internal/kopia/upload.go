@@ -157,6 +157,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
+		true,
 		d.info,
 	)
 
