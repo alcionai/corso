@@ -601,7 +601,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		selectors.PrefixMatch(),
 	))
 
-	cols, err := gc.DataCollections(ctx, sel.Selector, nil)
+	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
 	t.Logf("These are the numbers: %d", len(cols))
 	require.NoError(t, err)
 }
