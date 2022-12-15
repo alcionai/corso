@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/compression"
@@ -13,6 +14,7 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
+	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -47,6 +49,10 @@ var (
 	}
 )
 
+type snapshotLoader interface {
+	SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error)
+}
+
 type ErrorRepoAlreadyExists struct {
 	common.Err
 }
@@ -60,7 +66,10 @@ func IsRepoAlreadyExistsError(e error) bool {
 	return errors.As(e, &erae)
 }
 
-var _ snapshotManager = &conn{}
+var (
+	_ snapshotManager = &conn{}
+	_ snapshotLoader  = &conn{}
+)
 
 type conn struct {
 	storage storage.Storage
@@ -388,4 +397,8 @@ func (w *conn) LoadSnapshots(
 	ids []manifest.ID,
 ) ([]*snapshot.Manifest, error) {
 	return snapshot.LoadSnapshots(ctx, w.Repository, ids)
+}
+
+func (w *conn) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
+	return snapshotfs.SnapshotRoot(w.Repository, man)
 }
