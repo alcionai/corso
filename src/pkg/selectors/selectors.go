@@ -113,9 +113,15 @@ type Selector struct {
 
 // helper for specific selector instance constructors.
 func newSelector(s service, resourceOwners []string) Selector {
+	var owner string
+	if len(resourceOwners) == 1 {
+		owner = resourceOwners[0]
+	}
+
 	return Selector{
 		Service:        s,
 		ResourceOwners: filterize(scopeConfig{}, resourceOwners...),
+		DiscreteOwner:  owner,
 		Excludes:       []scope{},
 		Includes:       []scope{},
 	}

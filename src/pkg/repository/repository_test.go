@@ -193,7 +193,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err)
 
-	bo, err := r.NewBackup(ctx, selectors.Selector{})
+	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: "test"})
 	require.NoError(t, err)
 	require.NotNil(t, bo)
 }
@@ -213,7 +213,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err)
 
-	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{}, dest)
+	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, dest)
 	require.NoError(t, err)
 	require.NotNil(t, ro)
 }

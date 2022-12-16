@@ -256,13 +256,12 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		},
 	}
 
-	// gc := loadConnector(ctx, t, Users)
-
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			collections, err := createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -324,6 +323,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err := createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -351,6 +351,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err = createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				dps,
 				control.Options{},
@@ -395,6 +396,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	collections, err := createCollections(
 		ctx,
 		acct,
+		suite.user,
 		sel.Scopes()[0],
 		DeltaPaths{},
 		control.Options{},
@@ -462,6 +464,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 			edcs, err := createCollections(
 				ctx,
 				acct,
+				suite.user,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -546,6 +549,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			collections, err := createCollections(
 				ctx,
 				acct,
+				suite.user,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},

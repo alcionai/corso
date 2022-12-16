@@ -71,7 +71,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.MailFolders(selUsers, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-
+				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
 		},
@@ -79,11 +79,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			name: suite.user + " Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.ContactFolders(
-					selUsers,
-					[]string{exchange.DefaultContactFolder},
-					selectors.PrefixMatch()))
-
+				sel.Include(sel.ContactFolders(selUsers, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
 		},
@@ -91,12 +88,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		// 	name: suite.user + " Events",
 		// 	getSelector: func(t *testing.T) selectors.Selector {
 		// 		sel := selectors.NewExchangeBackup(selUsers)
-		// 		sel.Include(sel.EventCalendars(
-		// 			selUsers,
-		// 			[]string{exchange.DefaultCalendar},
-		// 			selectors.PrefixMatch(),
-		// 		))
-
+		// 		sel.Include(sel.EventCalendars(selUsers, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+		// 		sel.DiscreteOwner = suite.user
 		// 		return sel.Selector
 		// 	},
 		// },
@@ -108,7 +101,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				ctx,
 				test.getSelector(t),
 				nil,
-				[]string{suite.user},
 				connector.credentials,
 				connector.UpdateStatus,
 				control.Options{})

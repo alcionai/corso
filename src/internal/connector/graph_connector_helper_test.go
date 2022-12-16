@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -777,14 +778,14 @@ func makeExchangeBackupSel(
 	dests []destAndCats,
 ) selectors.Selector {
 	toInclude := [][]selectors.ExchangeScope{}
-	resourceOwners := []string{}
+	resourceOwners := map[string]struct{}{}
 
 	for _, d := range dests {
 		for c := range d.cats {
 			sel := selectors.NewExchangeBackup(nil)
 			builder := sel.MailFolders
 
-			resourceOwners = append(resourceOwners, d.resourceOwner)
+			resourceOwners[d.resourceOwner] = struct{}{}
 
 			switch c {
 			case path.ContactsCategory:
@@ -802,7 +803,7 @@ func makeExchangeBackupSel(
 		}
 	}
 
-	sel := selectors.NewExchangeBackup(resourceOwners)
+	sel := selectors.NewExchangeBackup(maps.Keys(resourceOwners))
 	sel.Include(toInclude...)
 
 	return sel.Selector
