@@ -260,6 +260,8 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
+	suite.T().Skip("temporary skip on e2e smoke tests")
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
