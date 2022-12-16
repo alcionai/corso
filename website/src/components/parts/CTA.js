@@ -46,7 +46,7 @@ export default function CTA() {
                           minutes.
                         </p>
                         <a
-                          href="docs/quickstart"
+                          href="docs/quickstart/"
                           className="!text-white !no-underline flex flex-row items-center !hover:text-white"
                         >
                           Get Started{" "}
