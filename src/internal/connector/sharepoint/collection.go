@@ -41,7 +41,7 @@ type Collection struct {
 	data chan data.Stream
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
-	// jobs contain the SharePoint.SiteID for the associated list(s).
+	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
 	jobs []string
 	// M365 IDs of the items of this collection
 	service       graph.Servicer
@@ -159,51 +159,48 @@ func (sc *Collection) populate(ctx context.Context) {
 		sc.finishPopulation(ctx, objects, success, totalBytes, errs)
 	}()
 
-	// sc.jobs contains query = all of the site IDs.
-	for _, id := range sc.jobs {
-		// Retrieve list data from M365
-		lists, err := loadSiteLists(ctx, sc.service, id)
-		objects += len(lists)
+	// Retrieve list data from M365
+	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
+	if err != nil {
+		errs = support.WrapAndAppend(sc.fullPath.ResourceOwner(), err, errs)
+	}
 
+	objects += len(lists)
+	// Write Data and Send
+	for _, lst := range lists {
+		err = writer.WriteObjectValue("", lst)
 		if err != nil {
-			errs = support.WrapAndAppend(id, err, errs)
+			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
+			continue
 		}
-		// Write Data and Send
-		for _, lst := range lists {
-			err = writer.WriteObjectValue("", lst)
-			if err != nil {
-				errs = support.WrapAndAppend(*lst.GetId(), err, errs)
-				continue
+
+		byteArray, err := writer.GetSerializedContent()
+		if err != nil {
+			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
+			continue
+		}
+
+		writer.Close()
+
+		arrayLength = int64(len(byteArray))
+
+		if arrayLength > 0 {
+			t := time.Now()
+			if t1 := lst.GetLastModifiedDateTime(); t1 != nil {
+				t = *t1
 			}
 
-			byteArray, err := writer.GetSerializedContent()
-			if err != nil {
-				errs = support.WrapAndAppend(*lst.GetId(), err, errs)
-				continue
+			totalBytes += arrayLength
+
+			success++
+			sc.data <- &Item{
+				id:      *lst.GetId(),
+				data:    io.NopCloser(bytes.NewReader(byteArray)),
+				info:    sharePointListInfo(lst, arrayLength),
+				modTime: t,
 			}
 
-			writer.Close()
-
-			arrayLength = int64(len(byteArray))
-
-			if arrayLength > 0 {
-				t := time.Now()
-				if t1 := lst.GetLastModifiedDateTime(); t1 != nil {
-					t = *t1
-				}
-
-				totalBytes += arrayLength
-
-				success++
-				sc.data <- &Item{
-					id:      *lst.GetId(),
-					data:    io.NopCloser(bytes.NewReader(byteArray)),
-					info:    sharePointListInfo(lst, arrayLength),
-					modTime: t,
-				}
-
-				colProgress <- struct{}{}
-			}
+			colProgress <- struct{}{}
 		}
 	}
 }
