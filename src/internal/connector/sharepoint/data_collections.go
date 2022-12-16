@@ -123,8 +123,6 @@ func collectLists(
 			collection := NewCollection(dir, serv, updater.UpdateStatus)
 			collection.AddJob(listID)
 
-			fmt.Printf("Collection:\nPath: %v\nJobs: %v\n", collection.fullPath, collection.jobs)
-
 			spcs = append(spcs, collection)
 		}
 
