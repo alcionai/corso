@@ -34,16 +34,21 @@ var (
 	_ data.StreamModTime = &Item{}
 )
 
+// Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
+// by the oneDrive.Collection as the calls are identical for populating the Collection
 type Collection struct {
+	// data is the container for each individual SharePoint.List
 	data chan data.Stream
-	jobs []string
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
+	// jobs contain the SharePoint.SiteID for the associated list(s).
+	jobs []string
 	// M365 IDs of the items of this collection
 	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 }
 
+// NewCollection helper function for creating a Collection
 func NewCollection(
 	folderPath path.Path,
 	service graph.Servicer,
@@ -130,7 +135,10 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 		errs,
 		sc.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
-	sc.statusUpdater(status)
+
+	if sc.statusUpdater != nil {
+		sc.statusUpdater(status)
+	}
 }
 
 // populate utility function to retrieve data from back store for a given collection
