@@ -522,19 +522,24 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			collections := test.getCollection(t)
 			require.Equal(t, len(collections), 2)
 
-			edc := collections[0]
-			assert.Equal(t, edc.FullPath().Folder(), test.expected)
+			for _, edc := range collections {
+				if edc.FullPath().Service() != path.ExchangeMetadataService {
+					assert.Equal(t, test.expected, edc.FullPath().Folder())
+				} else {
+					assert.Equal(t, "", edc.FullPath().Folder())
+				}
 
-			streamChannel := edc.Items()
+				streamChannel := edc.Items()
 
-			for stream := range streamChannel {
-				buf := &bytes.Buffer{}
-				read, err := buf.ReadFrom(stream.ToReader())
-				assert.NoError(t, err)
-				assert.NotZero(t, read)
-				event, err := support.CreateEventFromBytes(buf.Bytes())
-				assert.NotNil(t, event)
-				assert.NoError(t, err, "experienced error parsing event bytes: "+buf.String())
+				for stream := range streamChannel {
+					buf := &bytes.Buffer{}
+					read, err := buf.ReadFrom(stream.ToReader())
+					assert.NoError(t, err)
+					assert.NotZero(t, read)
+					event, err := support.CreateEventFromBytes(buf.Bytes())
+					assert.NotNil(t, event)
+					assert.NoError(t, err, "experienced error parsing event bytes: "+buf.String())
+				}
 			}
 
 			status := connector.AwaitStatus()
