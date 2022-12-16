@@ -6,8 +6,12 @@ import (
 	"io"
 	stdpath "path"
 	"testing"
+	"time"
 
 	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/repo/manifest"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +24,159 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+func makePath(t *testing.T, elements []string) path.Path {
+	p, err := path.FromDataLayerPath(stdpath.Join(elements...), false)
+	require.NoError(t, err)
+
+	return p
+}
+
+// baseWithChildren returns an fs.Entry hierarchy where the first len(basic)
+// levels are the encoded values of basic in order. All items in children are
+// used as the direct descendents of the final entry in basic.
+func baseWithChildren(
+	basic []string,
+	children []fs.Entry,
+) fs.Entry {
+	if len(basic) == 0 {
+		return nil
+	}
+
+	if len(basic) == 1 {
+		return virtualfs.NewStaticDirectory(
+			encodeElements(basic[0])[0],
+			children,
+		)
+	}
+
+	return virtualfs.NewStaticDirectory(
+		encodeElements(basic[0])[0],
+		[]fs.Entry{
+			baseWithChildren(basic[1:], children),
+		},
+	)
+}
+
+type expectedNode struct {
+	name     string
+	children []*expectedNode
+	data     []byte
+}
+
+// expectedTreeWithChildren returns an expectedNode hierarchy where the first
+// len(basic) levels are the values of basic in order. All items in children are
+// made a direct descendent of the final entry in basic.
+func expectedTreeWithChildren(
+	basic []string,
+	children []*expectedNode,
+) *expectedNode {
+	if len(basic) == 0 {
+		return nil
+	}
+
+	if len(basic) == 1 {
+		return &expectedNode{
+			name:     basic[0],
+			children: children,
+		}
+	}
+
+	return &expectedNode{
+		name: basic[0],
+		children: []*expectedNode{
+			expectedTreeWithChildren(basic[1:], children),
+		},
+	}
+}
+
+// Currently only works for files that Corso has serialized as it expects a
+// version specifier at the start of the file.
+//
+//revive:disable:context-as-argument
+func expectFileData(
+	t *testing.T,
+	ctx context.Context,
+	expected []byte,
+	f fs.StreamingFile,
+) {
+	//revive:enable:context-as-argument
+	t.Helper()
+
+	if len(expected) == 0 {
+		return
+	}
+
+	name, err := decodeElement(f.Name())
+	if err != nil {
+		name = f.Name()
+	}
+
+	r, err := f.GetReader(ctx)
+	if !assert.NoErrorf(t, err, "getting reader for file: %s", name) {
+		return
+	}
+
+	// Need to wrap with a restore stream reader to remove the version.
+	r = &restoreStreamReader{
+		ReadCloser:      io.NopCloser(r),
+		expectedVersion: serializationVersion,
+	}
+
+	got, err := io.ReadAll(r)
+	if !assert.NoErrorf(t, err, "reading data in file: %s", name) {
+		return
+	}
+
+	assert.Equalf(t, expected, got, "data in file: %s", name)
+}
+
+//revive:disable:context-as-argument
+func expectTree(
+	t *testing.T,
+	ctx context.Context,
+	expected *expectedNode,
+	got fs.Entry,
+) {
+	//revive:enable:context-as-argument
+	t.Helper()
+
+	if expected == nil {
+		return
+	}
+
+	names := make([]string, 0, len(expected.children))
+	mapped := make(map[string]*expectedNode, len(expected.children))
+
+	for _, child := range expected.children {
+		encoded := encodeElements(child.name)[0]
+
+		names = append(names, encoded)
+		mapped[encoded] = child
+	}
+
+	entries := getDirEntriesForEntry(t, ctx, got)
+	expectDirs(t, entries, names, true)
+
+	for _, e := range entries {
+		expectedSubtree := mapped[e.Name()]
+		if !assert.NotNil(t, expectedSubtree) {
+			continue
+		}
+
+		if f, ok := e.(fs.StreamingFile); ok {
+			expectFileData(t, ctx, expectedSubtree.data, f)
+			continue
+		}
+
+		dir, ok := e.(fs.Directory)
+		if !ok {
+			continue
+		}
+
+		expectTree(t, ctx, expectedSubtree, dir)
+	}
+}
 
 func expectDirs(
 	t *testing.T,
@@ -49,7 +206,7 @@ func getDirEntriesForEntry(
 ) []fs.Entry {
 	//revive:enable:context-as-argument
 	d, ok := entry.(fs.Directory)
-	require.True(t, ok, "returned entry is not a directory")
+	require.True(t, ok, "entry is not a directory")
 
 	entries, err := fs.GetAllEntries(ctx, d)
 	require.NoError(t, err)
@@ -390,19 +547,10 @@ type HierarchyBuilderUnitSuite struct {
 }
 
 func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
-	tmp, err := path.FromDataLayerPath(
-		stdpath.Join(
-			testTenant,
-			path.ExchangeService.String(),
-			testUser,
-			path.EmailCategory.String(),
-			testInboxDir,
-		),
-		false,
+	suite.testPath = makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
 	)
-	require.NoError(suite.T(), err)
-
-	suite.testPath = tmp
 }
 
 func TestHierarchyBuilderUnitSuite(t *testing.T) {
@@ -422,17 +570,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	user2 := "user2"
 	user2Encoded := encodeAsPath(user2)
 
-	p2, err := path.FromDataLayerPath(
-		stdpath.Join(
-			tenant,
-			service,
-			user2,
-			category,
-			testInboxDir,
-		),
-		false,
-	)
-	require.NoError(t, err)
+	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir})
 
 	// Encode user names here so we don't have to decode things later.
 	expectedFileCount := map[string]int{
@@ -464,7 +602,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, err := inflateDirTree(ctx, collections, progress)
+	dirTree, err := inflateDirTree(ctx, nil, nil, collections, progress)
 	require.NoError(t, err)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -504,8 +642,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 	subdir := "subfolder"
 
-	p2, err := suite.testPath.Append(subdir, false)
-	require.NoError(suite.T(), err)
+	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir))
 
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
@@ -553,7 +690,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		suite.T().Run(test.name, func(t *testing.T) {
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, err := inflateDirTree(ctx, test.layout, progress)
+			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, progress)
 			require.NoError(t, err)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -597,13 +734,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
-	p2, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
-		"tenant2",
-		"user2",
-		path.EmailCategory,
-		false,
+	p2 := makePath(
+		suite.T(),
+		[]string{"tenant2", service, "user2", category, testInboxDir},
 	)
-	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name   string
@@ -651,8 +785,1008 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := inflateDirTree(ctx, test.layout, nil)
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil)
 			assert.Error(t, err)
 		})
 	}
+}
+
+type mockSnapshotWalker struct {
+	snapshotRoot fs.Entry
+}
+
+func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error) {
+	return msw.snapshotRoot, nil
+}
+
+func mockSnapshotEntry(
+	id, resourceOwner string,
+	service path.ServiceType,
+	category path.CategoryType,
+) *ManifestEntry {
+	return &ManifestEntry{
+		Manifest: &snapshot.Manifest{
+			ID: manifest.ID(id),
+		},
+		Reasons: []Reason{
+			{
+				ResourceOwner: resourceOwner,
+				Service:       service,
+				Category:      category,
+			},
+		},
+	}
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
+	dirPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	getBaseSnapshot := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+				category,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(testInboxDir)[0],
+					[]fs.Entry{
+						virtualfs.StreamingFileWithModTimeFromReader(
+							encodeElements(testFileName)[0],
+							time.Time{},
+							bytes.NewReader(testFileData),
+						),
+					},
+				),
+			},
+		)
+	}
+
+	table := []struct {
+		name             string
+		inputCollections func() []data.Collection
+		expected         *expectedNode
+	}{
+		{
+			name: "SkipsDeletedItems",
+			inputCollections: func() []data.Collection {
+				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc.Names[0] = testFileName
+				mc.DeletedItems[0] = true
+
+				return []data.Collection{mc}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name:     testInboxDir,
+						children: []*expectedNode{},
+					},
+				},
+			),
+		},
+		{
+			name: "AddsNewItems",
+			inputCollections: func() []data.Collection {
+				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc.Names[0] = testFileName2
+				mc.Data[0] = testFileData2
+				mc.ColState = data.NotMovedState
+
+				return []data.Collection{mc}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName,
+								children: []*expectedNode{},
+							},
+							{
+								name:     testFileName2,
+								children: []*expectedNode{},
+								data:     testFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "SkipsUpdatedItems",
+			inputCollections: func() []data.Collection {
+				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc.Names[0] = testFileName
+				mc.Data[0] = testFileData2
+				mc.ColState = data.NotMovedState
+
+				return []data.Collection{mc}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName,
+								children: []*expectedNode{},
+								data:     testFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			tester.LogTimeOfTest(t)
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			msw := &mockSnapshotWalker{
+				snapshotRoot: getBaseSnapshot(),
+			}
+
+			dirTree, err := inflateDirTree(
+				ctx,
+				msw,
+				[]*ManifestEntry{
+					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				},
+				test.inputCollections(),
+				progress,
+			)
+			require.NoError(t, err)
+
+			expectTree(t, ctx, test.expected, dirTree)
+		})
+	}
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirectories() {
+	const (
+		personalDir = "personal"
+		workDir     = "work"
+	)
+
+	inboxPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+
+	personalPath := makePath(
+		suite.T(),
+		append(inboxPath.Elements(), personalDir),
+	)
+	personalFileName1 := testFileName
+	personalFileName2 := testFileName2
+
+	workPath := makePath(
+		suite.T(),
+		append(inboxPath.Elements(), workDir),
+	)
+	workFileName := testFileName3
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - personal
+	//             - file1
+	//             - file2
+	//           - work
+	//             - file3
+	getBaseSnapshot := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+				category,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(testInboxDir)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(personalDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(personalFileName1)[0],
+									time.Time{},
+									bytes.NewReader(testFileData),
+								),
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(personalFileName2)[0],
+									time.Time{},
+									bytes.NewReader(testFileData2),
+								),
+							},
+						),
+						virtualfs.NewStaticDirectory(
+							encodeElements(workDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(workFileName)[0],
+									time.Time{},
+									bytes.NewReader(testFileData3),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	table := []struct {
+		name             string
+		inputCollections func(t *testing.T) []data.Collection
+		expected         *expectedNode
+	}{
+		{
+			name: "MovesSubtree",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+				)
+
+				mc := mockconnector.NewMockExchangeCollection(newPath, 0)
+				mc.PrevPath = inboxPath
+				mc.ColState = data.MovedState
+
+				return []data.Collection{mc}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir + "2",
+						children: []*expectedNode{
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "MovesChildAfterAncestorMove",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newInboxPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+				)
+				newWorkPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, workDir},
+				)
+
+				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 0)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.MovedState
+
+				work := mockconnector.NewMockExchangeCollection(newWorkPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{inbox, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir + "2",
+						children: []*expectedNode{
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+					{
+						name: workDir,
+						children: []*expectedNode{
+							{
+								name:     workFileName,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "MovesChildAfterAncestorDelete",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newWorkPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, workDir},
+				)
+
+				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 0)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.DeletedState
+
+				work := mockconnector.NewMockExchangeCollection(newWorkPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{inbox, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: workDir,
+						children: []*expectedNode{
+							{
+								name:     workFileName,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "ReplaceDeletedDirectory",
+			inputCollections: func(t *testing.T) []data.Collection {
+				personal := mockconnector.NewMockExchangeCollection(personalPath, 0)
+				personal.PrevPath = personalPath
+				personal.ColState = data.DeletedState
+
+				work := mockconnector.NewMockExchangeCollection(personalPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{personal, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name: workFileName,
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "ReplaceMovedDirectory",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newPersonalPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, personalDir},
+				)
+
+				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 0)
+				personal.PrevPath = personalPath
+				personal.ColState = data.MovedState
+
+				work := mockconnector.NewMockExchangeCollection(personalPath, 0)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+
+				return []data.Collection{personal, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name: workFileName,
+									},
+								},
+							},
+						},
+					},
+					{
+						name: personalDir,
+						children: []*expectedNode{
+							{
+								name: personalFileName1,
+							},
+							{
+								name: personalFileName2,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "MoveDirectoryAndMergeItems",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newPersonalPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, workDir},
+				)
+
+				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 2)
+				personal.PrevPath = personalPath
+				personal.ColState = data.MovedState
+				personal.Names[0] = personalFileName2
+				personal.Data[0] = testFileData5
+				personal.Names[1] = testFileName4
+				personal.Data[1] = testFileData4
+
+				return []data.Collection{personal}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+					{
+						name: workDir,
+						children: []*expectedNode{
+							{
+								name: personalFileName1,
+							},
+							{
+								name: personalFileName2,
+								data: testFileData5,
+							},
+							{
+								name: testFileName4,
+								data: testFileData4,
+							},
+						},
+					},
+				},
+			),
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			tester.LogTimeOfTest(t)
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			msw := &mockSnapshotWalker{
+				snapshotRoot: getBaseSnapshot(),
+			}
+
+			dirTree, err := inflateDirTree(
+				ctx,
+				msw,
+				[]*ManifestEntry{
+					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				},
+				test.inputCollections(t),
+				progress,
+			)
+			require.NoError(t, err)
+
+			expectTree(t, ctx, test.expected, dirTree)
+		})
+	}
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtree() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const (
+		personalDir = "personal"
+		workDir     = "work"
+	)
+
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - personal
+	//             - file1
+	//           - work
+	//             - file2
+	//         - Archive
+	//           - personal
+	//             - file3
+	//           - work
+	//             - file4
+	getBaseSnapshot := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+				category,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(testInboxDir)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(personalDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName)[0],
+									time.Time{},
+									bytes.NewReader(testFileData),
+								),
+							},
+						),
+						virtualfs.NewStaticDirectory(
+							encodeElements(workDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName2)[0],
+									time.Time{},
+									bytes.NewReader(testFileData2),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(testArchiveDir)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(personalDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName3)[0],
+									time.Time{},
+									bytes.NewReader(testFileData3),
+								),
+							},
+						),
+						virtualfs.NewStaticDirectory(
+							encodeElements(workDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(testFileName4)[0],
+									time.Time{},
+									bytes.NewReader(testFileData4),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	expected := expectedTreeWithChildren(
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+		},
+		[]*expectedNode{
+			{
+				name: testArchiveDir,
+				children: []*expectedNode{
+					{
+						name: personalDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName3,
+								children: []*expectedNode{},
+							},
+						},
+					},
+					{
+						name: workDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName4,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+	mc := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
+	mc.PrevPath = mc.FullPath()
+	mc.ColState = data.DeletedState
+	msw := &mockSnapshotWalker{
+		snapshotRoot: getBaseSnapshot(),
+	}
+
+	collections := []data.Collection{mc}
+
+	// Returned directory structure should look like:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - emails
+	//         - Archive
+	//           - personal
+	//             - file3
+	//           - work
+	//             - file4
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]*ManifestEntry{
+			mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+		},
+		collections,
+		progress,
+	)
+	require.NoError(t, err)
+
+	expectTree(t, ctx, expected, dirTree)
+}
+
+type mockMultiSnapshotWalker struct {
+	snaps map[string]fs.Entry
+}
+
+func (msw *mockMultiSnapshotWalker) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
+	if snap := msw.snaps[string(man.ID)]; snap != nil {
+		return snap, nil
+	}
+
+	return nil, errors.New("snapshot not found")
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubtrees() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const contactsDir = "contacts"
+
+	inboxPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+
+	inboxFileName1 := testFileName
+	inboxFileName2 := testFileName2
+
+	inboxFileData1 := testFileData
+	inboxFileData1v2 := testFileData5
+	inboxFileData2 := testFileData2
+
+	contactsFileName1 := testFileName3
+	contactsFileData1 := testFileData3
+
+	eventsFileName1 := testFileName5
+	eventsFileData1 := testFileData
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1
+	//       - contacts
+	//         - contacts
+	//           - file2
+	getBaseSnapshot1 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									bytes.NewReader(inboxFileData1),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.ContactsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(contactsDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(contactsFileName1)[0],
+									time.Time{},
+									bytes.NewReader(contactsFileData1),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1 <- has different data version
+	//       - events
+	//         - events
+	//           - file3
+	getBaseSnapshot2 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									// Wrap with a backup reader so it gets the version injected.
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(inboxFileData1v2)),
+									),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.EventsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements("events")[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(eventsFileName1)[0],
+									time.Time{},
+									bytes.NewReader(eventsFileData1),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	// Check the following:
+	//   * contacts pulled from base1 unchanged even if no collections reference
+	//     it
+	//   * email pulled from base2
+	//   * new email added
+	//   * events not pulled from base2 as it's not listed as a Reason
+	//
+	// Expected output:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1 <- version of data from second base
+	//           - file2
+	//       - contacts
+	//         - contacts
+	//           - file2
+	expected := expectedTreeWithChildren(
+		[]string{
+			testTenant,
+			service,
+			testUser,
+		},
+		[]*expectedNode{
+			{
+				name: category,
+				children: []*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+								data:     inboxFileData1v2,
+							},
+							{
+								name:     inboxFileName2,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+						},
+					},
+				},
+			},
+			{
+				name: path.ContactsCategory.String(),
+				children: []*expectedNode{
+					{
+						name: contactsDir,
+						children: []*expectedNode{
+							{
+								name:     contactsFileName1,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+
+	mc := mockconnector.NewMockExchangeCollection(inboxPath, 1)
+	mc.PrevPath = mc.FullPath()
+	mc.ColState = data.NotMovedState
+	mc.Names[0] = inboxFileName2
+	mc.Data[0] = inboxFileData2
+
+	msw := &mockMultiSnapshotWalker{
+		snaps: map[string]fs.Entry{
+			"id1": getBaseSnapshot1(),
+			"id2": getBaseSnapshot2(),
+		},
+	}
+
+	collections := []data.Collection{mc}
+
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]*ManifestEntry{
+			mockSnapshotEntry("id1", testUser, path.ExchangeService, path.ContactsCategory),
+			mockSnapshotEntry("id2", testUser, path.ExchangeService, path.EmailCategory),
+		},
+		collections,
+		progress,
+	)
+	require.NoError(t, err)
+
+	expectTree(t, ctx, expected, dirTree)
 }

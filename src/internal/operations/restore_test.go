@@ -198,9 +198,9 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	suite.backupID = bo.Results.BackupID
-	// Remove delta metadata files for contacts and email as they are not part of
-	// the data restored.
-	suite.numItems = bo.Results.ItemsWritten - 2
+	// Discount metadata files (3 paths, 2 deltas) as
+	// they are not part of the data restored.
+	suite.numItems = bo.Results.ItemsWritten - 5
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
@@ -260,8 +260,6 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
-	suite.T().Skip("temporary skip on e2e smoke tests")
-
 	ctx, flush := tester.NewContext()
 	defer flush()
 
