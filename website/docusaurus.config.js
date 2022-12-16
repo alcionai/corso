@@ -163,6 +163,13 @@ const config = {
         },
       },
 
+      algolia: {
+        appId: 'EPJZU1WKE7',
+        apiKey: 'd432a94741013719fdd0d78275c7aa9c',
+        indexName: 'corsobackup',
+        contextualSearch: true,
+      },
+
       image: 'img/cloudbackup.png',
 
       metadata : [
