@@ -91,7 +91,7 @@ func loadSiteLists(
 			)
 		}
 
-		cols, cTypes, lItems, err := fetchRelationships(ctx, gs, siteID, listID)
+		cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, listID)
 		if err == nil {
 			entry.SetColumns(cols)
 			entry.SetContentTypes(cTypes)
@@ -111,9 +111,9 @@ func loadSiteLists(
 	return results, nil
 }
 
-// fetchRelationships utility function to retrieve associated relationships:
+// fetchListContents utility function to retrieve associated M365 relationships that are not included with the standard List query:
 // - Columns, ContentTypes, ListItems
-func fetchRelationships(
+func fetchListContents(
 	ctx context.Context,
 	service graph.Servicer,
 	siteID, listID string,
