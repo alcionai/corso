@@ -111,7 +111,8 @@ func loadSiteLists(
 	return results, nil
 }
 
-// fetchListContents utility function to retrieve associated M365 relationships that are not included with the standard List query:
+// fetchListContents utility function to retrieve associated M365 relationships
+// which are not included with the standard List query:
 // - Columns, ContentTypes, ListItems
 func fetchListContents(
 	ctx context.Context,
