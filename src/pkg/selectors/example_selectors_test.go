@@ -128,7 +128,7 @@ var (
 		DetailsModel: details.DetailsModel{
 			Entries: []details.DetailsEntry{
 				{
-					RepoRef:  "tID/exchange/uID/email/example/itemID",
+					RepoRef:  "tID/exchange/your-user-id/email/example/itemID",
 					ShortRef: "xyz",
 					ItemInfo: details.ItemInfo{
 						Exchange: &details.ExchangeInfo{
@@ -155,7 +155,7 @@ func Example_reduceDetails() {
 	// We haven't added any scopes to our selector yet, so none of the data is retained.
 	fmt.Println("Before adding scopes:", len(filteredDetails.Entries))
 
-	ser.Include(ser.Mails([]string{"uID"}, []string{"example"}, []string{"xyz"}))
+	ser.Include(ser.Mails([]string{"your-user-id"}, []string{"example"}, []string{"xyz"}))
 	ser.Filter(ser.MailSubject("the answer to life"))
 
 	// Now that we've selected our data, we should find a result.

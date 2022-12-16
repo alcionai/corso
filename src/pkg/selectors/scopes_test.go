@@ -129,15 +129,16 @@ func (suite *SelectorScopesSuite) TestIsAnyTarget() {
 }
 
 var reduceTestTable = []struct {
-	name         string
-	sel          func() mockSel
-	expectLen    int
-	expectPasses assert.BoolAssertionFunc
+	name               string
+	sel                func() mockSel
+	expectLen          int
+	expectPassesReduce assert.BoolAssertionFunc
+	expectPasses       assert.BoolAssertionFunc
 }{
 	{
-		name: "include all",
+		name: "include all resource owners",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
 			sel.Filters = nil
 			sel.Excludes = nil
 			return sel
@@ -146,9 +147,32 @@ var reduceTestTable = []struct {
 		expectPasses: assert.True,
 	},
 	{
-		name: "include none",
+		name: "include all scopes",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
+			sel.Filters = nil
+			sel.Excludes = nil
+			return sel
+		},
+		expectLen:    1,
+		expectPasses: assert.True,
+	},
+	{
+		name: "include none resource owners",
+		sel: func() mockSel {
+			sel := stubSelector(None())
+			sel.Includes[0] = scope(stubScope(AnyTgt))
+			sel.Filters = nil
+			sel.Excludes = nil
+			return sel
+		},
+		expectLen:    0,
+		expectPasses: assert.True, // passes() does not check owners
+	},
+	{
+		name: "include none scopes",
+		sel: func() mockSel {
+			sel := stubSelector(Any())
 			sel.Includes[0] = scope(stubScope("none"))
 			sel.Filters = nil
 			sel.Excludes = nil
@@ -160,7 +184,7 @@ var reduceTestTable = []struct {
 	{
 		name: "filter and include all",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
 			sel.Excludes = nil
 			return sel
 		},
@@ -170,7 +194,7 @@ var reduceTestTable = []struct {
 	{
 		name: "include all filter none",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
 			sel.Filters[0] = scope(stubInfoScope("none"))
 			sel.Excludes = nil
 			return sel
@@ -181,7 +205,7 @@ var reduceTestTable = []struct {
 	{
 		name: "include all exclude all",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
 			sel.Filters = nil
 			return sel
 		},
@@ -191,7 +215,7 @@ var reduceTestTable = []struct {
 	{
 		name: "include all exclude none",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
 			sel.Filters = nil
 			sel.Excludes[0] = scope(stubScope("none"))
 			return sel
@@ -202,7 +226,7 @@ var reduceTestTable = []struct {
 	{
 		name: "filter all exclude all",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
 			sel.Includes = nil
 			return sel
 		},
@@ -212,7 +236,7 @@ var reduceTestTable = []struct {
 	{
 		name: "filter all exclude none",
 		sel: func() mockSel {
-			sel := stubSelector()
+			sel := stubSelector(Any())
 			sel.Includes = nil
 			sel.Excludes[0] = scope(stubScope("none"))
 			return sel

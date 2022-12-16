@@ -782,10 +782,12 @@ func makeExchangeBackupSel(
 
 	for _, d := range dests {
 		for c := range d.cats {
+			resourceOwners[d.resourceOwner] = struct{}{}
+
+			// nil owners here, but we'll need to stitch this together
+			// below after the loops are complete.
 			sel := selectors.NewExchangeBackup(nil)
 			builder := sel.MailFolders
-
-			resourceOwners[d.resourceOwner] = struct{}{}
 
 			switch c {
 			case path.ContactsCategory:
@@ -814,12 +816,15 @@ func makeOneDriveBackupSel(
 	dests []destAndCats,
 ) selectors.Selector {
 	toInclude := [][]selectors.OneDriveScope{}
-	resourceOwners := []string{}
+	resourceOwners := map[string]struct{}{}
 
 	for _, d := range dests {
+		resourceOwners[d.resourceOwner] = struct{}{}
+
+		// nil owners here, we'll need to stitch this together
+		// below after the loops are complete.
 		sel := selectors.NewOneDriveBackup(nil)
 
-		resourceOwners = append(resourceOwners, d.resourceOwner)
 		toInclude = append(toInclude, sel.Folders(
 			[]string{d.resourceOwner},
 			[]string{d.dest},
@@ -827,7 +832,7 @@ func makeOneDriveBackupSel(
 		))
 	}
 
-	sel := selectors.NewOneDriveBackup(resourceOwners)
+	sel := selectors.NewOneDriveBackup(maps.Keys(resourceOwners))
 	sel.Include(toInclude...)
 
 	return sel.Selector

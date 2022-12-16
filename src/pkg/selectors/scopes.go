@@ -310,6 +310,11 @@ func reduce[T scopeT, C categoryT](
 			continue
 		}
 
+		// first check, every entry needs to match one of the selector's resource owners.
+		if !s.ResourceOwners.Compare(repoPath.ResourceOwner()) {
+			continue
+		}
+
 		dc, ok := dataCategories[repoPath.Category()]
 		if !ok {
 			continue

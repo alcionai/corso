@@ -153,8 +153,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := selectors.NewOneDriveRestore(nil) // TODO: generate selector in IncludeOneDriveRestoreDataSelectors
-	utils.IncludeOneDriveRestoreDataSelectors(sel, opts)
+	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
 	// if no selector flags were specified, get all data in the service.

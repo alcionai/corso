@@ -35,7 +35,7 @@ func (suite *SelectorSuite) TestBadCastErr() {
 func (suite *SelectorSuite) TestPrintable() {
 	t := suite.T()
 
-	sel := stubSelector()
+	sel := stubSelector(Any())
 	p := sel.Printable()
 
 	assert.Equal(t, sel.Service.String(), p.Service)
@@ -45,41 +45,58 @@ func (suite *SelectorSuite) TestPrintable() {
 }
 
 func (suite *SelectorSuite) TestPrintable_IncludedResources() {
-	t := suite.T()
-
-	sel := stubSelector()
-	p := sel.Printable()
-	res := p.Resources()
-
-	assert.Equal(t, "All", res, "stub starts out as an all-pass")
-
-	stubWithResource := func(resource string) scope {
-		ss := stubScope("")
-		ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
-
-		return scope(ss)
+	table := []struct {
+		name           string
+		resourceOwners []string
+		expect         func(string) bool
+		reason         string
+	}{
+		{
+			name:           "distinct",
+			resourceOwners: []string{"foo", "smarf", "fnords"},
+			expect: func(s string) bool {
+				return strings.HasSuffix(s, "(2 more)")
+			},
+			reason: "should end with (2 more)",
+		},
+		{
+			name:           "distinct",
+			resourceOwners: nil,
+			expect: func(s string) bool {
+				return strings.HasSuffix(s, "None")
+			},
+			reason: "no resource owners should produce None",
+		},
 	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := stubSelector(test.resourceOwners)
+			p := sel.Printable()
+			res := p.Resources()
 
-	sel.Includes = []scope{
-		stubWithResource("foo"),
-		stubWithResource("smarf"),
-		stubWithResource("fnords"),
+			assert.Equal(t, "All", res, "stub starts out as an all-pass")
+
+			stubWithResource := func(resource string) scope {
+				ss := stubScope("")
+				ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
+
+				return scope(ss)
+			}
+
+			sel.Includes = []scope{}
+			sel.Filters = []scope{}
+
+			for _, ro := range test.resourceOwners {
+				sel.Includes = append(sel.Includes, stubWithResource(ro))
+				sel.Filters = append(sel.Filters, stubWithResource(ro))
+			}
+
+			p = sel.Printable()
+			res = p.Resources()
+
+			assert.True(t, test.expect(res), test.reason)
+		})
 	}
-
-	p = sel.Printable()
-	res = p.Resources()
-
-	assert.True(t, strings.HasSuffix(res, "(2 more)"), "resource '"+res+"' should have (2 more) suffix")
-
-	p.Includes = nil
-	res = p.Resources()
-
-	assert.Equal(t, "All", res, "filters is also an all-pass")
-
-	p.Filters = nil
-	res = p.Resources()
-
-	assert.Equal(t, "None", res, "resource with no Includes or Filters should state None")
 }
 
 func (suite *SelectorSuite) TestToResourceTypeMap() {
