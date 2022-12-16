@@ -126,7 +126,7 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 func (gc *GraphConnector) createExchangeCollections(
 	ctx context.Context,
 	scope selectors.ExchangeScope,
-	deltas map[string]string,
+	dps exchange.DeltaPaths,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	var (
@@ -161,7 +161,7 @@ func (gc *GraphConnector) createExchangeCollections(
 			gc.UpdateStatus,
 			resolver,
 			scope,
-			deltas,
+			dps,
 			ctrlOpts)
 
 		if err != nil {
@@ -202,14 +202,15 @@ func (gc *GraphConnector) ExchangeDataCollection(
 		errs        error
 	)
 
-	_, deltas, err := exchange.ParseMetadataCollections(ctx, metadata)
+	cdps, err := exchange.ParseMetadataCollections(ctx, metadata)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, scope := range scopes {
-		// Creates a map of collections based on scope
-		dcs, err := gc.createExchangeCollections(ctx, scope, deltas, control.Options{})
+		dps := cdps[scope.Category().PathType()]
+
+		dcs, err := gc.createExchangeCollections(ctx, scope, dps, control.Options{})
 		if err != nil {
 			user := scope.Get(selectors.ExchangeUser)
 			return nil, support.WrapAndAppend(user[0], err, errs)
