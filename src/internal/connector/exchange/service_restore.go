@@ -247,7 +247,7 @@ func SendMailToBackStore(
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
 		return errors.Wrap(err,
-			user+": failure sendMailAPI:  "+support.ConnectorStackErrorTrace(err),
+			user+": failure sendMailAPI: Dest: "+destination+" Details: "+support.ConnectorStackErrorTrace(err),
 		)
 	}
 
