@@ -50,6 +50,41 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+  # SetM365App will decide which M365 app to use for this CI run
+  SetM365App:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
+      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
+      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }}
+    steps:
+      - name: Figure out which client id to use
+        id: roundrobin
+        run: |
+          slot=$((GITHUB_RUN_NUMBER % 4))
+          echo "CLIENT_APP_SLOT=$slot" >> $GITHUB_OUTPUT
+
+          case $slot in
+
+            0)
+              echo "CLIENT_ID_ENV=CLIENT_ID" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET" >> $GITHUB_OUTPUT
+              ;;
+            1)
+              echo "CLIENT_ID_ENV=CLIENT_ID_2" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_2" >> $GITHUB_OUTPUT
+              ;;
+            2)
+              echo "CLIENT_ID_ENV=CLIENT_ID_3" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_3" >> $GITHUB_OUTPUT
+              ;;
+            3)
+              echo "CLIENT_ID_ENV=CLIENT_ID_4" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_4" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
   SetEnv:
     environment: Testing
     runs-on: ubuntu-latest
@@ -129,13 +164,18 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Test-Suite-Trusted:
-    needs: [Precheck, Checkout]
+    needs: [Precheck, Checkout, SetM365App]
     environment: Testing
     runs-on: ubuntu-latest
     if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
     defaults:
       run:
         working-directory: src
+    env:
+      # Resolve the name of the secret that contains the Azure client ID/secret
+      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
+      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
+      CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
     steps:
       - uses: actions/checkout@v3
 
@@ -161,8 +201,8 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}

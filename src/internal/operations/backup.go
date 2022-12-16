@@ -219,7 +219,7 @@ func produceManifestsAndMetadata(
 			return nil, nil, err
 		}
 
-		colls, err := collectMetadata(ctx, kw, graph.MetadataFileNames(), oc, tid, bup.SnapshotID)
+		colls, err := collectMetadata(ctx, kw, graph.AllMetadataFileNames(), oc, tid, bup.SnapshotID)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
