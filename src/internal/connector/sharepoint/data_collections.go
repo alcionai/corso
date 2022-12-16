@@ -104,22 +104,29 @@ func collectLists(
 	if scope.Matches(selectors.SharePointSite, siteID) {
 		spcs := make([]data.Collection, 0)
 
-		dir, err := path.Builder{}.Append(siteID).
-			ToDataLayerSharePointPath(
-				tenantID,
-				siteID,
-				path.ListsCategory,
-				false)
+		listIDs, err := preFetchListIDs(ctx, serv, siteID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+			return nil, err
 		}
+		// Prefetch
+		for _, listID := range listIDs {
+			dir, err := path.Builder{}.Append(listID).
+				ToDataLayerSharePointPath(
+					tenantID,
+					siteID,
+					path.ListsCategory,
+					false)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+			}
 
-		collection := NewCollection(dir, serv, updater.UpdateStatus)
-		collection.AddJob(siteID)
+			collection := NewCollection(dir, serv, updater.UpdateStatus)
+			collection.AddJob(listID)
 
-		fmt.Printf("Collection:\nPath: %v\nJobs: %v\n", collection.fullPath, collection.jobs)
+			fmt.Printf("Collection:\nPath: %v\nJobs: %v\n", collection.fullPath, collection.jobs)
 
-		spcs = append(spcs, collection)
+			spcs = append(spcs, collection)
+		}
 
 		return spcs, nil
 	}
