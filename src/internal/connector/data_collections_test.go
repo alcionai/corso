@@ -175,10 +175,12 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	connector := loadConnector(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
+		expected    int
 		getSelector func(t *testing.T) selectors.Selector
 	}{
 		{
-			name: "Libraries",
+			name:     "Libraries",
+			expected: 1,
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
@@ -187,10 +189,11 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			},
 		},
 		{
-			name: "Lists",
+			name:     "Lists",
+			expected: 0,
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup()
-				sel.Include(sel.Sites([]string{suite.site}))
+				sel.Include(sel.Lists([]string{suite.site}, selectors.Any()))
 
 				return sel.Selector
 			},
@@ -211,7 +214,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 			// we don't know an exact count of drives this will produce,
 			// but it should be more than one.
-			assert.Less(t, 1, len(collection))
+			assert.Less(t, test.expected, len(collection))
 
 			// the test only reads the firstt collection
 			connector.incrementAwaitingMessages()
