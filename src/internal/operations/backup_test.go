@@ -316,6 +316,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
+	suite.T().Skip("temporary skip on e2e smoke tests")
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -461,6 +463,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
+	suite.T().Skip("temporary skip on e2e smoke tests")
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -494,6 +498,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
+	suite.T().Skip("temporary skip on e2e smoke tests")
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
