@@ -40,6 +40,8 @@ type NoBackupSharePointIntegrationSuite struct {
 }
 
 func TestNoBackupSharePointIntegrationSuite(t *testing.T) {
+	t.Skip("temporary skip on e2e smoke tests")
+
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
@@ -129,6 +131,8 @@ type BackupDeleteSharePointIntegrationSuite struct {
 }
 
 func TestBackupDeleteSharePointIntegrationSuite(t *testing.T) {
+	t.Skip("temporary skip on e2e smoke tests")
+
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
 		tester.CorsoCLITests,

@@ -175,6 +175,7 @@ jobs:
           -json         \
           -v            \
           -failfast     \
+          -p 1          \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.

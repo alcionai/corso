@@ -20,7 +20,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Corso setup',
-      items: ['setup/concepts', 'setup/download', 'setup/m365_access', 'setup/configuration', 'setup/repos'],
+      items: ['setup/concepts', 'setup/download', 'setup/m365-access', 'setup/configuration', 'setup/repos'],
     },
     {
       type: 'category',
@@ -31,18 +31,18 @@ const sidebars = {
         type: 'generated-index',
       },
       items: [
-        'cli/corso_repo_init_s3', 'cli/corso_repo_connect_s3',
-        'cli/corso_backup_create_exchange', 'cli/corso_backup_list_exchange', 'cli/corso_backup_details_exchange',
-        'cli/corso_backup_create_onedrive', 'cli/corso_backup_list_onedrive', 'cli/corso_backup_details_onedrive',
-        'cli/corso_restore_exchange', 'cli/corso_restore_onedrive',
-        'cli/corso_env'
+        'cli/corso-repo-init-s3', 'cli/corso-repo-connect-s3',
+        'cli/corso-backup-create-exchange', 'cli/corso-backup-list-exchange', 'cli/corso-backup-details-exchange',
+        'cli/corso-backup-create-onedrive', 'cli/corso-backup-list-onedrive', 'cli/corso-backup-details-onedrive',
+        'cli/corso-restore-exchange', 'cli/corso-restore-onedrive',
+        'cli/corso-env'
       ]
     },
     {
       type: 'category',
       label: 'Support',
       items: [
-        'support/bugs_and_features', 'support/known_issues', 'support/faq'
+        'support/bugs-and-features', 'support/known-issues', 'support/faq'
       ],
     },
     {

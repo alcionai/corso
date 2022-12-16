@@ -26,14 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
-
       - name: Build the otel-daemon
         run: make build-otel-daemon
 
@@ -55,6 +47,8 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrete.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrete.AWS_ACCESS_KEY_SECRET }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
