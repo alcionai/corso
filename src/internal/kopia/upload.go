@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
-	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
@@ -650,10 +649,33 @@ func traverseBaseDir(
 	return nil
 }
 
+// TODO(ashmrtn): We may want to move this to BackupOp and pass in
+// (Manifest, path) to kopia.BackupCollections() instead of passing in
+// ManifestEntry. That would keep kopia from having to know anything about how
+// paths are formed. It would just encode/decode them and do basic manipulations
+// like pushing/popping elements on a path based on location in the hierarchy.
+func encodedElementsForPath(tenant string, r Reason) (*path.Builder, error) {
+	// This is hacky, but we want the path package to format the path the right
+	// way (e.x. proper order for service, category, etc), but we don't care about
+	// the folders after the prefix.
+	p, err := path.Builder{}.Append("tmp").ToDataLayerPath(
+		tenant,
+		r.ResourceOwner,
+		r.Service,
+		r.Category,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "building path")
+	}
+
+	return p.ToBuilder().Dir(), nil
+}
+
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap *snapshot.Manifest,
+	snap *ManifestEntry,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
@@ -664,7 +686,7 @@ func inflateBaseTree(
 		return nil
 	}
 
-	root, err := loader.SnapshotRoot(snap)
+	root, err := loader.SnapshotRoot(snap.Manifest)
 	if err != nil {
 		return errors.Wrapf(err, "getting snapshot %s root directory", snap.ID)
 	}
@@ -674,22 +696,47 @@ func inflateBaseTree(
 		return errors.Errorf("snapshot %s root is not a directory", snap.ID)
 	}
 
-	// TODO(ashmrtn): We should actually only traverse a subtree of the snapshot
-	// where the subtree corresponds to the "reason" this snapshot was chosen.
-	// Doing so will avoid pulling in data for categories that should not be
-	// included in the current backup or overwriting some entries with out-dated
-	// information.
+	rootName, err := decodeElement(dir.Name())
+	if err != nil {
+		return errors.Wrapf(err, "snapshot %s root has undecode-able name", snap.ID)
+	}
 
-	if err = traverseBaseDir(
-		ctx,
-		0,
-		updatedPaths,
-		&path.Builder{},
-		&path.Builder{},
-		dir,
-		roots,
-	); err != nil {
-		return errors.Wrapf(err, "traversing base snapshot %s", snap.ID)
+	// For each subtree corresponding to the tuple
+	// (resource owner, service, category) merge the directories in the base with
+	// what has been reported in the collections we got.
+	for _, reason := range snap.Reasons {
+		pb, err := encodedElementsForPath(rootName, reason)
+		if err != nil {
+			return errors.Wrapf(err, "snapshot %s getting path elements", snap.ID)
+		}
+
+		// We're starting from the root directory so don't need it in the path.
+		pathElems := encodeElements(pb.PopFront().Elements()...)
+
+		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
+		if err != nil {
+			return errors.Wrapf(err, "snapshot %s getting subtree root", snap.ID)
+		}
+
+		subtreeDir, ok := ent.(fs.Directory)
+		if !ok {
+			return errors.Wrapf(err, "snapshot %s subtree root is not directory", snap.ID)
+		}
+
+		// We're assuming here that the prefix for the path has not changed (i.e.
+		// all of tenant, service, resource owner, and category are the same in the
+		// old snapshot (snap) and the snapshot we're currently trying to make.
+		if err = traverseBaseDir(
+			ctx,
+			0,
+			updatedPaths,
+			pb.Dir(),
+			pb.Dir(),
+			subtreeDir,
+			roots,
+		); err != nil {
+			return errors.Wrapf(err, "traversing base snapshot %s", snap.ID)
+		}
 	}
 
 	return nil
@@ -704,7 +751,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []*snapshot.Manifest,
+	baseSnaps []*ManifestEntry,
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, error) {

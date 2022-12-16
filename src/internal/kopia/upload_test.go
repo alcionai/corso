@@ -10,6 +10,7 @@ import (
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
@@ -31,30 +32,28 @@ func makePath(t *testing.T, elements []string) path.Path {
 	return p
 }
 
-// baseWithChildren returns an fs.Entry hierarchy where the first four levels
-// are the encoded values of tenant, service, user, and category respectively.
-// All items in children are made a direct descendent of the category entry.
+// baseWithChildren returns an fs.Entry hierarchy where the first len(basic)
+// levels are the encoded values of basic in order. All items in children are
+// used as the direct descendents of the final entry in basic.
 func baseWithChildren(
-	tenant, service, user, category string,
+	basic []string,
 	children []fs.Entry,
 ) fs.Entry {
+	if len(basic) == 0 {
+		return nil
+	}
+
+	if len(basic) == 1 {
+		return virtualfs.NewStaticDirectory(
+			encodeElements(basic[0])[0],
+			children,
+		)
+	}
+
 	return virtualfs.NewStaticDirectory(
-		encodeElements(tenant)[0],
+		encodeElements(basic[0])[0],
 		[]fs.Entry{
-			virtualfs.NewStaticDirectory(
-				encodeElements(service)[0],
-				[]fs.Entry{
-					virtualfs.NewStaticDirectory(
-						encodeElements(user)[0],
-						[]fs.Entry{
-							virtualfs.NewStaticDirectory(
-								encodeElements(category)[0],
-								children,
-							),
-						},
-					),
-				},
-			),
+			baseWithChildren(basic[1:], children),
 		},
 	)
 }
@@ -66,29 +65,27 @@ type expectedNode struct {
 }
 
 // expectedTreeWithChildren returns an expectedNode hierarchy where the first
-// four levels are the tenant, service, user, and category respectively. All
-// items in children are made a direct descendent of the category node.
+// len(basic) levels are the values of basic in order. All items in children are
+// made a direct descendent of the final entry in basic.
 func expectedTreeWithChildren(
-	tenant, service, user, category string,
+	basic []string,
 	children []*expectedNode,
 ) *expectedNode {
+	if len(basic) == 0 {
+		return nil
+	}
+
+	if len(basic) == 1 {
+		return &expectedNode{
+			name:     basic[0],
+			children: children,
+		}
+	}
+
 	return &expectedNode{
-		name: tenant,
+		name: basic[0],
 		children: []*expectedNode{
-			{
-				name: service,
-				children: []*expectedNode{
-					{
-						name: user,
-						children: []*expectedNode{
-							{
-								name:     category,
-								children: children,
-							},
-						},
-					},
-				},
-			},
+			expectedTreeWithChildren(basic[1:], children),
 		},
 	}
 }
@@ -802,6 +799,25 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 	return msw.snapshotRoot, nil
 }
 
+func mockSnapshotEntry(
+	id, resourceOwner string,
+	service path.ServiceType,
+	category path.CategoryType,
+) *ManifestEntry {
+	return &ManifestEntry{
+		Manifest: &snapshot.Manifest{
+			ID: manifest.ID(id),
+		},
+		Reasons: []Reason{
+			{
+				ResourceOwner: resourceOwner,
+				Service:       service,
+				Category:      category,
+			},
+		},
+	}
+}
+
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	dirPath := makePath(
 		suite.T(),
@@ -812,10 +828,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	// can only return its Reader once.
 	getBaseSnapshot := func() fs.Entry {
 		return baseWithChildren(
-			testTenant,
-			service,
-			testUser,
-			category,
+			[]string{
+				testTenant,
+				service,
+				testUser,
+				category,
+			},
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxDir)[0],
@@ -846,10 +864,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.Collection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name:     testInboxDir,
@@ -869,10 +889,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.Collection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: testInboxDir,
@@ -902,10 +924,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.Collection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: testInboxDir,
@@ -937,7 +961,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]*snapshot.Manifest{{}},
+				[]*ManifestEntry{
+					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				},
 				test.inputCollections(),
 				progress,
 			)
@@ -987,10 +1013,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//             - file3
 	getBaseSnapshot := func() fs.Entry {
 		return baseWithChildren(
-			testTenant,
-			service,
-			testUser,
-			category,
+			[]string{
+				testTenant,
+				service,
+				testUser,
+				category,
+			},
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxDir)[0],
@@ -1046,10 +1074,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.Collection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: testInboxDir + "2",
@@ -1104,10 +1134,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.Collection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: testInboxDir + "2",
@@ -1158,10 +1190,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.Collection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: workDir,
@@ -1189,10 +1223,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.Collection{personal, work}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: testInboxDir,
@@ -1229,10 +1265,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.Collection{personal, work}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: testInboxDir,
@@ -1280,10 +1318,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.Collection{personal}
 			},
 			expected: expectedTreeWithChildren(
-				testTenant,
-				service,
-				testUser,
-				category,
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
 				[]*expectedNode{
 					{
 						name: testInboxDir,
@@ -1335,7 +1375,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]*snapshot.Manifest{{}},
+				[]*ManifestEntry{
+					mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+				},
 				test.inputCollections(t),
 				progress,
 			)
@@ -1375,10 +1417,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	//             - file4
 	getBaseSnapshot := func() fs.Entry {
 		return baseWithChildren(
-			testTenant,
-			service,
-			testUser,
-			category,
+			[]string{
+				testTenant,
+				service,
+				testUser,
+				category,
+			},
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxDir)[0],
@@ -1435,10 +1479,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	}
 
 	expected := expectedTreeWithChildren(
-		testTenant,
-		service,
-		testUser,
-		category,
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+		},
 		[]*expectedNode{
 			{
 				name: testArchiveDir,
@@ -1489,7 +1535,254 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]*snapshot.Manifest{{}},
+		[]*ManifestEntry{
+			mockSnapshotEntry("", testUser, path.ExchangeService, path.EmailCategory),
+		},
+		collections,
+		progress,
+	)
+	require.NoError(t, err)
+
+	expectTree(t, ctx, expected, dirTree)
+}
+
+type mockMultiSnapshotWalker struct {
+	snaps map[string]fs.Entry
+}
+
+func (msw *mockMultiSnapshotWalker) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
+	if snap := msw.snaps[string(man.ID)]; snap != nil {
+		return snap, nil
+	}
+
+	return nil, errors.New("snapshot not found")
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubtrees() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const contactsDir = "contacts"
+
+	inboxPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+
+	inboxFileName1 := testFileName
+	inboxFileName2 := testFileName2
+
+	inboxFileData1 := testFileData
+	inboxFileData1v2 := testFileData5
+	inboxFileData2 := testFileData2
+
+	contactsFileName1 := testFileName3
+	contactsFileData1 := testFileData3
+
+	eventsFileName1 := testFileName5
+	eventsFileData1 := testFileData
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1
+	//       - contacts
+	//         - contacts
+	//           - file2
+	getBaseSnapshot1 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									bytes.NewReader(inboxFileData1),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.ContactsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(contactsDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(contactsFileName1)[0],
+									time.Time{},
+									bytes.NewReader(contactsFileData1),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1 <- has different data version
+	//       - events
+	//         - events
+	//           - file3
+	getBaseSnapshot2 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				service,
+				testUser,
+			},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									// Wrap with a backup reader so it gets the version injected.
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(inboxFileData1v2)),
+									),
+								),
+							},
+						),
+					},
+				),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.EventsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements("events")[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(eventsFileName1)[0],
+									time.Time{},
+									bytes.NewReader(eventsFileData1),
+								),
+							},
+						),
+					},
+				),
+			},
+		)
+	}
+
+	// Check the following:
+	//   * contacts pulled from base1 unchanged even if no collections reference
+	//     it
+	//   * email pulled from base2
+	//   * new email added
+	//   * events not pulled from base2 as it's not listed as a Reason
+	//
+	// Expected output:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1 <- version of data from second base
+	//           - file2
+	//       - contacts
+	//         - contacts
+	//           - file2
+	expected := expectedTreeWithChildren(
+		[]string{
+			testTenant,
+			service,
+			testUser,
+		},
+		[]*expectedNode{
+			{
+				name: category,
+				children: []*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+								data:     inboxFileData1v2,
+							},
+							{
+								name:     inboxFileName2,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+						},
+					},
+				},
+			},
+			{
+				name: path.ContactsCategory.String(),
+				children: []*expectedNode{
+					{
+						name: contactsDir,
+						children: []*expectedNode{
+							{
+								name:     contactsFileName1,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+
+	mc := mockconnector.NewMockExchangeCollection(inboxPath, 1)
+	mc.PrevPath = mc.FullPath()
+	mc.ColState = data.NotMovedState
+	mc.Names[0] = inboxFileName2
+	mc.Data[0] = inboxFileData2
+
+	msw := &mockMultiSnapshotWalker{
+		snaps: map[string]fs.Entry{
+			"id1": getBaseSnapshot1(),
+			"id2": getBaseSnapshot2(),
+		},
+	}
+
+	collections := []data.Collection{mc}
+
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]*ManifestEntry{
+			mockSnapshotEntry("id1", testUser, path.ExchangeService, path.ContactsCategory),
+			mockSnapshotEntry("id2", testUser, path.ExchangeService, path.EmailCategory),
+		},
 		collections,
 		progress,
 	)
