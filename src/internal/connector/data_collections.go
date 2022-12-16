@@ -77,7 +77,6 @@ func (gc *GraphConnector) DataCollections(
 		colls, err := sharepoint.DataCollections(
 			ctx,
 			sels,
-			gc.GetSiteIDs(),
 			gc.credentials.AzureTenantID,
 			gc.Service,
 			gc,
