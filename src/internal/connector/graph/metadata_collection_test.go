@@ -1,14 +1,15 @@
-package graph_test
+package graph
 
 import (
+	"encoding/json"
 	"io"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -34,7 +35,7 @@ func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 		)
 	require.NoError(t, err)
 
-	c := graph.NewMetadataCollection(p, nil, nil)
+	c := NewMetadataCollection(p, nil, nil)
 
 	assert.Equal(t, p.String(), c.FullPath().String())
 }
@@ -58,10 +59,10 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		"Requires same number of items and data",
 	)
 
-	items := []graph.MetadataItem{}
+	items := []MetadataItem{}
 
 	for i := 0; i < len(itemNames); i++ {
-		items = append(items, graph.NewMetadataItem(itemNames[i], itemData[i]))
+		items = append(items, NewMetadataItem(itemNames[i], itemData[i]))
 	}
 
 	p, err := path.Builder{}.
@@ -74,7 +75,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		)
 	require.NoError(t, err)
 
-	c := graph.NewMetadataCollection(
+	c := NewMetadataCollection(
 		p,
 		items,
 		func(c *support.ConnectorOperationStatus) {
@@ -99,4 +100,94 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 
 	assert.ElementsMatch(t, itemNames, gotNames)
 	assert.ElementsMatch(t, itemData, gotData)
+}
+
+func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
+	tenant := "a-tenant"
+	user := "a-user"
+
+	table := []struct {
+		name            string
+		service         path.ServiceType
+		cat             path.CategoryType
+		metadata        MetadataCollectionEntry
+		collectionCheck assert.ValueAssertionFunc
+		errCheck        assert.ErrorAssertionFunc
+	}{
+		{
+			name:            "EmptyTokens",
+			service:         path.ExchangeService,
+			cat:             path.EmailCategory,
+			metadata:        NewMetadataEntry("", nil),
+			collectionCheck: assert.Nil,
+			errCheck:        assert.Error,
+		},
+		{
+			name:    "Tokens",
+			service: path.ExchangeService,
+			cat:     path.EmailCategory,
+			metadata: NewMetadataEntry(
+				uuid.NewString(),
+				map[string]string{
+					"hello": "world",
+					"hola":  "mundo",
+				}),
+			collectionCheck: assert.NotNil,
+			errCheck:        assert.NoError,
+		},
+		{
+			name:    "BadCategory",
+			service: path.ExchangeService,
+			cat:     path.FilesCategory,
+			metadata: NewMetadataEntry(
+				uuid.NewString(),
+				map[string]string{
+					"hello": "world",
+					"hola":  "mundo",
+				}),
+			collectionCheck: assert.Nil,
+			errCheck:        assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			col, err := MakeMetadataCollection(
+				tenant,
+				user,
+				test.service,
+				test.cat,
+				[]MetadataCollectionEntry{test.metadata},
+				func(*support.ConnectorOperationStatus) {},
+			)
+
+			test.errCheck(t, err)
+			if err != nil {
+				return
+			}
+
+			test.collectionCheck(t, col)
+			if col == nil {
+				return
+			}
+
+			itemCount := 0
+			for item := range col.Items() {
+				assert.Equal(t, test.metadata.fileName, item.UUID())
+
+				gotMap := map[string]string{}
+				decoder := json.NewDecoder(item.ToReader())
+				itemCount++
+
+				err := decoder.Decode(&gotMap)
+				if !assert.NoError(t, err) {
+					continue
+				}
+
+				assert.Equal(t, test.metadata.data, gotMap)
+			}
+
+			assert.Equal(t, 1, itemCount)
+		})
+	}
 }

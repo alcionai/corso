@@ -1,9 +1,7 @@
 package exchange
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -19,53 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
-
-const (
-	metadataKey = "metadata"
-)
-
-// makeMetadataCollection creates a metadata collection that has a file
-// containing all the delta tokens in tokens. Returns nil if the map does not
-// have any entries.
-//
-// TODO(ashmrtn): Expand this/break it out into multiple functions so that we
-// can also store map[container ID]->full container path in a file in the
-// metadata collection.
-func makeMetadataCollection(
-	tenant string,
-	user string,
-	cat path.CategoryType,
-	tokens map[string]string,
-	statusUpdater support.StatusUpdater,
-) (data.Collection, error) {
-	if len(tokens) == 0 {
-		return nil, nil
-	}
-
-	buf := &bytes.Buffer{}
-	encoder := json.NewEncoder(buf)
-
-	if err := encoder.Encode(tokens); err != nil {
-		return nil, errors.Wrap(err, "serializing delta tokens")
-	}
-
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
-		tenant,
-		user,
-		path.ExchangeService,
-		cat,
-		false,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "making path")
-	}
-
-	return graph.NewMetadataCollection(
-		p,
-		[]graph.MetadataItem{graph.NewMetadataItem(graph.DeltaTokenFileName, buf.Bytes())},
-		statusUpdater,
-	), nil
-}
 
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -83,85 +34,83 @@ func FilterContainersAndFillCollections(
 	ctrlOpts control.Options,
 ) error {
 	var (
-		errs           error
-		collectionType = CategoryToOptionIdentifier(qp.Category)
+		errs error
+		oi   = CategoryToOptionIdentifier(qp.Category)
 		// folder ID -> delta url for folder.
 		deltaURLs = map[string]string{}
+		prevPaths = map[string]string{}
 	)
 
 	for _, c := range resolver.Items() {
+		if ctrlOpts.FailFast && errs != nil {
+			return errs
+		}
+
 		dirPath, ok := pathAndMatch(qp, c, scope)
 		if !ok {
 			continue
 		}
 
+		cID := *c.GetId()
+
 		// Create only those that match
 		service, err := createService(qp.Credentials)
 		if err != nil {
-			errs = support.WrapAndAppend(
-				qp.ResourceOwner+" FilterContainerAndFillCollection",
-				err,
-				errs)
-
-			if ctrlOpts.FailFast {
-				return errs
-			}
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			continue
 		}
 
 		edc := NewCollection(
 			qp.ResourceOwner,
 			dirPath,
-			collectionType,
+			oi,
 			service,
 			statusUpdater,
 			ctrlOpts,
 		)
-		collections[*c.GetId()] = &edc
+		collections[cID] = &edc
 
 		fetchFunc, err := getFetchIDFunc(qp.Category)
 		if err != nil {
-			errs = support.WrapAndAppend(
-				qp.ResourceOwner,
-				err,
-				errs)
-
-			if ctrlOpts.FailFast {
-				return errs
-			}
-
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 			continue
 		}
 
-		dirID := *c.GetId()
-		oldDelta := oldDeltas[dirID]
-
-		jobs, delta, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, dirID, oldDelta)
+		jobs, delta, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, cID, oldDeltas[cID])
 		if err != nil {
-			errs = support.WrapAndAppend(
-				qp.ResourceOwner,
-				err,
-				errs,
-			)
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 		}
 
 		edc.jobs = append(edc.jobs, jobs...)
 
 		if len(delta) > 0 {
-			deltaURLs[dirID] = delta
+			deltaURLs[cID] = delta
 		}
+
+		// add the current path for the container ID to be used in the next backup
+		// as the "previous path", for reference in case of a rename or relocation.
+		prevPaths[cID] = dirPath.Folder()
 	}
 
-	col, err := makeMetadataCollection(
+	entries := []graph.MetadataCollectionEntry{
+		graph.NewMetadataEntry(graph.PreviousPathFileName, prevPaths),
+	}
+
+	if len(deltaURLs) > 0 {
+		entries = append(entries, graph.NewMetadataEntry(graph.DeltaTokenFileName, deltaURLs))
+	}
+
+	if col, err := graph.MakeMetadataCollection(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
+		path.ExchangeService,
 		qp.Category,
-		deltaURLs,
+		entries,
 		statusUpdater,
-	)
-	if err != nil {
+	); err != nil {
 		errs = support.WrapAndAppend("making metadata collection", err, errs)
 	} else if col != nil {
-		collections[metadataKey] = col
+		collections["metadata"] = col
 	}
 
 	return errs

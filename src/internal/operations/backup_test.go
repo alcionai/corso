@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -188,8 +187,7 @@ func checkMetadataFilesExist(
 	backupID model.StableID,
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
-	tenant string,
-	user string,
+	tenant, user string,
 	service path.ServiceType,
 	category path.CategoryType,
 	files []string,
@@ -326,20 +324,25 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		selectFunc    func() *selectors.ExchangeBackup
 		resourceOwner string
 		category      path.CategoryType
+		metadataFiles []string
 	}{
 		{
-			name: "Integration Exchange.Mail",
+			name: "Mail",
 			selectFunc: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.MailFolders(
+					[]string{m365UserID},
+					[]string{exchange.DefaultMailFolder},
+					selectors.PrefixMatch()))
 
 				return sel
 			},
 			resourceOwner: m365UserID,
 			category:      path.EmailCategory,
+			metadataFiles: exchange.MetadataFileNames(path.EmailCategory),
 		},
 		{
-			name: "Integration Exchange.Contacts",
+			name: "Contacts",
 			selectFunc: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.ContactFolders(
@@ -351,16 +354,22 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			},
 			resourceOwner: m365UserID,
 			category:      path.ContactsCategory,
+			metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
 		},
 		{
-			name: "Integration Exchange.Events",
+			name: "Calendar Events",
 			selectFunc: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+				sel.Include(sel.EventCalendars(
+					[]string{m365UserID},
+					[]string{exchange.DefaultCalendar},
+					selectors.PrefixMatch()))
+
 				return sel
 			},
 			resourceOwner: m365UserID,
 			category:      path.EventsCategory,
+			metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
 		},
 	}
 	for _, test := range tests {
@@ -430,32 +439,21 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				return
 			}
 
-			// Check that metadata files with delta tokens were created. Currently
-			// these files will only be made for contacts and email in Exchange if any
-			// items were backed up. Events does not support delta queries.
 			m365, err := acct.M365Config()
 			require.NoError(t, err)
 
-			for _, scope := range sel.Scopes() {
-				cat := scope.Category().PathType()
-
-				if cat != path.EmailCategory && cat != path.ContactsCategory {
-					return
-				}
-
-				checkMetadataFilesExist(
-					t,
-					ctx,
-					bo.Results.BackupID,
-					kw,
-					ms,
-					m365.AzureTenantID,
-					m365UserID,
-					path.ExchangeService,
-					cat,
-					[]string{graph.DeltaTokenFileName},
-				)
-			}
+			checkMetadataFilesExist(
+				t,
+				ctx,
+				bo.Results.BackupID,
+				kw,
+				ms,
+				m365.AzureTenantID,
+				m365UserID,
+				path.ExchangeService,
+				test.category,
+				test.metadataFiles,
+			)
 		})
 	}
 }
