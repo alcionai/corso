@@ -286,7 +286,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailFetch() 
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := gc.createExchangeCollections(ctx, test.scope, nil, control.Options{})
+			collections, err := gc.createExchangeCollections(ctx, test.scope, exchange.DeltaPaths{}, control.Options{})
 			require.NoError(t, err)
 
 			for _, c := range collections {
@@ -338,7 +338,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			// get collections without providing any delta history (ie: full backup)
-			collections, err := gc.createExchangeCollections(ctx, test.scope, nil, control.Options{})
+			collections, err := gc.createExchangeCollections(ctx, test.scope, exchange.DeltaPaths{}, control.Options{})
 			require.NoError(t, err)
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
 
@@ -352,12 +352,14 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestDelta() {
 
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
-			_, deltas, err := exchange.ParseMetadataCollections(ctx, []data.Collection{metadata})
+			cdps, err := exchange.ParseMetadataCollections(ctx, []data.Collection{metadata})
 			require.NoError(t, err)
+
+			dps := cdps[test.scope.Category().PathType()]
 
 			// now do another backup with the previous delta tokens,
 			// which should only contain the difference.
-			collections, err = gc.createExchangeCollections(ctx, test.scope, deltas, control.Options{})
+			collections, err = gc.createExchangeCollections(ctx, test.scope, dps, control.Options{})
 			require.NoError(t, err)
 
 			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
@@ -383,11 +385,15 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailSerializ
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
-	connector := loadConnector(ctx, t, Users)
-	sel := selectors.NewExchangeBackup()
+	var (
+		t         = suite.T()
+		connector = loadConnector(ctx, t, Users)
+		sel       = selectors.NewExchangeBackup()
+	)
+
 	sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil, control.Options{})
+
+	collection, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], exchange.DeltaPaths{}, control.Options{})
 	require.NoError(t, err)
 
 	for _, edc := range collection {
@@ -396,9 +402,11 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestMailSerializ
 			// Verify that each message can be restored
 			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
+
 				read, err := buf.ReadFrom(stream.ToReader())
 				assert.NoError(t, err)
 				assert.NotZero(t, read)
+
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
 				assert.NotNil(t, message)
 				assert.NoError(t, err)
@@ -430,7 +438,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestContactSeria
 				scope := selectors.
 					NewExchangeBackup().
 					ContactFolders([]string{suite.user}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch())[0]
-				collections, err := connector.createExchangeCollections(ctx, scope, nil, control.Options{})
+				collections, err := connector.createExchangeCollections(ctx, scope, exchange.DeltaPaths{}, control.Options{})
 				require.NoError(t, err)
 
 				return collections
@@ -497,7 +505,12 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
-				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil, control.Options{})
+
+				collections, err := connector.createExchangeCollections(
+					ctx,
+					sel.Scopes()[0],
+					exchange.DeltaPaths{},
+					control.Options{})
 				require.NoError(t, err)
 
 				return collections
@@ -509,7 +522,12 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 			getCollection: func(t *testing.T) []data.Collection {
 				sel := selectors.NewExchangeBackup()
 				sel.Include(sel.EventCalendars([]string{suite.user}, []string{"Birthdays"}, selectors.PrefixMatch()))
-				collections, err := connector.createExchangeCollections(ctx, sel.Scopes()[0], nil, control.Options{})
+
+				collections, err := connector.createExchangeCollections(
+					ctx,
+					sel.Scopes()[0],
+					exchange.DeltaPaths{},
+					control.Options{})
 				require.NoError(t, err)
 
 				return collections
@@ -538,7 +556,7 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 					assert.NotZero(t, read)
 					event, err := support.CreateEventFromBytes(buf.Bytes())
 					assert.NotNil(t, event)
-					assert.NoError(t, err, "experienced error parsing event bytes: "+buf.String())
+					assert.NoError(t, err, "creating event from bytes: "+buf.String())
 				}
 			}
 

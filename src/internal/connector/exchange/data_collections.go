@@ -22,45 +22,75 @@ func MetadataFileNames(cat path.CategoryType) []string {
 	}
 }
 
-// ParseMetadataCollections produces two maps:
-// 1- paths: folderID->filePath, used to look up previous folder pathing
-// in case of a name change or relocation.
-// 2- deltas: folderID->deltaToken, used to look up previous delta token
-// retrievals.
+type CatDeltaPaths map[path.CategoryType]DeltaPaths
+
+type DeltaPaths struct {
+	deltas map[string]string
+	paths  map[string]string
+}
+
+func makeDeltaPaths() DeltaPaths {
+	return DeltaPaths{
+		deltas: map[string]string{},
+		paths:  map[string]string{},
+	}
+}
+
+// ParseMetadataCollections produces a map of structs holding delta
+// and path lookup maps.
 func ParseMetadataCollections(
 	ctx context.Context,
 	colls []data.Collection,
-) (map[string]string, map[string]string, error) {
-	var (
-		paths  = map[string]string{}
-		deltas = map[string]string{}
-	)
+) (CatDeltaPaths, error) {
+	cdp := CatDeltaPaths{
+		path.ContactsCategory: makeDeltaPaths(),
+		path.EmailCategory:    makeDeltaPaths(),
+		path.EventsCategory:   makeDeltaPaths(),
+	}
 
 	for _, coll := range colls {
-		items := coll.Items()
+		var (
+			breakLoop bool
+			items     = coll.Items()
+			category  = coll.FullPath().Category()
+		)
 
 		for {
-			var breakLoop bool
-
 			select {
 			case <-ctx.Done():
-				return nil, nil, errors.Wrap(ctx.Err(), "parsing collection metadata")
+				return nil, errors.Wrap(ctx.Err(), "parsing collection metadata")
+
 			case item, ok := <-items:
 				if !ok {
 					breakLoop = true
 					break
 				}
 
+				m := map[string]string{}
+				cdps := cdp[category]
+
+				err := json.NewDecoder(item.ToReader()).Decode(&m)
+				if err != nil {
+					return nil, errors.New("decoding metadata json")
+				}
+
 				switch item.UUID() {
-				// case graph.PreviousPathFileName:
-				case graph.DeltaTokenFileName:
-					err := json.NewDecoder(item.ToReader()).Decode(&deltas)
-					if err != nil {
-						return nil, nil, errors.New("parsing delta token map")
+				case graph.PreviousPathFileName:
+					if len(cdps.paths) > 0 {
+						return nil, errors.Errorf("multiple versions of %s path metadata", category)
 					}
 
-					breakLoop = true
+					cdps.paths = m
+
+				case graph.DeltaTokenFileName:
+					if len(cdps.deltas) > 0 {
+						return nil, errors.Errorf("multiple versions of %s delta metadata", category)
+					}
+
+					cdps.deltas = m
 				}
+
+				cdp[category] = cdps
 			}
 
 			if breakLoop {
@@ -69,5 +99,5 @@ func ParseMetadataCollections(
 		}
 	}
 
-	return paths, deltas, nil
+	return cdp, nil
 }
