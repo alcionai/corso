@@ -46,29 +46,15 @@ func loadSiteLists(
 		for _, entry := range resp.GetValue() {
 			id := *entry.GetId()
 
-			cols, err := fetchColumns(ctx, gs, siteID, id, "")
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
+			cols, cTypes, lItems, err := fetchRelationships(ctx, gs, siteID, id)
+			if err == nil {
+				entry.SetColumns(cols)
+				entry.SetContentTypes(cTypes)
+				entry.SetItems(lItems)
+			} else {
+				errs = support.WrapAndAppend("unable to fetchRelationships during loadSiteLists", err, errs)
 				continue
 			}
-
-			entry.SetColumns(cols)
-
-			cTypes, err := fetchContentTypes(ctx, gs, siteID, id)
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
-			}
-
-			entry.SetContentTypes(cTypes)
-
-			lItems, err := fetchListItems(ctx, gs, siteID, id)
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
-			}
-
-			entry.SetItems(lItems)
 
 			results = append(results, entry)
 		}
@@ -85,6 +71,42 @@ func loadSiteLists(
 	}
 
 	return results, nil
+}
+
+// fetchRelationships utility function to retrieve associated relationships:
+// - Columns, ContentTypes, ListItems
+func fetchRelationships(
+	ctx context.Context,
+	service graph.Servicer,
+	siteID, listID string,
+) (
+	[]models.ColumnDefinitionable,
+	[]models.ContentTypeable,
+	[]models.ListItemable,
+	error,
+) {
+	var errs error
+
+	cols, err := fetchColumns(ctx, service, siteID, listID, "")
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	cTypes, err := fetchContentTypes(ctx, service, siteID, listID)
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	lItems, err := fetchListItems(ctx, service, siteID, listID)
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	if errs != nil {
+		return nil, nil, nil, errs
+	}
+
+	return cols, cTypes, lItems, nil
 }
 
 // fetchListItems utility for retrieving ListItem data and the associated relationship
