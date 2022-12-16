@@ -190,14 +190,23 @@ func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []SharePointScope {
-	return []SharePointScope{
+	scopes := []SharePointScope{}
+
+	scopes = append(
+		scopes,
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
 			SharePointWebURL,
 			urlSuffixes,
 			pathFilterFactory(opts...)),
-		// TODO: list scope
-	}
+		makeFilterScope[SharePointScope](
+			SharePointListItem,
+			SharePointWebURL,
+			urlSuffixes,
+			pathFilterFactory(opts...)),
+	)
+
+	return scopes
 }
 
 // Produces one or more SharePoint site scopes.
@@ -208,7 +217,43 @@ func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []Share
 func (s *sharePoint) Sites(sites []string) []SharePointScope {
 	scopes := []SharePointScope{}
 
-	scopes = append(scopes, makeScope[SharePointScope](SharePointLibrary, sites, Any()))
+	scopes = append(
+		scopes,
+		makeScope[SharePointScope](SharePointLibrary, sites, Any()),
+		makeScope[SharePointScope](SharePointList, sites, Any()),
+	)
+
+	return scopes
+}
+
+// Lists produces one or more SharePoint list scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// Any empty slice defaults to [selectors.None]
+func (s *sharePoint) Lists(sites, lists []string, opts ...option) []SharePointScope {
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(scopes, makeScope[SharePointScope](SharePointList, sites, lists, os...))
+
+	return scopes
+}
+
+// ListItems produces one or more SharePoint list item scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the list scopes.
+func (s *sharePoint) ListItems(sites, lists, items []string, opts ...option) []SharePointScope {
+	scopes := []SharePointScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[SharePointScope](SharePointListItem, sites, items).
+			set(SharePointList, lists, opts...),
+	)
 
 	return scopes
 }
@@ -268,6 +313,8 @@ const (
 	// types of data identified by SharePoint
 	SharePointWebURL      sharePointCategory = "SharePointWebURL"
 	SharePointSite        sharePointCategory = "SharePointSite"
+	SharePointList        sharePointCategory = "SharePointList"
+	SharePointListItem    sharePointCategory = "SharePointListItem"
 	SharePointLibrary     sharePointCategory = "SharePointLibrary"
 	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
 
@@ -284,6 +331,10 @@ var sharePointLeafProperties = map[categorizer]leafProperty{
 		pathKeys: []categorizer{SharePointSite},
 		pathType: path.UnknownCategory,
 	},
+	SharePointListItem: {
+		pathKeys: []categorizer{SharePointSite, SharePointList, SharePointListItem},
+		pathType: path.ListsCategory,
+	},
 }
 
 func (c sharePointCategory) String() string {
@@ -299,6 +350,8 @@ func (c sharePointCategory) leafCat() categorizer {
 	switch c {
 	case SharePointLibrary, SharePointLibraryItem:
 		return SharePointLibraryItem
+	case SharePointList, SharePointListItem:
+		return SharePointListItem
 	}
 
 	return c
@@ -331,10 +384,19 @@ func (c sharePointCategory) isLeaf() bool {
 // [tenantID, service, siteID, category, folder, itemID]
 // => {spSite: siteID, spFolder: folder, spItemID: itemID}
 func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
+	var folderCat, itemCat categorizer
+
+	switch c {
+	case SharePointLibrary, SharePointLibraryItem:
+		folderCat, itemCat = SharePointLibrary, SharePointLibraryItem
+	case SharePointList, SharePointListItem:
+		folderCat, itemCat = SharePointList, SharePointListItem
+	}
+
 	return map[categorizer]string{
-		SharePointSite:        p.ResourceOwner(),
-		SharePointLibrary:     p.Folder(),
-		SharePointLibraryItem: p.Item(),
+		SharePointSite: p.ResourceOwner(),
+		folderCat:      p.Folder(),
+		itemCat:        p.Item(),
 	}
 }
 
@@ -406,7 +468,9 @@ func (s SharePointScope) Get(cat sharePointCategory) []string {
 // sets a value by category to the scope.  Only intended for internal use.
 func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option) SharePointScope {
 	os := []option{}
-	if cat == SharePointLibrary {
+
+	switch cat {
+	case SharePointLibrary, SharePointList:
 		os = append(os, pathComparator())
 	}
 
@@ -419,8 +483,12 @@ func (s SharePointScope) setDefaults() {
 	case SharePointSite:
 		s[SharePointLibrary.String()] = passAny
 		s[SharePointLibraryItem.String()] = passAny
+		s[SharePointList.String()] = passAny
+		s[SharePointListItem.String()] = passAny
 	case SharePointLibrary:
 		s[SharePointLibraryItem.String()] = passAny
+	case SharePointList:
+		s[SharePointListItem.String()] = passAny
 	}
 }
 
@@ -443,7 +511,7 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 		s.Selector,
 		map[path.CategoryType]sharePointCategory{
 			path.LibrariesCategory: SharePointLibraryItem,
-			// TODO: list category type
+			path.ListsCategory:     SharePointListItem,
 		},
 	)
 }
