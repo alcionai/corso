@@ -33,7 +33,7 @@ multiple backups, only one copy of the data will be stored in the
 cloud and will only be transferred once.
 
 However, given the large amounts of data that
-[Corso](http://corsobackup.io) might transfer, we wanted to look at
+[Corso](https://corsobackup.io/) might transfer, we wanted to look at
 both performance and cost-efficiency of running Corso on ARM
 (Graviton) vs. Intel and the results are quite striking!
 

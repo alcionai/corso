@@ -41,7 +41,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      empty,
 			},
-			expectIncludeLen: 1,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "single inputs",
@@ -51,7 +51,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        single,
 				WebURLs:      single,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "multi inputs",
@@ -61,7 +61,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        multi,
 				WebURLs:      multi,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "library contains",
@@ -101,7 +101,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      containsOnly,
 			},
-			expectIncludeLen: 1,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "library suffixes",
@@ -111,7 +111,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      prefixOnly, // prefix pattern matches suffix pattern
 			},
-			expectIncludeLen: 1,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "library suffixes and contains",
@@ -121,15 +121,16 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      containsAndPrefix, // prefix pattern matches suffix pattern
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 4,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewSharePointRestore()
 			// no return, mutates sel as a side effect
+			t.Logf("Options sent: %v\n", test.opts)
 			utils.IncludeSharePointRestoreDataSelectors(sel, test.opts)
-			assert.Len(t, sel.Includes, test.expectIncludeLen)
+			assert.Len(t, sel.Includes, test.expectIncludeLen, sel)
 		})
 	}
 }

@@ -70,7 +70,7 @@ The two most commonly-used options are:
 ### Initialize repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init s3`. See the command details
-[here](../../cli/corso_repo_init_s3).
+[here](../../cli/corso-repo-init-s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -107,7 +107,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ### Connect to a repository
 
 If a repository already exists, you can connect to it with `corso repo connect s3`. See the command details
-[here](../../cli/corso_repo_connect_s3).
+[here](../../cli/corso-repo-connect-s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -152,4 +152,4 @@ need to use the following flag with the initial Corso `repo init` command:
 
 Corso also supports the use of object storage systems with no TLS certificate or with self-signed
 TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
-[These flags](../../cli/corso_repo_init_s3) should only be used for testing.
+[These flags](../../cli/corso-repo-init-s3) should only be used for testing.

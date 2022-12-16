@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
@@ -277,6 +278,10 @@ func getItemStream(
 		encodeElements(itemPath.PopFront().Elements()...),
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "entry not found") {
+			err = errors.Wrap(ErrNotFound, err.Error())
+		}
+
 		return nil, errors.Wrap(err, "getting nested object handle")
 	}
 
