@@ -25,6 +25,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+const maxInflateTraversalDepth = 500
+
 var versionSize = int(unsafe.Sizeof(serializationVersion))
 
 func newBackupStreamReader(version uint32, reader io.ReadCloser) *backupStreamReader {
@@ -396,6 +398,23 @@ func getStreamItemFunc(
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are virtualfs.StreamingDirectory.
 func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.Directory, error) {
+	// Reuse kopia directories directly if the subtree rooted at them is
+	// unchanged.
+	//
+	// TODO(ashmrtn): This will need updated when we have OneDrive backups where
+	// items have been deleted because we can't determine which directory used to
+	// have the item.
+	//
+	// TODO(ashmrtn): We could possibly also use this optimization if we know that
+	// the collection has no items in it. In that case though, we may need to take
+	// extra care to ensure the name of the directory is properly represented. For
+	// example, a directory that has been renamed but with no additional items may
+	// not be able to directly use kopia's version of the directory due to the
+	// rename.
+	if dir.collection == nil && len(dir.childDirs) == 0 && dir.baseDir != nil {
+		return dir.baseDir, nil
+	}
+
 	// Need to build the directory tree from the leaves up because intermediate
 	// directories need to have all their entries at creation time.
 	var childDirs []fs.Entry
@@ -518,6 +537,211 @@ func inflateCollectionTree(
 	return roots, updatedPaths, nil
 }
 
+// traverseBaseDir is an unoptimized function that reads items in a directory
+// and traverses subdirectories in the given directory. oldDirPath is the path
+// the directory would be at if the hierarchy was unchanged. newDirPath is the
+// path the directory would be at if all changes from the root to this directory
+// were taken into account. Both are needed to detect some changes like moving
+// a parent directory and moving one of the child directories out of the parent.
+// If a directory on the path was deleted, newDirPath is set to nil.
+//
+// TODO(ashmrtn): A potentially more memory efficient version of this would
+// traverse only the directories that we know are present in the collections
+// passed in. The other directories could be dynamically discovered when kopia
+// was requesting items.
+func traverseBaseDir(
+	ctx context.Context,
+	depth int,
+	updatedPaths map[string]path.Path,
+	oldDirPath *path.Builder,
+	newDirPath *path.Builder,
+	dir fs.Directory,
+	roots map[string]*treeMap,
+) error {
+	if depth >= maxInflateTraversalDepth {
+		return errors.Errorf("base snapshot tree too tall %s", oldDirPath)
+	}
+
+	// Wrapper base64 encodes all file and folder names to avoid issues with
+	// special characters. Since we're working directly with files and folders
+	// from kopia we need to do the decoding here.
+	dirName, err := decodeElement(dir.Name())
+	if err != nil {
+		return errors.Wrapf(err, "decoding base directory name %s", dir.Name())
+	}
+
+	// Form the path this directory would be at if the hierarchy remained the same
+	// as well as where it would be at if we take into account ancestor
+	// directories that may have had changes. The former is used to check if this
+	// directory specifically has been moved. The latter is used to handle
+	// deletions and moving subtrees in the hierarchy.
+	//
+	// Explicit movement of directories should have the final say though so we
+	// override any subtree movement with what's in updatedPaths if an entry
+	// exists.
+	oldDirPath = oldDirPath.Append(dirName)
+	currentPath := newDirPath
+
+	if currentPath != nil {
+		currentPath = currentPath.Append(dirName)
+	}
+
+	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
+		// This directory was deleted.
+		if upb == nil {
+			currentPath = nil
+		} else {
+			// This directory was moved/renamed and the new location is in upb.
+			currentPath = upb.ToBuilder()
+		}
+	}
+
+	// TODO(ashmrtn): If we can do prefix matching on elements in updatedPaths and
+	// we know that the tree node for this directory has no collection reference
+	// and no child nodes then we can skip traversing this directory. This will
+	// only work if we know what directory deleted items used to belong in (e.x.
+	// it won't work for OneDrive because we only know the ID of the deleted
+	// item).
+
+	var hasItems bool
+
+	err = dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
+		dEntry, ok := entry.(fs.Directory)
+		if !ok {
+			hasItems = true
+			return nil
+		}
+
+		return traverseBaseDir(
+			innerCtx,
+			depth+1,
+			updatedPaths,
+			oldDirPath,
+			currentPath,
+			dEntry,
+			roots,
+		)
+	})
+	if err != nil {
+		return errors.Wrapf(err, "traversing base directory %s", oldDirPath)
+	}
+
+	// We only need to add this base directory to the tree we're building if it
+	// has items in it. The traversal of the directory here just finds
+	// subdirectories. This optimization will not be valid if we dynamically
+	// determine the subdirectories this directory has when handing items to
+	// kopia.
+	if currentPath != nil && hasItems {
+		// Having this in the if-block has the effect of removing empty directories
+		// from backups that have a base snapshot. If we'd like to preserve empty
+		// directories across incremental backups, move getting the node outside of
+		// the if-block. That will be sufficient to create a StreamingDirectory that
+		// kopia will pick up on. Assigning the baseDir of the node should remain
+		// in the if-block though as that is an optimization.
+		node := getTreeNode(roots, currentPath.Elements())
+		if node == nil {
+			return errors.Errorf("unable to get tree node for path %s", currentPath)
+		}
+
+		node.baseDir = dir
+	}
+
+	return nil
+}
+
+// TODO(ashmrtn): We may want to move this to BackupOp and pass in
+// (Manifest, path) to kopia.BackupCollections() instead of passing in
+// ManifestEntry. That would keep kopia from having to know anything about how
+// paths are formed. It would just encode/decode them and do basic manipulations
+// like pushing/popping elements on a path based on location in the hierarchy.
+func encodedElementsForPath(tenant string, r Reason) (*path.Builder, error) {
+	// This is hacky, but we want the path package to format the path the right
+	// way (e.x. proper order for service, category, etc), but we don't care about
+	// the folders after the prefix.
+	p, err := path.Builder{}.Append("tmp").ToDataLayerPath(
+		tenant,
+		r.ResourceOwner,
+		r.Service,
+		r.Category,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "building path")
+	}
+
+	return p.ToBuilder().Dir(), nil
+}
+
+func inflateBaseTree(
+	ctx context.Context,
+	loader snapshotLoader,
+	snap *ManifestEntry,
+	updatedPaths map[string]path.Path,
+	roots map[string]*treeMap,
+) error {
+	// Only complete snapshots should be used to source base information.
+	// Snapshots for checkpoints will rely on kopia-assisted dedupe to efficiently
+	// handle items that were completely uploaded before Corso crashed.
+	if len(snap.IncompleteReason) > 0 {
+		return nil
+	}
+
+	root, err := loader.SnapshotRoot(snap.Manifest)
+	if err != nil {
+		return errors.Wrapf(err, "getting snapshot %s root directory", snap.ID)
+	}
+
+	dir, ok := root.(fs.Directory)
+	if !ok {
+		return errors.Errorf("snapshot %s root is not a directory", snap.ID)
+	}
+
+	rootName, err := decodeElement(dir.Name())
+	if err != nil {
+		return errors.Wrapf(err, "snapshot %s root has undecode-able name", snap.ID)
+	}
+
+	// For each subtree corresponding to the tuple
+	// (resource owner, service, category) merge the directories in the base with
+	// what has been reported in the collections we got.
+	for _, reason := range snap.Reasons {
+		pb, err := encodedElementsForPath(rootName, reason)
+		if err != nil {
+			return errors.Wrapf(err, "snapshot %s getting path elements", snap.ID)
+		}
+
+		// We're starting from the root directory so don't need it in the path.
+		pathElems := encodeElements(pb.PopFront().Elements()...)
+
+		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
+		if err != nil {
+			return errors.Wrapf(err, "snapshot %s getting subtree root", snap.ID)
+		}
+
+		subtreeDir, ok := ent.(fs.Directory)
+		if !ok {
+			return errors.Wrapf(err, "snapshot %s subtree root is not directory", snap.ID)
+		}
+
+		// We're assuming here that the prefix for the path has not changed (i.e.
+		// all of tenant, service, resource owner, and category are the same in the
+		// old snapshot (snap) and the snapshot we're currently trying to make.
+		if err = traverseBaseDir(
+			ctx,
+			0,
+			updatedPaths,
+			pb.Dir(),
+			pb.Dir(),
+			subtreeDir,
+			roots,
+		); err != nil {
+			return errors.Wrapf(err, "traversing base snapshot %s", snap.ID)
+		}
+	}
+
+	return nil
+}
+
 // inflateDirTree returns a set of tags representing all the resource owners and
 // service/categories in the snapshot and a fs.Directory tree rooted at the
 // oldest common ancestor of the streams. All nodes are
@@ -526,12 +750,20 @@ func inflateCollectionTree(
 // caching reasons.
 func inflateDirTree(
 	ctx context.Context,
+	loader snapshotLoader,
+	baseSnaps []*ManifestEntry,
 	collections []data.Collection,
 	progress *corsoProgress,
 ) (fs.Directory, error) {
-	roots, _, err := inflateCollectionTree(ctx, collections)
+	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
 	if err != nil {
 		return nil, errors.Wrap(err, "inflating collection tree")
+	}
+
+	for _, snap := range baseSnaps {
+		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
+			return nil, errors.Wrap(err, "inflating base snapshot tree(s)")
+		}
 	}
 
 	if len(roots) > 1 {
