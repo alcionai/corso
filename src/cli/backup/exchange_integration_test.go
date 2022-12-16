@@ -50,7 +50,7 @@ type NoBackupExchangeIntegrationSuite struct {
 }
 
 func TestNoBackupExchangeIntegrationSuite(t *testing.T) {
-	suite.T().Skip("temporary skip on e2e smoke tests")
+	t.Skip("temporary skip on e2e smoke tests")
 
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
@@ -141,7 +141,7 @@ type BackupExchangeIntegrationSuite struct {
 }
 
 func TestBackupExchangeIntegrationSuite(t *testing.T) {
-	suite.T().Skip("temporary skip on e2e smoke tests")
+	t.Skip("temporary skip on e2e smoke tests")
 
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
@@ -240,7 +240,7 @@ type PreparedBackupExchangeIntegrationSuite struct {
 }
 
 func TestPreparedBackupExchangeIntegrationSuite(t *testing.T) {
-	suite.T().Skip("temporary skip on e2e smoke tests")
+	t.Skip("temporary skip on e2e smoke tests")
 
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
@@ -478,7 +478,7 @@ type BackupDeleteExchangeIntegrationSuite struct {
 }
 
 func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
-	suite.T().Skip("temporary skip on e2e smoke tests")
+	t.Skip("temporary skip on e2e smoke tests")
 
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,

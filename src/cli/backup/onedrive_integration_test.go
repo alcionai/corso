@@ -40,7 +40,7 @@ type NoBackupOneDriveIntegrationSuite struct {
 }
 
 func TestNoBackupOneDriveIntegrationSuite(t *testing.T) {
-	suite.T().Skip("temporary skip on e2e smoke tests")
+	t.Skip("temporary skip on e2e smoke tests")
 
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
@@ -131,7 +131,7 @@ type BackupDeleteOneDriveIntegrationSuite struct {
 }
 
 func TestBackupDeleteOneDriveIntegrationSuite(t *testing.T) {
-	suite.T().Skip("temporary skip on e2e smoke tests")
+	t.Skip("temporary skip on e2e smoke tests")
 
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
