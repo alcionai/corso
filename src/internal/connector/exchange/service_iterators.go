@@ -113,7 +113,7 @@ func FilterContainersAndFillCollections(
 	}
 
 	if len(deltaURLs) > 0 {
-		entries = append(entries, graph.NewMetadataEntry(graph.DeltaTokenFileName, deltaURLs))
+		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
 	}
 
 	if col, err := graph.MakeMetadataCollection(

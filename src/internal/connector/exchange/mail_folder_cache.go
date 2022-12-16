@@ -55,10 +55,7 @@ func (mc *mailFolderCache) populateMailRoot(
 			directory = DefaultMailFolder
 		}
 
-		temp := cacheFolder{
-			Container: f,
-			p:         path.Builder{}.Append(directory),
-		}
+		temp := graph.NewCacheFolder(f, path.Builder{}.Append(directory))
 
 		if err := mc.addFolder(temp); err != nil {
 			return errors.Wrap(err, "initializing mail resolver")
@@ -98,9 +95,7 @@ func (mc *mailFolderCache) Populate(
 		}
 
 		for _, f := range resp.GetValue() {
-			temp := cacheFolder{
-				Container: f,
-			}
+			temp := graph.NewCacheFolder(f, nil)
 
 			// Use addFolder instead of AddToCache to be conservative about path
 			// population. The fetch order of the folders could cause failures while

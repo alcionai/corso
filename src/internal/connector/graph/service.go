@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	// DeltaTokenFileName is the name of the file containing delta token(s) for a
+	// DeltaURLsFileName is the name of the file containing delta token(s) for a
 	// given endpoint. The endpoint granularity varies by service.
-	DeltaTokenFileName = "delta"
+	DeltaURLsFileName = "delta"
 	// PreviousPathFileName is the name of the file containing previous path(s) for a
 	// given endpoint.
 	PreviousPathFileName = "previouspath"
@@ -21,7 +21,7 @@ const (
 // AllMetadataFileNames produces the standard set of filenames used to store graph
 // metadata such as delta tokens and folderID->path references.
 func AllMetadataFileNames() []string {
-	return []string{DeltaTokenFileName, PreviousPathFileName}
+	return []string{DeltaURLsFileName, PreviousPathFileName}
 }
 
 type QueryParams struct {
