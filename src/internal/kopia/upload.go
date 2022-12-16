@@ -710,8 +710,7 @@ func inflateBaseTree(
 			return errors.Wrapf(err, "snapshot %s getting path elements", snap.ID)
 		}
 
-		// Root directory is not included in the lookup path we give kopia as we're
-		// starting from the root.
+		// We're starting from the root directory so don't need it in the path.
 		pathElems := encodeElements(pb.PopFront().Elements()...)
 
 		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)

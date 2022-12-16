@@ -34,7 +34,7 @@ func makePath(t *testing.T, elements []string) path.Path {
 
 // baseWithChildren returns an fs.Entry hierarchy where the first len(basic)
 // levels are the encoded values of basic in order. All items in children are
-// made a direct descendent of the final entry in basic.
+// used as the direct descendents of the final entry in basic.
 func baseWithChildren(
 	basic []string,
 	children []fs.Entry,
