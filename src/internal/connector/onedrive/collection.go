@@ -22,10 +22,10 @@ import (
 const (
 	// TODO: This number needs to be tuned
 	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
-	collectionChannelBufferSize = 50
+	collectionChannelBufferSize = 5
 
 	// TODO: Tune this later along with collectionChannelBufferSize
-	urlPrefetchChannelBufferSize = 25
+	urlPrefetchChannelBufferSize = 5
 
 	// Max number of retries to get doc from M365
 	// Seems to timeout at times because of multiple requests
