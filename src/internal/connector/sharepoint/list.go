@@ -11,6 +11,51 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
+func preFetchListOptions() *mssite.SitesItemListsRequestBuilderGetRequestConfiguration {
+	selecting := []string{"id"}
+	queryOptions := mssite.SitesItemListsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mssite.SitesItemListsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &queryOptions,
+	}
+
+	return options
+}
+
+func preFetchListIDs(
+	ctx context.Context,
+	gs graph.Servicer,
+	siteID string,
+) ([]string, error) {
+	var (
+		builder = gs.Client().SitesById(siteID).Lists()
+		options = preFetchListOptions()
+		listIDs = make([]string, 0)
+		errs    error
+	)
+
+	for {
+		resp, err := builder.Get(ctx, options)
+		if err != nil {
+			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+		}
+
+		for _, entry := range resp.GetValue() {
+			id := *entry.GetId()
+			listIDs = append(listIDs, id)
+		}
+
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
+
+		builder = mssite.NewSitesItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+	}
+
+	return listIDs, nil
+}
+
 // list.go contains additional functions to help retrieve SharePoint List data from M365
 // SharePoint lists represent lists on a site. Inherits additional properties from
 // baseItem: https://learn.microsoft.com/en-us/graph/api/resources/baseitem?view=graph-rest-1.0
@@ -29,41 +74,34 @@ func loadSiteLists(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID string,
+	listIDs []string,
 ) ([]models.Listable, error) {
 	var (
-		prefix  = gs.Client().SitesById(siteID)
-		builder = prefix.Lists()
 		results = make([]models.Listable, 0)
 		errs    error
 	)
 
-	for {
-		resp, err := builder.Get(ctx, nil)
+	for _, listID := range listIDs {
+		entry, err := gs.Client().SitesById(siteID).ListsById(listID).Get(ctx, nil)
 		if err != nil {
-			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+			errs = support.WrapAndAppend(
+				listID,
+				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+				errs,
+			)
 		}
 
-		for _, entry := range resp.GetValue() {
-			id := *entry.GetId()
-
-			cols, cTypes, lItems, err := fetchRelationships(ctx, gs, siteID, id)
-			if err == nil {
-				entry.SetColumns(cols)
-				entry.SetContentTypes(cTypes)
-				entry.SetItems(lItems)
-			} else {
-				errs = support.WrapAndAppend("unable to fetchRelationships during loadSiteLists", err, errs)
-				continue
-			}
-
-			results = append(results, entry)
+		cols, cTypes, lItems, err := fetchRelationships(ctx, gs, siteID, listID)
+		if err == nil {
+			entry.SetColumns(cols)
+			entry.SetContentTypes(cTypes)
+			entry.SetItems(lItems)
+		} else {
+			errs = support.WrapAndAppend("unable to fetchRelationships during loadSiteLists", err, errs)
+			continue
 		}
 
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = mssite.NewSitesItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		results = append(results, entry)
 	}
 
 	if errs != nil {
