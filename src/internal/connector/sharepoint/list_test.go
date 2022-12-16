@@ -54,7 +54,9 @@ func (suite *SharePointSuite) TestLoadList() {
 	service, err := createTestService(suite.creds)
 	require.NoError(t, err)
 
-	lists, err := loadSiteLists(ctx, service, "root")
+	jobs, err := preFetchListIDs(ctx, service, "root")
+	require.NoError(t, err)
+	lists, err := loadSiteLists(ctx, service, "root", jobs)
 	assert.NoError(t, err)
 	assert.Greater(t, len(lists), 0)
 	t.Logf("Length: %d\n", len(lists))
