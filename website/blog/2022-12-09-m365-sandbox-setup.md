@@ -83,5 +83,5 @@ To learn more about populating your domain with dummy data, see
 [developer sandbox demo data](https://learn.microsoft.com/en-us/office/developer-program/install-sample-packs)
 to create users, email, calendar events, and other dummy data for testing.
 
-And if you want one more thing to try out with a sandbox domain, check out [Corso](http://corsobackup.io),
+And if you want one more thing to try out with a sandbox domain, check out [Corso](https://corsobackup.io),
 a free and open-source backup tool. The sandbox is a great place to try it out!
