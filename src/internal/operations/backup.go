@@ -93,15 +93,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, end := D.Span(ctx, "operations:backup:run")
 	defer end()
 
-	m365, err := op.account.M365Config()
-	if err != nil {
-		return errors.Wrap(err, "getting tenant ID")
-	}
-
 	var (
 		opStats       backupStats
 		backupDetails *details.Details
-		tenantID      = m365.AzureTenantID
+		tenantID      = op.account.ID()
 		startTime     = time.Now()
 	)
 
