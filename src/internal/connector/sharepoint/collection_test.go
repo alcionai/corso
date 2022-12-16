@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -62,7 +63,11 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 			false)
 	require.NoError(t, err)
 
-	col := NewCollection(dir, nil, nil)
+	mockUpdate := func(status *support.ConnectorOperationStatus) {
+		assert.NotNil(t, status)
+	}
+
+	col := NewCollection(dir, nil, mockUpdate)
 	col.data <- &Item{
 		id:   testName,
 		data: io.NopCloser(bytes.NewReader(byteArray)),
@@ -70,6 +75,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	}
 
 	readItems := []data.Stream{}
+
 	for item := range col.Items() {
 		readItems = append(readItems, item)
 	}
