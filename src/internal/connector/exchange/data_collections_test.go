@@ -187,9 +187,6 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			emails := cdps[path.EmailCategory]
 			deltas, paths := emails.deltas, emails.paths
 
-			deltas := cdps[path.EmailCategory].deltas
-			paths := cdps[path.EmailCategory].paths
-
 			if len(test.expectDeltas) > 0 {
 				assert.NotEmpty(t, deltas, "deltas")
 			}
