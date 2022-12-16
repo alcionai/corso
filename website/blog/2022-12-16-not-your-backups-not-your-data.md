@@ -224,7 +224,7 @@ Microsoft 365 data, at low cost, by securely and efficiently backing
 up all business-critical data to object storage.
 
 You can get started with Corso in [just a few
-minutes](https://corsobackup.io/docs/quickstart) and you will be able
+minutes](https://corsobackup.io/docs/quickstart/) and you will be able
 to move your Microsoft 365 emails and data to your choice of object
 storage provider and location. Not only will Corso compress and
 deduplicated your data, it will also encrypt it with your keys. Corso

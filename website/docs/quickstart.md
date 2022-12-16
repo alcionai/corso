@@ -21,7 +21,7 @@ pull the image.
 ## Connect to Microsoft 365
 
 Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time operation. Follow the instructions
-[here](../setup/m365_access) to obtain the necessary credentials and then make them available to Corso.
+[here](../setup/m365-access) to obtain the necessary credentials and then make them available to Corso.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -202,7 +202,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ```
 
 Next, select one of the available backups and list all backed up emails. See
-[here](../cli/corso_backup_details_exchange) for more advanced filtering options.
+[here](../cli/corso-backup-details-exchange) for more advanced filtering options.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
