@@ -7,6 +7,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
@@ -18,6 +19,22 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+const (
+	errEmailFolderNotFound = "ErrorSyncFolderNotFound"
+	errItemNotFound        = "ErrorItemNotFound"
+)
+
+func hasErrorCode(err error, code string) bool {
+	var oDataError *odataerrors.ODataError
+	if !errors.As(err, &oDataError) {
+		return false
+	}
+
+	return oDataError.GetError() != nil &&
+		oDataError.GetError().GetCode() != nil &&
+		*oDataError.GetError().GetCode() == code
+}
 
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -226,6 +243,14 @@ func FetchEventIDsFromCalendar(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
+			if hasErrorCode(err, errItemNotFound) {
+				// The folder was deleted between the time we populated the container
+				// cache and when we tried to fetch data for it. All we can do is
+				// return no jobs because we've only pulled basic info about each
+				// item.
+				return nil, "", nil
+			}
+
 			return nil, "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
@@ -288,6 +313,14 @@ func FetchContactIDsFromDirectory(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
+			if hasErrorCode(err, errItemNotFound) {
+				// The folder was deleted between the time we populated the container
+				// cache and when we tried to fetch data for it. All we can do is
+				// return no jobs because we've only pulled basic info about each
+				// item.
+				return nil, "", nil
+			}
+
 			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
@@ -354,6 +387,14 @@ func FetchMessageIDsFromDirectory(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
+			if hasErrorCode(err, errEmailFolderNotFound) {
+				// The folder was deleted between the time we populated the container
+				// cache and when we tried to fetch data for it. All we can do is
+				// return no jobs because we've only pulled basic info about each
+				// item.
+				return nil, "", nil
+			}
+
 			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
