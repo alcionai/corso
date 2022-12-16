@@ -236,9 +236,18 @@ func produceManifestsAndMetadata(
 	return ms, collections, err
 }
 
+type restorer interface {
+	RestoreMultipleItems(
+		ctx context.Context,
+		snapshotID string,
+		paths []path.Path,
+		bc kopia.ByteCounter,
+	) ([]data.Collection, error)
+}
+
 func collectMetadata(
 	ctx context.Context,
-	kw *kopia.Wrapper,
+	kw restorer,
 	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
