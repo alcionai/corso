@@ -114,13 +114,14 @@ func (sd *Item) ModTime() time.Time {
 	return sd.modTime
 }
 
-func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
+func (sc *Collection) finishPopulation(ctx context.Context, attempts, success int, totalBytes int64, errs error) {
 	close(sc.data)
-	attempted := len(sc.jobs)
+
+	attempted := attempts
 	status := support.CreateStatus(
 		ctx,
 		support.Backup,
-		1,
+		len(sc.jobs),
 		support.CollectionMetrics{
 			Objects:    attempted,
 			Successes:  success,
@@ -129,12 +130,13 @@ func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBy
 		errs,
 		sc.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
+	sc.statusUpdater(status)
 }
 
 // populate utility function to retrieve data from back store for a given collection
 func (sc *Collection) populate(ctx context.Context) {
 	var (
-		success                 int
+		objects, success        int
 		totalBytes, arrayLength int64
 		errs                    error
 		writer                  = kw.NewJsonSerializationWriter()
@@ -146,13 +148,15 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, success, totalBytes, errs)
+		sc.finishPopulation(ctx, objects, success, totalBytes, errs)
 	}()
 
 	// sc.jobs contains query = all of the site IDs.
 	for _, id := range sc.jobs {
 		// Retrieve list data from M365
 		lists, err := loadSiteLists(ctx, sc.service, id)
+		objects += len(lists)
+
 		if err != nil {
 			errs = support.WrapAndAppend(id, err, errs)
 		}
