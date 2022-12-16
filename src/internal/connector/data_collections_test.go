@@ -637,7 +637,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		t.Run(test.name, func(t *testing.T) {
 			cols, err := gc.DataCollections(ctx, test.sel(t), nil, control.Options{})
 			require.NoError(t, err)
-			assert.Equal(t, test.expected, len(cols))
+			assert.Len(t, cols, test.expected)
 		})
 	}
 }
