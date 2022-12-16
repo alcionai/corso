@@ -37,6 +37,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		name         string
 		data         []fileValues
 		expectDeltas map[string]string
+		expectPaths  map[string]string
+		expectError  assert.ErrorAssertionFunc
 	}{
 		{
 			name: "delta urls",
@@ -46,6 +48,47 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			expectDeltas: map[string]string{
 				"key": "delta-link",
 			},
+			expectError: assert.NoError,
+		},
+		{
+			name: "multiple delta urls",
+			data: []fileValues{
+				{graph.DeltaTokenFileName, "delta-link"},
+				{graph.DeltaTokenFileName, "delta-link-2"},
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "previous path",
+			data: []fileValues{
+				{graph.PreviousPathFileName, "prev-path"},
+			},
+			expectPaths: map[string]string{
+				"key": "prev-path",
+			},
+			expectError: assert.NoError,
+		},
+		{
+			name: "multiple previous paths",
+			data: []fileValues{
+				{graph.PreviousPathFileName, "prev-path"},
+				{graph.PreviousPathFileName, "prev-path-2"},
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "delta urls and previous paths",
+			data: []fileValues{
+				{graph.DeltaTokenFileName, "delta-link"},
+				{graph.PreviousPathFileName, "prev-path"},
+			},
+			expectDeltas: map[string]string{
+				"key": "delta-link",
+			},
+			expectPaths: map[string]string{
+				"key": "prev-path",
+			},
+			expectError: assert.NoError,
 		},
 		{
 			name: "delta urls with special chars",
@@ -55,6 +98,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			expectDeltas: map[string]string{
 				"key": "`!@#$%^&*()_[]{}/\"\\",
 			},
+			expectError: assert.NoError,
 		},
 		{
 			name: "delta urls with escaped chars",
@@ -64,6 +108,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			expectDeltas: map[string]string{
 				"key": "\\n\\r\\t\\b\\f\\v\\0\\\\",
 			},
+			expectError: assert.NoError,
 		},
 		{
 			name: "delta urls with newline char runes",
@@ -76,6 +121,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			expectDeltas: map[string]string{
 				"key": "\\n",
 			},
+			expectError: assert.NoError,
 		},
 	}
 	for _, test := range table {
@@ -102,11 +148,18 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				colls = append(colls, coll)
 			}
 
-			_, deltas, err := ParseMetadataCollections(ctx, colls)
-			require.NoError(t, err)
-			assert.NotEmpty(t, deltas, "deltas")
+			cdps, err := ParseMetadataCollections(ctx, colls)
+			test.expectError(t, err)
+
+			emails := cdps[path.EmailCategory]
+			deltas, paths := emails.deltas, emails.paths
+
 			for k, v := range test.expectDeltas {
 				assert.Equal(t, v, deltas[k], "deltas elements")
+			}
+
+			for k, v := range test.expectPaths {
+				assert.Equal(t, v, paths[k], "deltas elements")
 			}
 		})
 	}

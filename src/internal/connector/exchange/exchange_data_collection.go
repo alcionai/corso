@@ -58,17 +58,21 @@ type Collection struct {
 
 	collectionType optionIdentifier
 	statusUpdater  support.StatusUpdater
-	// FullPath is the slice representation of the action context passed down through the hierarchy.
-	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	ctrl           control.Options
+
+	// FullPath is the current hierarchical path used by this collection.
 	fullPath path.Path
 
-	ctrl control.Options
+	// PrevPath is the previous hierarchical path used by this collection.
+	// It may be the same as fullPath, if the folder was not renamed or
+	// moved.  It will be empty on its first retrieval.
+	prevPath path.Path
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
 func NewCollection(
 	user string,
-	fullPath path.Path,
+	fullPath, prevPath path.Path,
 	collectionType optionIdentifier,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
@@ -81,6 +85,7 @@ func NewCollection(
 		service:        service,
 		statusUpdater:  statusUpdater,
 		fullPath:       fullPath,
+		prevPath:       prevPath,
 		collectionType: collectionType,
 		ctrl:           ctrlOpts,
 	}
