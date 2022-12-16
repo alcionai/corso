@@ -211,26 +211,19 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
-		bup := backup.Backup{}
+		k, _ := kopia.MakeTagKV(kopia.TagBackupID)
+		bupID := man.Tags[k]
 
-		if err := sw.Get(
-			ctx,
-			model.BackupSchema,
-			model.StableID(man.Tags[kopia.TagBackupID]),
-			&bup,
-		); err != nil {
+		bup, err := sw.GetBackup(ctx, model.StableID(bupID))
+		if err != nil {
 			return nil, nil, err
 		}
 
 		colls, err := collectMetadata(ctx, kw, graph.MetadataFileNames(), oc, tid, bup.SnapshotID)
-		if err != nil {
+		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
 			// full backup for that data.
-			if errors.Is(err, errNotRestored) {
-				continue
-			}
-
 			return nil, nil, err
 		}
 
@@ -239,8 +232,6 @@ func produceManifestsAndMetadata(
 
 	return ms, collections, err
 }
-
-var errNotRestored = errors.New("unable to restore metadata")
 
 func collectMetadata(
 	ctx context.Context,

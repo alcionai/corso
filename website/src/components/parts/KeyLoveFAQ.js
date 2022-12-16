@@ -362,7 +362,7 @@ export default function KeyLoveFAQ() {
 
             <div className="mt-4">
               <a
-                href="docs/quickstart"
+                href="docs/quickstart/"
                 className="btn btn-link !no-underline link-underline link-underline-black text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out"
               >
                 Use The Quick Start For Your First Backup{" "}
@@ -427,7 +427,7 @@ export default function KeyLoveFAQ() {
 
             <div className="mt-4">
               <a
-                href="docs/setup/repos"
+                href="docs/setup/repos/"
                 className="btn btn-link !no-underline link-underline link-underline-black text-indigo-600 hover:text-indigo-600 after:bg-indigo-600 duration-500 ease-in-out"
               >
                 Read about our Object Storage support{" "}
