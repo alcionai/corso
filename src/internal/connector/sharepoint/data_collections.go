@@ -41,7 +41,6 @@ func DataCollections(
 		scopes      = b.DiscreteScopes(siteIDs)
 		collections = []data.Collection{}
 		errs        error
-		spcs        []data.Collection
 	)
 
 	for _, scope := range scopes {
@@ -52,6 +51,8 @@ func DataCollections(
 				scope.Category().PathType(), site))
 			defer closer()
 			defer close(foldersComplete)
+
+			var spcs []data.Collection
 
 			switch scope.Category().PathType() {
 			case path.ListsCategory:
