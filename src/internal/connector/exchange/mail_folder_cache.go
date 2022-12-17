@@ -21,7 +21,6 @@ type mailFolderCache struct {
 	*containerResolver
 	gs     graph.Servicer
 	userID string
-	dps    DeltaPaths
 }
 
 // populateMailRoot manually fetches directories that are not returned during Graph for msgraph-sdk-go v. 40+

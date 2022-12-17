@@ -20,19 +20,3 @@ func First(vs ...string) string {
 
 	return ""
 }
-
-// Equal returns true if both slices contain the same
-// elements in the same order
-func AreSameSlice[T comparable](s1, s2 []T) bool {
-	if len(s1) != len(s2) {
-		return false
-	}
-
-	for i, v := range s1 {
-		if s2[i] != v {
-			return false
-		}
-	}
-
-	return true
-}
