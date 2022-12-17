@@ -247,7 +247,7 @@ type restorer interface {
 
 func collectMetadata(
 	ctx context.Context,
-	kw restorer,
+	r restorer,
 	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
@@ -272,7 +272,7 @@ func collectMetadata(
 		}
 	}
 
-	dcs, err := kw.RestoreMultipleItems(ctx, string(man.ID), paths, nil)
+	dcs, err := r.RestoreMultipleItems(ctx, string(man.ID), paths, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting prior metadata")
 	}
