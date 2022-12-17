@@ -110,8 +110,6 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // from as well as any incomplete snapshot checkpoints that may contain more
 // recent data than the base snapshot. The absence of previousSnapshots causes a
 // complete backup of all data.
-//
-// TODO(ashmrtn): Use previousSnapshots parameter.
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []*ManifestEntry,
@@ -136,12 +134,21 @@ func (w Wrapper) BackupCollections(
 		deets:   &details.Details{},
 	}
 
+	// TODO(ashmrtn): Pass previousSnapshots here to enable building the directory
+	// hierarchy with them.
 	dirTree, err := inflateDirTree(ctx, w.c, nil, collections, progress)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
-	s, err := w.makeSnapshotWithRoot(ctx, dirTree, oc, progress, tags)
+	s, err := w.makeSnapshotWithRoot(
+		ctx,
+		previousSnapshots,
+		dirTree,
+		oc,
+		tags,
+		progress,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -151,15 +158,15 @@ func (w Wrapper) BackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
+	prevSnapEntries []*ManifestEntry,
 	root fs.Directory,
 	oc *OwnersCats,
-	progress *corsoProgress,
 	addlTags map[string]string,
+	progress *corsoProgress,
 ) (*BackupStats, error) {
 	var (
-		man             *snapshot.Manifest
-		prevSnapEntries = fetchPrevSnapshotManifests(ctx, w.c, oc, nil)
-		bc              = &stats.ByteCounter{}
+		man *snapshot.Manifest
+		bc  = &stats.ByteCounter{}
 	)
 
 	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
