@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var (
@@ -159,7 +158,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	// if no selector flags were specified, get all data in the service.
 	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.Sites(selectors.Any()))
+		sel.Include(sel.AllData())
 	}
 
 	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)

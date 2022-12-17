@@ -83,7 +83,7 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 	// only use the inclusion if either a path or item name
 	// is specified
 	if lp+ln == 0 {
-		sel.Include(sel.Users(opts.Users))
+		sel.Include(sel.AllData())
 
 		return sel
 	}
@@ -97,11 +97,11 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.Paths)
 
 	if len(containsFolders) > 0 {
-		sel.Include(sel.Items(users, containsFolders, opts.Names))
+		sel.Include(sel.Items(containsFolders, opts.Names))
 	}
 
 	if len(prefixFolders) > 0 {
-		sel.Include(sel.Items(users, prefixFolders, opts.Names, selectors.PrefixMatch()))
+		sel.Include(sel.Items(prefixFolders, opts.Names, selectors.PrefixMatch()))
 	}
 
 	return sel

@@ -189,15 +189,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 			sel, err := sharePointBackupCreateSelectors(ctx, test.site, test.weburl, gc)
 			require.NoError(t, err)
 
-			scopes := sel.Scopes()
-			assert.Len(t, scopes, test.expectScopesLen)
-
-			if test.expectScopesLen == 0 {
-				return
-			}
-
-			targetSites := scopes[0].Get(selectors.SharePointSite)
-			assert.ElementsMatch(t, test.expect, targetSites)
+			assert.ElementsMatch(t, test.expect, sel.DiscreteResourceOwners())
 		})
 	}
 }

@@ -246,7 +246,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		{
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				users,
 				[]string{DefaultMailFolder},
 				selectors.PrefixMatch(),
 			)[0],
@@ -303,7 +302,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		{
 			name: "Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{userID},
 				[]string{DefaultMailFolder},
 				selectors.PrefixMatch(),
 			)[0],
@@ -311,7 +309,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		{
 			name: "Contacts",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{userID},
 				[]string{DefaultContactFolder},
 				selectors.PrefixMatch(),
 			)[0],
@@ -391,7 +388,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	require.NoError(t, err)
 
 	sel := selectors.NewExchangeBackup(users)
-	sel.Include(sel.MailFolders(users, []string{DefaultMailFolder}, selectors.PrefixMatch()))
+	sel.Include(sel.MailFolders([]string{DefaultMailFolder}, selectors.PrefixMatch()))
 
 	collections, err := createCollections(
 		ctx,
@@ -451,7 +448,6 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 		{
 			name: "Default Contact Folder",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				users,
 				[]string{DefaultContactFolder},
 				selectors.PrefixMatch())[0],
 		},
@@ -528,7 +524,6 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			name:     "Default Event Calendar",
 			expected: DefaultCalendar,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				users,
 				[]string{DefaultCalendar},
 				selectors.PrefixMatch())[0],
 		},
@@ -536,7 +531,6 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			name:     "Birthday Calendar",
 			expected: "Birthdays",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				users,
 				[]string{"Birthdays"},
 				selectors.PrefixMatch())[0],
 		},

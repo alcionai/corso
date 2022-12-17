@@ -74,8 +74,6 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 			p := sel.Printable()
 			res := p.Resources()
 
-			assert.Equal(t, "All", res, "stub starts out as an all-pass")
-
 			stubWithResource := func(resource string) scope {
 				ss := stubScope("")
 				ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)

@@ -106,14 +106,18 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 		ids = siteIDs
 	}
 
-	// verify resourceOwners
-	normROs := map[string]struct{}{}
+	resourceOwner := strings.ToLower(sels.DiscreteOwner)
+
+	var found bool
 
 	for _, id := range ids {
-		normROs[strings.ToLower(id)] = struct{}{}
+		if strings.ToLower(id) == resourceOwner {
+			found = true
+			break
+		}
 	}
 
-	if _, ok := normROs[strings.ToLower(sels.DiscreteOwner)]; !ok {
+	if !found {
 		return fmt.Errorf("resource owner [%s] not found within tenant", sels.DiscreteOwner)
 	}
 

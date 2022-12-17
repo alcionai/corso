@@ -515,7 +515,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
-				sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.user
 
 				return sel
@@ -529,12 +529,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
-				sel.Include(sel.ContactFolders(
-					users,
-					[]string{exchange.DefaultContactFolder},
-					selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.user
-
+				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
 				return sel
 			},
 			resourceOwner:  suite.user,
@@ -546,9 +541,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
-				sel.Include(sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.user
-
+				sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
 			resourceOwner: suite.user,
@@ -755,8 +748,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	containers := []string{container1, container2, container3, containerRename}
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(
-		sel.MailFolders(users, containers, selectors.PrefixMatch()),
-		sel.ContactFolders(users, containers, selectors.PrefixMatch()),
+		sel.MailFolders(containers, selectors.PrefixMatch()),
+		sel.ContactFolders(containers, selectors.PrefixMatch()),
 	)
 
 	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
@@ -1015,7 +1008,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 		sel        = selectors.NewOneDriveBackup([]string{m365UserID})
 	)
 
-	sel.Include(sel.Users([]string{m365UserID}))
+	sel.Include(sel.AllData())
 
 	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()
@@ -1037,7 +1030,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)
 
-	sel.Include(sel.Sites([]string{suite.site}))
+	sel.Include(sel.AllData())
 
 	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()

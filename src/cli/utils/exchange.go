@@ -75,11 +75,11 @@ func AddExchangeInclude(
 	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(folders)
 
 	if len(containsFolders) > 0 {
-		sel.Include(eisc(resource, containsFolders, items))
+		sel.Include(eisc(containsFolders, items))
 	}
 
 	if len(prefixFolders) > 0 {
-		sel.Include(eisc(resource, prefixFolders, items, selectors.PrefixMatch()))
+		sel.Include(eisc(prefixFolders, items, selectors.PrefixMatch()))
 	}
 }
 
@@ -141,7 +141,7 @@ func IncludeExchangeRestoreDataSelectors(opts ExchangeOpts) *selectors.ExchangeR
 	lev, lec := len(opts.Event), len(opts.EventCalendar)
 	// either scope the request to a set of users
 	if lc+lcf+le+lef+lev+lec == 0 {
-		sel.Include(sel.Users(users))
+		sel.Include(sel.AllData())
 
 		return sel
 	}

@@ -798,7 +798,6 @@ func makeExchangeBackupSel(
 			}
 
 			toInclude = append(toInclude, builder(
-				[]string{d.resourceOwner},
 				[]string{d.dest},
 				selectors.PrefixMatch(),
 			))
@@ -826,7 +825,6 @@ func makeOneDriveBackupSel(
 		sel := selectors.NewOneDriveBackup(nil)
 
 		toInclude = append(toInclude, sel.Folders(
-			[]string{d.resourceOwner},
 			[]string{d.dest},
 			selectors.PrefixMatch(),
 		))

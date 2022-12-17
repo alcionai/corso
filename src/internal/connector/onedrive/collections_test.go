@@ -83,7 +83,7 @@ func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
 }
 
 func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
-	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any(), selectors.Any())[0]
+	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
 
 	const (
 		tenant    = "tenant"
@@ -181,7 +181,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
 				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"folder"})[0],
+			scope:  (&selectors.OneDriveBackup{}).Folders([]string{"folder"})[0],
 			expect: assert.NoError,
 			expectedCollectionPaths: append(
 				expectedPathAsSlice(
@@ -214,7 +214,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
 			scope: (&selectors.OneDriveBackup{}).
-				Folders(selectors.Any(), []string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
+				Folders([]string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
 			expect: assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
@@ -237,7 +237,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInSubfolder", testBaseDrivePath+folderSub, true, false, false),
 				driveItem("fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope:  (&selectors.OneDriveBackup{}).Folders(selectors.Any(), []string{"folder/subfolder"})[0],
+			scope:  (&selectors.OneDriveBackup{}).Folders([]string{"folder/subfolder"})[0],
 			expect: assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),

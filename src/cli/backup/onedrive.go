@@ -254,7 +254,7 @@ func validateOneDriveBackupCreateFlags(users []string) error {
 
 func oneDriveBackupCreateSelectors(users []string) *selectors.OneDriveBackup {
 	sel := selectors.NewOneDriveBackup(users)
-	sel.Include(sel.Users(users))
+	sel.Include(sel.AllData())
 
 	return sel
 }
@@ -401,7 +401,7 @@ func runDetailsOneDriveCmd(
 
 	// if no selector flags were specified, get all data in the service.
 	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.Users(selectors.Any()))
+		sel.Include(sel.AllData())
 	}
 
 	return sel.Reduce(ctx, d), nil
