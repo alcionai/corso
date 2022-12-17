@@ -97,11 +97,11 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		var deleted bool
+		var deletedInFlight bool
 
 		jobs, delta, err := fetchFunc(ctx, service, qp.ResourceOwner, cID, dps.deltas[cID])
 		if err != nil && !errors.Is(err, errContainerDeleted) {
-			deleted = true
+			deletedInFlight = true
 			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 		}
 
@@ -111,8 +111,8 @@ func FilterContainersAndFillCollections(
 
 		// Delay creating the new container so we can handle setting the current
 		// path correctly if the folder was deleted.
-		if deleted {
-			dirPath = nil
+		if deletedInFlight {
+			currPath = nil
 		}
 
 		edc := NewCollection(
@@ -126,7 +126,7 @@ func FilterContainersAndFillCollections(
 		)
 		collections[cID] = &edc
 
-		if deleted {
+		if deletedInFlight {
 			continue
 		}
 
