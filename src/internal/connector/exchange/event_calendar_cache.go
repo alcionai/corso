@@ -72,10 +72,7 @@ func (ecc *eventCalendarCache) Populate(
 	}
 
 	for _, container := range directories {
-		temp := cacheFolder{
-			Container: container,
-			p:         path.Builder{}.Append(*container.GetDisplayName()),
-		}
+		temp := graph.NewCacheFolder(container, path.Builder{}.Append(*container.GetDisplayName()))
 
 		if err := ecc.addFolder(temp); err != nil {
 			errs = support.WrapAndAppend(
@@ -95,10 +92,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return errors.Wrap(err, "adding cache folder")
 	}
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(*f.GetDisplayName()),
-	}
+	temp := graph.NewCacheFolder(f, path.Builder{}.Append(*f.GetDisplayName()))
 
 	if err := ecc.addFolder(temp); err != nil {
 		return errors.Wrap(err, "adding cache folder")

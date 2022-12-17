@@ -16,7 +16,7 @@ import (
 func MetadataFileNames(cat path.CategoryType) []string {
 	switch cat {
 	case path.EmailCategory, path.ContactsCategory:
-		return []string{graph.DeltaTokenFileName, graph.PreviousPathFileName}
+		return []string{graph.DeltaURLsFileName, graph.PreviousPathFileName}
 	default:
 		return []string{graph.PreviousPathFileName}
 	}
@@ -82,7 +82,7 @@ func ParseMetadataCollections(
 
 					cdps.paths = m
 
-				case graph.DeltaTokenFileName:
+				case graph.DeltaURLsFileName:
 					if len(cdps.deltas) > 0 {
 						return nil, errors.Errorf("multiple versions of %s delta metadata", category)
 					}

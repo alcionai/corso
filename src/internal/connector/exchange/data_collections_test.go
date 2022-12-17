@@ -43,7 +43,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls",
 			data: []fileValues{
-				{graph.DeltaTokenFileName, "delta-link"},
+				{graph.DeltaURLsFileName, "delta-link"},
 			},
 			expectDeltas: map[string]string{
 				"key": "delta-link",
@@ -53,8 +53,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "multiple delta urls",
 			data: []fileValues{
-				{graph.DeltaTokenFileName, "delta-link"},
-				{graph.DeltaTokenFileName, "delta-link-2"},
+				{graph.DeltaURLsFileName, "delta-link"},
+				{graph.DeltaURLsFileName, "delta-link-2"},
 			},
 			expectError: assert.Error,
 		},
@@ -79,7 +79,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls and previous paths",
 			data: []fileValues{
-				{graph.DeltaTokenFileName, "delta-link"},
+				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
 			expectDeltas: map[string]string{
@@ -93,7 +93,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls with special chars",
 			data: []fileValues{
-				{graph.DeltaTokenFileName, "`!@#$%^&*()_[]{}/\"\\"},
+				{graph.DeltaURLsFileName, "`!@#$%^&*()_[]{}/\"\\"},
 			},
 			expectDeltas: map[string]string{
 				"key": "`!@#$%^&*()_[]{}/\"\\",
@@ -103,7 +103,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls with escaped chars",
 			data: []fileValues{
-				{graph.DeltaTokenFileName, `\n\r\t\b\f\v\0\\`},
+				{graph.DeltaURLsFileName, `\n\r\t\b\f\v\0\\`},
 			},
 			expectDeltas: map[string]string{
 				"key": "\\n\\r\\t\\b\\f\\v\\0\\\\",
@@ -116,7 +116,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				// rune(92) = \, rune(110) = n.  Ensuring it's not possible to
 				// error in serializing/deserializing and produce a single newline
 				// character from those two runes.
-				{graph.DeltaTokenFileName, string([]rune{rune(92), rune(110)})},
+				{graph.DeltaURLsFileName, string([]rune{rune(92), rune(110)})},
 			},
 			expectDeltas: map[string]string{
 				"key": "\\n",
@@ -154,12 +154,20 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			emails := cdps[path.EmailCategory]
 			deltas, paths := emails.deltas, emails.paths
 
+			if len(test.expectDeltas) > 0 {
+				assert.NotEmpty(t, deltas, "deltas")
+			}
+
+			if len(test.expectPaths) > 0 {
+				assert.NotEmpty(t, paths, "paths")
+			}
+
 			for k, v := range test.expectDeltas {
 				assert.Equal(t, v, deltas[k], "deltas elements")
 			}
 
 			for k, v := range test.expectPaths {
-				assert.Equal(t, v, paths[k], "deltas elements")
+				assert.Equal(t, v, paths[k], "paths elements")
 			}
 		})
 	}
