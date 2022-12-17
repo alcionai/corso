@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // checkIDAndName is a helper function to ensure that
@@ -37,29 +36,6 @@ func checkRequiredValues(c graph.Container) error {
 	}
 
 	return nil
-}
-
-// =========================================
-// cachedContainer Implementations
-// =========================================
-
-var _ graph.CachedContainer = &cacheFolder{}
-
-type cacheFolder struct {
-	graph.Container
-	p *path.Builder
-}
-
-// =========================================
-// Required Functions to satisfy interfaces
-// =========================================
-
-func (cf cacheFolder) Path() *path.Builder {
-	return cf.p
-}
-
-func (cf *cacheFolder) SetPath(newPath *path.Builder) {
-	cf.p = newPath
 }
 
 // CalendarDisplayable is a transformative struct that aligns

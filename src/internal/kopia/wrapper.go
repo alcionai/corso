@@ -272,7 +272,7 @@ func getItemStream(
 	ctx context.Context,
 	itemPath path.Path,
 	snapshotRoot fs.Entry,
-	bcounter byteCounter,
+	bcounter ByteCounter,
 ) (data.Stream, error) {
 	if itemPath == nil {
 		return nil, errors.WithStack(errNoRestorePath)
@@ -321,7 +321,7 @@ func getItemStream(
 	}, nil
 }
 
-type byteCounter interface {
+type ByteCounter interface {
 	Count(numBytes int64)
 }
 
@@ -336,7 +336,7 @@ func (w Wrapper) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
-	bcounter byteCounter,
+	bcounter ByteCounter,
 ) ([]data.Collection, error) {
 	ctx, end := D.Span(ctx, "kopia:restoreMultipleItems")
 	defer end()
