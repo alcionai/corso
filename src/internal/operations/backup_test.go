@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -111,6 +112,168 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
+		})
+	}
+}
+
+type mockRestorer struct {
+	gotPaths []path.Path
+}
+
+func (mr *mockRestorer) RestoreMultipleItems(
+	ctx context.Context,
+	snapshotID string,
+	paths []path.Path,
+	bc kopia.ByteCounter,
+) ([]data.Collection, error) {
+	mr.gotPaths = append(mr.gotPaths, paths...)
+
+	return nil, nil
+}
+
+func (mr mockRestorer) checkPaths(t *testing.T, expected []path.Path) {
+	t.Helper()
+
+	assert.ElementsMatch(t, expected, mr.gotPaths)
+}
+
+func makeMetadataPath(
+	t *testing.T,
+	tenant string,
+	service path.ServiceType,
+	resourceOwner string,
+	category path.CategoryType,
+	fileName string,
+) path.Path {
+	p, err := path.Builder{}.Append(fileName).ToServiceCategoryMetadataPath(
+		tenant,
+		resourceOwner,
+		service,
+		category,
+		true,
+	)
+	require.NoError(t, err)
+
+	return p
+}
+
+func (suite *BackupOpSuite) TestBackupOperation_CollectMetadata() {
+	var (
+		tenant        = "a-tenant"
+		resourceOwner = "a-user"
+		fileNames     = []string{
+			"delta",
+			"paths",
+		}
+
+		emailDeltaPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.EmailCategory,
+			fileNames[0],
+		)
+		emailPathsPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.EmailCategory,
+			fileNames[1],
+		)
+		contactsDeltaPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.ContactsCategory,
+			fileNames[0],
+		)
+		contactsPathsPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.ContactsCategory,
+			fileNames[1],
+		)
+	)
+
+	table := []struct {
+		name       string
+		inputMan   *kopia.ManifestEntry
+		inputFiles []string
+		expected   []path.Path
+	}{
+		{
+			name: "SingleReasonSingleFile",
+			inputMan: &kopia.ManifestEntry{
+				Manifest: &snapshot.Manifest{},
+				Reasons: []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
+			inputFiles: []string{fileNames[0]},
+			expected:   []path.Path{emailDeltaPath},
+		},
+		{
+			name: "SingleReasonMultipleFiles",
+			inputMan: &kopia.ManifestEntry{
+				Manifest: &snapshot.Manifest{},
+				Reasons: []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
+			inputFiles: fileNames,
+			expected:   []path.Path{emailDeltaPath, emailPathsPath},
+		},
+		{
+			name: "MultipleReasonsMultipleFiles",
+			inputMan: &kopia.ManifestEntry{
+				Manifest: &snapshot.Manifest{},
+				Reasons: []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.ContactsCategory,
+					},
+				},
+			},
+			inputFiles: fileNames,
+			expected: []path.Path{
+				emailDeltaPath,
+				emailPathsPath,
+				contactsDeltaPath,
+				contactsPathsPath,
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			mr := &mockRestorer{}
+
+			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant)
+			assert.NoError(t, err)
+
+			mr.checkPaths(t, test.expected)
 		})
 	}
 }
