@@ -7,6 +7,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
@@ -18,6 +19,24 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+const (
+	errEmailFolderNotFound = "ErrorSyncFolderNotFound"
+	errItemNotFound        = "ErrorItemNotFound"
+)
+
+var errContainerDeleted = errors.New("container deleted")
+
+func hasErrorCode(err error, code string) bool {
+	var oDataError *odataerrors.ODataError
+	if !errors.As(err, &oDataError) {
+		return false
+	}
+
+	return oDataError.GetError() != nil &&
+		oDataError.GetError().GetCode() != nil &&
+		*oDataError.GetError().GetCode() == code
+}
 
 // FilterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -75,6 +94,30 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
+		fetchFunc, err := getFetchIDFunc(qp.Category)
+		if err != nil {
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			continue
+		}
+
+		var deleted bool
+
+		jobs, delta, err := fetchFunc(ctx, service, qp.ResourceOwner, cID, dps.deltas[cID])
+		if err != nil && !errors.Is(err, errContainerDeleted) {
+			deleted = true
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+		}
+
+		if len(delta) > 0 {
+			deltaURLs[cID] = delta
+		}
+
+		// Delay creating the new container so we can handle setting the current
+		// path correctly if the folder was deleted.
+		if deleted {
+			dirPath = nil
+		}
+
 		edc := NewCollection(
 			qp.ResourceOwner,
 			dirPath,
@@ -86,22 +129,11 @@ func FilterContainersAndFillCollections(
 		)
 		collections[cID] = &edc
 
-		fetchFunc, err := getFetchIDFunc(qp.Category)
-		if err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+		if deleted {
 			continue
 		}
 
-		jobs, delta, err := fetchFunc(ctx, edc.service, qp.ResourceOwner, cID, dps.deltas[cID])
-		if err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-		}
-
 		edc.jobs = append(edc.jobs, jobs...)
-
-		if len(delta) > 0 {
-			deltaURLs[cID] = delta
-		}
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
@@ -113,7 +145,7 @@ func FilterContainersAndFillCollections(
 	}
 
 	if len(deltaURLs) > 0 {
-		entries = append(entries, graph.NewMetadataEntry(graph.DeltaTokenFileName, deltaURLs))
+		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
 	}
 
 	if col, err := graph.MakeMetadataCollection(
@@ -226,6 +258,14 @@ func FetchEventIDsFromCalendar(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
+			if hasErrorCode(err, errItemNotFound) {
+				// The folder was deleted between the time we populated the container
+				// cache and when we tried to fetch data for it. All we can do is
+				// return no jobs because we've only pulled basic info about each
+				// item.
+				return nil, "", errors.WithStack(errContainerDeleted)
+			}
+
 			return nil, "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
@@ -288,6 +328,14 @@ func FetchContactIDsFromDirectory(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
+			if hasErrorCode(err, errItemNotFound) {
+				// The folder was deleted between the time we populated the container
+				// cache and when we tried to fetch data for it. All we can do is
+				// return no jobs because we've only pulled basic info about each
+				// item.
+				return nil, "", errors.WithStack(errContainerDeleted)
+			}
+
 			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
@@ -354,6 +402,14 @@ func FetchMessageIDsFromDirectory(
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
+			if hasErrorCode(err, errEmailFolderNotFound) {
+				// The folder was deleted between the time we populated the container
+				// cache and when we tried to fetch data for it. All we can do is
+				// return no jobs because we've only pulled basic info about each
+				// item.
+				return nil, "", errors.WithStack(errContainerDeleted)
+			}
+
 			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
