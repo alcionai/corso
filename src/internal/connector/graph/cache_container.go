@@ -14,7 +14,6 @@ type CachedContainer interface {
 	Container
 	Path() *path.Builder
 	SetPath(*path.Builder)
-	Deleted() bool
 }
 
 // checkRequiredValues is a helper function to ensure that
@@ -46,8 +45,7 @@ var _ CachedContainer = &CacheFolder{}
 
 type CacheFolder struct {
 	Container
-	p       *path.Builder
-	Removed bool
+	p *path.Builder
 }
 
 // NewCacheFolder public constructor for struct
@@ -70,10 +68,6 @@ func (cf CacheFolder) Path() *path.Builder {
 
 func (cf *CacheFolder) SetPath(newPath *path.Builder) {
 	cf.p = newPath
-}
-
-func (cf *CacheFolder) Deleted() bool {
-	return cf.Removed
 }
 
 // CalendarDisplayable is a transformative struct that aligns

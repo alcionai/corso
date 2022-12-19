@@ -187,10 +187,6 @@ func pathAndMatch(
 		pb        = c.Path()
 	)
 
-	if c.Deleted() {
-		return nil, true
-	}
-
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && *c.GetDisplayName() == DefaultContactFolder {
 		pb = c.Path().Append(DefaultContactFolder)
