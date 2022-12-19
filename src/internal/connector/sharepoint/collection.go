@@ -91,6 +91,9 @@ type Item struct {
 	data    io.ReadCloser
 	info    *details.SharePointInfo
 	modTime time.Time
+
+	// true if the item was marked by graph as deleted.
+	deleted bool
 }
 
 func (sd *Item) UUID() string {
@@ -101,9 +104,8 @@ func (sd *Item) ToReader() io.ReadCloser {
 	return sd.data
 }
 
-// TODO(ashmrtn): Fill in once delta tokens return deleted items.
 func (sd Item) Deleted() bool {
-	return false
+	return sd.deleted
 }
 
 func (sd *Item) Info() details.ItemInfo {
