@@ -256,7 +256,10 @@ func createCollections(
 		}
 
 		foldersComplete <- struct{}{}
-		//TODO fillAllCollectiton
+
+		for _, coll := range collections {
+			allCollections = append(allCollections, coll)
+		}
 	}
 
 	return allCollections, errs.ErrorOrNil()
