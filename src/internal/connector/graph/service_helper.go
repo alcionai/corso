@@ -69,12 +69,20 @@ func (handler *LoggingMiddleware) Intercept(
 	var (
 		ctx       = req.Context()
 		resp, err = pipeline.Next(req, middlewareIndex)
-		metadata  = []any{}
 	)
 
-	if resp != nil && (resp.StatusCode/100) != 2 {
+	if resp == nil {
+		return resp, err
+	}
+
+	if (resp.StatusCode / 100) == 2 {
+		return resp, err
+	}
+
+	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 		respDump, _ := httputil.DumpResponse(resp, true)
-		metadata = []any{
+
+		metadata := []any{
 			"method", req.Method,
 			"url", req.URL,
 			"requestLen", req.ContentLength,
@@ -82,9 +90,7 @@ func (handler *LoggingMiddleware) Intercept(
 			"statusCode", resp.StatusCode,
 			"request", string(respDump),
 		}
-	}
 
-	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 		logger.Ctx(ctx).Debugw("non-2xx graph api response", metadata...)
 	}
 
