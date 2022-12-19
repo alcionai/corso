@@ -225,7 +225,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			)
 
 			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+				itemInfo, itemData, err = oc.itemReader(ctx, item)
 
 				// We only retry if it is a timeout error. Other
 				// errors like throttling are already handled within
