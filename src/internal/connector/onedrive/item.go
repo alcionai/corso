@@ -89,11 +89,14 @@ func driveItemReader(
 // doesn't have its size value updated as a side effect of creation,
 // and kiota drops any SetSize update.
 func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
-	ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
-
 	email := ""
-	if ok {
-		email = *ed.(*string)
+	if di.GetCreatedBy().GetUser() != nil {
+		// User is sometimes not available when created via some
+		// external applications (like backup/restore solutions)
+		ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
+		if ok {
+			email = *ed.(*string)
+		}
 	}
 
 	return &details.OneDriveInfo{
