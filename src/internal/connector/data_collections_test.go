@@ -176,12 +176,12 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	tests := []struct {
 		name        string
 		expected    int
-		getSelector func(t *testing.T) selectors.Selector
+		getSelector func() selectors.Selector
 	}{
 		{
 			name:     "Libraries",
 			expected: 1,
-			getSelector: func(t *testing.T) selectors.Selector {
+			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
 
@@ -191,7 +191,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		{
 			name:     "Lists",
 			expected: 0,
-			getSelector: func(t *testing.T) selectors.Selector {
+			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Lists([]string{suite.site}, selectors.Any()))
 
@@ -204,7 +204,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		suite.T().Run(test.name, func(t *testing.T) {
 			collection, err := sharepoint.DataCollections(
 				ctx,
-				test.getSelector(t),
+				test.getSelector(),
 				[]string{suite.site},
 				connector.credentials.AzureTenantID,
 				connector.Service,
@@ -625,13 +625,13 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	tables := []struct {
 		name     string
-		sel      func(t *testing.T) selectors.Selector
+		sel      func() selectors.Selector
 		expected int
 	}{
 		{
 			name:     "SharePoint.Libraries",
 			expected: 0,
-			sel: func(t *testing.T) selectors.Selector {
+			sel: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries(
 					[]string{siteID},
@@ -645,7 +645,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		{
 			name:     "SharePoint.Lists",
 			expected: 1,
-			sel: func(t *testing.T) selectors.Selector {
+			sel: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Lists(
 					[]string{siteID},
@@ -660,7 +660,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	for _, test := range tables {
 		t.Run(test.name, func(t *testing.T) {
-			cols, err := gc.DataCollections(ctx, test.sel(t), nil, control.Options{})
+			cols, err := gc.DataCollections(ctx, test.sel(), nil, control.Options{})
 			require.NoError(t, err)
 			assert.Len(t, cols, test.expected)
 		})
