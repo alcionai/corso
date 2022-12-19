@@ -10,7 +10,6 @@ image: ./images/you_are_your_own_brand.jpeg
 
 ![Photo of wall with icons and text that says that You Are Your Own Brand](./images/you_are_your_own_brand.jpeg)
 
-
 <!-- vale Vale.Spelling = NO -->
 
 I recently saw a tweet, shown below, that really spoke to me.
