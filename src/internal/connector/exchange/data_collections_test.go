@@ -34,20 +34,17 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 	}
 
 	table := []struct {
-		name         string
-		data         []fileValues
-		expectDeltas map[string]string
-		expectPaths  map[string]string
-		expectError  assert.ErrorAssertionFunc
+		name        string
+		data        []fileValues
+		expect      map[string]DeltaPath
+		expectError assert.ErrorAssertionFunc
 	}{
 		{
-			name: "delta urls",
+			name: "delta urls only",
 			data: []fileValues{
 				{graph.DeltaURLsFileName, "delta-link"},
 			},
-			expectDeltas: map[string]string{
-				"key": "delta-link",
-			},
+			expect:      map[string]DeltaPath{},
 			expectError: assert.NoError,
 		},
 		{
@@ -59,13 +56,11 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			expectError: assert.Error,
 		},
 		{
-			name: "previous path",
+			name: "previous path only",
 			data: []fileValues{
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expectPaths: map[string]string{
-				"key": "prev-path",
-			},
+			expect:      map[string]DeltaPath{},
 			expectError: assert.NoError,
 		},
 		{
@@ -82,21 +77,43 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expectDeltas: map[string]string{
-				"key": "delta-link",
+			expect: map[string]DeltaPath{
+				"key": {
+					delta: "delta-link",
+					path:  "prev-path",
+				},
 			},
-			expectPaths: map[string]string{
-				"key": "prev-path",
+			expectError: assert.NoError,
+		},
+		{
+			name: "delta urls and empttyprevious paths",
+			data: []fileValues{
+				{graph.DeltaURLsFileName, "delta-link"},
+				{graph.PreviousPathFileName, ""},
 			},
+			expect:      map[string]DeltaPath{},
+			expectError: assert.NoError,
+		},
+		{
+			name: "empty delta urls and previous paths",
+			data: []fileValues{
+				{graph.DeltaURLsFileName, ""},
+				{graph.PreviousPathFileName, "prev-path"},
+			},
+			expect:      map[string]DeltaPath{},
 			expectError: assert.NoError,
 		},
 		{
 			name: "delta urls with special chars",
 			data: []fileValues{
 				{graph.DeltaURLsFileName, "`!@#$%^&*()_[]{}/\"\\"},
+				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expectDeltas: map[string]string{
-				"key": "`!@#$%^&*()_[]{}/\"\\",
+			expect: map[string]DeltaPath{
+				"key": {
+					delta: "`!@#$%^&*()_[]{}/\"\\",
+					path:  "prev-path",
+				},
 			},
 			expectError: assert.NoError,
 		},
@@ -104,9 +121,13 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			name: "delta urls with escaped chars",
 			data: []fileValues{
 				{graph.DeltaURLsFileName, `\n\r\t\b\f\v\0\\`},
+				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expectDeltas: map[string]string{
-				"key": "\\n\\r\\t\\b\\f\\v\\0\\\\",
+			expect: map[string]DeltaPath{
+				"key": {
+					delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
+					path:  "prev-path",
+				},
 			},
 			expectError: assert.NoError,
 		},
@@ -117,9 +138,13 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				// error in serializing/deserializing and produce a single newline
 				// character from those two runes.
 				{graph.DeltaURLsFileName, string([]rune{rune(92), rune(110)})},
+				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expectDeltas: map[string]string{
-				"key": "\\n",
+			expect: map[string]DeltaPath{
+				"key": {
+					delta: "\\n",
+					path:  "prev-path",
+				},
 			},
 			expectError: assert.NoError,
 		},
@@ -152,22 +177,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			test.expectError(t, err)
 
 			emails := cdps[path.EmailCategory]
-			deltas, paths := emails.deltas, emails.paths
 
-			if len(test.expectDeltas) > 0 {
-				assert.Len(t, deltas, len(test.expectDeltas), "deltas len")
-			}
+			assert.Len(t, emails, len(test.expect))
 
-			if len(test.expectPaths) > 0 {
-				assert.Len(t, paths, len(test.expectPaths), "paths len")
-			}
-
-			for k, v := range test.expectDeltas {
-				assert.Equal(t, v, deltas[k], "deltas elements")
-			}
-
-			for k, v := range test.expectPaths {
-				assert.Equal(t, v, paths[k], "paths elements")
+			for k, v := range emails {
+				assert.Equal(t, v.delta, emails[k].delta, "delta")
+				assert.Equal(t, v.path, emails[k].path, "path")
 			}
 		})
 	}

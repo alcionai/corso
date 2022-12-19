@@ -62,16 +62,30 @@ func FilterContainersAndFillCollections(
 		currPaths = map[string]string{}
 		// copy of previousPaths.  any folder found in the resolver get
 		// deleted from this map, leaving only the deleted maps behind
-		deletedPaths = common.CopyMap(dps.paths)
+		deletedPaths = common.CopyMap(dps)
 	)
+
+	getJobs, err := getFetchIDFunc(qp.Category)
+	if err != nil {
+		return support.WrapAndAppend(qp.ResourceOwner, err, errs)
+	}
 
 	for _, c := range resolver.Items() {
 		if ctrlOpts.FailFast && errs != nil {
 			return errs
 		}
 
+		// cannot be moved out of the loop,
+		// else we run into state issues.
+		service, err := createService(qp.Credentials)
+		if err != nil {
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			continue
+		}
+
 		cID := *c.GetId()
 
+		// this folder exists (probably), do not delete it.
 		delete(deletedPaths, cID)
 
 		// Only create a collection if the path matches the scope.
@@ -80,43 +94,32 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		var prevPath path.Path
+		var (
+			dp          = dps[cID]
+			prevDelta   = dp.delta
+			prevPathStr = dp.path
+			prevPath    path.Path
+		)
 
-		if p, ok := dps.paths[cID]; ok {
-			var err error
-			if prevPath, err = pathFromPrevString(p); err != nil {
+		if len(prevPathStr) > 0 {
+			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
 				logger.Ctx(ctx).Error(err)
 			}
 		}
 
-		service, err := createService(qp.Credentials)
+		jobs, currDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-			continue
+			// race conditions happen, the container might get
+			// deleted while this process in flight.
+			if errors.Is(err, errContainerDeleted) {
+				currPath = nil
+			} else {
+				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			}
 		}
 
-		fetchFunc, err := getFetchIDFunc(qp.Category)
-		if err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-			continue
-		}
-
-		var deletedInFlight bool
-
-		jobs, delta, err := fetchFunc(ctx, service, qp.ResourceOwner, cID, dps.deltas[cID])
-		if err != nil && !errors.Is(err, errContainerDeleted) {
-			deletedInFlight = true
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-		}
-
-		if len(delta) > 0 {
-			deltaURLs[cID] = delta
-		}
-
-		// Delay creating the new container so we can handle setting the current
-		// path correctly if the folder was deleted.
-		if deletedInFlight {
-			currPath = nil
+		if len(currDelta) > 0 {
+			deltaURLs[cID] = currDelta
 		}
 
 		edc := NewCollection(
@@ -130,7 +133,7 @@ func FilterContainersAndFillCollections(
 		)
 		collections[cID] = &edc
 
-		if deletedInFlight {
+		if edc.state == data.DeletedState {
 			continue
 		}
 
@@ -145,14 +148,14 @@ func FilterContainersAndFillCollections(
 	// relocations and renames will have removed the dir by id earlier.  What's
 	// left in deletedPaths are only the previous paths that did not appear as
 	// children of the root.
-	for fID, ps := range deletedPaths {
+	for fID, dp := range deletedPaths {
 		service, err := createService(qp.Credentials)
 		if err != nil {
 			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 			continue
 		}
 
-		prevPath, err := pathFromPrevString(ps)
+		prevPath, err := pathFromPrevString(dp.path)
 		if err != nil {
 			logger.Ctx(ctx).Error(err)
 			continue
