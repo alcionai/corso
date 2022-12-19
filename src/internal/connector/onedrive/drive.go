@@ -373,7 +373,7 @@ func hasDriveLicense(
 		}
 
 		for _, license := range skuIDs {
-			if *sku == license {
+			if sku.String() == license {
 				hasDrive = true
 				return false
 			}
