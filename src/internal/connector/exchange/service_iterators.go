@@ -80,9 +80,13 @@ func FilterContainersAndFillCollections(
 			continue
 		}
 
-		prevPath, err := pathFromPrevString(dps.paths[cID])
-		if err != nil {
-			logger.Ctx(ctx).Error(err)
+		var prevPath path.Path
+
+		if p, ok := dps.paths[cID]; ok {
+			var err error
+			if prevPath, err = pathFromPrevString(p); err != nil {
+				logger.Ctx(ctx).Error(err)
+			}
 		}
 
 		service, err := createService(qp.Credentials)
