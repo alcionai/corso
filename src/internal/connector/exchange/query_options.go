@@ -66,6 +66,7 @@ var (
 		"subject":           4,
 		"webLink":           5,
 		"id":                6,
+		"isRead":            7,
 	}
 
 	fieldsForContacts = map[string]int{
