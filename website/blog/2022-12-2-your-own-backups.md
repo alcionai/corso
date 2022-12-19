@@ -5,17 +5,15 @@ description: "How to, for the price of a cup of coffee/month, control your ident
 authors: nica
 tags: [corso, microsoft 365]
 date: 2022-12-05
-image: ./images/gian_tweet_backups.png
+image: ./images/you_are_your_own_brand.jpeg
 ---
 
-I recently saw a tweet that really spoke to me:
+![Photo of wall with icons and text that says that You Are Your Own Brand](./images/you_are_your_own_brand.jpeg)
 
 <!-- vale Vale.Spelling = NO -->
 
-![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](./images/gian_tweet_backups.png)
-
+I recently saw a tweet, shown below, that really spoke to me.
 Gian was really addressing the chaotic situation with Twitter, but it feels much more broadly applicable in today’s climate.
-<!-- vale Vale.Spelling = YES -->
 Given the increased role of automation in flagging “bad” accounts,
 there is now an ever-growing list of examples where imperfect AI-based systems misclassify perfectly legitimate accounts
 as bad. With no human-based recourse with most large companies, this has led to disastrous situations where
@@ -24,6 +22,10 @@ email account suspensions lead to lost accessing to other services that you have
 flagged application account leads to published applications being automatically withdrawn from app stores.
 
 <!-- truncate -->
+
+![Gian Paolo tweet stating The only long-term solution to maintain your identity is: 1. your own domain name 2. your own website/blog 3. several backups](./images/gian_tweet_backups.png)
+
+<!-- vale Vale.Spelling = YES -->
 
 <!-- vale alex.Condescending = NO -->
 
