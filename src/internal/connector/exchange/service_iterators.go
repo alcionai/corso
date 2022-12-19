@@ -327,7 +327,7 @@ func FetchEventIDsFromCalendar(
 			break
 		}
 
-		builder = msuser.NewUsersItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
@@ -402,7 +402,7 @@ func FetchContactIDsFromDirectory(
 			break
 		}
 
-		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaURL, errs.ErrorOrNil()
@@ -476,7 +476,7 @@ func FetchMessageIDsFromDirectory(
 			break
 		}
 
-		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaURL, errs.ErrorOrNil()

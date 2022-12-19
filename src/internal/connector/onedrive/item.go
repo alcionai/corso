@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -165,7 +166,7 @@ func driveItemWriter(
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
-	session := models.NewUsersItemDrivesItemItemsItemCreateUploadSessionPostRequestBody()
+	session := msdrives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {

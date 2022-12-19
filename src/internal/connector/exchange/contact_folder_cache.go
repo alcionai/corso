@@ -112,7 +112,7 @@ func (cfc *contactFolderCache) Populate(
 			break
 		}
 
-		builder = msuser.NewUsersItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
+		builder = msuser.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {

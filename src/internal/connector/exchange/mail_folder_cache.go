@@ -114,7 +114,7 @@ func (mc *mailFolderCache) Populate(
 			break
 		}
 
-		query = msfolderdelta.NewUsersItemMailFoldersDeltaRequestBuilder(*link, mc.gs.Adapter())
+		query = msfolderdelta.NewItemMailFoldersDeltaRequestBuilder(*link, mc.gs.Adapter())
 	}
 
 	if err := mc.populatePaths(ctx); err != nil {
