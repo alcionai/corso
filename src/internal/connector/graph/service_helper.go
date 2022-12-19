@@ -67,10 +67,9 @@ func (handler *LoggingMiddleware) Intercept(
 	req *nethttp.Request,
 ) (*nethttp.Response, error) {
 	var (
-		ctx            = req.Context()
-		requestDump, _ = httputil.DumpRequest(req, true)
-		resp, err      = pipeline.Next(req, middlewareIndex)
-		metadata       = []any{}
+		ctx       = req.Context()
+		resp, err = pipeline.Next(req, middlewareIndex)
+		metadata  = []any{}
 	)
 
 	if resp != nil && (resp.StatusCode/100) != 2 {
@@ -82,10 +81,6 @@ func (handler *LoggingMiddleware) Intercept(
 			"status", resp.Status,
 			"statusCode", resp.StatusCode,
 			"request", string(respDump),
-		}
-
-		if resp.StatusCode == 400 {
-			metadata = append(metadata, "requestBody", string(requestDump))
 		}
 	}
 
