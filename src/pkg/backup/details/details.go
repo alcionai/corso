@@ -111,8 +111,8 @@ type Details struct {
 	DetailsModel
 
 	// internal
-	mu           sync.Mutex          `json:"-"`
-	knownFolders map[string]struct{} `json:"-"`
+	mu           sync.Mutex             `json:"-"`
+	knownFolders map[string]FolderEntry `json:"-"`
 }
 
 func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
@@ -127,29 +127,40 @@ func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info It
 	})
 }
 
-// AddFolders adds entries for the given folders. It skips adding entries that
-// have been added by previous calls.
-func (d *Details) AddFolders(folders []FolderEntry) {
+func (d *Details) Finalize() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if d.knownFolders == nil {
-		d.knownFolders = map[string]struct{}{}
-	}
-
-	for _, folder := range folders {
-		if _, ok := d.knownFolders[folder.ShortRef]; ok {
-			// Entry already exists, nothing to do.
-			continue
-		}
-
-		d.knownFolders[folder.ShortRef] = struct{}{}
+	for _, folder := range d.knownFolders {
 		d.Entries = append(d.Entries, DetailsEntry{
 			RepoRef:   folder.RepoRef,
 			ShortRef:  folder.ShortRef,
 			ParentRef: folder.ParentRef,
 			ItemInfo:  folder.Info,
 		})
+	}
+}
+
+// AddFoldersForItem adds entries for the given folders. It skips adding entries that
+// have been added by previous calls.
+func (d *Details) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.knownFolders == nil {
+		d.knownFolders = make(map[string]FolderEntry)
+	}
+
+	for _, folder := range folders {
+		if existing, ok := d.knownFolders[folder.ShortRef]; ok {
+			folder = existing
+		}
+		folder.Info.Folder.Size += itemInfo.Exchange.Size
+		if folder.Info.Folder.Modified.Before(itemInfo.Exchange.Modified) {
+			folder.Info.Folder.Modified = itemInfo.Exchange.Modified
+		}
+
+		d.knownFolders[folder.ShortRef] = folder
 	}
 }
 

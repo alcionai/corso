@@ -182,7 +182,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		parent = nextParent
 	}
 
-	cp.deets.AddFolders(folders)
+	cp.deets.AddFoldersForItem(folders, d.info)
 }
 
 // Kopia interface function used as a callback when kopia finishes hashing a file.
