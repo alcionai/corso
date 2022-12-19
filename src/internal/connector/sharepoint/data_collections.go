@@ -105,13 +105,13 @@ func collectLists(
 	if scope.Matches(selectors.SharePointSite, siteID) {
 		spcs := make([]data.Collection, 0)
 
-		listIDs, err := preFetchListIDs(ctx, serv, siteID)
+		tuples, err := preFetchListIDs(ctx, serv, siteID)
 		if err != nil {
 			return nil, err
 		}
 		// Prefetch
-		for _, listID := range listIDs {
-			dir, err := path.Builder{}.Append(listID).
+		for _, tuple := range tuples {
+			dir, err := path.Builder{}.Append(tuple.name).
 				ToDataLayerSharePointPath(
 					tenantID,
 					siteID,
@@ -122,7 +122,7 @@ func collectLists(
 			}
 
 			collection := NewCollection(dir, serv, updater.UpdateStatus)
-			collection.AddJob(listID)
+			collection.AddJob(tuple.id)
 
 			spcs = append(spcs, collection)
 		}

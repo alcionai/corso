@@ -11,8 +11,13 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
+type listTuple struct {
+	name string
+	id   string
+}
+
 func preFetchListOptions() *mssite.SitesItemListsRequestBuilderGetRequestConfiguration {
-	selecting := []string{"id"}
+	selecting := []string{"id", "displayName"}
 	queryOptions := mssite.SitesItemListsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
@@ -27,12 +32,12 @@ func preFetchListIDs(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID string,
-) ([]string, error) {
+) ([]listTuple, error) {
 	var (
-		builder = gs.Client().SitesById(siteID).Lists()
-		options = preFetchListOptions()
-		listIDs = make([]string, 0)
-		errs    error
+		builder    = gs.Client().SitesById(siteID).Lists()
+		options    = preFetchListOptions()
+		listTuples = make([]listTuple, 0)
+		errs       error
 	)
 
 	for {
@@ -42,8 +47,16 @@ func preFetchListIDs(
 		}
 
 		for _, entry := range resp.GetValue() {
-			id := *entry.GetId()
-			listIDs = append(listIDs, id)
+			temp := listTuple{id: *entry.GetId()}
+
+			name := entry.GetDisplayName()
+			if name != nil {
+				temp.name = *name
+			} else {
+				temp.name = *entry.GetId()
+			}
+
+			listTuples = append(listTuples, temp)
 		}
 
 		if resp.GetOdataNextLink() == nil {
@@ -53,7 +66,7 @@ func preFetchListIDs(
 		builder = mssite.NewSitesItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
-	return listIDs, nil
+	return listTuples, nil
 }
 
 // list.go contains additional functions to help retrieve SharePoint List data from M365
