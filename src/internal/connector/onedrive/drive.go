@@ -152,6 +152,7 @@ func collectItems(
 		"id",
 		"lastModifiedDateTime",
 		"name",
+		"package",
 		"parentReference",
 		"root",
 		"size",
