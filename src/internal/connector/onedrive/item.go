@@ -53,6 +53,7 @@ func oneDriveItemReader(
 	if !ok {
 		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
 	}
+
 	rc, err := driveItemReader(ctx, *url)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
@@ -90,6 +91,7 @@ func driveItemReader(
 // and kiota drops any SetSize update.
 func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
 	email := ""
+
 	if di.GetCreatedBy().GetUser() != nil {
 		// User is sometimes not available when created via some
 		// external applications (like backup/restore solutions)
