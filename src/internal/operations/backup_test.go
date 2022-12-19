@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -274,6 +275,184 @@ func (suite *BackupOpSuite) TestBackupOperation_CollectMetadata() {
 			assert.NoError(t, err)
 
 			mr.checkPaths(t, test.expected)
+		})
+	}
+}
+
+type mockBackuper struct {
+	checkFunc func(
+		bases []kopia.IncrementalBase,
+		cs []data.Collection,
+		service path.ServiceType,
+		oc *kopia.OwnersCats,
+		tags map[string]string,
+	)
+}
+
+func (mbu mockBackuper) BackupCollections(
+	ctx context.Context,
+	bases []kopia.IncrementalBase,
+	cs []data.Collection,
+	service path.ServiceType,
+	oc *kopia.OwnersCats,
+	tags map[string]string,
+) (*kopia.BackupStats, *details.Details, error) {
+	if mbu.checkFunc != nil {
+		mbu.checkFunc(bases, cs, service, oc, tags)
+	}
+
+	return &kopia.BackupStats{}, &details.Details{}, nil
+}
+
+func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
+	var (
+		tenant        = "a-tenant"
+		resourceOwner = "a-user"
+
+		emailBuilder = path.Builder{}.Append(
+			tenant,
+			path.ExchangeService.String(),
+			resourceOwner,
+			path.EmailCategory.String(),
+		)
+		contactsBuilder = path.Builder{}.Append(
+			tenant,
+			path.ExchangeService.String(),
+			resourceOwner,
+			path.ContactsCategory.String(),
+		)
+
+		emailReason = kopia.Reason{
+			ResourceOwner: resourceOwner,
+			Service:       path.ExchangeService,
+			Category:      path.EmailCategory,
+		}
+		contactsReason = kopia.Reason{
+			ResourceOwner: resourceOwner,
+			Service:       path.ExchangeService,
+			Category:      path.ContactsCategory,
+		}
+
+		manifest1 = &snapshot.Manifest{
+			ID: "id1",
+		}
+		manifest2 = &snapshot.Manifest{
+			ID: "id2",
+		}
+
+		sel = selectors.NewExchangeBackup().Selector
+	)
+
+	table := []struct {
+		name     string
+		inputMan []*kopia.ManifestEntry
+		expected []kopia.IncrementalBase
+	}{
+		{
+			name: "SingleManifestSingleReason",
+			inputMan: []*kopia.ManifestEntry{
+				{
+					Manifest: manifest1,
+					Reasons: []kopia.Reason{
+						emailReason,
+					},
+				},
+			},
+			expected: []kopia.IncrementalBase{
+				{
+					Manifest: manifest1,
+					SubtreePaths: []*path.Builder{
+						emailBuilder,
+					},
+				},
+			},
+		},
+		{
+			name: "SingleManifestMultipleReasons",
+			inputMan: []*kopia.ManifestEntry{
+				{
+					Manifest: manifest1,
+					Reasons: []kopia.Reason{
+						emailReason,
+						contactsReason,
+					},
+				},
+			},
+			expected: []kopia.IncrementalBase{
+				{
+					Manifest: manifest1,
+					SubtreePaths: []*path.Builder{
+						emailBuilder,
+						contactsBuilder,
+					},
+				},
+			},
+		},
+		{
+			name: "MultipleManifestsMultipleReasons",
+			inputMan: []*kopia.ManifestEntry{
+				{
+					Manifest: manifest1,
+					Reasons: []kopia.Reason{
+						emailReason,
+						contactsReason,
+					},
+				},
+				{
+					Manifest: manifest2,
+					Reasons: []kopia.Reason{
+						emailReason,
+						contactsReason,
+					},
+				},
+			},
+			expected: []kopia.IncrementalBase{
+				{
+					Manifest: manifest1,
+					SubtreePaths: []*path.Builder{
+						emailBuilder,
+						contactsBuilder,
+					},
+				},
+				{
+					Manifest: manifest2,
+					SubtreePaths: []*path.Builder{
+						emailBuilder,
+						contactsBuilder,
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			mbu := &mockBackuper{
+				checkFunc: func(
+					bases []kopia.IncrementalBase,
+					cs []data.Collection,
+					service path.ServiceType,
+					oc *kopia.OwnersCats,
+					tags map[string]string,
+				) {
+					assert.ElementsMatch(t, test.expected, bases)
+				},
+			}
+
+			//nolint:errcheck
+			consumeBackupDataCollections(
+				ctx,
+				mbu,
+				tenant,
+				sel,
+				nil,
+				test.inputMan,
+				nil,
+				model.StableID(""),
+			)
 		})
 	}
 }
