@@ -350,10 +350,21 @@ func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
 	return p.ToBuilder().Dir(), nil
 }
 
+type backuper interface {
+	BackupCollections(
+		ctx context.Context,
+		bases []kopia.IncrementalBase,
+		cs []data.Collection,
+		service path.ServiceType,
+		oc *kopia.OwnersCats,
+		tags map[string]string,
+	) (*kopia.BackupStats, *details.Details, error)
+}
+
 // calls kopia to backup the collections of data
 func consumeBackupDataCollections(
 	ctx context.Context,
-	kw *kopia.Wrapper,
+	bu backuper,
 	tenantID string,
 	sel selectors.Selector,
 	oc *kopia.OwnersCats,
@@ -393,7 +404,7 @@ func consumeBackupDataCollections(
 		})
 	}
 
-	return kw.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags)
+	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags)
 }
 
 // writes the results metrics to the operation results.
