@@ -144,23 +144,18 @@ func collectItems(
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
 	builder := service.Client().DrivesById(driveID).Root().Delta()
 	pageCount := int32(999)    // max we can do is 999
-	requestFields := []string{ // TODO(meain): shrink this list to only needed ones
-		"id",
+	requestFields := []string{
 		"content.downloadUrl",
 		"createdBy",
 		"createdDateTime",
-		"cTag",
-		"eTag",
 		"file",
-		"fileSystemInfo",
 		"folder",
-		"lastModifiedBy",
+		"id",
 		"lastModifiedDateTime",
 		"name",
 		"parentReference",
 		"root",
 		"size",
-		"webUrl",
 	}
 	requestConfig := &msdrives.DrivesItemRootDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &msdrives.DrivesItemRootDeltaRequestBuilderGetQueryParameters{
