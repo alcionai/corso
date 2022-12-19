@@ -163,7 +163,7 @@ func (w Wrapper) BackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
-	prevSnapEntries []*ManifestEntry,
+	prevSnapEntries []IncrementalBase,
 	root fs.Directory,
 	oc *OwnersCats,
 	addlTags map[string]string,
