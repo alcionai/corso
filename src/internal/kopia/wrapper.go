@@ -104,6 +104,11 @@ func (w *Wrapper) Close(ctx context.Context) error {
 	return errors.Wrap(err, "closing Wrapper")
 }
 
+type IncrementalBase struct {
+	*snapshot.Manifest
+	SubtreePaths []*path.Builder
+}
+
 // BackupCollections takes a set of collections and creates a kopia snapshot
 // with the data that they contain. previousSnapshots is used for incremental
 // backups and should represent the base snapshot from which metadata is sourced
@@ -112,7 +117,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // complete backup of all data.
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
-	previousSnapshots []*ManifestEntry,
+	previousSnapshots []IncrementalBase,
 	collections []data.Collection,
 	service path.ServiceType,
 	oc *OwnersCats,
@@ -158,7 +163,7 @@ func (w Wrapper) BackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
-	prevSnapEntries []*ManifestEntry,
+	prevSnapEntries []IncrementalBase,
 	root fs.Directory,
 	oc *OwnersCats,
 	addlTags map[string]string,
