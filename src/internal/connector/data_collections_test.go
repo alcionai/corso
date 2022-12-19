@@ -563,9 +563,11 @@ func (suite *ConnectorCreateExchangeCollectionIntegrationSuite) TestEventsSerial
 
 				for stream := range streamChannel {
 					buf := &bytes.Buffer{}
+
 					read, err := buf.ReadFrom(stream.ToReader())
 					assert.NoError(t, err)
 					assert.NotZero(t, read)
+
 					event, err := support.CreateEventFromBytes(buf.Bytes())
 					assert.NotNil(t, event)
 					assert.NoError(t, err, "creating event from bytes: "+buf.String())

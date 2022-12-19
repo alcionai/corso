@@ -281,8 +281,10 @@ func (i ItemInfo) infoType() ItemType {
 }
 
 type FolderInfo struct {
-	ItemType    ItemType `json:"itemType,omitempty"`
-	DisplayName string   `json:"displayName"`
+	ItemType    ItemType  `json:"itemType,omitempty"`
+	DisplayName string    `json:"displayName"`
+	Modified    time.Time `json:"modified,omitempty"`
+	Size        int64     `json:"size,omitempty"`
 }
 
 func (i FolderInfo) Headers() []string {
