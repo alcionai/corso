@@ -68,7 +68,7 @@ func (ecc *eventCalendarCache) Populate(
 			break
 		}
 
-		builder = msuser.NewUsersItemCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
+		builder = msuser.NewItemCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
 	}
 
 	for _, container := range directories {
