@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -223,7 +224,22 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				err      error
 			)
 
-			itemInfo, itemData, err = oc.itemReader(ctx, item)
+			for i := 1; i <= maxRetries; i++ {
+				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+
+				// We only retry if it is a timeout error. Other
+				// errors like throttling are already handled within
+				// the graph client via a retry middleware.
+				// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
+				if err == nil || !isTimeoutErr(err) {
+					break
+				}
+
+				if i < maxRetries {
+					time.Sleep(1 * time.Second)
+				}
+			}
+
 			if err != nil {
 				errUpdater(*item.GetId(), err)
 				return
