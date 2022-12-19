@@ -421,7 +421,7 @@ func FetchMessageIDsFromDirectory(
 		deltaURL string
 	)
 
-	options, err := optionsForFolderMessagesDelta([]string{"id", "isRead"})
+	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {
 		return nil, deltaURL, errors.Wrap(err, "getting query options")
 	}
