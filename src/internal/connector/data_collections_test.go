@@ -626,13 +626,13 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	)
 
 	tables := []struct {
-		name     string
-		sel      func() selectors.Selector
-		expected int
+		name       string
+		sel        func() selectors.Selector
+		comparator func(t assert.TestingT, e1 interface{}, e2 interface{}, msgAndArgs ...interface{}) bool
 	}{
 		{
-			name:     "SharePoint.Libraries",
-			expected: 0,
+			name:       "SharePoint.Libraries",
+			comparator: assert.Equal,
 			sel: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries(
@@ -645,8 +645,8 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			},
 		},
 		{
-			name:     "SharePoint.Lists",
-			expected: 1,
+			name:       "SharePoint.Lists",
+			comparator: assert.Greater,
 			sel: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Lists(
@@ -664,7 +664,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		t.Run(test.name, func(t *testing.T) {
 			cols, err := gc.DataCollections(ctx, test.sel(), nil, control.Options{})
 			require.NoError(t, err)
-			assert.Len(t, cols, test.expected)
+			test.comparator(t, len(cols), 0)
 		})
 	}
 }
