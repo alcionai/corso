@@ -79,6 +79,9 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
+	// Even though this uses the `Delta` query, we do no store or re-use
+	// the delta-link tokens like with other queries.  The goal is always
+	// to retrieve the complete history of folders.
 	query := mc.
 		gs.
 		Client().

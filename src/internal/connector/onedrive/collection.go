@@ -129,6 +129,9 @@ type Item struct {
 	id   string
 	data io.ReadCloser
 	info details.ItemInfo
+
+	// true if the item was marked by graph as deleted.
+	deleted bool
 }
 
 func (od *Item) UUID() string {
@@ -141,7 +144,7 @@ func (od *Item) ToReader() io.ReadCloser {
 
 // TODO(ashmrtn): Fill in once delta tokens return deleted items.
 func (od Item) Deleted() bool {
-	return false
+	return od.deleted
 }
 
 func (od *Item) Info() details.ItemInfo {
