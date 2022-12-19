@@ -29,8 +29,12 @@ func sharePointItemReader(
 	ctx context.Context,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	// TODO(meain): make sure the url is available here
-	rc, err := driveItemReader(ctx, item.GetAdditionalData()[downloadURLKey].(string))
+	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+	if !ok {
+		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
+	}
+
+	rc, err := driveItemReader(ctx, *url)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}

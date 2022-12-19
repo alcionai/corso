@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/pkg/logger"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 var (
