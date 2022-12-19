@@ -96,6 +96,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	var (
 		opStats       backupStats
 		backupDetails *details.Details
+		tenantID      = op.account.ID()
 		startTime     = time.Now()
 	)
 
@@ -129,7 +130,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	oc := selectorToOwnersCats(op.Selectors)
 
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, op.account)
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -150,6 +151,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	opStats.k, backupDetails, err = consumeBackupDataCollections(
 		ctx,
 		op.kopia,
+		tenantID,
 		op.Selectors,
 		oc,
 		mans,
@@ -179,7 +181,7 @@ func produceManifestsAndMetadata(
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	oc *kopia.OwnersCats,
-	acct account.Account,
+	tenantID string,
 ) ([]*kopia.ManifestEntry, []data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
 	defer func() {
@@ -188,13 +190,7 @@ func produceManifestsAndMetadata(
 		closer()
 	}()
 
-	m365, err := acct.M365Config()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	var (
-		tid           = m365.AzureTenantID
 		metadataFiles = graph.AllMetadataFileNames()
 		collections   []data.Collection
 	)
@@ -222,7 +218,7 @@ func produceManifestsAndMetadata(
 		// 	return nil, nil, err
 		// }
 
-		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tid)
+		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
@@ -331,10 +327,45 @@ func produceBackupDataCollections(
 	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
 }
 
+func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
+	// This is hacky, but we want the path package to format the path the right
+	// way (e.x. proper order for service, category, etc), but we don't care about
+	// the folders after the prefix.
+	p, err := path.Builder{}.Append("tmp").ToDataLayerPath(
+		tenant,
+		r.ResourceOwner,
+		r.Service,
+		r.Category,
+		false,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"building path for service %s category %s",
+			r.Service.String(),
+			r.Category.String(),
+		)
+	}
+
+	return p.ToBuilder().Dir(), nil
+}
+
+type backuper interface {
+	BackupCollections(
+		ctx context.Context,
+		bases []kopia.IncrementalBase,
+		cs []data.Collection,
+		service path.ServiceType,
+		oc *kopia.OwnersCats,
+		tags map[string]string,
+	) (*kopia.BackupStats, *details.Details, error)
+}
+
 // calls kopia to backup the collections of data
 func consumeBackupDataCollections(
 	ctx context.Context,
-	kw *kopia.Wrapper,
+	bu backuper,
+	tenantID string,
 	sel selectors.Selector,
 	oc *kopia.OwnersCats,
 	mans []*kopia.ManifestEntry,
@@ -353,7 +384,27 @@ func consumeBackupDataCollections(
 		kopia.TagBackupCategory: "",
 	}
 
-	return kw.BackupCollections(ctx, mans, cs, sel.PathService(), oc, tags)
+	bases := make([]kopia.IncrementalBase, 0, len(mans))
+
+	for _, m := range mans {
+		paths := make([]*path.Builder, 0, len(m.Reasons))
+
+		for _, reason := range m.Reasons {
+			pb, err := builderFromReason(tenantID, reason)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "getting subtree paths for bases")
+			}
+
+			paths = append(paths, pb)
+		}
+
+		bases = append(bases, kopia.IncrementalBase{
+			Manifest:     m.Manifest,
+			SubtreePaths: paths,
+		})
+	}
+
+	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags)
 }
 
 // writes the results metrics to the operation results.

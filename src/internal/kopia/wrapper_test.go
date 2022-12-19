@@ -262,7 +262,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 	}
 
-	prevSnaps := []*ManifestEntry{}
+	prevSnaps := []IncrementalBase{}
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -305,10 +305,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			)
 			require.NoError(t, err)
 
-			prevSnaps = append(prevSnaps, &ManifestEntry{
-				// Will need to fill out reason if/when we use this test with
-				// incrementals.
+			prevSnaps = append(prevSnaps, IncrementalBase{
 				Manifest: snap,
+				SubtreePaths: []*path.Builder{
+					suite.testPath1.ToBuilder().Dir(),
+				},
 			})
 		})
 	}
