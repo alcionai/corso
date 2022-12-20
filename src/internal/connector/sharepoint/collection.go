@@ -7,6 +7,7 @@ import (
 	"time"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -34,16 +35,21 @@ var (
 	_ data.StreamModTime = &Item{}
 )
 
+// Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
+// by the oneDrive.Collection as the calls are identical for populating the Collection
 type Collection struct {
+	// data is the container for each individual SharePoint.List
 	data chan data.Stream
-	jobs []string
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
+	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
+	jobs []string
 	// M365 IDs of the items of this collection
 	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 }
 
+// NewCollection helper function for creating a Collection
 func NewCollection(
 	folderPath path.Path,
 	service graph.Servicer,
@@ -116,13 +122,14 @@ func (sd *Item) ModTime() time.Time {
 	return sd.modTime
 }
 
-func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
+func (sc *Collection) finishPopulation(ctx context.Context, attempts, success int, totalBytes int64, errs error) {
 	close(sc.data)
-	attempted := len(sc.jobs)
+
+	attempted := attempts
 	status := support.CreateStatus(
 		ctx,
 		support.Backup,
-		1,
+		len(sc.jobs),
 		support.CollectionMetrics{
 			Objects:    attempted,
 			Successes:  success,
@@ -131,12 +138,16 @@ func (sc *Collection) finishPopulation(ctx context.Context, success int, totalBy
 		errs,
 		sc.fullPath.Folder())
 	logger.Ctx(ctx).Debug(status.String())
+
+	if sc.statusUpdater != nil {
+		sc.statusUpdater(status)
+	}
 }
 
 // populate utility function to retrieve data from back store for a given collection
 func (sc *Collection) populate(ctx context.Context) {
 	var (
-		success                 int
+		objects, success        int
 		totalBytes, arrayLength int64
 		errs                    error
 		writer                  = kw.NewJsonSerializationWriter()
@@ -148,52 +159,59 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, success, totalBytes, errs)
+		sc.finishPopulation(ctx, objects, success, totalBytes, errs)
 	}()
 
-	// sc.jobs contains query = all of the site IDs.
-	for _, id := range sc.jobs {
-		// Retrieve list data from M365
-		lists, err := loadLists(ctx, sc.service, id)
+	// Retrieve list data from M365
+	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
+	if err != nil {
+		errs = support.WrapAndAppend(sc.fullPath.ResourceOwner(), err, errs)
+	}
+
+	objects += len(lists)
+	// Write Data and Send
+	for _, lst := range lists {
+		byteArray, err := serializeListContent(writer, lst)
 		if err != nil {
-			errs = support.WrapAndAppend(id, err, errs)
+			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
+			continue
 		}
-		// Write Data and Send
-		for _, lst := range lists {
-			err = writer.WriteObjectValue("", lst)
-			if err != nil {
-				errs = support.WrapAndAppend(*lst.GetId(), err, errs)
-				continue
+
+		arrayLength = int64(len(byteArray))
+
+		if arrayLength > 0 {
+			t := time.Now()
+			if t1 := lst.GetLastModifiedDateTime(); t1 != nil {
+				t = *t1
 			}
 
-			byteArray, err := writer.GetSerializedContent()
-			if err != nil {
-				errs = support.WrapAndAppend(*lst.GetId(), err, errs)
-				continue
+			totalBytes += arrayLength
+
+			success++
+			sc.data <- &Item{
+				id:      *lst.GetId(),
+				data:    io.NopCloser(bytes.NewReader(byteArray)),
+				info:    sharePointListInfo(lst, arrayLength),
+				modTime: t,
 			}
 
-			writer.Close()
-
-			arrayLength = int64(len(byteArray))
-
-			if arrayLength > 0 {
-				t := time.Now()
-				if t1 := lst.GetLastModifiedDateTime(); t1 != nil {
-					t = *t1
-				}
-
-				totalBytes += arrayLength
-
-				success++
-				sc.data <- &Item{
-					id:      *lst.GetId(),
-					data:    io.NopCloser(bytes.NewReader(byteArray)),
-					info:    sharePointListInfo(lst, arrayLength),
-					modTime: t,
-				}
-
-				colProgress <- struct{}{}
-			}
+			colProgress <- struct{}{}
 		}
 	}
+}
+
+func serializeListContent(writer *kw.JsonSerializationWriter, lst models.Listable) ([]byte, error) {
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", lst)
+	if err != nil {
+		return nil, err
+	}
+
+	byteArray, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, err
+	}
+
+	return byteArray, nil
 }
