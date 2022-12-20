@@ -296,12 +296,12 @@ func (mbu mockBackuper) BackupCollections(
 	service path.ServiceType,
 	oc *kopia.OwnersCats,
 	tags map[string]string,
-) (*kopia.BackupStats, *details.Details, error) {
+) (*kopia.BackupStats, *details.Details, map[string]path.Path, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, service, oc, tags)
 	}
 
-	return &kopia.BackupStats{}, &details.Details{}, nil
+	return &kopia.BackupStats{}, &details.Details{}, nil, nil
 }
 
 func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
