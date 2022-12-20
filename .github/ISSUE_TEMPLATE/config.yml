@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Corso Documentation
+    url: https://corsobackup.io/docs/intro/
+    about: Did you search the documentation?
