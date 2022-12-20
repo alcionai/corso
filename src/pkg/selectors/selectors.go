@@ -168,9 +168,9 @@ func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string,
 		c = s
 		c.DiscreteOwner = ro
 
-		// temp replace owner in scopes
+		// TODO: when the rootCat gets removed from the scopes, we can remove this
 		c.Includes = discreteScopes[T](s.Includes, rootCat, []string{ro})
-		c.Filters = discreteScopes[T](s.Includes, rootCat, []string{ro})
+		c.Filters = discreteScopes[T](s.Filters, rootCat, []string{ro})
 
 		ss = append(ss, c)
 	}
