@@ -220,7 +220,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			collections, err := sharepoint.DataCollections(
 				ctx,
 				test.getSelector(),
-				selSites,
 				connector.credentials.AzureTenantID,
 				connector.Service,
 				connector,
