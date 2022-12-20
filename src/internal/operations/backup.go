@@ -149,7 +149,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	opStats.k, backupDetails, err = consumeBackupDataCollections(
+	opStats.k, backupDetails, _, err = consumeBackupDataCollections(
 		ctx,
 		op.kopia,
 		tenantID,
@@ -363,7 +363,7 @@ type backuper interface {
 		service path.ServiceType,
 		oc *kopia.OwnersCats,
 		tags map[string]string,
-	) (*kopia.BackupStats, *details.Details, error)
+	) (*kopia.BackupStats, *details.Details, map[string]path.Path, error)
 }
 
 // calls kopia to backup the collections of data
@@ -376,7 +376,7 @@ func consumeBackupDataCollections(
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
-) (*kopia.BackupStats, *details.Details, error) {
+) (*kopia.BackupStats, *details.Details, map[string]path.Path, error) {
 	complete, closer := observe.MessageWithCompletion("Backing up data:")
 	defer func() {
 		complete <- struct{}{}
@@ -397,7 +397,7 @@ func consumeBackupDataCollections(
 		for _, reason := range m.Reasons {
 			pb, err := builderFromReason(tenantID, reason)
 			if err != nil {
-				return nil, nil, errors.Wrap(err, "getting subtree paths for bases")
+				return nil, nil, nil, errors.Wrap(err, "getting subtree paths for bases")
 			}
 
 			paths = append(paths, pb)

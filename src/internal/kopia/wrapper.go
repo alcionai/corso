@@ -122,16 +122,16 @@ func (w Wrapper) BackupCollections(
 	service path.ServiceType,
 	oc *OwnersCats,
 	tags map[string]string,
-) (*BackupStats, *details.Details, error) {
+) (*BackupStats, *details.Details, map[string]path.Path, error) {
 	if w.c == nil {
-		return nil, nil, errNotConnected
+		return nil, nil, nil, errNotConnected
 	}
 
 	ctx, end := D.Span(ctx, "kopia:backupCollections")
 	defer end()
 
 	if len(collections) == 0 {
-		return &BackupStats{}, (&details.Builder{}).Details(), nil
+		return &BackupStats{}, (&details.Builder{}).Details(), nil, nil
 	}
 
 	progress := &corsoProgress{
@@ -144,7 +144,7 @@ func (w Wrapper) BackupCollections(
 	// hierarchy with them.
 	dirTree, err := inflateDirTree(ctx, w.c, nil, collections, progress)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "building kopia directories")
+		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
 	s, err := w.makeSnapshotWithRoot(
@@ -156,10 +156,10 @@ func (w Wrapper) BackupCollections(
 		progress,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return s, progress.deets.Details(), nil
+	return s, progress.deets.Details(), progress.toMerge, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
