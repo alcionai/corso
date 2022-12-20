@@ -153,7 +153,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 			}
 
 			collection := col.(*Collection)
-			collection.Add(*item.GetId())
+			collection.Add(item)
 			c.NumFiles++
 			c.NumItems++
 
