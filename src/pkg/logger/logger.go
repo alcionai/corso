@@ -45,7 +45,7 @@ func AddLogLevelFlag(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	fs.StringVar(&llFlag, logLevelFN, "info", "set the log level to debug|info|warn|error")
 
-	fs.Bool(debugAPIFN, false, "add non-2xx http req/resp data to debug logging")
+	fs.Bool(debugAPIFN, false, "add non-2xx request/response errors to logging")
 
 	fs.Bool(
 		readableLogsFN, false,
@@ -61,7 +61,7 @@ func PreloadLogLevel() string {
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.String(logLevelFN, "info", "set the log level to debug|info|warn|error")
-	fs.BoolVar(&DebugAPI, debugAPIFN, false, "add non-2xx http req/resp data to debug logging")
+	fs.BoolVar(&DebugAPI, debugAPIFN, false, "add non-2xx request/response errors to logging")
 	fs.BoolVar(&readableOutput, readableLogsFN, false, "minimizes log output: removes the file and date, colors the level")
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")

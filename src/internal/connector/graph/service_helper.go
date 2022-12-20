@@ -91,7 +91,7 @@ func (handler *LoggingMiddleware) Intercept(
 			"request", string(respDump),
 		}
 
-		logger.Ctx(ctx).Debugw("non-2xx graph api response", metadata...)
+		logger.Ctx(ctx).Errorw("non-2xx graph api response", metadata...)
 	}
 
 	return resp, err
