@@ -137,6 +137,7 @@ func (w Wrapper) BackupCollections(
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
+		toMerge: map[string]path.Path{},
 	}
 
 	// TODO(ashmrtn): Pass previousSnapshots here to enable building the directory

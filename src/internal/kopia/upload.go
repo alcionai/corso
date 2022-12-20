@@ -125,8 +125,8 @@ type itemDetails struct {
 
 type corsoProgress struct {
 	snapshotfs.UploadProgress
-	pending    map[string]*itemDetails
-	deets      *details.Builder
+	pending map[string]*itemDetails
+	deets   *details.Builder
 	// toMerge represents items that we don't have in-memory item info for. The
 	// item info for these items should be sourced from a base snapshot later on.
 	toMerge    map[string]path.Path
@@ -202,7 +202,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		parent = nextParent
 	}
 
-	cp.deets.AddFoldersForItem(folders, d.info)
+	cp.deets.AddFoldersForItem(folders, *d.info)
 }
 
 // Kopia interface function used as a callback when kopia finishes hashing a file.
