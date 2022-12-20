@@ -16,12 +16,12 @@ type listTuple struct {
 	id   string
 }
 
-func preFetchListOptions() *mssite.SitesItemListsRequestBuilderGetRequestConfiguration {
+func preFetchListOptions() *mssite.ItemListsRequestBuilderGetRequestConfiguration {
 	selecting := []string{"id", "displayName"}
-	queryOptions := mssite.SitesItemListsRequestBuilderGetQueryParameters{
+	queryOptions := mssite.ItemListsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &mssite.SitesItemListsRequestBuilderGetRequestConfiguration{
+	options := &mssite.ItemListsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &queryOptions,
 	}
 
