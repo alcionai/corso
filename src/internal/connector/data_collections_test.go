@@ -628,7 +628,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	tables := []struct {
 		name       string
 		sel        func() selectors.Selector
-		comparator func(t assert.TestingT, e1 interface{}, e2 interface{}, msgAndArgs ...interface{}) bool
+		comparator assert.ComparisonAssertionFunc
 	}{
 		{
 			name:       "SharePoint.Libraries",
@@ -664,7 +664,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		t.Run(test.name, func(t *testing.T) {
 			cols, err := gc.DataCollections(ctx, test.sel(), nil, control.Options{})
 			require.NoError(t, err)
-			test.comparator(t, len(cols), 0)
+			test.comparator(t, 0, len(cols))
 		})
 	}
 }
