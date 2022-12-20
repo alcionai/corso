@@ -28,7 +28,7 @@ func preFetchListOptions() *mssite.SitesItemListsRequestBuilderGetRequestConfigu
 	return options
 }
 
-func preFetchListIDs(
+func preFetchLists(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID string,

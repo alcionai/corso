@@ -54,7 +54,7 @@ func (suite *SharePointSuite) TestLoadList() {
 	service, err := createTestService(suite.creds)
 	require.NoError(t, err)
 
-	tuples, err := preFetchListIDs(ctx, service, "root")
+	tuples, err := preFetchLists(ctx, service, "root")
 	require.NoError(t, err)
 
 	job := []string{tuples[0].id}
