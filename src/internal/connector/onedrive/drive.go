@@ -143,9 +143,30 @@ func collectItems(
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
 	builder := service.Client().DrivesById(driveID).Root().Delta()
+	pageCount := int32(999) // max we can do is 999
+	requestFields := []string{
+		"content.downloadUrl",
+		"createdBy",
+		"createdDateTime",
+		"file",
+		"folder",
+		"id",
+		"lastModifiedDateTime",
+		"name",
+		"package",
+		"parentReference",
+		"root",
+		"size",
+	}
+	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
+			Top:    &pageCount,
+			Select: requestFields,
+		},
+	}
 
 	for {
-		r, err := builder.Get(ctx, nil)
+		r, err := builder.Get(ctx, requestConfig)
 		if err != nil {
 			return errors.Wrapf(
 				err,

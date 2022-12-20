@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -22,10 +24,10 @@ import (
 const (
 	// TODO: This number needs to be tuned
 	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
-	collectionChannelBufferSize = 50
+	collectionChannelBufferSize = 5
 
 	// TODO: Tune this later along with collectionChannelBufferSize
-	urlPrefetchChannelBufferSize = 25
+	urlPrefetchChannelBufferSize = 5
 
 	// Max number of retries to get doc from M365
 	// Seems to timeout at times because of multiple requests
@@ -48,7 +50,7 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItemIDs []string
+	driveItems []models.DriveItemable
 	// M365 ID of the drive this collection was created from
 	driveID       string
 	source        driveSource
@@ -61,8 +63,7 @@ type Collection struct {
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
+	item models.DriveItemable,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
@@ -76,7 +77,6 @@ func NewCollection(
 ) *Collection {
 	c := &Collection{
 		folderPath:    folderPath,
-		driveItemIDs:  []string{},
 		driveID:       driveID,
 		source:        source,
 		service:       service,
@@ -98,8 +98,8 @@ func NewCollection(
 
 // Adds an itemID to the collection
 // This will make it eligible to be populated
-func (oc *Collection) Add(itemID string) {
-	oc.driveItemIDs = append(oc.driveItemIDs, itemID)
+func (oc *Collection) Add(item models.DriveItemable) {
+	oc.driveItems = append(oc.driveItems, item)
 }
 
 // Items() returns the channel containing M365 Exchange objects
@@ -191,7 +191,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		observe.ItemQueueMsg,
 		"/"+parentPathString,
-		int64(len(oc.driveItemIDs)),
+		int64(len(oc.driveItems)),
 	)
 	defer colCloser()
 	defer close(folderProgress)
@@ -205,7 +205,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		m.Unlock()
 	}
 
-	for _, itemID := range oc.driveItemIDs {
+	for _, item := range oc.driveItems {
 		if oc.ctrl.FailFast && errs != nil {
 			break
 		}
@@ -214,7 +214,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 		wg.Add(1)
 
-		go func(itemID string) {
+		go func(item models.DriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -226,7 +226,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			)
 
 			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, oc.service, oc.driveID, itemID)
+				itemInfo, itemData, err = oc.itemReader(ctx, item)
 
 				// We only retry if it is a timeout error. Other
 				// errors like throttling are already handled within
@@ -242,7 +242,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			if err != nil {
-				errUpdater(itemID, err)
+				errUpdater(*item.GetId(), err)
 				return
 			}
 
@@ -276,7 +276,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				info: itemInfo,
 			}
 			folderProgress <- struct{}{}
-		}(itemID)
+		}(item)
 	}
 
 	wg.Wait()
@@ -290,9 +290,9 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byte
 	status := support.CreateStatus(ctx, support.Backup,
 		1, // num folders (always 1)
 		support.CollectionMetrics{
-			Objects:    len(oc.driveItemIDs), // items to read,
-			Successes:  itemsRead,            // items read successfully,
-			TotalBytes: byteCount,            // Number of bytes read in the operation,
+			Objects:    len(oc.driveItems), // items to read,
+			Successes:  itemsRead,          // items read successfully,
+			TotalBytes: byteCount,          // Number of bytes read in the operation,
 		},
 		errs,
 		oc.folderPath.Folder(), // Additional details
