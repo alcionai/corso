@@ -389,7 +389,7 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info:       &itemDetails{details.ItemInfo{}, fpath},
+					info:       &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
 					err:        nil,
 					totalBytes: 100,
 				},
@@ -416,7 +416,7 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info: &itemDetails{details.ItemInfo{}, fpath},
+					info: &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
 					err:  assert.AnError,
 				},
 			}
@@ -473,7 +473,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 		pending:        map[string]*itemDetails{},
 	}
 
-	deets := &itemDetails{details.ItemInfo{}, suite.targetFilePath}
+	deets := &itemDetails{info: &details.ItemInfo{}, repoPath: suite.targetFilePath}
 	cp.put(suite.targetFileName, deets)
 	require.Len(t, cp.pending, 1)
 
