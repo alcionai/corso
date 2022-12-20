@@ -102,7 +102,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collection, err := exchange.DataCollection(
+			collections, err := exchange.DataCollections(
 				ctx,
 				test.getSelector(t),
 				nil,
@@ -111,12 +111,17 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				connector.UpdateStatus,
 				control.Options{})
 			require.NoError(t, err)
+
+			for range collections {
+				connector.incrementAwaitingMessages()
+			}
+
 			// Categories with delta endpoints will produce a collection for metadata
 			// as well as the actual data pulled.
-			assert.GreaterOrEqual(t, len(collection), 1, "expected 1 <= num collections <= 2")
-			assert.GreaterOrEqual(t, 2, len(collection), "expected 1 <= num collections <= 2")
+			assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
+			assert.GreaterOrEqual(t, 2, len(collections), "expected 1 <= num collections <= 2")
 
-			for _, col := range collection {
+			for _, col := range collections {
 				for object := range col.Items() {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
@@ -206,7 +211,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collection, err := sharepoint.DataCollections(
+			collections, err := sharepoint.DataCollections(
 				ctx,
 				test.getSelector(),
 				[]string{suite.site},
@@ -216,17 +221,23 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				control.Options{})
 			require.NoError(t, err)
 
+			for range collections {
+				connector.incrementAwaitingMessages()
+			}
+
 			// we don't know an exact count of drives this will produce,
 			// but it should be more than one.
-			assert.Less(t, test.expected, len(collection))
+			assert.Less(t, test.expected, len(collections))
 
-			// the test only reads the firstt collection
+			// the test only reads the first collection
 			connector.incrementAwaitingMessages()
 
-			for object := range collection[0].Items() {
-				buf := &bytes.Buffer{}
-				_, err := buf.ReadFrom(object.ToReader())
-				assert.NoError(t, err, "received a buf.Read error")
+			for _, coll := range collections {
+				for object := range coll.Items() {
+					buf := &bytes.Buffer{}
+					_, err := buf.ReadFrom(object.ToReader())
+					assert.NoError(t, err, "reading item")
+				}
 			}
 
 			status := connector.AwaitStatus()

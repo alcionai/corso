@@ -43,7 +43,7 @@ func (gc *GraphConnector) DataCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, err := exchange.DataCollection(
+		colls, err := exchange.DataCollections(
 			ctx,
 			sels,
 			metadata,

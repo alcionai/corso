@@ -159,7 +159,7 @@ func parseMetadataCollections(
 // Assumption: User exists
 //
 //	Add iota to this call -> mail, contacts, calendar,  etc.
-func DataCollection(
+func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
 	metadata []data.Collection,
