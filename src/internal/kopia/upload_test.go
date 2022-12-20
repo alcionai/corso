@@ -1203,7 +1203,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		append(inboxPath.Elements(), workDir),
 		false,
 	)
-	workFileName := testFileName3
+	workFileName1 := testFileName3
+	workFileName2 := testFileName4
+
+	workFileData2 := testFileData
 
 	// Must be a function that returns a new instance each time as StreamingFile
 	// can only return its Reader once.
@@ -1249,7 +1252,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							encodeElements(workDir)[0],
 							[]fs.Entry{
 								virtualfs.StreamingFileWithModTimeFromReader(
-									encodeElements(workFileName)[0],
+									encodeElements(workFileName1)[0],
 									time.Time{},
 									bytes.NewReader(testFileData3),
 								),
@@ -1309,7 +1312,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								name: workDir,
 								children: []*expectedNode{
 									{
-										name:     workFileName,
+										name:     workFileName1,
 										children: []*expectedNode{},
 									},
 								},
@@ -1373,7 +1376,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: workDir,
 						children: []*expectedNode{
 							{
-								name:     workFileName,
+								name:     workFileName1,
 								children: []*expectedNode{},
 							},
 						},
@@ -1412,7 +1415,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: workDir,
 						children: []*expectedNode{
 							{
-								name:     workFileName,
+								name:     workFileName1,
 								children: []*expectedNode{},
 							},
 						},
@@ -1448,7 +1451,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								name: personalDir,
 								children: []*expectedNode{
 									{
-										name: workFileName,
+										name: workFileName1,
 									},
 								},
 							},
@@ -1491,7 +1494,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								name: personalDir,
 								children: []*expectedNode{
 									{
-										name: workFileName,
+										name: workFileName1,
 									},
 								},
 							},
@@ -1545,7 +1548,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								name: workDir,
 								children: []*expectedNode{
 									{
-										name:     workFileName,
+										name:     workFileName1,
 										children: []*expectedNode{},
 									},
 								},
