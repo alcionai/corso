@@ -19,7 +19,7 @@ body:
     id: version
     attributes:
       label: Corso Version?
-      description: What version of Corso are you running?
+      description: What version of Corso (`corso --version`) are you running?
       value: "Corso vX.X.X"
     validations:
       required: true
