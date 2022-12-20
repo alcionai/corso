@@ -56,6 +56,11 @@ type Collection interface {
 	// re-discover all data in the container.  This flag only affects the path of the
 	// collection, and does not cascade to subfolders.
 	DoNotMergeItems() bool
+	// Meta returns the metadata information for the object, it is the
+	// data stored in `.meta` file next to the original file. It will
+	// be json serialized data which each struct can unmarshall for
+	// itself.
+	Meta() io.ReadCloser
 }
 
 // Stream represents a single item within a Collection
@@ -63,6 +68,8 @@ type Collection interface {
 type Stream interface {
 	// ToReader returns an io.Reader for the DataStream
 	ToReader() io.ReadCloser
+	// ToMetaReader returns and io.ReadCloser of the metadata
+	ToMetaReader() (io.ReadCloser, error)
 	// UUID provides a unique identifier for this data
 	UUID() string
 	// Deleted returns true if the item represented by this Stream has been

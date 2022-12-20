@@ -71,6 +71,11 @@ func (sc *Collection) AddJob(objID string) {
 	sc.jobs = append(sc.jobs, objID)
 }
 
+// TODO(meain): Implement meta
+func (sc *Collection) Meta() io.ReadCloser {
+	return nil
+}
+
 func (sc *Collection) FullPath() path.Path {
 	return sc.fullPath
 }
@@ -110,6 +115,11 @@ func (sd *Item) UUID() string {
 
 func (sd *Item) ToReader() io.ReadCloser {
 	return sd.data
+}
+
+// TODO(meain): Implement this
+func (od *Item) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func (sd Item) Deleted() bool {

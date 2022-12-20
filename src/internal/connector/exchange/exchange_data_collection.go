@@ -158,6 +158,10 @@ func (col *Collection) FullPath() path.Path {
 	return col.fullPath
 }
 
+func (col Collection) Meta() io.ReadCloser {
+	return nil
+}
+
 // TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
 // and new folder hierarchies.
 func (col Collection) PreviousPath() path.Path {
@@ -540,6 +544,10 @@ func (od *Stream) UUID() string {
 
 func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
+}
+
+func (od *Stream) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func (od Stream) Deleted() bool {

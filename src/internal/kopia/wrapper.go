@@ -2,8 +2,15 @@ package kopia
 
 import (
 	"context"
+	"io"
 	"strings"
 
+	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
@@ -12,13 +19,6 @@ import (
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
-
-	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -324,18 +324,78 @@ func getItemStream(
 		return nil, errors.Wrap(err, "decoding file name")
 	}
 
+	rm, err := getMetaReader(ctx, snapshotRoot, itemPath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &kopiaDataStream{
 		uuid: decodedName,
 		reader: &restoreStreamReader{
 			ReadCloser:      r,
 			expectedVersion: serializationVersion,
 		},
+		metaReader: &restoreStreamReader{
+			ReadCloser:      rm,
+			expectedVersion: serializationVersion,
+		},
 		size: f.Size() - int64(versionSize),
 	}, nil
 }
 
+func getMetaReader(ctx context.Context, snapshotRoot fs.Entry, itemPath path.Path) (io.ReadCloser, error) {
+	pe := itemPath.PopFront().Elements()
+	pe[len(pe)-1] += ".meta"
+
+	em, err := snapshotfs.GetNestedEntry(ctx, snapshotRoot, encodeElements(pe...))
+	if err != nil {
+		// TODO(meain): Both older versions of the backup as well as
+		// "details" will not have the meta information available
+		return nil, nil
+	}
+
+	fm, ok := em.(fs.File)
+	if !ok {
+		return nil, errors.Wrap(err, "requested object metadata is not a file")
+	}
+
+	rm, err := fm.Open(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to open metadata file")
+	}
+
+	return rm, nil
+}
+
 type ByteCounter interface {
 	Count(numBytes int64)
+}
+
+func (w Wrapper) RestoreDetails(
+	ctx context.Context,
+	snapshotID string,
+	itemPath path.Path,
+	bcounter ByteCounter,
+) (data.Collection, error) {
+	parent, err := itemPath.Dir()
+	if err != nil {
+		return nil, err
+	}
+
+	dc := &kopiaDataCollection{path: parent, meta: nil}
+
+	snapshotRoot, err := w.getSnapshotRoot(ctx, snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
+	if err != nil {
+		return nil, err
+	}
+
+	dc.streams = append(dc.streams, ds)
+	return dc, nil
 }
 
 // RestoreMultipleItems looks up all paths- assuming each is an item declaration,
@@ -364,12 +424,64 @@ func (w Wrapper) RestoreMultipleItems(
 	}
 
 	var (
-		errs *multierror.Error
-		// Maps short ID of parent path to data collection for that folder.
-		cols = map[string]*kopiaDataCollection{}
+		errs    *multierror.Error
+		cols    = []*kopiaDataCollection{}
+		visited = map[string]int{}
+		res     = []data.Collection{}
 	)
 
 	for _, itemPath := range paths {
+		ip, err := itemPath.Dir()
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
+			break
+		}
+
+		errored := false
+		for {
+			if len(ip.Elements()) <= 7 {
+				break
+			}
+
+			key := ip.ShortRef()
+			_, ok := visited[key]
+			if !ok {
+
+				parent, err := ip.Dir()
+				if err != nil {
+					errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
+					errored = true
+				}
+
+				mr, err := getMetaReader(ctx, snapshotRoot, ip)
+				if err != nil {
+					errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
+					errored = true
+				}
+
+				_, ok := visited[parent.ShortRef()]
+				if ok {
+					visited[key] = len(cols)
+					cols = append(cols, &kopiaDataCollection{path: ip, meta: mr})
+				} else {
+					for k := range visited {
+						visited[k] += 1
+					}
+					visited[key] = 0
+					cols = append([]*kopiaDataCollection{{path: ip, meta: mr}}, cols...)
+				}
+			}
+
+			ip, err = ip.Dir()
+			if err != nil {
+				break
+			}
+		}
+		if errored {
+			errored = false
+			break
+		}
+
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
 			errs = multierror.Append(errs, err)
@@ -379,19 +491,18 @@ func (w Wrapper) RestoreMultipleItems(
 		parentPath, err := itemPath.Dir()
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
+			break
+		}
+
+		i, ok := visited[parentPath.ShortRef()]
+		if !ok {
+			errs = multierror.Append(errs, errors.New("unable to find parent directory"))
 			continue
 		}
 
-		c, ok := cols[parentPath.ShortRef()]
-		if !ok {
-			cols[parentPath.ShortRef()] = &kopiaDataCollection{path: parentPath}
-			c = cols[parentPath.ShortRef()]
-		}
-
-		c.streams = append(c.streams, ds)
+		cols[i].streams = append(cols[i].streams, ds)
 	}
 
-	res := make([]data.Collection, 0, len(cols))
 	for _, c := range cols {
 		res = append(res, c)
 	}

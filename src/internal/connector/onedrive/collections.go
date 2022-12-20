@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -15,6 +12,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 )
 
 type driveSource int
@@ -130,12 +129,10 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 		}
 
 		switch {
-		case item.GetFolder() != nil, item.GetPackage() != nil:
+		case item.GetPackage() != nil:
 			// Leave this here so we don't fall into the default case.
-			// TODO: This is where we might create a "special file" to represent these in the backup repository
-			// e.g. a ".folderMetadataFile"
 
-		case item.GetFile() != nil:
+		case item.GetFolder() != nil, item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
 				col = NewCollection(

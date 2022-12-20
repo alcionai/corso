@@ -8,13 +8,12 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/pkg/errors"
 )
 
 type streamStore struct {
@@ -110,17 +109,10 @@ func (ss *streamStore) ReadBackupDetails(
 
 	var bc stats.ByteCounter
 
-	dcs, err := ss.kw.RestoreMultipleItems(ctx, detailsID, []path.Path{detailsPath}, &bc)
+	dc, err := ss.kw.RestoreDetails(ctx, detailsID, detailsPath, &bc)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving backup details data")
 	}
-
-	// Expect only 1 data collection
-	if len(dcs) != 1 {
-		return nil, errors.Errorf("expected 1 details data collection: %d", len(dcs))
-	}
-
-	dc := dcs[0]
 
 	var d details.Details
 
@@ -181,6 +173,10 @@ func (dc *streamCollection) PreviousPath() path.Path {
 	return nil
 }
 
+func (dc *streamCollection) Meta() io.ReadCloser {
+	return nil
+}
+
 func (dc *streamCollection) State() data.CollectionState {
 	return data.NewState
 }
@@ -210,6 +206,10 @@ func (di *streamItem) UUID() string {
 
 func (di *streamItem) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(di.data))
+}
+
+func (od *streamItem) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func (di *streamItem) Deleted() bool {

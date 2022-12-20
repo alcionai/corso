@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -115,6 +114,10 @@ func (md MetadataCollection) FullPath() path.Path {
 	return md.fullPath
 }
 
+func (md MetadataCollection) Meta() io.ReadCloser {
+	return nil
+}
+
 // TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
 // and new folder hierarchies.
 func (md MetadataCollection) PreviousPath() path.Path {
@@ -199,4 +202,8 @@ func (mi MetadataItem) Deleted() bool {
 
 func (mi MetadataItem) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(mi.data))
+}
+
+func (kds MetadataItem) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
 }

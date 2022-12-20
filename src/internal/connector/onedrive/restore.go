@@ -2,10 +2,11 @@ package onedrive
 
 import (
 	"context"
+	"encoding/json"
 	"io"
+	"io/ioutil"
 	"runtime/trace"
-
-	"github.com/pkg/errors"
+	"strings"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -16,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -42,15 +44,62 @@ func RestoreCollections(
 		restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
 	}
 
+	if len(dcs) == 0 {
+		return nil, errors.New("no data available to restore")
+	}
+
+	directory := dcs[0].FullPath() // drive will be same for all the paths
+	drivePath, err := path.ToOneDrivePath(directory)
+	if err != nil {
+		errUpdater(directory.String(), err)
+	}
+
+	driveID := drivePath.DriveID
+	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
+	if err != nil {
+		errUpdater(directory.String(), errors.Wrapf(err,
+			"failed to get drive root. details: %s",
+			support.ConnectorStackErrorTrace(err),
+		))
+		return nil, errors.New("unable to connect to drive")
+	}
+
+	logger.Ctx(ctx).Debugf("Found Root for Drive %s with ID %s", driveID, *driveRoot.GetId())
+
+	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
+	// from the backup under this the restore folder instead of root)
+	// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
+
+	pids := map[string]string{}
+
+	// Create initial root container to hold the restore
+	containerId, err := CreateRestoreFolder(ctx, service, driveID, dest.ContainerName, nil, *driveRoot.GetId())
+	if err != nil {
+		return nil, errors.New("unable to create restore container")
+	}
+
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		temp, canceled := RestoreCollection(ctx, service, dc, OneDriveSource, dest.ContainerName, deets, errUpdater)
+		elms := dc.FullPath().Elements()
+		path := strings.Join(elms, "/")
+		parentPath := strings.Join(elms[:len(elms)-1], "/")
 
-		restoreMetrics.Combine(temp)
+		pid, ok := pids[parentPath]
+		if !ok {
+			if len(dc.FullPath().Elements()) == 8 { // base folders
+				pid = containerId
+			} else {
+				errUpdater(dc.FullPath().String(), errors.New("unable to find parent path"))
+				continue 
+			}
+		}
 
-		if canceled {
+		id, metrics, cancelled := RestoreCollection(ctx, service, dc, OneDriveSource, deets, errUpdater, pid)
+		restoreMetrics.Combine(metrics)
+		if cancelled {
 			break
 		}
+		pids[path] = id
 	}
 
 	return support.CreateStatus(
@@ -72,10 +121,10 @@ func RestoreCollection(
 	service graph.Servicer,
 	dc data.Collection,
 	source driveSource,
-	restoreContainerName string,
 	deets *details.Builder,
 	errUpdater func(string, error),
-) (support.CollectionMetrics, bool) {
+	parentFolderID string,
+) (string, support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
@@ -87,25 +136,15 @@ func RestoreCollection(
 
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
-		errUpdater(directory.String(), err)
-		return metrics, false
+		return "", metrics, false
 	}
 
-	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
-	// from the backup under this the restore folder instead of root)
-	// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
-
-	restoreFolderElements := []string{restoreContainerName}
-	restoreFolderElements = append(restoreFolderElements, drivePath.Folders...)
-
-	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
-	logger.Ctx(ctx).Debugf("Restore target for %s is %v", dc.FullPath(), restoreFolderElements)
-
-	// Create restore folders and get the folder ID of the folder the data stream will be restored in
-	restoreFolderID, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
+	elms := directory.Elements()
+	folder := elms[len(elms)-1]
+	parentFolderID, err = CreateRestoreFolder(ctx, service, drivePath.DriveID, folder, dc.Meta(), parentFolderID)
 	if err != nil {
-		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
-		return metrics, false
+		errUpdater(folder, errors.Wrapf(err, "failed to create folder %v", folder))
+		return "", metrics, false
 	}
 
 	// Restore items from the collection
@@ -115,11 +154,11 @@ func RestoreCollection(
 		select {
 		case <-ctx.Done():
 			errUpdater("context canceled", ctx.Err())
-			return metrics, true
+			return parentFolderID, metrics, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, false
+				return parentFolderID, metrics, false
 			}
 			metrics.Objects++
 
@@ -129,7 +168,7 @@ func RestoreCollection(
 				service,
 				itemData,
 				drivePath.DriveID,
-				restoreFolderID,
+				parentFolderID,
 				copyBuffer,
 				source)
 			if err != nil {
@@ -157,49 +196,34 @@ func RestoreCollection(
 	}
 }
 
-// createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
-// of the last folder entry in the hiearchy
-func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID string, restoreFolders []string,
-) (string, error) {
-	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
+func CreateRestoreFolder(ctx context.Context, service graph.Servicer, driveID, folder string, metar io.ReadCloser, parentFolderID string) (string, error) {
+	var meta ItemMeta
+	// `metar` will be nil for the top level container folder
+	// TODO(meain): Should we make `metar` into ItemMeta instead of io.ReadCloser?
+	if metar != nil {
+		metaraw, err := ioutil.ReadAll(metar)
+		if err != nil {
+			return "", err
+		}
+
+		err = json.Unmarshal(metaraw[4:], &meta) // TODO(meain): First 4 bytes are somehow 00 00 00 01
+		if err != nil {
+			return "", err
+		}
+	}
+
+	folderItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(folder, true), meta)
 	if err != nil {
 		return "", errors.Wrapf(
 			err,
-			"failed to get drive root. details: %s",
+			"failed to create folder %s/%s. details: %s", parentFolderID, folder,
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
 
-	logger.Ctx(ctx).Debugf("Found Root for Drive %s with ID %s", driveID, *driveRoot.GetId())
+	logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
 
-	parentFolderID := *driveRoot.GetId()
-	for _, folder := range restoreFolders {
-		folderItem, err := getFolder(ctx, service, driveID, parentFolderID, folder)
-		if err == nil {
-			parentFolderID = *folderItem.GetId()
-			logger.Ctx(ctx).Debugf("Found %s with ID %s", folder, parentFolderID)
-
-			continue
-		}
-
-		if !errors.Is(err, errFolderNotFound) {
-			return "", errors.Wrapf(err, "folder %s not found in drive(%s) parentFolder(%s)", folder, driveID, parentFolderID)
-		}
-
-		folderItem, err = createItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
-		if err != nil {
-			return "", errors.Wrapf(
-				err,
-				"failed to create folder %s/%s. details: %s", parentFolderID, folder,
-				support.ConnectorStackErrorTrace(err),
-			)
-		}
-
-		logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
-		parentFolderID = *folderItem.GetId()
-	}
-
-	return parentFolderID, nil
+	return *folderItem.GetId(), nil
 }
 
 // restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
@@ -223,8 +247,24 @@ func restoreItem(
 		return details.ItemInfo{}, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
 	}
 
+	imReader, err := itemData.ToMetaReader()
+	if err != nil {
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to fetch metadata: item %s", itemName)
+	}
+
+	rmeta, err := ioutil.ReadAll(imReader)
+	if err != nil {
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to read metadata: item %s", itemName)
+	}
+
+	var meta ItemMeta
+	err = json.Unmarshal(rmeta, &meta)
+	if err != nil {
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to parse metadata: item %s", itemName)
+	}
+
 	// Create Item
-	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false))
+	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false), meta)
 	if err != nil {
 		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item %s", itemName)
 	}

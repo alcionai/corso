@@ -12,17 +12,16 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/hashicorp/go-multierror"
-	"github.com/kopia/kopia/fs"
-	"github.com/kopia/kopia/fs/virtualfs"
-	"github.com/kopia/kopia/snapshot/snapshotfs"
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/hashicorp/go-multierror"
+	"github.com/kopia/kopia/fs"
+	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/snapshot/snapshotfs"
+	"github.com/pkg/errors"
 )
 
 const maxInflateTraversalDepth = 500
@@ -302,16 +301,41 @@ func collectionEntries(
 				modTime = smt.ModTime()
 			}
 
-			entry := virtualfs.StreamingFileWithModTimeFromReader(
-				encodedName,
-				modTime,
-				newBackupStreamReader(serializationVersion, e.ToReader()),
-			)
-			if err := cb(ctx, entry); err != nil {
-				// Kopia's uploader swallows errors in most cases, so if we see
-				// something here it's probably a big issue and we should return.
-				errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
+			em, err := e.ToMetaReader()
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(err, "failed fetching metadata for %q", itemPath))
 				return seen, errs
+			}
+
+			if e.ToReader() != nil {
+				// For folder metadata, there will be no data
+				entry := virtualfs.StreamingFileWithModTimeFromReader(
+					// TODO(meain): Add a suffix for encodedName so
+					// that we will not have conflicts even if there
+					// is a file with `.meta` suffix in the original
+					// drive
+					encodedName,
+					modTime,
+					newBackupStreamReader(serializationVersion, e.ToReader()),
+				)
+				if err := cb(ctx, entry); err != nil {
+					// Kopia's uploader swallows errors in most cases, so if we see
+					// something here it's probably a big issue and we should return.
+					errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
+					return seen, errs
+				}
+			}
+
+			if em != nil {
+				entry := virtualfs.StreamingFileWithModTimeFromReader(
+					encodeAsPath(e.UUID()+".meta"),
+					modTime,
+					newBackupStreamReader(serializationVersion, em),
+				)
+				if err := cb(ctx, entry); err != nil {
+					errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on metadata for %q", itemPath))
+					return seen, errs
+				}
 			}
 		}
 	}

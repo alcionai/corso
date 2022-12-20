@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/logger"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
-
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 var (
@@ -239,6 +239,7 @@ func createItem(
 	service graph.Servicer,
 	driveID, parentFolderID string,
 	newItem models.DriveItemable,
+	meta ItemMeta,
 ) (models.DriveItemable, error) {
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
@@ -253,6 +254,33 @@ func createItem(
 			"failed to create item. details: %s",
 			support.ConnectorStackErrorTrace(err),
 		)
+	}
+
+	for _, p := range meta.Permissions {
+		pbody := drive.NewItemsItemInvitePostRequestBody()
+		pbody.SetRoles(p.Roles)
+		if p.Expiration != nil {
+			expiry := p.Expiration.String()
+			pbody.SetExpirationDateTime(&expiry)
+		}
+		si := false
+		pbody.SetSendInvitation(&si)
+		rs := true
+		pbody.SetRequireSignIn(&rs)
+
+		rec := models.NewDriveRecipient()
+		rec.SetEmail(&p.Email)
+		pbody.SetRecipients([]models.DriveRecipientable{rec})
+
+		_, err := service.Client().DrivesById(driveID).ItemsById(*newItem.GetId()).Invite().Post(ctx, pbody, nil)
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"failed to set permissions for item %s. details: %s",
+				*newItem.GetId(),
+				support.ConnectorStackErrorTrace(err),
+			)
+		}
 	}
 
 	return newItem, nil

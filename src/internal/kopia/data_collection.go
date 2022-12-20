@@ -14,6 +14,7 @@ var (
 
 type kopiaDataCollection struct {
 	path    path.Path
+	meta    io.ReadCloser
 	streams []data.Stream
 }
 
@@ -29,6 +30,10 @@ func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
 	}()
 
 	return res
+}
+
+func (kdc *kopiaDataCollection) Meta() io.ReadCloser {
+	return kdc.meta
 }
 
 func (kdc kopiaDataCollection) FullPath() path.Path {
@@ -48,13 +53,18 @@ func (kdc kopiaDataCollection) DoNotMergeItems() bool {
 }
 
 type kopiaDataStream struct {
-	reader io.ReadCloser
-	uuid   string
-	size   int64
+	reader     io.ReadCloser
+	metaReader io.ReadCloser
+	uuid       string
+	size       int64
 }
 
 func (kds kopiaDataStream) ToReader() io.ReadCloser {
 	return kds.reader
+}
+
+func (kds kopiaDataStream) ToMetaReader() (io.ReadCloser, error) {
+	return kds.metaReader, nil
 }
 
 func (kds kopiaDataStream) UUID() string {
