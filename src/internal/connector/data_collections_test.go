@@ -229,9 +229,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			// but it should be more than one.
 			assert.Less(t, test.expected, len(collections))
 
-			// the test only reads the first collection
-			connector.incrementAwaitingMessages()
-
 			for _, coll := range collections {
 				for object := range coll.Items() {
 					buf := &bytes.Buffer{}
@@ -242,7 +239,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 			status := connector.AwaitStatus()
 			assert.NotZero(t, status.Successful)
-
 			t.Log(status.String())
 		})
 	}

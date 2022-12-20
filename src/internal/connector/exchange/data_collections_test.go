@@ -547,10 +547,9 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				control.Options{},
 				newStatusUpdater(t, &wg))
 			require.NoError(t, err)
+			require.Equal(t, len(collections), 2)
 
 			wg.Add(len(collections))
-
-			require.Equal(t, len(collections), 2)
 
 			for _, edc := range collections {
 				var isMetadata bool
@@ -562,12 +561,10 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 					assert.Equal(t, "", edc.FullPath().Folder())
 				}
 
-				streamChannel := edc.Items()
-
-				for stream := range streamChannel {
+				for item := range edc.Items() {
 					buf := &bytes.Buffer{}
 
-					read, err := buf.ReadFrom(stream.ToReader())
+					read, err := buf.ReadFrom(item.ToReader())
 					assert.NoError(t, err)
 					assert.NotZero(t, read)
 
@@ -579,9 +576,9 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 					assert.NotNil(t, event)
 					assert.NoError(t, err, "creating event from bytes: "+buf.String())
 				}
-
-				wg.Wait()
 			}
+
+			wg.Wait()
 		})
 	}
 }
