@@ -158,8 +158,8 @@ func collectItems(
 		"root",
 		"size",
 	}
-	requestConfig := &msdrives.DrivesItemRootDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msdrives.DrivesItemRootDeltaRequestBuilderGetQueryParameters{
+	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
 			Top:    &pageCount,
 			Select: requestFields,
 		},
