@@ -195,7 +195,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	}{
 		{
 			name: "Libraries",
-			getSelector: func(t *testing.T) selectors.Selector {
+			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Libraries(selSites, selectors.Any()))
 
@@ -206,8 +206,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			name:     "Lists",
 			expected: 0,
 			getSelector: func() selectors.Selector {
-				sel := selectors.NewSharePointBackup()
-				sel.Include(sel.Lists([]string{suite.site}, selectors.Any()))
+				sel := selectors.NewSharePointBackup(selSites)
+				sel.Include(sel.Lists(selSites, selectors.Any()))
 
 				return sel.Selector
 			},
@@ -218,7 +218,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		suite.T().Run(test.name, func(t *testing.T) {
 			collections, err := sharepoint.DataCollections(
 				ctx,
-				test.getSelector(t),
+				test.getSelector(),
 				selSites,
 				connector.credentials.AzureTenantID,
 				connector.Service,

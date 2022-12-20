@@ -340,7 +340,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 			ID: "id2",
 		}
 
-		sel = selectors.NewExchangeBackup().Selector
+		sel = selectors.NewExchangeBackup([]string{resourceOwner}).Selector
 	)
 
 	table := []struct {
