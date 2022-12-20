@@ -175,13 +175,25 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	connector := loadConnector(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
-		getSelector func(t *testing.T) selectors.Selector
+		expected    int
+		getSelector func() selectors.Selector
 	}{
 		{
-			name: "Libraries",
-			getSelector: func(t *testing.T) selectors.Selector {
+			name:     "Libraries",
+			expected: 1,
+			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
+
+				return sel.Selector
+			},
+		},
+		{
+			name:     "Lists",
+			expected: 0,
+			getSelector: func() selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Include(sel.Lists([]string{suite.site}, selectors.Any()))
 
 				return sel.Selector
 			},
@@ -192,7 +204,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		suite.T().Run(test.name, func(t *testing.T) {
 			collection, err := sharepoint.DataCollections(
 				ctx,
-				test.getSelector(t),
+				test.getSelector(),
 				[]string{suite.site},
 				connector.credentials.AzureTenantID,
 				connector.Service,
@@ -202,7 +214,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 			// we don't know an exact count of drives this will produce,
 			// but it should be more than one.
-			assert.Less(t, 1, len(collection))
+			assert.Less(t, test.expected, len(collection))
 
 			// the test only reads the firstt collection
 			connector.incrementAwaitingMessages()
@@ -601,6 +613,8 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	tester.LogTimeOfTest(suite.T())
 }
 
+// TestCreateSharePointCollection. Ensures the proper amount of collections are created based
+// on the selector.
 func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -609,15 +623,48 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		t      = suite.T()
 		siteID = tester.M365SiteID(t)
 		gc     = loadConnector(ctx, t, Sites)
-		sel    = selectors.NewSharePointBackup()
 	)
 
-	sel.Include(sel.Libraries(
-		[]string{siteID},
-		[]string{"foo"},
-		selectors.PrefixMatch(),
-	))
+	tables := []struct {
+		name       string
+		sel        func() selectors.Selector
+		comparator assert.ComparisonAssertionFunc
+	}{
+		{
+			name:       "SharePoint.Libraries",
+			comparator: assert.Equal,
+			sel: func() selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Include(sel.Libraries(
+					[]string{siteID},
+					[]string{"foo"},
+					selectors.PrefixMatch(),
+				))
 
-	_, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
-	require.NoError(t, err)
+				return sel.Selector
+			},
+		},
+		{
+			name:       "SharePoint.Lists",
+			comparator: assert.Less,
+			sel: func() selectors.Selector {
+				sel := selectors.NewSharePointBackup()
+				sel.Include(sel.Lists(
+					[]string{siteID},
+					selectors.Any(),
+					selectors.PrefixMatch(), // without this option a SEG Fault occurs
+				))
+
+				return sel.Selector
+			},
+		},
+	}
+
+	for _, test := range tables {
+		t.Run(test.name, func(t *testing.T) {
+			cols, err := gc.DataCollections(ctx, test.sel(), nil, control.Options{})
+			require.NoError(t, err)
+			test.comparator(t, 0, len(cols))
+		})
+	}
 }
