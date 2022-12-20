@@ -133,7 +133,7 @@ func FilterContainersAndFillCollections(
 		)
 		collections[cID] = &edc
 
-		if edc.state == data.DeletedState {
+		if edc.State() == data.DeletedState {
 			continue
 		}
 

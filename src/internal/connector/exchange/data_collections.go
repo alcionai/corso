@@ -65,7 +65,7 @@ func ParseMetadataCollections(
 	}
 
 	// found tracks the metadata we've loaded, to make sure we don't
-	// fetch overlapping opies.
+	// fetch overlapping copies.
 	found := map[path.CategoryType]map[string]struct{}{
 		path.ContactsCategory: {},
 		path.EmailCategory:    {},

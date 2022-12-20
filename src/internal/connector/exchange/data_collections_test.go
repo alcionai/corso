@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,7 +85,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			expectError: assert.NoError,
 		},
 		{
-			name: "delta urls and empttyprevious paths",
+			name: "delta urls and empty previous paths",
 			data: []fileValues{
 				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.PreviousPathFileName, ""},
@@ -154,26 +153,24 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			colls := []data.Collection{}
+			entries := []graph.MetadataCollectionEntry{}
 
 			for _, d := range test.data {
-				bs, err := json.Marshal(map[string]string{"key": d.value})
-				require.NoError(t, err)
-
-				p, err := path.Builder{}.ToServiceCategoryMetadataPath(
-					"t", "u",
-					path.ExchangeService,
-					path.EmailCategory,
-					false,
-				)
-				require.NoError(t, err)
-
-				item := []graph.MetadataItem{graph.NewMetadataItem(d.fileName, bs)}
-				coll := graph.NewMetadataCollection(p, item, func(cos *support.ConnectorOperationStatus) {})
-				colls = append(colls, coll)
+				entries = append(
+					entries,
+					graph.NewMetadataEntry(d.fileName, map[string]string{"key": d.value}))
 			}
 
-			cdps, err := ParseMetadataCollections(ctx, colls)
+			coll, err := graph.MakeMetadataCollection(
+				"t", "u",
+				path.ExchangeService,
+				path.EmailCategory,
+				entries,
+				func(cos *support.ConnectorOperationStatus) {},
+			)
+			require.NoError(t, err)
+
+			cdps, err := ParseMetadataCollections(ctx, []data.Collection{coll})
 			test.expectError(t, err)
 
 			emails := cdps[path.EmailCategory]
