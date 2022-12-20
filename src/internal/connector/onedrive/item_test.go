@@ -97,12 +97,12 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	var driveItemID string
+	var driveItem models.DriveItemable
 	// This item collector tries to find "a" drive item that is a file to test the reader function
 	itemCollector := func(ctx context.Context, driveID string, items []models.DriveItemable) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
-				driveItemID = *item.GetId()
+				driveItem = item
 				break
 			}
 		}
@@ -115,7 +115,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	// Test Requirement 2: Need a file
 	require.NotEmpty(
 		suite.T(),
-		driveItemID,
+		driveItem,
 		"no file item found for user %s drive %s",
 		suite.user,
 		suite.userDriveID,
@@ -123,7 +123,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	// Read data for the file
 
-	itemInfo, itemData, err := oneDriveItemReader(ctx, suite, suite.userDriveID, driveItemID)
+	itemInfo, itemData, err := oneDriveItemReader(ctx, driveItem)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)

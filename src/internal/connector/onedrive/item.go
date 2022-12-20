@@ -2,9 +2,10 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"time"
 
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -26,10 +27,14 @@ const (
 // and using a http client to initialize a reader
 func sharePointItemReader(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
+	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
+	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+	if !ok {
+		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
+	}
+
+	rc, err := driveItemReader(ctx, *url)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
@@ -46,10 +51,14 @@ func sharePointItemReader(
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
+	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	item, rc, err := driveItemReader(ctx, service, driveID, itemID)
+	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+	if !ok {
+		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
+	}
+
+	rc, err := driveItemReader(ctx, *url)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
@@ -66,35 +75,17 @@ func oneDriveItemReader(
 // and using a http client to initialize a reader
 func driveItemReader(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
-) (models.DriveItemable, io.ReadCloser, error) {
-	logger.Ctx(ctx).Debugw("Reading Item", "id", itemID, "time", time.Now())
-
-	item, err := service.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get item %s", itemID)
-	}
-
-	// Get the download URL - https://docs.microsoft.com/en-us/graph/api/driveitem-get-content
-	// These URLs are pre-authenticated and can be used to download the data using the standard
-	// http client
-	if _, found := item.GetAdditionalData()[downloadURLKey]; !found {
-		return nil, nil, errors.Errorf("file does not have a download URL. ID: %s, %#v",
-			itemID, item.GetAdditionalData())
-	}
-
-	downloadURL := item.GetAdditionalData()[downloadURLKey].(*string)
-
+	url string,
+) (io.ReadCloser, error) {
 	httpClient := graph.CreateHTTPClient()
 	httpClient.Timeout = 0 // infinite timeout for pulling large files
 
-	resp, err := httpClient.Get(*downloadURL)
+	resp, err := httpClient.Get(url)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to download file from %s", *downloadURL)
+		return nil, errors.Wrapf(err, "failed to download file from %s", url)
 	}
 
-	return item, resp.Body, nil
+	return resp.Body, nil
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
@@ -103,11 +94,15 @@ func driveItemReader(
 // doesn't have its size value updated as a side effect of creation,
 // and kiota drops any SetSize update.
 func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
-	ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
-
 	email := ""
-	if ok {
-		email = *ed.(*string)
+
+	if di.GetCreatedBy().GetUser() != nil {
+		// User is sometimes not available when created via some
+		// external applications (like backup/restore solutions)
+		ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
+		if ok {
+			email = *ed.(*string)
+		}
 	}
 
 	return &details.OneDriveInfo{
@@ -165,7 +160,7 @@ func driveItemWriter(
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
-	session := models.NewUsersItemDrivesItemItemsItemCreateUploadSessionPostRequestBody()
+	session := msdrives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {

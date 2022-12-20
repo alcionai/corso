@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -55,11 +56,18 @@ func (mau *mailAttachmentUploader) uploadSession(
 	attachmentName string,
 	attachmentSize int64,
 ) (models.UploadSessionable, error) {
-	session := models.NewUsersItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
+	session := msusers.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(attachmentName, attachmentSize))
 
-	r, err := mau.service.Client().UsersById(mau.userID).MailFoldersById(mau.folderID).
-		MessagesById(mau.itemID).Attachments().CreateUploadSession().Post(ctx, session, nil)
+	r, err := mau.
+		service.
+		Client().
+		UsersById(mau.userID).
+		MailFoldersById(mau.folderID).
+		MessagesById(mau.itemID).
+		Attachments().
+		CreateUploadSession().
+		Post(ctx, session, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -103,7 +111,7 @@ func (eau *eventAttachmentUploader) uploadSession(
 	attachmentName string,
 	attachmentSize int64,
 ) (models.UploadSessionable, error) {
-	session := models.NewUsersItemCalendarEventsItemAttachmentsCreateUploadSessionPostRequestBody()
+	session := msusers.NewItemCalendarEventsItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(attachmentName, attachmentSize))
 
 	r, err := eau.service.Client().

@@ -66,6 +66,7 @@ var (
 		"subject":           4,
 		"webLink":           5,
 		"id":                6,
+		"isRead":            7,
 	}
 
 	fieldsForContacts = map[string]int{
@@ -115,16 +116,16 @@ func CategoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 
 func optionsForFolderMessagesDelta(
 	moreOps []string,
-) (*msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
+) (*msuser.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, messages)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -135,7 +136,7 @@ func optionsForFolderMessagesDelta(
 // @param moreOps should reflect elements from fieldsForCalendars
 // @return is first call in Calendars().GetWithRequestConfigurationAndResponseHandler
 func optionsForCalendars(moreOps []string) (
-	*msuser.UsersItemCalendarsRequestBuilderGetRequestConfiguration,
+	*msuser.ItemCalendarsRequestBuilderGetRequestConfiguration,
 	error,
 ) {
 	selecting, err := buildOptions(moreOps, calendars)
@@ -143,10 +144,10 @@ func optionsForCalendars(moreOps []string) (
 		return nil, err
 	}
 	// should be a CalendarsRequestBuilderGetRequestConfiguration
-	requestParams := &msuser.UsersItemCalendarsRequestBuilderGetQueryParameters{
+	requestParams := &msuser.ItemCalendarsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemCalendarsRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemCalendarsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
 
@@ -156,7 +157,7 @@ func optionsForCalendars(moreOps []string) (
 // optionsForContactFolders places allowed options for exchange.ContactFolder object
 // @return is first call in ContactFolders().GetWithRequestConfigurationAndResponseHandler
 func optionsForContactFolders(moreOps []string) (
-	*msuser.UsersItemContactFoldersRequestBuilderGetRequestConfiguration,
+	*msuser.ItemContactFoldersRequestBuilderGetRequestConfiguration,
 	error,
 ) {
 	selecting, err := buildOptions(moreOps, folders)
@@ -164,10 +165,10 @@ func optionsForContactFolders(moreOps []string) (
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemContactFoldersRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemContactFoldersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemContactFoldersRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemContactFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -175,7 +176,7 @@ func optionsForContactFolders(moreOps []string) (
 }
 
 func optionsForContactFolderByID(moreOps []string) (
-	*msuser.UsersItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration,
+	*msuser.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration,
 	error,
 ) {
 	selecting, err := buildOptions(moreOps, folders)
@@ -183,10 +184,10 @@ func optionsForContactFolderByID(moreOps []string) (
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemContactFoldersContactFolderItemRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemContactFoldersContactFolderItemRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -198,16 +199,16 @@ func optionsForContactFolderByID(moreOps []string) (
 // @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFolders(
 	moreOps []string,
-) (*msuser.UsersItemMailFoldersRequestBuilderGetRequestConfiguration, error) {
+) (*msuser.ItemMailFoldersRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, folders)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemMailFoldersRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemMailFoldersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemMailFoldersRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemMailFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -219,16 +220,16 @@ func optionsForMailFolders(
 // Returns first call in MailFoldersById().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForMailFoldersItem(
 	moreOps []string,
-) (*msuser.UsersItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration, error) {
+) (*msuser.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, folders)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -237,17 +238,17 @@ func optionsForMailFoldersItem(
 
 func optionsForContactFoldersItemDelta(
 	moreOps []string,
-) (*msuser.UsersItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration, error) {
+) (*msuser.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 
-	options := &msuser.UsersItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -256,16 +257,16 @@ func optionsForContactFoldersItemDelta(
 
 // optionsForEvents ensures valid option inputs for exchange.Events
 // @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForEvents(moreOps []string) (*msuser.UsersItemEventsRequestBuilderGetRequestConfiguration, error) {
+func optionsForEvents(moreOps []string) (*msuser.ItemEventsRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, events)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemEventsRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemEventsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemEventsRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemEventsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -275,17 +276,17 @@ func optionsForEvents(moreOps []string) (*msuser.UsersItemEventsRequestBuilderGe
 // optionsForEvents ensures a valid option inputs for `exchange.Events` when selected from within a Calendar
 func optionsForEventsByCalendar(
 	moreOps []string,
-) (*msuser.UsersItemCalendarsItemEventsRequestBuilderGetRequestConfiguration, error) {
+) (*msuser.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, events)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemCalendarsItemEventsRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 
-	options := &msuser.UsersItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -295,16 +296,16 @@ func optionsForEventsByCalendar(
 // optionsForContactChildFolders builds a contacts child folders request.
 func optionsForContactChildFolders(
 	moreOps []string,
-) (*msuser.UsersItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration, error) {
+) (*msuser.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
@@ -313,16 +314,16 @@ func optionsForContactChildFolders(
 
 // optionsForContacts transforms options into select query for MailContacts
 // @return is the first call in Contacts().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForContacts(moreOps []string) (*msuser.UsersItemContactsRequestBuilderGetRequestConfiguration, error) {
+func optionsForContacts(moreOps []string) (*msuser.ItemContactsRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, contacts)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &msuser.UsersItemContactsRequestBuilderGetQueryParameters{
+	requestParameters := &msuser.ItemContactsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &msuser.UsersItemContactsRequestBuilderGetRequestConfiguration{
+	options := &msuser.ItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 

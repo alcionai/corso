@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -68,7 +68,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:   "oneDrive",
 			source: OneDriveSource,
-			itemReader: func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -81,7 +81,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:   "sharePoint",
 			source: SharePointSource,
-			itemReader: func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -116,7 +116,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, folderPath, coll.FullPath())
 
 			// Set a item reader, add an item and validate we get the item back
-			coll.Add(testItemID)
+			mockItem := models.NewDriveItem()
+			mockItem.SetId(&testItemID)
+			coll.Add(mockItem)
 			coll.itemReader = test.itemReader
 
 			// Read items from the collection
@@ -167,6 +169,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			var (
+				testItemID = "fakeItemID"
+
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
 			)
@@ -183,11 +187,14 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{})
-			coll.Add("testItemID")
+
+			mockItem := models.NewDriveItem()
+			mockItem.SetId(&testItemID)
+			coll.Add(mockItem)
 
 			readError := errors.New("Test error")
 
-			coll.itemReader = func(context.Context, graph.Servicer, string, string) (details.ItemInfo, io.ReadCloser, error) {
+			coll.itemReader = func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, readError
 			}
 

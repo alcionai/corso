@@ -13,7 +13,7 @@ import (
 	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	kw "github.com/microsoft/kiota-serialization-json-go"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -67,12 +67,19 @@ type Collection struct {
 	// It may be the same as fullPath, if the folder was not renamed or
 	// moved.  It will be empty on its first retrieval.
 	prevPath path.Path
+
+	state data.CollectionState
 }
 
-// NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
+// NewExchangeDataCollection creates an ExchangeDataCollection.
+// State of the collection is set as an observation of the current
+// and previous paths.  If the curr path is nil, the state is assumed
+// to be deleted.  If the prev path is nil, it is assumed newly created.
+// If both are populated, then state is either moved (if they differ),
+// or notMoved (if they match).
 func NewCollection(
 	user string,
-	fullPath, prevPath path.Path,
+	curr, prev path.Path,
 	collectionType optionIdentifier,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
@@ -84,13 +91,30 @@ func NewCollection(
 		jobs:           make([]string, 0),
 		service:        service,
 		statusUpdater:  statusUpdater,
-		fullPath:       fullPath,
-		prevPath:       prevPath,
+		fullPath:       curr,
+		prevPath:       prev,
 		collectionType: collectionType,
 		ctrl:           ctrlOpts,
+		state:          stateOf(prev, curr),
 	}
 
 	return collection
+}
+
+func stateOf(prev, curr path.Path) data.CollectionState {
+	if curr == nil || len(curr.String()) == 0 {
+		return data.DeletedState
+	}
+
+	if prev == nil || len(prev.String()) == 0 {
+		return data.NewState
+	}
+
+	if curr.Folder() != prev.Folder() {
+		return data.MovedState
+	}
+
+	return data.NotMovedState
 }
 
 // AddJob appends additional objectID to structure's jobs field
@@ -135,14 +159,12 @@ func (col Collection) PreviousPath() path.Path {
 // TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
 // hierarchies.
 func (col Collection) State() data.CollectionState {
-	return data.NewState
+	return col.state
 }
 
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the jobs field. data channel is closed by this function
-func (col *Collection) populateByOptionIdentifier(
-	ctx context.Context,
-) {
+func (col *Collection) populateByOptionIdentifier(ctx context.Context) {
 	var (
 		errs       error
 		success    int64
@@ -210,7 +232,13 @@ func (col *Collection) populateByOptionIdentifier(
 				return
 			}
 
-			byteCount, err := serializeFunc(ctx, col.service.Client(), kw.NewJsonSerializationWriter(), col.data, response, user)
+			byteCount, err := serializeFunc(
+				ctx,
+				col.service.Client(),
+				kioser.NewJsonSerializationWriter(),
+				col.data,
+				response,
+				user)
 			if err != nil {
 				errUpdater(user, err)
 				return
@@ -264,7 +292,7 @@ func getModTime(mt modTimer) time.Time {
 type GraphSerializeFunc func(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
+	objectWriter *kioser.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -275,7 +303,7 @@ type GraphSerializeFunc func(
 func eventToDataCollection(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
+	objectWriter *kioser.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -342,7 +370,7 @@ func eventToDataCollection(
 func contactToDataCollection(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
+	objectWriter *kioser.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -359,28 +387,32 @@ func contactToDataCollection(
 		return 0, support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
 	}
 
-	byteArray, err := objectWriter.GetSerializedContent()
+	bs, err := objectWriter.GetSerializedContent()
 	if err != nil {
 		return 0, support.WrapAndAppend(*contact.GetId(), err, nil)
 	}
 
-	if len(byteArray) > 0 {
+	addtl := contact.GetAdditionalData()
+	_, removed := addtl[graph.AddtlDataRemoved]
+
+	if len(bs) > 0 || removed {
 		dataChannel <- &Stream{
 			id:      *contact.GetId(),
-			message: byteArray,
-			info:    ContactInfo(contact, int64(len(byteArray))),
+			message: bs,
+			info:    ContactInfo(contact, int64(len(bs))),
 			modTime: getModTime(contact),
+			deleted: removed,
 		}
 	}
 
-	return len(byteArray), nil
+	return len(bs), nil
 }
 
 // messageToDataCollection is the GraphSerializeFunc for models.Messageable
 func messageToDataCollection(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
+	objectWriter *kioser.JsonSerializationWriter,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -389,54 +421,58 @@ func messageToDataCollection(
 
 	defer objectWriter.Close()
 
-	aMessage, ok := parsable.(models.Messageable)
+	msg, ok := parsable.(models.Messageable)
 	if !ok {
 		return 0, fmt.Errorf("expected Messageable, got %T", parsable)
 	}
 
-	if *aMessage.GetHasAttachments() {
+	if *msg.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := client.
 				UsersById(user).
-				MessagesById(*aMessage.GetId()).
+				MessagesById(*msg.GetId()).
 				Attachments().
 				Get(ctx, nil)
 			retriesErr = err
 
 			if err == nil {
-				aMessage.SetAttachments(attached.GetValue())
+				msg.SetAttachments(attached.GetValue())
 				break
 			}
 		}
 
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return 0, support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
+			return 0, support.WrapAndAppend(*msg.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
 		}
 	}
 
-	err = objectWriter.WriteObjectValue("", aMessage)
+	err = objectWriter.WriteObjectValue("", msg)
 	if err != nil {
-		return 0, support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
+		return 0, support.SetNonRecoverableError(errors.Wrapf(err, "%s", *msg.GetId()))
 	}
 
-	byteArray, err := objectWriter.GetSerializedContent()
+	bs, err := objectWriter.GetSerializedContent()
 	if err != nil {
-		err = support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
+		err = support.WrapAndAppend(*msg.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 		return 0, support.SetNonRecoverableError(err)
 	}
 
+	addtl := msg.GetAdditionalData()
+	_, removed := addtl[graph.AddtlDataRemoved]
+
 	dataChannel <- &Stream{
-		id:      *aMessage.GetId(),
-		message: byteArray,
-		info:    MessageInfo(aMessage, int64(len(byteArray))),
-		modTime: getModTime(aMessage),
+		id:      *msg.GetId(),
+		message: bs,
+		info:    MessageInfo(msg, int64(len(bs))),
+		modTime: getModTime(msg),
+		deleted: removed,
 	}
 
-	return len(byteArray), nil
+	return len(bs), nil
 }
 
 // Stream represents a single item retrieved from exchange
@@ -450,6 +486,9 @@ type Stream struct {
 	// TODO(ashmrtn): Can probably eventually be sourced from info as there's a
 	// request to provide modtime in ItemInfo structs.
 	modTime time.Time
+
+	// true if the item was marked by graph as deleted.
+	deleted bool
 }
 
 func (od *Stream) UUID() string {
@@ -460,9 +499,8 @@ func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
 }
 
-// TODO(ashmrtn): Fill in once delta tokens return deleted items.
 func (od Stream) Deleted() bool {
-	return false
+	return od.deleted
 }
 
 func (od *Stream) Info() details.ItemInfo {

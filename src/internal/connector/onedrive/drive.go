@@ -84,8 +84,8 @@ func drives(
 }
 
 func siteDrives(ctx context.Context, service graph.Servicer, site string) ([]models.Driveable, error) {
-	options := &sites.SitesItemDrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &sites.SitesItemDrivesRequestBuilderGetQueryParameters{
+	options := &sites.ItemDrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.ItemDrivesRequestBuilderGetQueryParameters{
 			Select: []string{"id", "name", "weburl", "system"},
 		},
 	}
@@ -143,9 +143,30 @@ func collectItems(
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
 	builder := service.Client().DrivesById(driveID).Root().Delta()
+	pageCount := int32(999) // max we can do is 999
+	requestFields := []string{
+		"content.downloadUrl",
+		"createdBy",
+		"createdDateTime",
+		"file",
+		"folder",
+		"id",
+		"lastModifiedDateTime",
+		"name",
+		"package",
+		"parentReference",
+		"root",
+		"size",
+	}
+	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
+			Top:    &pageCount,
+			Select: requestFields,
+		},
+	}
 
 	for {
-		r, err := builder.Get(ctx, nil)
+		r, err := builder.Get(ctx, requestConfig)
 		if err != nil {
 			return errors.Wrapf(
 				err,
@@ -166,7 +187,7 @@ func collectItems(
 		}
 
 		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
-		builder = msdrives.NewDrivesItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
+		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 
 	return nil
@@ -184,7 +205,7 @@ func getFolder(
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
 	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
-	builder := msdrive.NewDriveItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
+	builder := msdrive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
@@ -223,7 +244,7 @@ func createItem(
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
 
-	builder := msdrive.NewDriveItemsRequestBuilder(rawURL, service.Adapter())
+	builder := msdrive.NewItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
@@ -373,7 +394,7 @@ func hasDriveLicense(
 		}
 
 		for _, license := range skuIDs {
-			if *sku == license {
+			if sku.String() == license {
 				hasDrive = true
 				return false
 			}
