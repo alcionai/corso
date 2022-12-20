@@ -3,6 +3,7 @@ package tester
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,7 +34,17 @@ func StubRootCmd(args ...string) *cobra.Command {
 }
 
 func NewContext() (context.Context, func()) {
-	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
+	level := logger.Info
+
+	for _, a := range os.Args {
+		if a == "-test.v=true" {
+			level = logger.Development
+		}
+	}
+
+	//nolint:forbidigo
+	ctx, _ := logger.SeedLevel(context.Background(), level)
+
 	return ctx, func() { logger.Flush(ctx) }
 }
 
