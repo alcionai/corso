@@ -646,7 +646,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		},
 		{
 			name:       "SharePoint.Lists",
-			comparator: assert.Greater,
+			comparator: assert.Less,
 			sel: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup()
 				sel.Include(sel.Lists(
