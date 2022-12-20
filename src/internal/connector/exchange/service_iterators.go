@@ -11,6 +11,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -56,71 +57,74 @@ func FilterContainersAndFillCollections(
 	var (
 		errs error
 		oi   = CategoryToOptionIdentifier(qp.Category)
-		// folder ID -> delta url for folder.
+		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
+		// copy of previousPaths.  any folder found in the resolver get
+		// deleted from this map, leaving only the deleted maps behind
+		deletedPaths = common.CopyMap(dps)
 	)
+
+	getJobs, err := getFetchIDFunc(qp.Category)
+	if err != nil {
+		return support.WrapAndAppend(qp.ResourceOwner, err, errs)
+	}
 
 	for _, c := range resolver.Items() {
 		if ctrlOpts.FailFast && errs != nil {
 			return errs
 		}
 
-		cID := *c.GetId()
-
-		dirPath, ok := pathAndMatch(qp, c, scope)
-		if !ok {
-			continue
-		}
-
-		var prevPath path.Path
-
-		if ps, ok := dps.paths[cID]; ok {
-			// see below for the issue with building paths for root
-			// folders that have no displayName.
-			ps = strings.TrimSuffix(ps, rootFolderAlias)
-
-			if pp, err := path.FromDataLayerPath(ps, false); err != nil {
-				logger.Ctx(ctx).Error("parsing previous path string")
-			} else {
-				prevPath = pp
-			}
-		}
-
-		// Create only those that match
+		// cannot be moved out of the loop,
+		// else we run into state issues.
 		service, err := createService(qp.Credentials)
 		if err != nil {
 			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 			continue
 		}
 
-		fetchFunc, err := getFetchIDFunc(qp.Category)
-		if err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+		cID := *c.GetId()
+
+		// this folder exists (probably), do not delete it.
+		delete(deletedPaths, cID)
+
+		// Only create a collection if the path matches the scope.
+		currPath, ok := pathAndMatch(qp, c, scope)
+		if !ok {
 			continue
 		}
 
-		var deleted bool
+		var (
+			dp          = dps[cID]
+			prevDelta   = dp.delta
+			prevPathStr = dp.path
+			prevPath    path.Path
+		)
 
-		jobs, delta, err := fetchFunc(ctx, service, qp.ResourceOwner, cID, dps.deltas[cID])
-		if err != nil && !errors.Is(err, errContainerDeleted) {
-			deleted = true
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+		if len(prevPathStr) > 0 {
+			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				logger.Ctx(ctx).Error(err)
+			}
 		}
 
-		if len(delta) > 0 {
-			deltaURLs[cID] = delta
+		jobs, currDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
+		if err != nil {
+			// race conditions happen, the container might get
+			// deleted while this process in flight.
+			if errors.Is(err, errContainerDeleted) {
+				currPath = nil
+			} else {
+				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			}
 		}
 
-		// Delay creating the new container so we can handle setting the current
-		// path correctly if the folder was deleted.
-		if deleted {
-			dirPath = nil
+		if len(currDelta) > 0 {
+			deltaURLs[cID] = currDelta
 		}
 
 		edc := NewCollection(
 			qp.ResourceOwner,
-			dirPath,
+			currPath,
 			prevPath,
 			oi,
 			service,
@@ -129,7 +133,7 @@ func FilterContainersAndFillCollections(
 		)
 		collections[cID] = &edc
 
-		if deleted {
+		if edc.State() == data.DeletedState {
 			continue
 		}
 
@@ -137,7 +141,36 @@ func FilterContainersAndFillCollections(
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
-		currPaths[cID] = dirPath.Folder()
+		currPaths[cID] = currPath.String()
+	}
+
+	// any path that wasn't present in the resolver was deleted by the user.
+	// relocations and renames will have removed the dir by id earlier.  What's
+	// left in deletedPaths are only the previous paths that did not appear as
+	// children of the root.
+	for fID, dp := range deletedPaths {
+		service, err := createService(qp.Credentials)
+		if err != nil {
+			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			continue
+		}
+
+		prevPath, err := pathFromPrevString(dp.path)
+		if err != nil {
+			logger.Ctx(ctx).Error(err)
+			continue
+		}
+
+		edc := NewCollection(
+			qp.ResourceOwner,
+			nil, // marks the collection as deleted
+			prevPath,
+			oi,
+			service,
+			statusUpdater,
+			ctrlOpts,
+		)
+		collections[fID] = &edc
 	}
 
 	entries := []graph.MetadataCollectionEntry{
@@ -162,6 +195,15 @@ func FilterContainersAndFillCollections(
 	}
 
 	return errs
+}
+
+func pathFromPrevString(ps string) (path.Path, error) {
+	p, err := path.FromDataLayerPath(ps, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing previous path string")
+	}
+
+	return p, nil
 }
 
 func IterativeCollectContactContainers(
@@ -288,7 +330,7 @@ func FetchEventIDsFromCalendar(
 			break
 		}
 
-		builder = msuser.NewUsersItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
@@ -319,8 +361,8 @@ func FetchContactIDsFromDirectory(
 		Contacts().
 		Delta()
 
-		// TODO(rkeepers): Awaiting full integration of incremental support, else this
-		// will cause unexpected behavior/errors.
+	// TODO(rkeepers): Awaiting full integration of incremental support, else this
+	// will cause unexpected behavior/errors.
 	// if len(oldDelta) > 0 {
 	// 	builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
 	// }
@@ -363,7 +405,7 @@ func FetchContactIDsFromDirectory(
 			break
 		}
 
-		builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaURL, errs.ErrorOrNil()
@@ -382,7 +424,7 @@ func FetchMessageIDsFromDirectory(
 		deltaURL string
 	)
 
-	options, err := optionsForFolderMessagesDelta([]string{"id"})
+	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {
 		return nil, deltaURL, errors.Wrap(err, "getting query options")
 	}
@@ -393,8 +435,8 @@ func FetchMessageIDsFromDirectory(
 		Messages().
 		Delta()
 
-		// TODO(rkeepers): Awaiting full integration of incremental support, else this
-		// will cause unexpected behavior/errors.
+	// TODO(rkeepers): Awaiting full integration of incremental support, else this
+	// will cause unexpected behavior/errors.
 	// if len(oldDelta) > 0 {
 	// 	builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	// }
@@ -437,7 +479,7 @@ func FetchMessageIDsFromDirectory(
 			break
 		}
 
-		builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
+		builder = msuser.NewItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
 	}
 
 	return ids, deltaURL, errs.ErrorOrNil()

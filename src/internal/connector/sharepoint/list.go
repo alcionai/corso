@@ -63,7 +63,7 @@ func preFetchLists(
 			break
 		}
 
-		builder = mssite.NewSitesItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	return listTuples, nil
@@ -200,7 +200,7 @@ func fetchListItems(
 			break
 		}
 
-		builder = mssite.NewSitesItemListsItemItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsItemItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
@@ -236,7 +236,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = mssite.NewSitesItemListsItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewItemListsItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
 	} else {
 		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
@@ -253,7 +253,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = mssite.NewSitesItemListsItemContentTypesItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewItemListsItemContentTypesItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
 	}
 
@@ -315,7 +315,7 @@ func fetchContentTypes(
 			break
 		}
 
-		builder = mssite.NewSitesItemListsItemContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsItemContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
@@ -348,7 +348,7 @@ func fetchColumnLinks(
 		}
 
 		builder = mssite.
-			NewSitesItemListsItemContentTypesItemColumnLinksRequestBuilder(
+			NewItemListsItemContentTypesItemColumnLinksRequestBuilder(
 				*resp.GetOdataNextLink(),
 				gs.Adapter(),
 			)
