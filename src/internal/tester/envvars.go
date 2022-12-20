@@ -3,6 +3,8 @@ package tester
 import (
 	"errors"
 	"os"
+
+	"golang.org/x/exp/maps"
 )
 
 // GetRequiredEnvVars retrieves the provided env vars from the os.
@@ -35,9 +37,7 @@ func GetRequiredEnvSls(evs ...[]string) (map[string]string, error) {
 			return nil, err
 		}
 
-		for k, v := range r {
-			vals[k] = v
-		}
+		maps.Copy(vals, r)
 	}
 
 	return vals, nil

@@ -72,22 +72,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 	}
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestBuild() {
-	names := make(map[string]string)
-	names["Al"] = "Bundy"
-	names["Ellen"] = "Ripley"
-	names["Axel"] = "Foley"
-	first := buildFromMap(true, names)
-	last := buildFromMap(false, names)
-
-	suite.Contains(first, "Al")
-	suite.Contains(first, "Ellen")
-	suite.Contains(first, "Axel")
-	suite.Contains(last, "Bundy")
-	suite.Contains(last, "Ripley")
-	suite.Contains(last, "Foley")
-}
-
 func statusTestTask(gc *GraphConnector, objects, success, folder int) {
 	ctx, flush := tester.NewContext()
 	defer flush()
