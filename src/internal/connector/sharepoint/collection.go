@@ -7,6 +7,7 @@ import (
 	"time"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -168,19 +169,11 @@ func (sc *Collection) populate(ctx context.Context) {
 	objects += len(lists)
 	// Write Data and Send
 	for _, lst := range lists {
-		err = writer.WriteObjectValue("", lst)
+		byteArray, err := serializeListContent(writer, lst)
 		if err != nil {
 			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
 			continue
 		}
-
-		byteArray, err := writer.GetSerializedContent()
-		if err != nil {
-			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
-			continue
-		}
-
-		writer.Close()
 
 		arrayLength = int64(len(byteArray))
 
@@ -203,4 +196,20 @@ func (sc *Collection) populate(ctx context.Context) {
 			colProgress <- struct{}{}
 		}
 	}
+}
+
+func serializeListContent(writer *kw.JsonSerializationWriter, lst models.Listable) ([]byte, error) {
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", lst)
+	if err != nil {
+		return nil, err
+	}
+
+	byteArray, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, err
+	}
+
+	return byteArray, nil
 }
