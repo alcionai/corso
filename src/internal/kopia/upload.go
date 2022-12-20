@@ -435,6 +435,13 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 }
 
 type treeMap struct {
+	// path.Path representing the node's path. This is passed as a parameter to
+	// the stream item function so that even baseDir directories can properly
+	// generate the full path of items.
+	currentPath path.Path
+	// Previous path this directory may have resided at if it is sourced from a
+	// base snapshot.
+	prevPath path.Path
 	// Child directories of this directory.
 	childDirs map[string]*treeMap
 	// Reference to data pulled from the external service. Contains only items in
@@ -532,6 +539,8 @@ func inflateCollectionTree(
 		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
 		node.collection = s
+		node.currentPath = s.FullPath()
+		node.prevPath = s.PreviousPath()
 	}
 
 	return roots, updatedPaths, nil
@@ -643,7 +652,25 @@ func traverseBaseDir(
 			return errors.Errorf("unable to get tree node for path %s", currentPath)
 		}
 
+		curP, err := path.FromDataLayerPath(currentPath.String(), false)
+		if err != nil {
+			return errors.Errorf(
+				"unable to convert current path %s to path.Path",
+				currentPath,
+			)
+		}
+
+		oldP, err := path.FromDataLayerPath(oldDirPath.String(), false)
+		if err != nil {
+			return errors.Errorf(
+				"unable to convert old path %s to path.Path",
+				oldDirPath,
+			)
+		}
+
 		node.baseDir = dir
+		node.currentPath = curP
+		node.prevPath = oldP
 	}
 
 	return nil
