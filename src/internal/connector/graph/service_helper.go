@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"context"
 	nethttp "net/http"
 	"net/http/httputil"
 	"os"
@@ -51,12 +50,7 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 func CreateHTTPClient() *nethttp.Client {
 	clientOptions := msgraphsdk.GetDefaultClientOptions()
 	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
-
-	// When true, additional logging middleware support added for http request
-	if os.Getenv(logGraphRequestsEnvKey) != "" {
-		middlewares = append(middlewares, &LoggingMiddleware{})
-	}
-
+	middlewares = append(middlewares, &LoggingMiddleware{})
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = time.Second * 90
 
@@ -68,12 +62,39 @@ type LoggingMiddleware struct{}
 
 // Intercept implements the RequestInterceptor interface and decodes the parameters name
 func (handler *LoggingMiddleware) Intercept(
-	pipeline khttp.Pipeline, middlewareIndex int, req *nethttp.Request,
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *nethttp.Request,
 ) (*nethttp.Response, error) {
-	requestDump, _ := httputil.DumpRequest(req, true)
-	logger.Ctx(context.TODO()).Infof("REQUEST: %s", string(requestDump))
+	var (
+		ctx       = req.Context()
+		resp, err = pipeline.Next(req, middlewareIndex)
+	)
 
-	return pipeline.Next(req, middlewareIndex)
+	if resp == nil {
+		return resp, err
+	}
+
+	if (resp.StatusCode / 100) == 2 {
+		return resp, err
+	}
+
+	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
+		respDump, _ := httputil.DumpResponse(resp, true)
+
+		metadata := []any{
+			"method", req.Method,
+			"url", req.URL,
+			"requestLen", req.ContentLength,
+			"status", resp.Status,
+			"statusCode", resp.StatusCode,
+			"request", string(respDump),
+		}
+
+		logger.Ctx(ctx).Errorw("non-2xx graph api response", metadata...)
+	}
+
+	return resp, err
 }
 
 func StringToPathCategory(input string) path.CategoryType {
