@@ -174,7 +174,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			)
 			require.NoError(t, err)
 
-			cdps, err := ParseMetadataCollections(ctx, []data.Collection{coll})
+			cdps, err := parseMetadataCollections(ctx, []data.Collection{coll})
 			test.expectError(t, err)
 
 			emails := cdps[path.EmailCategory]
@@ -266,7 +266,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				ctx,
 				acct,
 				test.scope,
-				deltaPaths{},
+				DeltaPaths{},
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {})
 			require.NoError(t, err)
@@ -326,7 +326,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				ctx,
 				acct,
 				test.scope,
-				deltaPaths{},
+				DeltaPaths{},
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {})
 			require.NoError(t, err)
@@ -396,7 +396,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		ctx,
 		acct,
 		sel.Scopes()[0],
-		deltaPaths{},
+		DeltaPaths{},
 		control.Options{},
 		newStatusUpdater(t, &wg))
 	require.NoError(t, err)
@@ -461,7 +461,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				ctx,
 				acct,
 				test.scope,
-				deltaPaths{},
+				DeltaPaths{},
 				control.Options{},
 				newStatusUpdater(t, &wg))
 			require.NoError(t, err)
@@ -543,7 +543,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				ctx,
 				acct,
 				test.scope,
-				deltaPaths{},
+				DeltaPaths{},
 				control.Options{},
 				newStatusUpdater(t, &wg))
 			require.NoError(t, err)

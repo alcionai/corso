@@ -51,7 +51,7 @@ func filterContainersAndFillCollections(
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
-	dps deltaPaths,
+	dps DeltaPaths,
 	ctrlOpts control.Options,
 ) error {
 	var (

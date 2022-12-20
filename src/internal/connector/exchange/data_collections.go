@@ -212,7 +212,7 @@ func createCollections(
 	ctx context.Context,
 	acct account.M365Config,
 	scope selectors.ExchangeScope,
-	dps deltaPaths,
+	dps DeltaPaths,
 	ctrlOpts control.Options,
 	su support.StatusUpdater,
 ) ([]data.Collection, error) {
