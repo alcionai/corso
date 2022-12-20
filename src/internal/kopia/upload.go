@@ -127,6 +127,9 @@ type corsoProgress struct {
 	snapshotfs.UploadProgress
 	pending    map[string]*itemDetails
 	deets      *details.Builder
+	// toMerge represents items that we don't have in-memory item info for. The
+	// item info for these items should be sourced from a base snapshot later on.
+	toMerge    map[string]path.Path
 	mu         sync.RWMutex
 	totalBytes int64
 }
@@ -154,6 +157,22 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
+	// These items were sourced from a base snapshot or were cached in kopia so we
+	// never had to materialize their details in-memory.
+	if d.info == nil {
+		// TODO(ashmrtn): We should probably be returning an error here?
+		if d.prevPath == nil {
+			return
+		}
+
+		cp.mu.Lock()
+		defer cp.mu.Unlock()
+
+		cp.toMerge[d.prevPath.ShortRef()] = d.repoPath
+
+		return
+	}
+
 	parent := d.repoPath.ToBuilder().Dir()
 
 	cp.deets.Add(
@@ -161,7 +180,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
 		true,
-		d.info,
+		*d.info,
 	)
 
 	folders := []details.FolderEntry{}
