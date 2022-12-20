@@ -27,8 +27,8 @@ body:
     id: os
     attributes:
       label: Where are you running Corso?
-      description: Include OS version (e.g., macOS 13.0.1, Windows 11 Pro) and Object Storage system being used
-      placeholder: Also include addition system details if relevant (e.g., antivirus, firewall/proxy used on the network, etc.)
+      description: Include OS version (e.g., macOS 13.0.1, Windows 11 Pro) and Object Storage system being used.
+      placeholder: Also include addition system details if relevant (e.g., shell, antivirus, firewall/proxy used on the network, etc.)
     validations:
       required: true
   - type: textarea
