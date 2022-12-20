@@ -222,6 +222,12 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 }
 
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
+	itemInfo := details.ItemInfo{
+		Exchange: &details.ExchangeInfo{
+			Size: 1,
+		},
+	}
+
 	table := []struct {
 		name              string
 		folders           []details.FolderEntry
@@ -234,11 +240,17 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					RepoRef:   "rr1",
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
+					Info: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
 				},
 				{
 					RepoRef:   "rr2",
 					ShortRef:  "sr2",
 					ParentRef: "pr2",
+					Info: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2"},
@@ -250,21 +262,33 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					RepoRef:   "rr1",
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
+					Info: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
 				},
 				{
 					RepoRef:   "rr2",
 					ShortRef:  "sr2",
 					ParentRef: "pr2",
+					Info: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
 				},
 				{
 					RepoRef:   "rr1",
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
+					Info: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
 				},
 				{
 					RepoRef:   "rr3",
 					ShortRef:  "sr3",
 					ParentRef: "pr3",
+					Info: details.ItemInfo{
+						Folder: &details.FolderInfo{},
+					},
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2", "sr3"},
@@ -272,9 +296,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			deets := details.Details{}
-			deets.AddFolders(test.folders)
-
+			builder := details.Builder{}
+			builder.AddFoldersForItem(test.folders, itemInfo)
+			deets := builder.Details()
 			assert.Len(t, deets.Entries, len(test.expectedShortRefs))
 
 			for _, e := range deets.Entries {
