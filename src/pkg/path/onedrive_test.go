@@ -1,4 +1,4 @@
-package onedrive
+package path_test
 
 import (
 	"testing"
@@ -10,19 +10,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type OneDriveRestoreSuite struct {
+type OneDrivePathSuite struct {
 	suite.Suite
 }
 
-func TestOneDriveRestoreSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveRestoreSuite))
+func TestOneDrivePathSuite(t *testing.T) {
+	suite.Run(t, new(OneDrivePathSuite))
 }
 
-func (suite *OneDriveRestoreSuite) Test_toOneDrivePath() {
+func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 	tests := []struct {
 		name         string
 		pathElements []string
-		expected     *drivePath
+		expected     *path.DrivePath
 		errCheck     assert.ErrorAssertionFunc
 	}{
 		{
@@ -33,13 +33,13 @@ func (suite *OneDriveRestoreSuite) Test_toOneDrivePath() {
 		{
 			name:         "Root path",
 			pathElements: []string{"drive", "driveID", "root:"},
-			expected:     &drivePath{driveID: "driveID", folders: []string{}},
+			expected:     &path.DrivePath{DriveID: "driveID", Folders: []string{}},
 			errCheck:     assert.NoError,
 		},
 		{
 			name:         "Deeper path",
 			pathElements: []string{"drive", "driveID", "root:", "folder1", "folder2"},
-			expected:     &drivePath{driveID: "driveID", folders: []string{"folder1", "folder2"}},
+			expected:     &path.DrivePath{DriveID: "driveID", Folders: []string{"folder1", "folder2"}},
 			errCheck:     assert.NoError,
 		},
 	}
@@ -48,7 +48,7 @@ func (suite *OneDriveRestoreSuite) Test_toOneDrivePath() {
 			p, err := path.Builder{}.Append(tt.pathElements...).ToDataLayerOneDrivePath("tenant", "user", false)
 			require.NoError(suite.T(), err)
 
-			got, err := toOneDrivePath(p)
+			got, err := path.ToOneDrivePath(p)
 			tt.errCheck(t, err)
 			if err != nil {
 				return

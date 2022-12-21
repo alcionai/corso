@@ -182,7 +182,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
-	parentPathString, err := getDriveFolderPath(oc.folderPath)
+	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
 		oc.reportAsCompleted(ctx, 0, 0, err)
 		return

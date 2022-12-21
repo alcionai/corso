@@ -189,19 +189,9 @@ func GetCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path
 	return result, nil
 }
 
-// Returns the path to the folder within the drive (i.e. under `root:`)
-func getDriveFolderPath(p path.Path) (string, error) {
-	drivePath, err := toOneDrivePath(p)
-	if err != nil {
-		return "", err
-	}
-
-	return path.Builder{}.Append(drivePath.folders...).String(), nil
-}
-
 func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) bool {
 	// Check if the folder is allowed by the scope.
-	folderPathString, err := getDriveFolderPath(folderPath)
+	folderPathString, err := path.GetDriveFolderPath(folderPath)
 	if err != nil {
 		logger.Ctx(ctx).Error(err)
 		return true
