@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -185,11 +186,7 @@ func discreteScopes[T scopeT, C categoryT](
 		t := T(v)
 
 		if isAnyTarget(t, rootCat) {
-			w := T{}
-			for k, v := range t {
-				w[k] = v
-			}
-
+			w := maps.Clone(t)
 			set(w, rootCat, discreteIDs)
 			t = w
 		}

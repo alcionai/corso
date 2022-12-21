@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
@@ -241,9 +242,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		expectedTags[tk] = tv
 	}
 
-	for k, v := range normalizeTagKVs(customTags) {
-		expectedTags[k] = v
-	}
+	maps.Copy(expectedTags, normalizeTagKVs(customTags))
 
 	table := []struct {
 		name                  string
