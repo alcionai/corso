@@ -88,6 +88,10 @@ type backupStats struct {
 	readErr, writeErr error
 }
 
+type detailsWriter interface {
+	WriteBackupDetails(context.Context, *details.Details) (string, error)
+}
+
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, end := D.Span(ctx, "operations:backup:run")
@@ -98,6 +102,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		backupDetails *details.Details
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
+		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
@@ -122,7 +127,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			return
 		}
 
-		err = op.createBackupModels(ctx, opStats.k.SnapshotID, backupDetails)
+		err = op.createBackupModels(ctx, detailsStore, opStats.k.SnapshotID, backupDetails)
 		if err != nil {
 			opStats.writeErr = err
 		}
@@ -556,6 +561,7 @@ func (op *BackupOperation) persistResults(
 // stores the operation details, results, and selectors in the backup manifest.
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
+	detailsStore detailsWriter,
 	snapID string,
 	backupDetails *details.Details,
 ) error {
@@ -563,11 +569,7 @@ func (op *BackupOperation) createBackupModels(
 		return errors.New("no backup details to record")
 	}
 
-	detailsID, err := streamstore.New(
-		op.kopia,
-		op.account.ID(),
-		op.Selectors.PathService(),
-	).WriteBackupDetails(ctx, backupDetails)
+	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
