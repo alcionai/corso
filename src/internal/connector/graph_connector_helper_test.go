@@ -776,12 +776,15 @@ func makeExchangeBackupSel(
 	t *testing.T,
 	dests []destAndCats,
 ) selectors.Selector {
-	sel := selectors.NewExchangeBackup()
 	toInclude := [][]selectors.ExchangeScope{}
+	resourceOwners := []string{}
 
 	for _, d := range dests {
 		for c := range d.cats {
+			sel := selectors.NewExchangeBackup(nil)
 			builder := sel.MailFolders
+
+			resourceOwners = append(resourceOwners, d.resourceOwner)
 
 			switch c {
 			case path.ContactsCategory:
@@ -799,6 +802,7 @@ func makeExchangeBackupSel(
 		}
 	}
 
+	sel := selectors.NewExchangeBackup(resourceOwners)
 	sel.Include(toInclude...)
 
 	return sel.Selector
@@ -808,10 +812,13 @@ func makeOneDriveBackupSel(
 	t *testing.T,
 	dests []destAndCats,
 ) selectors.Selector {
-	sel := selectors.NewOneDriveBackup()
 	toInclude := [][]selectors.OneDriveScope{}
+	resourceOwners := []string{}
 
 	for _, d := range dests {
+		sel := selectors.NewOneDriveBackup(nil)
+
+		resourceOwners = append(resourceOwners, d.resourceOwner)
 		toInclude = append(toInclude, sel.Folders(
 			[]string{d.resourceOwner},
 			[]string{d.dest},
@@ -819,6 +826,7 @@ func makeOneDriveBackupSel(
 		))
 	}
 
+	sel := selectors.NewOneDriveBackup(resourceOwners)
 	sel.Include(toInclude...)
 
 	return sel.Selector

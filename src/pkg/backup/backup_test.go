@@ -25,7 +25,7 @@ func TestBackupSuite(t *testing.T) {
 }
 
 func stubBackup(t time.Time) backup.Backup {
-	sel := selectors.NewExchangeBackup()
+	sel := selectors.NewExchangeBackup(selectors.Any())
 	sel.Include(sel.Users(selectors.Any()))
 
 	return backup.Backup{

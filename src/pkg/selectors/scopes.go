@@ -3,6 +3,8 @@ package selectors
 import (
 	"context"
 
+	"golang.org/x/exp/maps"
+
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -250,11 +252,7 @@ func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
 // discreteCopy makes a shallow clone of the scocpe, and sets the resource
 // owner filter target in the clone to the provided string.
 func discreteCopy[T scopeT](s T, resourceOwner string) T {
-	clone := T{}
-
-	for k, v := range s {
-		clone[k] = v
-	}
+	clone := maps.Clone(s)
 
 	return set(
 		clone,
