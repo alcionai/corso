@@ -263,9 +263,9 @@ func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 
 func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 	var (
-		item  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "uid", "/folderA/folderB", "item")
-		item2 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "uid", "/folderA/folderC", "item2")
-		item3 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "uid", "/folderD/folderE", "item3")
+		item  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderA/folderB", "item")
+		item2 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderA/folderC", "item2")
+		item3 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderD/folderE", "item3")
 	)
 
 	deets := &details.Details{
@@ -310,34 +310,34 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 		expect       []string
 	}{
 		{
-			"all",
-			deets,
-			func() *SharePointRestore {
+			name:  "all",
+			deets: deets,
+			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore(Any())
 				odr.Include(odr.Sites(Any()))
 				return odr
 			},
-			arr(item, item2, item3),
+			expect: arr(item, item2, item3),
 		},
 		{
-			"only match item",
-			deets,
-			func() *SharePointRestore {
+			name:  "only match item",
+			deets: deets,
+			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore(Any())
 				odr.Include(odr.LibraryItems(Any(), Any(), []string{"item2"}))
 				return odr
 			},
-			arr(item2),
+			expect: arr(item2),
 		},
 		{
-			"only match folder",
-			deets,
-			func() *SharePointRestore {
+			name:  "only match folder",
+			deets: deets,
+			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore([]string{"sid"})
 				odr.Include(odr.Libraries([]string{"sid"}, []string{"folderA/folderB", "folderA/folderC"}))
 				return odr
 			},
-			arr(item, item2),
+			expect: arr(item, item2),
 		},
 	}
 	for _, test := range table {

@@ -221,7 +221,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 	}{
 		{
 			name:       "No scopes",
-			checkError: assert.NoError,
+			checkError: assert.Error,
 			getSelector: func(t *testing.T) selectors.Selector {
 				return selectors.NewExchangeBackup(nil).Selector
 			},

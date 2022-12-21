@@ -180,6 +180,10 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 			sel, err := sharePointBackupCreateSelectors(ctx, test.site, test.weburl, gc)
 			require.NoError(t, err)
 
+			if len(sel.Scopes()) == 0 {
+				return
+			}
+
 			scope := sel.Scopes()[0]
 			targetSites := scope.Get(selectors.SharePointSite)
 
