@@ -323,7 +323,7 @@ func produceBackupDataCollections(
 		close(complete)
 		closer()
 	}()
-
+	logger.Ctx(ctx).Debugf("Produce bakcup data collections: Values: %v ", ctrlOpts)
 	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
 }
 
