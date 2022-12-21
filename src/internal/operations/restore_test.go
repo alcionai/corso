@@ -178,11 +178,13 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	sw := store.NewKopiaStore(ms)
 	suite.sw = sw
 
-	bsel := selectors.NewExchangeBackup()
+	users := []string{m365UserID}
+
+	bsel := selectors.NewExchangeBackup(users)
 	bsel.Include(
-		bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		bsel.ContactFolders([]string{m365UserID}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		bsel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
+		bsel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
+		bsel.ContactFolders(users, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
+		bsel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
 	)
 
 	bo, err := NewBackupOperation(
@@ -264,9 +266,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	defer flush()
 
 	t := suite.T()
+	users := []string{tester.M365UserID(t)}
 
-	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
+	rsel := selectors.NewExchangeRestore(users)
+	rsel.Include(rsel.Users(users))
 
 	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()
@@ -307,7 +310,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 
 	t := suite.T()
 
-	rsel := selectors.NewExchangeRestore()
+	rsel := selectors.NewExchangeRestore(selectors.None())
 	rsel.Include(rsel.Users(selectors.None()))
 
 	dest := tester.DefaultTestRestoreDestination()

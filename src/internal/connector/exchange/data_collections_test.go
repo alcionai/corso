@@ -1,6 +1,8 @@
 package exchange
 
 import (
+	"bytes"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +13,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -170,7 +174,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			)
 			require.NoError(t, err)
 
-			cdps, err := ParseMetadataCollections(ctx, []data.Collection{coll})
+			cdps, err := parseMetadataCollections(ctx, []data.Collection{coll})
 			test.expectError(t, err)
 
 			emails := cdps[path.EmailCategory]
@@ -181,6 +185,407 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				assert.Equal(t, v.delta, emails[k].delta, "delta")
 				assert.Equal(t, v.path, emails[k].path, "path")
 			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Integration tests
+// ---------------------------------------------------------------------------
+
+func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.ConnectorOperationStatus) {
+	updater := func(status *support.ConnectorOperationStatus) {
+		defer wg.Done()
+		assert.Zero(t, status.ErrorCount)
+	}
+
+	return updater
+}
+
+type DataCollectionsIntegrationSuite struct {
+	suite.Suite
+	user string
+	site string
+}
+
+func TestDataCollectionsIntegrationSuite(t *testing.T) {
+	if err := tester.RunOnAny(
+		tester.CorsoCITests,
+		tester.CorsoConnectorCreateExchangeCollectionTests,
+	); err != nil {
+		t.Skip(err)
+	}
+
+	suite.Run(t, new(DataCollectionsIntegrationSuite))
+}
+
+func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
+	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
+	require.NoError(suite.T(), err)
+
+	suite.user = tester.M365UserID(suite.T())
+	suite.site = tester.M365SiteID(suite.T())
+
+	tester.LogTimeOfTest(suite.T())
+}
+
+func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		userID    = tester.M365UserID(suite.T())
+		users     = []string{userID}
+		acct, err = tester.NewM365Account(suite.T()).M365Config()
+	)
+
+	require.NoError(suite.T(), err)
+
+	tests := []struct {
+		name        string
+		scope       selectors.ExchangeScope
+		folderNames map[string]struct{}
+	}{
+		{
+			name: "Folder Iterative Check Mail",
+			scope: selectors.NewExchangeBackup(users).MailFolders(
+				users,
+				[]string{DefaultMailFolder},
+				selectors.PrefixMatch(),
+			)[0],
+			folderNames: map[string]struct{}{
+				DefaultMailFolder: {},
+			},
+		},
+	}
+
+	// gc := loadConnector(ctx, t, Users)
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			collections, err := createCollections(
+				ctx,
+				acct,
+				test.scope,
+				DeltaPaths{},
+				control.Options{},
+				func(status *support.ConnectorOperationStatus) {})
+			require.NoError(t, err)
+
+			for _, c := range collections {
+				if c.FullPath().Service() == path.ExchangeMetadataService {
+					continue
+				}
+
+				require.NotEmpty(t, c.FullPath().Folder())
+				folder := c.FullPath().Folder()
+
+				delete(test.folderNames, folder)
+			}
+
+			assert.Empty(t, test.folderNames)
+		})
+	}
+}
+
+func (suite *DataCollectionsIntegrationSuite) TestDelta() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		userID    = tester.M365UserID(suite.T())
+		users     = []string{userID}
+		acct, err = tester.NewM365Account(suite.T()).M365Config()
+	)
+
+	require.NoError(suite.T(), err)
+
+	tests := []struct {
+		name  string
+		scope selectors.ExchangeScope
+	}{
+		{
+			name: "Mail",
+			scope: selectors.NewExchangeBackup(users).MailFolders(
+				[]string{userID},
+				[]string{DefaultMailFolder},
+				selectors.PrefixMatch(),
+			)[0],
+		},
+		{
+			name: "Contacts",
+			scope: selectors.NewExchangeBackup(users).ContactFolders(
+				[]string{userID},
+				[]string{DefaultContactFolder},
+				selectors.PrefixMatch(),
+			)[0],
+		},
+	}
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			// get collections without providing any delta history (ie: full backup)
+			collections, err := createCollections(
+				ctx,
+				acct,
+				test.scope,
+				DeltaPaths{},
+				control.Options{},
+				func(status *support.ConnectorOperationStatus) {})
+			require.NoError(t, err)
+			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
+
+			var metadata data.Collection
+
+			for _, coll := range collections {
+				if coll.FullPath().Service() == path.ExchangeMetadataService {
+					metadata = coll
+				}
+			}
+
+			require.NotNil(t, metadata, "collections contains a metadata collection")
+
+			cdps, err := parseMetadataCollections(ctx, []data.Collection{metadata})
+			require.NoError(t, err)
+
+			dps := cdps[test.scope.Category().PathType()]
+
+			// now do another backup with the previous delta tokens,
+			// which should only contain the difference.
+			collections, err = createCollections(
+				ctx,
+				acct,
+				test.scope,
+				dps,
+				control.Options{},
+				func(status *support.ConnectorOperationStatus) {})
+			require.NoError(t, err)
+
+			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
+			// investigate the items in the original and delta collections to at least
+			// assert some minimum assumptions, such as "deltas should retrieve fewer items".
+			// Delta usage is commented out at the moment, anyway.  So this is currently
+			// a sanity check that the minimum behavior won't break.
+			for _, coll := range collections {
+				if coll.FullPath().Service() != path.ExchangeMetadataService {
+					ec, ok := coll.(*Collection)
+					require.True(t, ok, "collection is *Collection")
+					assert.NotNil(t, ec)
+				}
+			}
+		})
+	}
+}
+
+// TestMailSerializationRegression verifies that all mail data stored in the
+// test account can be successfully downloaded into bytes and restored into
+// M365 mail objects
+func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t     = suite.T()
+		wg    sync.WaitGroup
+		users = []string{suite.user}
+	)
+
+	acct, err := tester.NewM365Account(t).M365Config()
+	require.NoError(t, err)
+
+	sel := selectors.NewExchangeBackup(users)
+	sel.Include(sel.MailFolders(users, []string{DefaultMailFolder}, selectors.PrefixMatch()))
+
+	collections, err := createCollections(
+		ctx,
+		acct,
+		sel.Scopes()[0],
+		DeltaPaths{},
+		control.Options{},
+		newStatusUpdater(t, &wg))
+	require.NoError(t, err)
+
+	wg.Add(len(collections))
+
+	for _, edc := range collections {
+		t.Run(edc.FullPath().String(), func(t *testing.T) {
+			isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
+			streamChannel := edc.Items()
+
+			// Verify that each message can be restored
+			for stream := range streamChannel {
+				buf := &bytes.Buffer{}
+
+				read, err := buf.ReadFrom(stream.ToReader())
+				assert.NoError(t, err)
+				assert.NotZero(t, read)
+
+				if isMetadata {
+					continue
+				}
+
+				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				assert.NotNil(t, message)
+				assert.NoError(t, err)
+			}
+		})
+	}
+
+	wg.Wait()
+}
+
+// TestContactSerializationRegression verifies ability to query contact items
+// and to store contact within Collection. Downloaded contacts are run through
+// a regression test to ensure that downloaded items can be uploaded.
+func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	acct, err := tester.NewM365Account(suite.T()).M365Config()
+	require.NoError(suite.T(), err)
+
+	users := []string{suite.user}
+
+	tests := []struct {
+		name  string
+		scope selectors.ExchangeScope
+	}{
+		{
+			name: "Default Contact Folder",
+			scope: selectors.NewExchangeBackup(users).ContactFolders(
+				users,
+				[]string{DefaultContactFolder},
+				selectors.PrefixMatch())[0],
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var wg sync.WaitGroup
+
+			edcs, err := createCollections(
+				ctx,
+				acct,
+				test.scope,
+				DeltaPaths{},
+				control.Options{},
+				newStatusUpdater(t, &wg))
+			require.NoError(t, err)
+
+			wg.Add(len(edcs))
+
+			require.GreaterOrEqual(t, len(edcs), 1, "expected 1 <= num collections <= 2")
+			require.GreaterOrEqual(t, 2, len(edcs), "expected 1 <= num collections <= 2")
+
+			for _, edc := range edcs {
+				isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
+				count := 0
+
+				for stream := range edc.Items() {
+					buf := &bytes.Buffer{}
+					read, err := buf.ReadFrom(stream.ToReader())
+					assert.NoError(t, err)
+					assert.NotZero(t, read)
+
+					if isMetadata {
+						continue
+					}
+
+					contact, err := support.CreateContactFromBytes(buf.Bytes())
+					assert.NotNil(t, contact)
+					assert.NoError(t, err, "error on converting contact bytes: "+buf.String())
+					count++
+				}
+
+				if isMetadata {
+					continue
+				}
+
+				assert.Equal(t, edc.FullPath().Folder(), DefaultContactFolder)
+				assert.NotZero(t, count)
+			}
+
+			wg.Wait()
+		})
+	}
+}
+
+// TestEventsSerializationRegression ensures functionality of createCollections
+// to be able to successfully query, download and restore event objects
+func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	acct, err := tester.NewM365Account(suite.T()).M365Config()
+	require.NoError(suite.T(), err)
+
+	users := []string{suite.user}
+
+	tests := []struct {
+		name, expected string
+		scope          selectors.ExchangeScope
+	}{
+		{
+			name:     "Default Event Calendar",
+			expected: DefaultCalendar,
+			scope: selectors.NewExchangeBackup(users).EventCalendars(
+				users,
+				[]string{DefaultCalendar},
+				selectors.PrefixMatch())[0],
+		},
+		{
+			name:     "Birthday Calendar",
+			expected: "Birthdays",
+			scope: selectors.NewExchangeBackup(users).EventCalendars(
+				users,
+				[]string{"Birthdays"},
+				selectors.PrefixMatch())[0],
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var wg sync.WaitGroup
+
+			collections, err := createCollections(
+				ctx,
+				acct,
+				test.scope,
+				DeltaPaths{},
+				control.Options{},
+				newStatusUpdater(t, &wg))
+			require.NoError(t, err)
+			require.Equal(t, len(collections), 2)
+
+			wg.Add(len(collections))
+
+			for _, edc := range collections {
+				var isMetadata bool
+
+				if edc.FullPath().Service() != path.ExchangeMetadataService {
+					isMetadata = true
+					assert.Equal(t, test.expected, edc.FullPath().Folder())
+				} else {
+					assert.Equal(t, "", edc.FullPath().Folder())
+				}
+
+				for item := range edc.Items() {
+					buf := &bytes.Buffer{}
+
+					read, err := buf.ReadFrom(item.ToReader())
+					assert.NoError(t, err)
+					assert.NotZero(t, read)
+
+					if isMetadata {
+						continue
+					}
+
+					event, err := support.CreateEventFromBytes(buf.Bytes())
+					assert.NotNil(t, event)
+					assert.NoError(t, err, "creating event from bytes: "+buf.String())
+				}
+			}
+
+			wg.Wait()
 		})
 	}
 }

@@ -172,10 +172,11 @@ func (suite *BackupDeleteSharePointIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	m365SiteID := tester.M365SiteID(t)
+	sites := []string{m365SiteID}
 
 	// some tests require an existing backup
-	sel := selectors.NewSharePointBackup()
-	sel.Include(sel.Libraries([]string{m365SiteID}, selectors.Any()))
+	sel := selectors.NewSharePointBackup(sites)
+	sel.Include(sel.Libraries(sites, selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

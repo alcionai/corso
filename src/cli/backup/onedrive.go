@@ -206,7 +206,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	for _, scope := range sel.DiscreteScopes(users) {
 		for _, selUser := range scope.Get(selectors.OneDriveUser) {
-			opSel := selectors.NewOneDriveBackup()
+			opSel := selectors.NewOneDriveBackup([]string{selUser})
 			opSel.Include([]selectors.OneDriveScope{scope.DiscreteCopy(selUser)})
 
 			bo, err := r.NewBackup(ctx, opSel.Selector)
@@ -258,7 +258,7 @@ func validateOneDriveBackupCreateFlags(users []string) error {
 }
 
 func oneDriveBackupCreateSelectors(users []string) *selectors.OneDriveBackup {
-	sel := selectors.NewOneDriveBackup()
+	sel := selectors.NewOneDriveBackup(users)
 	sel.Include(sel.Users(users))
 
 	return sel
@@ -401,7 +401,7 @@ func runDetailsOneDriveCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewOneDriveRestore()
+	sel := selectors.NewOneDriveRestore(nil) // TODO: generate selector in IncludeExchangeRestoreDataSelectors
 	utils.IncludeOneDriveRestoreDataSelectors(sel, opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 

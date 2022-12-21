@@ -12,6 +12,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -136,12 +137,12 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 
 // GetUsers returns the email address of users within the tenant.
 func (gc *GraphConnector) GetUsers() []string {
-	return buildFromMap(true, gc.Users)
+	return maps.Keys(gc.Users)
 }
 
 // GetUsersIds returns the M365 id for the user
 func (gc *GraphConnector) GetUsersIds() []string {
-	return buildFromMap(false, gc.Users)
+	return maps.Values(gc.Users)
 }
 
 // setTenantSites queries the M365 to identify the sites in the
@@ -202,12 +203,12 @@ func identifySite(item any) (string, string, error) {
 
 // GetSiteWebURLs returns the WebURLs of sharepoint sites within the tenant.
 func (gc *GraphConnector) GetSiteWebURLs() []string {
-	return buildFromMap(true, gc.Sites)
+	return maps.Keys(gc.Sites)
 }
 
 // GetSiteIds returns the canonical site IDs in the tenant
 func (gc *GraphConnector) GetSiteIDs() []string {
-	return buildFromMap(false, gc.Sites)
+	return maps.Values(gc.Sites)
 }
 
 // UnionSiteIDsAndWebURLs reduces the id and url slices into a single slice of site IDs.
@@ -246,24 +247,6 @@ func (gc *GraphConnector) UnionSiteIDsAndWebURLs(ctx context.Context, ids, urls 
 	return idsl, nil
 }
 
-// buildFromMap helper function for returning []string from map.
-// Returns list of keys iff true; otherwise returns a list of values
-func buildFromMap(isKey bool, mapping map[string]string) []string {
-	returnString := make([]string, 0)
-
-	if isKey {
-		for k := range mapping {
-			returnString = append(returnString, k)
-		}
-	} else {
-		for _, v := range mapping {
-			returnString = append(returnString, v)
-		}
-	}
-
-	return returnString
-}
-
 // RestoreDataCollections restores data from the specified collections
 // into M365 using the GraphAPI.
 // SideEffect: gc.status is updated at the completion of operation
@@ -279,7 +262,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	var (
 		status *support.ConnectorOperationStatus
 		err    error
-		deets  = &details.Details{}
+		deets  = &details.Builder{}
 	)
 
 	switch selector.Service {
@@ -296,7 +279,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	gc.incrementAwaitingMessages()
 	gc.UpdateStatus(status)
 
-	return deets, err
+	return deets.Details(), err
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status

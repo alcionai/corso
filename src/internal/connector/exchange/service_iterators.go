@@ -11,7 +11,6 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -39,12 +38,12 @@ func hasErrorCode(err error, code string) bool {
 		*oDataError.GetError().GetCode() == code
 }
 
-// FilterContainersAndFillCollections is a utility function
+// filterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
 // @param collection is filled with during this function.
 // Supports all exchange applications: Contacts, Events, and Mail
-func FilterContainersAndFillCollections(
+func filterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]data.Collection,
@@ -62,7 +61,7 @@ func FilterContainersAndFillCollections(
 		currPaths = map[string]string{}
 		// copy of previousPaths.  any folder found in the resolver get
 		// deleted from this map, leaving only the deleted maps behind
-		deletedPaths = common.CopyMap(dps)
+		deletedPaths = map[string]DeltaPath{}
 	)
 
 	getJobs, err := getFetchIDFunc(qp.Category)
@@ -361,11 +360,9 @@ func FetchContactIDsFromDirectory(
 		Contacts().
 		Delta()
 
-	// TODO(rkeepers): Awaiting full integration of incremental support, else this
-	// will cause unexpected behavior/errors.
-	// if len(oldDelta) > 0 {
-	// 	builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
-	// }
+	if len(oldDelta) > 0 {
+		builder = msuser.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
+	}
 
 	for {
 		resp, err := builder.Get(ctx, options)
@@ -435,11 +432,9 @@ func FetchMessageIDsFromDirectory(
 		Messages().
 		Delta()
 
-	// TODO(rkeepers): Awaiting full integration of incremental support, else this
-	// will cause unexpected behavior/errors.
-	// if len(oldDelta) > 0 {
-	// 	builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
-	// }
+	if len(oldDelta) > 0 {
+		builder = msuser.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
+	}
 
 	for {
 		resp, err := builder.Get(ctx, options)

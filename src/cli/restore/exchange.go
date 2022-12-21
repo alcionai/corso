@@ -216,7 +216,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := selectors.NewExchangeRestore()
+	sel := selectors.NewExchangeRestore(nil) // TODO: generate selector in IncludeExchangeRestoreDataSelectors
 	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 

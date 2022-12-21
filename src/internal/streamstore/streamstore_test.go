@@ -46,14 +46,16 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 
 	defer kw.Close(ctx)
 
-	deets := &details.Details{}
+	deetsBuilder := &details.Builder{}
 
-	deets.Add("ref", "shortref", "parentref", true,
+	deetsBuilder.Add("ref", "shortref", "parentref", true,
 		details.ItemInfo{
 			Exchange: &details.ExchangeInfo{
 				Subject: "hello world",
 			},
 		})
+
+	deets := deetsBuilder.Details()
 
 	ss := New(kw, "tenant", path.ExchangeService)
 

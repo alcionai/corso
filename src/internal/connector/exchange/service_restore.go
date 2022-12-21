@@ -288,7 +288,7 @@ func RestoreExchangeDataCollections(
 	gs graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
-	deets *details.Details,
+	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		// map of caches... but not yet...
@@ -349,7 +349,7 @@ func restoreCollection(
 	dc data.Collection,
 	folderID string,
 	policy control.CollisionPolicy,
-	deets *details.Details,
+	deets *details.Builder,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:exchange:restoreCollection", D.Label("path", dc.FullPath()))

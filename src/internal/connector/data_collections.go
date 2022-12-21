@@ -5,17 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -46,9 +43,28 @@ func (gc *GraphConnector) DataCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		return gc.ExchangeDataCollection(ctx, sels, metadata, ctrlOpts)
+		colls, err := exchange.DataCollections(
+			ctx,
+			sels,
+			metadata,
+			gc.GetUsers(),
+			gc.credentials,
+			// gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		for range colls {
+			gc.incrementAwaitingMessages()
+		}
+
+		return colls, nil
+
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels, ctrlOpts)
+
 	case selectors.ServiceSharePoint:
 		colls, err := sharepoint.DataCollections(
 			ctx,
@@ -67,6 +83,7 @@ func (gc *GraphConnector) DataCollections(
 		}
 
 		return colls, nil
+
 	default:
 		return nil, errors.Errorf("service %s not supported", sels.Service.String())
 	}
@@ -75,10 +92,7 @@ func (gc *GraphConnector) DataCollections(
 func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
 	var ids []string
 
-	resourceOwners, err := sels.ResourceOwners()
-	if err != nil {
-		return errors.Wrap(err, "invalid backup inputs")
-	}
+	resourceOwners := sels.DiscreteResourceOwners()
 
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
@@ -95,131 +109,13 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 		normROs[strings.ToLower(id)] = struct{}{}
 	}
 
-	for _, ro := range resourceOwners.Includes {
+	for _, ro := range resourceOwners {
 		if _, ok := normROs[strings.ToLower(ro)]; !ok {
 			return fmt.Errorf("included resource owner %s not found within tenant", ro)
 		}
 	}
 
-	for _, ro := range resourceOwners.Excludes {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("excluded resource owner %s not found within tenant", ro)
-		}
-	}
-
-	for _, ro := range resourceOwners.Filters {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("filtered resource owner %s not found within tenant", ro)
-		}
-	}
-
 	return nil
-}
-
-// ---------------------------------------------------------------------------
-// Exchange
-// ---------------------------------------------------------------------------
-
-// createExchangeCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.ExchangeScope
-// determines the type of collections that are retrieved.
-func (gc *GraphConnector) createExchangeCollections(
-	ctx context.Context,
-	scope selectors.ExchangeScope,
-	dps exchange.DeltaPaths,
-	ctrlOpts control.Options,
-) ([]data.Collection, error) {
-	var (
-		errs           *multierror.Error
-		users          = scope.Get(selectors.ExchangeUser)
-		allCollections = make([]data.Collection, 0)
-	)
-
-	// Create collection of ExchangeDataCollection
-	for _, user := range users {
-		collections := make(map[string]data.Collection)
-
-		qp := graph.QueryParams{
-			Category:      scope.Category().PathType(),
-			ResourceOwner: user,
-			Credentials:   gc.credentials,
-		}
-
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
-		defer closer()
-		defer close(foldersComplete)
-
-		resolver, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting folder cache")
-		}
-
-		err = exchange.FilterContainersAndFillCollections(
-			ctx,
-			qp,
-			collections,
-			gc.UpdateStatus,
-			resolver,
-			scope,
-			dps,
-			ctrlOpts)
-
-		if err != nil {
-			return nil, errors.Wrap(err, "filling collections")
-		}
-
-		foldersComplete <- struct{}{}
-
-		for _, collection := range collections {
-			gc.incrementAwaitingMessages()
-
-			allCollections = append(allCollections, collection)
-		}
-	}
-
-	return allCollections, errs.ErrorOrNil()
-}
-
-// ExchangeDataCollections returns a DataCollection which the caller can
-// use to read mailbox data out for the specified user
-// Assumption: User exists
-//
-//	Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(
-	ctx context.Context,
-	selector selectors.Selector,
-	metadata []data.Collection,
-	ctrlOpts control.Options,
-) ([]data.Collection, error) {
-	eb, err := selector.ToExchangeBackup()
-	if err != nil {
-		return nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
-	}
-
-	var (
-		scopes      = eb.DiscreteScopes(gc.GetUsers())
-		collections = []data.Collection{}
-		errs        error
-	)
-
-	cdps, err := exchange.ParseMetadataCollections(ctx, metadata)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, scope := range scopes {
-		dps := cdps[scope.Category().PathType()]
-
-		dcs, err := gc.createExchangeCollections(ctx, scope, dps, control.Options{})
-		if err != nil {
-			user := scope.Get(selectors.ExchangeUser)
-			return nil, support.WrapAndAppend(user[0], err, errs)
-		}
-
-		collections = append(collections, dcs...)
-	}
-
-	return collections, errs
 }
 
 // ---------------------------------------------------------------------------

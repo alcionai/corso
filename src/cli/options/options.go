@@ -2,9 +2,33 @@ package options
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/pkg/control"
 )
+
+// Control produces the control options based on the user's flags.
+func Control() control.Options {
+	opt := control.Defaults()
+
+	if fastFail {
+		opt.FailFast = true
+	}
+
+	if noStats {
+		opt.DisableMetrics = true
+	}
+
+	if exchangeIncrementals {
+		opt.EnabledFeatures.ExchangeIncrementals = true
+	}
+
+	return opt
+}
+
+// ---------------------------------------------------------------------------
+// Operations Flags
+// ---------------------------------------------------------------------------
 
 var (
 	fastFail bool
@@ -25,17 +49,32 @@ func AddGlobalOperationFlags(cmd *cobra.Command) {
 	fs.BoolVar(&noStats, "no-stats", false, "disable anonymous usage statistics gathering")
 }
 
-// Control produces the control options based on the user's flags.
-func Control() control.Options {
-	opt := control.Defaults()
+// ---------------------------------------------------------------------------
+// Feature Flags
+// ---------------------------------------------------------------------------
 
-	if fastFail {
-		opt.FailFast = true
+var exchangeIncrementals bool
+
+type exposeFeatureFlag func(*pflag.FlagSet)
+
+// AddFeatureFlags adds CLI flags for each exposed feature flags to the
+// persistent flag set within the command.
+func AddFeatureFlags(cmd *cobra.Command, effs ...exposeFeatureFlag) {
+	fs := cmd.PersistentFlags()
+	for _, fflag := range effs {
+		fflag(fs)
 	}
+}
 
-	if noStats {
-		opt.DisableMetrics = true
+// Adds the '--exchange-incrementals' cli flag which, when set, enables
+// incrementals data retrieval for exchange backups.
+func ExchangeIncrementals() func(*pflag.FlagSet) {
+	return func(fs *pflag.FlagSet) {
+		fs.BoolVar(
+			&exchangeIncrementals,
+			"exchange-incrementals",
+			false,
+			"Enable incremental data retrieval in Exchange backups.")
+		cobra.CheckErr(fs.MarkHidden("exchange-incrementals"))
 	}
-
-	return opt
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
@@ -336,9 +337,7 @@ func runRestoreBackupTest(
 		collections = append(collections, userCollections...)
 		totalItems += numItems
 
-		for k, v := range userExpectedData {
-			expectedData[k] = v
-		}
+		maps.Copy(expectedData, userExpectedData)
 	}
 
 	t.Logf(
