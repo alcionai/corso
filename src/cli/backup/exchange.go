@@ -106,6 +106,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
+		options.AddFeatureFlags(cmd, options.ExchangeIncrementals())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples

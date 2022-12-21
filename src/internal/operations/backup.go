@@ -130,7 +130,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	oc := selectorToOwnersCats(op.Selectors)
 
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID)
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, op.Options)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -182,6 +182,7 @@ func produceManifestsAndMetadata(
 	sw *store.Wrapper,
 	oc *kopia.OwnersCats,
 	tenantID string,
+	opts control.Options,
 ) ([]*kopia.ManifestEntry, []data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
 	defer func() {
@@ -201,6 +202,10 @@ func produceManifestsAndMetadata(
 		map[string]string{kopia.TagBackupCategory: ""})
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if !opts.EnabledFeatures.ExchangeIncrementals {
+		return ms, nil, nil
 	}
 
 	for _, man := range ms {
