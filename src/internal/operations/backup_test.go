@@ -2,10 +2,13 @@ package operations
 
 import (
 	"context"
+	stdpath "path"
 	"testing"
 	"time"
 
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -454,6 +457,165 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				model.StableID(""),
 			)
 		})
+	}
+}
+
+type mockDetailsReader struct {
+	entries map[string]*details.Details
+}
+
+func (mdr mockDetailsReader) ReadBackupDetails(
+	ctx context.Context,
+	detailsID string,
+) (*details.Details, error) {
+	r := mdr.entries[detailsID]
+
+	if r == nil {
+		return nil, errors.Errorf("no details for ID %s", detailsID)
+	}
+
+	return r, nil
+}
+
+type mockBackupStorer struct {
+	// Only using this to store backup models right now.
+	entries map[model.StableID]backup.Backup
+}
+
+func (mbs mockBackupStorer) Get(
+	ctx context.Context,
+	s model.Schema,
+	id model.StableID,
+	toPopulate model.Model,
+) error {
+	if s != model.BackupSchema {
+		return errors.Errorf("unexpected schema %s", s)
+	}
+
+	r, ok := mbs.entries[id]
+	if !ok {
+		return errors.Errorf("model with id %s not found", id)
+	}
+
+	bu, ok := toPopulate.(*backup.Backup)
+	if !ok {
+		return errors.Errorf("bad input type %T", toPopulate)
+	}
+
+	*bu = r
+
+	return nil
+}
+
+// Functions we need to implement but don't care about.
+func (mbs mockBackupStorer) Delete(context.Context, model.Schema, model.StableID) error {
+	return errors.New("not implemented")
+}
+
+func (mbs mockBackupStorer) DeleteWithModelStoreID(context.Context, manifest.ID) error {
+	return errors.New("not implemented")
+}
+
+func (mbs mockBackupStorer) GetIDsForType(
+	context.Context,
+	model.Schema,
+	map[string]string,
+) ([]*model.BaseModel, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (mbs mockBackupStorer) GetWithModelStoreID(
+	context.Context,
+	model.Schema,
+	manifest.ID,
+	model.Model,
+) error {
+	return errors.New("not implemented")
+}
+
+func (mbs mockBackupStorer) Put(context.Context, model.Schema, model.Model) error {
+	return errors.New("not implemented")
+}
+
+func (mbs mockBackupStorer) Update(context.Context, model.Schema, model.Model) error {
+	return errors.New("not implemented")
+}
+
+// TODO(ashmrtn): Really need to factor a function like this out into some
+// common file that is only compiled for tests.
+func makePath(
+	t *testing.T,
+	elements []string,
+	isItem bool,
+) path.Path {
+	t.Helper()
+
+	p, err := path.FromDataLayerPath(stdpath.Join(elements...), isItem)
+	require.NoError(t, err)
+
+	return p
+}
+
+func makeDetailsEntry(
+	t *testing.T,
+	p path.Path,
+	size int,
+	updated bool,
+) details.DetailsEntry {
+	t.Helper()
+
+	res := details.DetailsEntry{
+		RepoRef:   p.String(),
+		ShortRef:  p.ShortRef(),
+		ParentRef: p.ToBuilder().Dir().ShortRef(),
+		ItemInfo:  details.ItemInfo{},
+		Updated:   updated,
+	}
+
+	switch p.Service() {
+	case path.ExchangeService:
+		if p.Category() != path.EmailCategory {
+			assert.FailNowf(
+				t,
+				"category %s not supported in helper function",
+				p.Category().String(),
+			)
+		}
+
+		res.Exchange = &details.ExchangeInfo{
+			ItemType: details.ExchangeMail,
+			Size:     int64(size),
+		}
+
+	case path.OneDriveService:
+		parent, err := path.GetDriveFolderPath(p)
+		require.NoError(t, err)
+
+		res.OneDrive = &details.OneDriveInfo{
+			ItemType:   details.OneDriveItem,
+			ParentPath: parent,
+			Size:       int64(size),
+		}
+
+	default:
+		assert.FailNowf(
+			t,
+			"service %s not supported in helper function",
+			p.Service().String(),
+		)
+	}
+
+	return res
+}
+
+func makeManifest(backupID model.StableID, incompleteReason string) *snapshot.Manifest {
+	backupIDTagKey, _ := kopia.MakeTagKV(kopia.TagBackupID)
+
+	return &snapshot.Manifest{
+		Tags: map[string]string{
+			backupIDTagKey: string(backupID),
+		},
+		IncompleteReason: incompleteReason,
 	}
 }
 
