@@ -2,10 +2,13 @@ package operations
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -147,6 +150,30 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
 		return opStats.readErr
 	}
+
+	// These should be the returned collections from Sharepoint... Step I
+	//  Disassemble the data.
+	// readData, err := io.ReadAll(readItem.ToReader()) Get this at the end and short circuit.
+	//fmt.Printf("What is this: %v\n", rc.Read( ))
+	// [] Collection
+	// Single collection
+	// Single Item --> SharePoint Library
+	// Single SharePoint Library vite
+	writer := kioser.NewJsonSerializationWriter()
+	singleCollection := cs[0]
+	for stream := range singleCollection.Items() {
+		readData, err := io.ReadAll(stream.ToReader())
+		fmt.Println("Items Called Error: " + err.Error())
+		temp := string(readData)
+		writer.WriteStringValue("", &temp)
+		break
+	}
+	byteArray, err := writer.GetSerializedContent()
+	fmt.Println("Error Received during serialization: " + err.Error())
+	fmt.Println("JSon to string")
+	fmt.Println(byteArray)
+
+	os.exit(1)
 
 	opStats.k, backupDetails, err = consumeBackupDataCollections(
 		ctx,

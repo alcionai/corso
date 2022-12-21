@@ -83,6 +83,8 @@ func DataCollections(
 				if err != nil {
 					return nil, support.WrapAndAppend(site, err, errs)
 				}
+				one := spcs[0]
+				logger.Ctx(ctx).Debugf("Path: %s", one.FullPath().String())
 			}
 
 			collections = append(collections, spcs...)

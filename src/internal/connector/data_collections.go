@@ -51,7 +51,6 @@ func (gc *GraphConnector) DataCollections(
 			metadata,
 			gc.GetUsers(),
 			gc.credentials,
-			// gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts)
 		if err != nil {
