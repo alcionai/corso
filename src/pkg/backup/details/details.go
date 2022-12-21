@@ -100,6 +100,78 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 	return res
 }
 
+// Builder should be used to create a details model.
+type Builder struct {
+	d            Details
+	mu           sync.Mutex             `json:"-"`
+	knownFolders map[string]FolderEntry `json:"-"`
+}
+
+func (b *Builder) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.d.add(repoRef, shortRef, parentRef, updated, info)
+}
+
+func (b *Builder) Details() *Details {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Write the cached folder entries to details
+	for _, folder := range b.knownFolders {
+		b.d.addFolder(folder)
+	}
+
+	return &b.d
+}
+
+// AddFoldersForItem adds entries for the given folders. It skips adding entries that
+// have been added by previous calls.
+func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.knownFolders == nil {
+		b.knownFolders = map[string]FolderEntry{}
+	}
+
+	for _, folder := range folders {
+		if existing, ok := b.knownFolders[folder.ShortRef]; ok {
+			// We've seen this folder before for a different item.
+			// Update the "cached" folder entry
+			folder = existing
+		}
+
+		// Update the folder's size and modified time
+		var (
+			itemSize     int64
+			itemModified time.Time
+		)
+
+		switch {
+		case itemInfo.Exchange != nil:
+			itemSize = itemInfo.Exchange.Size
+			itemModified = itemInfo.Exchange.Modified
+
+		case itemInfo.OneDrive != nil:
+			itemSize = itemInfo.OneDrive.Size
+			itemModified = itemInfo.OneDrive.Modified
+
+		case itemInfo.SharePoint != nil:
+			itemSize = itemInfo.SharePoint.Size
+			itemModified = itemInfo.SharePoint.Modified
+		}
+
+		folder.Info.Folder.Size += itemSize
+
+		if folder.Info.Folder.Modified.Before(itemModified) {
+			folder.Info.Folder.Modified = itemModified
+		}
+
+		b.knownFolders[folder.ShortRef] = folder
+	}
+}
+
 // --------------------------------------------------------------------------------
 // Details
 // --------------------------------------------------------------------------------
@@ -109,15 +181,9 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 // printing.
 type Details struct {
 	DetailsModel
-
-	// internal
-	mu           sync.Mutex          `json:"-"`
-	knownFolders map[string]struct{} `json:"-"`
 }
 
-func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+func (d *Details) add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
 	d.Entries = append(d.Entries, DetailsEntry{
 		RepoRef:   repoRef,
 		ShortRef:  shortRef,
@@ -127,30 +193,14 @@ func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info It
 	})
 }
 
-// AddFolders adds entries for the given folders. It skips adding entries that
-// have been added by previous calls.
-func (d *Details) AddFolders(folders []FolderEntry) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.knownFolders == nil {
-		d.knownFolders = map[string]struct{}{}
-	}
-
-	for _, folder := range folders {
-		if _, ok := d.knownFolders[folder.ShortRef]; ok {
-			// Entry already exists, nothing to do.
-			continue
-		}
-
-		d.knownFolders[folder.ShortRef] = struct{}{}
-		d.Entries = append(d.Entries, DetailsEntry{
-			RepoRef:   folder.RepoRef,
-			ShortRef:  folder.ShortRef,
-			ParentRef: folder.ParentRef,
-			ItemInfo:  folder.Info,
-		})
-	}
+// addFolder adds an entry for the given folder.
+func (d *Details) addFolder(folder FolderEntry) {
+	d.Entries = append(d.Entries, DetailsEntry{
+		RepoRef:   folder.RepoRef,
+		ShortRef:  folder.ShortRef,
+		ParentRef: folder.ParentRef,
+		ItemInfo:  folder.Info,
+	})
 }
 
 // --------------------------------------------------------------------------------

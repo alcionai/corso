@@ -262,7 +262,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	var (
 		status *support.ConnectorOperationStatus
 		err    error
-		deets  = &details.Details{}
+		deets  = &details.Builder{}
 	)
 
 	switch selector.Service {
@@ -279,7 +279,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	gc.incrementAwaitingMessages()
 	gc.UpdateStatus(status)
 
-	return deets, err
+	return deets.Details(), err
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
