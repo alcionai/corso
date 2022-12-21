@@ -337,3 +337,78 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 		})
 	}
 }
+
+func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
+	itemTime := time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
+	folderTimeOlderThanItem := time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
+
+	table := []struct {
+		name               string
+		item               details.ItemInfo
+		expectedFolderInfo details.FolderInfo
+	}{
+		{
+			name: "Exchange",
+			item: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					Size:     20,
+					Modified: itemTime,
+				},
+			},
+			expectedFolderInfo: details.FolderInfo{
+				Size:     20,
+				Modified: itemTime,
+			},
+		},
+		{
+			name: "OneDrive",
+			item: details.ItemInfo{
+				OneDrive: &details.OneDriveInfo{
+					Size:     20,
+					Modified: itemTime,
+				},
+			},
+			expectedFolderInfo: details.FolderInfo{
+				Size:     20,
+				Modified: itemTime,
+			},
+		},
+		{
+			name: "SharePoint",
+			item: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					Size:     20,
+					Modified: itemTime,
+				},
+			},
+			expectedFolderInfo: details.FolderInfo{
+				Size:     20,
+				Modified: itemTime,
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			folderEntry := details.FolderEntry{
+				RepoRef:   "rr1",
+				ShortRef:  "sr1",
+				ParentRef: "pr1",
+				Info: details.ItemInfo{
+					Folder: &details.FolderInfo{
+						Modified: folderTimeOlderThanItem,
+					},
+				},
+			}
+
+			builder := details.Builder{}
+			builder.AddFoldersForItem([]details.FolderEntry{folderEntry}, test.item)
+			deets := builder.Details()
+			require.Len(t, deets.Entries, 1)
+
+			got := deets.Entries[0].Folder
+
+			assert.Equal(t, test.expectedFolderInfo, *got)
+		})
+	}
+
+}

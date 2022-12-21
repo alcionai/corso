@@ -143,11 +143,29 @@ func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
 		}
 
 		// Update the folder's size and modified time
+		var (
+			itemSize     int64
+			itemModified time.Time
+		)
 
-		folder.Info.Folder.Size += itemInfo.Exchange.Size
+		switch {
+		case itemInfo.Exchange != nil:
+			itemSize = itemInfo.Exchange.Size
+			itemModified = itemInfo.Exchange.Modified
 
-		if folder.Info.Folder.Modified.Before(itemInfo.Exchange.Modified) {
-			folder.Info.Folder.Modified = itemInfo.Exchange.Modified
+		case itemInfo.OneDrive != nil:
+			itemSize = itemInfo.OneDrive.Size
+			itemModified = itemInfo.OneDrive.Modified
+
+		case itemInfo.SharePoint != nil:
+			itemSize = itemInfo.SharePoint.Size
+			itemModified = itemInfo.SharePoint.Modified
+		}
+
+		folder.Info.Folder.Size += itemSize
+
+		if folder.Info.Folder.Modified.Before(itemModified) {
+			folder.Info.Folder.Modified = itemModified
 		}
 
 		b.knownFolders[folder.ShortRef] = folder
