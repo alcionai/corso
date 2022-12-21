@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -173,7 +174,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	fmt.Println("JSon to string")
 	fmt.Println(byteArray)
 
-	os.exit(1)
+	os.Exit(1)
 
 	opStats.k, backupDetails, err = consumeBackupDataCollections(
 		ctx,
