@@ -25,6 +25,7 @@ require (
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.4
 	go.uber.org/zap v1.24.0
+	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15
 	golang.org/x/tools v0.4.0
 	gopkg.in/resty.v1 v1.12.0
 )
