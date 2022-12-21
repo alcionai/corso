@@ -220,16 +220,6 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
-		// TODO(ashmrtn): Uncomment this again when we need to fetch and merge
-		// backup details from previous snapshots.
-		// k, _ := kopia.MakeTagKV(kopia.TagBackupID)
-		// bupID := man.Tags[k]
-
-		// bup, err := sw.GetBackup(ctx, model.StableID(bupID))
-		// if err != nil {
-		// 	return nil, nil, err
-		// }
-
 		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
@@ -410,6 +400,119 @@ func consumeBackupDataCollections(
 	}
 
 	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags)
+}
+
+func matchesReason(reasons []kopia.Reason, p path.Path) bool {
+	for _, reason := range reasons {
+		if p.ResourceOwner() == reason.ResourceOwner &&
+			p.Service() == reason.Service &&
+			p.Category() == reason.Category {
+			return true
+		}
+	}
+
+	return false
+}
+
+func mergeDetails(
+	ctx context.Context,
+	ms *store.Wrapper,
+	detailsStore detailsReader,
+	mans []*kopia.ManifestEntry,
+	toMerge map[string]path.Path,
+	deets *details.Details,
+) error {
+	// Don't bother loading any of the base details if there's nothing we need to
+	// merge.
+	if len(toMerge) == 0 {
+		return nil
+	}
+
+	var addedEntries int
+
+	for _, man := range mans {
+		// For now skip snapshots that aren't complete. We will need to revisit this
+		// when we tackle restartability.
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
+		k, _ := kopia.MakeTagKV(kopia.TagBackupID)
+		bID := man.Tags[k]
+
+		_, baseDeets, err := getBackupAndDetailsFromID(
+			ctx,
+			model.StableID(bID),
+			ms,
+			detailsStore,
+		)
+		if err != nil {
+			return errors.Wrapf(err, "backup fetching base details for backup %s", bID)
+		}
+
+		for _, entry := range baseDeets.Items() {
+			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
+			if err != nil {
+				return errors.Wrapf(
+					err,
+					"parsing base item info in backup %s at path %s",
+					bID,
+					entry.RepoRef,
+				)
+			}
+
+			// Although this base has an entry it may not be the most recent. Check
+			// the reasons a snapshot was returned to ensure we only choose the recent
+			// entries.
+			//
+			// TODO(ashmrtn): This logic will need expanded to cover entries from
+			// checkpoints if we start doing kopia-assisted incrementals for those.
+			if !matchesReason(man.Reasons, rr) {
+				continue
+			}
+
+			newPath := toMerge[rr.ShortRef()]
+			if newPath == nil {
+				// This entry was not sourced from a base snapshot or cached from a
+				// previous backup, skip it.
+				continue
+			}
+
+			// Fixup paths in the item.
+			item := entry.ItemInfo
+			if err := details.UpdateItem(&item, newPath); err != nil {
+				return errors.Wrapf(
+					err,
+					"updating item info for entry from backup %s",
+					bID,
+				)
+			}
+
+			deets.Add(
+				newPath.String(),
+				newPath.ShortRef(),
+				newPath.ToBuilder().Dir().ShortRef(),
+				// TODO(ashmrtn): This may need updated if we start using this merge
+				// strategry for items that were cached in kopia.
+				newPath.String() != rr.String(),
+				item,
+			)
+
+			// Track how many entries we added so that we know if we got them all when
+			// we're done.
+			addedEntries++
+		}
+	}
+
+	if addedEntries != len(toMerge) {
+		return errors.Errorf(
+			"merging details: wanted %v entries but added %v",
+			len(toMerge),
+			addedEntries,
+		)
+	}
+
+	return nil
 }
 
 // writes the results metrics to the operation results.
