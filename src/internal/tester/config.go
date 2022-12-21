@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -48,12 +49,7 @@ func cloneTestConfig() map[string]string {
 		return map[string]string{}
 	}
 
-	clone := map[string]string{}
-	for k, v := range testConfig {
-		clone[k] = v
-	}
-
-	return clone
+	return maps.Clone(testConfig)
 }
 
 func NewTestViper() (*viper.Viper, error) {

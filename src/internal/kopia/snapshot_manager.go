@@ -7,6 +7,7 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -198,9 +199,7 @@ func fetchPrevManifests(
 		resourceOwner: "",
 	})
 
-	for k, v := range tags {
-		allTags[k] = v
-	}
+	maps.Copy(allTags, tags)
 
 	reason := Reason{
 		ResourceOwner: resourceOwner,

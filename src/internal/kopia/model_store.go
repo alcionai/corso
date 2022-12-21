@@ -8,6 +8,7 @@ import (
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/model"
 )
@@ -64,9 +65,7 @@ func tagsForModel(s model.Schema, tags map[string]string) (map[string]string, er
 	res := make(map[string]string, len(tags)+1)
 	res[manifest.TypeLabelKey] = s.String()
 
-	for k, v := range tags {
-		res[k] = v
-	}
+	maps.Copy(res, tags)
 
 	return res, nil
 }
