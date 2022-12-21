@@ -946,8 +946,9 @@ func getSelectorWith(service path.ServiceType) selectors.Selector {
 		s = selectors.ServiceExchange
 	case path.OneDriveService:
 		s = selectors.ServiceOneDrive
+	case path.SharePointService:
+		s = selectors.ServiceSharePoint
 	}
-	// TODO: ^ sharepoint
 
 	return selectors.Selector{
 		Service: s,
