@@ -783,6 +783,7 @@ func makeExchangeBackupSel(
 		for c := range d.cats {
 			sel := selectors.NewExchangeBackup(nil)
 			builder := sel.MailFolders
+
 			resourceOwners = append(resourceOwners, d.resourceOwner)
 
 			switch c {
@@ -816,6 +817,7 @@ func makeOneDriveBackupSel(
 
 	for _, d := range dests {
 		sel := selectors.NewOneDriveBackup(nil)
+
 		resourceOwners = append(resourceOwners, d.resourceOwner)
 		toInclude = append(toInclude, sel.Folders(
 			[]string{d.resourceOwner},
