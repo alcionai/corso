@@ -49,7 +49,7 @@ func filterContainersAndFillCollections(
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
 		// copy of previousPaths.  any folder found in the resolver get
-		// deleted from this map, leaving only the deleted maps behind
+		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
 	)
 
@@ -100,10 +100,12 @@ func filterContainersAndFillCollections(
 		jobs, newDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			// race conditions happen, containers might get deleted while
-			// this process is in flight.  If it was deleted, we skip it
-			// and move on, which will create a tombstone to delete the path.
+			// this process is in flight.  If it was deleted, we remake the
+			// tombstone, just to be sure it gets deleted from storage.
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			} else {
+				tombstones[currPath.String()] = struct{}{}
 			}
 
 			continue
