@@ -38,12 +38,12 @@ func hasErrorCode(err error, code string) bool {
 		*oDataError.GetError().GetCode() == code
 }
 
-// FilterContainersAndFillCollections is a utility function
+// filterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
 // @param collection is filled with during this function.
 // Supports all exchange applications: Contacts, Events, and Mail
-func FilterContainersAndFillCollections(
+func filterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	collections map[string]data.Collection,
