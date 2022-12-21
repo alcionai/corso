@@ -129,8 +129,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}()
 
 	oc := selectorToOwnersCats(op.Selectors)
+	srm := shouldRetrieveMetadata(op.Selectors, op.Options)
 
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID)
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, srm)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -142,7 +143,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, control.Options{})
+	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
 		return opStats.readErr
@@ -175,6 +176,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	return err
 }
 
+// checker to see if conditions are correct for retrieving metadata like delta tokens
+// and previous paths.
+func shouldRetrieveMetadata(sel selectors.Selector, opts control.Options) bool {
+	return opts.EnabledFeatures.ExchangeIncrementals && sel.Service == selectors.ServiceExchange
+}
+
 // calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
 func produceManifestsAndMetadata(
 	ctx context.Context,
@@ -182,6 +189,7 @@ func produceManifestsAndMetadata(
 	sw *store.Wrapper,
 	oc *kopia.OwnersCats,
 	tenantID string,
+	getMetadata bool,
 ) ([]*kopia.ManifestEntry, []data.Collection, error) {
 	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
 	defer func() {
@@ -201,6 +209,10 @@ func produceManifestsAndMetadata(
 		map[string]string{kopia.TagBackupCategory: ""})
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if !getMetadata {
+		return ms, nil, nil
 	}
 
 	for _, man := range ms {
