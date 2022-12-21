@@ -81,15 +81,16 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 		t                                   = suite.T()
 		mailScope, contactScope, eventScope []selectors.ExchangeScope
 		userID                              = tester.M365UserID(t)
-		sel                                 = selectors.NewExchangeBackup()
+		users                               = []string{userID}
+		sel                                 = selectors.NewExchangeBackup(users)
 	)
 
 	eb, err := sel.ToExchangeBackup()
 	require.NoError(suite.T(), err)
 
-	contactScope = sel.ContactFolders([]string{userID}, []string{DefaultContactFolder}, selectors.PrefixMatch())
-	eventScope = sel.EventCalendars([]string{userID}, []string{DefaultCalendar}, selectors.PrefixMatch())
-	mailScope = sel.MailFolders([]string{userID}, []string{DefaultMailFolder}, selectors.PrefixMatch())
+	contactScope = sel.ContactFolders(users, []string{DefaultContactFolder}, selectors.PrefixMatch())
+	eventScope = sel.EventCalendars(users, []string{DefaultCalendar}, selectors.PrefixMatch())
+	mailScope = sel.MailFolders(users, []string{DefaultMailFolder}, selectors.PrefixMatch())
 
 	eb.Include(contactScope, eventScope, mailScope)
 

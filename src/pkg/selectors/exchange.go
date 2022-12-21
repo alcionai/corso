@@ -37,17 +37,16 @@ type (
 )
 
 var (
-	_ Reducer         = &ExchangeRestore{}
-	_ printabler      = &ExchangeRestore{}
-	_ resourceOwnerer = &ExchangeRestore{}
-	_ pathCategorier  = &ExchangeRestore{}
+	_ Reducer        = &ExchangeRestore{}
+	_ printabler     = &ExchangeRestore{}
+	_ pathCategorier = &ExchangeRestore{}
 )
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
-func NewExchangeBackup() *ExchangeBackup {
+func NewExchangeBackup(users []string) *ExchangeBackup {
 	src := ExchangeBackup{
 		exchange{
-			newSelector(ServiceExchange),
+			newSelector(ServiceExchange, users),
 		},
 	}
 
@@ -67,10 +66,10 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 }
 
 // NewExchangeRestore produces a new Selector with the service set to ServiceExchange.
-func NewExchangeRestore() *ExchangeRestore {
+func NewExchangeRestore(users []string) *ExchangeRestore {
 	src := ExchangeRestore{
 		exchange{
-			newSelector(ServiceExchange),
+			newSelector(ServiceExchange, users),
 		},
 	}
 
@@ -92,16 +91,6 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 // Printable creates the minimized display of a selector, formatted for human readability.
 func (s exchange) Printable() Printable {
 	return toPrintable[ExchangeScope](s.Selector)
-}
-
-// ResourceOwners produces the aggregation of discrete users described by each type of scope.
-// Any and None values are omitted.
-func (s exchange) ResourceOwners() selectorResourceOwners {
-	return selectorResourceOwners{
-		Excludes: resourceOwnersIn(s.Excludes, ExchangeUser.String()),
-		Filters:  resourceOwnersIn(s.Filters, ExchangeUser.String()),
-		Includes: resourceOwnersIn(s.Includes, ExchangeUser.String()),
-	}
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.

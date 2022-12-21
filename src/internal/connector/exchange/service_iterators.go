@@ -11,7 +11,6 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -62,7 +61,7 @@ func filterContainersAndFillCollections(
 		currPaths = map[string]string{}
 		// copy of previousPaths.  any folder found in the resolver get
 		// deleted from this map, leaving only the deleted maps behind
-		deletedPaths = common.CopyMap(dps)
+		deletedPaths = map[string]DeltaPath{}
 	)
 
 	getJobs, err := getFetchIDFunc(qp.Category)
