@@ -45,6 +45,8 @@ func DataCollections(
 
 	for _, scope := range scopes {
 		// due to DiscreteScopes(siteIDs), each range should only contain one site.
+		logger.Ctx(ctx).Debugf("Scope: %s", scope.Category().String())
+
 		for _, site := range scope.Get(selectors.SharePointSite) {
 			foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf(
 				"∙ %s - %s:",

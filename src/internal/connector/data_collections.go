@@ -44,6 +44,8 @@ func (gc *GraphConnector) DataCollections(
 		return nil, err
 	}
 
+	logger.Ctx(ctx).Debugf("What is this? ")
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
 		return gc.ExchangeDataCollection(ctx, sels, metadata, ctrlOpts)
