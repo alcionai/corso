@@ -100,6 +100,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	var (
 		opStats       backupStats
 		backupDetails *details.Details
+		toMerge       map[string]path.Path
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
 		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
@@ -154,7 +155,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	opStats.k, backupDetails, _, err = consumeBackupDataCollections(
+	opStats.k, backupDetails, toMerge, err = consumeBackupDataCollections(
 		ctx,
 		op.kopia,
 		tenantID,
@@ -172,6 +173,18 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"Backed up %d directories and %d files",
 		opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount,
 	)
+
+	if err = mergeDetails(
+		ctx,
+		op.store,
+		detailsStore,
+		mans,
+		toMerge,
+		backupDetails,
+	); err != nil {
+		opStats.writeErr = errors.Wrap(err, "merging backup details")
+		return opStats.writeErr
+	}
 
 	// TODO: should always be 1, since backups are 1:1 with resourceOwners now.
 	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
