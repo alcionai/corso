@@ -103,8 +103,8 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 // Builder should be used to create a details model.
 type Builder struct {
 	d            Details
-	mu           sync.Mutex          `json:"-"`
-	knownFolders map[string]struct{} `json:"-"`
+	mu           sync.Mutex             `json:"-"`
+	knownFolders map[string]FolderEntry `json:"-"`
 }
 
 func (b *Builder) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
@@ -114,6 +114,14 @@ func (b *Builder) Add(repoRef, shortRef, parentRef string, updated bool, info It
 }
 
 func (b *Builder) Details() *Details {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Write the cached folder entries to details
+	for _, folder := range b.knownFolders {
+		b.d.addFolder(folder)
+	}
+
 	return &b.d
 }
 
@@ -124,17 +132,25 @@ func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
 	defer b.mu.Unlock()
 
 	if b.knownFolders == nil {
-		b.knownFolders = map[string]struct{}{}
+		b.knownFolders = map[string]FolderEntry{}
 	}
 
 	for _, folder := range folders {
-		if _, ok := b.knownFolders[folder.ShortRef]; ok {
-			// Entry already exists, nothing to do.
-			continue
+		if existing, ok := b.knownFolders[folder.ShortRef]; ok {
+			// We've seen this folder before for a different item.
+			// Update the "cached" folder entry
+			folder = existing
 		}
 
-		b.knownFolders[folder.ShortRef] = struct{}{}
-		b.d.addFolder(folder)
+		// Update the folder's size and modified time
+
+		folder.Info.Folder.Size += itemInfo.Exchange.Size
+
+		if folder.Info.Folder.Modified.Before(itemInfo.Exchange.Modified) {
+			folder.Info.Folder.Modified = itemInfo.Exchange.Modified
+		}
+
+		b.knownFolders[folder.ShortRef] = folder
 	}
 }
 

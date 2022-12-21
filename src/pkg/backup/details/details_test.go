@@ -222,16 +222,22 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 }
 
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
+	itemTime := time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
+	folderTimeOlderThanItem := time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
+	folderTimeNewerThanItem := time.Date(2022, 11, 21, 10, 0, 0, 0, time.UTC)
+
 	itemInfo := details.ItemInfo{
 		Exchange: &details.ExchangeInfo{
-			Size: 1,
+			Size:     20,
+			Modified: itemTime,
 		},
 	}
 
 	table := []struct {
-		name              string
-		folders           []details.FolderEntry
-		expectedShortRefs []string
+		name               string
+		folders            []details.FolderEntry
+		expectedShortRefs  []string
+		expectedFolderInfo map[string]details.FolderInfo
 	}{
 		{
 			name: "MultipleFolders",
@@ -241,7 +247,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
 					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{},
+						Folder: &details.FolderInfo{
+							Modified: folderTimeOlderThanItem,
+						},
 					},
 				},
 				{
@@ -249,11 +257,17 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					ShortRef:  "sr2",
 					ParentRef: "pr2",
 					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{},
+						Folder: &details.FolderInfo{
+							Modified: folderTimeNewerThanItem,
+						},
 					},
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2"},
+			expectedFolderInfo: map[string]details.FolderInfo{
+				"sr1": {Size: 20, Modified: itemTime},
+				"sr2": {Size: 20, Modified: folderTimeNewerThanItem},
+			},
 		},
 		{
 			name: "MultipleFoldersWithRepeats",
@@ -263,7 +277,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
 					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{},
+						Folder: &details.FolderInfo{
+							Modified: folderTimeOlderThanItem,
+						},
 					},
 				},
 				{
@@ -271,7 +287,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					ShortRef:  "sr2",
 					ParentRef: "pr2",
 					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{},
+						Folder: &details.FolderInfo{
+							Modified: folderTimeOlderThanItem,
+						},
 					},
 				},
 				{
@@ -279,7 +297,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
 					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{},
+						Folder: &details.FolderInfo{
+							Modified: folderTimeOlderThanItem,
+						},
 					},
 				},
 				{
@@ -287,11 +307,19 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					ShortRef:  "sr3",
 					ParentRef: "pr3",
 					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{},
+						Folder: &details.FolderInfo{
+							Modified: folderTimeNewerThanItem,
+						},
 					},
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2", "sr3"},
+			expectedFolderInfo: map[string]details.FolderInfo{
+				// Two items were added
+				"sr1": {Size: 40, Modified: itemTime},
+				"sr2": {Size: 20, Modified: itemTime},
+				"sr3": {Size: 20, Modified: folderTimeNewerThanItem},
+			},
 		},
 	}
 	for _, test := range table {
@@ -303,6 +331,8 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 
 			for _, e := range deets.Entries {
 				assert.Contains(t, test.expectedShortRefs, e.ShortRef)
+				assert.Equal(t, test.expectedFolderInfo[e.ShortRef].Size, e.Folder.Size)
+				assert.Equal(t, test.expectedFolderInfo[e.ShortRef].Modified, e.Folder.Modified)
 			}
 		})
 	}
