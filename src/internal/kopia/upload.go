@@ -382,8 +382,8 @@ func streamBaseEntries(
 		}
 
 		// All items have item info in the base backup. However, we need to make
-		// sure we have enough metadata to find those entries. Ensure that by adding
-		// the item to progress and having progress aggregate everything for later.
+		// sure we have enough metadata to find those entries. To do that we add the
+		// item to progress and having progress aggregate everything for later.
 		d := &itemDetails{info: nil, repoPath: itemPath, prevPath: prevItemPath}
 		progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
