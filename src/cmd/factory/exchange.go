@@ -57,7 +57,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		gc,
 		service,
 		category,
-		selectors.NewExchangeRestore().Selector,
+		selectors.NewExchangeRestore([]string{user}).Selector,
 		tenantID, user, destination,
 		count,
 		func(id, now, subject, body string) []byte {
@@ -97,7 +97,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		gc,
 		service,
 		category,
-		selectors.NewExchangeRestore().Selector,
+		selectors.NewExchangeRestore([]string{user}).Selector,
 		tenantID, user, destination,
 		count,
 		func(id, now, subject, body string) []byte {
@@ -136,7 +136,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		gc,
 		service,
 		category,
-		selectors.NewExchangeRestore().Selector,
+		selectors.NewExchangeRestore([]string{user}).Selector,
 		tenantID, user, destination,
 		count,
 		func(id, now, subject, body string) []byte {

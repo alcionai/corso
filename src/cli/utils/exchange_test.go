@@ -301,7 +301,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeExchangeRestoreDataSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewExchangeRestore()
+			sel := selectors.NewExchangeRestore(nil)
 			utils.IncludeExchangeRestoreDataSelectors(sel, test.opts)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
@@ -316,7 +316,7 @@ func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
 		containsAndPrefix = []string{"contains", "/prefix"}
-		eisc              = selectors.NewExchangeRestore().Contacts // type independent, just need the func
+		eisc              = selectors.NewExchangeRestore(nil).Contacts // type independent, just need the func
 	)
 
 	table := []struct {
@@ -369,7 +369,7 @@ func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewExchangeRestore()
+			sel := selectors.NewExchangeRestore(nil)
 			// no return, mutates sel as a side effect
 			utils.AddExchangeInclude(sel, test.resources, test.folders, test.items, eisc)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
@@ -485,7 +485,7 @@ func (suite *ExchangeUtilsSuite) TestFilterExchangeRestoreInfoSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewExchangeRestore()
+			sel := selectors.NewExchangeRestore(nil)
 			utils.FilterExchangeRestoreInfoSelectors(sel, test.opts)
 			assert.Len(t, sel.Filters, test.expectFilterLen)
 		})

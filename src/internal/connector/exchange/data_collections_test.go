@@ -235,6 +235,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 
 	var (
 		userID    = tester.M365UserID(suite.T())
+		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
 	)
 
@@ -247,8 +248,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 	}{
 		{
 			name: "Folder Iterative Check Mail",
-			scope: selectors.NewExchangeBackup().MailFolders(
-				[]string{userID},
+			scope: selectors.NewExchangeBackup(users).MailFolders(
+				users,
 				[]string{DefaultMailFolder},
 				selectors.PrefixMatch(),
 			)[0],
@@ -293,6 +294,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 
 	var (
 		userID    = tester.M365UserID(suite.T())
+		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
 	)
 
@@ -304,7 +306,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 	}{
 		{
 			name: "Mail",
-			scope: selectors.NewExchangeBackup().MailFolders(
+			scope: selectors.NewExchangeBackup(users).MailFolders(
 				[]string{userID},
 				[]string{DefaultMailFolder},
 				selectors.PrefixMatch(),
@@ -312,7 +314,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		},
 		{
 			name: "Contacts",
-			scope: selectors.NewExchangeBackup().ContactFolders(
+			scope: selectors.NewExchangeBackup(users).ContactFolders(
 				[]string{userID},
 				[]string{DefaultContactFolder},
 				selectors.PrefixMatch(),
@@ -382,15 +384,16 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	defer flush()
 
 	var (
-		t  = suite.T()
-		wg sync.WaitGroup
+		t     = suite.T()
+		wg    sync.WaitGroup
+		users = []string{suite.user}
 	)
 
 	acct, err := tester.NewM365Account(t).M365Config()
 	require.NoError(t, err)
 
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{suite.user}, []string{DefaultMailFolder}, selectors.PrefixMatch()))
+	sel := selectors.NewExchangeBackup(users)
+	sel.Include(sel.MailFolders(users, []string{DefaultMailFolder}, selectors.PrefixMatch()))
 
 	collections, err := createCollections(
 		ctx,
@@ -440,14 +443,16 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 	acct, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err)
 
+	users := []string{suite.user}
+
 	tests := []struct {
 		name  string
 		scope selectors.ExchangeScope
 	}{
 		{
 			name: "Default Contact Folder",
-			scope: selectors.NewExchangeBackup().ContactFolders(
-				[]string{suite.user},
+			scope: selectors.NewExchangeBackup(users).ContactFolders(
+				users,
 				[]string{DefaultContactFolder},
 				selectors.PrefixMatch())[0],
 		},
@@ -513,6 +518,8 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	acct, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err)
 
+	users := []string{suite.user}
+
 	tests := []struct {
 		name, expected string
 		scope          selectors.ExchangeScope
@@ -520,16 +527,16 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		{
 			name:     "Default Event Calendar",
 			expected: DefaultCalendar,
-			scope: selectors.NewExchangeBackup().EventCalendars(
-				[]string{suite.user},
+			scope: selectors.NewExchangeBackup(users).EventCalendars(
+				users,
 				[]string{DefaultCalendar},
 				selectors.PrefixMatch())[0],
 		},
 		{
 			name:     "Birthday Calendar",
 			expected: "Birthdays",
-			scope: selectors.NewExchangeBackup().EventCalendars(
-				[]string{suite.user},
+			scope: selectors.NewExchangeBackup(users).EventCalendars(
+				users,
 				[]string{"Birthdays"},
 				selectors.PrefixMatch())[0],
 		},

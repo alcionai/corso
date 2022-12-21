@@ -25,14 +25,14 @@ func TestExchangeSelectorSuite(t *testing.T) {
 
 func (suite *ExchangeSelectorSuite) TestNewExchangeBackup() {
 	t := suite.T()
-	eb := NewExchangeBackup()
+	eb := NewExchangeBackup(nil)
 	assert.Equal(t, eb.Service, ServiceExchange)
 	assert.NotZero(t, eb.Scopes())
 }
 
 func (suite *ExchangeSelectorSuite) TestToExchangeBackup() {
 	t := suite.T()
-	eb := NewExchangeBackup()
+	eb := NewExchangeBackup(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeBackup()
 	require.NoError(t, err)
@@ -42,14 +42,14 @@ func (suite *ExchangeSelectorSuite) TestToExchangeBackup() {
 
 func (suite *ExchangeSelectorSuite) TestNewExchangeRestore() {
 	t := suite.T()
-	er := NewExchangeRestore()
+	er := NewExchangeRestore(nil)
 	assert.Equal(t, er.Service, ServiceExchange)
 	assert.NotZero(t, er.Scopes())
 }
 
 func (suite *ExchangeSelectorSuite) TestToExchangeRestore() {
 	t := suite.T()
-	eb := NewExchangeRestore()
+	eb := NewExchangeRestore(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeRestore()
 	require.NoError(t, err)
@@ -59,7 +59,6 @@ func (suite *ExchangeSelectorSuite) TestToExchangeRestore() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Contacts() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user   = "user"
@@ -68,6 +67,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Contacts() {
 		c2     = "c2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Exclude(sel.Contacts([]string{user}, []string{folder}, []string{c1, c2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
@@ -85,7 +85,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Contacts() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user   = "user"
@@ -94,6 +93,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
 		c2     = "c2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Include(sel.Contacts([]string{user}, []string{folder}, []string{c1, c2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
@@ -113,7 +113,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_ContactFolders() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -121,6 +120,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_ContactFolders(
 		f2   = "f2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Exclude(sel.ContactFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
@@ -138,7 +138,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_ContactFolders(
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -146,6 +145,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders(
 		f2   = "f2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Include(sel.ContactFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
@@ -165,7 +165,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders(
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -174,6 +173,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 		c1   = "c1"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Exclude(sel.Events([]string{user}, []string{c1}, []string{e1, e2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
@@ -191,7 +191,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -199,6 +198,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars(
 		c2   = "c2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Exclude(sel.EventCalendars([]string{user}, []string{c1, c2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
@@ -216,7 +216,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars(
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -225,6 +224,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 		c1   = "c1"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Include(sel.Events([]string{user}, []string{c1}, []string{e1, e2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
@@ -242,7 +242,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -250,6 +249,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars(
 		c2   = "c2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Include(sel.EventCalendars([]string{user}, []string{c1, c2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
@@ -267,7 +267,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars(
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user   = "user"
@@ -276,6 +275,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
 		m2     = "m2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Exclude(sel.Mails([]string{user}, []string{folder}, []string{m1, m2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
@@ -293,7 +293,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user   = "user"
@@ -302,6 +301,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
 		m2     = "m2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Include(sel.Mails([]string{user}, []string{folder}, []string{m1, m2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
@@ -321,7 +321,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_MailFolders() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -329,6 +328,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_MailFolders() {
 		f2   = "f2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Exclude(sel.MailFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
@@ -346,7 +346,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_MailFolders() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		user = "user"
@@ -354,6 +353,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
 		f2   = "f2"
 	)
 
+	sel := NewExchangeBackup([]string{user})
 	sel.Include(sel.MailFolders([]string{user}, []string{f1, f2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
@@ -373,13 +373,13 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Users() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		u1 = "u1"
 		u2 = "u2"
 	)
 
+	sel := NewExchangeBackup([]string{u1, u2})
 	sel.Exclude(sel.Users([]string{u1, u2}))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 3)
@@ -427,13 +427,13 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Users() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 	t := suite.T()
-	sel := NewExchangeBackup()
 
 	const (
 		u1 = "u1"
 		u2 = "u2"
 	)
 
+	sel := NewExchangeBackup([]string{u1, u2})
 	sel.Include(sel.Users([]string{u1, u2}))
 	scopes := sel.Includes
 	require.Len(t, scopes, 3)
@@ -480,7 +480,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Users() {
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeBackup_Scopes() {
-	eb := NewExchangeBackup()
+	eb := NewExchangeBackup(Any())
 	eb.Include(eb.Users(Any()))
 
 	scopes := eb.Scopes()
@@ -534,7 +534,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeBackup_DiscreteScopes() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			eb := NewExchangeBackup()
+			eb := NewExchangeBackup(test.include)
 			eb.Include(eb.Users(test.include))
 
 			scopes := eb.DiscreteScopes(test.discrete)
@@ -571,7 +571,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_Category() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
-			eb := NewExchangeBackup()
+			eb := NewExchangeBackup(Any())
 			eb.Includes = []scope{
 				{scopeKeyCategory: filters.Identity(test.is.String())},
 			}
@@ -614,7 +614,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
-			eb := NewExchangeBackup()
+			eb := NewExchangeBackup(Any())
 			eb.Includes = []scope{
 				{scopeKeyCategory: filters.Identity(test.is.String())},
 			}
@@ -625,7 +625,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeScope_Get() {
-	eb := NewExchangeBackup()
+	eb := NewExchangeBackup(Any())
 	eb.Include(eb.Users(Any()))
 
 	scopes := eb.Scopes()
@@ -659,7 +659,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_Get() {
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
-	es := NewExchangeRestore()
+	es := NewExchangeRestore(Any())
 
 	const (
 		name      = "smarf mcfnords"
@@ -781,7 +781,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	var (
 		pth   = stubPath(suite.T(), usr, []string{fld1, fld2, mail}, path.EmailCategory)
 		short = "thisisahashofsomekind"
-		es    = NewExchangeRestore()
+		es    = NewExchangeRestore(Any()) // TODO: move into test so that test user set is embedded in the selector
 	)
 
 	table := []struct {
@@ -922,7 +922,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"no refs",
 			makeDeets(),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				return er
 			},
@@ -932,7 +932,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"contact only",
 			makeDeets(contact),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				return er
 			},
@@ -942,7 +942,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"event only",
 			makeDeets(event),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				return er
 			},
@@ -952,7 +952,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"mail only",
 			makeDeets(mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				return er
 			},
@@ -962,7 +962,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"all",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				return er
 			},
@@ -972,7 +972,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"only match contact",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore([]string{"uid"})
 				er.Include(er.Contacts([]string{"uid"}, []string{"cfld"}, []string{"cid"}))
 				return er
 			},
@@ -982,7 +982,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"only match contactInSubFolder",
 			makeDeets(contactInSubFolder, contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore([]string{"uid"})
 				er.Include(er.ContactFolders([]string{"uid"}, []string{"cfld1/cfld2"}))
 				return er
 			},
@@ -992,7 +992,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"only match contactInSubFolder by prefix",
 			makeDeets(contactInSubFolder, contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore([]string{"uid"})
 				er.Include(er.ContactFolders([]string{"uid"}, []string{"cfld1/cfld2"}, PrefixMatch()))
 				return er
 			},
@@ -1002,7 +1002,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"only match contactInSubFolder by leaf folder",
 			makeDeets(contactInSubFolder, contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore([]string{"uid"})
 				er.Include(er.ContactFolders([]string{"uid"}, []string{"cfld2"}))
 				return er
 			},
@@ -1012,7 +1012,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"only match event",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore([]string{"uid"})
 				er.Include(er.Events([]string{"uid"}, []string{"ecld"}, []string{"eid"}))
 				return er
 			},
@@ -1022,7 +1022,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"only match mail",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore([]string{"uid"})
 				er.Include(er.Mails([]string{"uid"}, []string{"mfld"}, []string{"mid"}))
 				return er
 			},
@@ -1032,7 +1032,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"exclude contact",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				er.Exclude(er.Contacts([]string{"uid"}, []string{"cfld"}, []string{"cid"}))
 				return er
@@ -1043,7 +1043,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"exclude event",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				er.Exclude(er.Events([]string{"uid"}, []string{"ecld"}, []string{"eid"}))
 				return er
@@ -1054,7 +1054,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			"exclude mail",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				er.Exclude(er.Mails([]string{"uid"}, []string{"mfld"}, []string{"mid"}))
 				return er
@@ -1071,7 +1071,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				return ds
 			}(),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				er.Filter(er.MailSubject("subj"))
 				return er
@@ -1092,7 +1092,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				return ds
 			}(),
 			func() *ExchangeRestore {
-				er := NewExchangeRestore()
+				er := NewExchangeRestore(Any())
 				er.Include(er.Users(Any()))
 				er.Filter(er.MailSubject("subj"))
 				return er
@@ -1115,7 +1115,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 
 func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 	var (
-		es       = NewExchangeRestore()
+		es       = NewExchangeRestore(Any())
 		users    = es.Users(Any())
 		contacts = es.ContactFolders(Any(), Any())
 		events   = es.Events(Any(), Any(), Any())
@@ -1178,7 +1178,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 	)
 
 	var (
-		es        = NewExchangeRestore()
+		es        = NewExchangeRestore(Any()) // TODO: move into test and compose with each test value
 		anyUser   = setScopesToDefault(es.Users(Any()))
 		noUser    = setScopesToDefault(es.Users(None()))
 		mail      = setScopesToDefault(es.Mails(Any(), Any(), []string{mid}))
@@ -1229,7 +1229,7 @@ func (suite *ExchangeSelectorSuite) TestContains() {
 	target := "fnords"
 
 	var (
-		es                  = NewExchangeRestore()
+		es                  = NewExchangeRestore(Any()) // TODO: move into test and compose with each test value
 		anyUser             = setScopesToDefault(es.Users(Any()))
 		noMail              = setScopesToDefault(es.Mails(None(), None(), None()))
 		does                = setScopesToDefault(es.Mails(Any(), Any(), []string{target}))
@@ -1266,7 +1266,7 @@ func (suite *ExchangeSelectorSuite) TestContains() {
 
 func (suite *ExchangeSelectorSuite) TestIsAny() {
 	var (
-		es           = NewExchangeRestore()
+		es           = NewExchangeRestore(Any()) // TODO: move into test and compose with each test value
 		anyUser      = setScopesToDefault(es.Users(Any()))
 		noUser       = setScopesToDefault(es.Users(None()))
 		specificMail = setScopesToDefault(es.Mails(Any(), Any(), []string{"email"}))
