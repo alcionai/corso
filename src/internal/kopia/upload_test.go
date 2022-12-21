@@ -25,8 +25,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makePath(t *testing.T, elements []string) path.Path {
-	p, err := path.FromDataLayerPath(stdpath.Join(elements...), false)
+func makePath(t *testing.T, elements []string, isItem bool) path.Path {
+	p, err := path.FromDataLayerPath(stdpath.Join(elements...), isItem)
 	require.NoError(t, err)
 
 	return p
@@ -552,6 +552,7 @@ func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
 	suite.testPath = makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 }
 
@@ -572,7 +573,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	user2 := "user2"
 	user2Encoded := encodeAsPath(user2)
 
-	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir})
+	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir}, false)
 
 	// Encode user names here so we don't have to decode things later.
 	expectedFileCount := map[string]int{
@@ -644,7 +645,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 	subdir := "subfolder"
 
-	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir))
+	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir), false)
 
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
@@ -739,6 +740,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 	p2 := makePath(
 		suite.T(),
 		[]string{"tenant2", service, "user2", category, testInboxDir},
+		false,
 	)
 
 	table := []struct {
@@ -820,6 +822,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	dirPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
@@ -981,11 +984,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	inboxPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 
 	personalPath := makePath(
 		suite.T(),
 		append(inboxPath.Elements(), personalDir),
+		false,
 	)
 	personalFileName1 := testFileName
 	personalFileName2 := testFileName2
@@ -993,6 +998,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	workPath := makePath(
 		suite.T(),
 		append(inboxPath.Elements(), workDir),
+		false,
 	)
 	workFileName := testFileName3
 
@@ -1063,6 +1069,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+					false,
 				)
 
 				mc := mockconnector.NewMockExchangeCollection(newPath, 0)
@@ -1115,10 +1122,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newInboxPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+					false,
 				)
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 0)
@@ -1175,6 +1184,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 0)
@@ -1250,6 +1260,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, personalDir},
+					false,
 				)
 
 				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 0)
@@ -1303,6 +1314,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 2)
@@ -1568,6 +1580,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	inboxPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 
 	inboxFileName1 := testFileName
