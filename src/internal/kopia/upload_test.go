@@ -460,7 +460,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	}
 }
 
-func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
+func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 	t := suite.T()
 	// Order of folders in hierarchy from root to leaf (excluding the item).
 	expectedFolderOrder := suite.targetFilePath.ToBuilder().Dir().Elements()
@@ -471,6 +471,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
+		toMerge:        map[string]path.Path{},
 	}
 
 	deets := &itemDetails{info: &details.ItemInfo{}, repoPath: suite.targetFilePath}
@@ -478,6 +479,8 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 	require.Len(t, cp.pending, 1)
 
 	cp.FinishedFile(suite.targetFileName, nil)
+
+	assert.Empty(t, cp.toMerge)
 
 	// Gather information about the current state.
 	var (
@@ -519,6 +522,42 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 	assert.Nil(t, curRef)
 	require.NotNil(t, rootRef)
 	assert.Empty(t, rootRef.ParentRef)
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarchy() {
+	t := suite.T()
+
+	prevPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir, testFileName2},
+		true,
+	)
+
+	expectedToMerge := map[string]path.Path{
+		prevPath.ShortRef(): suite.targetFilePath,
+	}
+
+	// Setup stuff.
+	bd := &details.Builder{}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
+		toMerge:        map[string]path.Path{},
+	}
+
+	deets := &itemDetails{
+		info:     nil,
+		repoPath: suite.targetFilePath,
+		prevPath: prevPath,
+	}
+	cp.put(suite.targetFileName, deets)
+	require.Len(t, cp.pending, 1)
+
+	cp.FinishedFile(suite.targetFileName, nil)
+
+	assert.Equal(t, expectedToMerge, cp.toMerge)
+	assert.Empty(t, cp.deets)
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
