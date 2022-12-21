@@ -70,6 +70,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	}
 
 	readItems := []data.Stream{}
+
 	for item := range col.Items() {
 		readItems = append(readItems, item)
 	}

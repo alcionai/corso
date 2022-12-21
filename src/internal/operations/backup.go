@@ -283,15 +283,8 @@ func selectorToOwnersCats(sel selectors.Selector) *kopia.OwnersCats {
 		ServiceCats:    map[string]kopia.ServiceCat{},
 	}
 
-	ros, err := sel.ResourceOwners()
-	if err != nil {
-		return &kopia.OwnersCats{}
-	}
-
-	for _, sl := range [][]string{ros.Includes, ros.Filters} {
-		for _, ro := range sl {
-			oc.ResourceOwners[ro] = struct{}{}
-		}
+	for _, ro := range sel.DiscreteResourceOwners() {
+		oc.ResourceOwners[ro] = struct{}{}
 	}
 
 	pcs, err := sel.PathCategories()

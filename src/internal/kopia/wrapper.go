@@ -131,12 +131,12 @@ func (w Wrapper) BackupCollections(
 	defer end()
 
 	if len(collections) == 0 {
-		return &BackupStats{}, &details.Details{}, nil
+		return &BackupStats{}, (&details.Builder{}).Details(), nil
 	}
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
-		deets:   &details.Details{},
+		deets:   &details.Builder{},
 	}
 
 	// TODO(ashmrtn): Pass previousSnapshots here to enable building the directory
@@ -158,7 +158,7 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, err
 	}
 
-	return s, progress.deets, nil
+	return s, progress.deets.Details(), nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(

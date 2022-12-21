@@ -81,6 +81,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	suite.m365UserID = tester.M365UserID(t)
+	users := []string{suite.m365UserID}
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
@@ -90,22 +91,22 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 	for _, set := range backupDataSets {
 		var (
-			sel    = selectors.NewExchangeBackup()
+			sel    = selectors.NewExchangeBackup(users)
 			scopes []selectors.ExchangeScope
 		)
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
+			scopes = sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
 
 		case contacts:
 			scopes = sel.ContactFolders(
-				[]string{suite.m365UserID},
+				users,
 				[]string{exchange.DefaultContactFolder},
 				selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
+			scopes = sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)

@@ -435,7 +435,7 @@ var finishedFileTable = []struct {
 func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	for _, test := range finishedFileTable {
 		suite.T().Run(test.name, func(t *testing.T) {
-			bd := &details.Details{}
+			bd := &details.Builder{}
 			cp := corsoProgress{
 				UploadProgress: &snapshotfs.NullUploadProgress{},
 				deets:          bd,
@@ -455,7 +455,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 			}
 
 			assert.Empty(t, cp.pending)
-			assert.Len(t, bd.Entries, test.expectedNumEntries)
+			assert.Len(t, bd.Details().Entries, test.expectedNumEntries)
 		})
 	}
 }
@@ -466,7 +466,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 	expectedFolderOrder := suite.targetFilePath.ToBuilder().Dir().Elements()
 
 	// Setup stuff.
-	bd := &details.Details{}
+	bd := &details.Builder{}
 	cp := corsoProgress{
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
@@ -485,8 +485,10 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 		refToEntry = map[string]*details.DetailsEntry{}
 	)
 
-	for i := 0; i < len(bd.Entries); i++ {
-		e := &bd.Entries[i]
+	entries := bd.Details().Entries
+
+	for i := 0; i < len(entries); i++ {
+		e := &entries[i]
 		if e.Folder == nil {
 			continue
 		}
@@ -522,7 +524,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 	for _, test := range finishedFileTable {
 		suite.T().Run(test.name, func(t *testing.T) {
-			bd := &details.Details{}
+			bd := &details.Builder{}
 			cp := corsoProgress{
 				UploadProgress: &snapshotfs.NullUploadProgress{},
 				deets:          bd,

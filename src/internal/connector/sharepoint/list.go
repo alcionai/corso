@@ -11,65 +11,52 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
-// list.go contains additional functions to help retrieve SharePoint List data from M365
-// SharePoint lists represent lists on a site. Inherits additional properties from
-// baseItem: https://learn.microsoft.com/en-us/graph/api/resources/baseitem?view=graph-rest-1.0
-// The full details concerning SharePoint Lists can
-// be found at: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
-// Note additional calls are required for the relationships that exist outside of the object properties.
+type listTuple struct {
+	name string
+	id   string
+}
 
-// loadLists is a utility function to populate the List object.
-// @param siteID the M365 ID that represents the SharePoint Site
-// Makes additional calls to retrieve the following relationships:
-// - Columns
-// - ContentTypes
-// - List Items
-func loadLists(
+func preFetchListOptions() *mssite.ItemListsRequestBuilderGetRequestConfiguration {
+	selecting := []string{"id", "displayName"}
+	queryOptions := mssite.ItemListsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mssite.ItemListsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &queryOptions,
+	}
+
+	return options
+}
+
+func preFetchLists(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID string,
-) ([]models.Listable, error) {
+) ([]listTuple, error) {
 	var (
-		prefix  = gs.Client().SitesById(siteID)
-		builder = prefix.Lists()
-		results = make([]models.Listable, 0)
-		errs    error
+		builder    = gs.Client().SitesById(siteID).Lists()
+		options    = preFetchListOptions()
+		listTuples = make([]listTuple, 0)
+		errs       error
 	)
 
 	for {
-		resp, err := builder.Get(ctx, nil)
+		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
 		}
 
 		for _, entry := range resp.GetValue() {
-			id := *entry.GetId()
+			temp := listTuple{id: *entry.GetId()}
 
-			cols, err := fetchColumns(ctx, gs, siteID, id, "")
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
+			name := entry.GetDisplayName()
+			if name != nil {
+				temp.name = *name
+			} else {
+				temp.name = *entry.GetId()
 			}
 
-			entry.SetColumns(cols)
-
-			cTypes, err := fetchContentTypes(ctx, gs, siteID, id)
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
-			}
-
-			entry.SetContentTypes(cTypes)
-
-			lItems, err := fetchListItems(ctx, gs, siteID, id)
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
-			}
-
-			entry.SetItems(lItems)
-
-			results = append(results, entry)
+			listTuples = append(listTuples, temp)
 		}
 
 		if resp.GetOdataNextLink() == nil {
@@ -79,11 +66,99 @@ func loadLists(
 		builder = mssite.NewItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
+	return listTuples, nil
+}
+
+// list.go contains additional functions to help retrieve SharePoint List data from M365
+// SharePoint lists represent lists on a site. Inherits additional properties from
+// baseItem: https://learn.microsoft.com/en-us/graph/api/resources/baseitem?view=graph-rest-1.0
+// The full details concerning SharePoint Lists can
+// be found at: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
+// Note additional calls are required for the relationships that exist outside of the object properties.
+
+// loadSiteLists is a utility function to populate a collection of SharePoint.List
+// objects associated with a given siteID.
+// @param siteID the M365 ID that represents the SharePoint Site
+// Makes additional calls to retrieve the following relationships:
+// - Columns
+// - ContentTypes
+// - List Items
+func loadSiteLists(
+	ctx context.Context,
+	gs graph.Servicer,
+	siteID string,
+	listIDs []string,
+) ([]models.Listable, error) {
+	var (
+		results = make([]models.Listable, 0)
+		errs    error
+	)
+
+	for _, listID := range listIDs {
+		entry, err := gs.Client().SitesById(siteID).ListsById(listID).Get(ctx, nil)
+		if err != nil {
+			errs = support.WrapAndAppend(
+				listID,
+				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+				errs,
+			)
+		}
+
+		cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, listID)
+		if err == nil {
+			entry.SetColumns(cols)
+			entry.SetContentTypes(cTypes)
+			entry.SetItems(lItems)
+		} else {
+			errs = support.WrapAndAppend("unable to fetchRelationships during loadSiteLists", err, errs)
+			continue
+		}
+
+		results = append(results, entry)
+	}
+
 	if errs != nil {
 		return nil, errs
 	}
 
 	return results, nil
+}
+
+// fetchListContents utility function to retrieve associated M365 relationships
+// which are not included with the standard List query:
+// - Columns, ContentTypes, ListItems
+func fetchListContents(
+	ctx context.Context,
+	service graph.Servicer,
+	siteID, listID string,
+) (
+	[]models.ColumnDefinitionable,
+	[]models.ContentTypeable,
+	[]models.ListItemable,
+	error,
+) {
+	var errs error
+
+	cols, err := fetchColumns(ctx, service, siteID, listID, "")
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	cTypes, err := fetchContentTypes(ctx, service, siteID, listID)
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	lItems, err := fetchListItems(ctx, service, siteID, listID)
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	if errs != nil {
+		return nil, nil, nil, errs
+	}
+
+	return cols, cTypes, lItems, nil
 }
 
 // fetchListItems utility for retrieving ListItem data and the associated relationship

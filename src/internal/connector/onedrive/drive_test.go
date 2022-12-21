@@ -145,7 +145,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			service := loadTestService(t)
 			scope := selectors.
-				NewOneDriveBackup().
+				NewOneDriveBackup([]string{test.user}).
 				Users([]string{test.user})[0]
 			odcs, err := NewCollections(
 				creds.AzureTenantID,

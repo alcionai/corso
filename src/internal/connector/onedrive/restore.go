@@ -53,7 +53,7 @@ func RestoreCollections(
 	service graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
-	deets *details.Details,
+	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
@@ -95,7 +95,7 @@ func RestoreCollection(
 	dc data.Collection,
 	source driveSource,
 	restoreContainerName string,
-	deets *details.Details,
+	deets *details.Builder,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))

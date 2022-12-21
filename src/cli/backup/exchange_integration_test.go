@@ -283,24 +283,26 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 
 	suite.backupOps = make(map[path.CategoryType]string)
 
+	users := []string{suite.m365UserID}
+
 	for _, set := range backupDataSets {
 		var (
-			sel    = selectors.NewExchangeBackup()
+			sel    = selectors.NewExchangeBackup(users)
 			scopes []selectors.ExchangeScope
 		)
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{suite.m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
+			scopes = sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
 
 		case contacts:
 			scopes = sel.ContactFolders(
-				[]string{suite.m365UserID},
+				users,
 				[]string{exchange.DefaultContactFolder},
 				selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars([]string{suite.m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
+			scopes = sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)
@@ -515,10 +517,11 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	m365UserID := tester.M365UserID(t)
+	users := []string{m365UserID}
 
 	// some tests require an existing backup
-	sel := selectors.NewExchangeBackup()
-	sel.Include(sel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+	sel := selectors.NewExchangeBackup(users)
+	sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

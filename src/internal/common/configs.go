@@ -1,5 +1,7 @@
 package common
 
+import "golang.org/x/exp/maps"
+
 type StringConfigurer interface {
 	StringConfig() (map[string]string, error)
 }
@@ -15,9 +17,7 @@ func UnionStringConfigs(cfgs ...StringConfigurer) (map[string]string, error) {
 			return nil, err
 		}
 
-		for k, v := range c {
-			union[k] = v
-		}
+		maps.Copy(union, c)
 	}
 
 	return union, nil

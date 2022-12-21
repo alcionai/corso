@@ -90,7 +90,7 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewOneDriveRestore()
+			sel := selectors.NewOneDriveRestore(nil)
 			// no return, mutates sel as a side effect
 			utils.IncludeOneDriveRestoreDataSelectors(sel, test.opts)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
