@@ -410,5 +410,4 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 			assert.Equal(t, test.expectedFolderInfo, *got)
 		})
 	}
-
 }
