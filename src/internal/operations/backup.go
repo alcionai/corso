@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"time"
@@ -165,14 +164,14 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	singleCollection := cs[0]
 	for stream := range singleCollection.Items() {
 		readData, err := io.ReadAll(stream.ToReader())
-		fmt.Println("Items Called Error: " + err.Error())
+		logger.Ctx(ctx).Debug("Items Called Error: " + err.Error())
 		temp := string(readData)
 		writer.WriteStringValue("", &temp)
 		break
 	}
 	byteArray, err := writer.GetSerializedContent()
 	logger.Ctx(ctx).Debug("Error Received during serialization: " + err.Error())
-	fmt.Println("JSon to string")
+	logger.Ctx(ctx).Debug("JSon to string")
 	logger.Ctx(ctx).Debugf("Value %v\n", string(byteArray))
 
 	os.Exit(1)
