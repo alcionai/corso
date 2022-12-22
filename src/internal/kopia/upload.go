@@ -526,10 +526,6 @@ func inflateCollectionTree(
 	// Temporary variable just to track the things that have been marked as
 	// changed while keeping a reference to their path.
 	changedPaths := []path.Path{}
-	ownerCats := &OwnersCats{
-		ResourceOwners: make(map[string]struct{}),
-		ServiceCats:    make(map[string]ServiceCat),
-	}
 
 	for _, s := range collections {
 		switch s.State() {
@@ -571,10 +567,6 @@ func inflateCollectionTree(
 				s.FullPath(),
 			)
 		}
-
-		serviceCat := serviceCatTag(s.FullPath())
-		ownerCats.ServiceCats[serviceCat] = ServiceCat{}
-		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
