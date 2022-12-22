@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type FolderEntry struct {
@@ -143,26 +145,9 @@ func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
 		}
 
 		// Update the folder's size and modified time
-		var (
-			itemSize     int64
-			itemModified time.Time
-		)
+		itemModified := itemInfo.modified()
 
-		switch {
-		case itemInfo.Exchange != nil:
-			itemSize = itemInfo.Exchange.Size
-			itemModified = itemInfo.Exchange.Modified
-
-		case itemInfo.OneDrive != nil:
-			itemSize = itemInfo.OneDrive.Size
-			itemModified = itemInfo.OneDrive.Modified
-
-		case itemInfo.SharePoint != nil:
-			itemSize = itemInfo.SharePoint.Size
-			itemModified = itemInfo.SharePoint.Modified
-		}
-
-		folder.Info.Folder.Size += itemSize
+		folder.Info.Folder.Size += itemInfo.size()
 
 		if folder.Info.Folder.Modified.Before(itemModified) {
 			folder.Info.Folder.Modified = itemModified
@@ -297,6 +282,20 @@ const (
 	FolderItem ItemType = iota + 300
 )
 
+func UpdateItem(item *ItemInfo, newPath path.Path) error {
+	// Only OneDrive and SharePoint have information about parent folders
+	// contained in them.
+	switch item.infoType() {
+	case SharePointItem:
+		return item.SharePoint.UpdateParentPath(newPath)
+
+	case OneDriveItem:
+		return item.OneDrive.UpdateParentPath(newPath)
+	}
+
+	return nil
+}
+
 // ItemInfo is a oneOf that contains service specific
 // information about the item it tracks
 type ItemInfo struct {
@@ -328,6 +327,42 @@ func (i ItemInfo) infoType() ItemType {
 	}
 
 	return UnknownType
+}
+
+func (i ItemInfo) size() int64 {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.Size
+
+	case i.OneDrive != nil:
+		return i.OneDrive.Size
+
+	case i.SharePoint != nil:
+		return i.SharePoint.Size
+
+	case i.Folder != nil:
+		return i.Folder.Size
+	}
+
+	return 0
+}
+
+func (i ItemInfo) modified() time.Time {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.Modified
+
+	case i.OneDrive != nil:
+		return i.OneDrive.Modified
+
+	case i.SharePoint != nil:
+		return i.SharePoint.Modified
+
+	case i.Folder != nil:
+		return i.Folder.Modified
+	}
+
+	return time.Time{}
 }
 
 type FolderInfo struct {
@@ -435,6 +470,17 @@ func (i SharePointInfo) Values() []string {
 	}
 }
 
+func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
+	newParent, err := path.GetDriveFolderPath(newPath)
+	if err != nil {
+		return errors.Wrapf(err, "making sharepoint path from %s", newPath)
+	}
+
+	i.ParentPath = newParent
+
+	return nil
+}
+
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
 	Created    time.Time `json:"created,omitempty"`
@@ -463,4 +509,15 @@ func (i OneDriveInfo) Values() []string {
 		common.FormatTabularDisplayTime(i.Created),
 		common.FormatTabularDisplayTime(i.Modified),
 	}
+}
+
+func (i *OneDriveInfo) UpdateParentPath(newPath path.Path) error {
+	newParent, err := path.GetDriveFolderPath(newPath)
+	if err != nil {
+		return errors.Wrapf(err, "making drive path from %s", newPath)
+	}
+
+	i.ParentPath = newParent
+
+	return nil
 }

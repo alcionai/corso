@@ -77,8 +77,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 		tester.TestCfgStorageProvider: "S3",
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
-	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
+	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	suite.m365UserID = tester.M365UserID(t)
 	users := []string{suite.m365UserID}
