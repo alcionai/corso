@@ -899,6 +899,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
 	)
+	dirPath2 := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testArchiveDir},
+	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
 	// can only return its Reader once.
@@ -1014,6 +1018,85 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 								name:     testFileName,
 								children: []*expectedNode{},
 								data:     testFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "DeleteAndNew",
+			inputCollections: func() []data.Collection {
+				mc1 := mockconnector.NewMockExchangeCollection(dirPath, 0)
+				mc1.ColState = data.DeletedState
+				mc1.PrevPath = dirPath
+
+				mc2 := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc2.ColState = data.NewState
+				mc2.Names[0] = testFileName2
+				mc2.Data[0] = testFileData2
+
+				return []data.Collection{mc1, mc2}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName2,
+								children: []*expectedNode{},
+								data:     testFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "MovedAndNew",
+			inputCollections: func() []data.Collection {
+				mc1 := mockconnector.NewMockExchangeCollection(dirPath2, 0)
+				mc1.ColState = data.MovedState
+				mc1.PrevPath = dirPath
+
+				mc2 := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc2.ColState = data.NewState
+				mc2.Names[0] = testFileName2
+				mc2.Data[0] = testFileData2
+
+				return []data.Collection{mc1, mc2}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName2,
+								children: []*expectedNode{},
+								data:     testFileData2,
+							},
+						},
+					},
+					{
+						name: testArchiveDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName,
+								children: []*expectedNode{},
 							},
 						},
 					},
