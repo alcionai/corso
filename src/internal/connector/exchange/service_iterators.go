@@ -360,11 +360,9 @@ func FetchContactIDsFromDirectory(
 		Contacts().
 		Delta()
 
-	// TODO(rkeepers): Awaiting full integration of incremental support, else this
-	// will cause unexpected behavior/errors.
-	// if len(oldDelta) > 0 {
-	// 	builder = msuser.NewUsersItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
-	// }
+	if len(oldDelta) > 0 {
+		builder = msuser.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
+	}
 
 	for {
 		resp, err := builder.Get(ctx, options)
@@ -434,11 +432,9 @@ func FetchMessageIDsFromDirectory(
 		Messages().
 		Delta()
 
-	// TODO(rkeepers): Awaiting full integration of incremental support, else this
-	// will cause unexpected behavior/errors.
-	// if len(oldDelta) > 0 {
-	// 	builder = msuser.NewUsersItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
-	// }
+	if len(oldDelta) > 0 {
+		builder = msuser.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
+	}
 
 	for {
 		resp, err := builder.Get(ctx, options)
