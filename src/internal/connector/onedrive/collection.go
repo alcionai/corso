@@ -4,7 +4,6 @@ package onedrive
 import (
 	"context"
 	"io"
-	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -156,19 +155,6 @@ func (od *Item) Info() details.ItemInfo {
 //	return od.info.Modified
 //}
 
-// isTimeoutErr is used to determine if the Graph error returned is
-// because of Timeout. This is used to restrict retries to just
-// timeouts as other errors are handled within a middleware in the
-// client.
-func isTimeoutErr(err error) bool {
-	switch err := err.(type) {
-	case *url.Error:
-		return err.Timeout()
-	default:
-		return false
-	}
-}
-
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
@@ -228,11 +214,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			for i := 1; i <= maxRetries; i++ {
 				itemInfo, itemData, err = oc.itemReader(ctx, item)
 
-				// We only retry if it is a timeout error. Other
-				// errors like throttling are already handled within
-				// the graph client via a retry middleware.
-				// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
-				if err == nil || !isTimeoutErr(err) {
+				// retry on Timeout type errors, break otherwise.
+				if err == nil || graph.IsErrTimeout(err) == nil {
 					break
 				}
 
