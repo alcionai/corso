@@ -30,6 +30,10 @@ func (mc mockColl) State() CollectionState {
 	return NewState
 }
 
+func (mc mockColl) DoNotMergeItems() bool {
+	return false
+}
+
 type CollectionSuite struct {
 	suite.Suite
 }
