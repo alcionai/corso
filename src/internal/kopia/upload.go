@@ -183,25 +183,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		*d.info,
 	)
 
-	folders := []details.FolderEntry{}
-
-	for len(parent.Elements()) > 0 {
-		nextParent := parent.Dir()
-
-		folders = append(folders, details.FolderEntry{
-			RepoRef:   parent.String(),
-			ShortRef:  parent.ShortRef(),
-			ParentRef: nextParent.ShortRef(),
-			Info: details.ItemInfo{
-				Folder: &details.FolderInfo{
-					DisplayName: parent.Elements()[len(parent.Elements())-1],
-				},
-			},
-		})
-
-		parent = nextParent
-	}
-
+	folders := details.FolderEntriesForPath(parent)
 	cp.deets.AddFoldersForItem(folders, *d.info)
 }
 
