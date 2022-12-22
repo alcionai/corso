@@ -265,7 +265,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			stats, deets, err := suite.w.BackupCollections(
+			stats, deets, _, err := suite.w.BackupCollections(
 				suite.ctx,
 				prevSnaps,
 				collections,
@@ -346,7 +346,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	fp2, err := suite.testPath2.Append(dc2.Names[0], true)
 	require.NoError(t, err)
 
-	stats, _, err := w.BackupCollections(
+	stats, _, _, err := w.BackupCollections(
 		ctx,
 		nil,
 		[]data.Collection{dc1, dc2},
@@ -428,7 +428,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
-	stats, deets, err := suite.w.BackupCollections(
+	stats, deets, _, err := suite.w.BackupCollections(
 		suite.ctx,
 		nil,
 		collections,
@@ -473,7 +473,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			s, d, err := suite.w.BackupCollections(
+			s, d, _, err := suite.w.BackupCollections(
 				ctx,
 				nil,
 				test.collections,
@@ -634,7 +634,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		},
 	}
 
-	stats, deets, err := suite.w.BackupCollections(
+	stats, deets, _, err := suite.w.BackupCollections(
 		suite.ctx,
 		nil,
 		collections,
