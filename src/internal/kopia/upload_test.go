@@ -816,6 +816,84 @@ func mockIncrementalBase(
 	}
 }
 
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
+	dirPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+	)
+	dirPath2 := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testArchiveDir},
+	)
+
+	table := []struct {
+		name   string
+		states []data.CollectionState
+	}{
+		{
+			name: "DeletedAndNotMoved",
+			states: []data.CollectionState{
+				data.NotMovedState,
+				data.DeletedState,
+			},
+		},
+		{
+			name: "NotMovedAndDeleted",
+			states: []data.CollectionState{
+				data.DeletedState,
+				data.NotMovedState,
+			},
+		},
+		{
+			name: "DeletedAndMoved",
+			states: []data.CollectionState{
+				data.DeletedState,
+				data.MovedState,
+			},
+		},
+		{
+			name: "NotMovedAndMoved",
+			states: []data.CollectionState{
+				data.NotMovedState,
+				data.MovedState,
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			tester.LogTimeOfTest(t)
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+
+			cols := []data.Collection{}
+			for _, s := range test.states {
+				prevPath := dirPath
+				nowPath := dirPath
+
+				switch s {
+				case data.DeletedState:
+					nowPath = nil
+				case data.MovedState:
+					nowPath = dirPath2
+				}
+
+				mc := mockconnector.NewMockExchangeCollection(nowPath, 0)
+				mc.ColState = s
+				mc.PrevPath = prevPath
+
+				cols = append(cols, mc)
+			}
+
+			_, err := inflateDirTree(ctx, nil, nil, cols, progress)
+			require.Error(t, err)
+		})
+	}
+}
+
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	dirPath := makePath(
 		suite.T(),
