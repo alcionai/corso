@@ -151,7 +151,8 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 			c := NewCollection(
 				"u",
 				test.curr, test.prev,
-				0, nil, nil, control.Options{})
+				0, nil, nil, control.Options{},
+				false)
 			assert.Equal(t, test.expect, c.State())
 		})
 	}
