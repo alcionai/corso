@@ -27,11 +27,9 @@ func getBackupAndDetailsFromID(
 		return nil, nil, errors.Wrap(err, "getting backup details ID")
 	}
 
-	deets, err := streamstore.New(
-		kw,
-		tenant,
-		service,
-	).ReadBackupDetails(ctx, dID)
+	deets, err := streamstore.
+		New(kw, tenant, service).
+		ReadBackupDetails(ctx, dID)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "getting backup details data")
 	}
