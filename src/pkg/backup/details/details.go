@@ -145,26 +145,9 @@ func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
 		}
 
 		// Update the folder's size and modified time
-		var (
-			itemSize     int64
-			itemModified time.Time
-		)
+		itemModified := itemInfo.modified()
 
-		switch {
-		case itemInfo.Exchange != nil:
-			itemSize = itemInfo.Exchange.Size
-			itemModified = itemInfo.Exchange.Modified
-
-		case itemInfo.OneDrive != nil:
-			itemSize = itemInfo.OneDrive.Size
-			itemModified = itemInfo.OneDrive.Modified
-
-		case itemInfo.SharePoint != nil:
-			itemSize = itemInfo.SharePoint.Size
-			itemModified = itemInfo.SharePoint.Modified
-		}
-
-		folder.Info.Folder.Size += itemSize
+		folder.Info.Folder.Size += itemInfo.size()
 
 		if folder.Info.Folder.Modified.Before(itemModified) {
 			folder.Info.Folder.Modified = itemModified
@@ -344,6 +327,42 @@ func (i ItemInfo) infoType() ItemType {
 	}
 
 	return UnknownType
+}
+
+func (i ItemInfo) size() int64 {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.Size
+
+	case i.OneDrive != nil:
+		return i.OneDrive.Size
+
+	case i.SharePoint != nil:
+		return i.SharePoint.Size
+
+	case i.Folder != nil:
+		return i.Folder.Size
+	}
+
+	return 0
+}
+
+func (i ItemInfo) modified() time.Time {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.Modified
+
+	case i.OneDrive != nil:
+		return i.OneDrive.Modified
+
+	case i.SharePoint != nil:
+		return i.SharePoint.Modified
+
+	case i.Folder != nil:
+		return i.Folder.Modified
+	}
+
+	return time.Time{}
 }
 
 type FolderInfo struct {
