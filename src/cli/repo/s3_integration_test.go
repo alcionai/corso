@@ -62,8 +62,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 			cfg, err := st.S3Config()
 			require.NoError(t, err)
 
-			vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-			require.NoError(t, err)
+			vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 			ctx = config.SetViper(ctx, vpr)
 
@@ -95,8 +94,7 @@ func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
@@ -125,8 +123,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
@@ -169,8 +166,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 				tester.TestCfgStorageProvider: "S3",
 				tester.TestCfgPrefix:          cfg.Prefix,
 			}
-			vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
-			require.NoError(t, err)
+			vpr, configFP := tester.MakeTempTestConfigClone(t, force)
 
 			ctx = config.SetViper(ctx, vpr)
 
@@ -203,8 +199,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
@@ -229,8 +224,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 

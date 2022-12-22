@@ -75,8 +75,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
 
-	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
+	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	ctx = config.SetViper(ctx, suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
@@ -159,8 +158,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 		tester.TestCfgStorageProvider: "S3",
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
-	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
+	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
