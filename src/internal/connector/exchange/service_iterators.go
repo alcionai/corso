@@ -94,6 +94,8 @@ func filterContainersAndFillCollections(
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
 				logger.Ctx(ctx).Error(err)
+				// if the previous path is unusable, then the delta must be, too.
+				prevDelta = ""
 			}
 		}
 
