@@ -57,6 +57,9 @@ type Collection struct {
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
 	ctrl          control.Options
+
+	// should only be true if the old delta token expired
+	doNotMergeItems bool
 }
 
 // itemReadFunc returns a reader for the specified item
@@ -121,6 +124,10 @@ func (oc Collection) PreviousPath() path.Path {
 // hierarchies.
 func (oc Collection) State() data.CollectionState {
 	return data.NewState
+}
+
+func (oc Collection) DoNotMergeItems() bool {
+	return oc.doNotMergeItems
 }
 
 // Item represents a single item retrieved from OneDrive

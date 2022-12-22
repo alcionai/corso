@@ -43,6 +43,10 @@ func (kdc kopiaDataCollection) State() data.CollectionState {
 	return data.NewState
 }
 
+func (kdc kopiaDataCollection) DoNotMergeItems() bool {
+	return false
+}
+
 type kopiaDataStream struct {
 	reader io.ReadCloser
 	uuid   string
