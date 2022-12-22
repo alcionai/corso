@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 // ---------------------------------------------------------------------------
