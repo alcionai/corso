@@ -368,7 +368,7 @@ func FetchContactIDsFromDirectory(
 		resetDelta bool
 	)
 
-	options, err := optionsForContactFoldersItemDelta([]string{"isRead"})
+	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
 		return nil, deltaUpdate{}, errors.Wrap(err, "getting query options")
 	}
