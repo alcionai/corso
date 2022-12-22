@@ -861,10 +861,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 	dirPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 	dirPath2 := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testArchiveDir},
+		false,
 	)
 
 	table := []struct {
@@ -944,6 +946,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	dirPath2 := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testArchiveDir},
+		false,
 	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
