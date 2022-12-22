@@ -170,9 +170,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		break
 	}
 	byteArray, err := writer.GetSerializedContent()
-	fmt.Println("Error Received during serialization: " + err.Error())
+	logger.Ctx(ctx).Debug("Error Received during serialization: " + err.Error())
 	fmt.Println("JSon to string")
-	fmt.Println(byteArray)
+	logger.Ctx(ctx).Debugf("Value %v\n", string(byteArray))
 
 	os.Exit(1)
 
