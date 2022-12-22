@@ -397,7 +397,7 @@ func streamBaseEntries(
 		return errors.Wrapf(
 			err,
 			"traversing items in base snapshot directory %q",
-			curPath.Item(),
+			curPath,
 		)
 	}
 
