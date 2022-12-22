@@ -97,13 +97,15 @@ func filterContainersAndFillCollections(
 
 		jobs, newDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
-			// race conditions happen, containers might get deleted while
-			// this process is in flight.  If it was deleted, we remake the
-			// tombstone, just to be sure it gets deleted from storage.
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 			} else {
-				tombstones[cID] = dp.path
+				// race conditions happen, containers might get deleted while
+				// this process is in flight.  If that happens, force the collection
+				// to reset which will prevent any old items from being retained in
+				// storage.  If the container (or its children) are sill missing
+				// on the next backup, they'll get tombstoned.
+				newDelta = deltaUpdate{reset: true}
 			}
 
 			continue
@@ -132,13 +134,10 @@ func filterContainersAndFillCollections(
 		currPaths[cID] = currPath.String()
 	}
 
-	// A tombstone is a collection path that needs to be marked for deletion.
-	// Tombstones can occur for a number of reasons: the delta token expired,
-	// the container was deleted in flight, or the user deleted the container
-	// between backup runs.  If events combine to both delete and write content
-	// to the same container (ex: container_1 gets deleted, then container_2
-	// gets created with the same name), it is assumed that the backup consumer
-	// processes deletions before creations, making the combined operation safe.
+	// A tombstone is a folder that needs to be marked for deletion.
+	// The only situation where a tombstone should appear is if the folder exists
+	// in the `previousPath` set, but does not exist in the current container
+	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
 		service, err := createService(qp.Credentials)
 		if err != nil {
