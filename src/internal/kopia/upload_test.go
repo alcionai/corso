@@ -1189,6 +1189,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		[]string{testTenant, service, testUser, category, testInboxDir},
 		false,
 	)
+	inboxFileName1 := testFileName4
+	inboxFileData1 := testFileData4
 
 	personalPath := makePath(
 		suite.T(),
@@ -1213,6 +1215,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//     - user1
 	//       - email
 	//         - Inbox
+	//           - file4
 	//           - personal
 	//             - file1
 	//             - file2
@@ -1230,6 +1233,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxDir)[0],
 					[]fs.Entry{
+						virtualfs.StreamingFileWithModTimeFromReader(
+							encodeElements(inboxFileName1)[0],
+							time.Time{},
+							bytes.NewReader(inboxFileData1),
+						),
 						virtualfs.NewStaticDirectory(
 							encodeElements(personalDir)[0],
 							[]fs.Entry{
@@ -1293,6 +1301,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir + "2",
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: personalDir,
 								children: []*expectedNode{
 									{
@@ -1354,6 +1366,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir + "2",
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: personalDir,
 								children: []*expectedNode{
@@ -1445,6 +1461,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir,
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: personalDir,
 								children: []*expectedNode{
 									{
@@ -1487,6 +1507,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir,
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: personalDir,
 								children: []*expectedNode{
@@ -1541,6 +1565,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir,
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: workDir,
 								children: []*expectedNode{
