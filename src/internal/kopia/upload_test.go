@@ -25,8 +25,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makePath(t *testing.T, elements []string) path.Path {
-	p, err := path.FromDataLayerPath(stdpath.Join(elements...), false)
+func makePath(t *testing.T, elements []string, isItem bool) path.Path {
+	p, err := path.FromDataLayerPath(stdpath.Join(elements...), isItem)
 	require.NoError(t, err)
 
 	return p
@@ -389,7 +389,7 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info:       &itemDetails{details.ItemInfo{}, fpath},
+					info:       &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
 					err:        nil,
 					totalBytes: 100,
 				},
@@ -416,7 +416,7 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info: &itemDetails{details.ItemInfo{}, fpath},
+					info: &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
 					err:  assert.AnError,
 				},
 			}
@@ -460,7 +460,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	}
 }
 
-func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
+func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 	t := suite.T()
 	// Order of folders in hierarchy from root to leaf (excluding the item).
 	expectedFolderOrder := suite.targetFilePath.ToBuilder().Dir().Elements()
@@ -471,13 +471,16 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
+		toMerge:        map[string]path.Path{},
 	}
 
-	deets := &itemDetails{details.ItemInfo{}, suite.targetFilePath}
+	deets := &itemDetails{info: &details.ItemInfo{}, repoPath: suite.targetFilePath}
 	cp.put(suite.targetFileName, deets)
 	require.Len(t, cp.pending, 1)
 
 	cp.FinishedFile(suite.targetFileName, nil)
+
+	assert.Empty(t, cp.toMerge)
 
 	// Gather information about the current state.
 	var (
@@ -521,6 +524,42 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 	assert.Empty(t, rootRef.ParentRef)
 }
 
+func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarchy() {
+	t := suite.T()
+
+	prevPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir, testFileName2},
+		true,
+	)
+
+	expectedToMerge := map[string]path.Path{
+		prevPath.ShortRef(): suite.targetFilePath,
+	}
+
+	// Setup stuff.
+	bd := &details.Builder{}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
+		toMerge:        map[string]path.Path{},
+	}
+
+	deets := &itemDetails{
+		info:     nil,
+		repoPath: suite.targetFilePath,
+		prevPath: prevPath,
+	}
+	cp.put(suite.targetFileName, deets)
+	require.Len(t, cp.pending, 1)
+
+	cp.FinishedFile(suite.targetFileName, nil)
+
+	assert.Equal(t, expectedToMerge, cp.toMerge)
+	assert.Empty(t, cp.deets)
+}
+
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 	for _, test := range finishedFileTable {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -552,6 +591,7 @@ func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
 	suite.testPath = makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 }
 
@@ -572,7 +612,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	user2 := "user2"
 	user2Encoded := encodeAsPath(user2)
 
-	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir})
+	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir}, false)
 
 	// Encode user names here so we don't have to decode things later.
 	expectedFileCount := map[string]int{
@@ -644,7 +684,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 	subdir := "subfolder"
 
-	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir))
+	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir), false)
 
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
@@ -739,6 +779,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 	p2 := makePath(
 		suite.T(),
 		[]string{"tenant2", service, "user2", category, testInboxDir},
+		false,
 	)
 
 	table := []struct {
@@ -820,10 +861,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 	dirPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 	dirPath2 := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testArchiveDir},
+		false,
 	)
 
 	table := []struct {
@@ -898,10 +941,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	dirPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 	dirPath2 := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testArchiveDir},
+		false,
 	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
@@ -1142,11 +1187,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	inboxPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 
 	personalPath := makePath(
 		suite.T(),
 		append(inboxPath.Elements(), personalDir),
+		false,
 	)
 	personalFileName1 := testFileName
 	personalFileName2 := testFileName2
@@ -1154,6 +1201,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	workPath := makePath(
 		suite.T(),
 		append(inboxPath.Elements(), workDir),
+		false,
 	)
 	workFileName := testFileName3
 
@@ -1224,6 +1272,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+					false,
 				)
 
 				mc := mockconnector.NewMockExchangeCollection(newPath, 0)
@@ -1276,10 +1325,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newInboxPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+					false,
 				)
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 0)
@@ -1336,6 +1387,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 0)
@@ -1411,6 +1463,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, personalDir},
+					false,
 				)
 
 				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 0)
@@ -1464,6 +1517,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 2)
@@ -1729,6 +1783,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	inboxPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 
 	inboxFileName1 := testFileName
