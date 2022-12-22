@@ -455,6 +455,29 @@ func newTreeMap() *treeMap {
 	}
 }
 
+// maybeGetTreeNode walks the tree(s) with roots roots and returns the node
+// specified by pathElements if all nodes on the path exist. If pathElements is
+// nil or empty then returns nil.
+func maybeGetTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
+	if len(pathElements) == 0 {
+		return nil
+	}
+
+	dir := roots[pathElements[0]]
+
+	for i := 1; i < len(pathElements); i++ {
+		if dir == nil {
+			return nil
+		}
+
+		p := pathElements[i]
+
+		dir = dir.childDirs[p]
+	}
+
+	return dir
+}
+
 // getTreeNode walks the tree(s) with roots roots and returns the node specified
 // by pathElements. If pathElements is nil or empty then returns nil. Tree nodes
 // are created for any path elements where a node is not already present.
@@ -500,6 +523,9 @@ func inflateCollectionTree(
 	// Allows resolving what the new path should be when walking the base
 	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
 	updatedPaths := make(map[string]path.Path)
+	// Temporary variable just to track the things that have been marked as
+	// changed while keeping a reference to their path.
+	changedPaths := []path.Path{}
 	ownerCats := &OwnersCats{
 		ResourceOwners: make(map[string]struct{}),
 		ServiceCats:    make(map[string]ServiceCat),
@@ -508,10 +534,29 @@ func inflateCollectionTree(
 	for _, s := range collections {
 		switch s.State() {
 		case data.DeletedState:
+			changedPaths = append(changedPaths, s.PreviousPath())
+
+			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
+				return nil, nil, errors.Errorf(
+					"multiple previous state changes to collection %s",
+					s.PreviousPath(),
+				)
+			}
+
 			updatedPaths[s.PreviousPath().String()] = nil
+
 			continue
 
 		case data.MovedState:
+			changedPaths = append(changedPaths, s.PreviousPath())
+
+			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
+				return nil, nil, errors.Errorf(
+					"multiple previous state changes to collection %s",
+					s.PreviousPath(),
+				)
+			}
+
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
 		}
 
@@ -531,7 +576,27 @@ func inflateCollectionTree(
 		ownerCats.ServiceCats[serviceCat] = ServiceCat{}
 		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
+		// Make sure we haven't moved and made a new instance of the collection at
+		// this path.
+		if node.collection != nil {
+			return nil, nil, errors.Errorf("multiple instances of collection at %s", s.FullPath())
+		}
+
 		node.collection = s
+	}
+
+	// Check that each previous path has only one of the states of deleted, moved,
+	// or notmoved. Check at the end to avoid issues like seeing a notmoved state
+	// collection and then a deleted state collection.
+	for _, p := range changedPaths {
+		node := maybeGetTreeNode(roots, p.Elements())
+		if node == nil {
+			continue
+		}
+
+		if node.collection != nil && node.collection.State() == data.NotMovedState {
+			return nil, nil, errors.Errorf("conflicting states for collection %s", p)
+		}
 	}
 
 	return roots, updatedPaths, nil
