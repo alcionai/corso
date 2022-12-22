@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ------------------------------------------------------------
@@ -408,6 +409,185 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 			got := deets.Entries[0].Folder
 
 			assert.Equal(t, test.expectedFolderInfo, *got)
+		})
+	}
+}
+
+func makeItemPath(
+	t *testing.T,
+	service path.ServiceType,
+	category path.CategoryType,
+	tenant, resourceOwner string,
+	elems []string,
+) path.Path {
+	t.Helper()
+
+	p, err := path.Builder{}.Append(elems...).
+		ToDataLayerPath(
+			tenant,
+			resourceOwner,
+			service,
+			category,
+			true,
+		)
+	require.NoError(t, err)
+
+	return p
+}
+
+func (suite *DetailsUnitSuite) TestUpdateItem() {
+	const (
+		tenant        = "a-tenant"
+		resourceOwner = "a-user"
+		driveID       = "abcd"
+		folder1       = "f1"
+		folder2       = "f2"
+		item          = "hello.txt"
+	)
+
+	// Making both OneDrive paths is alright because right now they're the same as
+	// SharePoint path and there's no extra validation.
+	newOneDrivePath := makeItemPath(
+		suite.T(),
+		path.OneDriveService,
+		path.FilesCategory,
+		tenant,
+		resourceOwner,
+		[]string{
+			"drives",
+			driveID,
+			"root:",
+			folder2,
+			item,
+		},
+	)
+	badOneDrivePath := makeItemPath(
+		suite.T(),
+		path.OneDriveService,
+		path.FilesCategory,
+		tenant,
+		resourceOwner,
+		[]string{item},
+	)
+
+	table := []struct {
+		name         string
+		input        details.ItemInfo
+		newPath      path.Path
+		errCheck     assert.ErrorAssertionFunc
+		expectedItem details.ItemInfo
+	}{
+		{
+			name: "ExchangeEventNoChange",
+			input: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					ItemType: details.ExchangeEvent,
+				},
+			},
+			errCheck: assert.NoError,
+			expectedItem: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					ItemType: details.ExchangeEvent,
+				},
+			},
+		},
+		{
+			name: "ExchangeContactNoChange",
+			input: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					ItemType: details.ExchangeContact,
+				},
+			},
+			errCheck: assert.NoError,
+			expectedItem: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					ItemType: details.ExchangeContact,
+				},
+			},
+		},
+		{
+			name: "ExchangeMailNoChange",
+			input: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					ItemType: details.ExchangeMail,
+				},
+			},
+			errCheck: assert.NoError,
+			expectedItem: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					ItemType: details.ExchangeMail,
+				},
+			},
+		},
+		{
+			name: "OneDrive",
+			input: details.ItemInfo{
+				OneDrive: &details.OneDriveInfo{
+					ItemType:   details.OneDriveItem,
+					ParentPath: folder1,
+				},
+			},
+			newPath:  newOneDrivePath,
+			errCheck: assert.NoError,
+			expectedItem: details.ItemInfo{
+				OneDrive: &details.OneDriveInfo{
+					ItemType:   details.OneDriveItem,
+					ParentPath: folder2,
+				},
+			},
+		},
+		{
+			name: "SharePoint",
+			input: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					ItemType:   details.SharePointItem,
+					ParentPath: folder1,
+				},
+			},
+			newPath:  newOneDrivePath,
+			errCheck: assert.NoError,
+			expectedItem: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					ItemType:   details.SharePointItem,
+					ParentPath: folder2,
+				},
+			},
+		},
+		{
+			name: "OneDriveBadPath",
+			input: details.ItemInfo{
+				OneDrive: &details.OneDriveInfo{
+					ItemType:   details.OneDriveItem,
+					ParentPath: folder1,
+				},
+			},
+			newPath:  badOneDrivePath,
+			errCheck: assert.Error,
+		},
+		{
+			name: "SharePointBadPath",
+			input: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					ItemType:   details.SharePointItem,
+					ParentPath: folder1,
+				},
+			},
+			newPath:  badOneDrivePath,
+			errCheck: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			item := test.input
+			err := details.UpdateItem(&item, test.newPath)
+			test.errCheck(t, err)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expectedItem, item)
 		})
 	}
 }
