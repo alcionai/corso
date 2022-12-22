@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type CollectionUnitTestSuite struct {
@@ -102,7 +103,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "tenant", "owner", test.source)
 			require.NoError(t, err)
-			driveFolderPath, err := getDriveFolderPath(folderPath)
+			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
 			require.NoError(t, err)
 
 			coll := NewCollection(

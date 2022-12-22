@@ -59,6 +59,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	selUsers := []string{suite.user}
+
 	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
@@ -67,8 +69,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		{
 			name: suite.user + " Email",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{suite.user}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel := selectors.NewExchangeBackup(selUsers)
+				sel.Include(sel.MailFolders(selUsers, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
 				return sel.Selector
 			},
@@ -76,9 +78,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		{
 			name: suite.user + " Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup()
+				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.ContactFolders(
-					[]string{suite.user},
+					selUsers,
 					[]string{exchange.DefaultContactFolder},
 					selectors.PrefixMatch()))
 
@@ -88,9 +90,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		// {
 		// 	name: suite.user + " Events",
 		// 	getSelector: func(t *testing.T) selectors.Selector {
-		// 		sel := selectors.NewExchangeBackup()
+		// 		sel := selectors.NewExchangeBackup(selUsers)
 		// 		sel.Include(sel.EventCalendars(
-		// 			[]string{suite.user},
+		// 			selUsers,
 		// 			[]string{exchange.DefaultCalendar},
 		// 			selectors.PrefixMatch(),
 		// 		))
@@ -142,6 +144,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 	defer flush()
 
 	invalidUser := "foo@example.com"
+	selUsers := []string{invalidUser}
+
 	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
@@ -150,16 +154,16 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 		{
 			name: "invalid exchange backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup()
-				sel.Include(sel.MailFolders([]string{invalidUser}, selectors.Any()))
+				sel := selectors.NewExchangeBackup(selUsers)
+				sel.Include(sel.MailFolders(selUsers, selectors.Any()))
 				return sel.Selector
 			},
 		},
 		{
 			name: "Invalid onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup()
-				sel.Include(sel.Folders([]string{invalidUser}, selectors.Any()))
+				sel := selectors.NewOneDriveBackup(selUsers)
+				sel.Include(sel.Folders(selUsers, selectors.Any()))
 				return sel.Selector
 			},
 		},
@@ -181,6 +185,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	selSites := []string{suite.site}
+
 	connector := loadConnector(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
@@ -188,11 +194,10 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		getSelector func() selectors.Selector
 	}{
 		{
-			name:     "Libraries",
-			expected: 1,
+			name: "Libraries",
 			getSelector: func() selectors.Selector {
-				sel := selectors.NewSharePointBackup()
-				sel.Include(sel.Libraries([]string{suite.site}, selectors.Any()))
+				sel := selectors.NewSharePointBackup(selSites)
+				sel.Include(sel.Libraries(selSites, selectors.Any()))
 
 				return sel.Selector
 			},
@@ -201,8 +206,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			name:     "Lists",
 			expected: 0,
 			getSelector: func() selectors.Selector {
-				sel := selectors.NewSharePointBackup()
-				sel.Include(sel.Lists([]string{suite.site}, selectors.Any()))
+				sel := selectors.NewSharePointBackup(selSites)
+				sel.Include(sel.Lists(selSites, selectors.Any()))
 
 				return sel.Selector
 			},
@@ -214,7 +219,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			collections, err := sharepoint.DataCollections(
 				ctx,
 				test.getSelector(),
-				[]string{suite.site},
+				selSites,
 				connector.credentials.AzureTenantID,
 				connector.Service,
 				connector,
@@ -283,9 +288,10 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	defer flush()
 
 	var (
-		t      = suite.T()
-		siteID = tester.M365SiteID(t)
-		gc     = loadConnector(ctx, t, Sites)
+		t       = suite.T()
+		siteID  = tester.M365SiteID(t)
+		gc      = loadConnector(ctx, t, Sites)
+		siteIDs = []string{siteID}
 	)
 
 	tables := []struct {
@@ -297,9 +303,9 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			name:       "SharePoint.Libraries",
 			comparator: assert.Equal,
 			sel: func() selectors.Selector {
-				sel := selectors.NewSharePointBackup()
+				sel := selectors.NewSharePointBackup(siteIDs)
 				sel.Include(sel.Libraries(
-					[]string{siteID},
+					siteIDs,
 					[]string{"foo"},
 					selectors.PrefixMatch(),
 				))
@@ -311,9 +317,9 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			name:       "SharePoint.Lists",
 			comparator: assert.Less,
 			sel: func() selectors.Selector {
-				sel := selectors.NewSharePointBackup()
+				sel := selectors.NewSharePointBackup(siteIDs)
 				sel.Include(sel.Lists(
-					[]string{siteID},
+					siteIDs,
 					selectors.Any(),
 					selectors.PrefixMatch(), // without this option a SEG Fault occurs
 				))

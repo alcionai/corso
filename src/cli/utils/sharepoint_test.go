@@ -126,7 +126,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewSharePointRestore()
+			sel := selectors.NewSharePointRestore(nil)
 			// no return, mutates sel as a side effect
 			t.Logf("Options sent: %v\n", test.opts)
 			utils.IncludeSharePointRestoreDataSelectors(sel, test.opts)
