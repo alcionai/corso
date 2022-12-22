@@ -117,14 +117,6 @@ func filterContainersAndFillCollections(
 			deltaURLs[cID] = newDelta.url
 		}
 
-		if newDelta.reset {
-			// the previous delta was invalid or otherwise unusable.
-			// We need to mark the collection as New, and tombstone
-			// the path to clear out any data for a clean refresh.
-			prevPath = nil
-			tombstones[currPath.String()] = struct{}{}
-		}
-
 		edc := NewCollection(
 			qp.ResourceOwner,
 			currPath,
@@ -133,6 +125,7 @@ func filterContainersAndFillCollections(
 			service,
 			statusUpdater,
 			ctrlOpts,
+			newDelta.reset,
 		)
 
 		collections[cID] = &edc
@@ -171,6 +164,7 @@ func filterContainersAndFillCollections(
 			service,
 			statusUpdater,
 			ctrlOpts,
+			false,
 		)
 		collections[p] = &edc
 	}

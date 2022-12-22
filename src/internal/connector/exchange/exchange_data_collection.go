@@ -87,18 +87,20 @@ func NewCollection(
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
+	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		user:           user,
-		data:           make(chan data.Stream, collectionChannelBufferSize),
-		jobs:           make([]string, 0),
-		service:        service,
-		statusUpdater:  statusUpdater,
-		fullPath:       curr,
-		prevPath:       prev,
-		collectionType: collectionType,
-		ctrl:           ctrlOpts,
-		state:          stateOf(prev, curr),
+		collectionType:  collectionType,
+		ctrl:            ctrlOpts,
+		data:            make(chan data.Stream, collectionChannelBufferSize),
+		doNotMergeItems: doNotMergeItems,
+		fullPath:        curr,
+		jobs:            make([]string, 0),
+		prevPath:        prev,
+		service:         service,
+		state:           stateOf(prev, curr),
+		statusUpdater:   statusUpdater,
+		user:            user,
 	}
 
 	return collection
