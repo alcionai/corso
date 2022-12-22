@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Folder entries in backup details now include size and modified time for the hierarchy (#1896)
+
 ### Changed
 
 - **Breaking Change**:

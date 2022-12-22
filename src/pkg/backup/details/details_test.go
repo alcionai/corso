@@ -341,7 +341,6 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 
 func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 	itemTime := time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
-	folderTimeOlderThanItem := time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
 
 	table := []struct {
 		name               string
@@ -395,9 +394,7 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 				ShortRef:  "sr1",
 				ParentRef: "pr1",
 				Info: details.ItemInfo{
-					Folder: &details.FolderInfo{
-						Modified: folderTimeOlderThanItem,
-					},
+					Folder: &details.FolderInfo{},
 				},
 			}
 
